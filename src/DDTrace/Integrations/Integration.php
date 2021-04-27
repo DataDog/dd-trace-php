@@ -2,10 +2,9 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
+use DDTrace\SpanData;
 use DDTrace\Tag;
-use DDTrace\GlobalTracer;
 
 abstract class Integration
 {
@@ -17,37 +16,86 @@ abstract class Integration
     const LOADED = 1;
     const NOT_AVAILABLE = 2;
 
-    const CLASS_NAME = '';
-
     /**
      * @var DefaultIntegrationConfiguration|mixed
      */
     protected $configuration;
 
     /**
+     * Load the integration
+     *
+     * @return int
+     */
+    abstract public function init();
+
+    /**
      * @return string The integration name.
      */
     abstract public function getName();
 
-    public function __construct()
+    final public function __construct()
     {
-        $this->configuration = $this->buildConfiguration();
+        $this->configuration = new DefaultIntegrationConfiguration(
+            $this->getName(),
+            $this->requiresExplicitTraceAnalyticsEnabling()
+        );
+    }
+
+    public function addTraceAnalyticsIfEnabled(SpanData $span)
+    {
+        if (!$this->configuration->isTraceAnalyticsEnabled()) {
+            return;
+        }
+        $span->metrics[Tag::ANALYTICS_KEY] = $this->configuration->getTraceAnalyticsSampleRate();
     }
 
     /**
-     * @return bool
+     * Root spans still uses the legacy userland API. This method has to be removed once we move to internal span
+     * representation also for the root span.
+     *
+     * @param Span $span
+     * @return void
      */
-    public function isTraceAnalyticsEnabled()
+    public function addTraceAnalyticsIfEnabledLegacy(Span $span)
     {
-        return $this->configuration->isTraceAnalyticsEnabled();
+        if (!$this->configuration->isTraceAnalyticsEnabled()) {
+            return;
+        }
+        $span->setMetric(Tag::ANALYTICS_KEY, $this->configuration->getTraceAnalyticsSampleRate());
     }
 
     /**
-     * @return float
+     * Sets common error tags for an exception.
+     *
+     * @param SpanData $span
+     * @param \Exception $exception
      */
-    public function getTraceAnalyticsSampleRate()
+    public function setError(SpanData $span, \Exception $exception)
     {
-        return $this->configuration->getTraceAnalyticsSampleRate();
+        $span->meta[Tag::ERROR_MSG] = $exception->getMessage();
+        $span->meta[Tag::ERROR_TYPE] = get_class($exception);
+        $span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
+    }
+
+    /**
+     * Merge an associative array of span metadata into a span.
+     *
+     * @param SpanData $span
+     * @param array $meta
+     */
+    public function mergeMeta(SpanData $span, $meta)
+    {
+        foreach ($meta as $tagName => $value) {
+            $span->meta[$tagName] = $value;
+        }
+    }
+
+    /**
+     * @return DefaultIntegrationConfiguration|mixed
+     */
+    protected function getConfiguration()
+    {
+        return $this->configuration;
     }
 
     /**
@@ -62,126 +110,31 @@ abstract class Integration
     }
 
     /**
-     * Build the integration's configuration object. Override to provide your own implementation.
-     *
-     * @return DefaultIntegrationConfiguration|mixed
-     */
-    protected function buildConfiguration()
-    {
-        return new DefaultIntegrationConfiguration($this->getName(), $this->requiresExplicitTraceAnalyticsEnabling());
-    }
-
-    /**
-     * @return DefaultIntegrationConfiguration|mixed
-     */
-    protected function getConfiguration()
-    {
-        return $this->configuration;
-    }
-
-    public static function load()
-    {
-        // See comment on the commented out abstract function definition.
-        static::loadIntegration();
-        return self::LOADED;
-    }
-
-    /**
-     * Each integration's implementation of this method will include
-     * all the methods to trace by calling the traceMethod() for each
-     * method that should be traced.
-     *
-     * @return void
-     */
-    // The abstract method definition is disabled because of PHP throwing the error:
-    // ErrorException: Static function DDTrace\Integrations\Integration::loadIntegration() should not be abstract
-    // We should refactor this piece of code using interfaces.
-    //
-    // abstract protected static function loadIntegration();
-
-    /**
-     * @param string $method
-     * @param \Closure|null $preCallHook
-     * @param \Closure|null $postCallHook
-     * @param Integration|null $integration
-     */
-    protected static function traceMethod(
-        $method,
-        \Closure $preCallHook = null,
-        \Closure $postCallHook = null,
-        Integration $integration = null
-    ) {
-        $className = static::CLASS_NAME;
-        $integrationClass = get_called_class();
-        dd_trace($className, $method, function () use (
-            $className,
-            $integrationClass,
-            $method,
-            $preCallHook,
-            $postCallHook,
-            $integration
-        ) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
-            }
-
-            $scope = $tracer->startActiveSpan($className . '.' . $method);
-            $span = $scope->getSpan();
-
-            if (null !== $integration) {
-                $span->setIntegration($integration);
-            }
-
-            $integrationClass::setDefaultTags($span, $method);
-            if (null !== $preCallHook) {
-                $preCallHook($span, func_get_args());
-            }
-
-            $returnVal = null;
-            $thrownException = null;
-            try {
-                $returnVal = dd_trace_forward_call();
-            } catch (\Exception $e) {
-                $span->setError($e);
-                $thrownException = $e;
-            }
-            if (null !== $postCallHook) {
-                $postCallHook($span, $returnVal);
-            }
-            $scope->close();
-            if (null !== $thrownException) {
-                throw $thrownException;
-            }
-            return $returnVal;
-        });
-    }
-
-    /**
-     * @param Span $span
-     * @param string $method
-     */
-    public static function setDefaultTags(Span $span, $method)
-    {
-        $span->setTag(Tag::RESOURCE_NAME, $method);
-    }
-
-    /**
-     * Tells whether or not the provided application should be loaded.
+     * Tells whether or not the provided integration should be loaded.
      *
      * @param string $name
      * @return bool
      */
-    protected static function shouldLoad($name)
+    public static function shouldLoad($name)
     {
-        if (!Configuration::get()->isIntegrationEnabled($name)) {
-            return false;
-        }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load integration.', \E_USER_WARNING);
             return false;
         }
 
-        return true;
+        return \ddtrace_config_integration_enabled($name);
+    }
+}
+
+function load_deferred_integration($integrationName)
+{
+    // it should have already been loaded (in current architecture)
+    if (
+        \class_exists($integrationName, $autoload = false)
+        && \is_subclass_of($integrationName, 'DDTrace\\Integrations\\Integration')
+    ) {
+        /** @var Integration $integration */
+        $integration = new $integrationName();
+        $integration->init();
     }
 }

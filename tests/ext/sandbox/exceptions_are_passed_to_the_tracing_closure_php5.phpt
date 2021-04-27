@@ -1,7 +1,6 @@
 --TEST--
 Exceptions from original call are passed to tracing closure (PHP 5)
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 <?php if (PHP_VERSION_ID >= 70000) die('skip PHP 7 tested in separate test'); ?>
 --FILE--
 <?php
@@ -28,12 +27,12 @@ function testExceptionIsPassed()
     throw new Exception('Oops!');
 }
 
-dd_trace_function('testExceptionIsNull', function (SpanData $span, array $args, $retval, $ex) {
+DDTrace\trace_function('testExceptionIsNull', function (SpanData $span, array $args, $retval, $ex) {
     $span->name = 'TestNull';
     var_dump($ex === null);
 });
 
-dd_trace_function('testExceptionIsPassed', function (SpanData $span, array $args, $retval, $ex) {
+DDTrace\trace_function('testExceptionIsPassed', function (SpanData $span, array $args, $retval, $ex) {
     $span->name = 'TestEx';
     var_dump($ex instanceof Exception);
 });

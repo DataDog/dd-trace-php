@@ -1,0 +1,27 @@
+version: "3.6"
+
+services:
+
+  phpredis3:
+    depends_on:
+      - nginx_file_server
+      - redis
+    environment:
+      - REDIS_HOST=redis
+    image: datadog/dd-trace-ci:php-framework-phpredis-3
+    build:
+      context: contrib
+      target: phpredis
+      args:
+        - PHPREDIS_VERSION_TAG=3.1.6
+    ulimits:
+      core: 99999999999
+    cap_add:
+      - SYS_PTRACE
+
+  redis:
+    image: datadog/dd-trace-ci:php-redis-5.0
+
+  nginx_file_server:
+    build: nginx_file_server
+    expose: ["80"]

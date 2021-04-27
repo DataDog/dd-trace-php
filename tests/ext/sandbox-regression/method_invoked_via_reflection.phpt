@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Method invoked via reflection correctly returns created object
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 class Test {
@@ -19,7 +17,7 @@ class Test {
     }
 }
 
-dd_trace_method("Test", "__construct", function () {
+DDTrace\trace_method("Test", "__construct", function () {
     echo "HOOK CONSTRUCT" . $this->append . PHP_EOL;
 });
 

@@ -1,0 +1,17 @@
+version: '3.7'
+
+services:
+
+  base:
+    image: datadog/dd-trace-ci:alpine
+    build:
+      context: .
+
+  php-8.0:
+    image: datadog/dd-trace-ci:php-8.0_alpine
+    build:
+      context: ./php-8.0
+      args:
+        phpVersion: 8.0
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.0.tar.gz
+        phpSha256Hash: 3ed7b48d64357d3e8fa9e828dbe7416228f84105b8290c2f9779cd66be31ea71

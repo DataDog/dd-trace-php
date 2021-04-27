@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+set -ex
+
+apk add --no-cache \
+    autoconf \
+    bash \
+    g++ \
+    gcc \
+    libexecinfo-dev \
+    make \
+
+make all CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror" ECHO_ARG="-e"
+
+mkdir -p extensions
+
+cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-${PHP_API}-alpine.so

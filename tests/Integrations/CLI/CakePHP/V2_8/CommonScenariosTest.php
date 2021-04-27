@@ -3,9 +3,9 @@
 namespace DDTrace\Tests\Integrations\CLI\CakePHP\V2_8;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Integrations\CLI\CLITestCase;
+use DDTrace\Tests\Common\CLITestCase;
 
-final class CommonScenariosTest extends CLITestCase
+class CommonScenariosTest extends CLITestCase
 {
     protected function getScriptLocation()
     {
@@ -15,7 +15,7 @@ final class CommonScenariosTest extends CLITestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_SERVICE_NAME' => 'cake_console_test_app',
+            'DD_SERVICE' => 'cake_console_test_app',
         ]);
     }
 
@@ -29,9 +29,7 @@ final class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console'
-            )->withExactTags([
-                'integration.name' => 'cakephp',
-            ])
+            )
         ]);
     }
 
@@ -45,9 +43,7 @@ final class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console command_list'
-            )->withExactTags([
-                'integration.name' => 'cakephp',
-            ])
+            )
         ]);
     }
 
@@ -66,9 +62,7 @@ final class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console foo_error'
-            )->withExactTags([
-                'integration.name' => 'cakephp',
-            ])->withExistingTagsNames([
+            )->withExistingTagsNames([
                 'error.msg',
                 'error.stack'
             ])->setError()

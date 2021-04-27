@@ -31,3 +31,8 @@ block_comment_end = */
 
 [*Makefile]
 indent_style = tab
+
+[CMakeLists.txt]
+indent_size = 2
+block_comment_start = #[[
+block_comment_end = #]]

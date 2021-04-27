@@ -1,14 +1,12 @@
 --TEST--
 [Sandbox regression] Trace a function and method before it is defined
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
-dd_trace_method("Test", "m", function($span, array $args, $retval) {
+DDTrace\trace_method("Test", "m", function($span, array $args, $retval) {
     echo 'HOOK ' . $retval;
 });
 
-dd_trace_function("fun", function($span, array $args, $retval) {
+DDTrace\trace_function("fun", function($span, array $args, $retval) {
     echo 'HOOK ' . $retval;
 });
 

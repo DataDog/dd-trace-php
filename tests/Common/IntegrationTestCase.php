@@ -3,45 +3,51 @@
 namespace DDTrace\Tests\Common;
 
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Util\Versions;
-use PHPUnit\Framework\TestCase;
 
 /**
  * A basic class to be extended when testing integrations.
  */
-abstract class IntegrationTestCase extends TestCase
+abstract class IntegrationTestCase extends BaseTestCase
 {
     use TracerTestTrait;
     use SpanAssertionTrait;
 
-    const IS_SANDBOX = false;
+    private $errorReportingBefore;
 
-    public static function setUpBeforeClass()
+    public static function ddSetUpBeforeClass()
     {
-        parent::setUpBeforeClass();
-        if (!static::isSandboxed()) {
-            putenv('DD_TRACE_SANDBOX_ENABLED=false');
-        }
+        parent::ddSetUpBeforeClass();
         IntegrationsLoader::reload();
     }
 
-    public static function tearDownAfterClass()
+    public static function ddTearDownAfterClass()
     {
-        parent::tearDownAfterClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED');
+        parent::ddTearDownAfterClass();
+        \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
-    protected static function isSandboxed()
+    protected function ddSetUp()
     {
-        return static::IS_SANDBOX === true;
+        $this->errorReportingBefore = error_reporting();
+        parent::ddSetUp();
     }
 
-    protected function setUp()
+    protected function ddTearDown()
     {
-        parent::setUp();
-        if (Versions::phpVersionMatches('5.4') && self::isSandboxed()) {
-            $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4.');
+        error_reporting($this->errorReportingBefore);
+        if (PHPUNIT_MAJOR <= 5) {
+            \PHPUnit_Framework_Error_Warning::$enabled = true;
         }
+        \dd_trace_internal_fn('ddtrace_reload_config');
+        parent::ddTearDown();
+    }
+
+    protected function disableTranslateWarningsIntoErrors()
+    {
+        if (PHPUNIT_MAJOR <= 5) {
+            \PHPUnit_Framework_Error_Warning::$enabled = false;
+        }
+        error_reporting(E_ERROR | E_PARSE);
     }
 
     /**
@@ -49,12 +55,10 @@ abstract class IntegrationTestCase extends TestCase
      *
      * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
-     * @param bool $isSandbox
      */
-    public function assertSpans($traces, $expectedSpans, $isSandbox = null)
+    public function assertSpans($traces, $expectedSpans)
     {
-        $isSandbox = null === $isSandbox ? self::isSandboxed() : $isSandbox;
-        $this->assertExpectedSpans($traces, $expectedSpans, $isSandbox);
+        $this->assertExpectedSpans($traces, $expectedSpans);
     }
 
     /**

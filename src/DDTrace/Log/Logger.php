@@ -2,8 +2,6 @@
 
 namespace DDTrace\Log;
 
-use DDTrace\Configuration;
-
 /**
  * A global logger holder. Can be configured to use a specific logger. If not configured, it returns a NullLogger.
  */
@@ -32,8 +30,7 @@ final class Logger
     public static function get()
     {
         if (self::$logger === null) {
-            $config = Configuration::get();
-            self::$logger = $config->isDebugModeEnabled()
+            self::$logger = \ddtrace_config_debug_enabled()
                 ? new ErrorLogLogger(LogLevel::DEBUG)
                 : new NullLogger(LogLevel::EMERGENCY);
         }

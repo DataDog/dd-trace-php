@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+set -e
+
+COMPOSER_WARMUP=~/.dd-trace-php-composer-warmup
+
+function usage {
+    echo "Usage:"
+    echo "  ./composer-cache cache"
+    echo "  ./composer-cache link-cache"
+    echo "  ./composer-cache unlink-cache"
+    echo
+}
+
+# If command (arg 1) is not provided, let's print the usage message and exit with an error code.
+if [[ ! $1 ]]
+then
+    usage
+    exit 1
+fi
+
+# Cache all the composer.lock files and vendor folders for future quick reuse
+cache() {
+    echo "Ensuring clean warmup dir '${COMPOSER_WARMUP}' exists (it might take a while)."
+    rm -rf ${COMPOSER_WARMUP}
+    mkdir -p ${COMPOSER_WARMUP}
+
+    for composer_json in $(find tests/Frameworks/ -name composer.json | grep -v "/vendor" | grep -v "CakePHP")
+    do
+        DIRNAME=$(dirname "${composer_json}")
+        echo "Updating composer @ $DIRNAME"
+        # If for some reason on some PHP version composer update don't work then we just skip caching it
+        update_success=1
+        COMPOSER_MEMORY_LIMIT=-1 php -n $(which composer) --working-dir="$DIRNAME" update || update_success=0
+        if [[ $update_success == '0' ]]; then
+            echo "Error updating composer (nothing will be cached) @ $DIRNAME"
+            continue;
+        fi
+        echo "Done updating composer @ $DIRNAME"
+        COMPOSER_WARMUP_APP_DIR="${COMPOSER_WARMUP}/${DIRNAME}"
+        echo "Ensure clean warmup folder: ${COMPOSER_WARMUP_APP_DIR}"
+        rm -rf "${COMPOSER_WARMUP_APP_DIR}/composer.lock"
+        rm -rf "${COMPOSER_WARMUP_APP_DIR}/vendor"
+        mkdir -p "${COMPOSER_WARMUP_APP_DIR}"
+        echo "Caching lock file ${DIRNAME}/composer.lock"
+        cp "${DIRNAME}/composer.lock" "${COMPOSER_WARMUP_APP_DIR}/composer.lock"
+        echo "Caching vendor dir ${DIRNAME}/vendor"
+        cp -r "${DIRNAME}/vendor" "${COMPOSER_WARMUP_APP_DIR}/vendor"
+        echo "---"
+    done
+}
+
+# Link all the composer.lock files and vendor folders to the previous location
+link-cache() {
+    for composer_lock in $(find ${COMPOSER_WARMUP}/tests/Frameworks/ -name composer.lock | grep -v "/vendor")
+    do
+        echo $composer_lock
+        DIRNAME=$(dirname "${composer_lock}")
+        echo "Found cached dir @ $DIRNAME"
+        RELATIVE_PATH=${DIRNAME#"$COMPOSER_WARMUP/"}
+        echo "Extracted relative path @ $RELATIVE_PATH"
+        echo "Linking vendor folder ${RELATIVE_PATH}/vendor"
+        ln -f -s "${COMPOSER_WARMUP}/${RELATIVE_PATH}/vendor" "${RELATIVE_PATH}/vendor"
+        echo "Linking lock file ${RELATIVE_PATH}/composer.lock"
+        ln -f -s "${COMPOSER_WARMUP}/${RELATIVE_PATH}/composer.lock" "${RELATIVE_PATH}/composer.lock"
+    done
+}
+
+# Unlink all the composer.lock files and vendor folders to the previous location
+unlink-cache() {
+    echo "Identifying links to remove in 'tests/Frameworks/' (it might take a while)."
+    for composer_lock in $(find tests/Frameworks -name composer.lock -type l | grep -v "/vendor" | grep -v "CakePHP")
+    do
+        DIRNAME=$(dirname "${composer_lock}")
+        echo "Unlinking folder ${DIRNAME}/vendor"
+        rm -rf "${DIRNAME}/vendor"
+        echo "Unlinking file ${DIRNAME}/composer.lock"
+        rm -rf "${DIRNAME}/composer.lock"
+        echo "---"
+    done
+    echo "Done"
+}
+
+while [[ "$1" != "" ]]; do
+    case $1 in
+        cache )                 cache
+                                ;;
+        link-cache )            link-cache
+                                ;;
+        unlink-cache )          unlink-cache
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done

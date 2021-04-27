@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-final class CommonScenariosTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
@@ -32,7 +32,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -51,7 +51,14 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'laravel',
+                    ])->withChildren([
+                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple')
+                            ->withExactTags([
+                            ]),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        ),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -61,19 +68,34 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'App\Http\Controllers\CommonSpecsController@simple_view unnamed_route'
                     )->withExactTags([
+                        'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'laravel',
-                    ])->withExistingTagsNames(['laravel.route.name']),
-                    SpanAssertion::build(
-                        'laravel.view',
-                        'laravel_test_app',
-                        'web',
-                        'laravel.view'
-                    )->withExactTags([
-                        'integration.name' => 'laravel',
+                    ])->withChildren([
+                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
+                            ->withExactTags([
+                            ]),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        ),
+                        SpanAssertion::build(
+                            'laravel.view.render',
+                            'laravel_test_app',
+                            'web',
+                            'simple_view'
+                        )->withExactTags([
+                        ])->withChildren([
+                            SpanAssertion::build(
+                                'laravel.view',
+                                'laravel_test_app',
+                                'web',
+                                '*/resources/views/simple_view.blade.php'
+                            )->withExactTags([
+                            ]),
+                        ]),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -83,13 +105,18 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'App\Http\Controllers\CommonSpecsController@error unnamed_route'
                     )->withExactTags([
-                        'laravel.route.name' => '',
+                        'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                        'integration.name' => 'laravel',
-                    ])->setError(),
+                    ])->setError()->withChildren([
+                        SpanAssertion::exists('laravel.action'),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        ),
+                    ]),
                 ],
             ]
         );

@@ -1,0 +1,18 @@
+version: "3.6"
+
+services:
+  php:
+    image: "datadog/dd-trace-ci:php-nginx-apache2"
+    volumes:
+      - ../..:/root/datadog
+      - ../../package:/src/ddtrace-scripts
+    ports:
+      # nginx
+      - "8056:8056"
+      - "8070:8070"
+      - "8071:8071"
+      - "8072:8072"
+      - "8073:8073"
+      - "8074:8074"
+      # Apache2
+      - "8173:8173"

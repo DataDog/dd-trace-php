@@ -2,7 +2,6 @@
 
 namespace DDTrace;
 
-use DDTrace\Integrations\Integration;
 use DDTrace\Data\Span as DataSpan;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\SpanContext as SpanContext;
@@ -19,6 +18,7 @@ final class Span extends DataSpan
     private static $specialTags = [
         Tag::ANALYTICS_KEY => true,
         Tag::ERROR => true,
+        Tag::ERROR_MSG => true,
         Tag::SERVICE_NAME => true,
         Tag::RESOURCE_NAME => true,
         Tag::SPAN_TYPE => true,
@@ -26,6 +26,7 @@ final class Span extends DataSpan
         Tag::HTTP_STATUS_CODE => true,
         Tag::MANUAL_KEEP => true,
         Tag::MANUAL_DROP => true,
+        Tag::SERVICE_VERSION => true,
     ];
 
     /**
@@ -46,7 +47,7 @@ final class Span extends DataSpan
         $this->context = $context;
         $this->operationName = (string)$operationName;
         $this->service = (string)$service;
-        $this->resource = (string)$resource;
+        $this->resource = null === $resource ? null : (string)$resource;
         $this->startTime = $startTime ?: Time::now();
     }
 
@@ -145,6 +146,12 @@ final class Span extends DataSpan
                 return;
             }
 
+            if ($key === Tag::ERROR_MSG) {
+                $this->tags[$key] = (string)$value;
+                $this->setError(true);
+                return;
+            }
+
             if ($key === Tag::SERVICE_NAME) {
                 $this->service = $value;
                 return;
@@ -179,6 +186,11 @@ final class Span extends DataSpan
                 if (!isset($this->tags[Tag::ERROR_TYPE])) {
                     $this->tags[Tag::ERROR_TYPE] = 'Internal Server Error';
                 }
+            }
+
+            if ($key === Tag::SERVICE_VERSION) {
+                // Also set `version` tag (we want both)
+                $this->setTag(Tag::VERSION, $value);
             }
 
             if (array_key_exists($key, self::$metricNames)) {
@@ -258,10 +270,6 @@ final class Span extends DataSpan
      */
     public function setError($error)
     {
-        if ($this->duration !== null) { // if finished
-            return;
-        }
-
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
             $this->tags[Tag::ERROR_MSG] = $error->getMessage();
@@ -288,10 +296,6 @@ final class Span extends DataSpan
      */
     public function setRawError($message, $type)
     {
-        if ($this->duration !== null) { // if finished
-            return;
-        }
-
         $this->hasError = true;
         $this->tags[Tag::ERROR_MSG] = $message;
         $this->tags[Tag::ERROR_TYPE] = $type;
@@ -361,7 +365,14 @@ final class Span extends DataSpan
             } elseif ($key === Tag::LOG_ERROR || $key === Tag::LOG_ERROR_OBJECT) {
                 $this->setError($value);
             } elseif ($key === Tag::LOG_MESSAGE) {
-                $this->setTag(Tag::ERROR_MSG, $value);
+                // We recently changed our span behavior: when we set an error message, we now mark the span as 'error'.
+                // In order to be backward compatible with this publicly exposed method we manually set the message,
+                // and not the errror, internally.
+                // This should be considered a broken behavior because it would not allow for users to log multiple
+                // messages, and logging multiple messages is not prohibited by the OpenTracing spec:
+                // https://opentracing.io/docs/overview/tags-logs-baggage/#logs
+                // We want to deprecate this behavior and change it. In the meantime we apply this workaround.
+                $this->tags[Tag::ERROR_MSG] = (string)$value;
             } elseif ($key === Tag::LOG_STACK) {
                 $this->setTag(Tag::ERROR_STACK, $value);
             }
@@ -390,26 +401,6 @@ final class Span extends DataSpan
     public function getAllBaggageItems()
     {
         return $this->context->baggageItems;
-    }
-
-    /**
-     * {@inheritdoc}
-     *
-     * @param Integration $integration
-     * @return self
-     */
-    public function setIntegration(Integration $integration)
-    {
-        $this->integration = $integration;
-        return $this;
-    }
-
-    /**
-     * @return null|Integration
-     */
-    public function getIntegration()
-    {
-        return $this->integration;
     }
 
     /**

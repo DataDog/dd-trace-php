@@ -41,57 +41,56 @@ final class CodeTracer
         Integration $integration = null,
         $isTraceAnalyticsCandidate = false
     ) {
-        dd_trace($className, $method, function () use (
-            $className,
-            $method,
-            $limitedTracerCallHook,
-            $preCallHook,
-            $postCallHook,
-            $integration,
-            $isTraceAnalyticsCandidate
-        ) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                if ($limitedTracerCallHook) {
-                    $limitedTracerCallHook(func_get_args());
+        dd_trace($className, $method, [
+            'instrument_when_limited' => $limitedTracerCallHook ? 1 : 0,
+            'innerhook' => function () use (
+                $className,
+                $method,
+                $limitedTracerCallHook,
+                $preCallHook,
+                $postCallHook,
+                $integration,
+                $isTraceAnalyticsCandidate
+            ) {
+                $tracer = GlobalTracer::get();
+                if ($tracer->limited()) {
+                    if ($limitedTracerCallHook) {
+                        $limitedTracerCallHook(func_get_args());
+                    }
+
+                    return dd_trace_forward_call();
                 }
 
-                return dd_trace_forward_call();
-            }
+                $args = func_get_args();
+                $scope = $tracer->startActiveSpan($className . '.' . $method);
 
-            $args = func_get_args();
-            $scope = $tracer->startActiveSpan($className . '.' . $method);
+                $span = $scope->getSpan();
 
-            $span = $scope->getSpan();
+                if ($integration && $isTraceAnalyticsCandidate) {
+                    $integration->addTraceAnalyticsIfEnabledLegacy($span);
+                }
 
-            if ($integration) {
-                $span->setIntegration($integration);
-            }
+                if (null !== $preCallHook) {
+                    $preCallHook($span, $args);
+                }
 
-            if ($isTraceAnalyticsCandidate) {
-                $span->setTraceAnalyticsCandidate();
+                $returnVal = null;
+                $thrownException = null;
+                try {
+                    $returnVal = dd_trace_forward_call();
+                } catch (\Exception $e) {
+                    $span->setError($e);
+                    $thrownException = $e;
+                }
+                if (null !== $postCallHook) {
+                    $postCallHook($span, $returnVal);
+                }
+                $scope->close();
+                if (null !== $thrownException) {
+                    throw $thrownException;
+                }
+                return $returnVal;
             }
-
-            if (null !== $preCallHook) {
-                $preCallHook($span, $args);
-            }
-
-            $returnVal = null;
-            $thrownException = null;
-            try {
-                $returnVal = dd_trace_forward_call();
-            } catch (\Exception $e) {
-                $span->setError($e);
-                $thrownException = $e;
-            }
-            if (null !== $postCallHook) {
-                $postCallHook($span, $returnVal);
-            }
-            $scope->close();
-            if (null !== $thrownException) {
-                throw $thrownException;
-            }
-            return $returnVal;
-        });
+        ]);
     }
 }

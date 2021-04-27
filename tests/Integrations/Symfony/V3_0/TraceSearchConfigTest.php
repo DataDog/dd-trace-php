@@ -6,11 +6,11 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-final class TraceSearchConfigTest extends WebFrameworkTestCase
+class TraceSearchConfigTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_0/web/app.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_0/web/index.php';
     }
 
     protected static function getEnvs()
@@ -30,7 +30,7 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('Testing trace analytics config metric', '/simple'));
         });
 
-        $this->assertExpectedSpans(
+        $this->assertFlameGraph(
             $traces,
             [
                 SpanAssertion::build(
@@ -38,25 +38,33 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                     'symfony',
                     'web',
                     'simple'
-                )
-                    ->withExactTags([
-                        'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleAction',
-                        'symfony.route.name' => 'simple',
-                        'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
-                        'integration.name' => 'symfony',
-                    ])
-                    ->withExactMetrics([
-                        '_dd1.sr.eausr' => 0.3,
-                        '_sampling_priority_v1' => 1,
+                )->withExactTags([
+                    'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleAction',
+                    'symfony.route.name' => 'simple',
+                    'http.method' => 'GET',
+                    'http.url' => 'http://localhost:9999/simple',
+                    'http.status_code' => '200',
+                ])->withExactMetrics([
+                    '_dd1.sr.eausr' => 0.3,
+                    '_sampling_priority_v1' => 1,
+                ])->withChildren([
+                    SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
+                        SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
+                        SpanAssertion::exists('symfony.kernel.handle')->withChildren([
+                            SpanAssertion::exists('symfony.kernel.request'),
+                            SpanAssertion::exists('symfony.kernel.controller'),
+                            SpanAssertion::build(
+                                'symfony.controller',
+                                'symfony',
+                                'web',
+                                'AppBundle\Controller\CommonScenariosController::simpleAction'
+                            )->skipIf(\PHP_MAJOR_VERSION !== 5), // call_user_func_array
+                            SpanAssertion::exists('symfony.kernel.response'),
+                            SpanAssertion::exists('symfony.kernel.finish_request'),
+                        ]),
                     ]),
-                SpanAssertion::exists('symfony.kernel.handle'),
-                SpanAssertion::exists('symfony.kernel.request'),
-                SpanAssertion::exists('symfony.kernel.controller'),
-                SpanAssertion::exists('symfony.kernel.response'),
-                SpanAssertion::exists('symfony.kernel.finish_request'),
-                SpanAssertion::exists('symfony.kernel.terminate'),
+                    SpanAssertion::exists('symfony.kernel.terminate'),
+                ]),
             ]
         );
     }

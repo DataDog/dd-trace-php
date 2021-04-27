@@ -1,0 +1,30 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+function my_app()
+{
+    static $runCount = 0;
+    echo 'Run #' . ($runCount++) . PHP_EOL;
+
+    $ch = curl_init('http://httpbin_integration/status/200');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_exec($ch);
+    curl_close($ch);
+
+    $mysqli = \mysqli_connect('mysql_integration', 'test', 'test', 'test');
+    if ($mysqli) {
+        $mysqli->close();
+    }
+}
+
+\dd_trace_function('my_app', function (\DDTrace\SpanData $span) {
+    $span->name = 'my_app';
+    $span->service = 'foo_service';
+    $span->resource = 'foo_resource';
+    $span->type = 'custom';
+    $span->meta = ['foo' => 'bar'];
+});
+
+my_app();

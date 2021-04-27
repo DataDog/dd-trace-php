@@ -2,8 +2,6 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Configuration;
-
 /**
  * Default integration configuration object for integrations not having any specific param. Put here
  * config options that are common to ALL integrations.
@@ -15,11 +13,11 @@ class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
      */
     public function isTraceAnalyticsEnabled()
     {
-        if ($this->boolValue('analytics.enabled', false)) {
+        if (\DDTrace\Config\integration_analytics_enabled($this->integrationName)) {
             return true;
         }
 
-        return Configuration::get()->isAnalyticsEnabled() && !$this->requiresExplicitTraceAnalyticsEnabling();
+        return \ddtrace_config_analytics_enabled() && !$this->requiresExplicitTraceAnalyticsEnabling();
     }
 
     /**
@@ -27,6 +25,6 @@ class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
      */
     public function getTraceAnalyticsSampleRate()
     {
-        return $this->floatValue('analytics.sample.rate', 1.0);
+        return \DDTrace\Config\integration_analytics_sample_rate($this->integrationName);
     }
 }

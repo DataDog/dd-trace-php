@@ -1,19 +1,26 @@
 --TEST--
 Exceptions get attached to spans
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: PHP 5 has its own test'); ?>
+--INI--
+; for PHP 7.4+ we want to ensure that even if args are present that we don't print them
+zend.exception_ignore_args=Off
 --FILE--
 <?php
 
 function outer() {
-    inner();
+    inner('datadog');
 }
-function inner() {
-    throw new Exception("datadog");
+function inner($message) {
+    throw new Exception($message);
 }
 
-dd_trace_function("outer", function() {});
-dd_trace_function("inner", function() {});
+DDTrace\trace_function("outer", function ($span) {
+    $span->name = $span->resource = 'outer';
+    $span->service = 'phpt';
+});
+DDTrace\trace_function("inner", function ($span) {
+    $span->name = $span->resource = 'inner';
+    $span->service = 'phpt';
+});
 
 try {
     outer();
@@ -51,4 +58,3 @@ Exception stack:
 #0 %s: inner()
 #1 %s: outer()
 #2 {main}
-

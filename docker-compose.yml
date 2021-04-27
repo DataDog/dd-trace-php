@@ -13,6 +13,7 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
+        - agent
         - ddagent_integration
         - request-replayer
         - elasticsearch2_integration
@@ -25,6 +26,7 @@ x-aliases:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
         - COMPOSER_MEMORY_LIMIT=-1
+        - PHP_IDE_CONFIG=serverName=docker
       cap_add:
         - SYS_PTRACE
   - &base_54_service
@@ -43,37 +45,88 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
 
 services:
-  '5.4': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_5_4' }
+  '5.4':
+    <<: *base_php_service
+    image: datadog/dd-trace-ci:php-dev-5.4
+    build:
+      context: .
+      dockerfile: dockerfiles/development/Dockerfile_54
+  '5.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_buster' }
   '5.4-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.4-debug' }
   '5.5': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.5' }
   '5.5-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.5-debug' }
-  '5.6': { <<: *base_56_service, image: 'datadog/docker-library:ddtrace_php_5_6' }
+  '5.5-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_buster' }
+  '5.6':
+    <<: *base_php_service
+    image: datadog/dd-trace-ci:php-dev-5.6
+    build:
+      context: .
+      dockerfile: dockerfiles/development/Dockerfile_56
   '5.6-original': { <<: *base_56_service, image: 'circleci/php:5.6-zts' }
+  '5.6-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_buster' }
   '5.6-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.6-debug' }
   '5.6-zts': { <<: *base_56_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.6-zts' }
-  '7.0': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_0' }
-  '7.0-centos': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_centos_6_php_7_0' }
+  '7.0':
+    <<: *base_php_service
+    image: datadog/dd-trace-ci:php-dev-7.0
+    build:
+      context: .
+      dockerfile: dockerfiles/development/Dockerfile_70
+      target: final
+      args:
+        PHP_MAJOR_MINOR: '7.0'
+        MCRYPT_PACKAGE: mcrypt
+  '7.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-6' }
+  '7.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }
   '7.0-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-debug' }
   '7.0-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-zts' }
-  '7.1': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_1' }
+  '7.1':
+    <<: *base_php_service
+    image: datadog/dd-trace-ci:php-dev-7.1
+    build:
+      context: .
+      dockerfile: dockerfiles/development/Dockerfile_71_72_73
+      target: final
+      args:
+        PHP_MAJOR_MINOR: '7.1'
+        MCRYPT_PACKAGE: mcrypt-1.0.0
+  '7.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_buster' }
   '7.1-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-debug' }
   '7.1-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-zts' }
-  '7.1-centos6': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_centos_6_php_7_1' }
+  '7.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
   '7.1-centos-compiled': { <<: *base_php_service, build: 'dockerfiles/verify_packages/centos7-compiled' }
-  '7.2': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_2' }
+  '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
   '7.2-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
   '7.2-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-zts' }
-  '7.3': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3' }
+  '7.3':
+    <<: *base_php_service
+    image: datadog/dd-trace-ci:php-dev-7.3
+    build:
+      context: .
+      dockerfile: dockerfiles/development/Dockerfile_71_72_73
+      target: final
+      args:
+        PHP_MAJOR_MINOR: '7.3'
+        MCRYPT_PACKAGE: mcrypt-1.0.3
+  '7.3-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
+  '7.3-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
   '7.3-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
   '7.3-zts-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts-debug' }
   '7.3-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts' }
-  '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-php:7.4-buster-debug-asan' }
+  '7.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
+  '7.4-debug': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
+  '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-asan-buster' }
+  '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
+  '8.0-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
+  '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
+  '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
+  'php-master': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
   'fpm': { <<: *base_php_service, image: 'circleci/ruby:2.5', depends_on: [] }
 
   mysql_integration:
-    image: docker.pkg.github.com/datadog/dd-trace-ci/php-mysql-dev:5.6
+    image: datadog/dd-trace-ci:php-mysql-dev-5.6
     ports:
       - "3306:3306"
     environment:
@@ -94,13 +147,15 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=test
 
   redis_integration:
-    image: "circleci/redis:4.0-alpine"
+    image: "datadog/dd-trace-ci:php-redis-5.0"
 
   memcached_integration:
     image: "memcached:1.5-alpine"
 
   httpbin_integration:
     image: kennethreitz/httpbin
+    ports:
+      - "8765:80"
 
   ddagent_integration:
     image: datadog/agent:latest
@@ -117,7 +172,9 @@ services:
       - "8126:8126"
 
   request-replayer:
-    image: docker.pkg.github.com/datadog/dd-trace-ci/php-request-replayer
+    image: datadog/dd-trace-ci:php-request-replayer
+    ports:
+      - "8766:80"
 
   agent:
     image: datadog/agent:latest
@@ -128,6 +185,7 @@ services:
     environment:
     - DD_API_KEY=${DATADOG_API_KEY}
     - DD_APM_ENABLED=true
+    - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
 
   apache_56_server:
     build:

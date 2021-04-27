@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Trace private method
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 class Test
@@ -17,7 +15,7 @@ class Test
     }
 }
 
-dd_trace_method('Test', "private_method", function() {
+DDTrace\trace_method('Test', "private_method", function() {
     echo "PRIVATE HOOK" . PHP_EOL;
 });
 

@@ -2,28 +2,17 @@
 
 namespace DDTrace\Integrations\Slim;
 
-use DDTrace\Configuration;
+use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
+use DDTrace\Tag;
+use DDTrace\Type;
+use Psr\Http\Message\ServerRequestInterface;
+use Slim\Routing\RouteContext;
 
 class SlimIntegration extends Integration
 {
     const NAME = 'slim';
-
-    /**
-     * @var self
-     */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
 
     /**
      * @return string The integration name.
@@ -34,57 +23,135 @@ class SlimIntegration extends Integration
     }
 
     /**
-     * {@inheritdoc}
+     * Add instrumentation to Slim requests
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function init()
     {
-        return false;
-    }
-
-    /**
-     * Loads the integration.
-     *
-     * @return int
-     */
-    public static function load()
-    {
-        if (!self::shouldLoad(self::NAME)) {
-            return self::NOT_AVAILABLE;
+        // http://www.slimframework.com/docs/v3/start/installation.html
+        if (\PHP_VERSION_ID < 50500) {
+            return Integration::NOT_AVAILABLE;
         }
 
-        $integration = self::getInstance();
+        $integration = $this;
+        $appName = \ddtrace_config_app_name(self::NAME);
 
-        // Slim v2
-        // Web bootstrap
-        // Add tracing entry point: Slim\Slim::__construct
+        \DDTrace\hook_method(
+            'Slim\App',
+            '__construct',
+            null,
+            function ($app) use ($integration, $appName) {
+                $majorVersion = substr($app::VERSION, 0, 1);
+                if ('3' !== $majorVersion && '4' !== $majorVersion) {
+                    return;
+                }
 
-        // Slim v3 & v4
-        // Web bootstrap
-        dd_trace('Slim\App', '__construct', function () use ($integration) {
-            $majorVersion = substr(self::VERSION, 0, 1);
-            if ('3' === $majorVersion) {
-                $loader = new V3\SlimIntegrationLoader();
-                $loader->load($integration);
-                return dd_trace_forward_call();
+                // Overwrite root span info
+                $rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
+                $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
+                $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
+
+                if ('4' === $majorVersion) {
+                    \DDTrace\hook_method('Slim\\MiddlewareDispatcher', 'addMiddleware', function ($This, $self, $args) {
+                        if (isset($args[0]) && \is_object($args[0])) {
+                            $name = \get_class($args[0]);
+                            $closure = function (SpanData $span) {
+                                $span->name = 'slim.middleware';
+                                $span->resource = \get_class($this);
+                                $span->type = Type::WEB_SERVLET;
+                                $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                            };
+                            \DDTrace\trace_method($name, 'process', $closure);
+                        }
+                    });
+
+                    /* Blocked: https://datadoghq.atlassian.net/browse/APMPHP-553
+                    \DDTrace\hook_method(
+                        'Slim\\Middleware\\ErrorMiddleware',
+                        'handleException',
+                        function ($errorMiddleware, $self, $args) use ($rootSpan) {
+                            if (isset($args[1])) {
+                                $throwable = $args[1];
+                                if ($throwable instanceof \Throwable) {
+                                    $rootSpan->setError($throwable);
+                                }
+                            }
+                        }
+                    );
+                     */
+                }
+
+                if ('3' === $majorVersion) {
+                    $rootSpan->overwriteOperationName('slim.request');
+
+                    // Hook into the router to extract the proper route name
+                    \DDTrace\hook_method(
+                        'Slim\\Router',
+                        'lookupRoute',
+                        null,
+                        function ($router, $scope, $args, $return) use ($rootSpan) {
+                            /** @var \Slim\Interfaces\RouteInterface $route */
+                            $route = $return;
+                            $rootSpan->setTag(
+                                Tag::RESOURCE_NAME,
+                                $_SERVER['REQUEST_METHOD'] . ' ' . ($route->getName() ?: $route->getPattern())
+                            );
+                        }
+                    );
+                }
+
+                // Providing info about the controller
+                $traceControllers = function (SpanData $span, $args) use ($rootSpan, $appName, $majorVersion) {
+                    $callable = $args[0];
+                    $callableName = '{unknown callable}';
+                    \is_callable($callable, false, $callableName);
+
+                    $span->resource = $callableName ?: 'controller';
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $appName;
+
+                    /** @var ServerRequestInterface $request */
+                    $request = $args[1];
+                    $rootSpan->setTag(Tag::HTTP_URL, (string) $request->getUri());
+
+                    if ('4' === $majorVersion) {
+                        $span->name = 'slim.route';
+                        $rootSpan->setTag('slim.route.handler', $callableName);
+
+                        $route = $request->getAttribute(RouteContext::ROUTE);
+                        if ($route && $route instanceof \Slim\Interfaces\RouteInterface) {
+                            $routeName = $route->getName();
+                            if ($routeName) {
+                                $span->meta['slim.route.name'] = $routeName;
+                                $rootSpan->setTag('slim.route.name', $routeName);
+                            }
+                        }
+                    } else {
+                        $rootSpan->setTag('slim.route.controller', $callableName);
+                        $span->name = 'slim.route.controller';
+                    }
+                };
+
+                // If the tracer ever supports tracing an interface, we should trace the following:
+                // Slim\Interfaces\InvocationStrategyInterface::__invoke
+                \DDTrace\trace_method('Slim\Handlers\Strategies\RequestResponse', '__invoke', [
+                    'prehook' => $traceControllers,
+                ]);
+                \DDTrace\trace_method('Slim\Handlers\Strategies\RequestResponseArgs', '__invoke', [
+                    'prehook' => $traceControllers,
+                ]);
+
+                // Handling Twig views
+                \DDTrace\trace_method('Slim\Views\Twig', 'render', function (SpanData $span, $args) use ($appName) {
+                    $span->name = 'slim.view';
+                    $span->service = $appName;
+                    $span->type = Type::WEB_SERVLET;
+                    $template = $args[1];
+                    $span->resource = $template;
+                    $span->meta['slim.view'] = $template;
+                });
             }
-            if ('4' === $majorVersion) {
-                // Add Slim v4 loader here
-                return dd_trace_forward_call();
-            }
-            return dd_trace_forward_call();
-        });
+        );
 
-        // Slim v3 & v4 have no CLI bootstrap
-
-        return self::LOADED;
-    }
-
-    public static function getAppName()
-    {
-        $name = Configuration::get()->appName();
-        if ($name) {
-            return $name;
-        }
-        return self::NAME;
+        return Integration::LOADED;
     }
 }

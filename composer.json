@@ -20,429 +20,81 @@
         }
     ],
     "require": {
-        "php": "~5.4.0 || ~5.6.0 || ^7.0",
+        "php": "^5.4 || ^7.0 || ^8.0.0",
         "ext-curl": "*",
         "ext-json": "*"
     },
     "require-dev": {
+        "ext-posix": "*",
         "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
-        "phpunit/phpunit": "^4",
+        "phpunit/phpunit": "*",
         "squizlabs/php_codesniffer": "^3.3.0",
-        "symfony/process": "*"
+        "symfony/process": "<5"
     },
     "config": {
         "sort-packages": true
     },
     "autoload": {
         "psr-4": {
-            "DDTrace\\": "./src/DDTrace/"
+            "DDTrace\\": "./src/api/"
         }
     },
     "autoload-dev": {
         "psr-4": {
+            "DDTrace\\Tests\\Api\\": "./tests_api/",
             "DDTrace\\Tests\\": "./tests/"
         }
     },
     "prefer-stable": true,
     "scripts": {
+        "compile": [
+            "classpreloader.php compile --config=./bridge/_files.php --output=./bridge/_generated.php --strip_comments=1",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g\" ./bridge/_generated.php"
+        ],
+        "compile-verify": "php ./bridge/autoload.php",
         "fix-lint": "phpcbf",
-        "lint": "phpcs -s --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php",
-        "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php",
-        "static-analyze": "phpstan analyse --level=2 src",
+        "lint": "phpcs -s --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/,tests/xdebug/",
+        "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
+        "static-analyze": [
+            "@static-analyze-clear-cache",
+            "@static-analyze-api",
+            "@static-analyze-ddtrace"
+        ],
+        "static-analyze-api": "phpstan analyse --configuration=./phpstan.api.neon --level=2 src/api",
+        "static-analyze-api-clear-cache": [
+            "phpstan clear-result-cache --configuration=./phpstan.api.neon",
+            "phpstan clear-result-cache --configuration=./phpstan.ddtrace.neon"
+        ],
+        "static-analyze-ddtrace": "phpstan analyse --configuration=./phpstan.ddtrace.neon --level=2 src/DDTrace",
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
-        "install-ext": "make sudo install_ini install $*",
-        "test-ext": "make test_c TESTS=tests/ext",
-        "test": "phpunit --colors=always --configuration=phpunit.xml",
-        "test-all-54": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-integration",
-            "@test-integrations-54",
-            "@test-web-54"
-        ],
-        "test-all-56": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-integration",
-            "@test-integrations-56",
-            "@test-web-56"
-        ],
-        "test-all-70": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-integration",
-            "@test-integrations-70",
-            "@test-web-70"
-        ],
-        "test-all-71": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-integration",
-            "@test-integrations-71",
-            "@test-web-71"
-        ],
-        "test-all-72": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-integration",
-            "@test-integrations-72",
-            "@test-web-72"
-        ],
-        "test-integration": [
-            "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
-            "@composer test -- --testsuite=integration"
-        ],
-        "test-integrations-54": [
-            "sh clean-composer-scenario-locks.sh",
-            "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
-            "@composer scenario default"
-        ],
-        "test-integrations-56": [
-            "sh clean-composer-scenario-locks.sh",
-            "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
-            "@composer scenario default"
-        ],
-        "test-integrations-70": [
-            "sh clean-composer-scenario-locks.sh",
-            "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
-            "@composer scenario default"
-        ],
-        "test-integrations-71": [
-            "sh clean-composer-scenario-locks.sh",
-            "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
-            "@composer scenario default"
-        ],
-        "test-integrations-72": [
-            "sh clean-composer-scenario-locks.sh",
-            "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
-            "@composer scenario default"
-        ],
-        "test-integrations-73": [
-            "sh clean-composer-scenario-locks.sh",
-            "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
-            "@composer scenario default"
-        ],
-        "test-web-54": [
-            "@cakephp-28-update",
-            "@cakephp-28-test",
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
-        ],
-        "test-web-56": [
-            "@cakephp-28-update",
-            "@cakephp-28-test",
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@nette-24-update",
-            "@nette-24-test",
-            "@slim-312-update",
-            "@slim-312-test",
-            "@symfony-23-suite",
-            "@symfony-28-suite",
-            "@symfony-30-suite",
-            "@symfony-33-suite",
-            "@symfony-34-suite",
-            "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
-        ],
-        "test-web-70": [
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@nette-24-update",
-            "@nette-24-test",
-            "@slim-312-update",
-            "@slim-312-test",
-            "@symfony-23-suite",
-            "@symfony-28-suite",
-            "@symfony-30-suite",
-            "@symfony-33-suite",
-            "@symfony-34-suite",
-            "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
-        ],
-        "test-web-71": [
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@laravel-57-update",
-            "@laravel-57-test",
-            "@laravel-58-update",
-            "@laravel-58-test",
-            "@lumen-52-update",
-            "@lumen-52-test",
-            "@lumen-56-update",
-            "@lumen-56-test",
-            "@lumen-58-update",
-            "@lumen-58-test",
-            "@nette-24-update",
-            "@nette-24-test",
-            "@nette-30-update",
-            "@nette-30-test",
-            "@slim-312-update",
-            "@slim-312-test",
-            "@symfony-23-suite",
-            "@symfony-28-suite",
-            "@symfony-30-suite",
-            "@symfony-33-suite",
-            "@symfony-34-suite",
-            "@symfony-40-suite",
-            "@symfony-42-suite",
-            "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
-        ],
-        "test-web-72": [
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@laravel-57-update",
-            "@laravel-57-test",
-            "@laravel-58-update",
-            "@laravel-58-test",
-            "@lumen-52-update",
-            "@lumen-52-test",
-            "@lumen-56-update",
-            "@lumen-56-test",
-            "@lumen-58-update",
-            "@lumen-58-test",
-            "@nette-24-update",
-            "@nette-24-test",
-            "@nette-30-update",
-            "@nette-30-test",
-            "@slim-312-update",
-            "@slim-312-test",
-            "@symfony-23-update",
-            "@symfony-23-test",
-            "@symfony-28-update",
-            "@symfony-28-test",
-            "@symfony-33-update",
-            "@symfony-33-test",
-            "@symfony-34-update",
-            "@symfony-34-test",
-            "@symfony-40-suite",
-            "@symfony-42-suite",
-            "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
-        ],
-        "test-web-73": [
-            "@laravel-57-update",
-            "@laravel-57-test",
-            "@laravel-58-update",
-            "@laravel-58-test",
-            "@lumen-52-update",
-            "@lumen-52-test",
-            "@lumen-56-update",
-            "@lumen-56-test",
-            "@lumen-58-update",
-            "@lumen-58-test",
-            "@nette-24-update",
-            "@nette-24-test",
-            "@nette-30-update",
-            "@nette-30-test",
-            "@slim-312-update",
-            "@slim-312-test",
-            "@symfony-40-suite",
-            "@symfony-42-suite",
-            "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
-        ],
-
-        "inrease-memory-limit": "export COMPOSER_MEMORY_LIMIT=-1",
-        "memory_test": "echo $COMPOSER_MEMORY_LIMIT",
-
-        "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
-
-        "test-auto-instrumentation": "phpunit --colors=always --configuration=phpunit.xml --testsuite=auto-instrumentation",
-
-        "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
-        "cakephp-28-test": "@composer test -- --testsuite=cakephp-28-test",
-
-        "laravel-42-update": "@composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
-        "laravel-42-optimize": "@php tests/Frameworks/Laravel/Version_4_2/artisan optimize",
-        "laravel-42-test": "@composer test -- tests/Integrations/Laravel/V4",
-
-        "laravel-57-update": "@composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
-        "laravel-57-test": "@composer test -- tests/Integrations/Laravel/V5_7",
-
-        "laravel-58-update": "@composer --working-dir=tests/Frameworks/Laravel/Version_5_8 update",
-        "laravel-58-test": "@composer test -- --testsuite=laravel-58-test",
-
-        "lumen-52-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_2 update",
-        "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/CommonScenariosTest.php",
-        "lumen-56-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_6 update",
-        "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/CommonScenariosTest.php",
-        "lumen-58-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_8 update",
-        "lumen-58-test": "@composer test -- tests/Integrations/Lumen/V5_8/CommonScenariosTest.php",
-
-        "nette-24-update": "@composer --working-dir=tests/Frameworks/Nette/Version_2_4 update",
-        "nette-24-test": "@composer test -- tests/Integrations/Nette/V2_4/",
-        "nette-30-update": "@composer --working-dir=tests/Frameworks/Nette/Version_3_0 update",
-        "nette-30-test": "@composer test -- tests/Integrations/Nette/V3_0/",
-
-        "slim-312-update": "@composer --working-dir=tests/Frameworks/Slim/Version_3_12 update",
-        "slim-312-test": "@composer test -- --testsuite=slim-312-test",
-
-        "symfony-23-update": [
-            "@composer --working-dir=tests/Frameworks/Symfony/Version_2_3 update"
-        ],
-        "symfony-23-test": "@composer test -- tests/Integrations/Symfony/V2_3",
-        "symfony-23-suite": [ "@symfony-23-update", "@symfony-23-test" ],
-
-        "symfony-28-update": [
-            "@composer --working-dir=tests/Frameworks/Symfony/Version_2_8 update"
-        ],
-        "symfony-28-test": "@composer test -- tests/Integrations/Symfony/V2_8",
-        "symfony-28-suite": [ "@symfony-28-update", "@symfony-28-test" ],
-
-        "symfony-30-update": [
-            "@composer --working-dir=tests/Frameworks/Symfony/Version_3_0 update",
-            "php tests/Frameworks/Symfony/Version_3_0/bin/console cache:clear --no-warmup --env=prod"
-        ],
-        "symfony-30-test": "@composer test -- tests/Integrations/Symfony/V3_0",
-        "symfony-30-suite": [ "@symfony-30-update", "@symfony-30-test" ],
-
-        "symfony-33-update": [
-            "@composer --working-dir=tests/Frameworks/Symfony/Version_3_3 update",
-            "php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod"
-        ],
-        "symfony-33-test": "@composer test -- tests/Integrations/Symfony/V3_3",
-        "symfony-33-suite": [ "@symfony-33-update", "@symfony-33-test" ],
-
-        "symfony-34-update": [
-            "@composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
-            "php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod"
-        ],
-        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3_4",
-        "symfony-34-suite": [ "@symfony-34-update", "@symfony-34-test" ],
-
-        "symfony-40-update": [
-            "@inrease-memory-limit",
-            "@memory_test",
-            "@composer --working-dir=tests/Frameworks/Symfony/Version_4_0 update",
-            "@php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod"
-        ],
-        "symfony-40-test": "@composer test -- tests/Integrations/Symfony/V4_0",
-        "symfony-40-suite": [ "@symfony-40-update", "@symfony-40-test" ],
-        "symfony-42-update": [
-            "@inrease-memory-limit",
-            "@composer --working-dir=tests/Frameworks/Symfony/Version_4_2 update",
-            "php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod"
-        ],
-        "symfony-42-test": "@composer test -- tests/Integrations/Symfony/V4_2",
-        "symfony-42-suite": [ "@symfony-42-update", "@symfony-42-test" ],
-
-        "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1",
-
-        "custom-framework-autoloaded-update": "@composer --working-dir=tests/Frameworks/Custom/Version_Autoloaded update",
-        "custom-framework-autoloaded-test": "@composer test -- --testsuite=custom-framework-autoloaded-test",
-        "custom-framework-autoloaded-suite": [ "@custom-framework-autoloaded-update", "@custom-framework-autoloaded-test" ]
+        "install-ext": "make sudo install install_ini $*",
+        "test-ext": "make test_c TESTS=tests/ext"
     },
     "extra": {
         "scenarios": {
-            "elasticsearch1": {
+            "opentracing_beta5": {
                 "require": {
-                    "elasticsearch/elasticsearch": "1.2.*"
+                    "opentracing/opentracing": "1.0.0-beta5"
                 },
                 "scenario-options": {
                     "create-lockfile": false
                 }
             },
-            "guzzle5": {
+            "opentracing_beta6": {
                 "require": {
-                    "guzzlehttp/guzzle": "~5.0"
+                    "opentracing/opentracing": "1.0.0-beta6"
                 },
                 "scenario-options": {
                     "create-lockfile": false
                 }
             },
-            "guzzle6": {
+            "opentracing10": {
                 "require": {
-                    "guzzlehttp/guzzle": "~6.0"
-                },
-                "scenario-options": {
-                    "create-lockfile": false
-                }
-            },
-            "predis1": {
-                "require": {
-                    "predis/predis": "^1.1"
+                    "opentracing/opentracing": "^1.0"
                 },
                 "scenario-options": {
                     "create-lockfile": false

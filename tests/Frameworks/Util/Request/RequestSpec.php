@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Frameworks\Util\Request;
 
-abstract class RequestSpec
+class RequestSpec
 {
     /**
      * @var string
@@ -25,21 +25,22 @@ abstract class RequestSpec
     private $statusCode = 200;
 
     /**
-     * @param string $name
-     * @param string $path
+     * @var string[]
      */
-    // abstract public static function create($name, $path);
+    private $headers = [];
 
     /**
      * @param $name
      * @param string $method
      * @param string $path
+     * @param string[] $headers An indexed array as expected by `curl_setopt`.
      */
-    protected function __construct($name, $method, $path)
+    public function __construct($name, $method, $path, array $headers = [])
     {
         $this->name = $name;
         $this->method = $method;
         $this->path = $path;
+        $this->headers = $headers;
     }
 
     /**
@@ -82,5 +83,13 @@ abstract class RequestSpec
     public function getPath()
     {
         return $this->path;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getHeaders()
+    {
+        return $this->headers;
     }
 }

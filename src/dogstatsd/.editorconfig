@@ -1,0 +1,38 @@
+root = true
+
+[*]
+charset = utf-8
+indent_size = 4
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+# C-style doc comments
+block_comment_start = /*
+block_comment = *
+block_comment_end = */
+
+[*.{c,cc,h}]
+indent_size = none
+
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[Dockerfile]
+indent_size = 2
+
+[*.php]
+block_comment_start = /*
+block_comment = *
+block_comment_end = */
+
+[*Makefile]
+indent_style = tab
+
+[CMakeLists.txt]
+indent_size = 2
+block_comment_start = #[[
+block_comment_end = #]]

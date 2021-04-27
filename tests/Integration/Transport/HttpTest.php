@@ -3,28 +3,28 @@
 namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
+use DDTrace\GlobalTracer;
 use DDTrace\Tests\Common\AgentReplayerTrait;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\GlobalTracer;
 
 final class HttpTest extends BaseTestCase
 {
     use AgentReplayerTrait;
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         // reset the circuit breker consecutive failures count and close it
         \dd_tracer_circuit_breaker_register_success();
         putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=default');
 
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     public function agentUrl()
     {
-        return 'http://' . ($_SERVER["DDAGENT_HOSTNAME"] ? $_SERVER["DDAGENT_HOSTNAME"] :  "localhost") . ':8126';
+        return 'http://' . ($_SERVER["DDAGENT_HOSTNAME"] ? $_SERVER["DDAGENT_HOSTNAME"] : "localhost") . ':8126';
     }
 
     public function agentTracesUrl()
@@ -37,7 +37,7 @@ final class HttpTest extends BaseTestCase
         $logger = $this->withDebugLogger();
 
         $httpTransport = new Http(new Json(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
+            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -45,7 +45,7 @@ final class HttpTest extends BaseTestCase
         $span = $tracer->startSpan('test', [
             'tags' => [
                 'key1' => 'value1',
-            ]
+            ],
         ]);
 
         $span->finish();
@@ -65,10 +65,10 @@ final class HttpTest extends BaseTestCase
         $logger = $this->withDebugLogger();
 
         $badHttpTransport = new Http(new Json(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
+            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
         ]);
         $goodHttpTransport = new Http(new Json(), [
-            'endpoint' => $this->agentTracesUrl()
+            'endpoint' => $this->agentTracesUrl(),
         ]);
 
         $tracer = new Tracer(null);
@@ -104,7 +104,7 @@ final class HttpTest extends BaseTestCase
         $logger = $this->withDebugLogger();
 
         $httpTransport = new Http(new Json(), [
-            'endpoint' => $this->agentTracesUrl()
+            'endpoint' => $this->agentTracesUrl(),
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -112,14 +112,14 @@ final class HttpTest extends BaseTestCase
         $span = $tracer->startSpan('test', [
             'tags' => [
                 'key1' => 'value1',
-            ]
+            ],
         ]);
 
         $childSpan = $tracer->startSpan('child_test', [
             'child_of' => $span,
             'tags' => [
                 'key2' => 'value2',
-            ]
+            ],
         ]);
 
         $childSpan->finish();
@@ -152,6 +152,82 @@ final class HttpTest extends BaseTestCase
         $this->assertEquals(Tracer::version(), $traceRequest['headers']['Datadog-Meta-Tracer-Version']);
         $this->assertRegExp('/^[0-9a-f]{64}$/', $traceRequest['headers']['Datadog-Container-Id']);
         $this->assertEquals('1', $traceRequest['headers']['X-Datadog-Trace-Count']);
+    }
+
+    public function testContentLengthAutomaticallyAddedByCurl()
+    {
+        $httpTransport = new Http(new Json(), [
+            'endpoint' => $this->getAgentReplayerEndpoint(),
+        ]);
+        $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
+
+        $span = $tracer->startSpan('test');
+        $span->finish();
+
+        $httpTransport->send($tracer);
+        $traceRequest = $this->getLastAgentRequest();
+
+        $this->assertArrayHasKey('Content-Length', $traceRequest['headers']);
+    }
+
+    private static function recordContainsPrefixAndSuffix($record, $prefix, $suffix)
+    {
+        if ($record[0] !== 'error') {
+            return false;
+        }
+
+        $resultPrefix = \strpos($record[1], $prefix);
+        $resultSuffix = \strpos($record[1], $suffix);
+        return \is_int($resultPrefix) && \is_int($resultSuffix);
+    }
+
+    public function testSendingTimeoutContainsTimeoutSettings()
+    {
+        $timeout = 1;
+        $curlTimeout = 1;
+        $httpTransport = new Http(new Json(), [
+            'endpoint' => $this->getAgentReplayerEndpoint(),
+            'connect_timeout' => $curlTimeout,
+            'timeout' => $timeout,
+        ]);
+
+        // This helps it timeout more reliably
+        $httpTransport->setHeader('Expect', '100-continue');
+
+        $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
+        $logger = $this->withDebugLogger();
+
+        // Add a few children; the larger payload helps it to timeout more reliably
+        $root = $tracer->startRootSpan('test');
+        /** @var \DDTrace\Contracts\Scope[] $children */
+        $children = [];
+        for ($i = 0; $i < 10; ++$i) {
+            $children[] = $tracer->startActiveSpan("child{$i}");
+        }
+        foreach (\array_reverse($children) as $child) {
+            $child->close();
+        }
+        $root->close();
+
+        $httpTransport->send($tracer);
+
+        $records = $logger->all();
+        $curlOperationTimedout = \version_compare(\PHP_VERSION, '5.5', '<')
+        ? \CURLE_OPERATION_TIMEOUTED
+        : \CURLE_OPERATION_TIMEDOUT;
+        $prefix = "Reporting of spans failed: {$curlOperationTimedout} / ";
+        $suffix = "(TIMEOUT_MS={$timeout}, CONNECTTIMEOUT_MS={$curlTimeout})";
+
+        $result = \array_filter(
+            $records,
+            function ($record) use ($prefix, $suffix) {
+                return self::recordContainsPrefixAndSuffix($record, $prefix, $suffix);
+            }
+        );
+
+        self::assertCount(1, $result);
     }
 
     public function testSetHeader()

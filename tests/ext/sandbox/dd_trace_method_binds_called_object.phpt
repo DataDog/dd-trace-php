@@ -1,7 +1,7 @@
 --TEST--
-dd_trace_method() binds the called object to the tracing closure
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+DDTrace\trace_method() binds the called object to the tracing closure
+--ENV--
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=LimitIterator::getInnerIterator
 --FILE--
 <?php
 date_default_timezone_set('UTC');
@@ -14,26 +14,32 @@ class Foo
     }
 }
 
-dd_trace_method('Foo', 'testBinding', function () {
+DDTrace\trace_method('Foo', 'testBinding', function ($span) {
     echo "Traced testBinding\n";
+    $span->name = $span->resource = 'Foo.testBinding';
+    $span->service = 'phpt';
     var_dump($this);
 });
 
-dd_trace_method('DatePeriod', 'getStartDate', function () {
-    echo "Traced getStartDate\n";
-    var_dump($this instanceof DatePeriod);
+DDTrace\trace_method('LimitIterator', 'getInnerIterator', function ($span) {
+    echo "Traced LimitIterator::getInnerIterator\n";
+    var_dump($this instanceof LimitIterator);
 });
 
 $foo = new Foo();
 $foo->testBinding();
 
-$period = new DatePeriod('R7/2019-08-21T00:00:00Z/P1D');
-$period->getStartDate();
+$inner = new ArrayIterator([1, 2]);
+$limit = new LimitIterator($inner, 0, 1);
+$limit->rewind();
+assert($limit->valid());
+$innerIterator = $limit->getInnerIterator();
+assert($inner == $innerIterator);
 ?>
 --EXPECTF--
 Foo::testBinding()
 Traced testBinding
 object(Foo)#%d (0) {
 }
-Traced getStartDate
+Traced LimitIterator::getInnerIterator
 bool(true)

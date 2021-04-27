@@ -6,7 +6,7 @@ use DDTrace\Encoders\Json;
 use DDTrace\Log\Logger;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\DebugTransport;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
 use Prophecy\Argument;
@@ -18,9 +18,9 @@ final class JsonTest extends BaseTestCase
      */
     private $tracer;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         putenv('DD_AUTOFINISH_SPANS=true');
         $this->tracer = new Tracer(
             new DebugTransport(),
@@ -33,9 +33,9 @@ final class JsonTest extends BaseTestCase
         GlobalTracer::set($this->tracer);
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
-        parent::tearDown();
+        parent::ddTearDown();
         putenv('DD_AUTOFINISH_SPANS=');
     }
 
@@ -96,7 +96,7 @@ JSON;
         $this->tracer->setPrioritySampling(null);
 
         $jsonEncoder = new Json();
-        $this->assertNotContains('_sampling_priority_v1', $jsonEncoder->encodeTraces($this->tracer));
+        $this->assertStringNotContains('_sampling_priority_v1', $jsonEncoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeWithPrioritySampling()
@@ -105,7 +105,7 @@ JSON;
         $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
 
         $jsonEncoder = new Json();
-        $this->assertContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces($this->tracer));
+        $this->assertStringContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeMetricsWhenPresent()
@@ -115,16 +115,16 @@ JSON;
 
         $jsonEncoder = new Json();
         $encoded = $jsonEncoder->encodeTraces($this->tracer);
-        $this->assertContains('"_a":0.1', $encoded);
+        $this->assertStringContains('"_a":0.1', $encoded);
     }
 
-    public function testDoesNotEncodeMetricsWhenNotPresent()
+    public function testAlwaysContainsDefaultMetrics()
     {
         $this->tracer->startSpan('test_name');
         $this->tracer->setPrioritySampling(null);
 
         $jsonEncoder = new Json();
         $encoded = $jsonEncoder->encodeTraces($this->tracer);
-        $this->assertNotContains('"metrics"', $encoded);
+        $this->assertStringContains('"php.compilation.total_time_ms"', $encoded);
     }
 }

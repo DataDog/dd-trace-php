@@ -1,0 +1,5 @@
+.git/
+.composer/
+tests/Frameworks/**
+tmp/
+**/vendor/**

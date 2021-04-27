@@ -1,0 +1,63 @@
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+    beStrictAboutChangesToGlobalState="true"
+    beStrictAboutCoversAnnotation="true"
+    beStrictAboutOutputDuringTests="true"
+    beStrictAboutResourceUsageDuringSmallTests="true"
+    beStrictAboutTestsThatDoNotTestAnything="true"
+    beStrictAboutTodoAnnotatedTests="true"
+    bootstrap="./bootstrap.php"
+    colors="true"
+    columns="max"
+    verbose="true"
+>
+    <testsuites>
+        <testsuite name="metrics">
+            <directory>./Metrics</directory>
+        </testsuite>
+        <testsuite name="auto-instrumentation">
+            <directory>./AutoInstrumentation/</directory>
+        </testsuite>
+        <testsuite name="distributed-tracing">
+            <directory>./DistributedTracing/</directory>
+        </testsuite>
+        <testsuite name="integration">
+            <directory>./Integration/</directory>
+        </testsuite>
+        <testsuite name="cakephp-28-test">
+            <directory>./Integrations/CakePHP/V2_8</directory>
+            <directory>./Integrations/CLI/CakePHP/V2_8</directory>
+        </testsuite>
+        <testsuite name="codeigniter-22-test">
+            <directory>./Integrations/CodeIgniter/V2_2</directory>
+        </testsuite>
+        <testsuite name="composer-tests">
+            <directory>./Composer</directory>
+        </testsuite>
+        <testsuite name="laravel-58-test">
+            <directory>./Integrations/Laravel/V5_8</directory>
+            <directory>./Integrations/CLI/Laravel/V5_8</directory>
+        </testsuite>
+        <testsuite name="slim-312-test">
+            <directory>./Integrations/Slim/V3_12</directory>
+        </testsuite>
+        <testsuite name="slim-4-test">
+            <directory>./Integrations/Slim/V4</directory>
+        </testsuite>
+        <testsuite name="custom-framework-autoloading-test">
+            <directory>./Integrations/Custom/Autoloaded</directory>
+            <directory>./Integrations/Custom/NotAutoloaded</directory>
+            <directory>./Integrations/CLI/Custom/Autoloaded</directory>
+            <directory>./Integrations/CLI/Custom/NotAutoloaded</directory>
+        </testsuite>
+        <testsuite name="unit">
+            <directory>./Unit/</directory>
+        </testsuite>
+    </testsuites>
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">src</directory>
+        </whitelist>
+    </filter>
+</phpunit>

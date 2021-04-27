@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Unit;
 use DDTrace\ScopeManager;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class ScopeManagerTest extends BaseTestCase
 {

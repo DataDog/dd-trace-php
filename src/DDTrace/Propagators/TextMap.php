@@ -2,6 +2,7 @@
 
 namespace DDTrace\Propagators;
 
+use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagator;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
@@ -10,6 +11,8 @@ use DDTrace\SpanContext;
 
 final class TextMap implements Propagator
 {
+    use LoggingTrait;
+
     /**
      * @var Tracer
      */
@@ -39,6 +42,9 @@ final class TextMap implements Propagator
         if (PrioritySampling::UNKNOWN !== $prioritySampling) {
             $carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $prioritySampling;
         }
+        if (!empty($spanContext->origin)) {
+            $carrier[Propagator::DEFAULT_ORIGIN_HEADER] = $spanContext->origin;
+        }
     }
 
     /**
@@ -46,8 +52,8 @@ final class TextMap implements Propagator
      */
     public function extract($carrier)
     {
-        $traceId = null;
-        $spanId = null;
+        $traceId = '';
+        $spanId = '';
         $prioritySampling = null;
         $baggageItems = [];
 
@@ -61,13 +67,75 @@ final class TextMap implements Propagator
             }
         }
 
-        if ($traceId === null || $spanId === null) {
+        if (
+            preg_match('/^\d+$/', $traceId) !== 1 ||
+            preg_match('/^\d+$/', $spanId) !== 1
+        ) {
             return null;
         }
 
+        if (!$this->setDistributedTraceTraceId($traceId)) {
+            return null;
+        }
+        $spanId = $this->setDistributedTraceParentId($spanId);
+
         $spanContext = new SpanContext($traceId, $spanId, null, $baggageItems, true);
         $this->extractPrioritySampling($spanContext, $carrier);
+        $this->extractOrigin($spanContext, $carrier);
         return $spanContext;
+    }
+
+    /**
+     * Set the distributed trace's trace ID for internal spans
+     *
+     * @param string $traceId
+     * @return bool
+     */
+    private function setDistributedTraceTraceId($traceId)
+    {
+        if (!$traceId) {
+            return false;
+        }
+        if (dd_trace_set_trace_id($traceId)) {
+            return true;
+        }
+        if (\ddtrace_config_debug_enabled()) {
+            self::logDebug(
+                'Error parsing distributed trace trace ID: {id}; ignoring.',
+                [
+                    'id' => $traceId,
+                ]
+            );
+        }
+        return false;
+    }
+
+    /**
+     * Push the distributed trace's parent ID onto the internal span ID
+     * stack so that it is accessible via dd_trace_peek_span_id()
+     *
+     * @param string $spanId
+     * @return string
+     */
+    private function setDistributedTraceParentId($spanId)
+    {
+        if (!$spanId) {
+            return '';
+        }
+        $pushedSpanId = dd_trace_push_span_id($spanId);
+        if ($pushedSpanId === $spanId) {
+            return $spanId;
+        }
+        if (\ddtrace_config_debug_enabled()) {
+            self::logDebug(
+                'Error parsing distributed trace parent ID: {expected}; using {actual} instead.',
+                [
+                    'expected' => $spanId,
+                    'actual' => $pushedSpanId,
+                ]
+            );
+        }
+        return $pushedSpanId;
     }
 
     /**
@@ -100,6 +168,22 @@ final class TextMap implements Propagator
         if (isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])) {
             $rawValue = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]);
             $spanContext->setPropagatedPrioritySampling(PrioritySampling::parse($rawValue));
+        }
+    }
+
+    /**
+     * Extract the origin from the carrier.
+     *
+     * @param SpanContextInterface $spanContext
+     * @param array $carrier
+     */
+    private function extractOrigin(SpanContextInterface $spanContext, $carrier)
+    {
+        if (
+            property_exists($spanContext, 'origin')
+            && isset($carrier[Propagator::DEFAULT_ORIGIN_HEADER])
+        ) {
+            $spanContext->origin = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_ORIGIN_HEADER]);
         }
     }
 }

@@ -1,5 +1,7 @@
 --TEST--
 dd_trace_serialize_msgpack() error conditions
+--ENV--
+DD_TRACE_DEBUG=1
 --FILE--
 <?php
 array_map(function ($data) {
@@ -13,12 +15,15 @@ array_map(function ($data) {
 ]);
 ?>
 --EXPECTF--
+Expected argument to dd_trace_serialize_msgpack() to be an array
 bool(true)
 bool(false)
 
+Expected argument to dd_trace_serialize_msgpack() to be an array
 string(3) "foo"
 bool(false)
 
+Serialize values must be of type array, string, int, float, bool or null
 array(1) {
   [0]=>
   object(stdClass)#%d (0) {
@@ -26,6 +31,7 @@ array(1) {
 }
 bool(false)
 
+Serialize values must be of type array, string, int, float, bool or null
 array(2) {
   [0]=>
   string(3) "bar"

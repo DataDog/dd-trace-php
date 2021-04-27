@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Private and protected properties are accessed from a tracing closure
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 class Test
@@ -15,7 +13,7 @@ class Test
     }
 }
 
-dd_trace_method("Test", "m", function() {
+DDTrace\trace_method("Test", "m", function() {
     echo "PRIVATE PROPERTY IN HOOK " . $this->value_private . PHP_EOL;
     echo "PROTECTED PROPERTY IN HOOK " . $this->value_protected . PHP_EOL;
 });

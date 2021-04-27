@@ -2,8 +2,8 @@
 
 require __DIR__ . '/../../../autoload.php';
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\ZendFramework\V1\TraceRequest;
 use DDTrace\Tag;
 use DDTrace\Tracer;
@@ -19,7 +19,7 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
 
     public function init()
     {
-        if (!$this->shouldLoad()) {
+        if (!Integration::shouldLoad(self::NAME)) {
             return false;
         }
         $front = Zend_Controller_Front::getInstance();
@@ -28,24 +28,9 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
         $tracer = GlobalTracer::get();
         $span = $tracer->getRootScope()->getSpan();
         $span->overwriteOperationName(self::getOperationName());
-        $span->setTag(Tag::SERVICE_NAME, $this->getAppName());
+        $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name(self::NAME));
 
         return $this->tracer;
-    }
-
-    /**
-     * @return bool
-     */
-    private function shouldLoad()
-    {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
-            return false;
-        }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Zend Framework 1 integration.', E_USER_WARNING);
-            return false;
-        }
-        return true;
     }
 
     /**
@@ -55,13 +40,5 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
     {
         $contextName = 'cli' === PHP_SAPI ? 'command' : 'request';
         return self::NAME . '.' . $contextName;
-    }
-
-    /**
-     * @return string
-     */
-    private function getAppName()
-    {
-        return Configuration::get()->appName(self::NAME);
     }
 }

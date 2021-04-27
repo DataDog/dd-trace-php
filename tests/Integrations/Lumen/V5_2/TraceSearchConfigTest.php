@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-final class TraceSearchConfigTest extends WebFrameworkTestCase
+class TraceSearchConfigTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
@@ -30,14 +30,14 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('Testing trace analytics config metric', '/simple'));
         });
 
-        $this->assertExpectedSpans(
+        $this->assertFlameGraph(
             $traces,
             [
                 SpanAssertion::build(
                     'lumen.request',
                     'lumen',
                     'web',
-                    'App\Http\Controllers\ExampleController@simple simple_route'
+                    'GET simple_route'
                 )
                     ->withExactTags([
                         'lumen.route.name' => 'simple_route',
@@ -45,12 +45,19 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'lumen',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
                         '_sampling_priority_v1' => 1,
-                    ]),
+                    ])
+                    ->withChildren([
+                        SpanAssertion::build(
+                            'Laravel\Lumen\Application.handleFoundRoute',
+                            'lumen',
+                            'web',
+                            'Laravel\Lumen\Application.handleFoundRoute'
+                        ),
+                    ])
             ]
         );
     }

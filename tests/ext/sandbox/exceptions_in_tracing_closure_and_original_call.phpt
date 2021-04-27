@@ -11,7 +11,7 @@ function a(){
     throw new SubException('Oops!');
 }
 
-dd_trace_function('a', function($span, $args, $r, $ex) {
+DDTrace\trace_function('a', function($span, $args, $r, $ex) {
     var_dump($ex instanceof SubException);
     throw new Exception('!');
 });

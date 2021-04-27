@@ -5,7 +5,8 @@ namespace DDTrace\Tests\Unit\Integrations;
 use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
+use DDTrace\Util\Versions;
 
 final class IntegrationsLoaderTest extends BaseTestCase
 {
@@ -14,72 +15,59 @@ final class IntegrationsLoaderTest extends BaseTestCase
         'integration_2' => 'DDTrace\Tests\Unit\Integrations\DummyIntegration2',
     ];
 
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED=false');
-    }
-
-    public function testGlobalLoaderDefaultsToOfficiallySupportedIntegrations()
-    {
-        $this->assertEquals(
-            IntegrationsLoader::$officiallySupportedIntegrations,
-            IntegrationsLoader::get()->getIntegrations()
-        );
-    }
-
     public function testIntegrationsCanBeProvidedToLoader()
     {
         $integration = [
             'name' => 'class',
         ];
-        $this->assertEquals($integration, (new IntegrationsLoader($integration))->getIntegrations());
+        $integrations = (new IntegrationsLoader($integration))->getIntegrations();
+        self::assertArrayHasKey('name', $integrations);
+        self::assertEquals('class', $integrations['name']);
     }
 
     public function testGlobalConfigCanDisableLoading()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isEnabled' => false,
-            'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig(['DD_TRACE_ENABLED=0']);
 
         DummyIntegration1::$value = Integration::LOADED;
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
         $loader->loadAll();
+        $this->putEnvAndReloadConfig(['DD_TRACE_ENABLED']);
 
         $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('integration_1'));
     }
 
     public function testSingleIntegrationLoadingCanBeDisabled()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isEnabled' => true,
-            'isIntegrationEnabled' => false,
-            'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+            'DD_INTEGRATIONS_DISABLED=pdo',
+        ]);
 
         DummyIntegration1::$value = Integration::LOADED;
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
         $loader->loadAll();
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+            'DD_INTEGRATIONS_DISABLED',
+        ]);
 
-        $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('integration_1'));
+        $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('pdo'));
     }
 
     public function testIntegrationsAreLoaded()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isEnabled' => true,
-            'isIntegrationEnabled' => true,
-            'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+        ]);
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
         DummyIntegration1::$value = Integration::LOADED;
         DummyIntegration2::$value = Integration::NOT_AVAILABLE;
         $loader->loadAll();
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+        ]);
 
         $this->assertSame(Integration::LOADED, $loader->getLoadingStatus('integration_1'));
         $this->assertSame(Integration::NOT_AVAILABLE, $loader->getLoadingStatus('integration_2'));
@@ -87,12 +75,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testIntegrationAlreadyLoadedIsNotReloaded()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isEnabled' => true,
-            'isIntegrationEnabled' => true,
-            'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+        ]);
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
         // Initially the integration is not loaded
@@ -101,6 +86,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
         // We load it
         DummyIntegration1::$value = Integration::LOADED;
         $loader->loadAll();
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+        ]);
         $this->assertSame(Integration::LOADED, $loader->getLoadingStatus('integration_1'));
 
         // If now we change the returned value, it won't be reflected in the loadings statuses as it is not reloaded
@@ -111,12 +99,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testIntegrationNotAvailableIsNotReloaded()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isEnabled' => true,
-            'isIntegrationEnabled' => true,
-            'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+        ]);
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
         // Initially the integration is not loaded
@@ -125,6 +110,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
         // We load it
         DummyIntegration1::$value = Integration::NOT_AVAILABLE;
         $loader->loadAll();
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+        ]);
         $this->assertSame(Integration::NOT_AVAILABLE, $loader->getLoadingStatus('integration_1'));
 
         // If now we change the returned value, it won't be reflected in the loadings statuses as it is not reloaded
@@ -135,12 +123,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testIntegrationNotLoadedIsReloaded()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isEnabled' => true,
-            'isIntegrationEnabled' => true,
-            'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+        ]);
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
         // Initially the integration is not loaded
@@ -149,6 +134,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
         // We load it, but the integration returned Integration::NOT_LOADED
         DummyIntegration1::$value = Integration::NOT_LOADED;
         $loader->loadAll();
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+        ]);
         $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('integration_1'));
 
         // If now we change the returned value, it won't be reflected in the loadings statuses as it is not reloaded
@@ -160,10 +148,45 @@ final class IntegrationsLoaderTest extends BaseTestCase
     public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
     {
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
-        $loaded = $this->normalize(array_keys(IntegrationsLoader::get()->getIntegrations()));
 
-        // If this test fails you need to add an entry to IntegrationsLoader::LIBRARIES array.
-        $this->assertEquals(array_values($expected), array_values($loaded));
+        /*
+         * We need a better way of validating loaded integrations:
+         * 0) that validates deferred-loaded integrations, and
+         * 1) does not require modifying this test.
+         */
+        $excluded = [];
+        if (\PHP_MAJOR_VERSION < 7) {
+            $excluded[] = 'phpredis'; // PHP 7 only integration
+        } else {
+            // Deferred loading integrations
+            $excluded[] = 'elasticsearch';
+            $excluded[] = 'memcached';
+            $excluded[] = 'pdo';
+            $excluded[] = 'phpredis';
+            $excluded[] = 'predis';
+            $excluded[] = 'slim';
+            $excluded[] = 'wordpress';
+            $excluded[] = 'yii';
+        }
+        if (\PHP_MAJOR_VERSION >= 8) {
+            // Integrations that do not support PHP 8
+            $excluded[] = 'cakephp';
+            $excluded[] = 'lumen';
+            $excluded[] = 'mongo';
+            $excluded[] = 'zendframework';
+        }
+        foreach ($excluded as $integrationToExclude) {
+            $index = array_search($integrationToExclude, $expected, true);
+            unset($expected[$index]);
+        }
+
+        \ksort($expected);
+
+        $integrations = IntegrationsLoader::get()->getIntegrations();
+        \ksort($integrations);
+        $loaded = $this->normalize(array_keys($integrations));
+
+        self::assertEquals(array_values($expected), array_values($loaded));
     }
 
     /**
@@ -189,7 +212,7 @@ class DummyIntegration1
 {
     public static $value = null;
 
-    public static function load()
+    public function init()
     {
         return self::$value;
     }
@@ -199,7 +222,7 @@ class DummyIntegration2
 {
     public static $value = null;
 
-    public static function load()
+    public function init()
     {
         return self::$value;
     }

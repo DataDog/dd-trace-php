@@ -1,0 +1,24 @@
+#!/usr/bin/env php
+
+<?php
+
+// Usage
+//   - ./tooling/bin/composer-update-all
+//   - ./tooling/bin/composer-update-all tests/Frameworks/Laravel
+
+ini_set('memory_limit', -1);
+
+$path = '.';
+if (count($argv) > 1) {
+    $path = escapeshellarg($argv[1]);
+}
+
+$foundComposerFiles = [];
+
+exec("find $path -name composer.json | grep -v '/vendor' | grep -v '/Vendor'", $foundComposerFiles);
+
+foreach (array_reverse($foundComposerFiles) as $composerJson) {
+    $directory = escapeshellarg(dirname($composerJson));
+    $cmd = "COMPOSER_MEMORY_LIMIT=-1 php -n $(which composer) --working-dir=$directory update";
+    system($cmd);
+}

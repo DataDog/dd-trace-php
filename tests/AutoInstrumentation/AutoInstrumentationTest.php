@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\AutoInstrumentation;
 
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\WebServer;
 use DDTrace\Tracer;
 
@@ -16,8 +16,15 @@ class AutoInstrumentationTest extends BaseTestCase
      */
     public function testAutoInstrumentationScenarios($scenario, $expectedVersion, $isComposer)
     {
+        if (
+            $scenario === "composer_with_ddtrace_dependency"
+            && \PHP_MAJOR_VERSION === 5
+            && \PHP_MINOR_VERSION === 5
+        ) {
+            $this->markTestSkipped("The older ddtrace version does not support PHP 5.5");
+        }
         if ($isComposer) {
-            $this->composerUpdateScenario($scenario);
+            $this->composerPrepareScenario($scenario);
         }
         $loadedVersion = $this->runAndReadVersion($scenario);
         $this->assertSame($expectedVersion, $loadedVersion);
@@ -33,7 +40,13 @@ class AutoInstrumentationTest extends BaseTestCase
 
             // We want to make sure that the version declared in composer.json is picked up instead of the installed
             // version.
-            ['composer_with_ddtrace_dependency', '0.11.0-beta', true],
+            // NOTE: starting from 0.45.2 our autoloader is placed BEFORE composer. This means that classes from
+            // the extension win over classes from composer. An anticipation of what will happen on 0.46+.
+            ['composer_with_ddtrace_dependency', $currentTracerVersion, true],
+
+            // We want to make sure that users can safely declare a dependency in the latest version of our
+            // tracer in composer even if not required.
+            ['composer_with_local_code_dependency', $currentTracerVersion, true],
 
             // Symfony 3.3 has a loader Symfony\Component\Config\Resource\ClassExistenceResource which registers a
             // private method as the actual class loader. Because of https://github.com/DataDog/dd-trace-php/issues/224
@@ -54,7 +67,7 @@ class AutoInstrumentationTest extends BaseTestCase
         ];
     }
 
-    private function composerUpdateScenario($scenario)
+    private function composerPrepareScenario($scenario)
     {
         $here = __DIR__;
         $scenarioFolder = $this->buildScenarioAbsPath($scenario);
@@ -78,11 +91,11 @@ class AutoInstrumentationTest extends BaseTestCase
         $scenarioFolder = $this->buildScenarioAbsPath($scenario);
         $indexFile = "$scenarioFolder/index.php";
         $webServer = new WebServer($indexFile, $host = '0.0.0.0', $port = 9876);
-        $webServer->setInis([
+        $webServer->mergeInis([
             'error_log' => __DIR__ . '/error.log',
             'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
         ]);
-        $webServer->setEnvs([
+        $webServer->mergeEnvs([
             'DD_TRACE_DEBUG' => 'true',
         ]);
         $webServer->start();

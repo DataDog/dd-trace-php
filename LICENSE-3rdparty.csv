@@ -8,7 +8,6 @@ file,mpack.c,MIT,Nicholas Fraser
 file,mpack.h,MIT,Nicholas Fraser
 file,mt19937-64.c,BSD-3-Clause,Takuji Nishimura and Makoto Matsumoto
 file,mt19937-64.h,BSD-3-Clause,Takuji Nishimura and Makoto Matsumoto
-file,vendor_stdatomic.h,2-Clause BSD,"Ed Schouten, David Chisnall"
 dev,g1a/composer-test-scenarios,MIT,"Greg Anderson"
 dev,mockery/mockery,BSD-3-Clause,"Pádraic Brady, Dave Marshall"
 dev,phpunit/phpunit,BSD-3-Clause,"Sebastian Bergmann"

@@ -4,26 +4,37 @@ namespace DDTrace\Tests\Integrations\Laravel\V4;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class EloquentTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
     use SpanAssertionTrait;
-
-    const IS_SANDBOX = false;
 
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->connection()->exec("DELETE from users where email LIKE 'test-user-%'");
+    }
+
+    public function testDestroy()
+    {
+        $this->connection()->exec("insert into users (id, email) VALUES (1, 'test-user-deleted@email.com')");
+        $traces = $this->tracesFromWebRequest(function () {
+            $spec  = GetSpec::create('Eloquent destroy', '/eloquent/destroy');
+            $this->call($spec);
+        });
+        $this->assertOneExpectedSpan($traces, SpanAssertion::build(
+            'eloquent.destroy',
+            'laravel',
+            'sql',
+            'User'
+        )->withExactTags([]));
     }
 
     public function testGet()
@@ -38,7 +49,6 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'select * from `users`'
         )->withExactTags([
-            'integration.name' => 'eloquent',
             'sql.query' => 'select * from `users`',
         ]));
     }
@@ -55,7 +65,6 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'User'
         )->withExactTags([
-            'integration.name' => 'eloquent',
         ]));
     }
 
@@ -72,7 +81,6 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'User'
         )->withExactTags([
-            'integration.name' => 'eloquent',
         ]));
     }
 
@@ -89,7 +97,6 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'User'
         )->withExactTags([
-            'integration.name' => 'eloquent',
         ]));
     }
 

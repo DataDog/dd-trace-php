@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Unit\Log;
 
 use DDTrace\Log\Logger;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 class LoggerTest extends BaseTestCase
 {

@@ -43,11 +43,44 @@ final class Tracer implements OTTracer
         );
     }
 
+    private function deconstructStartSpanOptions(\OpenTracing\StartSpanOptions $obj)
+    {
+        $options = [];
+
+        $tags = $obj->getTags();
+        if ($tags) {
+            $options['tags'] = $tags;
+        }
+
+        $start_time = $obj->getStartTime();
+        if (isset($start_time)) {
+            $options['start_time'] = $start_time;
+        }
+
+        $options['finish_span_on_close'] = $obj->shouldFinishSpanOnClose();
+        if (\method_exists($obj, 'shouldIgnoreActiveSpan')) {
+            // This method (and the 'ignore_active_span' concept) has been added in opentracing 1.0.0-beta6.
+            $options['ignore_active_span'] = $obj->shouldIgnoreActiveSpan();
+        }
+
+        /* Later: finish supporting OpenTracing\References
+        $references = $obj->getReferences();
+        if (!empty($references)) {
+            $options['references'] = $references;
+        }
+        */
+
+        return $options;
+    }
+
     /**
      * {@inheritdoc}
      */
     public function startSpan($operationName, $options = [])
     {
+        if ($options instanceof \OpenTracing\StartSpanOptions) {
+            $options = self::deconstructStartSpanOptions($options);
+        }
         return new Span(
             $this->tracer->startSpan($operationName, $options)
         );
@@ -58,6 +91,9 @@ final class Tracer implements OTTracer
      */
     public function startActiveSpan($operationName, $options = [])
     {
+        if ($options instanceof \OpenTracing\StartSpanOptions) {
+            $options = self::deconstructStartSpanOptions($options);
+        }
         return new Scope(
             $this->tracer->startActiveSpan($operationName, $options)
         );

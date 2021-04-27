@@ -19,6 +19,17 @@ trait SpanAssertionTrait
     }
 
     /**
+     * Checks the exact match of a set of SpanAssertion with the provided Spans.
+     *
+     * @param array[] $traces
+     * @param SpanAssertion[] $expectedSpans
+     */
+    public function assertFlameGraph($traces, $expectedSpans)
+    {
+        (new SpanChecker())->assertFlameGraph($traces, $expectedSpans);
+    }
+
+    /**
      * Checks that the provide span exists in the provided traces and matches expectations.
      *
      * @param array[] $traces

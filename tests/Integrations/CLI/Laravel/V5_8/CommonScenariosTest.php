@@ -3,9 +3,9 @@
 namespace DDTrace\Tests\Integrations\CLI\Laravel\V5_8;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Integrations\CLI\CLITestCase;
+use DDTrace\Tests\Common\CLITestCase;
 
-final class CommonScenariosTest extends CLITestCase
+class CommonScenariosTest extends CLITestCase
 {
     protected function getScriptLocation()
     {
@@ -23,15 +23,19 @@ final class CommonScenariosTest extends CLITestCase
     {
         $traces = $this->getTracesFromCommand();
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'laravel.artisan',
                 'artisan_test_app',
                 'cli',
                 'artisan'
             )->withExactTags([
-                'integration.name' => 'laravel',
-            ])
+            ])->withChildren([
+                SpanAssertion::exists(
+                    'laravel.provider.load',
+                    'Illuminate\Foundation\ProviderRepository::load'
+                ),
+            ]),
         ]);
     }
 
@@ -39,15 +43,19 @@ final class CommonScenariosTest extends CLITestCase
     {
         $traces = $this->getTracesFromCommand('route:list');
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'laravel.artisan',
                 'artisan_test_app',
                 'cli',
                 'artisan route:list'
             )->withExactTags([
-                'integration.name' => 'laravel',
-            ])
+            ])->withChildren([
+                SpanAssertion::exists(
+                    'laravel.provider.load',
+                    'Illuminate\Foundation\ProviderRepository::load'
+                ),
+            ]),
         ]);
     }
 
@@ -55,18 +63,22 @@ final class CommonScenariosTest extends CLITestCase
     {
         $traces = $this->getTracesFromCommand('foo:error');
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'laravel.artisan',
                 'artisan_test_app',
                 'cli',
                 'artisan foo:error'
             )->withExactTags([
-                'integration.name' => 'laravel',
             ])->withExistingTagsNames([
                 'error.msg',
                 'error.stack'
-            ])->setError()
+            ])->withChildren([
+                SpanAssertion::exists(
+                    'laravel.provider.load',
+                    'Illuminate\Foundation\ProviderRepository::load'
+                ),
+            ])->setError(),
         ]);
     }
 }

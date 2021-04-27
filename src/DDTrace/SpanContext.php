@@ -17,7 +17,7 @@ final class SpanContext extends SpanContextData
     ) {
         $this->traceId = $traceId;
         $this->spanId = $spanId;
-        $this->parentId = $parentId;
+        $this->parentId = $parentId ?: null;
         $this->baggageItems = $baggageItems;
         $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
     }
@@ -40,6 +40,12 @@ final class SpanContext extends SpanContextData
         );
         $instance->parentContext = $parentContext;
         $instance->setPropagatedPrioritySampling($parentContext->getPropagatedPrioritySampling());
+        if (
+            property_exists($instance, 'origin')
+            && !empty($parentContext->origin)
+        ) {
+            $instance->origin = $parentContext->origin;
+        }
         return $instance;
     }
 

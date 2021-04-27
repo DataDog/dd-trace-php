@@ -3,105 +3,125 @@
 namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\GlobalTracer;
 
 class EloquentIntegration extends Integration
 {
     const NAME = 'eloquent';
 
     /**
-     * @var self
+     * @var string The app name. Note that this value is used as a cache, you should use method getAppName().
      */
-    private static $instance;
+    private $appName;
 
     /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
-    /**
-     * @return string The integration name.
+     * {@inheritdoc}
      */
     public function getName()
     {
         return self::NAME;
     }
 
-    public static function load()
+    /**
+     * {@inheritDoc}
+     */
+    public function init()
     {
-        $integration = self::getInstance();
+        $integration = $this;
 
-        // getModels($columns = ['*'])
-        dd_trace('Illuminate\Database\Eloquent\Builder', 'getModels', function () use ($integration) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
+        \DDTrace\trace_method(
+            'Illuminate\Database\Eloquent\Builder',
+            'getModels',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'eloquent.get';
+                $sql = $this->getQuery()->toSql();
+                $span->resource = $sql;
+                $span->meta[Tag::DB_STATEMENT] = $sql;
+                $integration->setCommonValues($span);
             }
+        );
 
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.get');
-            $span = $scope->getSpan();
-            $sql = $this->getQuery()->toSql();
-            $span->setTag(Tag::RESOURCE_NAME, $sql);
-            $span->setTag(Tag::DB_STATEMENT, $sql);
-            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-
-            return include __DIR__ . '/../../try_catch_finally.php';
-        });
-
-        // performInsert(Builder $query)
-        dd_trace('Illuminate\Database\Eloquent\Model', 'performInsert', function () use ($integration) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
+        \DDTrace\trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'performInsert',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'eloquent.insert';
+                $span->resource = get_class($this);
+                $integration->setCommonValues($span);
             }
+        );
 
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.insert');
-            $span = $scope->getSpan();
-            $span->setTag(Tag::RESOURCE_NAME, get_class($this));
-            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-
-            return include __DIR__ . '/../../try_catch_finally.php';
-        });
-
-        // performUpdate(Builder $query)
-        dd_trace('Illuminate\Database\Eloquent\Model', 'performUpdate', function () use ($integration) {
-            list($eloquentQueryBuilder) = func_get_args();
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
+        \DDTrace\trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'performUpdate',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'eloquent.update';
+                $span->resource = get_class($this);
+                $integration->setCommonValues($span);
             }
+        );
 
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.update');
-            $span = $scope->getSpan();
-            $span->setTag(Tag::RESOURCE_NAME, get_class($this));
-            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-
-            return include __DIR__ . '/../../try_catch_finally.php';
-        });
-
-        // public function delete()
-        dd_trace('Illuminate\Database\Eloquent\Model', 'delete', function () use ($integration) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
+        \DDTrace\trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'delete',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'eloquent.delete';
+                $span->resource = get_class($this);
+                $integration->setCommonValues($span);
             }
+        );
 
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.delete');
-            $span = $scope->getSpan();
-            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::RESOURCE_NAME, get_class($this));
+        \DDTrace\trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'destroy',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'eloquent.destroy';
+                $span->resource = get_called_class();
+                $integration->setCommonValues($span);
+            }
+        );
 
-            return include __DIR__ . '/../../try_catch_finally.php';
-        });
+        \DDTrace\trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'refresh',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'eloquent.refresh';
+                $span->resource = get_class($this);
+                $integration->setCommonValues($span);
+            }
+        );
 
         return Integration::LOADED;
+    }
+
+    /**
+     * Set common values shared by many different spans.
+     *
+     * @param SpanData $span
+     */
+    public function setCommonValues(SpanData $span)
+    {
+        $span->type = Type::SQL;
+        $span->service = $this->getAppName();
+    }
+
+    /**
+     * @return string
+     */
+    public function getAppName()
+    {
+        if (null !== $this->appName) {
+            return $this->appName;
+        }
+
+        $name = \ddtrace_config_app_name();
+        if (empty($name) && is_callable('config')) {
+            $name = config('app.name');
+        }
+
+        $this->appName = $name ?: 'laravel';
+        return $this->appName;
     }
 }

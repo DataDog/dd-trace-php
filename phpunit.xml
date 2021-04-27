@@ -7,43 +7,9 @@
     beStrictAboutResourceUsageDuringSmallTests="true"
     beStrictAboutTestsThatDoNotTestAnything="true"
     beStrictAboutTodoAnnotatedTests="true"
-    bootstrap="tests/bootstrap.php"
+    bootstrap="./tests/api/bootstrap.php"
     colors="true"
     columns="max"
     verbose="true"
 >
-    <testsuites>
-        <testsuite name="auto-instrumentation">
-            <directory>tests/AutoInstrumentation/</directory>
-        </testsuite>
-        <testsuite name="integration">
-            <directory>tests/Integration/</directory>
-        </testsuite>
-        <testsuite name="cakephp-28-test">
-            <directory>tests/Integrations/CakePHP/V2_8</directory>
-            <directory>tests/Integrations/CLI/CakePHP/V2_8</directory>
-        </testsuite>
-        <testsuite name="laravel-58-test">
-            <directory>tests/Integrations/Laravel/V5_8</directory>
-            <directory>tests/Integrations/CLI/Laravel/V5_8</directory>
-        </testsuite>
-        <testsuite name="slim-312-test">
-            <directory>tests/Integrations/Slim/V3_12</directory>
-        </testsuite>
-        <testsuite name="custom-framework-autoloaded-test">
-            <file>tests/Integrations/Custom/Autoloaded/CommonScenariosTest.php</file>
-            <directory>tests/Integrations/CLI/Custom/Autoloaded</directory>
-        </testsuite>
-        <testsuite name="unit">
-            <directory>tests/Unit/</directory>
-        </testsuite>
-    </testsuites>
-    <filter>
-        <whitelist processUncoveredFilesFromWhitelist="true">
-            <directory suffix=".php">src</directory>
-        </whitelist>
-    </filter>
-    <listeners>
-        <listener class="DDTrace\Tests\DDTestListener"/>
-    </listeners>
 </phpunit>

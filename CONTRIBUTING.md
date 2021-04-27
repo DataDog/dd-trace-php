@@ -4,29 +4,41 @@ As an open-source project we welcome contributions of many forms, but due to the
 
 ## Getting set up with Docker
 
-The easiest way to get the development environment set up is to install [Docker](https://www.docker.com/) and run the following [Docker Compose](https://docs.docker.com/compose/) command from the project root to start the containers.
+The easiest way to get the development environment set up is to install [Docker](https://www.docker.com/) and
+[Docker Compose](https://docs.docker.com/compose/).
+
+## Developing and testing locally
+
+While tests in CI run on all php versions, you typically develop on one version locally. Currently the latest local
+dev environment we support is `8.0`.
+
+Execute one the following commands from your command line, this will bring up all required services:
 
 ```bash
-$ docker-compose up -d
+# For 5.4
+$ docker-compose run --rm 5.4-buster bash
+# For 5.5
+$ docker-compose run --rm 5.5-buster bash
+# For 5.6
+$ docker-compose run --rm 5.6-buster bash
+# For 7.0
+$ docker-compose run --rm 7.0-buster bash
+# For 7.1
+$ docker-compose run --rm 7.1-buster bash
+# For 7.2
+$ docker-compose run --rm 7.2-buster bash
+# For 7.3
+$ docker-compose run --rm 7.3-buster bash
+# For 7.4
+$ docker-compose run --rm 7.4-buster bash
+# For 8.0
+$ docker-compose run --rm 8.0-buster bash
 ```
 
-This will run the [preconfigured docker images](https://hub.docker.com/r/datadog/docker-library/) that we provide for the different PHP versions.
-
-- PHP 5.6: `datadog/docker-library:ddtrace_php_5_6`
-- PHP 7.0: `datadog/docker-library:ddtrace_php_7_0`
-- PHP 7.1: `datadog/docker-library:ddtrace_php_7_1`
-- PHP 7.2: `datadog/docker-library:ddtrace_php_7_2`
-
-To access a `bash` from the PHP 7.2 container, run the following:
+Once inside the container, update dependencies with Composer.
 
 ```bash
-$ docker-compose run --rm 7.2 bash
-```
-
-Once inside the container, install the dependencies with Composer.
-
-```bash
-$ composer install
+$ composer update
 ```
 
 Then install the `ddtrace` extension.
@@ -35,7 +47,7 @@ Then install the `ddtrace` extension.
 $ composer install-ext
 ```
 
-> **Note:** You'll need to run the above `install-ext` command to install the `ddtrace` extension every time you access the container's bash for the first time.
+> :memo: **Note:** You'll need to run the above `install-ext` command to install the `ddtrace` extension every time you access the container's bash for the first time.
 
 You can check that the extension was installed properly.
 
@@ -50,68 +62,55 @@ ddtrace
 
 
 Datadog PHP tracer extension
-For help, check out the documentation at https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started
-(c) Datadog 2018
+For help, check out the documentation at https://docs.datadoghq.com/tracing/languages/php/
+(c) Datadog 2020
 
 Datadog tracing support => enabled
-Version => 0.7.0-beta
+Version => 1.0.0-nightly
+DATADOG TRACER CONFIGURATION => ...
 ```
 
 When you're done with development, you can stop and remove the containers with the following:
 
 ```bash
-$ docker-compose down
+$ docker-compose down -v
 ```
 
 ### Running the tests
 
-In order to run all the tracer tests:
+First you need to update composer's dependecies in `./tests` folder:
 
-    # Run all tests for for php 5.6
-    $ composer test-all-56
+    $ make composer_tests_update
 
-    # Run all tests for for php 7.0
-    $ composer test-all-70
+> :memo: **Note:** To disable reliance on the generated files during development and testing, set the following environment variable:
+> 
+> `export DD_AUTOLOAD_NO_COMPILE=true`
 
-    # Run all tests for for php 7.1
-    $ composer test-all-71
+Then you can run tests:
 
-    # Run all tests for for php 7.2
-    $ composer test-all-72
+    # Run all tests
+    $ make test_all
 
-> **Note:** The `composer test` command is a wrapper around `phpunit`, so you can use all the common [options](https://phpunit.de/manual/5.7/en/textui.html#textui.clioptions) that you would with `phpunit`. However you need to prepend the options list with the additional `--` dashes that `composer` requires:
+    # Run unit tests
+    $ make test_unit
 
-    # Run only unit tests
-    $ composer test -- --testsuite=unit
+    # Run integration tests
+    $ make test_integration
 
-    # Run only integration tests
-    $ composer test -- --testsuite=integration
+    # Run auto-instrumentation tests
+    $ make test_auto_instrumentation
 
-    # Run only library integrations tests for php 5.6
-    $ composer test-integrations-56
+    # Run composer integration tests
+    $ make test_composer
 
-    # Run only library integrations tests for php 7.0
-    $ composer test-integrations-70
+    # Run distributed tracing tests
+    $ make test_distributed_tracing
 
-    # Run only library integrations tests for php 7.1
-    $ composer test-integrations-71
+    # Run library integrations tests
+    $ make test_integrations
 
-    # Run only library integrations tests for php 7.2
-    $ composer test-integrations-72
-
-Testing individual integrations with libraries requires an additional step, as there are different scenarios where you want to test
-a specific integration. You can find available scenarios in `composer.json` at key `extras.scenarios`.
-
-As an example, in order to run Guzzle tests with Guzzle v5 library, run:
-
-    # Only the first time, to create all the different scenarios
-    $ composer scenario:update
-
-    # Activate the specific scenario
-    $ composer scenario guzzle5
-
-    # Run only guzzle tests
-    $ composer test -- tests/Integrations/Guzzle/
+    # Run web frameworks integrations tests
+    $ make test_web
 
 In order to run the `phpt` tests for the php extension:
 
@@ -133,63 +132,10 @@ To try to automatically fix the code style, you can run:
 $ composer fix-lint
 ```
 
-### Static Analyzer
-
-The [PHPStan static analyzer](https://github.com/phpstan/phpstan) is part of the build checks when submitting a PR. To ensure your contribution passes the static analyzer, run the following:
-
-```bash
-$ composer static-analyze
-```
-
-> **Note:** The static analyzer only works on PHP 7.1 builds and greater.
-
 ## Sending a pull request (PR)
 
 There are a number of checks that are run automatically with [CircleCI](https://circleci.com/gh/DataDog/dd-trace-php/tree/master) when a PR is submitted. To ensure your PHP code changes pass the CircleCI checks, make sure to run all the same checks before submitting a PR.
 
 ```bash
-$ composer test && composer lint && composer static-analyze
-```
-
-## Changelog
-
-All notable changes to this project will be documented in `CHANGELOG.md` file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-### Changelog entry format
-
-Changelog entry should try to form a coherent sentence with the heading e.g,:
-
-```md
-### Added
-- integration
-```
-
-Changelog entry must link to relevant PR(s) via ```#reference``` e.g. ```new integration #124, #122```
-
-Changelog entry might mention PR author(s) via ```@mention```- especially when they are not a member of the DataDog team.
-
-Changelog entry should start with lowercase or preferably, a specific integration name it concerns e.g., Laravel.
-
-### Example Changelog
-
-```md
-## [Unreleased]
-### Added
-- Laravel integration #124 (@pr_author)
-### Fixed
-- Laravel integration breaking bug #123
-### Changed
-- Laravel integration documentation #111
-### Removed
-- support for PHP 5.3 #2
-
-## [0.0.1] - 2018-01-01
-### Added
-- support for PHP 5.3 #1
-
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.0.1...HEAD
-[0.0.1]: https://github.com/DataDog/dd-trace-php/compare/0.0.0...0.0.1
+$ composer composer lint && test-all-<php-version>
 ```

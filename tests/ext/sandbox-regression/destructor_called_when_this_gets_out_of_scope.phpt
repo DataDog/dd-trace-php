@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Destructor is called when object goes out of scope
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 
@@ -15,7 +13,7 @@ class Test {
     }
 }
 
-dd_trace_method("Test", "m", function($s, $a, $retval) {
+DDTrace\trace_method("Test", "m", function($s, $a, $retval) {
     echo $retval . " OVERRIDE" . PHP_EOL;
 });
 function func() {

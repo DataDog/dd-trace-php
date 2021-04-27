@@ -2,7 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/DataDog/dd-trace-php/tree/master.svg?style=svg)](https://circleci.com/gh/DataDog/dd-trace-php/tree/master)
 [![OpenTracing Badge](https://img.shields.io/badge/OpenTracing-enabled-blue.svg)](http://opentracing.io)
-[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%205.6-8892BF.svg)](https://php.net/)
+[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%205.4-8892BF.svg)](https://php.net/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
 [![Packagist Version](https://img.shields.io/packagist/v/datadog/dd-trace.svg)](https://packagist.org/packages/datadog/dd-trace)
 [![Total Downloads](https://img.shields.io/packagist/dt/datadog/dd-trace.svg)](https://packagist.org/packages/datadog/dd-trace)
@@ -19,19 +19,15 @@ Visit the [PHP tracer documentation](https://docs.datadoghq.com/tracing/language
 
 ### Advanced configuration
 
-For more information about configuring and instrumenting **ddtrace**, view the [advanced-instrumentation documentation](https://docs.datadoghq.com/tracing/advanced_usage/?tab=php).
+For more information about configuring and instrumenting **ddtrace**, view the [configuration documentation](https://docs.datadoghq.com/tracing/setup/php/#configuration).
 
 ### OpenTracing
 
-The **ddtrace** package provides an [OpenTracing-compatible tracer](https://docs.datadoghq.com/tracing/advanced_usage/?tab=php#opentracing).
+The **ddtrace** package provides an [OpenTracing-compatible tracer](https://docs.datadoghq.com/tracing/custom_instrumentation/php/?tab=tracingfunctioncalls#opentracing).
 
 ## Contributing
 
 Before contributing to this open source project, read our [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Releasing
-
-See [RELEASING](RELEASING.md) for more information on releasing new versions.
 
 ## Security Vulnerabilities
 

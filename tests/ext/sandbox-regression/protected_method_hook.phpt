@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Trace protected method
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 
@@ -19,7 +17,7 @@ class Test
     }
 }
 
-dd_trace_method("Test", "protected_method", function(){
+DDTrace\trace_method("Test", "protected_method", function(){
     echo "PROTECTED HOOK" . PHP_EOL;
 });
 

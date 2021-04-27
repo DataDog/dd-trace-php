@@ -26,14 +26,16 @@ class PipelineTracingTest extends WebFrameworkTestCase
             $response = $this->call($spec);
             $this->assertSame('done', $response);
         });
-        $this->assertExpectedSpans($traces, [
-            SpanAssertion::exists('laravel.request'),
-            SpanAssertion::build(
-                'laravel.pipeline.pipe',
-                'laravel_test_app',
-                'web',
-                'Tests\Integration\DummyPipe::someHandler'
-            ),
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('laravel.request')
+                ->withChildren([
+                    SpanAssertion::build(
+                        'laravel.pipeline.pipe',
+                        'laravel_test_app',
+                        'web',
+                        'Tests\Integration\DummyPipe::someHandler'
+                    ),
+                ]),
         ]);
     }
 
@@ -46,19 +48,21 @@ class PipelineTracingTest extends WebFrameworkTestCase
             $this->assertSame('done1/done2', $response);
         });
         $this->assertExpectedSpans($traces, [
-            SpanAssertion::exists('laravel.request'),
-            SpanAssertion::build(
-                'laravel.pipeline.pipe',
-                'laravel_test_app',
-                'web',
-                'Tests\Integration\DummyPipe::someHandler'
-            ),
-            SpanAssertion::build(
-                'laravel.pipeline.pipe',
-                'laravel_test_app',
-                'web',
-                'Tests\Integration\DummyPipe::someHandler'
-            ),
+            SpanAssertion::exists('laravel.request')
+                ->withChildren([
+                    SpanAssertion::build(
+                        'laravel.pipeline.pipe',
+                        'laravel_test_app',
+                        'web',
+                        'Tests\Integration\DummyPipe::someHandler'
+                    ),
+                    SpanAssertion::build(
+                        'laravel.pipeline.pipe',
+                        'laravel_test_app',
+                        'web',
+                        'Tests\Integration\DummyPipe::someHandler'
+                    ),
+                ]),
         ]);
     }
 }

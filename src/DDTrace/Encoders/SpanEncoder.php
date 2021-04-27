@@ -7,6 +7,7 @@ use DDTrace\Data\Span as DataSpan;
 use DDTrace\GlobalTracer;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tag;
 
 final class SpanEncoder
 {
@@ -43,6 +44,12 @@ final class SpanEncoder
         }
 
         $tags = $span->tags;
+        if (
+            !empty($span->context->origin)
+            && $span->context->isHostRoot()
+        ) {
+            $tags[Tag::ORIGIN] = $span->context->origin;
+        }
         if (!empty($tags)) {
             $arraySpan['meta'] = $tags;
         }
@@ -52,24 +59,18 @@ final class SpanEncoder
         foreach ($span->metrics as $metricName => $metricValue) {
             $metrics[$metricName] = $metricValue;
         }
-        if (
-            $span->context->isHostRoot()
-            && ($prioritySampling = GlobalTracer::get()->getPrioritySampling()) !== PrioritySampling::UNKNOWN
-        ) {
-            $metrics['_sampling_priority_v1'] = $prioritySampling;
+        if ($span->context->isHostRoot()) {
+            $prioritySampling = GlobalTracer::get()->getPrioritySampling();
+            if ($prioritySampling !== PrioritySampling::UNKNOWN) {
+                $metrics['_sampling_priority_v1'] = $prioritySampling;
+            }
+            if (\dd_trace_env_config('DD_TRACE_MEASURE_COMPILE_TIME')) {
+                // Metric expects milliseconds
+                $metrics['php.compilation.total_time_ms'] = (float) dd_trace_compile_time_microseconds() / 1000;
+            }
         }
         if (!empty($metrics)) {
             $arraySpan['metrics'] = $metrics;
-        }
-
-        // This is only for testing purposes and possibly temporary as we may want to add integration name to the span's
-        // metadata in a consistent way across various tracers.
-        if (
-            null !== $span->integration
-            && false !== ($integrationTest = getenv('DD_TEST_INTEGRATION'))
-            && in_array($integrationTest, ['1', 'true'])
-        ) {
-            $arraySpan['meta']['integration.name'] = $span->integration->getName();
         }
 
         return $arraySpan;

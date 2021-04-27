@@ -3,87 +3,47 @@
 namespace DDTrace\Tests\Unit\Processing;
 
 use DDTrace\Processing\TraceAnalyticsProcessor;
-use DDTrace\Span;
-use DDTrace\SpanContext;
 use DDTrace\Tag;
-use DDTrace\Tests\Common\Model\DummyIntegration;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class TraceAnalyticsProcessorTest extends BaseTestCase
 {
-    /**
-     * @var TraceAnalyticsProcessor
-     */
-    private $processor;
-
-    protected function setUp()
+    public function testTrueIs1()
     {
-        parent::setUp();
-        $this->processor = new TraceAnalyticsProcessor();
+        $metrics = [
+        ];
+        TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, true);
+        $this->assertSame(1.0, $metrics[Tag::ANALYTICS_KEY]);
     }
 
-    public function testShouldBeMarkedForTraceAnalytics()
+    public function testFalseIsUnset()
     {
-        $integration = DummyIntegration::create()->withTraceAnalyticsConfiguration(true, 0.3);
-        $span = new Span('operation', SpanContext::createAsRoot(), 'service', 'resource');
-        $span->setIntegration($integration);
-
-        $span->setTraceAnalyticsCandidate();
-        $this->processor->process($span);
-        $this->assertSame(0.3, $span->getMetrics()[Tag::ANALYTICS_KEY]);
+        $metrics = [
+            Tag::ANALYTICS_KEY => 0.2,
+        ];
+        TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, false);
+        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $metrics);
     }
 
-    public function testShouldBeMarkedForTraceAnalyticsEvenIfSpanClosed()
+    public function testNumericValueBetweenZeroAndOne()
     {
-        $integration = DummyIntegration::create()->withTraceAnalyticsConfiguration(true, 0.3);
-        $span = new Span('operation', SpanContext::createAsRoot(), 'service', 'resource');
-        $span->setIntegration($integration);
-
-        $span->setTraceAnalyticsCandidate();
-        $span->finish();
-        $this->processor->process($span);
-        $this->assertSame(0.3, $span->getMetrics()[Tag::ANALYTICS_KEY]);
+        $metrics = [
+        ];
+        TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, 0.4);
+        $this->assertSame(0.4, $metrics[Tag::ANALYTICS_KEY]);
     }
 
-    public function testNotProcessedIfNotATraceAnalyticsCandidate()
+    public function testValueLessThan0()
     {
-        $integration = DummyIntegration::create()->withTraceAnalyticsConfiguration(true, 0.3);
-        $span = new Span('operation', SpanContext::createAsRoot(), 'service', 'resource');
-        $span->setIntegration($integration);
-
-        $this->processor->process($span);
-        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $span->getMetrics());
+        $metrics = [];
+        TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, -0.1);
+        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $metrics);
     }
 
-    public function testShouldNotBeMarkedForTraceAnalyticsWhenDisabled()
+    public function testValueGreaterThan1()
     {
-        $integration = DummyIntegration::create()->withTraceAnalyticsConfiguration(false, 0.3);
-        $span = new Span('operation', SpanContext::createAsRoot(), 'service', 'resource');
-        $span->setIntegration($integration);
-
-        $span->setTraceAnalyticsCandidate();
-        $this->processor->process($span);
-        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $span->getMetrics());
-    }
-
-    public function testUserValueIsRespectedIfProvided()
-    {
-        $integration = DummyIntegration::create()->withTraceAnalyticsConfiguration(false, 0.3);
-        $span = new Span('operation', SpanContext::createAsRoot(), 'service', 'resource');
-        $span->setIntegration($integration);
-
-        $span->setTraceAnalyticsCandidate();
-        $span->setMetric(Tag::ANALYTICS_KEY, 0.7);
-        $this->processor->process($span);
-        $this->assertSame(0.7, $span->getMetrics()[Tag::ANALYTICS_KEY]);
-    }
-
-    public function testSpanWithNoIntegrationIsNotProcessed()
-    {
-        $span = new Span('operation', SpanContext::createAsRoot(), 'service', 'resource');
-
-        $span->setTraceAnalyticsCandidate();
-        $this->processor->process($span);
-        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $span->getMetrics());
+        $metrics = [];
+        TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, 1.1);
+        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $metrics);
     }
 }

@@ -5,12 +5,9 @@ namespace DDTrace\Tests\Integrations\Memcached;
 use DDTrace\Obfuscation;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Util\Versions;
 
-class MemcachedTest extends IntegrationTestCase
+final class MemcachedTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = false;
-
     /**
      * @var \Memcached
      */
@@ -19,9 +16,9 @@ class MemcachedTest extends IntegrationTestCase
     private static $host = 'memcached_integration';
     private static $port = '11211';
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
 
         $this->client = new \Memcached();
         $this->client->addServer(self::$host, self::$port);
@@ -660,7 +657,7 @@ class MemcachedTest extends IntegrationTestCase
     public function testCas()
     {
         $this->client->set('ip_block', 'some_value');
-        if (Versions::phpVersionMatches('5.4') || Versions::phpVersionMatches('5.6')) {
+        if (\PHP_MAJOR_VERSION === 5) {
             $cas = null;
             $this->client->get('ip_block', null, $cas);
         } else {
@@ -684,7 +681,7 @@ class MemcachedTest extends IntegrationTestCase
     public function testCasByKey()
     {
         $this->client->setByKey('my_server', 'ip_block', 'some_value');
-        if (Versions::phpVersionMatches('5.4') || Versions::phpVersionMatches('5.6')) {
+        if (\PHP_MAJOR_VERSION === 5) {
             $cas = null;
             $this->client->getByKey('my_server', 'ip_block', null, $cas);
         } else {
@@ -704,6 +701,21 @@ class MemcachedTest extends IntegrationTestCase
                 ]))
                 ->withExistingTagsNames(['memcached.cas_token']),
         ]);
+    }
+
+    // https://github.com/DataDog/dd-trace-php/issues/622
+    // https://github.com/DataDog/dd-trace-php/issues/656
+    public function testResultCodeIsError()
+    {
+        $this->isolateTracer(function () {
+            $m = new \Memcached();
+            $m->addServer('memcached_server_does_not_exist', 11211);
+            $m->get('foo');
+            $this->assertSame(
+                \Memcached::RES_HOST_LOOKUP_FAILURE,
+                $m->getResultCode()
+            );
+        });
     }
 
     private static function baseTags()

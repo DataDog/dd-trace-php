@@ -7,7 +7,7 @@ use DDTrace\Encoder;
 use DDTrace\Encoders\Json;
 use DDTrace\Log\Logger;
 use DDTrace\Tests\Common\TestLogger;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Unit\CleanEnvTrait;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
@@ -78,7 +78,7 @@ final class HttpTest extends BaseTestCase
         $tenMBString = str_repeat('a', Http::AGENT_REQUEST_BODY_LIMIT);
         $httpTransport = new Http(new FooEncoder([$tenMBString]));
         $httpTransport->send(Tracer::noop());
-        $this->assertContains('dropping request', $logger->lastLog);
+        $this->assertStringContains('dropping request', $logger->lastLog);
     }
 
     public function testPayloadsExactly10MBPass()
@@ -90,7 +90,7 @@ final class HttpTest extends BaseTestCase
         $encoder = new FooEncoder([$tenMBString]);
         $httpTransport = new Http($encoder);
         $httpTransport->send(Tracer::noop());
-        $this->assertNotContains('dropping request', $logger->lastLog);
+        $this->assertStringNotContains('dropping request', $logger->lastLog);
         $this->assertSame(Http::AGENT_REQUEST_BODY_LIMIT, strlen($encoder->payload));
     }
 }

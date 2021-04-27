@@ -4,12 +4,17 @@ namespace DDTrace\Tests\Common;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Encoders\SpanEncoder;
+use DDTrace\GlobalTracer;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
+use DDTrace\Tests\WebServer;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\GlobalTracer;
+use Exception;
+use PHPUnit\Framework\TestCase;
 
 trait TracerTestTrait
 {
@@ -20,7 +25,25 @@ trait TracerTestTrait
      * @param null $tracer
      * @return array[]
      */
-    public function isolateTracer($fn, $tracer = null)
+    public function isolateTracer($fn, $tracer = null, $config = [])
+    {
+        // Reset the current C-level array of generated spans
+        dd_trace_serialize_closed_spans();
+        $transport = new DebugTransport();
+        $tracer = $tracer ?: new Tracer($transport, null, $config);
+        GlobalTracer::set($tracer);
+
+        $fn($tracer);
+
+        return $this->flushAndGetTraces($transport);
+    }
+
+    /**
+     * @param $fn
+     * @param null $tracer
+     * @return array[]
+     */
+    public function inRootSpan($fn, $tracer = null)
     {
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
@@ -28,14 +51,12 @@ trait TracerTestTrait
         $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);
 
+        $scope = $tracer->startRootSpan('root_span');
         $fn($tracer);
-
-        // Checking spans belong to the proper integration
-        $this->assertSpansBelongsToProperIntegration($this->readTraces($tracer));
+        $scope->close();
 
         return $this->flushAndGetTraces($transport);
     }
-
 
     /**
      * @param $fn
@@ -55,7 +76,7 @@ trait TracerTestTrait
 
         $fn($tracer);
 
-        $traces =  $this->flushAndGetTraces($transport);
+        $traces = $this->flushAndGetTraces($transport);
 
         putenv('DD_TRACE_SPANS_LIMIT');
         dd_trace_internal_fn('ddtrace_reload_config');
@@ -77,7 +98,16 @@ trait TracerTestTrait
         // Clearing existing dumped file
         $this->resetRequestDumper();
 
+        // Reset the current C-level array of generated spans
+        dd_trace_serialize_closed_spans();
+
         $transport = new Http(new Json(), ['endpoint' => self::$agentRequestDumperUrl]);
+
+        /* Disable Expect: 100-Continue that automatically gets added by curl,
+         * as it adds a 1s delay, causing tests to sometimes fail.
+         */
+        $transport->setHeader('Expect', '');
+
         $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);
 
@@ -87,8 +117,69 @@ trait TracerTestTrait
         /** @var DebugTransport $transport */
         $tracer->flush();
 
-        // Checking that spans belong to the correct integrations.
-        $this->assertSpansBelongsToProperIntegration($this->readTraces($tracer));
+        return $this->parseTracesFromDumpedData();
+    }
+
+    /**
+     * This method executes a request into an ad-hoc web server configured with the provided envs and inis that is
+     * created and destroyed with the scope of this test.
+     */
+    public function inWebServer($fn, $rootPath, $envs = [], $inis = [], &$curlInfo = null)
+    {
+        $this->resetRequestDumper();
+        $webServer = new WebServer($rootPath, '0.0.0.0', 6666);
+        $webServer->mergeEnvs($envs);
+        $webServer->mergeInis($inis);
+        $webServer->start();
+
+        $fn(function (RequestSpec $request) use ($webServer, &$curlInfo) {
+            if ($request instanceof GetSpec) {
+                $curl = curl_init('http://127.0.0.1:6666' . $request->getPath());
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, $request->getHeaders());
+                $response = curl_exec($curl);
+                if (\is_array($curlInfo)) {
+                    $curlInfo = \array_merge($curlInfo, \curl_getinfo($curl));
+                }
+                \curl_close($curl);
+                $webServer->stop();
+                return $response;
+            }
+
+            $webServer->stop();
+            throw new Exception('Spec type not supported.');
+        });
+
+        return $this->parseTracesFromDumpedData();
+    }
+
+    /**
+     * This method executes a single script with the provided configuration.
+     */
+    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '')
+    {
+        $this->resetRequestDumper();
+        $envs = (string) new EnvSerializer(array_merge(
+            [
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_AGENT_HOST' => 'request-replayer',
+                'DD_TRACE_AGENT_PORT' => '80',
+                // Uncomment to see debug-level messages
+                //'DD_TRACE_DEBUG' => 'true',
+            ],
+            $customEnvs
+        ));
+        $inis = (string) new IniSerializer(array_merge(
+            [
+                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+            ],
+            $customInis
+        ));
+
+        $script = escapeshellarg($scriptPath);
+        $arguments = escapeshellarg($arguments);
+        $commandToExecute = "$envs php $inis $script $arguments";
+        `$commandToExecute`;
 
         return $this->parseTracesFromDumpedData();
     }
@@ -98,7 +189,7 @@ trait TracerTestTrait
      */
     private function resetRequestDumper()
     {
-        $curl =  curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
+        $curl = curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
         curl_exec($curl);
     }
 
@@ -130,10 +221,28 @@ trait TracerTestTrait
      */
     private function parseTracesFromDumpedData()
     {
-        // Retrieving data
-        $curl =  curl_init(self::$agentRequestDumperUrl . '/replay');
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($curl);
+        // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
+        // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
+        // for loop.
+        for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
+            $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            // Retrieving data
+            $response = curl_exec($curl);
+            if (!$response) {
+                // PHP-FPM requests are much slower in the container
+                // Temporary workaround until we get a proper test runner
+                \usleep(
+                    'fpm-fcgi' === \getenv('DD_TRACE_TEST_SAPI')
+                    ? 500 * 1000// 500 ms for PHP-FPM
+                    : 50 * 1000// 50 ms for other SAPIs
+                );
+                continue;
+            } else {
+                break;
+            }
+        }
+
         if (!$response) {
             return [];
         }
@@ -141,11 +250,21 @@ trait TracerTestTrait
         // For now we only support asserting traces against one dump at a time.
         $loaded = json_decode($response, true);
 
-        if (!isset($loaded['body'])) {
+        // Data is returned as [{trace_1}, {trace_2}]. As of today we only support parsing 1 trace.
+        if (count($loaded) > 1) {
+            TestCase::fail(
+                sprintf("Received multiple bodys from request replayer: %s", \var_export($loaded, true))
+            );
+        }
+
+        $uniqueRequest = $loaded[0];
+
+        if (!isset($uniqueRequest['body'])) {
             return [];
         }
 
-        $rawTraces = json_decode($loaded['body'], true);
+        $rawTraces = json_decode($uniqueRequest['body'], true);
+
         $traces = [];
 
         foreach ($rawTraces as $spansInTrace) {
@@ -156,6 +275,12 @@ trait TracerTestTrait
                     $rawSpan['span_id'],
                     isset($rawSpan['parent_id']) ? $rawSpan['parent_id'] : null
                 );
+
+                if (empty($rawSpan['resource'])) {
+                    TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
+                    return;
+                }
+
                 $span = new Span(
                     $rawSpan['name'],
                     $spanContext,
@@ -280,20 +405,5 @@ trait TracerTestTrait
         $tracesProperty = $tracerReflection->getProperty('traces');
         $tracesProperty->setAccessible(true);
         return $tracesProperty->getValue($tracer);
-    }
-
-    /**
-     * Asserting that a Span belongs to the expected integration.
-     *
-     * @param array $traces
-     */
-    private function assertSpansBelongsToProperIntegration(array $traces)
-    {
-        $spanIntegrationChecker = new SpanIntegrationChecker();
-        foreach ($traces as $trace) {
-            foreach ($trace as $span) {
-                $spanIntegrationChecker->checkIntegration($this, $span);
-            }
-        }
     }
 }

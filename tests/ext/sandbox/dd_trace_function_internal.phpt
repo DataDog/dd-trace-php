@@ -1,12 +1,12 @@
 --TEST--
-dd_trace_function() can trace internal functions with internal spans
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+DDTrace\trace_function() can trace internal functions with internal spans
+--ENV--
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
 <?php
 use DDTrace\SpanData;
 
-var_dump(dd_trace_function('array_sum', function (SpanData $span) {
+var_dump(DDTrace\trace_function('array_sum', function (SpanData $span) {
     $span->name = 'ArraySum';
 }));
 
@@ -23,7 +23,7 @@ int(9)
 ---
 array(1) {
   [0]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -34,10 +34,12 @@ array(1) {
     int(%d)
     ["name"]=>
     string(8) "ArraySum"
+    ["resource"]=>
+    string(8) "ArraySum"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
 }

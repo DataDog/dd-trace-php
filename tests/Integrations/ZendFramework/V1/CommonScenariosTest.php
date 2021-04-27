@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-final class CommonScenariosTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
@@ -25,7 +25,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -41,7 +41,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple',
                             'http.status_code' => '200',
-                            'integration.name' => 'zendframework',
                         ]),
                 ],
                 'A simple GET request with a view' => [
@@ -53,7 +52,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple_view',
                             'http.status_code' => '200',
-                            'integration.name' => 'zendframework',
                         ]),
                 ],
                 'A GET request with an exception' => [
@@ -65,7 +63,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error',
                             'http.status_code' => '500',
-                            'integration.name' => 'zendframework',
                         ])->setError(),
                 ],
             ]

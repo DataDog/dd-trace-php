@@ -1,7 +1,7 @@
 --TEST--
 [Sandbox regression] Traced functions and methods are untraced with reset
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+<?php if (PHP_VERSION_ID >= 80000) die('skip: Cannot reset instrumented functions on PHP 8+'); ?>
 --FILE--
 <?php
 class Test {
@@ -10,7 +10,7 @@ class Test {
     }
 }
 
-dd_trace_method("Test", "m", function(){
+DDTrace\trace_method("Test", "m", function(){
     echo "METHOD HOOK" . PHP_EOL;
 });
 
@@ -18,7 +18,7 @@ function test(){
     echo "FUNCTION" . PHP_EOL;
 }
 
-dd_trace_function("test", function(){
+DDTrace\trace_function("test", function(){
     echo "FUNCTION HOOK" . PHP_EOL;
 });
 
@@ -28,14 +28,15 @@ test();
 
 echo (dd_trace_reset() ? "TRUE": "FALSE") . PHP_EOL;
 
-$object->m();
-test();
+// Cannot call a function while it is not traced and later expect it to trace
+//$object->m();
+//test();
 
-dd_trace_method("Test", "m", function(){
+DDTrace\trace_method("Test", "m", function(){
     echo "METHOD HOOK2" . PHP_EOL;
 });
 
-dd_trace_function("test", function(){
+DDTrace\trace_function("test", function(){
     echo "FUNCTION HOOK2" . PHP_EOL;
 });
 
@@ -49,8 +50,6 @@ METHOD HOOK
 FUNCTION
 FUNCTION HOOK
 TRUE
-METHOD
-FUNCTION
 METHOD
 METHOD HOOK2
 FUNCTION

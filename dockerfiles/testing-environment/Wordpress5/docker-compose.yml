@@ -1,0 +1,54 @@
+version: "3.7"
+
+services:
+  "5.6":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-wp5:5.6"
+    depends_on:
+      - agent
+      - mysql
+    ports:
+      - 9995:80
+    environment:
+      - DD_SERVICE_NAME=5.6-wp5
+      - DD_AGENT_HOST=agent
+      - DB_HOST=mysql
+      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.46.0/datadog-php-tracer_0.46.0_amd64.deb
+      - DD_TRACE_DEBUG=false
+    # volumes:
+    #   - ./app:/var/www/html/public
+    command: [ "/scripts/local-run.sh" ]
+
+  "7.3":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-wp5:7.3"
+    depends_on:
+      - agent
+      - mysql
+    ports:
+      - 9999:80
+    environment:
+      - DD_SERVICE_NAME=7.3-wp5
+      - DD_AGENT_HOST=agent
+      - DB_HOST=mysql
+      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.46.0/datadog-php-tracer_0.46.0_amd64.deb
+      - DD_TRACE_DEBUG=false
+    # volumes:
+    #   - ./app:/var/www/html/public
+    command: [ "/scripts/local-run.sh" ]
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_APM_ENV=testenv
+
+  mysql:
+    image: "mysql:5.7"
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true

@@ -77,3 +77,49 @@
     obj:*
     obj:*
 }
+{
+    <leaks on exit opcode>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:zend_compile
+    fun:compile_file
+    fun:phar_compile_file
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}
+{
+    <leaks on exit from auto_prepend_file>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:zend_string_alloc
+    fun:zend_string_init
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}
+{
+    <leaks on exit from auto_prepend_file>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:zend_compile
+    fun:compile_file
+    fun:phar_compile_file
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:dd_execute_auto_prepend_file
+    fun:zif_ddtrace_init
+    fun:ZEND_DO_ICALL_SPEC_RETVAL_UNUSED_HANDLER
+    fun:execute_ex
+}

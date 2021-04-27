@@ -11,7 +11,30 @@ CUSTOM_INI_FILE_NAME='ddtrace-custom.ini'
 
 PATH="${PATH}:/usr/local/bin"
 
-function println(){
+# We attempt in this order the following binary names:
+#    1. php
+#    2. php7 (some alpine versions install php 7.x from main repo to this binary)
+#    3. php5 (some alpine versions install php 5.x from main repo to this binary)
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(command -v php || true)
+fi
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(command -v php7 || true)
+fi
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(command -v php5 || true)
+fi
+
+function invoke_php() {
+    # In case of .apk post-install hooks the script has no access the set of exported ENVS.
+    # When 1) users import large ini files (e.g. browsercap.ini) and 2) they set memory_limit using an env
+    # variable we would fail because of the memory limit reached. In order to avoid this we set a sane memory limit
+    # that should cause no problem in any machine when our tracer is installed.
+    # alias invoke_php="$DD_TRACE_PHP_BIN -d memory_limit=128M"
+    $DD_TRACE_PHP_BIN -d memory_limit=128M "$*"
+}
+
+function println() {
     echo -e '###' "$@"
 }
 
@@ -66,9 +89,13 @@ function install_conf_d_files() {
     println "\n"
 
     # Detect installed SAPI's
-    SAPI_CONFIG_DIRS=(${PHP_CFG_DIR})
-    SAPI_DIR=${PHP_CFG_DIR%cli/conf.d}
+    SAPI_DIR=${PHP_CFG_DIR%/*/conf.d}/
+    SAPI_CONFIG_DIRS=()
     if [[ "$PHP_CFG_DIR" != "$SAPI_DIR" ]]; then
+        # Detect CLI
+        if [[ -d "${SAPI_DIR}cli/conf.d" ]]; then
+            SAPI_CONFIG_DIRS+=("${SAPI_DIR}cli/conf.d")
+        fi
         # Detect FPM
         if [[ -d "${SAPI_DIR}fpm/conf.d" ]]; then
             SAPI_CONFIG_DIRS+=("${SAPI_DIR}fpm/conf.d")
@@ -79,7 +106,11 @@ function install_conf_d_files() {
         fi
     fi
 
-    for SAPI_CFG_DIR in ${SAPI_CONFIG_DIRS[@]}
+    if [ ${#SAPI_CONFIG_DIRS[@]} -eq 0 ]; then
+        SAPI_CONFIG_DIRS+=("$PHP_CFG_DIR")
+    fi
+
+    for SAPI_CFG_DIR in "${SAPI_CONFIG_DIRS[@]}"
     do
         println "Found SAPI config directory: ${SAPI_CFG_DIR}"
 
@@ -106,21 +137,20 @@ function fail_print_and_exit() {
     println "Note that your PHP API version must match the extension's API version"
     println "PHP API version can be found using following command"
     println
-    println "    php -i | grep 'PHP API'"
+    println "    $DD_TRACE_PHP_BIN -i | grep 'PHP API'"
     println
 
     exit 0 # exit - but do not fail the installation
 }
 
 function verify_installation() {
-    ENABLED_VERSION="$(php -r "echo phpversion('ddtrace');")"
-
-    if [[ -n ${ENABLED_VERSION} ]]; then
-        println "Extension ${ENABLED_VERSION} enabled successfully"
-    else
+    invoke_php -m | grep ddtrace && \
+        println "Extension enabled successfully" || \
         fail_print_and_exit
-    fi
 }
+
+println "PHP version"
+invoke_php -v
 
 mkdir -p $EXTENSION_DIR
 mkdir -p $EXTENSION_CFG_DIR
@@ -128,22 +158,31 @@ mkdir -p $EXTENSION_LOGS_DIR
 
 println 'Installing Datadog PHP tracing extension (ddtrace)'
 println
-println 'Logging php -i to a file'
+println "Logging $DD_TRACE_PHP_BIN -i to a file"
 println
 
-php -i > "$EXTENSION_LOGS_DIR/php-info.log"
+invoke_php -i > "$EXTENSION_LOGS_DIR/php-info.log"
 
-PHP_VERSION=$(php -i | grep 'PHP API' | awk '{print $NF}')
-PHP_CFG_DIR=$(php --ini | grep 'Scan for additional .ini files in:' | sed -e 's/Scan for additional .ini files in://g' | head -n 1 | awk '{print $1}')
+PHP_VERSION=$(invoke_php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
+PHP_MAJOR_MINOR=$(invoke_php -r 'echo PHP_MAJOR_VERSION;').$(invoke_php -r 'echo PHP_MINOR_VERSION;')
+PHP_CFG_DIR=$(invoke_php -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
 
-PHP_THREAD_SAFETY=$(php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
+PHP_THREAD_SAFETY=$(invoke_php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
+PHP_DEBUG_BUILD=$(invoke_php -i | grep 'Debug Build => ' | awk '{print $NF}' | grep -i yes)
 
 VERSION_SUFFIX=""
 if [[ -n $PHP_THREAD_SAFETY ]]; then
     VERSION_SUFFIX="-zts"
+elif [[ -n $PHP_DEBUG_BUILD ]]; then
+    VERSION_SUFFIX="-debug"
 fi
 
-EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}.so"
+OS_SPECIFIER=""
+if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${VERSION_SUFFIX}" != "-zts" ]; then
+    OS_SPECIFIER="-alpine"
+fi
+
+EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}${OS_SPECIFIER}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
 [datadog]
@@ -155,7 +194,7 @@ EOF
 if [[ ! -e $PHP_CFG_DIR ]]; then
     println
     println 'conf.d folder not found falling back to appending extension config to main "php.ini"'
-    PHP_CFG_FILE_PATH=$(php --ini | grep 'Configuration File (php.ini) Path:' | sed -e 's/Configuration File (php.ini) Path://g' | head -n 1 | awk '{print $1}')
+    PHP_CFG_FILE_PATH=$(invoke_php -i | grep 'Configuration File (php.ini) Path =>' | sed -e 's/Configuration File (php.ini) Path =>//g' | head -n 1 | awk '{print $1}')
     PHP_CFG_FILE="${PHP_CFG_FILE_PATH}/php.ini"
     if [[ ! -e $PHP_CFG_FILE_PATH ]]; then
         fail_print_and_exit

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use PHPUnit\Framework\TestCase;
 
@@ -18,9 +17,7 @@ final class SpanIntegrationChecker
     {
         // <regex pattern> => <integration class>
         $pdoIntegration = 'DDTrace\Integrations\PDO\PDOIntegration';
-        if (Configuration::get()->isSandboxEnabled()) {
-            $pdoIntegration = 'DDTrace\Integrations\PDO\PDOSandboxedIntegration';
-        }
+
         return [
             // Prepend your operation names with custom for custom spans to have the span check disabled
             '/custom.*/' => null,

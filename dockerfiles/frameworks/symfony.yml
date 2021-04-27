@@ -7,10 +7,10 @@ services:
       - "REDIS_HOST=redis"
       - "MEMCACHED_HOST=memcached"
       - "REDIS_CLUSTER_HOSTS=redis_cluster:7000 redis_cluster:7001 redis_cluster:7002 redis_cluster:7003 redis_cluster:7004 redis_cluster:7005"
+    image: 'datadog/dd-trace-ci:php-framework-symfony'
     build:
-      context: src
+      context: contrib
       target: symfony
-    image: 'datadog/dd-trace-php:symfony-4.3-php-7.3'
     ulimits:
       core: 99999999999
     cap_add:

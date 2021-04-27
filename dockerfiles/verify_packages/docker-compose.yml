@@ -7,24 +7,56 @@ services:
     tty: true
     volumes: [ '../../:/build_src' ]
     cap_add: [ SYS_PTRACE ]
-    image: 'datadog/docker-library:ddtrace_centos_6_php_5_4'
-  '5.6-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_56' }
-  '7.0-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_70' }
-  '7.1-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_71' }
-  '7.2-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_72' }
-  '5.4-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_54' }
-  '5.6-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_56' }
-  '7.0-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_70' }
-  '7.1-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_71' }
-  '7.2-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_72' }
-  '7.3-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_73' }
-  '5.6-alpine':  { <<: *base_image, image: 'php:5.6-alpine' }
-  '7.0-alpine':  { <<: *base_image, image: 'php:7.0-alpine' }
-  '7.1-alpine':  { <<: *base_image, image: 'php:7.1-alpine' }
-  '7.2-alpine':  { <<: *base_image, image: 'php:7.2-alpine' }
-  '7.3-alpine':  { <<: *base_image, image: 'php:7.3-alpine' }
-  '5.6-zts-alpine':  { <<: *base_image, image: 'php:5.6-zts-alpine' }
-  '7.0-zts-alpine':  { <<: *base_image, image: 'php:7.0-zts-alpine' }
-  '7.1-zts-alpine':  { <<: *base_image, image: 'php:7.1-zts-alpine' }
-  '7.2-zts-alpine':  { <<: *base_image, image: 'php:7.2-zts-alpine' }
-  '7.3-zts-alpine':  { <<: *base_image, image: 'php:7.3-zts-alpine' }
+    image: 'datadog/dd-trace-ci:php-5.4_centos-6'
+  '5.5-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-5.5_centos-6' }
+  '5.6-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-5.6_centos-6' }
+  '7.0-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.0_centos-6' }
+  '7.1-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
+  '7.2-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.2_centos-6' }
+  '7.3-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
+  '7.4-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.4_centos-6' }
+  '8.0-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
+
+  alpine:
+    image: ${ALPINE_IMAGE}
+    working_dir: /datadog
+    volumes:
+      - ../../:/datadog
+    environment:
+      PHP_PACKAGE: ${PHP_PACKAGE}
+      PACKAGE_TYPE: ${PACKAGE_TYPE}
+      DD_AGENT_HOST: request-replayer
+      DD_TRACE_AGENT_PORT: 80
+      DD_TRACE_DEBUG: 'false'
+      DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+    depends_on:
+      - request-replayer
+
+  centos:
+    image: ${DOCKER_IMAGE}
+    working_dir: /datadog
+    volumes:
+      - ../../:/datadog
+    environment:
+      DD_AGENT_HOST: request-replayer
+      DD_TRACE_AGENT_PORT: 80
+      DD_TRACE_DEBUG: 'false'
+      DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+    depends_on:
+      - request-replayer
+
+  debian:
+    image: ${DOCKER_IMAGE}
+    working_dir: /datadog
+    volumes:
+      - ../../:/datadog
+    environment:
+      DD_AGENT_HOST: request-replayer
+      DD_TRACE_AGENT_PORT: 80
+      DD_TRACE_DEBUG: 'false'
+      DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+    depends_on:
+      - request-replayer
+
+  request-replayer:
+    image: datadog/dd-trace-ci:php-request-replayer

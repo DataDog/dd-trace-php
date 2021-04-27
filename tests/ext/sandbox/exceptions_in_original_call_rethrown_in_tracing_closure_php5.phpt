@@ -1,7 +1,6 @@
 --TEST--
 Exceptions from original call rethrown in tracing closure (PHP 5)
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 <?php if (PHP_VERSION_ID >= 70000) die('skip PHP 7 tested in separate test'); ?>
 --FILE--
 <?php
@@ -20,7 +19,7 @@ function a(){
     throw new Exception('Oops!');
 }
 
-dd_trace_function('a', function($s, $args, $r, $ex) {
+DDTrace\trace_function('a', function($s, $args, $r, $ex) {
     $s->name = 'a';
     throw $ex;
 });

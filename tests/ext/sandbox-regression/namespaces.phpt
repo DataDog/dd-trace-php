@@ -2,8 +2,6 @@
 [Sandbox regression] Namespaced functions and methods are traced
 --DESCRIPTION--
 This differs from the original dd_trace() test in that the original call is always forwarded before the tracing closure is called
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 namespace Func {
@@ -38,21 +36,21 @@ namespace Klass {
         }
     }
 
-    dd_trace_method("Klass\\Test", "m", function($s, array $args){
+    \DDTrace\trace_method("Klass\\Test", "m", function($s, array $args){
         echo "M HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
     });
 }
 
 namespace {
-    dd_trace_function("Func\\test", function($s, array $args){
+    \DDTrace\trace_function("Func\\test", function($s, array $args){
         echo "F HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
     });
 
-    dd_trace_function("Func\\test_va", function($s, array $args){
+    \DDTrace\trace_function("Func\\test_va", function($s, array $args){
         echo "FVA HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
     });
 
-    dd_trace_method("Klass\\Test", "m2", function($s, array $args){
+    \DDTrace\trace_method("Klass\\Test", "m2", function($s, array $args){
         echo "M2 HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
     });
 
