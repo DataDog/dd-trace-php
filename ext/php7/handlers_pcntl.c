@@ -3,7 +3,7 @@
 
 #include "coms.h"
 #include "ddtrace.h"
-#include "engine_hooks.h"  // For 'ddtrace_resource'
+#include "engine_hooks.h"       // For 'ddtrace_resource'
 #include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -53,18 +53,12 @@ static void dd_install_handler(dd_pcntl_handler handler) {
 void ddtrace_pcntl_handlers_startup(void) {
     // if we cannot find ext/pcntl then do not instrument it
     zend_string *pcntl = zend_string_init(ZEND_STRL("pcntl"), 1);
-    dd_ext_pcntl_loaded = zend_hash_exists(&module_registry, pcntl);
+    bool pcntl_loaded = zend_hash_exists(&module_registry, pcntl);
     zend_string_release(pcntl);
-    if (!dd_ext_pcntl_loaded) {
+    if (!pcntl_loaded) {
         return;
     }
 
-    /* We hook into pcntl_exec twice:
-     *   - One that handles general dispatch so it will call the associated closure with pcntl_exec
-     *   - One that handles the distributed tracing headers
-     * The latter expects the former is already done because it needs a span id for the distributed tracing headers;
-     * register them inside-out.
-     */
     dd_pcntl_handler handlers[] = {
         {ZEND_STRL("pcntl_fork"), &dd_pcntl_fork_handler, ZEND_FN(ddtrace_pcntl_fork)},
     };
