@@ -10,7 +10,7 @@ The easiest way to get the development environment set up is to install [Docker]
 ## Developing and testing locally
 
 While tests in CI run on all php versions, you typically develop on one version locally. Currently the latest local
-dev environment we support is `8.0.
+dev environment we support is `8.0`.
 
 Execute one the following commands from your command line, this will bring up all required services:
 
