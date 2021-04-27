@@ -263,6 +263,7 @@ TEST_INTEGRATIONS_54 := \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
+	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
@@ -281,6 +282,7 @@ TEST_INTEGRATIONS_55 := \
 	test_integrations_memcached \
 	test_integrations_mysqli \
 	test_integrations_mongo \
+	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
@@ -309,6 +311,7 @@ TEST_INTEGRATIONS_56 := \
 	test_integrations_memcached \
 	test_integrations_mysqli \
 	test_integrations_mongo \
+	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
@@ -342,6 +345,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -375,6 +379,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -416,6 +421,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -460,6 +466,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_pdo \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -500,6 +507,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_pdo \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -544,6 +552,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pdo \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_pcntl \
 	test_integrations_predis1 \
 	test_opentracing_10
 
