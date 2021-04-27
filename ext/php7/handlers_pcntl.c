@@ -2,15 +2,11 @@
 #include <stdbool.h>
 
 #include "coms.h"
-#include "configuration.h"
-#include "engine_api.h"
-#include "engine_hooks.h"  // for ddtrace_backup_error_handling
-#include "handlers_internal.h"
-#include "logging.h"
-#include "span.h"
+#include "ddtrace.h"
+#include "engine_hooks.h"  // For 'ddtrace_resource'
+#include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
 
-// True global - only modify during MINIT/MSHUTDOWN
-bool dd_ext_pcntl_loaded = false;
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static void (*dd_pcntl_fork_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 

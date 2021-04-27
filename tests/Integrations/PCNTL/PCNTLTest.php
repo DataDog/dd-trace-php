@@ -21,7 +21,7 @@ final class PCNTLTest extends IntegrationTestCase
     public function testDoesNoHangAtShutdownWhenDisabled($scriptPath)
     {
         if ($scriptPath === (__DIR__ . '/scripts/long-running-manual-flush.php')) {
-            $this->markTestSkipped('manual tracing cannot be done when disabled as classes are not available.');
+            $this->markTestSkipped('manual tracing cannot be done when the tracer is disabled because the "DDTrace\\*" classes are not available.');
             return;
         }
 
