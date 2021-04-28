@@ -89,7 +89,7 @@ aliases:
   - &STEP_COMPOSER_SELF_UPDATE
     run:
       name: Upgrading composer
-      command: composer self-update --no-interaction
+      command: sudo composer self-update --no-interaction
 
   - &STEP_COMPOSER_UPDATE
     run:
