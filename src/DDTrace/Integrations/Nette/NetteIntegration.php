@@ -2,27 +2,26 @@
 
 namespace DDTrace\Integrations\Nette;
 
+use DDTrace\Contracts\Scope;
+use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
+use DDTrace\Tag;
+use DDTrace\Type;
+use Nette\Application\Application;
+use DDTrace\Log\LoggingTrait;
 
 class NetteIntegration extends Integration
 {
-
+    use LoggingTrait;
     const NAME = 'nette';
 
     /**
-     * @var self
+     * {@inheritdoc}
      */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
+    public function getName()
     {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
+        return self::NAME;
     }
 
     /**
@@ -33,29 +32,145 @@ class NetteIntegration extends Integration
         return false;
     }
 
-    public static function load()
+    /**
+     * {@inheritdoc}
+     */
+    public function init()
     {
         if (!self::shouldLoad(self::NAME)) {
             return self::NOT_AVAILABLE;
         }
 
-        $integration = self::getInstance();
+        $integration = $this;
 
-        dd_trace('Nette\Configurator', '__construct', function () use ($integration) {
-            $loader = new NetteLoader();
-            $loader->load($integration);
-            dd_trace_forward_call();
+        \DDTrace\hook_method('Nette\Configurator', '__construct', function () use ($integration) {
+            // TODO: Check versions
+            $integration->load();
         });
-
 
         return self::LOADED;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getName()
+    public function load()
     {
-        return self::NAME;
+        $scope = GlobalTracer::get()->getRootScope();
+        if (!$scope instanceof Scope) {
+            return;
+        }
+
+        $service = \ddtrace_config_app_name(NetteIntegration::NAME);
+
+        $root = $scope->getSpan();
+        $root->setTraceAnalyticsCandidate();
+        $root->overwriteOperationName('nette.request');
+        $root->setTag(Tag::SERVICE_NAME, $service);
+
+        \DDTrace\trace_method(
+            'Nette\Configurator',
+            'createContainer',
+            function (SpanData $span) use ($service) {
+                $span->name = 'nette.configurator.createContainer';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Nette\Configurator',
+            'createRobotLoader',
+            function (SpanData $span) use ($service) {
+                $span->name = 'nette.configurator.createRobotLoader';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Nette\Application\Application',
+            'run',
+            function (SpanData $span) use ($root, $service) {
+                $span->name = 'nette.application.run';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+                $root->setTag(Tag::HTTP_STATUS_CODE, http_response_code());
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Nette\Application\UI\Presenter',
+            'run',
+            function (SpanData $span, $args) use ($root, $service) {
+
+                $span->name = 'nette.presenter.run';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+
+                if (count($args) < 1 || !\is_a($args[0], '\Nette\Application\Request')) {
+                    return;
+                }
+
+                $request = $args[0];
+                $presenter = $request->getPresenterName();
+                $action = $request->getParameter('action');
+
+                $root->setTag(Tag::HTTP_METHOD, $request->getMethod());
+                $root->setTag('nette.route.presenter', $presenter);
+                $root->setTag('nette.route.action', $action);
+                $root->setResource($presenter . ':' . $action);
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Nette\Application\Routers\RouteList',
+            'match',
+            function (SpanData $span) use ($service) {
+                $span->name = 'nette.router.match';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+            }
+        );
+
+        // Latte template engine traces
+        \DDTrace\trace_method(
+            'Latte\Engine',
+            'createTemplate',
+            function (SpanData $span, $args) use ($service) {
+                $span->name = 'nette.latte.createTemplate';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+
+                if (count($args) >= 1) {
+                    $span->meta['nette.latte.templateName'] = $args[0];
+                }
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Latte\Engine',
+            'render',
+            function (SpanData $span, $args) use ($service) {
+                $span->name = 'nette.latte.render';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+
+                if (count($args) >= 1) {
+                    $span->meta['nette.latte.templateName'] = $args[0];
+                }
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Latte\Engine',
+            'renderToString',
+            function (SpanData $span, $args) use ($service) {
+                $span->name = 'nette.latte.render';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+
+                if (count($args) >= 1) {
+                    $span->meta['nette.latte.templateName'] = $args[0];
+                }
+            }
+        );
     }
 }

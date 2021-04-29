@@ -2,10 +2,12 @@
 
 namespace DDTrace\Tests\Integrations\Nette\V3_0;
 
-use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
+use DDTrace\Type;
+
 
 final class NetteTest extends WebFrameworkTestCase
 {
@@ -14,10 +16,12 @@ final class NetteTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Nette/Version_3_0/www/index.php';
     }
 
-    public static function setUpBeforeClass()
+    protected static function getEnvs()
     {
-        parent::setUpBeforeClass();
-        IntegrationsLoader::load();
+        return array_merge(parent::getEnvs(), [
+            'DD_SERVICE' => 'nette_test_app',
+            'DD_TRACE_DEBUG' => true,
+        ]);
     }
 
     /**
@@ -32,62 +36,121 @@ final class NetteTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations);
+        //$this->assertExpectedSpans($traces, $spanExpectations);
     }
 
     public function provideSpecs()
     {
         return $this->buildDataProvider(
             [
-                'A simple GET request returning a string' => [
+               'A simple GET request returning a string' => [
                     SpanAssertion::build(
                         'nette.request',
-                        'nette',
+                        'nette_test_app',
                         'web',
                         'Homepage:simple'
-                    )
-                        ->withExactTags([
-                            'nette.route.presenter' => 'Homepage',
-                            'nette.route.action' => 'simple',
-                            'http.method' => 'GET',
-                            'http.url' => '/simple',
-                            'http.status_code' => '200',
-                            'integration.name' => 'nette',
-                        ]),
-                    SpanAssertion::exists('nette.configurator.createRobotLoader'),
-                    SpanAssertion::exists('nette.configurator.createContainer'),
-                    SpanAssertion::exists('nette.application.run'),
-                    SpanAssertion::exists('nette.router.match'),
-                    SpanAssertion::exists('nette.presenter.run'),
+                    )->withExactTags([
+                        'nette.route.presenter' => 'Homepage',
+                        'nette.route.action' => 'simple',
+                        'http.method' => 'GET',
+                        'http.url' => '/simple',
+                        'http.status_code' => '200',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'nette.configurator.createRobotLoader',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.configurator.createRobotLoader',
+                        ),
+                        SpanAssertion::build(
+                            'nette.configurator.createContainer',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.configurator.createContainer',
+                        ),
+                        SpanAssertion::build(
+                            'nette.application.run',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.application.run',
+                        )->withChildren([
+                            SpanAssertion::build(
+                                'nette.presenter.run',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.presenter.run',
+                            ),
+                            SpanAssertion::build(
+                                'nette.router.match',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.router.match',
+                            )
+                        ])
+                    ])
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
                         'nette.request',
-                        'nette',
+                        'nette_test_app',
                         'web',
                         'Homepage:simpleView'
-                    )
-                        ->withExactTags([
-                            'nette.route.presenter' => 'Homepage',
-                            'nette.route.action' => 'simpleView',
-                            'http.method' => 'GET',
-                            'http.url' => '/simple_view',
-                            'http.status_code' => '200',
-                            'integration.name' => 'nette',
-                        ]),
-                    SpanAssertion::exists('nette.configurator.createRobotLoader'),
-                    SpanAssertion::exists('nette.configurator.createContainer'),
-                    SpanAssertion::exists('nette.application.run'),
-                    SpanAssertion::exists('nette.router.match'),
-                    SpanAssertion::exists('nette.presenter.run'),
-                    SpanAssertion::exists('nette.latte.render'),
-                    SpanAssertion::exists('nette.latte.createTemplate'), // layout template
-                    SpanAssertion::exists('nette.latte.createTemplate'), // simpleView template
+                    )->withExactTags([
+                        'nette.route.presenter' => 'Homepage',
+                        'nette.route.action' => 'simpleView',
+                        'http.method' => 'GET',
+                        'http.url' => '/simple_view',
+                        'http.status_code' => '200',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'nette.configurator.createRobotLoader',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.configurator.createRobotLoader',
+                        ),
+                        SpanAssertion::build(
+                            'nette.configurator.createContainer',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.configurator.createContainer',
+                        ),
+                        SpanAssertion::build(
+                            'nette.application.run',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.application.run',
+                        )->withChildren([
+                            SpanAssertion::build(
+                                'nette.presenter.run',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.presenter.run',
+                            ),
+                            SpanAssertion::build(
+                                'nette.router.match',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.router.match',
+                            ),
+                            SpanAssertion::build(
+                                'nette.latte.render',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.latte.render',
+                            )->withExactTags([
+                                'nette.latte.templateName' => '%s'
+                            ])->withChildren([
+                                SpanAssertion::exists('nette.latte.createTemplate'), // layout template
+                                SpanAssertion::exists('nette.latte.createTemplate'), // simpleView template
+                            ])
+                        ])
+                    ]),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
                         'nette.request',
-                        'nette',
+                        'nette_test_app',
                         'web',
                         'Homepage:errorView'
                     )->withExactTags([
@@ -96,15 +159,41 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => '/error',
                         'http.status_code' => '500',
-                        'integration.name' => 'nette',
-                    ])->setError('Exception', 'An exception occurred')
-                        ->withExistingTagsNames(['error.stack']),
-
-                    SpanAssertion::exists('nette.configurator.createRobotLoader'),
-                    SpanAssertion::exists('nette.configurator.createContainer'),
-                    SpanAssertion::exists('nette.application.run'),
-                    SpanAssertion::exists('nette.router.match'),
-                    SpanAssertion::exists('nette.presenter.run'),
+                    ])->setError('Internal Server Error')
+                      ->withChildren([
+                        SpanAssertion::build(
+                            'nette.configurator.createRobotLoader',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.configurator.createRobotLoader',
+                        ),
+                        SpanAssertion::build(
+                            'nette.configurator.createContainer',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.configurator.createContainer',
+                        ),
+                        SpanAssertion::build(
+                            'nette.application.run',
+                            'nette_test_app',
+                            Type::WEB_SERVLET,
+                            'nette.application.run',
+                        )->withChildren([
+                            SpanAssertion::build(
+                                'nette.presenter.run',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.presenter.run',
+                            )->setError('Exception', 'An exception occurred')
+                             ->withExistingTagsNames(['error.stack']),
+                            SpanAssertion::build(
+                                'nette.router.match',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.router.match',
+                            )
+                        ])
+                    ])
                 ],
             ]
         );
