@@ -9,11 +9,9 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use Nette\Application\Application;
-use DDTrace\Log\LoggingTrait;
 
 class NetteIntegration extends Integration
 {
-    use LoggingTrait;
     const NAME = 'nette';
 
     /**

@@ -8,7 +8,6 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Type;
 
-
 final class NetteTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
@@ -44,7 +43,7 @@ final class NetteTest extends WebFrameworkTestCase
     {
         return $this->buildDataProvider(
             [
-               'A simple GET request returning a string' => [
+                'A simple GET request returning a string' => [
                     SpanAssertion::build(
                         'nette.request',
                         'nette_test_app',
@@ -61,31 +60,31 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette.configurator.createRobotLoader',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.configurator.createRobotLoader',
+                            'nette.configurator.createRobotLoader'
                         ),
                         SpanAssertion::build(
                             'nette.configurator.createContainer',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.configurator.createContainer',
+                            'nette.configurator.createContainer'
                         ),
                         SpanAssertion::build(
                             'nette.application.run',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.application.run',
+                            'nette.application.run'
                         )->withChildren([
                             SpanAssertion::build(
                                 'nette.presenter.run',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.presenter.run',
+                                'nette.presenter.run'
                             ),
                             SpanAssertion::build(
                                 'nette.router.match',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.router.match',
+                                'nette.router.match'
                             )
                         ])
                     ])
@@ -107,37 +106,37 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette.configurator.createRobotLoader',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.configurator.createRobotLoader',
+                            'nette.configurator.createRobotLoader'
                         ),
                         SpanAssertion::build(
                             'nette.configurator.createContainer',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.configurator.createContainer',
+                            'nette.configurator.createContainer'
                         ),
                         SpanAssertion::build(
                             'nette.application.run',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.application.run',
+                            'nette.application.run'
                         )->withChildren([
                             SpanAssertion::build(
                                 'nette.presenter.run',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.presenter.run',
+                                'nette.presenter.run'
                             ),
                             SpanAssertion::build(
                                 'nette.router.match',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.router.match',
+                                'nette.router.match'
                             ),
                             SpanAssertion::build(
                                 'nette.latte.render',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.latte.render',
+                                'nette.latte.render'
                             )->withExactTags([
                                 'nette.latte.templateName' => '%s'
                             ])->withChildren([
@@ -159,38 +158,40 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => '/error',
                         'http.status_code' => '500',
-                    ])->setError('Internal Server Error')
-                      ->withChildren([
+                    ])
+                    ->setError('Internal Server Error')
+                    ->withChildren([
                         SpanAssertion::build(
                             'nette.configurator.createRobotLoader',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.configurator.createRobotLoader',
+                            'nette.configurator.createRobotLoader'
                         ),
                         SpanAssertion::build(
                             'nette.configurator.createContainer',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.configurator.createContainer',
+                            'nette.configurator.createContainer'
                         ),
                         SpanAssertion::build(
                             'nette.application.run',
                             'nette_test_app',
                             Type::WEB_SERVLET,
-                            'nette.application.run',
+                            'nette.application.run'
                         )->withChildren([
                             SpanAssertion::build(
                                 'nette.presenter.run',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.presenter.run',
-                            )->setError('Exception', 'An exception occurred')
-                             ->withExistingTagsNames(['error.stack']),
+                                'nette.presenter.run'
+                            )
+                            ->setError('Exception', 'An exception occurred')
+                            ->withExistingTagsNames(['error.stack']),
                             SpanAssertion::build(
                                 'nette.router.match',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.router.match',
+                                'nette.router.match'
                             )
                         ])
                     ])
