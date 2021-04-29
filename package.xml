@@ -48,6 +48,8 @@
             <file name="components/string_view/string_view.h" role="src" />
 
             <!-- Zend Abstract Interface -->
+            <file name="zend_abstract_interface/methods/methods.h" role="src" />
+            <file name="zend_abstract_interface/methods/php5/methods.c" role="src" />
             <file name="zend_abstract_interface/sandbox/php5/sandbox.c" role="src" />
             <file name="zend_abstract_interface/sandbox/php7/sandbox.c" role="src" />
             <file name="zend_abstract_interface/sandbox/php8/sandbox.c" role="src" />
