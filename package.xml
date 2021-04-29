@@ -307,6 +307,7 @@
             <file name="tests/ext/includes/request_init_hook.inc" role="test" />
             <file name="tests/ext/includes/request_replayer.inc" role="test" />
             <file name="tests/ext/includes/sanity_check.php" role="test" />
+            <file name="tests/ext/includes/skipif_no_dev_env.inc" role="test" />
             <file name="tests/ext/includes/try_catch_finally.php" role="test" />
 
             <file name="tests/ext/integrations/curl/distributed_tracing.inc" role="test" />
