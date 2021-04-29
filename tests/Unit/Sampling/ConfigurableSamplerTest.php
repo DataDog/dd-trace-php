@@ -132,7 +132,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
         ];
     }
 
-    public function testMetricIsAddedToCommunicateSampleRateUsed()
+    public function testMetricIsAddedToCommunicateSampleRateUsedWhenSamplingRules()
     {
         putenv('DD_TRACE_SAMPLING_RULES=[{"sample_rate":0.7}]');
         $sampler = new ConfigurableSampler();
@@ -142,5 +142,42 @@ final class ConfigurableSamplerTest extends BaseTestCase
         $sampler->getPrioritySampling($span);
 
         $this->assertSame(0.7, $span->getMetrics()['_dd.rule_psr']);
+    }
+
+    public function testMetricIsAddedToCommunicateSampleRateUsedWhenSamplingRulesIsEscaped()
+    {
+        // while we suggest to escape the json object, in some cases the `'` are passed to the string and we have to
+        // verify that parsing still works.
+        putenv('DD_TRACE_SAMPLING_RULES=\'[{"sample_rate":0.7}]\'');
+        $sampler = new ConfigurableSampler();
+
+        $context = new SpanContext('', dd_trace_generate_id());
+        $span = new Span('my_name', $context, 'my_service', '');
+        $sampler->getPrioritySampling($span);
+
+        $this->assertSame(0.7, $span->getMetrics()['_dd.rule_psr']);
+    }
+
+    public function testMetricIsAddedToCommunicateSampleRateUsedWhenSampleRate()
+    {
+        putenv('DD_TRACE_SAMPLE_RATE=0.3');
+        $sampler = new ConfigurableSampler();
+
+        $context = new SpanContext('', dd_trace_generate_id());
+        $span = new Span('my_name', $context, 'my_service', '');
+        $sampler->getPrioritySampling($span);
+
+        $this->assertSame(0.3, $span->getMetrics()['_dd.rule_psr']);
+    }
+
+    public function testMetricIsAddedToCommunicateSampleRateNothingSet()
+    {
+        $sampler = new ConfigurableSampler();
+
+        $context = new SpanContext('', dd_trace_generate_id());
+        $span = new Span('my_name', $context, 'my_service', '');
+        $sampler->getPrioritySampling($span);
+
+        $this->assertSame(1.0, $span->getMetrics()['_dd.rule_psr']);
     }
 }

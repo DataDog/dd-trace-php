@@ -16,25 +16,22 @@ final class ConfigurableSampler implements Sampler
     public function getPrioritySampling(Span $span)
     {
         $samplingRules = \ddtrace_config_sampling_rules();
+        $usedRate = null;
+
         foreach ($samplingRules as $rule) {
             if ($this->ruleMatches($span, $rule)) {
                 $rate = $rule['sample_rate'];
-                $prioritySampling = $this->computePrioritySampling($rate);
-                $span->setMetric('_dd.rule_psr', $rate);
-                return $prioritySampling;
+                $usedRate = $rate;
+                break;
             }
         }
 
-        return $this->fallbackToPrioritySampling($span);
-    }
+        if (null === $usedRate) {
+            $usedRate = \ddtrace_config_sampling_rate();
+        }
 
-    /**
-     * @param Span $span
-     * @return int
-     */
-    public function fallbackToPrioritySampling(Span $span)
-    {
-        return $this->computePrioritySampling(\ddtrace_config_sampling_rate());
+        $span->setMetric('_dd.rule_psr', $usedRate);
+        return $this->computePrioritySampling($usedRate);
     }
 
     /**

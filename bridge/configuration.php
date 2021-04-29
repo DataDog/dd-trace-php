@@ -93,6 +93,9 @@ function _ddtrace_config_json($value, $default)
         return $default;
     }
 
+    // If the char `'` used to escape the json object reaches this variable, it has to be removed.
+    $value = trim($value, "'");
+
     $parsed = \json_decode($value, true);
     if (null === $parsed) {
         return $default;
