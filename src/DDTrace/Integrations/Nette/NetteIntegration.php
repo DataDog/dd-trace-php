@@ -42,7 +42,6 @@ class NetteIntegration extends Integration
         $integration = $this;
 
         \DDTrace\hook_method('Nette\Configurator', '__construct', function () use ($integration) {
-            // TODO: Check versions
             $integration->load();
         });
 
