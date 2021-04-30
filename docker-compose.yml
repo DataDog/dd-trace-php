@@ -45,17 +45,39 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
 
 services:
+  # --- Alpine ---
+  '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
+  # --- Buster ---
+  '5.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_buster' }
+  '5.5-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_buster' }
+  '5.6-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_buster' }
+  '7.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }
+  '7.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_buster' }
+  '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
+  '7.3-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
+  '7.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
+  '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
+  'php-master-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
+  # --- CentOS 6 ---
+  '5.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_centos-6' }
+  '5.5-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_centos-6' }
+  '5.6-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_centos-6' }
+  '7.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-6' }
+  '7.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
+  '7.2-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_centos-6' }
+  '7.3-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
+  '7.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-6' }
+  '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
+  # --- Legacy Images ---
   '5.4':
     <<: *base_php_service
     image: datadog/dd-trace-ci:php-dev-5.4
     build:
       context: .
       dockerfile: dockerfiles/development/Dockerfile_54
-  '5.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_buster' }
   '5.4-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.4-debug' }
   '5.5': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.5' }
   '5.5-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.5-debug' }
-  '5.5-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_buster' }
   '5.6':
     <<: *base_php_service
     image: datadog/dd-trace-ci:php-dev-5.6
@@ -63,7 +85,6 @@ services:
       context: .
       dockerfile: dockerfiles/development/Dockerfile_56
   '5.6-original': { <<: *base_56_service, image: 'circleci/php:5.6-zts' }
-  '5.6-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_buster' }
   '5.6-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.6-debug' }
   '5.6-zts': { <<: *base_56_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.6-zts' }
   '7.0':
@@ -76,8 +97,6 @@ services:
       args:
         PHP_MAJOR_MINOR: '7.0'
         MCRYPT_PACKAGE: mcrypt
-  '7.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-6' }
-  '7.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }
   '7.0-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-debug' }
   '7.0-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-zts' }
   '7.1':
@@ -90,12 +109,9 @@ services:
       args:
         PHP_MAJOR_MINOR: '7.1'
         MCRYPT_PACKAGE: mcrypt-1.0.0
-  '7.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_buster' }
   '7.1-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-debug' }
   '7.1-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-zts' }
-  '7.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
   '7.1-centos-compiled': { <<: *base_php_service, build: 'dockerfiles/verify_packages/centos7-compiled' }
-  '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
   '7.2-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
   '7.2-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-zts' }
   '7.3':
@@ -108,19 +124,12 @@ services:
       args:
         PHP_MAJOR_MINOR: '7.3'
         MCRYPT_PACKAGE: mcrypt-1.0.3
-  '7.3-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
-  '7.3-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
   '7.3-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
   '7.3-zts-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts-debug' }
   '7.3-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts' }
-  '7.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
   '7.4-debug': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
   '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-asan-buster' }
-  '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
   '8.0-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
-  '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
-  '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
-  'php-master': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
   'fpm': { <<: *base_php_service, image: 'circleci/ruby:2.5', depends_on: [] }
