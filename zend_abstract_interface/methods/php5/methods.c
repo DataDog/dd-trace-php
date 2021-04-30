@@ -88,7 +88,11 @@ static bool z_call_method_without_args_ex(zval *object, zend_class_entry *ce, co
          * method len correctly without using a string literal.
          */
         zend_call_method(obj, ce, &func, method, method_len, retval, 0, NULL, NULL TSRMLS_CC);
-        ret = true;
+        /* An unhandled exception will not result in a zend_bailout if there is
+         * an active execution context. This is a failed call if an exception
+         * was thrown. The sandbox will clean up our mess when it closes.
+         */
+        ret = !EG(exception);
     }
     zend_end_try();
 
