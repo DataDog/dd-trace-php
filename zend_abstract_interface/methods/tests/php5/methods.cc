@@ -224,6 +224,29 @@ TEST_CASE("call method: accesses $this (userland)", "[zai_methods]") {
     zai_sapi_spindown();
 }
 
+TEST_CASE("call method: throws exception (userland)", "[zai_methods]") {
+    REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    REQUIRE(zai_sapi_execute_script("./stubs/ExceptionTest.php"));
+    zend_class_entry *ce = zai_class_lookup(ZAI_STRL("zai\\methods\\exceptiontest"));
+    REQUIRE(ce != NULL);
+
+    zval *obj = zai_instantiate_object_from_ce(ce);
+    zval *retval = NULL;
+    // Zai\Methods\ExceptionTest::throwsException()
+    bool result = zai_call_method_without_args(obj, ZAI_STRL("throwsexception"), &retval);
+    zval_ptr_dtor(&obj);
+
+    REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
+    REQUIRE(result == false);
+    REQUIRE(retval == NULL);
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_spindown();
+}
+
 TEST_CASE("call method: non-object", "[zai_methods]") {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
@@ -489,6 +512,29 @@ TEST_CASE("call static method: does not exist on class (userland)", "[zai_method
     zval *retval = NULL;
     // Zai\Methods\Test::iDoNotExist()
     bool result = zai_call_static_method_without_args(ce, ZAI_STRL("idonotexist"), &retval);
+
+    REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
+    REQUIRE(result == false);
+    REQUIRE(retval == NULL);
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_spindown();
+}
+
+TEST_CASE("call static method: throws exception (userland)", "[zai_methods]") {
+    REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    REQUIRE(zai_sapi_execute_script("./stubs/ExceptionTest.php"));
+    zend_class_entry *ce = zai_class_lookup(ZAI_STRL("zai\\methods\\exceptiontest"));
+    REQUIRE(ce != NULL);
+
+    zval *obj = zai_instantiate_object_from_ce(ce);
+    zval *retval = NULL;
+    // Zai\Methods\ExceptionTest::throwsExceptionFromStatic()
+    bool result = zai_call_method_without_args(obj, ZAI_STRL("throwsexceptionfromstatic"), &retval);
+    zval_ptr_dtor(&obj);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
