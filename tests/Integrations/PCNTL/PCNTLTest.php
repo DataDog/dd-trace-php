@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Integrations\PCNTL;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-const ACCEPTABLE_TEST_EXECTION_TIME_S = 2;
+const ACCEPTABLE_TEST_EXECTION_TIME_MS = 200;
 
 final class PCNTLTest extends IntegrationTestCase
 {
@@ -34,7 +34,7 @@ final class PCNTLTest extends IntegrationTestCase
             ]
         );
         $end = \microtime(true);
-        $this->assertLessThan(ACCEPTABLE_TEST_EXECTION_TIME_S, $end - $start);
+        $this->assertLessThan(ACCEPTABLE_TEST_EXECTION_TIME_MS, $end - $start);
     }
 
     /**
@@ -51,7 +51,7 @@ final class PCNTLTest extends IntegrationTestCase
             ]
         );
         $end = \microtime(true);
-        $this->assertLessThan(ACCEPTABLE_TEST_EXECTION_TIME_S, $end - $start);
+        $this->assertLessThan(ACCEPTABLE_TEST_EXECTION_TIME_MS, $end - $start);
     }
 
     public function dataProviderAllScripts()
