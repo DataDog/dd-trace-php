@@ -41,6 +41,10 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $tracer->flush();
     $tracer->reset();
 }
-
+echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
+Done.
+Done.
+Done.
+Done.

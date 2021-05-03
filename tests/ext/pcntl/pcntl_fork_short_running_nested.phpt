@@ -44,5 +44,10 @@ if ($forkPid < 0) {
 
 call_httpbin();
 
+echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
+Done.
+Done.
+Done.
+Done.

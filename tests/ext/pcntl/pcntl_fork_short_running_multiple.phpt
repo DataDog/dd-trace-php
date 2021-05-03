@@ -20,6 +20,7 @@ while ($currentIteration !== NUMBER_OF_CHILDREN) {
     } else if ($forkPid === 0) {
         // Child
         call_httpbin();
+        echo 'Done.' . PHP_EOL;
         exit(0);
     } else {
         exit(-1);
@@ -31,5 +32,12 @@ while ($currentIteration !== NUMBER_OF_CHILDREN) {
 pcntl_wait($childStatus);
 
 call_httpbin();
+echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
+Done.
+Done.
+Done.
+Done.
+Done.
+Done.
