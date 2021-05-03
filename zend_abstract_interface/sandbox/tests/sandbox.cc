@@ -464,7 +464,7 @@ static void zai_throw_exception_hook(zend_object *exception) {
     zai_throw_exception_hook_calls_count++;
 }
 #else
-static void zai_throw_exception_hook(zval *exception) {
+static void zai_throw_exception_hook(zval *exception TSRMLS_DC) {
     zai_throw_exception_hook_calls_count++;
 }
 #endif
