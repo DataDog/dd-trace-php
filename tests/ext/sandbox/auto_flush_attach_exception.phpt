@@ -11,8 +11,8 @@ DD_TRACE_AUTO_FLUSH_ENABLED=1
 <?php
 use DDTrace\SpanData;
 
-require 'fake_tracer.inc';
-require 'fake_global_tracer.inc';
+require __DIR__ . '/../includes/tracer.inc';
+require __DIR__ . '/../includes/global_tracer.inc';
 
 class Foo
 {

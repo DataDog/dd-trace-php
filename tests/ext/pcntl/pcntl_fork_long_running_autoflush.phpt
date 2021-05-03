@@ -9,8 +9,8 @@ DD_TRACE_AUTO_FLUSH_ENABLED=true
 <?php
 
 require 'functions.inc';
-require __DIR__ . '/../sandbox/fake_tracer.inc';
-require __DIR__ . '/../sandbox/fake_global_tracer.inc';
+require __DIR__ . '/../includes/fake_tracer.inc';
+require __DIR__ . '/../includes/fake_global_tracer.inc';
 
 const ITERATIONS = 2;
 
@@ -45,6 +45,12 @@ function long_running_entry_point()
 
 ?>
 --EXPECTF--
+Flushing tracer...
+long_running_entry_point (pcntl-testing-service, long_running_entry_point, custom)
+Tracer reset
+Flushing tracer...
+long_running_entry_point (pcntl-testing-service, long_running_entry_point, custom)
+Tracer reset
 Flushing tracer...
 long_running_entry_point (pcntl-testing-service, long_running_entry_point, custom)
 Tracer reset

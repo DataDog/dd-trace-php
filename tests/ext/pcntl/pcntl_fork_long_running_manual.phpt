@@ -10,7 +10,11 @@ DD_TRACE_AUTO_FLUSH_ENABLED=false
 <?php
 
 require 'functions.inc';
-require getenv('REQUEST_INIT_HOOK_PATH');
+
+require __DIR__ . '/../includes/fake_scope.inc';
+require __DIR__ . '/../includes/fake_span.inc';
+require __DIR__ . '/../includes/fake_tracer.inc';
+require __DIR__ . '/../includes/fake_global_tracer.inc';
 
 const ITERATIONS = 2;
 
@@ -18,9 +22,9 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $tracer = DDTrace\GlobalTracer::get();
     $scope = $tracer->startActiveSpan('manual_tracing');
     $span = $scope->getSpan();
-    $span->setTag(DDTrace\Tag::SERVICE_NAME, 'manual_service');
-    $span->setTag(DDTrace\Tag::SPAN_TYPE, 'custom');
-    $span->setTag(DDTrace\Tag::RESOURCE_NAME, 'manual_resource');
+    $span->setTag('service.name', 'manual_service');
+    $span->setTag('span.type', 'custom');
+    $span->setTag('resource.name', 'manual_resource');
 
     call_httpbin();
 
@@ -33,7 +37,7 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
         // Child
         call_httpbin();
     } else {
-        error_log('Error');
+        echo 'Error' . PHP_EOL;
         exit(-1);
     }
     call_httpbin();
@@ -41,10 +45,17 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $tracer->flush();
     $tracer->reset();
 }
-echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-Done.
-Done.
-Done.
-Done.
+Flushing tracer...
+Tracer reset
+Flushing tracer...
+Tracer reset
+Flushing tracer...
+Tracer reset
+Flushing tracer...
+Tracer reset
+Flushing tracer...
+Tracer reset
+Flushing tracer...
+Tracer reset

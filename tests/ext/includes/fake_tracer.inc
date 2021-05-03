@@ -35,6 +35,11 @@ class Tracer
         fake_curl_exec();
     }
 
+    public function startActiveSpan($name)
+    {
+        return new Scope(new Span());
+    }
+
     public function reset()
     {
         echo 'Tracer reset' . PHP_EOL;
