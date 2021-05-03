@@ -307,6 +307,11 @@
             <file name="tests/ext/call_user_func/not-namespaced.phpt" role="test" />
 
             <file name="tests/ext/includes/dd_init.php" role="test" />
+            <file name="tests/ext/includes/fake_scope.inc" role="test" />
+            <file name="tests/ext/includes/fake_span.inc" role="test" />
+            <file name="tests/ext/includes/fake_tracer_exception.inc" role="test" />
+            <file name="tests/ext/includes/fake_global_tracer.inc" role="test" />
+            <file name="tests/ext/includes/fake_tracer.inc" role="test" />
             <file name="tests/ext/includes/request_init_hook.inc" role="test" />
             <file name="tests/ext/includes/request_replayer.inc" role="test" />
             <file name="tests/ext/includes/sanity_check.php" role="test" />
@@ -410,9 +415,6 @@
             <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
             <file name="tests/ext/sandbox/exit_and_drop_span.phpt" role="test" />
-            <file name="tests/ext/sandbox/fake_global_tracer.inc" role="test" />
-            <file name="tests/ext/sandbox/fake_tracer.inc" role="test" />
-            <file name="tests/ext/sandbox/fake_tracer_exception.inc" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_001.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_002.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_003_php5.phpt" role="test" />
