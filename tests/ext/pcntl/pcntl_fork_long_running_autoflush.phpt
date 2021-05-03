@@ -1,5 +1,7 @@
 --TEST--
 Long running autoflush
+--SKIPIF--
+<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=false
 DD_TRACE_AUTO_FLUSH_ENABLED=true

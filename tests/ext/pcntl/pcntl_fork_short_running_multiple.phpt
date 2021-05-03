@@ -1,5 +1,7 @@
 --TEST--
 Short running multiple forks
+--SKIPIF--
+<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --FILE--
 <?php
 
