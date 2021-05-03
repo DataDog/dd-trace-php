@@ -196,6 +196,9 @@ RUN set -eux; \
 # Pretty prompt
     echo "PS1='\[\033[01;32m\]\u\[\033[00m\]\[\033[00;35m\](buster)\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" | \
         tee -a /home/circleci/.bashrc; \
+# Autocomplete of Makefile targets (see: https://stackoverflow.com/a/38415982)
+    echo "complete -W \"\\\`grep -oE '^[a-zA-Z0-9_.-]+:([^=]|$)' ?akefile | sed 's/[^a-zA-Z0-9_.-]*$//'\\\`\" make" | \
+        tee -a /home/circleci/.bashrc; \
 # Handy aliases
     echo "alias ll='ls -al'" | \
         tee -a /home/circleci/.bash_aliases; \
