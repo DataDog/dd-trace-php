@@ -10,27 +10,29 @@ The easiest way to get the development environment set up is to install [Docker]
 ## Developing and testing locally
 
 While tests in CI run on all php versions, you typically develop on one version locally. Currently the latest local
-dev environment we support is `7.3`.
+dev environment we support is `8.0`.
 
 Execute one the following commands from your command line, this will bring up all required services:
 
 ```bash
 # For 5.4
-$ docker-compose run --rm 5.4-debug-buster bash
+$ docker-compose run --rm 5.4-buster bash
 # For 5.5
-$ docker-compose run --rm 5.5-debug-buster bash
+$ docker-compose run --rm 5.5-buster bash
 # For 5.6
-$ docker-compose run --rm 5.6-debug-buster bash
+$ docker-compose run --rm 5.6-buster bash
 # For 7.0
-$ docker-compose run --rm 7.0-debug-buster bash
+$ docker-compose run --rm 7.0-buster bash
 # For 7.1
-$ docker-compose run --rm 7.1-debug-buster bash
+$ docker-compose run --rm 7.1-buster bash
 # For 7.2
-$ docker-compose run --rm 7.2-debug-buster bash
+$ docker-compose run --rm 7.2-buster bash
 # For 7.3
-$ docker-compose run --rm 7.3-debug-buster bash
+$ docker-compose run --rm 7.3-buster bash
 # For 7.4
-$ docker-compose run --rm 7.4-debug-buster bash
+$ docker-compose run --rm 7.4-buster bash
+# For 8.0
+$ docker-compose run --rm 8.0-buster bash
 ```
 
 Once inside the container, update dependencies with Composer.

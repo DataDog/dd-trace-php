@@ -364,6 +364,16 @@ EOD;
                     ],
                 ],
             ],
+            'DD_TRACE_SAMPLING_RULES escaped' => [
+                '\'[{"name": "^a.*b$", "sample_rate": 0.3}]\'',
+                [
+                    [
+                        'service' => '.*',
+                        'name' => '^a.*b$',
+                        'sample_rate' => 0.3,
+                    ],
+                ],
+            ],
         ];
     }
 

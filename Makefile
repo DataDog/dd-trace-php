@@ -587,7 +587,7 @@ test_all: \
 	test_integration \
 	test_auto_instrumentation \
 	test_composer \
-	test_distributed_tracing
+	test_distributed_tracing \
 	test_integrations \
 	test_web
 
