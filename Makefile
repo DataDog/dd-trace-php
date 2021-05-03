@@ -77,7 +77,6 @@ test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	export USE_TRACKED_ALLOC=1; \
-	export REQUEST_INIT_HOOK_PATH=$(REQUEST_INIT_HOOK_PATH); \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all $(TESTS)
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
@@ -86,7 +85,6 @@ test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	export USE_TRACKED_ALLOC=1; \
-	export REQUEST_INIT_HOOK_PATH=$(REQUEST_INIT_HOOK_PATH); \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m $(TESTS)
 
 test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
@@ -96,7 +94,6 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
-	export REQUEST_INIT_HOOK_PATH=$(REQUEST_INIT_HOOK_PATH); \
 	valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access php -n -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php $(INIT_HOOK_TEST_FILES); \
 	)
 
@@ -107,7 +104,6 @@ test_with_init_hook_asan: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-init-hook-test.xml; \
-	export REQUEST_INIT_HOOK_PATH=$(REQUEST_INIT_HOOK_PATH); \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php -q --show-all --asan $(INIT_HOOK_TEST_FILES); \
 	)
@@ -120,7 +116,6 @@ test_c_asan: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
-	export REQUEST_INIT_HOOK_PATH=$(REQUEST_INIT_HOOK_PATH); \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all --asan $(TESTS); \
 	)
@@ -133,12 +128,10 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
-	export REQUEST_INIT_HOOK_PATH=$(REQUEST_INIT_HOOK_PATH); \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all $(TESTS); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	export REQUEST_INIT_HOOK_PATH=$(REQUEST_INIT_HOOK_PATH); \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m -s $$TEST_PHP_OUTPUT $(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
