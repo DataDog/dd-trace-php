@@ -3,6 +3,7 @@ extern "C" {
 #include "zai_sapi/zai_sapi.h"
 }
 
+#include <Zend/zend_exceptions.h>
 #include <catch2/catch.hpp>
 
 #define REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE()            \
@@ -452,6 +453,64 @@ TEST_CASE("exception state: throw exception (userland)", "[zai_sandbox]") {
      * TODO Support scanf-style formatted errors.
      */
     //REQUIRE(zai_sapi_last_error_eq(E_ERROR, "Fatal error - Uncaught Exception: My foo exception in %s:%d"));
+
+    zai_sapi_spindown();
+}
+
+static int zai_throw_exception_hook_calls_count = 0;
+
+#if PHP_VERSION_ID >= 80000
+static void zai_throw_exception_hook(zend_object *exception) {
+    zai_throw_exception_hook_calls_count++;
+}
+#else
+static void zai_throw_exception_hook(zval *exception) {
+    zai_throw_exception_hook_calls_count++;
+}
+#endif
+
+TEST_CASE("exception state: zend_throw_exception_hook called once", "[zai_sandbox]") {
+    REQUIRE((zai_sapi_sinit() && zai_sapi_minit()));
+
+    zai_throw_exception_hook_calls_count = 0;
+    zend_throw_exception_hook = zai_throw_exception_hook;
+
+    REQUIRE(zai_sapi_rinit());
+    ZAI_SAPI_TSRMLS_FETCH();
+
+    REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
+
+    /* Throwing exceptions require an active execution context. */
+    zend_execute_data fake_frame;
+    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+
+    zend_class_entry *orig_exception_ce = zai_sapi_throw_exception("Original exception");
+    REQUIRE(zai_sapi_unhandled_exception_eq(orig_exception_ce, "Original exception"));
+    REQUIRE(zai_throw_exception_hook_calls_count == 1);
+
+    zai_exception_state es;
+    zai_sandbox_exception_state_backup(&es);
+
+    REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
+
+    zend_class_entry *ce;
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    ce = zai_sapi_throw_exception("Foo exception");
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+
+    REQUIRE(zai_sapi_unhandled_exception_eq(ce, "Foo exception"));
+    REQUIRE(zai_throw_exception_hook_calls_count == 2);
+
+    zai_sandbox_exception_state_restore(&es);
+
+    REQUIRE(zai_sapi_unhandled_exception_eq(orig_exception_ce, "Original exception"));
+    /* The sandbox should not invoke zend_throw_exception_hook a third time
+     * when restoring the original exception.
+     */
+    REQUIRE(zai_throw_exception_hook_calls_count == 2);
+
+    zai_sapi_fake_frame_pop(&fake_frame);
 
     zai_sapi_spindown();
 }

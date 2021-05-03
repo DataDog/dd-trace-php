@@ -82,6 +82,7 @@ typedef struct zai_error_state_s {
 typedef struct zai_exception_state_s {
     zend_object *exception;
     zend_object *prev_exception;
+    const zend_op *opline_before_exception;
 } zai_exception_state;
 
 typedef struct zai_sandbox_s {
@@ -126,13 +127,15 @@ inline void zai_sandbox_error_state_restore(zai_error_state *es) {
 }
 
 inline void zai_sandbox_exception_state_backup(zai_exception_state *es) {
-    es->exception = NULL;
-    es->prev_exception = NULL;
-    if (EG(exception)) {
+    if (UNEXPECTED(EG(exception) != NULL)) {
         es->exception = EG(exception);
         es->prev_exception = EG(prev_exception);
+        es->opline_before_exception = EG(opline_before_exception);
         EG(exception) = NULL;
         EG(prev_exception) = NULL;
+    } else {
+        es->exception = NULL;
+        es->prev_exception = NULL;
     }
 }
 
@@ -144,8 +147,7 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
     if (es->exception) {
         EG(exception) = es->exception;
         EG(prev_exception) = es->prev_exception;
-
-        zend_throw_exception_internal(NULL);
+        EG(opline_before_exception) = es->opline_before_exception;
     }
 }
 
@@ -175,6 +177,7 @@ typedef struct zai_error_state_s {
 typedef struct zai_exception_state_s {
     zend_object *exception;
     zend_object *prev_exception;
+    const zend_op *opline_before_exception;
 } zai_exception_state;
 
 typedef struct zai_sandbox_s {
@@ -219,13 +222,15 @@ inline void zai_sandbox_error_state_restore(zai_error_state *es) {
 }
 
 inline void zai_sandbox_exception_state_backup(zai_exception_state *es) {
-    es->exception = NULL;
-    es->prev_exception = NULL;
-    if (EG(exception)) {
+    if (UNEXPECTED(EG(exception) != NULL)) {
         es->exception = EG(exception);
         es->prev_exception = EG(prev_exception);
+        es->opline_before_exception = EG(opline_before_exception);
         EG(exception) = NULL;
         EG(prev_exception) = NULL;
+    } else {
+        es->exception = NULL;
+        es->prev_exception = NULL;
     }
 }
 
@@ -237,8 +242,7 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
     if (es->exception) {
         EG(exception) = es->exception;
         EG(prev_exception) = es->prev_exception;
-
-        zend_throw_exception_internal(NULL);
+        EG(opline_before_exception) = es->opline_before_exception;
     }
 }
 
@@ -311,14 +315,15 @@ inline void zai_sandbox_error_state_restore_ex(zai_error_state *es TSRMLS_DC) {
 }
 
 inline void zai_sandbox_exception_state_backup_ex(zai_exception_state *es TSRMLS_DC) {
-    es->exception = NULL;
-    es->prev_exception = NULL;
-    if (EG(exception)) {
+    if (UNEXPECTED(EG(exception) != NULL)) {
         es->opline_before_exception = EG(opline_before_exception);
         es->exception = EG(exception);
         es->prev_exception = EG(prev_exception);
         EG(exception) = NULL;
         EG(prev_exception) = NULL;
+    } else {
+        es->exception = NULL;
+        es->prev_exception = NULL;
     }
 }
 
@@ -341,7 +346,6 @@ inline void zai_sandbox_exception_state_restore_ex(zai_exception_state *es TSRML
     if (es->exception) {
         EG(exception) = es->exception;
         EG(prev_exception) = es->prev_exception;
-
         EG(opline_before_exception) = es->opline_before_exception;
 #if PHP_VERSION_ID >= 50500
         EG(current_execute_data)->opline = EG(exception_op);
