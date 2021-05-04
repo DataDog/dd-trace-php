@@ -6,9 +6,10 @@ class Tracer
 {
     public function flush()
     {
-        echo 'Flushing tracer...' . PHP_EOL;
-        array_map(function($span) {
+        $valuesStrings = [];
+        array_map(function($span) use (&$valuesStrings) {
             $values = [];
+            $valuesString = "";
             if (isset($span['service'])) {
                 $values[] = $span['service'];
             }
@@ -20,16 +21,26 @@ class Tracer
             }
 
             if (isset($span['name'])) {
-                echo $span['name'];
+                $valuesString .= $span['name'];
             }
             if (!empty($values)) {
-                echo ' (' . implode(', ', $values) . ')';
+                $valuesString .= ' (' . implode(', ', $values) . ')';
             }
             if (isset($span['meta']['error.msg'])) {
-                echo ' (error: ' . $span['meta']['error.msg'] . ')';
+                $valuesString .= ' (error: ' . $span['meta']['error.msg'] . ')';
             }
-            echo PHP_EOL;
+            $valuesString .= PHP_EOL;
+            if (strlen($valuesString) > 0) {
+                $valuesStrings[] = $valuesString;
+            }
         }, dd_trace_serialize_closed_spans());
+
+        // Reporting
+        $output = 'Flushing tracer...' . PHP_EOL;
+        foreach ($valuesStrings as $value) {
+           $output .= $value;
+        }
+        echo $output;
 
         // To test curl_exec calls are not instrumented in a flush
         fake_curl_exec();
