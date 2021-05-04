@@ -1,7 +1,10 @@
 --TEST--
 Long running autoflush
 --SKIPIF--
-<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (PHP_VERSION_ID < 70000) die('skip: Auto flushing not supported on PHP 5');
+?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=false
 DD_TRACE_AUTO_FLUSH_ENABLED=true
