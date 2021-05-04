@@ -21,12 +21,14 @@ const ITERATIONS = 2;
 
 for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     long_running_entry_point();
-    usleep(200000);
+    sleep(1);
     $output = ob_get_contents();
     ob_end_clean();
     $lines = explode(PHP_EOL, $output);
     if (in_array("Flushing tracer...", $lines) && in_array("Tracer reset", $lines)) {
         echo "OK" . PHP_EOL;
+    } else {
+        echo "Unexpected: " . implode(" ", $lines) . PHP_EOL;
     }
 }
 
