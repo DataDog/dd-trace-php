@@ -21,6 +21,7 @@ const ITERATIONS = 2;
 
 for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     long_running_entry_point();
+    usleep(200000);
     $output = ob_get_contents();
     ob_end_clean();
     $lines = explode(PHP_EOL, $output);
