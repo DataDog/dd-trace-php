@@ -38,7 +38,7 @@ class Tracer
         // Reporting
         $output = 'Flushing tracer...' . PHP_EOL;
         foreach ($valuesStrings as $value) {
-           $output .= $value;
+            $output .= $value;
         }
         echo $output;
 
