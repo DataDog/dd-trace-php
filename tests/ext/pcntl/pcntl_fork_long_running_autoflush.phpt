@@ -21,6 +21,12 @@ const ITERATIONS = 2;
 
 for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     long_running_entry_point();
+    $output = ob_get_contents();
+    ob_end_clean();
+    $lines = explode(PHP_EOL, $output);
+    if (in_array("Flushing tracer...", $lines) && in_array("Tracer reset", $lines)) {
+        echo "OK" . PHP_EOL;
+    }
 }
 
 function long_running_entry_point()
@@ -29,13 +35,14 @@ function long_running_entry_point()
 
     $forkPid = pcntl_fork();
 
+    ob_start();
+
     if ($forkPid > 0) {
         // Main
         call_httpbin();
     } else if ($forkPid === 0) {
         // Child
         call_httpbin();
-        exit(0);
     } else {
         error_log('Error');
         exit(-1);
@@ -45,15 +52,7 @@ function long_running_entry_point()
 
 ?>
 --EXPECTF--
-Flushing tracer...
-long_running_entry_point (pcntl-testing-service, long_running_entry_point, custom)
-Tracer reset
-Flushing tracer...
-long_running_entry_point (pcntl-testing-service, long_running_entry_point, custom)
-Tracer reset
-Flushing tracer...
-long_running_entry_point (pcntl-testing-service, long_running_entry_point, custom)
-Tracer reset
-Flushing tracer...
-long_running_entry_point (pcntl-testing-service, long_running_entry_point, custom)
-Tracer reset
+OK
+OK
+OK
+OK
