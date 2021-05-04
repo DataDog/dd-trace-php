@@ -27,8 +27,6 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $lines = explode(PHP_EOL, $output);
     if (in_array("Flushing tracer...", $lines) && in_array("Tracer reset", $lines)) {
         echo "OK" . PHP_EOL;
-    } else {
-        echo "Unexpected: " . implode(" ", $lines) . PHP_EOL;
     }
 }
 
