@@ -30,6 +30,8 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
 
     $forkPid = pcntl_fork();
 
+    ob_start();
+
     if ($forkPid > 0) {
         // Main
         call_httpbin();
@@ -44,18 +46,20 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $scope->close();
     $tracer->flush();
     $tracer->reset();
+
+    $output = ob_get_contents();
+    ob_end_clean();
+    $lines = explode(PHP_EOL, $output);
+    if (in_array("Flushing tracer...", $lines) && in_array("Tracer reset", $lines)) {
+        echo "OK" . PHP_EOL;
+    }
 }
+
 ?>
 --EXPECTF--
-Flushing tracer...
-Tracer reset
-Flushing tracer...
-Tracer reset
-Flushing tracer...
-Tracer reset
-Flushing tracer...
-Tracer reset
-Flushing tracer...
-Tracer reset
-Flushing tracer...
-Tracer reset
+OK
+OK
+OK
+OK
+OK
+OK
