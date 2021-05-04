@@ -39,7 +39,15 @@ class NetteIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        $this->load();
+        $integration = $this;
+
+        \DDTrace\hook_method('Nette\Configurator', '__construct', function () use ($integration) {
+            $integration->load();
+        });
+
+        \DDTrace\hook_method('Nette\Bootstrap\Configurator', '__construct', function () use ($integration) {
+            $integration->load();
+        });
 
         return self::LOADED;
     }
