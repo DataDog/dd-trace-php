@@ -385,6 +385,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
+    DDTRACE_G(drop_all_spans) = 0;
 
     ddtrace_dogstatsd_client_rinit(TSRMLS_C);
 

@@ -2,6 +2,21 @@
 
 This file explains why we decided to disable specific PHP language tests. Investigations for tests disabled before this file was created are not present.
 
+## `ext/pcntl/tests/pcntl_unshare_01.phpt`
+
+Disabled on versions: `7.4` (it wasn't there on [7.3-](https://github.com/php/php-src/tree/PHP-7.3/ext/pcntl/tests)).
+
+Links to sample broken executions: [7.4](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/5532/workflows/2d26f68b-fb78-46f1-b846-c9e0f1c5cefc/jobs/377363).
+
+_Investigation_
+
+`unshare` requires processes [not to be threaded](https://man7.org/linux/man-pages/man2/unshare.2.html) to use the flag `CLONE_NEWUSER`. In our case the background sender is started in a thread and causes the `CLONE_NEWUSER` to be flagged as an error.
+Disabling the creation of the background sender thread the test passes (with a delay of 5 seconds).
+
+## `ext/pcntl/tests/pcntl_unshare_03.phpt`
+
+See `ext/pcntl/tests/pcntl_unshare_01.phpt`.
+
 ## `ext/openssl/tests/bug54992.phpt`
 
 Disabled on versions: `5.4`, `5.5`.

@@ -10,8 +10,8 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 <?php
 use DDTrace\SpanData;
 
-require 'fake_tracer.inc';
-require 'fake_global_tracer.inc';
+require __DIR__ . '/../includes/fake_tracer.inc';
+require __DIR__ . '/../includes/fake_global_tracer.inc';
 
 DDTrace\trace_function('array_sum', function (SpanData $span, $args, $retval) {
     $span->name = 'array_sum';

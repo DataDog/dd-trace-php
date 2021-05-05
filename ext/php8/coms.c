@@ -963,6 +963,14 @@ static bool _dd_has_pid_changed(void) {
     return current_pid != previous_pid;
 }
 
+void ddtrace_coms_kill_background_sender(void) {
+    struct _writer_loop_data_t *writer = _dd_get_writer();
+    if (writer->thread) {
+        free(writer->thread);
+        writer->thread = NULL;
+    }
+}
+
 bool ddtrace_coms_on_pid_change(void) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
 

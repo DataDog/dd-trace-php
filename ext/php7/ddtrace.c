@@ -386,6 +386,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
+    DDTRACE_G(drop_all_spans) = 0;
 
     // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
     ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));

@@ -956,6 +956,14 @@ bool ddtrace_coms_init_and_start_writer(void) {
     }
 }
 
+void ddtrace_coms_kill_background_sender(void) {
+    struct _writer_loop_data_t *writer = _dd_get_writer();
+    if (writer->thread) {
+        free(writer->thread);
+        writer->thread = NULL;
+    }
+}
+
 static bool _dd_has_pid_changed(void) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
     pid_t current_pid = getpid();

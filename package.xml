@@ -124,6 +124,7 @@
             <file name="ext/php5/handlers_curl.c" role="src" />
             <file name="ext/php5/handlers_internal.c" role="src" />
             <file name="ext/php5/handlers_internal.h" role="src" />
+            <file name="ext/php5/handlers_pcntl.c" role="src" />
             <file name="ext/php5/integrations/integrations.c" role="src" />
             <file name="ext/php5/integrations/integrations.h" role="src" />
             <file name="ext/php5/logging.c" role="src" />
@@ -193,6 +194,7 @@
             <file name="ext/php7/handlers_internal.h" role="src" />
             <file name="ext/php7/handlers_memcached.c" role="src" />
             <file name="ext/php7/handlers_mysqli.c" role="src" />
+            <file name="ext/php7/handlers_pcntl.c" role="src" />
             <file name="ext/php7/handlers_pdo.c" role="src" />
             <file name="ext/php7/handlers_phpredis.c" role="src" />
             <file name="ext/php7/integrations/integrations.c" role="src" />
@@ -261,6 +263,7 @@
             <file name="ext/php8/handlers_internal.h" role="src" />
             <file name="ext/php8/handlers_memcached.c" role="src" />
             <file name="ext/php8/handlers_mysqli.c" role="src" />
+            <file name="ext/php8/handlers_pcntl.c" role="src" />
             <file name="ext/php8/handlers_pdo.c" role="src" />
             <file name="ext/php8/handlers_phpredis.c" role="src" />
             <file name="ext/php8/integrations/integrations.c" role="src" />
@@ -304,6 +307,11 @@
             <file name="tests/ext/call_user_func/not-namespaced.phpt" role="test" />
 
             <file name="tests/ext/includes/dd_init.php" role="test" />
+            <file name="tests/ext/includes/fake_scope.inc" role="test" />
+            <file name="tests/ext/includes/fake_span.inc" role="test" />
+            <file name="tests/ext/includes/fake_tracer_exception.inc" role="test" />
+            <file name="tests/ext/includes/fake_global_tracer.inc" role="test" />
+            <file name="tests/ext/includes/fake_tracer.inc" role="test" />
             <file name="tests/ext/includes/request_init_hook.inc" role="test" />
             <file name="tests/ext/includes/request_replayer.inc" role="test" />
             <file name="tests/ext/includes/sanity_check.php" role="test" />
@@ -326,6 +334,13 @@
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_001.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_002.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_sandboxed.phpt" role="test" />
+
+            <file name="tests/ext/pcntl/functions.inc" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_long_running_autoflush.phpt" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_long_running_manual.phpt" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_short_running_multiple.phpt" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_short_running_nested.phpt" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_short_running_single.phpt" role="test" />
 
             <file name="tests/ext/request-init-hook/contains-binary-character/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/raises-e-notice/dd_init.php" role="test" />
@@ -400,9 +415,6 @@
             <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
             <file name="tests/ext/sandbox/exit_and_drop_span.phpt" role="test" />
-            <file name="tests/ext/sandbox/fake_global_tracer.inc" role="test" />
-            <file name="tests/ext/sandbox/fake_tracer.inc" role="test" />
-            <file name="tests/ext/sandbox/fake_tracer_exception.inc" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_001.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_002.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_003_php5.phpt" role="test" />
