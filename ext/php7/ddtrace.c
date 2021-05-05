@@ -1286,6 +1286,44 @@ static PHP_FUNCTION(trace_id) {
     return_span_id(return_value, DDTRACE_G(trace_id));
 }
 
+/* {{{ proto arrat \DDTrace\get_current_context() */
+static PHP_FUNCTION(get_current_context) {
+    UNUSED(execute_data);
+
+    size_t length;
+    char buf[DD_TRACE_MAX_ID_LEN + 1];
+
+    array_init(return_value);
+
+    //Add Trace ID
+    length = snprintf(buf, sizeof(buf), "%" PRIu64, DDTRACE_G(trace_id));
+    add_next_index_stringl(return_value, buf, length);
+
+    // Add Span ID
+    length = snprintf(buf, sizeof(buf), "%" PRIu64, ddtrace_peek_span_id(TSRMLS_C));
+    add_next_index_stringl(return_value, buf, length);
+
+    // Add Version
+    char *version = get_dd_version();
+    length = strlen(version);
+    if (length > 0) {
+        add_next_index_stringl(return_value, version, length);
+    } else {
+        add_next_index_null(return_value);
+    }
+    free(version);
+
+    // Add Env
+    char *env = get_dd_env();
+    length = strlen(env);
+    if (length > 0) {
+        add_next_index_stringl(return_value, env, length);
+    } else {
+        add_next_index_null(return_value);
+    }
+    free(env);
+}
+
 /* {{{ proto string dd_trace_closed_spans_count() */
 static PHP_FUNCTION(dd_trace_closed_spans_count) {
     UNUSED(execute_data);
@@ -1340,6 +1378,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
     DDTRACE_NS_FE(trace_id, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(get_current_context, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
