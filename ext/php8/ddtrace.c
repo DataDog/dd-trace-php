@@ -1285,7 +1285,7 @@ static PHP_FUNCTION(get_current_context) {
 
     array_init(return_value);
 
-    //Add Trace ID
+    // Add Trace ID
     length = snprintf(buf, sizeof(buf), "%" PRIu64, DDTRACE_G(trace_id));
     add_next_index_stringl(return_value, buf, length);
 
