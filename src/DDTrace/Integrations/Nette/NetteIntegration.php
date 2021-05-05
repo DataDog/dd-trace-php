@@ -62,7 +62,6 @@ class NetteIntegration extends Integration
 
         $root = $scope->getSpan();
         $root->setTraceAnalyticsCandidate();
-        $root->overwriteOperationName('nette.request');
         $root->setTag(Tag::SERVICE_NAME, $service);
 
         \DDTrace\trace_method(
