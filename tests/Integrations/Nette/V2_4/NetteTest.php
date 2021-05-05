@@ -44,10 +44,10 @@ final class NetteTest extends WebFrameworkTestCase
             [
                 'A simple GET request returning a string' => [
                     SpanAssertion::build(
-                        'nette.request',
+                        'web.request',
                         'nette_test_app',
                         'web',
-                        'Homepage:simple'
+                        'GET /simple'
                     )->withExactTags([
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simple',
@@ -90,10 +90,10 @@ final class NetteTest extends WebFrameworkTestCase
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
-                        'nette.request',
+                        'web.request',
                         'nette_test_app',
                         'web',
-                        'Homepage:simpleView'
+                        'GET /simple_view'
                     )->withExactTags([
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simpleView',
@@ -147,10 +147,10 @@ final class NetteTest extends WebFrameworkTestCase
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
-                        'nette.request',
+                        'web.request',
                         'nette_test_app',
                         'web',
-                        'Homepage:errorView'
+                        'GET /error'
                     )->withExactTags([
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'errorView',
