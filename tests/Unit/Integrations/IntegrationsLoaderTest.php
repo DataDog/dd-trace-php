@@ -167,6 +167,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'slim';
             $excluded[] = 'wordpress';
             $excluded[] = 'yii';
+            $excluded[] = 'nette';
         }
         if (\PHP_MAJOR_VERSION >= 8) {
             // Integrations that do not support PHP 8
