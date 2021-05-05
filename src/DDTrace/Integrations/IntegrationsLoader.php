@@ -76,8 +76,6 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Mysqli\MysqliIntegration';
             $this->integrations[SymfonyIntegration::NAME] =
                 '\DDTrace\Integrations\Symfony\SymfonyIntegration';
-            $this->integrations[NetteIntegration::NAME] =
-                '\DDTrace\Integrations\Nette\NetteIntegration';
             return;
         }
 
@@ -99,8 +97,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Mongo\MongoIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[NetteIntegration::NAME] =
-            '\DDTrace\Integrations\Nette\NetteIntegration';
         $this->integrations[SymfonyIntegration::NAME] =
             '\DDTrace\Integrations\Symfony\SymfonyIntegration';
         $this->integrations[ZendFrameworkIntegration::NAME] =
@@ -120,6 +116,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Slim\SlimIntegration';
             $this->integrations[YiiIntegration::NAME] =
                 '\DDTrace\Integrations\Yii\YiiIntegration';
+            $this->integrations[NetteIntegration::NAME] =
+                '\DDTrace\Integrations\Nette\NetteIntegration';
             $this->integrations[WordPressIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressIntegration';
         }
