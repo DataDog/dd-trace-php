@@ -634,6 +634,49 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+  min_install_tests:
+    parameters:
+      php_version:
+        type: string
+    working_directory: ~/datadog
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
+      HTTPBIN_HOSTNAME: httpbin_integration
+      DATADOG_HAVE_DEV_ENV: 1
+    executor:
+      name: with_httpbin_and_request_replayer
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_version >>-shared-ext
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Install .deb from artifacts
+          command: |
+            sudo dpkg -i ./build/packages/*.deb
+            php --ri=ddtrace
+      - run:
+          name: Run phpt tests against shippable package
+          command: |
+            switch-php debug
+            export DDTRACE_PKG_SO="/opt/datadog-php/extensions/ddtrace-$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')-debug.so"
+            make run_tests TESTS="-d 'extension=$DDTRACE_PKG_SO'"
+      - run:
+          name: Run phpt tests against build from source
+          command: |
+            make test_c
+      - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   framework_tests:
     working_directory: ~/datadog
     parameters:
@@ -1602,6 +1645,14 @@ workflows:
           sapi: fpm-fcgi
           integration_testsuite: "test_web_custom"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+
+      - min_install_tests:
+          requires: [ 'package extension' ]
+          name: "PHP min install tests"
+          matrix:
+            parameters:
+              php_version:
+                - '8.0'
 
   build:
     jobs:

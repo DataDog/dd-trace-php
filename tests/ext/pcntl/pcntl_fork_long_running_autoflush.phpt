@@ -3,6 +3,8 @@ Long running autoflush
 --SKIPIF--
 <?php
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
+if (!extension_loaded('curl')) die('skip: curl extension required');
 if (PHP_VERSION_ID < 70000) die('skip: Auto flushing not supported on PHP 5');
 ?>
 --ENV--
