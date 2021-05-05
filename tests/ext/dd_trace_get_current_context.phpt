@@ -16,12 +16,12 @@ if (strcmp($context[1], strval(\dd_trace_peek_span_id())) !== 0) {
     echo "\\DDTrace\\get_current_context() doesn't match \dd_trace_peek_span_id()";
 }
 
-if (strcmp($context[2], $_ENV["DD_VERSION"]) !== 0) {
-    echo "\\DDTrace\\get_current_context() doesn't match \$_ENV['DD_VERSION']";
+if (strcmp($context[2], getenv("DD_VERSION")) !== 0) {
+    echo "\\DDTrace\\get_current_context() doesn't match DD_VERSION";
 }
 
-if (strcmp($context[3], $_ENV["DD_ENV"]) !== 0) {
-    echo "\\DDTrace\\get_current_context() doesn't match \$_ENV['DD_ENV']";
+if (strcmp($context[3], getenv("DD_ENV")) !== 0) {
+    echo "\\DDTrace\\get_current_context() doesn't match DD_ENV";
 }
 
 ?>
