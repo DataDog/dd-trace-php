@@ -19,7 +19,6 @@ final class NetteTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'nette_test_app',
-            'DD_TRACE_DEBUG' => true,
         ]);
     }
 

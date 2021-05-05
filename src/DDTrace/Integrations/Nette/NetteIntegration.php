@@ -116,7 +116,6 @@ class NetteIntegration extends Integration
                 $root->setTag(Tag::HTTP_METHOD, $request->getMethod());
                 $root->setTag('nette.route.presenter', $presenter);
                 $root->setTag('nette.route.action', $action);
-                $root->setResource($presenter . ':' . $action);
             }
         );
 
