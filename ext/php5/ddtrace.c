@@ -1343,17 +1343,17 @@ static PHP_FUNCTION(get_current_context) {
 
     //Add Trace ID
     length = snprintf(buf, sizeof(buf), "%" PRIu64, DDTRACE_G(trace_id));
-    add_next_index_stringl(return_value, buf, length);
+    add_next_index_stringl(return_value, buf, length, 1);
 
     // Add Span ID
     length = snprintf(buf, sizeof(buf), "%" PRIu64, ddtrace_peek_span_id(TSRMLS_C));
-    add_next_index_stringl(return_value, buf, length);
+    add_next_index_stringl(return_value, buf, length, 1);
 
     // Add Version
     char *version = get_dd_version();
     length = strlen(version);
     if (length > 0) {
-        add_next_index_stringl(return_value, version, length);
+        add_next_index_stringl(return_value, version, length, 1);
     } else {
         add_next_index_null(return_value);
     }
@@ -1363,7 +1363,7 @@ static PHP_FUNCTION(get_current_context) {
     char *env = get_dd_env();
     length = strlen(env);
     if (length > 0) {
-        add_next_index_stringl(return_value, env, length);
+        add_next_index_stringl(return_value, env, length, 1);
     } else {
         add_next_index_null(return_value);
     }
