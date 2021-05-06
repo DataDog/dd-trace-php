@@ -80,7 +80,7 @@ All of the OpenTracing interfaces and classes were moved under the `DDTrace` nam
 
 ## Removing the OpenTracing dependency
 
-Once all references to the OpenTracing API have been updated, you can remove `opentracing/opentracing` with Composer. 
+Once all references to the OpenTracing API have been updated, you can remove `opentracing/opentracing` with Composer.
 
 ```bash
 $ composer remove opentracing/opentracing

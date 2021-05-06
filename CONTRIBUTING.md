@@ -83,7 +83,7 @@ First you need to update composer's dependecies in `./tests` folder:
     $ make composer_tests_update
 
 > :memo: **Note:** To disable reliance on the generated files during development and testing, set the following environment variable:
-> 
+>
 > `export DD_AUTOLOAD_NO_COMPILE=true`
 
 Then you can run tests:
