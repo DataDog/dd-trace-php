@@ -38,6 +38,7 @@ ddtrace_integration ddtrace_integrations[] = {
     {DDTRACE_INTEGRATION_MEMCACHED, "MEMCACHED", ZEND_STRL("memcached")},
     {DDTRACE_INTEGRATION_MONGO, "MONGO", ZEND_STRL("mongo")},
     {DDTRACE_INTEGRATION_MYSQLI, "MYSQLI", ZEND_STRL("mysqli")},
+    {DDTRACE_INTEGRATION_NETTE, "NETTE", ZEND_STRL("nette")},
     {DDTRACE_INTEGRATION_PDO, "PDO", ZEND_STRL("pdo")},
     {DDTRACE_INTEGRATION_PHPREDIS, "PHPREDIS", ZEND_STRL("phpredis")},
     {DDTRACE_INTEGRATION_PREDIS, "PREDIS", ZEND_STRL("predis")},
@@ -111,6 +112,12 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHED, "Memcached", "__construct",
                                          "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Configurator", "__construct",
+                                         "DDTrace\\Integrations\\Nette\\NetteIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Bootstrap\\Configurator", "__construct",
+                                         "DDTrace\\Integrations\\Nette\\NetteIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");

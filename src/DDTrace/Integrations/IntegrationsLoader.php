@@ -13,6 +13,7 @@ use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
+use DDTrace\Integrations\Nette\NetteIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
@@ -115,6 +116,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Slim\SlimIntegration';
             $this->integrations[YiiIntegration::NAME] =
                 '\DDTrace\Integrations\Yii\YiiIntegration';
+            $this->integrations[NetteIntegration::NAME] =
+                '\DDTrace\Integrations\Nette\NetteIntegration';
             $this->integrations[WordPressIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressIntegration';
         }
