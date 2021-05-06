@@ -1,5 +1,6 @@
 #include "../zai_sapi.h"
 
+#include <Zend/zend_exceptions.h>
 #include <main/SAPI.h>
 #include <main/php_main.h>
 #include <main/php_variables.h>
@@ -223,10 +224,49 @@ bool zai_sapi_execute_script(const char *file) {
     return zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &handle) == SUCCESS;
 }
 
-bool zai_sapi_last_error_message_eq(const char *msg) {
-    if (msg == NULL) return PG(last_error_message) == NULL;
-    if (PG(last_error_message) == NULL) return false;
+bool zai_sapi_fake_frame_push(zend_execute_data *frame) {
+    zend_function *func = zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("zai\\noop"));
+    if (func) {
+        memset(frame, 0, sizeof(zend_execute_data));
+
+        frame->func = func;
+        frame->prev_execute_data = EG(current_execute_data);
+
+        EG(current_execute_data) = frame;
+        return true;
+    }
+    return false;
+}
+
+void zai_sapi_fake_frame_pop(zend_execute_data *frame) { EG(current_execute_data) = frame->prev_execute_data; }
+
+bool zai_sapi_last_error_eq(int error_type, const char *msg) {
+    if (PG(last_error_type) != error_type || PG(last_error_message) == NULL) return false;
     return strcmp(msg, PG(last_error_message)) == 0;
 }
 
-bool zai_sapi_last_error_type_eq(int error_type) { return PG(last_error_type) == error_type; }
+bool zai_sapi_last_error_is_empty(void) {
+    return PG(last_error_type) == 0 && PG(last_error_lineno) == 0 && PG(last_error_message) == NULL &&
+           PG(last_error_file) == NULL;
+}
+
+zend_class_entry *zai_sapi_throw_exception(const char *message) {
+    zend_class_entry *ce = zend_exception_get_default();
+    zend_throw_exception(ce, message, 0);
+    return ce;
+}
+
+bool zai_sapi_unhandled_exception_eq(zend_class_entry *ce, const char *message) {
+    if (!zai_sapi_unhandled_exception_exists()) return false;
+    if (ce != EG(exception)->ce) return false;
+
+    zval obj, rv;
+    ZVAL_OBJ(&obj, EG(exception));
+
+    zval *zmsg = zend_read_property(ce, &obj, "message", (sizeof("message") - 1), 1, &rv);
+    if (!zmsg && Z_TYPE_P(zmsg) != IS_STRING) return false;
+
+    return strcmp(Z_STRVAL_P(zmsg), message) == 0;
+}
+
+bool zai_sapi_unhandled_exception_exists(void) { return EG(exception) != NULL; }
