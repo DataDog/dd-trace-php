@@ -66,16 +66,6 @@ class NetteIntegration extends Integration
 
         \DDTrace\trace_method(
             'Nette\Configurator',
-            'createContainer',
-            function (SpanData $span) use ($service) {
-                $span->name = 'nette.configurator.createContainer';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
-            }
-        );
-
-        \DDTrace\trace_method(
-            'Nette\Configurator',
             'createRobotLoader',
             function (SpanData $span) use ($service) {
                 $span->name = 'nette.configurator.createRobotLoader';

@@ -62,12 +62,6 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette.configurator.createRobotLoader'
                         ),
                         SpanAssertion::build(
-                            'nette.configurator.createContainer',
-                            'nette_test_app',
-                            Type::WEB_SERVLET,
-                            'nette.configurator.createContainer'
-                        ),
-                        SpanAssertion::build(
                             'nette.application.run',
                             'nette_test_app',
                             Type::WEB_SERVLET,
@@ -100,12 +94,6 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette_test_app',
                             Type::WEB_SERVLET,
                             'nette.configurator.createRobotLoader'
-                        ),
-                        SpanAssertion::build(
-                            'nette.configurator.createContainer',
-                            'nette_test_app',
-                            Type::WEB_SERVLET,
-                            'nette.configurator.createContainer'
                         ),
                         SpanAssertion::build(
                             'nette.application.run',
@@ -153,12 +141,6 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette_test_app',
                             Type::WEB_SERVLET,
                             'nette.configurator.createRobotLoader'
-                        ),
-                        SpanAssertion::build(
-                            'nette.configurator.createContainer',
-                            'nette_test_app',
-                            Type::WEB_SERVLET,
-                            'nette.configurator.createContainer'
                         ),
                         SpanAssertion::build(
                             'nette.application.run',
