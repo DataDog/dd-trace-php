@@ -1286,7 +1286,7 @@ static PHP_FUNCTION(trace_id) {
     return_span_id(return_value, DDTRACE_G(trace_id));
 }
 
-/* {{{ proto arrat \DDTrace\get_current_context() */
+/* {{{ proto array \DDTrace\get_current_context() */
 static PHP_FUNCTION(get_current_context) {
     UNUSED(execute_data);
 
