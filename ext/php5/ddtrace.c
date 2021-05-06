@@ -1343,19 +1343,19 @@ static PHP_FUNCTION(get_current_context) {
 
     // Add Trace ID
     length = snprintf(buf, sizeof(buf), "%" PRIu64, DDTRACE_G(trace_id));
-    add_next_index_stringl(return_value, buf, length, 1);
+    add_assoc_stringl_ex(return_value, "trace_id", sizeof("trace_id"), buf, length, 1);
 
     // Add Span ID
     length = snprintf(buf, sizeof(buf), "%" PRIu64, ddtrace_peek_span_id(TSRMLS_C));
-    add_next_index_stringl(return_value, buf, length, 1);
+    add_assoc_stringl_ex(return_value, "span_id", sizeof("span_id"), buf, length, 1);
 
     // Add Version
     char *version = get_dd_version();
     length = strlen(version);
     if (length > 0) {
-        add_next_index_stringl(return_value, version, length, 1);
+        add_assoc_stringl_ex(return_value, "version", sizeof("version"), version, length, 1);
     } else {
-        add_next_index_null(return_value);
+        add_assoc_null_ex(return_value, "version", sizeof("version"));
     }
     free(version);
 
@@ -1363,9 +1363,9 @@ static PHP_FUNCTION(get_current_context) {
     char *env = get_dd_env();
     length = strlen(env);
     if (length > 0) {
-        add_next_index_stringl(return_value, env, length, 1);
+        add_assoc_stringl_ex(return_value, "env", sizeof("env"), env, length, 1);
     } else {
-        add_next_index_null(return_value);
+        add_assoc_null_ex(return_value, "env", sizeof("env"));
     }
     free(env);
 }
