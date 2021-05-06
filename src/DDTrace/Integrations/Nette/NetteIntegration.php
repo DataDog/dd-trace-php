@@ -118,16 +118,6 @@ class NetteIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method(
-            'Nette\Application\Routers\RouteList',
-            'match',
-            function (SpanData $span) use ($service) {
-                $span->name = 'nette.router.match';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
-            }
-        );
-
         // Latte template engine traces
         \DDTrace\trace_method(
             'Latte\Engine',

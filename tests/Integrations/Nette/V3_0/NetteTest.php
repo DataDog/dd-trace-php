@@ -78,12 +78,6 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
                                 'nette.presenter.run'
-                            ),
-                            SpanAssertion::build(
-                                'nette.router.match',
-                                'nette_test_app',
-                                Type::WEB_SERVLET,
-                                'nette.router.match'
                             )
                         ])
                     ])
@@ -124,12 +118,6 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
                                 'nette.presenter.run'
-                            ),
-                            SpanAssertion::build(
-                                'nette.router.match',
-                                'nette_test_app',
-                                Type::WEB_SERVLET,
-                                'nette.router.match'
                             ),
                             SpanAssertion::build(
                                 'nette.latte.render',
@@ -186,12 +174,6 @@ final class NetteTest extends WebFrameworkTestCase
                             )
                             ->setError('Exception', 'An exception occurred')
                             ->withExistingTagsNames(['error.stack']),
-                            SpanAssertion::build(
-                                'nette.router.match',
-                                'nette_test_app',
-                                Type::WEB_SERVLET,
-                                'nette.router.match'
-                            )
                         ])
                     ])
                 ],
