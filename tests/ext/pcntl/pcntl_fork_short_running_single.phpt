@@ -1,7 +1,11 @@
 --TEST--
 Short running single fork
 --SKIPIF--
-<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
+if (!extension_loaded('curl')) die('skip: curl extension required');
+?>
 --FILE--
 <?php
 
