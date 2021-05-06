@@ -161,13 +161,13 @@ final class IntegrationsLoaderTest extends BaseTestCase
             // Deferred loading integrations
             $excluded[] = 'elasticsearch';
             $excluded[] = 'memcached';
+            $excluded[] = 'nette';
             $excluded[] = 'pdo';
             $excluded[] = 'phpredis';
             $excluded[] = 'predis';
             $excluded[] = 'slim';
             $excluded[] = 'wordpress';
             $excluded[] = 'yii';
-            $excluded[] = 'nette';
         }
         if (\PHP_MAJOR_VERSION >= 8) {
             // Integrations that do not support PHP 8
