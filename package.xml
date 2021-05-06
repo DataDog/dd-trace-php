@@ -36,7 +36,24 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - [ZAI SAPI] Zai\trigger_error() SAPI function #1212
+    - Autocomplete Makefile target names in buster dev images #1224
+
+    ### Changed
+    - Use new buster containers in CI #1210
+    - remove _tmp suffix from development buster images #1217
+    - Tidy the components/ #1216
+    - Tidy up the docker-compose file a bit #1223
+
+    ### Fixed
+    - Disable PCNTL in forked processes #1196
+    - Updated contributing and fixed typo on Makefile::test_all #1218
+    - Fix ingestion control reporting #1222
+    - Skip tests that have development environment dependencies #1215 (thanks for the report @remicollet)
+    - Always resolve curl class entry symbols at runtime (PHP 8) #1209 (thanks for the report @metaxy)
+    </notes>
     <contents>
         <dir name="/">
             <!-- components -->
