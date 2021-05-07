@@ -27,10 +27,10 @@ zend_class_entry *zai_class_lookup_ex(const char *cname, size_t cname_len TSRMLS
  *   if (retval) {
  *     zval_ptr_dtor(&retval);
  *   }
- * 
+ *
  * Methods cannot be called outside of a request context so this MUST be called
  * from within a request context (after RINIT and before RSHUTDOWN). A crash
- * will occur if this is called outside of a request context. 
+ * will occur if this is called outside of a request context.
  */
 bool zai_call_method_without_args_ex(zval *object, const char *method, size_t method_len, zval **retval TSRMLS_DC);
 
