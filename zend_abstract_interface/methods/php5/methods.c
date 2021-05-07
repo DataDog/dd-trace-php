@@ -4,16 +4,6 @@
 #include <assert.h>
 #include <sandbox/sandbox.h>
 
-zend_class_entry *zai_class_lookup_ex(const char *cname, size_t cname_len TSRMLS_DC) {
-    if (!cname || !cname_len) return NULL;
-    zend_class_entry **ce;
-    /* Since we do not want to invoke the autoloader and we assume the caller
-     * will pass in the lowercased class name, we look up the class entry from
-     * the EG(class_table) directly versus calling zend_lookup_class_ex().
-     */
-    return (zend_hash_find(EG(class_table), cname, (cname_len + 1), (void **)&ce) == SUCCESS) ? *ce : NULL;
-}
-
 #ifndef NDEBUG
 static bool z_is_lower(const char *str) {
     char *p = (char *)str;
@@ -24,6 +14,20 @@ static bool z_is_lower(const char *str) {
     return true;
 }
 #endif
+
+zend_class_entry *zai_class_lookup_ex(const char *cname, size_t cname_len TSRMLS_DC) {
+    if (!cname || !cname_len) return NULL;
+    zend_class_entry **ce;
+
+    assert(z_is_lower(cname) && "Class names must be lowercase.");
+    assert(*cname != '\\' && "Class names must not have a root scope prefix '\\'.");
+
+    /* Since we do not want to invoke the autoloader and we assume the caller
+     * will pass in the lowercased class name, we look up the class entry from
+     * the EG(class_table) directly versus calling zend_lookup_class_ex().
+     */
+    return (zend_hash_find(EG(class_table), cname, (cname_len + 1), (void **)&ce) == SUCCESS) ? *ce : NULL;
+}
 
 static bool z_call_method_without_args_ex(zval *object, zend_class_entry *ce, const char *method, size_t method_len,
                                           zval **retval TSRMLS_DC) {

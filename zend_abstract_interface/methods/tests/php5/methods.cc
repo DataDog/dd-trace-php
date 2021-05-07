@@ -13,6 +13,12 @@ extern "C" {
     REQUIRE(false == zai_sapi_unhandled_exception_exists()); \
     REQUIRE(zai_sapi_last_error_is_empty())
 
+#ifndef NDEBUG
+#define SKIP_TEST_IN_DEBUG_MODE "[.]"
+#else
+#define SKIP_TEST_IN_DEBUG_MODE
+#endif
+
 /***************************** zai_class_lookup() ****************************/
 
 TEST_CASE("class lookup: (internal)", "[zai_methods]") {
@@ -43,7 +49,7 @@ TEST_CASE("class lookup: (userland)", "[zai_methods]") {
     zai_sapi_spindown();
 }
 
-TEST_CASE("class lookup: root-scope prefix", "[zai_methods]") {
+TEST_CASE("class lookup: root-scope prefix", "[zai_methods]" SKIP_TEST_IN_DEBUG_MODE) {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
@@ -56,7 +62,7 @@ TEST_CASE("class lookup: root-scope prefix", "[zai_methods]") {
     zai_sapi_spindown();
 }
 
-TEST_CASE("class lookup: wrong case", "[zai_methods]") {
+TEST_CASE("class lookup: wrong case", "[zai_methods]" SKIP_TEST_IN_DEBUG_MODE) {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
