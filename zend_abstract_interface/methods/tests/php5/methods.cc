@@ -105,6 +105,19 @@ TEST_CASE("class lookup: disable_classes INI", "[zai_methods]") {
     zai_sapi_spindown();
 }
 
+TEST_CASE("class lookup: outside of request context", "[zai_methods]") {
+    REQUIRE((zai_sapi_sinit() && zai_sapi_minit()));
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    zend_class_entry *ce = zai_class_lookup(ZAI_STRL("spldoublylinkedlist"));
+    REQUIRE(ce == spl_ce_SplDoublyLinkedList);
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_mshutdown();
+    zai_sapi_sshutdown();
+}
+
 TEST_CASE("class lookup: NULL class name", "[zai_methods]") {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
@@ -180,6 +193,34 @@ TEST_CASE("call method: (userland)", "[zai_methods]") {
     ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
     zai_sapi_spindown();
 }
+
+/* This test will crash because methods must be called within a request context
+TEST_CASE("call method: outside of request context", "[zai_methods]") {
+    REQUIRE((zai_sapi_sinit() && zai_sapi_minit()));
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    zend_class_entry *ce = zai_class_lookup(ZAI_STRL("spldoublylinkedlist"));
+    REQUIRE(ce == spl_ce_SplDoublyLinkedList);
+
+    zval *obj = zai_instantiate_object_from_ce(ce);
+    zval *retval = NULL;
+    // SplDoublyLinkedList::count()
+    bool result = zai_call_method_without_args(obj, ZAI_STRL("count"), &retval);
+    zval_ptr_dtor(&obj);
+
+    REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
+    REQUIRE(result == true);
+    REQUIRE(retval != NULL);
+    REQUIRE(Z_TYPE_P(retval) == IS_LONG);
+
+    zval_ptr_dtor(&retval);
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_mshutdown();
+    zai_sapi_sshutdown();
+}
+*/
 
 TEST_CASE("call method: does not exist on object (internal)", "[zai_methods]") {
     REQUIRE(zai_sapi_spinup());

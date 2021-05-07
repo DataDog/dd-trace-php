@@ -11,10 +11,12 @@
  * ZAI seams using native Zend Engine data structures.
  */
 
-/* Looks up a class entry directly from the EG(class_table). The lookup is
+/* Looks up a class entry directly from the CG(class_table). The lookup is
  * case-sensitive so the class name should be lowercase. The class name should
  * not contain a root-scope '\' prefix. Does not invoke the autoloader. Returns
- * NULL if the class entry could not be found.
+ * NULL if the class entry could not be found. Because the class lookup occurs
+ * from the compiler globals, this can be called safely outside of a request
+ * context.
  */
 zend_class_entry *zai_class_lookup_ex(const char *cname, size_t cname_len TSRMLS_DC);
 
@@ -25,6 +27,10 @@ zend_class_entry *zai_class_lookup_ex(const char *cname, size_t cname_len TSRMLS
  *   if (retval) {
  *     zval_ptr_dtor(&retval);
  *   }
+ * 
+ * Methods cannot be called outside of a request context so this MUST be called
+ * from within a request context (after RINIT and before RSHUTDOWN). A crash
+ * will occur if this is called outside of a request context. 
  */
 bool zai_call_method_without_args_ex(zval *object, const char *method, size_t method_len, zval **retval TSRMLS_DC);
 

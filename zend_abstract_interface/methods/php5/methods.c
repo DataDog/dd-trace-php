@@ -24,9 +24,12 @@ zend_class_entry *zai_class_lookup_ex(const char *cname, size_t cname_len TSRMLS
 
     /* Since we do not want to invoke the autoloader and we assume the caller
      * will pass in the lowercased class name, we look up the class entry from
-     * the EG(class_table) directly versus calling zend_lookup_class_ex().
+     * the CG(class_table) directly versus calling zend_lookup_class_ex(). This
+     * also allows us to make class lookups outside of a request context which
+     * is not possible for zend_lookup_class_ex() since it relies on executor
+     * global EG(class_table) for the lookup.
      */
-    return (zend_hash_find(EG(class_table), cname, (cname_len + 1), (void **)&ce) == SUCCESS) ? *ce : NULL;
+    return (zend_hash_find(CG(class_table), cname, (cname_len + 1), (void **)&ce) == SUCCESS) ? *ce : NULL;
 }
 
 static bool z_call_method_without_args_ex(zval *object, zend_class_entry *ce, const char *method, size_t method_len,
