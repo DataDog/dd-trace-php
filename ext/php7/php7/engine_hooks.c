@@ -39,6 +39,7 @@ static user_opcode_handler_t prev_yield_from_handler;
 #endif
 static user_opcode_handler_t prev_handle_exception_handler;
 static user_opcode_handler_t prev_exit_handler;
+// static user_opcode_handler_t prev_catch_handler;
 
 #if PHP_VERSION_ID < 70100
 #define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
@@ -1069,6 +1070,41 @@ static int dd_exit_handler(zend_execute_data *execute_data) {
     return prev_exit_handler ? prev_exit_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
+// static int dd_catch_handler(zend_execute_data *execute_data) {
+//     if (ZEND_CATCH == EX(opline)->opcode) {
+//         zend_object *ex = EG(exception);
+//         if (ex) {
+//             // zval rv, obj;
+//             // ZVAL_OBJ(&obj, ex);
+//             // zval *message = GET_PROPERTY(&obj, ZEND_STR_MESSAGE);
+//             // const char *msg = Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val : "I do not know the
+//             exception";
+//             // ddtrace_log_debugf("Message is: %s", msg);
+
+//             ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+//             span_fci->execute_data = execute_data;
+//             ddtrace_open_span(span_fci);
+
+//             ddtrace_span_t *span = &span_fci->span;
+
+//             zval *prop_name = ddtrace_spandata_property_name(span->span_data);
+//             if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
+//                 zval caught_exception_name;
+//                 ZVAL_STRING(&caught_exception_name, "caught_exception");
+//                 ZVAL_COPY_VALUE(prop_name, &caught_exception_name);
+//                 zval_copy_ctor(prop_name);
+//                 zval_dtor(&caught_exception_name);
+//             }
+
+//             ddtrace_span_attach_exception(span_fci, EG(exception));
+//             dd_trace_stop_span_time(span);
+//             ddtrace_close_span();
+//         }
+//     }
+
+//     return prev_catch_handler ? prev_catch_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+// }
+
 void ddtrace_opcode_minit(void) {
     prev_ucall_handler = zend_get_user_opcode_handler(ZEND_DO_UCALL);
     prev_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
@@ -1100,6 +1136,8 @@ void ddtrace_opcode_minit(void) {
     zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, dd_handle_exception_handler);
     prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
     zend_set_user_opcode_handler(ZEND_EXIT, dd_exit_handler);
+    // prev_catch_handler = zend_get_user_opcode_handler(ZEND_CATCH);
+    // zend_set_user_opcode_handler(ZEND_CATCH, dd_catch_handler);
 }
 
 void ddtrace_opcode_mshutdown(void) {
