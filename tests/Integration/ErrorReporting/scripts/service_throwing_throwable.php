@@ -1,5 +1,7 @@
 <?php
 
+namespace MyApp\MyBundle;
+
 class SomeServiceForThrowables
 {
     public function doThrow()
@@ -8,7 +10,7 @@ class SomeServiceForThrowables
     }
 }
 
-class ThrowableImplementation implements Throwable
+class ThrowableImplementation implements \Throwable
 {
     public function getMessage()
     {

@@ -40,24 +40,24 @@ switch ($_SERVER['REQUEST_URI']) {
 
     case "/unhandled-exception-class":
         require __DIR__ . '/dispatcher.php';
-        (new Dispatcher())->dispatchWithException();
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithException();
         break;
 
     case "/unhandled-exception-rethrown-class":
         require __DIR__ . '/dispatcher.php';
-        (new Dispatcher())->dispatchWithExceptionRethrow();
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithExceptionRethrow();
         break;
 
     case "/unhandled-throwable-class":
         require __DIR__ . '/dispatcher.php';
-        (new Dispatcher())->dispatchWithThrowable();
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithThrowable();
         break;
 
     case "/handled-exception-class-header":
         require __DIR__ . '/handlers.php';
         require __DIR__ . '/dispatcher.php';
         set_exception_handler('Handler::handleExceptionRenderViaHeaderFunction');
-        (new Dispatcher())->dispatchWithException();
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithException();
         break;
 
     case "/handled-exception-function-header":
@@ -71,28 +71,28 @@ switch ($_SERVER['REQUEST_URI']) {
         require __DIR__ . '/handlers.php';
         require __DIR__ . '/dispatcher.php';
         set_exception_handler('Handler::handleExceptionRenderViaHeaderFunction');
-        (new Dispatcher())->dispatchWithExceptionRethrow();
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithExceptionRethrow();
         break;
 
     case "/handled-throwable-class-header":
         require __DIR__ . '/handlers.php';
         require __DIR__ . '/dispatcher.php';
         set_exception_handler('Handler::handleExceptionRenderViaHeaderFunction');
-        (new Dispatcher())->dispatchWithThrowable();
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithThrowable();
         break;
 
     case "/handled-exception-class-converted-user-error":
         require __DIR__ . '/handlers.php';
         require __DIR__ . '/dispatcher.php';
         set_exception_handler('Handler::handleExceptionConvertToUserError');
-        (new Dispatcher())->dispatchWithException();
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithException();
         break;
 
     case "/handled-throwable-class-converted-user-error":
         require __DIR__ . '/handlers.php';
         require __DIR__ . '/dispatcher.php';
         set_exception_handler('Handler::handleExceptionConvertToUserError');
-        (new Dispatcher())->dispatchWithThrowable();
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithThrowable();
         break;
 
     case "/handled-exception-function-converted-user-error":

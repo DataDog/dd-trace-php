@@ -1,5 +1,7 @@
 <?php
 
+namespace MyApp\MyBundle;
+
 class SomeServiceForExceptions
 {
     public function doThrow()

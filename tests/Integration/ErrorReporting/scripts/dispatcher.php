@@ -1,5 +1,7 @@
 <?php
 
+namespace MyApp\MyBundle;
+
 class Dispatcher
 {
     public function dispatchWithException()
@@ -7,7 +9,7 @@ class Dispatcher
         require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
-        } catch (Exception $ex) {
+        } catch (\Exception $ex) {
             header('HTTP/1.1 500 Internal Server Obfuscated Error');
         }
     }
@@ -17,7 +19,7 @@ class Dispatcher
         require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
-        } catch (Exception $ex) {
+        } catch (\Exception $ex) {
             throw $ex;
         }
     }
@@ -27,7 +29,7 @@ class Dispatcher
         require_once __DIR__ . '/service_throwing_throwable.php';
         try {
             (new SomeServiceForThrowables())->doThrow();
-        } catch (Throwable $ex) {
+        } catch (\Throwable $ex) {
             header('HTTP/1.1 500 Internal Server Obfuscated Error');
         }
     }
