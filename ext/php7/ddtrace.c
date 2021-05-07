@@ -625,6 +625,7 @@ static PHP_FUNCTION(dd_trace) {
 }
 
 static PHP_FUNCTION(get_pending_exception) {
+    UNUSED(execute_data);
     if (DDTRACE_G(pending_exception) == NULL) {
         RETURN_NULL();
     }
