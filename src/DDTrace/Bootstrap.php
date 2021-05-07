@@ -277,7 +277,7 @@ final class Bootstrap
             $pendingException = $pendingException = \DDTrace\get_pending_exception();
             if ($pendingException) {
                 $stackTrace = \sprintf(
-                    "%s in %s:%s\n\n%s",
+                    "Exception: %s in %s:%s\n%s",
                     $pendingException->getMessage(),
                     $pendingException->getFile(),
                     $pendingException->getLine(),
