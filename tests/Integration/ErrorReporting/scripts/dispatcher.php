@@ -33,4 +33,14 @@ class Dispatcher
             header('HTTP/1.1 500 Internal Server Obfuscated Error');
         }
     }
+
+    public function dispatchInternalExcetionNotResultingInError()
+    {
+        require_once __DIR__ . '/service_throwing_exception.php';
+        try {
+            (new SomeServiceForExceptions())->doThrow();
+        } catch (\Exception $ex) {
+            // doing nothing
+        }
+    }
 }

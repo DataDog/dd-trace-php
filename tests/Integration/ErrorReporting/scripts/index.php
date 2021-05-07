@@ -53,6 +53,13 @@ switch ($_SERVER['REQUEST_URI']) {
         (new MyApp\MyBundle\Dispatcher())->dispatchWithThrowable();
         break;
 
+    case "/handled-user-error-header":
+        require __DIR__ . '/handlers.php';
+        require __DIR__ . '/functions.php';
+        set_error_handler('Handler::handleError');
+        function_that_calls_a_function_that_triggers_an_error();
+        break;
+
     case "/handled-exception-class-header":
         require __DIR__ . '/handlers.php';
         require __DIR__ . '/dispatcher.php';
@@ -105,5 +112,17 @@ switch ($_SERVER['REQUEST_URI']) {
     case "/handled-exception-generated-while-rendering-exception":
         require __DIR__ . '/handlers.php';
         handle_error_generated_while_rendering();
+        break;
+
+    case "/internal-exception-not-resulting-in-error":
+        require __DIR__ . '/dispatcher.php';
+        (new MyApp\MyBundle\Dispatcher())->dispatchInternalExcetionNotResultingInError();
+        break;
+
+    case "/internal-user-error-not-resulting-in-error":
+        require __DIR__ . '/handlers.php';
+        require __DIR__ . '/functions.php';
+        set_error_handler('Handler::handleErrorNotResultingInError');
+        function_that_calls_a_function_that_triggers_an_error();
         break;
 }

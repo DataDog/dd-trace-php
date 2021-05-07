@@ -28,6 +28,16 @@ class Handler
 
         trigger_error($message, E_USER_ERROR);
     }
+
+    public function handleError()
+    {
+        header('HTTP/1.1 500 Internal Server Obfuscated Error');
+    }
+
+    public function handleErrorNotResultingInError()
+    {
+        // doing nothing
+    }
 }
 
 // Cake 2.8

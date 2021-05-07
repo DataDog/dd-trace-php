@@ -191,4 +191,20 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         });
         $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
     }
+
+    public function testInternalExceptionThatShouldNotResultInError()
+    {
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(GetSpec::create('', '/internal-exception-not-resulting-in-error'));
+        });
+        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+    }
+
+    public function testInternalUserErrorThatShouldNotResultInError()
+    {
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(GetSpec::create('', '/internal-user-error-not-resulting-in-error'));
+        });
+        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+    }
 }
