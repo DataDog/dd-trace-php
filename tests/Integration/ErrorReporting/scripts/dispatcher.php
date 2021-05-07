@@ -6,6 +6,7 @@ class Dispatcher
 {
     public function dispatchWithException()
     {
+        require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
         } catch (\Exception $ex) {
@@ -15,6 +16,7 @@ class Dispatcher
 
     public function dispatchWithExceptionRethrow()
     {
+        require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
         } catch (\Exception $ex) {
@@ -24,6 +26,7 @@ class Dispatcher
 
     public function dispatchWithThrowable()
     {
+        require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
         } catch (\Throwable $ex) {
@@ -33,18 +36,11 @@ class Dispatcher
 
     public function dispatchInternalExcetionNotResultingInError()
     {
+        require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
         } catch (\Exception $ex) {
             // doing nothing
         }
-    }
-}
-
-class SomeServiceForExceptions
-{
-    public function doThrow()
-    {
-        throw new \Exception("Exception thrown by inner service");
     }
 }
