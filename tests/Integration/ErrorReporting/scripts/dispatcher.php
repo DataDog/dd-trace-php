@@ -6,7 +6,6 @@ class Dispatcher
 {
     public function dispatchWithException()
     {
-        require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
         } catch (\Exception $ex) {
@@ -16,7 +15,6 @@ class Dispatcher
 
     public function dispatchWithExceptionRethrow()
     {
-        require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
         } catch (\Exception $ex) {
@@ -26,9 +24,8 @@ class Dispatcher
 
     public function dispatchWithThrowable()
     {
-        require_once __DIR__ . '/service_throwing_throwable.php';
         try {
-            (new SomeServiceForThrowables())->doThrow();
+            (new SomeServiceForExceptions())->doThrow();
         } catch (\Throwable $ex) {
             header('HTTP/1.1 500 Internal Server Obfuscated Error');
         }
@@ -36,11 +33,18 @@ class Dispatcher
 
     public function dispatchInternalExcetionNotResultingInError()
     {
-        require_once __DIR__ . '/service_throwing_exception.php';
         try {
             (new SomeServiceForExceptions())->doThrow();
         } catch (\Exception $ex) {
             // doing nothing
         }
+    }
+}
+
+class SomeServiceForExceptions
+{
+    public function doThrow()
+    {
+        throw new \Exception("Exception thrown by inner service");
     }
 }

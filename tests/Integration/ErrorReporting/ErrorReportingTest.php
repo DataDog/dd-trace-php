@@ -17,7 +17,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-index'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledExceptionIndex()
@@ -25,7 +25,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-index'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledUserErrorExternal()
@@ -33,7 +33,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-external'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledExceptionExternal()
@@ -41,7 +41,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-external'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledUserErrorInFunction()
@@ -49,7 +49,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-in-function'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledExceptionInFunction()
@@ -57,7 +57,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-in-function'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledUserErrorInNestedFunction()
@@ -65,7 +65,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-in-nested-function'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledExceptionInNestedFunction()
@@ -73,7 +73,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-in-nested-function'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledExceptionInClass()
@@ -81,7 +81,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-class'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledExceptionRethrownInClass()
@@ -89,7 +89,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-rethrown-class'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledThrowableInClass()
@@ -97,7 +97,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-throwable-class'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testUnhandledThrowableInFunction()
@@ -105,7 +105,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-function-header'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     /**
@@ -128,7 +128,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-class-header'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     /**
@@ -141,7 +141,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-rethrow-class-header'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     /**
@@ -157,7 +157,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-throwable-class-header'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testHandledExceptionConvertedUserErrorInClass()
@@ -165,7 +165,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-class-converted-user-error'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testHandledThrowableConvertedUserErrorInClass()
@@ -173,7 +173,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-throwable-class-converted-user-error'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testHandledExceptionConvertedUserErrorInFunction()
@@ -181,7 +181,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-function-converted-user-error'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testHandledExceptionWhileRenderingPreviousException()
@@ -189,7 +189,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-generated-while-rendering-exception'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 
     public function testInternalExceptionThatShouldNotResultInError()
@@ -197,7 +197,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-exception-not-resulting-in-error'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertSame(0, $traces[0][0]['error']);
     }
 
     public function testInternalUserErrorThatShouldNotResultInError()
@@ -205,6 +205,6 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-user-error-not-resulting-in-error'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['....index.php', '{main}'] ]);
+        $this->assertSame(0, $traces[0][0]['error']);
     }
 }
