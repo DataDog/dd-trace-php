@@ -20,7 +20,8 @@ class Handler
         $exceptionWhileRenderigRealException = new Exception("Exception thrown while rendering the real exception");
         set_error_handler('handle_error_generated_while_rendering');
 
-        $message = sprintf("[%s] %s\n%s", // Keeping same message format
+        $message = sprintf(
+            "[%s] %s\n%s", // Keeping same message format
             get_class($exceptionWhileRenderigRealException),
             $exceptionWhileRenderigRealException->getMessage(),
             $exceptionWhileRenderigRealException->getTraceAsString()

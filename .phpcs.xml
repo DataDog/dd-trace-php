@@ -17,6 +17,10 @@
     </rule>
     <rule ref="Generic.Files.LineLength.TooLong">
         <exclude-pattern>tests/Integrations/*</exclude-pattern>
+        <exclude-pattern>tests/Integration/ErrorReporting/ErrorReportingTest.php</exclude-pattern>
+    </rule>
+    <rule ref="PSR1.Classes.ClassDeclaration.MissingNamespace">
+        <exclude-pattern>tests/Integration/ErrorReporting/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
         <exclude-pattern>tests/*</exclude-pattern>

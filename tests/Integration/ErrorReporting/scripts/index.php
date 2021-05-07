@@ -1,7 +1,6 @@
 <?php
 
 switch ($_SERVER['REQUEST_URI']) {
-
     case "/unhandled-user-error-index":
         trigger_error("Index message", E_USER_ERROR);
         break;
