@@ -19,6 +19,17 @@ extern "C" {
 #define SKIP_TEST_IN_DEBUG_MODE
 #endif
 
+static zval *zai_instantiate_object_from_ce(zend_class_entry *ce) {
+    TSRMLS_FETCH();
+    zval *obj = NULL;
+    ALLOC_ZVAL(obj);
+    /* This can call zend_bailout. */
+    object_init_ex(obj, ce);
+    Z_SET_REFCOUNT_P(obj, 1);
+    Z_SET_ISREF_P(obj);
+    return obj;
+}
+
 /***************************** zai_class_lookup() ****************************/
 
 TEST_CASE("class lookup: (internal)", "[zai_methods]") {
@@ -75,6 +86,25 @@ TEST_CASE("class lookup: wrong case", "[zai_methods]" SKIP_TEST_IN_DEBUG_MODE) {
     zai_sapi_spindown();
 }
 
+TEST_CASE("class lookup: disable_classes INI", "[zai_methods]") {
+    REQUIRE(zai_sapi_sinit());
+    REQUIRE(zai_sapi_append_system_ini_entry("disable_classes", "SplDoublyLinkedList"));
+    REQUIRE((zai_sapi_minit() && zai_sapi_rinit()));
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    zend_class_entry *ce = zai_class_lookup(ZAI_STRL("spldoublylinkedlist"));
+    REQUIRE(ce == spl_ce_SplDoublyLinkedList);
+
+    REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
+    zval *obj = zai_instantiate_object_from_ce(spl_ce_SplDoublyLinkedList);
+    REQUIRE(zai_sapi_last_error_eq(E_WARNING, "SplDoublyLinkedList() has been disabled for security reasons"));
+    zval_ptr_dtor(&obj);
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_spindown();
+}
+
 TEST_CASE("class lookup: NULL class name", "[zai_methods]") {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
@@ -102,17 +132,6 @@ TEST_CASE("class lookup: 0 class len", "[zai_methods]") {
 }
 
 /*********************** zai_call_method_without_args() **********************/
-
-static zval *zai_instantiate_object_from_ce(zend_class_entry *ce) {
-    TSRMLS_FETCH();
-    zval *obj = NULL;
-    ALLOC_ZVAL(obj);
-    /* This can call zend_bailout. */
-    object_init_ex(obj, ce);
-    Z_SET_REFCOUNT_P(obj, 1);
-    Z_SET_ISREF_P(obj);
-    return obj;
-}
 
 TEST_CASE("call method: (internal)", "[zai_methods]") {
     REQUIRE(zai_sapi_spinup());
