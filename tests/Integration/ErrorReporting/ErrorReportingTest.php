@@ -79,7 +79,8 @@ final class ErrorReportingTest extends WebFrameworkTestCase
     public function testUnhandledExceptionInClass()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $this->call(GetSpec::create('', '/unhandled-exception-class'));
+            $response = $this->call(GetSpec::create('', '/unhandled-exception-class'));
+            error_log('Response: ' . print_r($response, 1));
         });
         $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
@@ -123,11 +124,12 @@ final class ErrorReportingTest extends WebFrameworkTestCase
      *   - Yii:
      *       - https://github.com/yiisoft/yii2/blob/3a58026359d9596f4ff37674d19a767dde7bc918/framework/base/Application.php#L385-L407
      */
-    public function testHandledExceptionInClassHeaderFunction()
+    public function testHandledExceptionViaTryCatchInClassHeaderFunction()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $this->call(GetSpec::create('', '/handled-exception-class-header'));
+            $this->call(GetSpec::create('', '/handled-exception-try-catch-class-header'));
         });
+        error_log('Traces: ' . print_r($traces, 1));
         $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 

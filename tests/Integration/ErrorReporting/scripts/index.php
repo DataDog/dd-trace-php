@@ -39,7 +39,7 @@ switch ($_SERVER['REQUEST_URI']) {
 
     case "/unhandled-exception-class":
         require __DIR__ . '/dispatcher.php';
-        (new MyApp\MyBundle\Dispatcher())->dispatchWithException();
+        (new MyApp\MyBundle\Dispatcher())->routeThatThrowsException();
         break;
 
     case "/unhandled-exception-rethrown-class":
@@ -59,11 +59,17 @@ switch ($_SERVER['REQUEST_URI']) {
         function_that_calls_a_function_that_triggers_an_error();
         break;
 
+    case "/handled-exception-try-catch-class-header":
+        require __DIR__ . '/handlers.php';
+        require __DIR__ . '/dispatcher.php';
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithException();
+        break;
+
     case "/handled-exception-class-header":
         require __DIR__ . '/handlers.php';
         require __DIR__ . '/dispatcher.php';
         set_exception_handler('Handler::handleExceptionRenderViaHeaderFunction');
-        (new MyApp\MyBundle\Dispatcher())->dispatchWithException();
+        (new MyApp\MyBundle\Dispatcher())->routeThatThrowsException();
         break;
 
     case "/handled-exception-function-header":

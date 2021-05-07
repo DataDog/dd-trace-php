@@ -52,6 +52,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
     int64_t compile_time_microseconds;
+    zend_object *pending_exception;
 
     char *cgroup_file;
 ZEND_END_MODULE_GLOBALS(ddtrace)

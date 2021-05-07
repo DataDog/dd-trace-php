@@ -362,6 +362,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    DDTRACE_G(pending_exception) = NULL;
+
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
 
     // Things that should only run on the first RINIT
@@ -620,6 +622,13 @@ static PHP_FUNCTION(dd_trace) {
     }
 
     RETURN_FALSE;
+}
+
+static PHP_FUNCTION(get_pending_exception) {
+    if (DDTRACE_G(pending_exception) == NULL) {
+        RETURN_NULL();
+    }
+    RETURN_OBJ(DDTRACE_G(pending_exception));
 }
 
 static PHP_FUNCTION(trace_method) {
@@ -1343,6 +1352,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_NS_FE(trace_method, arginfo_ddtrace_trace_method),
+    DDTRACE_NS_FE(get_pending_exception, arginfo_ddtrace_void),
     DDTRACE_FALIAS(dd_trace_method, trace_method, arginfo_ddtrace_trace_method),
     DDTRACE_NS_FE(hook_function, arginfo_ddtrace_hook_function),
     DDTRACE_NS_FE(hook_method, arginfo_ddtrace_hook_method),

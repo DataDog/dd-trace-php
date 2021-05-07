@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Bootstrap as DDTraceBootstrap;
 use DDTrace\Http\Request;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\Web\WebIntegration;
@@ -133,15 +134,26 @@ final class Bootstrap
 
         $rootSpan = $span;
         \DDTrace\hook_function('header', null, function ($args) use ($rootSpan) {
-            if (isset($args[2])) {
-                $parsedHttpStatusCode = $args[2];
-            } elseif (isset($args[0])) {
-                $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
-            }
+            Bootstrap::reportErrorIfPresent($rootSpan, $args);
+            // $errorMessage = null;
+            // if (isset($args[2])) {
+            //     $parsedHttpStatusCode = $args[2];
+            // } elseif (isset($args[0])) {
+            //     $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
+            //     if ($parsedHttpStatusCode) {
+            //         $errorMessage = Bootstrap::parseErrorMessage($args[0]);
+            //     }
+            // }
 
-            if (isset($parsedHttpStatusCode)) {
-                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
-            }
+            // if (isset($parsedHttpStatusCode)) {
+            //     $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
+            //     error_log('Setting header to ' . $parsedHttpStatusCode);
+            //     $pendingException = \DDTrace\get_pending_exception();
+            //     if ($pendingException) {
+            //         $rootSpan->setError($pendingException);
+            //     }
+            //     error_log('Pending exception: ' . print_r($pendingException, 1));
+            // }
 
             // Adding configured outgoing response http headers
             if (isset($args[0]) && \is_string($args[0])) {
@@ -166,33 +178,140 @@ final class Bootstrap
         });
     }
 
-    /**
-     * Parses the status code from a a standard header line such as: 'HTTP/1.1 201 Created'.
-     * As part of a refactoring, methods `initRootSpan` and `parseStatusCode` can be moved to a specific generic web
-     * request handler class.
-     *
-     * @param string $headersLine
-     * @return int|null
-     */
-    public static function parseStatusCode($headersLine)
+    // /**
+    //  * Parses the status code from a a standard header line such as: 'HTTP/1.1 201 Created'.
+    //  * As part of a refactoring, methods `initRootSpan` and `parseStatusCode` can be moved to a specific generic web
+    //  * request handler class.
+    //  *
+    //  * @param string $headersLine
+    //  * @return int|null
+    //  */
+    // public static function parseStatusCode($headersLine)
+    // {
+    //     if (
+    //         empty($headersLine)
+    //         || !is_string($headersLine)
+    //         || substr(strtoupper($headersLine), 0, 5) !== 'HTTP/'
+    //     ) {
+    //         return null;
+    //     }
+
+    //     // Parts MUST be separated by space based on Http Spec:
+    //     // Header definition: https://tools.ietf.org/html/rfc2616#section-6.1
+    //     // Space char (SP) definition: https://tools.ietf.org/html/rfc2616#section-2.2
+    //     $parts = explode(' ', $headersLine);
+    //     if (count($parts) < 2 || !is_numeric($parts[1])) {
+    //         return null;
+    //     }
+
+    //     // Vase don https://tools.ietf.org/html/rfc2616#section-6.1 the status code MUST be numeric.
+    //     return (int) $parts[1];
+    // }
+
+    // /**
+    //  * Parses the status code from a a standard header line such as: 'HTTP/1.1 201 Created'.
+    //  * As part of a refactoring, methods `initRootSpan` and `parseStatusCode` can be moved to a specific generic web
+    //  * request handler class.
+    //  *
+    //  * @param string $headersLine
+    //  * @return int|null
+    //  */
+    // public static function parseErrorMessage($headersLine)
+    // {
+    //     if (
+    //         empty($headersLine)
+    //         || !is_string($headersLine)
+    //         || substr(strtoupper($headersLine), 0, 5) !== 'HTTP/'
+    //     ) {
+    //         return null;
+    //     }
+
+    //     $parts = explode(' ', $headersLine);
+    //     if (count($parts) < 3) {
+    //         return null;
+    //     }
+
+    //     return trim($parts[2]);
+    // }
+
+    public static function reportErrorIfPresent(Span $span, array $args)
     {
+        error_log('Args: ' . print_r($args, 1));
+        if (\count($args) === 0) {
+            return;
+        }
+
+        $headerRawValue = $args[0];
+        $statusCode = null;
+        $errorMessage = null;
+        if (isset($args[2]) && \is_int($args[2])) {
+            $statusCode = (int)$args[2];
+        }
+
+        // Is HTTP header --> then parse the message AND override status code
         if (
-            empty($headersLine)
-            || !is_string($headersLine)
-            || substr(strtoupper($headersLine), 0, 5) !== 'HTTP/'
+            is_string($headerRawValue)
+            && substr(strtoupper($headerRawValue), 0, 5) === 'HTTP/'
         ) {
-            return null;
+            // Parts MUST be separated by space based on Http Spec:
+            // Header definition: https://tools.ietf.org/html/rfc2616#section-6.1
+            // Space char (SP) definition: https://tools.ietf.org/html/rfc2616#section-2.2
+            $parts = explode(' ', $headerRawValue);
+            if (\count($parts) > 1 && is_numeric($parts[1])) {
+                $statusCode = (int) $parts[1];
+                if (\count($parts) > 2) {
+                    $errorMessage = trim(implode(' ', array_slice($parts, 2)));
+                }
+            }
+        }
+        error_log('Status: ' . print_r($statusCode, 1));
+        error_log('errorMessage: ' . print_r($errorMessage, 1));
+
+        if ($statusCode !== null) {
+            $span->setTag(Tag::HTTP_STATUS_CODE, $statusCode);
+            $span->setTag(Tag::ERROR_TYPE, 'Internal Server Error');
+
+            $errorMessage = $errorMessage ?: 'Internal Server Error';
+            $stackTrace = null;
+            /** @var \Exception */
+            $pendingException = $pendingException = \DDTrace\get_pending_exception();
+            if ($pendingException) {
+                $stackTrace = \sprintf(
+                    "%s in %s:%s\n\n%s",
+                    $pendingException->getMessage(),
+                    $pendingException->getFile(),
+                    $pendingException->getLine(),
+                    $pendingException->getTraceAsString()
+                );
+            }
+
+            $span->setTag(Tag::ERROR_MSG, $errorMessage);
+            if ($stackTrace) {
+                $span->setTag(Tag::ERROR_STACK, $stackTrace);
+            }
         }
 
-        // Parts MUST be separated by space based on Http Spec:
-        // Header definition: https://tools.ietf.org/html/rfc2616#section-6.1
-        // Space char (SP) definition: https://tools.ietf.org/html/rfc2616#section-2.2
-        $parts = explode(' ', $headersLine);
-        if (count($parts) < 2 || !is_numeric($parts[1])) {
-            return null;
-        }
 
-        // Vase don https://tools.ietf.org/html/rfc2616#section-6.1 the status code MUST be numeric.
-        return (int) $parts[1];
+
+
+
+        // if (isset($args[2])) {
+        //     $parsedHttpStatusCode = $args[2];
+        // } elseif (isset($args[0])) {
+        //     $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
+        //     if ($parsedHttpStatusCode) {
+        //         $errorMessage = Bootstrap::parseErrorMessage($args[0]);
+        //     }
+        // }
+
+        // if (isset($parsedHttpStatusCode)) {
+        //     $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
+        //     error_log('Setting header to ' . $parsedHttpStatusCode);
+        //     $pendingException = \DDTrace\get_pending_exception();
+        //     if ($pendingException) {
+        //         $rootSpan->setError($pendingException);
+        //     }
+        //     error_log('Pending exception: ' . print_r($pendingException, 1));
+        // }
     }
 }
