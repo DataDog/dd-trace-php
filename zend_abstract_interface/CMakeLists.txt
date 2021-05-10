@@ -76,6 +76,12 @@ else()
 endif()
 
 add_subdirectory(zai_sapi)
+
+# All tests depend on zai_sapi
+if(PHP_VERSION_ID LESS_EQUAL "70000")
+  # TODO Support PHP 7
+  add_subdirectory(methods)
+endif()
 add_subdirectory(sandbox)
 
 install(EXPORT ZendAbstractInterfaceTargets
