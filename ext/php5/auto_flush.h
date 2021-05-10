@@ -2,11 +2,8 @@
 #define DDTRACE_AUTO_FLUSH_H
 
 #include <php.h>
+#include <stdbool.h>
 
-#if PHP_VERSION_ID < 50500
-int ddtrace_flush_tracer(void);
-#else
-ZEND_RESULT_CODE ddtrace_flush_tracer(void);
-#endif
+bool ddtrace_flush_tracer(TSRMLS_D);
 
 #endif  // DDTRACE_AUTO_FLUSH_H
