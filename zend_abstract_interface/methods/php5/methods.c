@@ -101,6 +101,18 @@ static bool z_call_method_without_args_ex(zval *object, zend_class_entry *ce, co
          */
         ret = !EG(exception);
     }
+    zend_catch {
+        /* An unclean shutdown from a zend_bailout can occur deep within a
+         * userland call stack (e.g. from 'exit') which will long jump over
+         * dtors and frees. If we caught an arbitrary zend_bailout here and
+         * went on pretending like nothing happened, this would lead to a lot
+         * of ZMM leaks and likely a number of real memory leaks so the safest
+         * thing to do is clean up as best we can and then bubble up the
+         * zend_bailout.
+         */
+        zai_sandbox_close(&sandbox);
+        zend_bailout();
+    }
     zend_end_try();
 
     zai_sandbox_close(&sandbox);

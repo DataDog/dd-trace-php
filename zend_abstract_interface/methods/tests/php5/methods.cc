@@ -299,6 +299,12 @@ TEST_CASE("call method: throws exception (userland)", "[zai_methods]") {
     zend_class_entry *ce = zai_class_lookup(ZAI_STRL("zai\\methods\\exceptiontest"));
     REQUIRE(ce != NULL);
 
+    /* Add a fake base/main frame to prevent the uncaught exception from
+     * bubbling all the way up and raising a fatal error (zend_bailout).
+     */
+    zend_execute_data fake_frame;
+    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+
     zval *obj = zai_instantiate_object_from_ce(ce);
     zval *retval = NULL;
     // Zai\Methods\ExceptionTest::throwsException()
@@ -308,6 +314,8 @@ TEST_CASE("call method: throws exception (userland)", "[zai_methods]") {
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
     REQUIRE(retval == NULL);
+
+    zai_sapi_fake_frame_pop(&fake_frame);
 
     ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
     zai_sapi_spindown();
@@ -625,6 +633,12 @@ TEST_CASE("call static method: throws exception (userland)", "[zai_methods]") {
     zend_class_entry *ce = zai_class_lookup(ZAI_STRL("zai\\methods\\exceptiontest"));
     REQUIRE(ce != NULL);
 
+    /* Add a fake base/main frame to prevent the uncaught exception from
+     * bubbling all the way up and raising a fatal error (zend_bailout).
+     */
+    zend_execute_data fake_frame;
+    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+
     zval *obj = zai_instantiate_object_from_ce(ce);
     zval *retval = NULL;
     // Zai\Methods\ExceptionTest::throwsExceptionFromStatic()
@@ -634,6 +648,8 @@ TEST_CASE("call static method: throws exception (userland)", "[zai_methods]") {
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
     REQUIRE(retval == NULL);
+
+    zai_sapi_fake_frame_pop(&fake_frame);
 
     ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
     zai_sapi_spindown();
@@ -735,12 +751,18 @@ TEST_CASE("call static method: non-static method (userland)", "[zai_methods]") {
 TEST_CASE("call static method: non-static method that accesses $this (userland)", "[zai_methods]") {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
+    zend_class_entry *ce;
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
     REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
-    zend_class_entry *ce = zai_class_lookup(ZAI_STRL("zai\\methods\\test"));
+    ce = zai_class_lookup(ZAI_STRL("zai\\methods\\test"));
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
     REQUIRE(ce != NULL);
 
+    /* Since this call causes a fatal error, we expect the zend_bailout to
+     * bubble up after closing the sandbox.
+     */
+    ZAI_SAPI_BAILOUT_EXPECTED_OPEN()
     zval *retval = NULL;
     /* Although the compiler marks this non-static userland method
      * Zai\Methods\Test::usesThis() with ZEND_ACC_ALLOW_STATIC, the call will
@@ -748,13 +770,11 @@ TEST_CASE("call static method: non-static method that accesses $this (userland)"
      *
      * https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_execute.c#L460-L506
      */
-    bool result = zai_call_static_method_without_args(ce, ZAI_STRL("usesthis"), &retval);
+    (void)zai_call_static_method_without_args(ce, ZAI_STRL("usesthis"), &retval);
+    ZAI_SAPI_BAILOUT_EXPECTED_CLOSE()
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
-    REQUIRE(result == false);
-    REQUIRE(retval == NULL);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
     zai_sapi_spindown();
 }
 
