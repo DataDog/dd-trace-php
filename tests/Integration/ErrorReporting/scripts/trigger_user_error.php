@@ -1,3 +1,3 @@
 <?php
 
-throw new Exception("Exception generated in external file");
+trigger_error("Triggered error", E_USER_ERROR);

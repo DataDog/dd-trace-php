@@ -25,7 +25,16 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-index'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
+
+        $this->assertError(
+            $traces[0][0],
+            "Exception in index*index.php",
+            [
+                [
+                    '{main}',
+                ],
+            ]
+        );
     }
 
     public function testUnhandledUserErrorExternal()
@@ -41,7 +50,17 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-exception-external'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
+        error_log('Traces: ' . print_r($traces, 1));
+        $this->assertError(
+            $traces[0][0],
+            "Exception generated in external file*trigger_exception.php",
+            [
+                [
+                    'index.php',
+                    '{main}',
+                ],
+            ]
+        );
     }
 
     public function testUnhandledUserErrorInFunction()
@@ -214,6 +233,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-generated-while-rendering-exception'));
         });
+        error_log('Traces: ' . print_r($traces, 1));
         $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
     }
 

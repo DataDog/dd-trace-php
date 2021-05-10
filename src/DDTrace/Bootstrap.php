@@ -264,8 +264,6 @@ final class Bootstrap
                 }
             }
         }
-        error_log('Status: ' . print_r($statusCode, 1));
-        error_log('errorMessage: ' . print_r($errorMessage, 1));
 
         if ($statusCode !== null) {
             $span->setTag(Tag::HTTP_STATUS_CODE, $statusCode);
