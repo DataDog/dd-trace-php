@@ -64,12 +64,15 @@ trait SpanAssertionTrait
     {
         $this->assertSame(1, $span['error']);
 
-        // message contains
-        $this->assertNotSame(
-            false,
-            \strpos($span['meta']['error.msg'], $message),
-            \sprintf('Message "%s" does not contain "%s"', $span['meta']['error.msg'], $message)
-        );
+        // message assertion supports '*' wildcard but DOES NOT enforce order.
+        $messagePartsByWildcard = \explode('*', $message);
+        foreach ($messagePartsByWildcard as $messagePart) {
+            $this->assertNotSame(
+                false,
+                \strpos($span['meta']['error.msg'], $messagePart),
+                \sprintf('Message "%s" does not contain "%s"', $span['meta']['error.msg'], $message)
+            );
+        }
 
         $stackGroups = \explode('stack groups separator', $span['meta']['error.stack']);
         if (count($stackGroups) !== count($expectedStackLinesGroups)) {
