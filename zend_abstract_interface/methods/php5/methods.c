@@ -36,6 +36,12 @@ static bool z_call_method_without_args_ex(zval *object, zend_class_entry *ce, co
                                           zval **retval TSRMLS_DC) {
     if (!ce || !method || !method_len || !retval) return false;
 
+    /* Methods cannot be called outside of a request context.
+     * PG(modules_activated) indicates that all of the module RINITs have been
+     * called and we are in a request context.
+     */
+    if (!PG(modules_activated)) return false;
+
     /* Prevent a potential dangling pointer in case the caller accidentally
      * sent in an allocated retval.
      */
