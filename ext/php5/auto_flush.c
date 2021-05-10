@@ -23,7 +23,9 @@ bool ddtrace_flush_tracer(TSRMLS_D) {
     zval *tracer = NULL;
     // $tracer = \DDTrace\GlobalTracer::get();
     bool result = zai_call_static_method_without_args(ce, ZEND_STRL("get"), &tracer);
-    if (result && tracer && Z_TYPE_P(tracer) == IS_OBJECT) {
+    if (!result) return false;
+
+    if (tracer && Z_TYPE_P(tracer) == IS_OBJECT) {
         zend_bool orig_disable = DDTRACE_G(disable_in_current_request);
         DDTRACE_G(disable_in_current_request) = 1;
 
