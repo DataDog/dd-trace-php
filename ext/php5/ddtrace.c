@@ -1313,7 +1313,7 @@ static PHP_FUNCTION(dd_trace_pop_span_id) {
     uint64_t id = ddtrace_pop_span_id(TSRMLS_C);
 
     if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
-        if (ddtrace_flush_tracer(TSRMLS_C) == false) {
+        if (!ddtrace_flush_tracer(TSRMLS_C)) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
     }
