@@ -98,16 +98,20 @@ trait SpanAssertionTrait
                 );
             }
             for ($lineIndex = 0; $lineIndex < $numberOfLinesActual; $lineIndex++) {
-                $this->assertNotSame(
-                    false,
-                    \strpos($stackLines[$lineIndex], $expectedStackLinesGroups[$stackGroupIndex][$lineIndex]),
-                    \sprintf(
-                        'Line "%s" of group %d does not contain "%s"',
-                        $stackLines[$lineIndex],
-                        $stackGroupIndex,
-                        $expectedStackLinesGroups[$stackGroupIndex][$lineIndex]
-                    )
-                );
+                // This assertion method supports '*' wildcard but DOES NOT enforce order.
+                $splitByWildcard = \explode('*', $expectedStackLinesGroups[$stackGroupIndex][$lineIndex]);
+                foreach ($splitByWildcard as $wildcardFragment) {
+                    $this->assertNotSame(
+                        false,
+                        \strpos($stackLines[$lineIndex], $wildcardFragment),
+                        \sprintf(
+                            'Line "%s" of group %d does not match "%s"',
+                            $stackLines[$lineIndex],
+                            $stackGroupIndex,
+                            $expectedStackLinesGroups[$stackGroupIndex][$lineIndex]
+                        )
+                    );
+                }
             }
         }
     }

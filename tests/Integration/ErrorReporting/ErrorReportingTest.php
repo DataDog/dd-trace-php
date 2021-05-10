@@ -129,8 +129,19 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-exception-try-catch-class-header'));
         });
-        error_log('Traces: ' . print_r($traces, 1));
-        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
+
+        $this->assertError(
+            $traces[0][0],
+            "Internal Server Obfuscated Error",
+            [
+                [
+                    'thrown by inner service*service_throwing_exception.php',
+                    'dispatcher.php*doThrow()',
+                    'index.php*dispatchWithException()',
+                    '{main}',
+                ],
+            ]
+        );
     }
 
     /**
@@ -159,7 +170,19 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/handled-throwable-class-header'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
+
+        $this->assertError(
+            $traces[0][0],
+            "Internal Server Obfuscated Error",
+            [
+                [
+                    'thrown by inner service*service_throwing_exception.php',
+                    'dispatcher.php*doThrow()',
+                    'index.php*dispatchWithThrowable()',
+                    '{main}',
+                ],
+            ]
+        );
     }
 
     public function testHandledExceptionConvertedUserErrorInClass()
