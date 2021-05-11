@@ -86,6 +86,11 @@ aliases:
           echo "TLS is enabled"
         fi
 
+  - &STEP_COMPOSER_SELF_UPDATE
+    run:
+      name: Upgrading composer
+      command: sudo composer self-update --no-interaction
+
   - &STEP_COMPOSER_UPDATE
     run:
       name: Installing dependencies with composer
@@ -1260,6 +1265,7 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_GENERATE
       - run:
