@@ -276,3 +276,25 @@ bool zai_sapi_unhandled_exception_exists(void) {
     TSRMLS_FETCH();
     return EG(exception) != NULL;
 }
+
+void zai_sapi_unhandled_exception_ignore(void) {
+    TSRMLS_FETCH();
+    /* There might not be an active execution context when we clear the
+     * exception and in that case EG(current_execute_data) will be NULL. On
+     * PHP 5, zend_clear_exception() does not perform a NULL check before
+     * setting the opline. Otherwise we would use zend_clear_exception() to
+     * free the unhandled exception here.
+     */
+    // zend_clear_exception(TSRMLS_C);
+    if (EG(exception)) {
+        zval_ptr_dtor(&EG(exception));
+        EG(exception) = NULL;
+        if (EG(prev_exception)) {
+            zval_ptr_dtor(&EG(prev_exception));
+            EG(prev_exception) = NULL;
+        }
+        if (EG(current_execute_data)) {
+            EG(current_execute_data)->opline = EG(opline_before_exception);
+        }
+    }
+}

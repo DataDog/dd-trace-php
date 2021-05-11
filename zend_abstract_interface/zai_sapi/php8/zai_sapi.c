@@ -237,3 +237,5 @@ bool zai_sapi_unhandled_exception_eq(zend_class_entry *ce, const char *message) 
 }
 
 bool zai_sapi_unhandled_exception_exists(void) { return EG(exception) != NULL; }
+
+void zai_sapi_unhandled_exception_ignore(void) { zend_clear_exception(); }
