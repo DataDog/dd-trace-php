@@ -40,6 +40,7 @@ static user_opcode_handler_t prev_yield_from_handler;
 static user_opcode_handler_t prev_handle_exception_handler;
 static user_opcode_handler_t prev_exit_handler;
 static user_opcode_handler_t prev_catch_handler;
+static user_opcode_handler_t prev_throw_handler;
 
 #if PHP_VERSION_ID < 70100
 #define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
@@ -1085,6 +1086,23 @@ static int dd_catch_handler(zend_execute_data *execute_data) {
     return result;
 }
 
+static int dd_throw_handler(zend_execute_data *execute_data) {
+    ddtrace_log_debug("before original throw handler");
+    int result = prev_throw_handler ? prev_throw_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+    ddtrace_log_debug("after original throw handler");
+    if (ZEND_THROW == EX(opline)->opcode) {
+        zend_object *ex = EG(exception);
+        if (ex) {
+            ddtrace_log_debug("setting pending exc thrown");
+            DDTRACE_G(pending_exception) = ex;
+        } else {
+            ddtrace_log_debug("exc thrown is not available yet");
+        }
+    }
+
+    return result;
+}
+
 void ddtrace_opcode_minit(void) {
     prev_ucall_handler = zend_get_user_opcode_handler(ZEND_DO_UCALL);
     prev_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
@@ -1118,6 +1136,8 @@ void ddtrace_opcode_minit(void) {
     zend_set_user_opcode_handler(ZEND_EXIT, dd_exit_handler);
     prev_catch_handler = zend_get_user_opcode_handler(ZEND_CATCH);
     zend_set_user_opcode_handler(ZEND_CATCH, dd_catch_handler);
+    prev_throw_handler = zend_get_user_opcode_handler(ZEND_THROW);
+    zend_set_user_opcode_handler(ZEND_THROW, dd_throw_handler);
 }
 
 void ddtrace_opcode_mshutdown(void) {

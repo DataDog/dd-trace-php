@@ -206,6 +206,7 @@ static zval dd_serialize_stack_trace(zval *trace) {
 
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(trace), frame) {
         if (Z_TYPE_P(frame) != IS_ARRAY) {
+            ddtrace_log_debug("Frame is not an array!");
             /* zend_error(E_WARNING, "Expected array for frame %" ZEND_ULONG_FMT_SPEC, index); */
             continue;
         }
@@ -213,6 +214,7 @@ static zval dd_serialize_stack_trace(zval *trace) {
         _trace_string(&str, Z_ARRVAL_P(frame), num++);
     }
     ZEND_HASH_FOREACH_END();
+    ddtrace_log_debug("Almost done creating stack trace");
 
     smart_str_appendc(&str, '#');
     smart_str_append_long(&str, num);
@@ -391,7 +393,7 @@ static zend_string *dd_fatal_error_msg(const char *format, va_list args) {
      * quite large and we're only interested in the first line.
      */
     const char uncaught[] = "Uncaught ";
-    char buffer[256];
+    char buffer[1024];
 
     va_copy(args2, args);
     int prefix = vsnprintf(buffer, sizeof buffer, format, args2);
