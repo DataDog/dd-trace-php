@@ -1098,6 +1098,7 @@ jobs:
                       ~/datadog/zend_abstract_interface
                     make -j all
                     make test
+                    grep -e "=== Total .* memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
                   done
 
       # Builds that do not support ASan
@@ -1128,6 +1129,7 @@ jobs:
                       ~/datadog/zend_abstract_interface
                     make -j all
                     make test
+                    grep -e "=== Total .* memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
                   done
 
       - run:
@@ -1145,6 +1147,7 @@ jobs:
               ~/datadog/zend_abstract_interface
             make -j all
             make test
+            grep -e "=== Total .* memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 
       - run:
           command: |
