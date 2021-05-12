@@ -42,7 +42,18 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-external'));
         });
-        $this->assertError($traces[0][0], "Index message", [ ['index.php', '{main}'] ]);
+
+        $this->assertError(
+            $traces[0][0],
+            "Triggered error",
+            [
+                [
+                    'trigger_user_error.php',
+                    'index.php',
+                    '{main}',
+                ],
+            ]
+        );
     }
 
     public function testUnhandledExceptionExternal()
