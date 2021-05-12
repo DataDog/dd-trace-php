@@ -1041,14 +1041,20 @@ static bool dd_is_catching_frame(zend_execute_data *execute_data) {
 
 static int dd_handle_exception_handler(zend_execute_data *execute_data) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
+    bool is_caught = dd_is_catching_frame(execute_data);
     if (ZEND_HANDLE_EXCEPTION == EX(opline)->opcode && span_fci && span_fci->execute_data == execute_data) {
         zval retval;
         ZVAL_NULL(&retval);
         // The catching frame's span will get closed by the return handler so we leave it open
-        if (dd_is_catching_frame(execute_data) == false) {
+        if (!is_caught) {
             ddtrace_span_attach_exception(span_fci, EG(exception));
             dd_observer_end(NULL, span_fci, &retval);
         }
+    }
+
+    if (!is_caught && !EX(prev_execute_data)) {
+        DDTRACE_G(pending_exception) = EG(exception);
+        // php_printf("ABOUT TO BE UNCAUGHT: '%s'\n", ZSTR_VAL(EG(exception)->ce->name));
     }
 
     return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;

@@ -348,6 +348,7 @@ static zend_string *dd_error_type(int code) {
 
 static zend_string *dd_fatal_error_stack(void) {
     zval stack;
+    ddtrace_log_debugf("exception is set? %s", DDTRACE_G(pending_exception) == NULL ? "no" : "yes");
     zend_fetch_debug_backtrace(&stack, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
     zend_string *error_stack = NULL;
     if (Z_TYPE(stack) == IS_ARRAY) {

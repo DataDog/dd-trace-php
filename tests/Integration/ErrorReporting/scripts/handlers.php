@@ -17,7 +17,7 @@ class Handler
         // Examples:
         //  - Cake 2.8
         //      - https://github.com/cakephp/cakephp/blob/cf14e6546ec44e3369e3531add11fdb946656280/lib/Cake/Error/ErrorHandler.php#L129-L138
-        $exceptionWhileRenderigRealException = new Exception("Exception thrown while rendering the real exception");
+        $exceptionWhileRenderigRealException = new Exception("Exception thrown while handling the original exception");
         set_error_handler('handle_error_generated_while_rendering');
 
         $message = sprintf(
