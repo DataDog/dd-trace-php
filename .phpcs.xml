@@ -34,6 +34,7 @@
         <exclude-pattern>tests/randomized/analyze-results.php</exclude-pattern>
         <exclude-pattern>tests/randomized/generate-scenarios.php</exclude-pattern>
         <exclude-pattern>tests/randomized/lib/RequestTargetsGenerator.php</exclude-pattern>
+        <exclude-pattern>tooling/bin/span-generator.php</exclude-pattern>
     </rule>
 
     <!-- PHP compatibility checks -->
