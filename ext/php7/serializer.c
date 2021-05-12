@@ -393,7 +393,8 @@ static zend_string *dd_fatal_error_msg(const char *format, va_list args) {
      * quite large and we're only interested in the first line.
      */
     const char uncaught[] = "Uncaught ";
-    char buffer[1024];
+    char buffer[2560000];
+    bool luca = EG(exception);
 
     va_copy(args2, args);
     int prefix = vsnprintf(buffer, sizeof buffer, format, args2);

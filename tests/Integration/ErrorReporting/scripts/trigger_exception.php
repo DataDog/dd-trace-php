@@ -3,10 +3,10 @@
 function aaaa($password)
 {
     $ex = new Exception("Exception generated in external file");
-    echo sprintf("----> %s in %s:%d\n", $ex->getMessage(), $ex->getFile(), $ex->getLine());
-    echo $ex->getTraceAsString() . "\n";
-    echo sprintf("#################### %s in %s:%d\n", $ex->getMessage(), $ex->getFile(), $ex->getLine());
-    echo ">>>>>>>>>>>>>>>" . var_export($ex->getTrace(), 1) . "<<<<<<<<<<<<<<<<<<<<<<\n";
+    // echo sprintf("----> %s in %s:%d\n", $ex->getMessage(), $ex->getFile(), $ex->getLine());
+    // echo $ex->getTraceAsString() . "\n";
+    // echo sprintf("#################### %s in %s:%d\n", $ex->getMessage(), $ex->getFile(), $ex->getLine());
+    // echo ">>>>>>>>>>>>>>>" . var_export($ex->getTrace(), 1) . "<<<<<<<<<<<<<<<<<<<<<<\n";
 
     throw $ex;
 }
