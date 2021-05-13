@@ -110,7 +110,10 @@ bool zai_sapi_last_error_is_empty();
 /* Throws an exception using the default exception class entry and sets the
  * 'Exception::$message' string to 'message'. Returns the class entry used for
  * the thrown exception. An execution context (an active PHP frame stack) must
- * exist or this will raise a fatal error and call zend_bailout.
+ * exist or this will raise a fatal error and call zend_bailout. If the
+ * exception is not handled by the PHP runtime, caller must free the exception
+ * with zai_sapi_unhandled_exception_ignore() before RSHUTDOWN to prevent a ZMM
+ * leak.
  */
 zend_class_entry *zai_sapi_throw_exception(const char *message);
 
@@ -121,6 +124,9 @@ bool zai_sapi_unhandled_exception_eq(zend_class_entry *ce, const char *message);
 
 /* Returns true if there is an unhandled exception. */
 bool zai_sapi_unhandled_exception_exists(void);
+
+/* Frees an unhandled exception from the executor globals. */
+void zai_sapi_unhandled_exception_ignore(void);
 
 /* Handling zend_bailout
  *

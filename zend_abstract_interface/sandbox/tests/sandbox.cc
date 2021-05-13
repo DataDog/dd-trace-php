@@ -395,6 +395,7 @@ TEST_CASE("exception state: existing unhandled exception", "[zai_sandbox]") {
     zai_sandbox_exception_state_restore(&es);
 
     REQUIRE(zai_sapi_unhandled_exception_eq(orig_exception_ce, "Original exception"));
+    zai_sapi_unhandled_exception_ignore();
 
     zai_sapi_fake_frame_pop(&fake_frame);
 
@@ -509,6 +510,7 @@ TEST_CASE("exception state: zend_throw_exception_hook called once", "[zai_sandbo
      * when restoring the original exception.
      */
     REQUIRE(zai_throw_exception_hook_calls_count == 2);
+    zai_sapi_unhandled_exception_ignore();
 
     zai_sapi_fake_frame_pop(&fake_frame);
 
@@ -671,6 +673,7 @@ TEST_CASE("sandbox exception: existing unhandled exception", "[zai_sandbox]") {
     zai_sandbox_close(&sandbox);
 
     REQUIRE(zai_sapi_unhandled_exception_eq(orig_exception_ce, "Original exception"));
+    zai_sapi_unhandled_exception_ignore();
 
     zai_sapi_fake_frame_pop(&fake_frame);
 
@@ -778,6 +781,7 @@ TEST_CASE("sandbox: existing exception & existing error", "[zai_sandbox]") {
 
     REQUIRE(zai_sapi_last_error_eq(E_WARNING, "Original non-fatal error"));
     REQUIRE(zai_sapi_unhandled_exception_eq(orig_exception_ce, "Original exception"));
+    zai_sapi_unhandled_exception_ignore();
 
     zai_sapi_fake_frame_pop(&fake_frame);
 

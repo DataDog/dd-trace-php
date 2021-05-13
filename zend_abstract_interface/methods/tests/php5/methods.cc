@@ -737,6 +737,8 @@ TEST_CASE("call static method: non-static method (userland)", "[zai_methods]") {
     REQUIRE(retval != NULL);
     REQUIRE(Z_TYPE_P(retval) == IS_BOOL);
 
+    zval_ptr_dtor(&retval);
+
     ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
     zai_sapi_spindown();
 }
