@@ -18,6 +18,9 @@
 #include "mpack/mpack.h"
 #include "span.h"
 
+// we should use zval_to_uint64 from random.h
+#include "random.h"
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static const char *trace_id_keyword = "trace_id";

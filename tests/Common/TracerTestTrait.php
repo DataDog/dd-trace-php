@@ -232,8 +232,10 @@ trait TracerTestTrait
             return [];
         }
 
+        $normalized = $this->convertImportedIdsToString($response);
+
         // For now we only support asserting traces against one dump at a time.
-        $loaded = json_decode($response, true);
+        $loaded = json_decode($normalized, true);
 
         // Data is returned as [{trace_1}, {trace_2}]. As of today we only support parsing 1 trace.
         if (count($loaded) > 1) {
@@ -293,6 +295,11 @@ trait TracerTestTrait
             $traces[] = $spans;
         }
         return $traces;
+    }
+
+    private function convertImportedIdsToString($unparsedJson)
+    {
+        return preg_replace('/((?:trace)|(?:span)|(?:parent))_id":(\d+)/', "$1_id\":\"$2\"", $unparsedJson);
     }
 
     public function parseMultipleRequestsFromDumpedData()

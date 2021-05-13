@@ -139,6 +139,7 @@ final class HttpTest extends BaseTestCase
         $span->finish();
 
         $httpTransport->send($tracer);
+        error_log('AAA: ' . print_r($logger->all(), 1));
         $this->assertTrue($logger->has('debug', 'About to send trace(s) to the agent'));
         $this->assertTrue($logger->has('debug', 'Traces successfully sent to the agent'));
     }

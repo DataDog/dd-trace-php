@@ -29,9 +29,9 @@ final class CurrentContextAccessTest extends IntegrationTestCase
         foreach ($trace as $span) {
             $spanId = $span['span_id'];
             $this->assertNotEquals(0, $spanId);
-            $this->assertSame($traceId, \intval($span['trace_id']));
-            $this->assertSame($spanId, \intval($span['meta']['extracted_span_id']));
-            $this->assertSame($traceId, \intval($span['meta']['extracted_trace_id']));
+            $this->assertSame($traceId, $span['trace_id']);
+            $this->assertSame($spanId, $span['meta']['extracted_span_id']);
+            $this->assertSame($traceId, $span['meta']['extracted_trace_id']);
         }
     }
 
@@ -48,9 +48,9 @@ final class CurrentContextAccessTest extends IntegrationTestCase
         foreach ($trace as $span) {
             $spanId = $span['span_id'];
             $this->assertNotEquals(0, $spanId);
-            $this->assertSame($traceId, \intval($span['trace_id']));
-            $this->assertSame($spanId, \intval($span['meta']['extracted_span_id']));
-            $this->assertSame($traceId, \intval($span['meta']['extracted_trace_id']));
+            $this->assertSame($traceId, $span['trace_id']);
+            $this->assertSame($spanId, $span['meta']['extracted_span_id']);
+            $this->assertSame($traceId, $span['meta']['extracted_trace_id']);
         }
     }
 
