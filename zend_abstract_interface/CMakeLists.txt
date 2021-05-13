@@ -78,8 +78,12 @@ endif()
 add_subdirectory(zai_sapi)
 
 # All tests depend on zai_sapi
-if(PHP_VERSION_ID LESS_EQUAL "70000")
-  # TODO Support PHP 7
+if(PHP_VERSION_DIRECTORY STREQUAL "php8")
+  # TODO Support PHP 5 & PHP 7
+  add_subdirectory(functions)
+endif()
+if(PHP_VERSION_DIRECTORY STREQUAL "php5")
+  # TODO Support PHP 7 & PHP 8
   add_subdirectory(methods)
 endif()
 add_subdirectory(sandbox)
