@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Integrations\PCNTL;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-const ACCEPTABLE_TEST_EXECTION_TIME_S = 0.2;
+const ACCEPTABLE_TEST_EXECTION_TIME_S = 0.4;
 
 final class PCNTLTest extends IntegrationTestCase
 {
