@@ -102,9 +102,9 @@ array(3) {
   [0]=>
   array(10) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>
@@ -141,11 +141,11 @@ array(3) {
   [1]=>
   array(8) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["parent_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>
@@ -165,9 +165,9 @@ array(3) {
   [2]=>
   array(7) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>

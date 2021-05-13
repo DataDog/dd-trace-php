@@ -37,12 +37,12 @@ bool(true)
 100
 int(2)
 Name: array_sum
-Span ID: 6965080426129060204
+Span ID: 13930160852258120406
 Trace ID: 42
 Parent ID: 100
 *Flushed spans*
 int(2)
 Name: array_sum
-Span ID: 5894024288751747413
-Trace ID: 5894024288751747413
+Span ID: 11788048577503494824
+Trace ID: 11788048577503494824
 Parent ID: (empty)

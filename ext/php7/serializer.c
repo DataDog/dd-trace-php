@@ -553,10 +553,18 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     el = &zv;
     array_init(el);
 
-    add_assoc_long(el, "trace_id", span->trace_id);
-    add_assoc_long(el, "span_id", span->span_id);
+    char trace_id_str[21];  // 1.8e^19 = 20 chars + terminator
+    sprintf(trace_id_str, "%zu", span->trace_id);
+    add_assoc_string(el, "trace_id", trace_id_str);
+
+    char span_id_str[21];  // 1.8e^19 = 20 chars + terminator
+    sprintf(span_id_str, "%zu", span->span_id);
+    add_assoc_string(el, "span_id", span_id_str);
+
     if (span->parent_id > 0) {
-        add_assoc_long(el, "parent_id", span->parent_id);
+        char parent_id_str[21];  // 1.8e^19 = 20 chars + terminator
+        sprintf(parent_id_str, "%zu", span->parent_id);
+        add_assoc_string(el, "parent_id", parent_id_str);
     }
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);
