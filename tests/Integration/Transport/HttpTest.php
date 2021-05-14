@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integration\Transport;
 
-use DDTrace\Encoders\Json;
+use DDTrace\Encoders\MessagePack;
 use DDTrace\GlobalTracer;
 use DDTrace\Tests\Common\AgentReplayerTrait;
 use DDTrace\Tests\Common\BaseTestCase;
@@ -13,10 +13,18 @@ final class HttpTest extends BaseTestCase
 {
     use AgentReplayerTrait;
 
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        putenv('DD_TRACE_BGS_ENABLED=false');
+        \dd_trace_internal_fn('ddtrace_reload_config');
+    }
+
     protected function ddTearDown()
     {
         // reset the circuit breker consecutive failures count and close it
         \dd_tracer_circuit_breaker_register_success();
+        putenv('DD_TRACE_BGS_ENABLED');
         putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=default');
 
         parent::ddTearDown();
@@ -29,15 +37,15 @@ final class HttpTest extends BaseTestCase
 
     public function agentTracesUrl()
     {
-        return $this->agentUrl() . '/v0.3/traces';
+        return $this->agentUrl() . '/v0.4/traces';
     }
 
     public function testSpanReportingFailsOnUnavailableAgent()
     {
         $logger = $this->withDebugLogger();
 
-        $httpTransport = new Http(new Json(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
+        $httpTransport = new Http(new MessagePack(), [
+            'endpoint' => 'http://0.0.0.0:8127/v0.4/traces',
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -64,10 +72,10 @@ final class HttpTest extends BaseTestCase
 
         $logger = $this->withDebugLogger();
 
-        $badHttpTransport = new Http(new Json(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
+        $badHttpTransport = new Http(new MessagePack(), [
+            'endpoint' => 'http://0.0.0.0:8127/v0.4/traces',
         ]);
-        $goodHttpTransport = new Http(new Json(), [
+        $goodHttpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->agentTracesUrl(),
         ]);
 
@@ -103,7 +111,7 @@ final class HttpTest extends BaseTestCase
     {
         $logger = $this->withDebugLogger();
 
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->agentTracesUrl(),
         ]);
         $tracer = new Tracer($httpTransport);
@@ -133,7 +141,7 @@ final class HttpTest extends BaseTestCase
 
     public function testSendsMetaHeaders()
     {
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
@@ -156,7 +164,7 @@ final class HttpTest extends BaseTestCase
 
     public function testContentLengthAutomaticallyAddedByCurl()
     {
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
@@ -186,7 +194,7 @@ final class HttpTest extends BaseTestCase
     {
         $timeout = 1;
         $curlTimeout = 1;
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
             'connect_timeout' => $curlTimeout,
             'timeout' => $timeout,
@@ -232,7 +240,7 @@ final class HttpTest extends BaseTestCase
 
     public function testSetHeader()
     {
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);

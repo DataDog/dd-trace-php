@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Encoders\Json;
+use DDTrace\Encoders\MessagePack;
 use DDTrace\Encoders\SpanEncoder;
 use DDTrace\GlobalTracer;
 use DDTrace\Span;
@@ -101,7 +101,7 @@ trait TracerTestTrait
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
 
-        $transport = new Http(new Json(), ['endpoint' => self::$agentRequestDumperUrl]);
+        $transport = new Http(new MessagePack(), ['endpoint' => self::$agentRequestDumperUrl]);
 
         /* Disable Expect: 100-Continue that automatically gets added by curl,
          * as it adds a 1s delay, causing tests to sometimes fail.
