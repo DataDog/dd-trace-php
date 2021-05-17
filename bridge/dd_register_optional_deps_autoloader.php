@@ -28,7 +28,6 @@ class OptionalDepsAutoloader
         "DDTrace\\NoopTracer" => 'api/NoopTracer.php',
         "DDTrace\\NoopSpan" => 'api/NoopSpan.php',
         "DDTrace\\NoopScope" => 'api/NoopScope.php',
-        "DDTrace\\Encoders\\Json" => 'DDTrace/Encoders/Json.php',
         "DDTrace\\Encoders\\Noop" => 'DDTrace/Encoders/Noop.php',
         "DDTrace\\Propagators\\Noop" => 'DDTrace/Propagators/Noop.php',
         "DDTrace\\Transport\\Noop" => 'DDTrace/Transport/Noop.php',
