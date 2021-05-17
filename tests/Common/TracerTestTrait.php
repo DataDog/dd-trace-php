@@ -232,10 +232,8 @@ trait TracerTestTrait
             return [];
         }
 
-        $normalized = $this->convertImportedIdsToString($response);
-
         // For now we only support asserting traces against one dump at a time.
-        $loaded = json_decode($normalized, true);
+        $loaded = json_decode($response, true);
 
         // Data is returned as [{trace_1}, {trace_2}]. As of today we only support parsing 1 trace.
         if (count($loaded) > 1) {
