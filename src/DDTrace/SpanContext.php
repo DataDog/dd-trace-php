@@ -51,7 +51,7 @@ final class SpanContext extends SpanContextData
 
     public static function createAsRoot(array $baggageItems = [])
     {
-        $nextId = dd_trace_push_span_id();
+        $nextId = \dd_trace_push_span_id();
 
         return new self(
             $nextId,
