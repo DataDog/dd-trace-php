@@ -67,6 +67,9 @@ final class HttpTest extends BaseTestCase
 
     public function testCircuitBreakerBehavingAsExpected()
     {
+        // We start from a clean state: circuit breaker is closed!
+        \dd_tracer_circuit_breaker_register_success();
+
         // make the circuit breaker fail fast
         putenv('DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES=1');
 
@@ -92,8 +95,9 @@ final class HttpTest extends BaseTestCase
 
         // should close the circuit once retry time has passed
         putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
-        $goodHttpTransport->send($tracer);
 
+        $tracer->startSpan('test', [])->finish();
+        $goodHttpTransport->send($tracer);
         $this->assertTrue(\dd_tracer_circuit_breaker_info()['closed']);
 
         $this->assertTrue($logger->has(
@@ -223,8 +227,8 @@ final class HttpTest extends BaseTestCase
 
         $records = $logger->all();
         $curlOperationTimedout = \version_compare(\PHP_VERSION, '5.5', '<')
-        ? \CURLE_OPERATION_TIMEOUTED
-        : \CURLE_OPERATION_TIMEDOUT;
+            ? \CURLE_OPERATION_TIMEOUTED
+            : \CURLE_OPERATION_TIMEDOUT;
         $prefix = "Reporting of spans failed: {$curlOperationTimedout} / ";
         $suffix = "(TIMEOUT_MS={$timeout}, CONNECTTIMEOUT_MS={$curlTimeout})";
 
