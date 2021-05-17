@@ -143,7 +143,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Trace-Id']);
 
         // parent is: curl_exec, used under the hood
         $curl_exec = null;
@@ -154,7 +154,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             }
         }
         self::assertNotNull($curl_exec, 'Unable to find curl_exec in spans!');
-        self::assertSame($curl_exec['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+        self::assertSame($curl_exec['span_id'], $found['headers']['X-Datadog-Parent-Id']);
 
         self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
@@ -244,11 +244,11 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             $rootSpan = $traces[0][0];
             self::assertSame(
                 $rootSpan['span_id'],
-                (int) $data['headers']['X-Datadog-Parent-Id']
+                $data['headers']['X-Datadog-Parent-Id']
             );
             self::assertSame(
                 $rootSpan['trace_id'],
-                (int) $data['headers']['X-Datadog-Trace-Id']
+                $data['headers']['X-Datadog-Trace-Id']
             );
             self::assertSame(
                 (float) $rootSpan['metrics']['_sampling_priority_v1'],
@@ -292,8 +292,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
-        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+        self::assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
         self::assertEquals(1, sizeof($traces[0]));
 
         self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
