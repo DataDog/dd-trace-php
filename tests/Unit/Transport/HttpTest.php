@@ -4,7 +4,7 @@ namespace DDTrace\Tests\Unit\Transport;
 
 use DDTrace\Contracts\Tracer as TracerInterface;
 use DDTrace\Encoder;
-use DDTrace\Encoders\Json;
+use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\Logger;
 use DDTrace\Tests\Common\TestLogger;
 use DDTrace\Tests\Common\BaseTestCase;
@@ -45,29 +45,29 @@ final class HttpTest extends BaseTestCase
 
     public function testConfigWithDefaultValues()
     {
-        $httpTransport = new Http(new Json());
-        $this->assertEquals('http://localhost:8126/v0.3/traces', $httpTransport->getConfig()['endpoint']);
+        $httpTransport = new Http(new MessagePack());
+        $this->assertEquals('http://localhost:8126/v0.4/traces', $httpTransport->getConfig()['endpoint']);
     }
 
     public function testConfig()
     {
         $endpoint = '__end_point___';
-        $httpTransport = new Http(new Json(), ['endpoint' => $endpoint]);
+        $httpTransport = new Http(new MessagePack(), ['endpoint' => $endpoint]);
         $this->assertEquals($endpoint, $httpTransport->getConfig()['endpoint']);
     }
 
     public function testConfigPortFromEnv()
     {
         putenv('DD_TRACE_AGENT_PORT=8888');
-        $httpTransport = new Http(new Json());
-        $this->assertEquals('http://localhost:8888/v0.3/traces', $httpTransport->getConfig()['endpoint']);
+        $httpTransport = new Http(new MessagePack());
+        $this->assertEquals('http://localhost:8888/v0.4/traces', $httpTransport->getConfig()['endpoint']);
     }
 
     public function testConfigHostFromEnv()
     {
         putenv('DD_AGENT_HOST=other_host');
-        $httpTransport = new Http(new Json());
-        $this->assertEquals('http://other_host:8126/v0.3/traces', $httpTransport->getConfig()['endpoint']);
+        $httpTransport = new Http(new MessagePack());
+        $this->assertEquals('http://other_host:8126/v0.4/traces', $httpTransport->getConfig()['endpoint']);
     }
 
     public function testPayloadsOver10MBFail()

@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integration\Transport;
 
-use DDTrace\Encoders\Json;
+use DDTrace\Encoders\MessagePack;
 use DDTrace\GlobalTracer;
 use DDTrace\Tests\Common\AgentReplayerTrait;
 use DDTrace\Tests\Common\BaseTestCase;
@@ -13,10 +13,18 @@ final class HttpTest extends BaseTestCase
 {
     use AgentReplayerTrait;
 
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        putenv('DD_TRACE_BGS_ENABLED=false');
+        \dd_trace_internal_fn('ddtrace_reload_config');
+    }
+
     protected function ddTearDown()
     {
         // reset the circuit breker consecutive failures count and close it
         \dd_tracer_circuit_breaker_register_success();
+        putenv('DD_TRACE_BGS_ENABLED');
         putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=default');
 
         parent::ddTearDown();
@@ -29,15 +37,15 @@ final class HttpTest extends BaseTestCase
 
     public function agentTracesUrl()
     {
-        return $this->agentUrl() . '/v0.3/traces';
+        return $this->agentUrl() . '/v0.4/traces';
     }
 
     public function testSpanReportingFailsOnUnavailableAgent()
     {
         $logger = $this->withDebugLogger();
 
-        $httpTransport = new Http(new Json(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
+        $httpTransport = new Http(new MessagePack(), [
+            'endpoint' => 'http://0.0.0.0:8127/v0.4/traces',
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -59,15 +67,18 @@ final class HttpTest extends BaseTestCase
 
     public function testCircuitBreakerBehavingAsExpected()
     {
+        // We start from a clean state: circuit breaker is closed!
+        \dd_tracer_circuit_breaker_register_success();
+
         // make the circuit breaker fail fast
         putenv('DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES=1');
 
         $logger = $this->withDebugLogger();
 
-        $badHttpTransport = new Http(new Json(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
+        $badHttpTransport = new Http(new MessagePack(), [
+            'endpoint' => 'http://0.0.0.0:8127/v0.4/traces',
         ]);
-        $goodHttpTransport = new Http(new Json(), [
+        $goodHttpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->agentTracesUrl(),
         ]);
 
@@ -84,8 +95,9 @@ final class HttpTest extends BaseTestCase
 
         // should close the circuit once retry time has passed
         putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
-        $goodHttpTransport->send($tracer);
 
+        $tracer->startSpan('test', [])->finish();
+        $goodHttpTransport->send($tracer);
         $this->assertTrue(\dd_tracer_circuit_breaker_info()['closed']);
 
         $this->assertTrue($logger->has(
@@ -103,7 +115,7 @@ final class HttpTest extends BaseTestCase
     {
         $logger = $this->withDebugLogger();
 
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->agentTracesUrl(),
         ]);
         $tracer = new Tracer($httpTransport);
@@ -133,7 +145,7 @@ final class HttpTest extends BaseTestCase
 
     public function testSendsMetaHeaders()
     {
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
@@ -156,7 +168,7 @@ final class HttpTest extends BaseTestCase
 
     public function testContentLengthAutomaticallyAddedByCurl()
     {
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
@@ -186,7 +198,7 @@ final class HttpTest extends BaseTestCase
     {
         $timeout = 1;
         $curlTimeout = 1;
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
             'connect_timeout' => $curlTimeout,
             'timeout' => $timeout,
@@ -215,8 +227,8 @@ final class HttpTest extends BaseTestCase
 
         $records = $logger->all();
         $curlOperationTimedout = \version_compare(\PHP_VERSION, '5.5', '<')
-        ? \CURLE_OPERATION_TIMEOUTED
-        : \CURLE_OPERATION_TIMEDOUT;
+            ? \CURLE_OPERATION_TIMEOUTED
+            : \CURLE_OPERATION_TIMEDOUT;
         $prefix = "Reporting of spans failed: {$curlOperationTimedout} / ";
         $suffix = "(TIMEOUT_MS={$timeout}, CONNECTTIMEOUT_MS={$curlTimeout})";
 
@@ -232,7 +244,7 @@ final class HttpTest extends BaseTestCase
 
     public function testSetHeader()
     {
-        $httpTransport = new Http(new Json(), [
+        $httpTransport = new Http(new MessagePack(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);

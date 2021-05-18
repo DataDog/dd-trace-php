@@ -27,7 +27,6 @@ final class Http implements Transport
     // Default values for trace agent configuration
     const DEFAULT_AGENT_HOST = 'localhost';
     const DEFAULT_TRACE_AGENT_PORT = '8126';
-    const DEFAULT_TRACE_AGENT_PATH = '/v0.3/traces';
     const PRIORITY_SAMPLING_TRACE_AGENT_PATH = '/v0.4/traces';
 
     /* Keep these in sync with configuration.h's values */
@@ -76,7 +75,7 @@ final class Http implements Transport
         $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
         $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
         $traceAgentUrl = getenv(self::TRACE_AGENT_URL_ENV) ?: "http://${host}:${port}";
-        $path = self::DEFAULT_TRACE_AGENT_PATH;
+        $path = self::PRIORITY_SAMPLING_TRACE_AGENT_PATH;
         $endpoint = "${traceAgentUrl}${path}";
 
         $this->config = array_merge([
@@ -102,17 +101,9 @@ final class Http implements Transport
              */
         }
 
-        // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
-        // concept, but this should be probably revisited in the future.
-        $endpoint = $this->isPrioritySamplingUsed() ? str_replace(
-            self::DEFAULT_TRACE_AGENT_PATH,
-            self::PRIORITY_SAMPLING_TRACE_AGENT_PATH,
-            $this->config['endpoint']
-        ) : $this->config['endpoint'];
-
         self::logDebug('About to send trace(s) to the agent');
 
-        $this->sendRequest($endpoint, $this->headers, $tracesPayload, $tracesCount);
+        $this->sendRequest($this->config['endpoint'], $this->headers, $tracesPayload, $tracesCount);
     }
 
     public function setHeader($key, $value)

@@ -2,16 +2,14 @@
 
 namespace DDTrace\Tests\Integrations\Curl;
 
-use DDTrace\Format;
+use DDTrace\GlobalTracer;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tracer;
-use DDTrace\Util\ArrayKVStore;
-use DDTrace\GlobalTracer;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tracer;
 
 class PrivateCallbackRequest
 {

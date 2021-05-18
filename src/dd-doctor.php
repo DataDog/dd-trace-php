@@ -138,7 +138,7 @@ function check_agent_connectivity()
     render('Configured Agent port', $port);
 
     $verbose = fopen('php://temp', 'w+b');
-    $ch = curl_init("http://" . $host . ":" . $port . "/v0.3/traces");
+    $ch = curl_init("http://" . $host . ":" . $port . "/v0.4/traces");
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

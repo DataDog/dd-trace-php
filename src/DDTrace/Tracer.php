@@ -2,9 +2,13 @@
 
 namespace DDTrace;
 
-use DDTrace\Encoders\Json;
-use DDTrace\Encoders\SpanEncoder;
+use DDTrace\Contracts\Scope as ScopeInterface;
+use DDTrace\Contracts\Span as SpanInterface;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
+use DDTrace\Contracts\Tracer as TracerInterface;
 use DDTrace\Encoders\MessagePack;
+use DDTrace\Encoders\SpanEncoder;
+use DDTrace\Exceptions\UnsupportedFormat;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
@@ -13,11 +17,6 @@ use DDTrace\Sampling\ConfigurableSampler;
 use DDTrace\Sampling\Sampler;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
-use DDTrace\Exceptions\UnsupportedFormat;
-use DDTrace\Contracts\Scope as ScopeInterface;
-use DDTrace\Contracts\Span as SpanInterface;
-use DDTrace\Contracts\SpanContext as SpanContextInterface;
-use DDTrace\Contracts\Tracer as TracerInterface;
 
 final class Tracer implements TracerInterface
 {
@@ -104,7 +103,7 @@ final class Tracer implements TracerInterface
      */
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
-        $encoder = getenv('DD_TRACE_ENCODER') === 'json' ? new Json() : new MessagePack();
+        $encoder = new MessagePack();
         $this->transport = $transport ?: new Http($encoder);
         $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
