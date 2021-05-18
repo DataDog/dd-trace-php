@@ -87,6 +87,7 @@ if(PHP_VERSION_DIRECTORY STREQUAL "php5")
   add_subdirectory(methods)
 endif()
 add_subdirectory(sandbox)
+add_subdirectory(zai_assert)
 
 install(EXPORT ZendAbstractInterfaceTargets
         FILE ZendAbstractInterfaceTargets.cmake

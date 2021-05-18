@@ -265,6 +265,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php8])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_assert])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi/php7])

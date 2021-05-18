@@ -1,25 +1,14 @@
 #include "../methods.h"
 
 #include <Zend/zend_interfaces.h>
-#include <assert.h>
 #include <sandbox/sandbox.h>
-
-#ifndef NDEBUG
-static bool z_is_lower(const char *str) {
-    char *p = (char *)str;
-    while (*p) {
-        if (isalpha(*p) && !islower(*p)) return false;
-        p++;
-    }
-    return true;
-}
-#endif
+#include <zai_assert/zai_assert.h>
 
 zend_class_entry *zai_class_lookup_ex(const char *cname, size_t cname_len TSRMLS_DC) {
     if (!cname || !cname_len) return NULL;
     zend_class_entry **ce;
 
-    assert(z_is_lower(cname) && "Class names must be lowercase.");
+    zai_assert_is_lower(cname, "Class names must be lowercase.");
     assert(*cname != '\\' && "Class names must not have a root scope prefix '\\'.");
 
     /* Since we do not want to invoke the autoloader and we assume the caller
@@ -53,7 +42,7 @@ static bool z_call_method_without_args_ex(zval *object, zend_class_entry *ce, co
     /* This one gets me all the time. Trying to save myself 5 minutes for the
      * next time it inevitably happens.
      */
-    assert(z_is_lower(method) && "Don't forget to send those method names in all lowercase. ;)");
+    zai_assert_is_lower(method, "Don't forget to send those method names in all lowercase. ;)");
 
     /* There is an important ZEND_ACC_ALLOW_STATIC check that occurs within the
      * VM that is circumvented when calling a method outside of a VM context

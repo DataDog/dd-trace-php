@@ -1,18 +1,7 @@
 #include "../functions.h"
 
-#include <assert.h>
 #include <sandbox/sandbox.h>
-
-#ifndef NDEBUG
-static bool z_is_lower(const char *str) {
-    char *p = (char *)str;
-    while (*p) {
-        if (isalpha(*p) && !islower(*p)) return false;
-        p++;
-    }
-    return true;
-}
-#endif
+#include <zai_assert/zai_assert.h>
 
 bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc, ...) {
     if (!retval) return false;
@@ -34,7 +23,7 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
      */
     if (!PG(modules_activated)) return false;
 
-    assert(z_is_lower(name) && "Function names must be lowercase.");
+    zai_assert_is_lower(name, "Function names must be lowercase.");
     assert(*name != '\\' && "Function names must not have a root scope prefix '\\'.");
 
     zend_function *func = NULL;
