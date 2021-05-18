@@ -15,7 +15,7 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
      */
     ZVAL_UNDEF(retval);
 
-    if (!name || !name_len) return false;
+    if (!name || !name_len || argc < 0) return false;
 
     /* Functions cannot be called outside of a request context.
      * PG(modules_activated) indicates that all of the module RINITs have been
@@ -64,30 +64,20 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
      * also allows us to avoid an unnecessary call to
      * zend_fcall_info_args_clear() since the 'param{s|_count}' members in
      * 'zend_fcall_info' will always be zeroed out in our case.
-     *
-     * Based on zend_fcall_info_argv():
-     * https://github.com/php/php-src/blob/PHP-8.0.4/Zend/zend_API.c?#L3608-L3622
      */
+    zval params[argc];
     if (argc > 0) {
         va_list argv;
         va_start(argv, argc);
-
-        zval *arg;
-        fci.param_count = (uint32_t)argc;
-        fci.params = (zval *)ecalloc(1, (fci.param_count * sizeof(zval)));
-
         for (uint32_t i = 0; i < (uint32_t)argc; ++i) {
-            arg = va_arg(argv, zval *);
-            if (!arg) {
-                /* Only dtor the zvals that were successfully copied */
-                fci.param_count = i;
-                zend_fcall_info_args_clear(&fci, /* free_mem */ true);
-                return false;
-            }
-            ZVAL_COPY(&fci.params[i], arg);
+            zval *arg = va_arg(argv, zval *);
+            if (!arg) return false;
+            params[i] = *arg;
         }
-
         va_end(argv);
+
+        fci.param_count = (uint32_t)argc;
+        fci.params = params;
     }
 
     bool ret = false;
@@ -112,13 +102,11 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
          * best we can and then bubble up the zend_bailout.
          */
         zai_sandbox_close(&sandbox);
-        zend_fcall_info_args_clear(&fci, /* free_mem */ (argc != 0));
         zend_bailout();
     }
     zend_end_try();
 
     zai_sandbox_close(&sandbox);
-    zend_fcall_info_args_clear(&fci, /* free_mem */ (argc != 0));
 
     return ret;
 }
