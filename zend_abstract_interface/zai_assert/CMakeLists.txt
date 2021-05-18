@@ -8,10 +8,6 @@ target_compile_features(zai_assert INTERFACE c_std_99)
 
 target_link_libraries(zai_assert INTERFACE "${PHP_LIB}")
 
-set_target_properties(zai_assert PROPERTIES
-                                 EXPORT_NAME ZaiAssert
-                                 VERSION ${PROJECT_VERSION})
-
 add_library(Zai::Assert ALIAS zai_assert)
 
 # This copies the include files when `install` is ran
