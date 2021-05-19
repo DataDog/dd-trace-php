@@ -14,8 +14,9 @@ if test "$PHP_DDTRACE" != "no"; then
     AC_MSG_RESULT([yes])
   ])
 
-  m4_include([m4/polyfill.m4])
-  m4_include([m4/ax_execinfo.m4])
+  define(DDTRACE_BASEDIR, esyscmd(printf %s "$(dirname "__file__")"))
+  m4_include(DDTRACE_BASEDIR/m4/polyfill.m4)
+  m4_include(DDTRACE_BASEDIR/m4/ax_execinfo.m4)
 
   AX_EXECINFO
 
@@ -46,7 +47,9 @@ if test "$PHP_DDTRACE" != "no"; then
     components/string_view/string_view.c \
   "
 
-  PHP_VERSION_ID=$($PHP_CONFIG --vernum)
+  if test -z ${PHP_VERSION_ID+x}; then
+    PHP_VERSION_ID=$("$PHP_CONFIG" --vernum)
+  fi
 
   if test $PHP_VERSION_ID -lt 50500; then
     dnl PHP 5.4
