@@ -59,6 +59,12 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
     fci.size = sizeof(zend_fcall_info);
     fci.retval = retval;
 
+    bool should_bail = false;
+    zend_result call_fn_result = FAILURE;
+
+    zai_sandbox sandbox;
+    zai_sandbox_open(&sandbox);
+
     /* We add the zval args directly from the variable arguments, va_arg(),
      * instead of using zend_fcall_info_argv() because:
      *
@@ -68,13 +74,16 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
      *   - We avoid an unnecessary heap allocation for the params.
      *   - We avoid unnecessary calls to zend_fcall_info_args_clear().
      */
-    zval params[argc];
     if (argc > 0) {
+        zval params[argc];
         va_list argv;
         va_start(argv, argc);
         for (uint32_t i = 0; i < (uint32_t)argc; ++i) {
             zval *arg = va_arg(argv, zval *);
-            if (!arg) return false;
+            if (!arg) {
+                zai_sandbox_close(&sandbox);
+                return false;
+            }
             /* Although we could copy the zval arg into the params array with
              * direct assignment:
              *
@@ -94,22 +103,25 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
 
         fci.param_count = (uint32_t)argc;
         fci.params = params;
+
+        zend_try {
+            call_fn_result = zend_call_function(&fci, &fcc);
+        }
+        zend_catch {
+            should_bail = true;
+        }
+        zend_end_try();
+    } else {
+        zend_try {
+            call_fn_result = zend_call_function(&fci, &fcc);
+        }
+        zend_catch {
+            should_bail = true;
+        }
+        zend_end_try();
     }
 
-    bool ret = false;
-
-    zai_sandbox sandbox;
-    zai_sandbox_open(&sandbox);
-
-    zend_try {
-        zend_result result = zend_call_function(&fci, &fcc);
-        /* An unhandled exception will not result in a zend_bailout if there is
-         * an active execution context. This is a failed call if an exception
-         * was thrown. The sandbox will clean up our mess when it closes.
-         */
-        ret = (result == SUCCESS && !EG(exception));
-    }
-    zend_catch {
+    if (should_bail) {
         /* An unclean shutdown from a zend_bailout can occur deep within a
          * userland call stack which will long jump over dtors and frees. If we
          * caught an arbitrary zend_bailout here and went on pretending like
@@ -120,10 +132,13 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
         zai_sandbox_close(&sandbox);
         zend_bailout();
     }
-    zend_end_try();
 
+    /* An unhandled exception will not result in a zend_bailout if there is an
+     * active execution context. This is a failed call if an exception was
+     * thrown. The sandbox will clean up our mess when it closes.
+     */
+    bool ret = (call_fn_result == SUCCESS && !EG(exception));
     zai_sandbox_close(&sandbox);
-
     return ret;
 }
 
