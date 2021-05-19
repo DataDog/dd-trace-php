@@ -3,6 +3,8 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
 #include <php.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <ext/spl/spl_exceptions.h>
 
@@ -17,7 +19,11 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC);
+static const char *trace_id_keyword = "trace_id";
+static const char *span_id_keyword = "span_id";
+static const char *parent_id_keyword = "parent_id";
+
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, bool string_as_uint64 TSRMLS_DC);
 
 static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
     zval **tmp;
@@ -39,10 +45,16 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
                 mpack_start_array(writer, zend_hash_num_elements(ht));
             }
         }
+        bool string_as_uint64 = false;
         if (key_type == HASH_KEY_IS_STRING) {
             mpack_write_cstr(writer, string_key);
+            // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
+            if (0 == strcmp(trace_id_keyword, string_key) || 0 == strcmp(span_id_keyword, string_key) ||
+                0 == strcmp(parent_id_keyword, string_key)) {
+                string_as_uint64 = true;
+            }
         }
-        if (msgpack_write_zval(writer, *tmp TSRMLS_CC) != 1) {
+        if (msgpack_write_zval(writer, *tmp, string_as_uint64 TSRMLS_CC) != 1) {
             return 0;
         }
         zend_hash_move_forward_ex(ht, &iterator);
@@ -56,7 +68,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
     return 1;
 }
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) {
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, bool string_as_uint64 TSRMLS_DC) {
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
             if (write_hash_table(writer, Z_ARRVAL_P(trace) TSRMLS_CC) != 1) {
@@ -76,7 +88,11 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) {
             mpack_write_bool(writer, Z_BVAL_P(trace) == 1);
             break;
         case IS_STRING:
-            mpack_write_cstr(writer, Z_STRVAL_P(trace));
+            if (string_as_uint64) {
+                mpack_write_u64(writer, strtoull(Z_STRVAL_P(trace), NULL, 10));
+            } else {
+                mpack_write_cstr(writer, Z_STRVAL_P(trace));
+            }
             break;
         default:
             ddtrace_log_debug("Serialize values must be of type array, string, int, float, bool or null");
@@ -92,7 +108,7 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    if (msgpack_write_zval(&writer, trace TSRMLS_CC) != 1) {
+    if (msgpack_write_zval(&writer, trace, false TSRMLS_CC) != 1) {
         mpack_writer_destroy(&writer);
         free(data);
         return 0;
@@ -396,10 +412,18 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     ALLOC_INIT_ZVAL(el);
     array_init(el);
 
-    add_assoc_long(el, "trace_id", span->trace_id);
-    add_assoc_long(el, "span_id", span->span_id);
+    char trace_id_str[21];  // 1.8e^19 = 20 chars + terminator
+    sprintf(trace_id_str, "%zu", span->trace_id);
+    add_assoc_string(el, "trace_id", trace_id_str, 0);
+
+    char span_id_str[21];  // 1.8e^19 = 20 chars + terminator
+    sprintf(span_id_str, "%zu", span->span_id);
+    add_assoc_string(el, "span_id", span_id_str, 0);
+
     if (span->parent_id > 0) {
-        add_assoc_long(el, "parent_id", span->parent_id);
+        char parent_id_str[21];  // 1.8e^19 = 20 chars + terminator
+        sprintf(parent_id_str, "%zu", span->parent_id);
+        add_assoc_string(el, "parent_id", parent_id_str, 0);
     }
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);
