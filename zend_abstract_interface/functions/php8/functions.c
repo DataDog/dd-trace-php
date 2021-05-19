@@ -59,11 +59,14 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
     fci.size = sizeof(zend_fcall_info);
     fci.retval = retval;
 
-    /* We add the zval args directly from the variable arguments API instead of
-     * using zend_fcall_info_argv() which allows us to NULL-check each arg. It
-     * also allows us to avoid an unnecessary call to
-     * zend_fcall_info_args_clear() since the 'param{s|_count}' members in
-     * 'zend_fcall_info' will always be zeroed out in our case.
+    /* We add the zval args directly from the variable arguments, va_arg(),
+     * instead of using zend_fcall_info_argv() because:
+     *
+     *   - We can NULL-check each arg.
+     *   - We circumvent an unnecessary reference count increase;
+     *     zend_call_function() already copies the zvals and increments the RC.
+     *   - We avoid an unnecessary heap allocation for the params.
+     *   - We avoid unnecessary calls to zend_fcall_info_args_clear().
      */
     zval params[argc];
     if (argc > 0) {
@@ -72,7 +75,20 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
         for (uint32_t i = 0; i < (uint32_t)argc; ++i) {
             zval *arg = va_arg(argv, zval *);
             if (!arg) return false;
-            params[i] = *arg;
+            /* Although we could copy the zval arg into the params array with
+             * direct assignment:
+             *
+             *   params[i] = *arg;
+             *
+             * This will also copy over any additional metadata stored on the
+             * zval from 'u2'. As @bwoebi pointed out:
+             *
+             *   "The canonical way to assign a zval would be actually
+             *    ZVAL_COPY_VALUE(). This copies the zend_value as two
+             *    individual 32 bit assignments on 32 bit environments and
+             *    notably does not copy u2."
+             */
+            ZVAL_COPY_VALUE(&params[i], arg);
         }
         va_end(argv);
 
