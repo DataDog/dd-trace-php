@@ -104,20 +104,12 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
         fci.param_count = (uint32_t)argc;
         fci.params = params;
 
-        zend_try {
-            call_fn_result = zend_call_function(&fci, &fcc);
-        }
-        zend_catch {
-            should_bail = true;
-        }
+        zend_try { call_fn_result = zend_call_function(&fci, &fcc); }
+        zend_catch { should_bail = true; }
         zend_end_try();
     } else {
-        zend_try {
-            call_fn_result = zend_call_function(&fci, &fcc);
-        }
-        zend_catch {
-            should_bail = true;
-        }
+        zend_try { call_fn_result = zend_call_function(&fci, &fcc); }
+        zend_catch { should_bail = true; }
         zend_end_try();
     }
 
