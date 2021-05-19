@@ -134,9 +134,6 @@ class CodeIgniterIntegration extends Integration
             'CI_DB_driver',
             'query',
             function (SpanData $span, $args, $retval, $ex) use ($service) {
-                if (\dd_trace_tracer_is_limited()) {
-                    return false;
-                }
                 $class = \get_class($this);
                 $span->name = "{$class}.query";
                 $span->service = $service;

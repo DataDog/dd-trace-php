@@ -34,9 +34,6 @@ class MongoIntegration extends Integration
          */
 
         \DDTrace\trace_method('MongoClient', '__construct', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoClient', '__construct');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_SERVER] = Obfuscation::dsn($args[0]);
@@ -51,9 +48,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoClient', 'selectCollection', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoClient', 'selectCollection');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_DATABASE] = $args[0];
@@ -64,9 +58,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoClient', 'selectDB', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoClient', 'selectDB');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_DATABASE] = $args[0];
@@ -74,9 +65,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoClient', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoClient', 'setReadPreference');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
@@ -94,9 +82,6 @@ class MongoIntegration extends Integration
          */
 
         \DDTrace\trace_method('MongoCollection', '__construct', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoCollection', '__construct');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_DATABASE] = $args[0];
@@ -110,9 +95,6 @@ class MongoIntegration extends Integration
             'MongoCollection',
             'createDBRef',
             function (SpanData $span, $args, $return) use ($integration) {
-                if (dd_trace_tracer_is_limited()) {
-                    return false;
-                }
                 $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'createDBRef');
                 if (!is_array($return)) {
                     return;
@@ -127,9 +109,6 @@ class MongoIntegration extends Integration
         );
 
         \DDTrace\trace_method('MongoCollection', 'getDBRef', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'getDBRef');
 
             if (isset($args[0]['$id'])) {
@@ -141,9 +120,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoCollection', 'distinct', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'distinct');
             $integration->addTraceAnalyticsIfEnabled($span);
             if (isset($args[1])) {
@@ -155,9 +131,6 @@ class MongoIntegration extends Integration
             'MongoCollection',
             'setReadPreference',
             function (SpanData $span, $args) use ($integration) {
-                if (dd_trace_tracer_is_limited()) {
-                    return false;
-                }
                 $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'setReadPreference');
                 if (isset($args[0])) {
                     $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
@@ -195,9 +168,6 @@ class MongoIntegration extends Integration
          */
 
         \DDTrace\trace_method('MongoDB', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoDB', 'setReadPreference');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
@@ -205,9 +175,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoDB', 'setProfilingLevel', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoDB', 'setProfilingLevel');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_PROFILING_LEVEL] = json_encode($args[0]);
@@ -215,9 +182,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoDB', 'command', function (SpanData $span, $args, $return) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoDB', 'command');
             if (isset($args[0]['query'])) {
                 $span->meta[Tag::MONGODB_QUERY] = json_encode($args[0]['query']);
@@ -230,9 +194,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoDB', 'createDBRef', function (SpanData $span, $args, $return) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoDB', 'createDBRef');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_COLLECTION] = $args[0];
@@ -243,9 +204,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoDB', 'getDBRef', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoDB', 'getDBRef');
             if (isset($args[0]['$ref'])) {
                 $span->meta[Tag::MONGODB_COLLECTION] = $args[0]['$ref'];
@@ -253,12 +211,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoDB', 'createCollection', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoDB', 'createCollection');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_COLLECTION] = $args[0];
@@ -266,9 +218,6 @@ class MongoIntegration extends Integration
         });
 
         \DDTrace\trace_method('MongoDB', 'selectCollection', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, 'MongoDB', 'selectCollection');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_COLLECTION] = $args[0];
@@ -304,9 +253,6 @@ class MongoIntegration extends Integration
     {
         $integration = $this;
         \DDTrace\trace_method($class, $method, function (SpanData $span) use ($class, $method, $integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->addSpanDefaultMetadata($span, $class, $method);
         });
     }
@@ -327,9 +273,6 @@ class MongoIntegration extends Integration
             $class,
             $method,
             function (SpanData $span, $args) use ($class, $method, $isTraceAnalithicsCandidate, $integration) {
-                if (dd_trace_tracer_is_limited()) {
-                    return false;
-                }
                 $integration->addSpanDefaultMetadata($span, $class, $method);
                 if ($isTraceAnalithicsCandidate) {
                     $integration->addTraceAnalyticsIfEnabled($span);
