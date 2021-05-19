@@ -93,9 +93,9 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, bool string_a
             break;
         case IS_STRING:
             if (string_as_uint64) {
-                mpack_write_u64(writer, strtoull(ZSTR_VAL(Z_STR_P(trace)), NULL, 10));
+                mpack_write_u64(writer, strtoull(Z_STRVAL_P(trace), NULL, 10));
             } else {
-                mpack_write_cstr(writer, ZSTR_VAL(Z_STR_P(trace)));
+                mpack_write_cstr(writer, Z_STRVAL_P(trace));
             }
             break;
         default:
