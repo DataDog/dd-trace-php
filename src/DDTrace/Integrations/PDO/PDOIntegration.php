@@ -43,9 +43,6 @@ class PDOIntegration extends Integration
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         \DDTrace\trace_method('PDO', '__construct', function (SpanData $span, array $args) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $span->name = $span->resource = 'PDO.__construct';
             $span->service = 'pdo';
             $span->type = Type::SQL;
@@ -54,9 +51,6 @@ class PDOIntegration extends Integration
 
         // public int PDO::exec(string $query)
         \DDTrace\trace_method('PDO', 'exec', function (SpanData $span, array $args, $retval) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $span->name = 'PDO.exec';
             $span->service = 'pdo';
             $span->type = Type::SQL;
@@ -77,9 +71,6 @@ class PDOIntegration extends Integration
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
         // public int PDO::exec(string $query)
         \DDTrace\trace_method('PDO', 'query', function (SpanData $span, array $args, $retval) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $span->name = 'PDO.query';
             $span->service = 'pdo';
             $span->type = Type::SQL;
@@ -97,9 +88,6 @@ class PDOIntegration extends Integration
 
         // public bool PDO::commit ( void )
         \DDTrace\trace_method('PDO', 'commit', function (SpanData $span) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $span->name = $span->resource = 'PDO.commit';
             $span->service = 'pdo';
             $span->type = Type::SQL;
@@ -108,9 +96,6 @@ class PDOIntegration extends Integration
 
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
         \DDTrace\trace_method('PDO', 'prepare', function (SpanData $span, array $args, $retval) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $span->name = 'PDO.prepare';
             $span->service = 'pdo';
             $span->type = Type::SQL;
@@ -124,9 +109,6 @@ class PDOIntegration extends Integration
             'PDOStatement',
             'execute',
             function (SpanData $span, array $args, $retval) use ($integration) {
-                if (dd_trace_tracer_is_limited()) {
-                    return false;
-                }
                 $span->name = 'PDOStatement.execute';
                 $span->service = 'pdo';
                 $span->type = Type::SQL;

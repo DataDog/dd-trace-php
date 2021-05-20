@@ -6,7 +6,6 @@ parameters:
 		- bridge/dd_register_optional_deps_autoloader.php
 	excludes_analyse:
 		- src/DDTrace/Bootstrap.php
-		- src/DDTrace/Util/CodeTracer.php
 		- src/DDTrace/Integrations
 		- src/DDTrace/OpenTracer
 		- src/dd-doctor.php

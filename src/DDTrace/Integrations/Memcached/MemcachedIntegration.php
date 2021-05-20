@@ -93,16 +93,10 @@ class MemcachedIntegration extends Integration
         $this->traceCommandByKey('touchByKey');
 
         \DDTrace\trace_method('Memcached', 'flush', function (SpanData $span) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->setCommonData($span, 'flush');
         });
 
         \DDTrace\trace_method('Memcached', 'cas', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->setCommonData($span, 'cas');
             $span->meta['memcached.cas_token'] = $args[0];
             $span->meta['memcached.query'] = 'cas ?';
@@ -110,9 +104,6 @@ class MemcachedIntegration extends Integration
         });
 
         \DDTrace\trace_method('Memcached', 'casByKey', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->setCommonData($span, 'casByKey');
             $span->meta['memcached.cas_token'] = $args[0];
             $span->meta['memcached.query'] = 'casByKey ?';
@@ -128,9 +119,6 @@ class MemcachedIntegration extends Integration
     {
         $integration = $this;
         \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->setCommonData($span, $command);
             if (!is_array($args[0])) {
                 $integration->setServerTags($span, $this);
@@ -145,9 +133,6 @@ class MemcachedIntegration extends Integration
     {
         $integration = $this;
         \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->setCommonData($span, $command);
             if (!is_array($args[0])) {
                 $integration->setServerTags($span, $this);
@@ -163,9 +148,6 @@ class MemcachedIntegration extends Integration
     {
         $integration = $this;
         \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->setCommonData($span, $command);
             if (!is_array($args[0])) {
                 $integration->setServerTags($span, $this);
@@ -179,9 +161,6 @@ class MemcachedIntegration extends Integration
     {
         $integration = $this;
         \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $integration->setCommonData($span, $command);
             $span->meta['memcached.server_key'] = $args[0];
             $integration->setServerTags($span, $this);

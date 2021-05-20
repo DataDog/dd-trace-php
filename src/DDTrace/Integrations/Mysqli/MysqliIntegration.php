@@ -36,10 +36,6 @@ class MysqliIntegration extends Integration
         $integration = $this;
 
         \DDTrace\trace_function('mysqli_connect', function (SpanData $span, $args, $result) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             list($host) = $args;
             $integration->setDefaultAttributes($span, 'mysqli_connect', 'mysqli_connect');
             $integration->mergeMeta($span, MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST));
@@ -54,10 +50,6 @@ class MysqliIntegration extends Integration
             'mysqli',
             $mysqli_constructor,
             function (SpanData $span) use ($integration) {
-                if (dd_trace_tracer_is_limited()) {
-                    return false;
-                }
-
                 $integration->setDefaultAttributes($span, 'mysqli.__construct', 'mysqli.__construct');
                 $integration->trackPotentialError($span);
 
@@ -73,10 +65,6 @@ class MysqliIntegration extends Integration
         );
 
         \DDTrace\trace_function('mysqli_real_connect', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             $integration->setDefaultAttributes($span, 'mysqli_real_connect', 'mysqli_real_connect');
             $integration->trackPotentialError($span);
 
@@ -86,10 +74,6 @@ class MysqliIntegration extends Integration
         });
 
         \DDTrace\trace_method('mysqli', 'real_connect', function (SpanData $span) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             $integration->setDefaultAttributes($span, 'mysqli.real_connect', 'mysqli.real_connect');
             $integration->trackPotentialError($span);
             $integration->setConnectionInfo($span, $this);
@@ -97,10 +81,6 @@ class MysqliIntegration extends Integration
 
 
         \DDTrace\trace_function('mysqli_query', function (SpanData $span, $args, $result) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             list($mysqli, $query) = $args;
             $integration->setDefaultAttributes($span, 'mysqli_query', $query);
             $integration->addTraceAnalyticsIfEnabled($span);
@@ -112,10 +92,6 @@ class MysqliIntegration extends Integration
         });
 
         \DDTrace\trace_function('mysqli_prepare', function (SpanData $span, $args, $retval) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             list($mysqli, $query) = $args;
             $integration->setDefaultAttributes($span, 'mysqli_prepare', $query);
             $integration->setConnectionInfo($span, $mysqli);
@@ -126,10 +102,6 @@ class MysqliIntegration extends Integration
         });
 
         \DDTrace\trace_function('mysqli_commit', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             list($mysqli) = $args;
             $resource = MysqliCommon::retrieveQuery($mysqli, 'mysqli_commit');
             $integration->setDefaultAttributes($span, 'mysqli_commit', $resource);
@@ -141,10 +113,6 @@ class MysqliIntegration extends Integration
         });
 
         \DDTrace\trace_function('mysqli_stmt_execute', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             list($statement) = $args;
             $resource = MysqliCommon::retrieveQuery($statement, 'mysqli_stmt_execute');
             $integration->setDefaultAttributes($span, 'mysqli_stmt_execute', $resource);
@@ -160,10 +128,6 @@ class MysqliIntegration extends Integration
         });
 
         \DDTrace\trace_method('mysqli', 'query', function (SpanData $span, $args, $result) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             list($query) = $args;
             $integration->setDefaultAttributes($span, 'mysqli.query', $query);
             $integration->addTraceAnalyticsIfEnabled($span);
@@ -176,10 +140,6 @@ class MysqliIntegration extends Integration
         });
 
         \DDTrace\trace_method('mysqli', 'prepare', function (SpanData $span, $args, $retval) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             list($query) = $args;
             $integration->setDefaultAttributes($span, 'mysqli.prepare', $query);
             $integration->setConnectionInfo($span, $this);
@@ -189,10 +149,6 @@ class MysqliIntegration extends Integration
         });
 
         \DDTrace\trace_method('mysqli', 'commit', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli.commit');
             $integration->setDefaultAttributes($span, 'mysqli.commit', $resource);
             $integration->setConnectionInfo($span, $this);
@@ -203,20 +159,12 @@ class MysqliIntegration extends Integration
         });
 
         \DDTrace\trace_method('mysqli_stmt', 'execute', function (SpanData $span) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.execute');
             $integration->setDefaultAttributes($span, 'mysqli_stmt.execute', $resource);
             $integration->addTraceAnalyticsIfEnabled($span);
         });
 
         \DDTrace\trace_method('mysqli_stmt', 'get_result', function (SpanData $span, $a, $result) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.get_result');
             $integration->setDefaultAttributes($span, 'mysqli_stmt.get_result', $resource);
             $integration->setConnectionInfo($span, $this);
