@@ -212,6 +212,27 @@ TEST_CASE("call function: -1 args", "[zai_functions]") {
     zai_sapi_spindown();
 }
 
+TEST_CASE("call function: more than MAX_ARGS", "[zai_functions]" SKIP_TEST_IN_DEBUG_MODE) {
+    REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    zval arg = {0};
+    zend_string *str = zend_string_init(ZEND_STRL("foo string"), /* persistent */ 0);
+    ZVAL_STR(&arg, str);
+
+    zval retval = {0};
+    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, 4, &arg, &arg, &arg, &arg);
+    zval_ptr_dtor(&arg);
+
+    REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
+    REQUIRE(result == false);
+    REQUIRE(Z_TYPE(retval) == IS_UNDEF);
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_spindown();
+}
+
 /********************* zai_call_function_without_args() **********************/
 
 TEST_CASE("call function no args: (internal)", "[zai_functions]") {

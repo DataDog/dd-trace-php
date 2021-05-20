@@ -3,6 +3,8 @@
 #include <sandbox/sandbox.h>
 #include <zai_assert/zai_assert.h>
 
+#define MAX_ARGS 3
+
 bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc, ...) {
     if (!retval) return false;
 
@@ -15,7 +17,9 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
      */
     ZVAL_UNDEF(retval);
 
-    if (!name || !name_len || argc < 0) return false;
+    assert(argc <= MAX_ARGS && "Increase MAX_ARGS to support more arguments.");
+
+    if (!name || !name_len || argc < 0 || argc > MAX_ARGS) return false;
 
     /* Functions cannot be called outside of a request context.
      * PG(modules_activated) indicates that all of the module RINITs have been
@@ -75,7 +79,7 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
      *   - We avoid unnecessary calls to zend_fcall_info_args_clear().
      */
     if (argc > 0) {
-        zval params[argc];
+        zval params[MAX_ARGS];
         va_list argv;
         va_start(argv, argc);
         for (uint32_t i = 0; i < (uint32_t)argc; ++i) {
