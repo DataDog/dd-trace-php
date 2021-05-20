@@ -30,7 +30,7 @@ static bool dd_try_find_function_dispatch(HashTable *ht, zval *fname, ddtrace_di
 }
 
 static bool dd_try_find_method_dispatch(zend_class_entry *class, zval *fname, ddtrace_dispatch_t **dispatch_ptr,
-                                        HashTable **function_table TSRMLS_DC) {
+                                        HashTable **function_table) {
     if (!fname || !Z_STRVAL_P(fname)) {
         return false;
     }
@@ -46,21 +46,20 @@ static bool dd_try_find_method_dispatch(zend_class_entry *class, zval *fname, dd
         }
     }
 
-    return class->parent ? dd_try_find_method_dispatch(class->parent, fname, dispatch_ptr, function_table TSRMLS_CC)
-                         : false;
+    return class->parent ? dd_try_find_method_dispatch(class->parent, fname, dispatch_ptr, function_table) : false;
 }
 
 bool ddtrace_try_find_dispatch(zend_class_entry *scope, zval *fname, ddtrace_dispatch_t **dispatch_ptr,
-                               HashTable **function_table TSRMLS_DC) {
-    return scope ? dd_try_find_method_dispatch(scope, fname, dispatch_ptr, function_table TSRMLS_CC)
+                               HashTable **function_table) {
+    return scope ? dd_try_find_method_dispatch(scope, fname, dispatch_ptr, function_table)
                  : dd_try_find_function_dispatch(DDTRACE_G(function_lookup), fname, dispatch_ptr, function_table);
 }
 
-ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC) {
+ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname) {
     ddtrace_dispatch_t *dispatch = NULL;
     HashTable *function_table = NULL;
 
-    ddtrace_try_find_dispatch(scope, fname, &dispatch, &function_table TSRMLS_CC);
+    ddtrace_try_find_dispatch(scope, fname, &dispatch, &function_table);
     return dispatch;
 }
 
@@ -69,7 +68,7 @@ static void dispatch_table_dtor(zval *zv) {
     efree(Z_PTR_P(zv));
 }
 
-void ddtrace_dispatch_init(TSRMLS_D) {
+void ddtrace_dispatch_init(void) {
     if (!DDTRACE_G(class_lookup)) {
         ALLOC_HASHTABLE(DDTRACE_G(class_lookup));
         zend_hash_init(DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
@@ -81,7 +80,7 @@ void ddtrace_dispatch_init(TSRMLS_D) {
     }
 }
 
-void ddtrace_dispatch_destroy(TSRMLS_D) {
+void ddtrace_dispatch_destroy(void) {
     if (DDTRACE_G(class_lookup)) {
         zend_hash_destroy(DDTRACE_G(class_lookup));
         FREE_HASHTABLE(DDTRACE_G(class_lookup));
@@ -95,7 +94,7 @@ void ddtrace_dispatch_destroy(TSRMLS_D) {
     }
 }
 
-static HashTable *_get_lookup_for_target(zval *class_name TSRMLS_DC) {
+static HashTable *_get_lookup_for_target(zval *class_name) {
     HashTable *overridable_lookup = NULL;
     if (class_name && DDTRACE_G(class_lookup)) {
         zend_string *class_name_lc = zend_string_tolower(Z_STR_P(class_name));
@@ -103,7 +102,7 @@ static HashTable *_get_lookup_for_target(zval *class_name TSRMLS_DC) {
         if (!overridable_lookup) {
             zval tmp;
             ZVAL_STR(&tmp, class_name_lc);
-            overridable_lookup = ddtrace_new_class_lookup(&tmp TSRMLS_CC);
+            overridable_lookup = ddtrace_new_class_lookup(&tmp);
         }
         zend_string_release(class_name_lc);
     } else {
@@ -113,8 +112,8 @@ static HashTable *_get_lookup_for_target(zval *class_name TSRMLS_DC) {
     return overridable_lookup;
 }
 
-zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC) {
-    HashTable *overridable_lookup = _get_lookup_for_target(class_name TSRMLS_CC);
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options) {
+    HashTable *overridable_lookup = _get_lookup_for_target(class_name);
     if (overridable_lookup == NULL) {
         return FALSE;
     }
@@ -141,7 +140,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
 }
 
 zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string function_name, ddtrace_string callable,
-                                uint32_t options TSRMLS_DC) {
+                                uint32_t options) {
     HashTable *overridable_lookup;
     ddtrace_dispatch_t dispatch;
     memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
@@ -158,10 +157,10 @@ zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string functi
         // class name handling in get_lookup involves another copy as well as downcasing
         // TODO: we should avoid doing that
         DDTRACE_STRING_ZVAL_L(&z_class_name, class_name);
-        overridable_lookup = _get_lookup_for_target(&z_class_name TSRMLS_CC);
+        overridable_lookup = _get_lookup_for_target(&z_class_name);
         zval_dtor(&z_class_name);
     } else {
-        overridable_lookup = _get_lookup_for_target(NULL TSRMLS_CC);
+        overridable_lookup = _get_lookup_for_target(NULL);
     }
     zend_bool dispatch_stored = FALSE;
     if (overridable_lookup) {

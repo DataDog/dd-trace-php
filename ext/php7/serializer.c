@@ -18,9 +18,9 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC);
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace);
 
-static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
+static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
     zval *tmp;
     zend_string *string_key;
     int is_assoc = -1;
@@ -37,7 +37,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
         if (is_assoc == 1) {
             mpack_write_cstr(writer, ZSTR_VAL(string_key));
         }
-        if (msgpack_write_zval(writer, tmp TSRMLS_CC) != 1) {
+        if (msgpack_write_zval(writer, tmp) != 1) {
             return 0;
         }
     }
@@ -51,14 +51,14 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
     return 1;
 }
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) {
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace) {
     if (Z_TYPE_P(trace) == IS_REFERENCE) {
         trace = Z_REFVAL_P(trace);
     }
 
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
-            if (write_hash_table(writer, Z_ARRVAL_P(trace) TSRMLS_CC) != 1) {
+            if (write_hash_table(writer, Z_ARRVAL_P(trace)) != 1) {
                 return 0;
             }
             break;
@@ -86,13 +86,13 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) {
     return 1;
 }
 
-int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p TSRMLS_DC) {
+int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p) {
     // encode to memory buffer
     char *data;
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    if (msgpack_write_zval(&writer, trace TSRMLS_CC) != 1) {
+    if (msgpack_write_zval(&writer, trace) != 1) {
         mpack_writer_destroy(&writer);
         free(data);
         return 0;
@@ -113,12 +113,12 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     }
 }
 
-int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
+int ddtrace_serialize_simple_array(zval *trace, zval *retval) {
     // encode to memory buffer
     char *data;
     size_t size;
 
-    if (ddtrace_serialize_simple_array_into_c_string(trace, &data, &size TSRMLS_CC)) {
+    if (ddtrace_serialize_simple_array_into_c_string(trace, &data, &size)) {
         ZVAL_STRINGL(retval, data, size);
         free(data);
         return 1;
@@ -529,7 +529,7 @@ static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value
     zval_dtor(&value_as_string);
 }
 
-void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSRMLS_DC) {
+void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     ddtrace_span_t *span = &span_fci->span;
     zval *el;
     zval zv;
@@ -576,7 +576,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
         _dd_add_assoc_zval_as_string(el, "type", prop_type);
     }
 
-    _serialize_meta(el, span_fci TSRMLS_CC);
+    _serialize_meta(el, span_fci);
 
     zval *metrics = ddtrace_spandata_property_metrics(span->span_data);
     if (Z_TYPE_P(metrics) == IS_ARRAY) {

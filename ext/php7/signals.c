@@ -33,7 +33,6 @@ static struct sigaction ddtrace_sigaction;
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static void ddtrace_sigsegv_handler(int sig) {
-    TSRMLS_FETCH();
     if (!DDTRACE_G(backtrace_handler_already_run)) {
         DDTRACE_G(backtrace_handler_already_run) = TRUE;
         ddtrace_log_errf("Segmentation fault");
@@ -77,7 +76,7 @@ static void ddtrace_sigsegv_handler(int sig) {
     exit(128 + sig);
 }
 
-void ddtrace_signals_minit(TSRMLS_D) {
+void ddtrace_signals_minit(void) {
     bool install_handler = get_dd_trace_heath_metrics_enabled();
 
 #if DDTRACE_HAVE_BACKTRACE

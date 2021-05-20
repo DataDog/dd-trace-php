@@ -40,11 +40,11 @@ typedef struct ddtrace_dispatch_t {
 } ddtrace_dispatch_t;
 
 bool ddtrace_try_find_dispatch(zend_class_entry *scope, zval *fname, ddtrace_dispatch_t **dispatch_ptr,
-                               HashTable **function_table TSRMLS_DC);
-ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC);
-zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC);
+                               HashTable **function_table);
+ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname);
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options);
 zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string function_name, ddtrace_string callable,
-                                uint32_t options TSRMLS_DC);
+                                uint32_t options);
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch);
 
@@ -60,16 +60,16 @@ inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch) {
     }
 }
 
-void ddtrace_dispatch_init(TSRMLS_D);
-void ddtrace_dispatch_destroy(TSRMLS_D);
-void ddtrace_dispatch_reset(TSRMLS_D);
+void ddtrace_dispatch_init(void);
+void ddtrace_dispatch_destroy(void);
+void ddtrace_dispatch_reset(void);
 
 void ddtrace_class_lookup_release_compat(zval *zv);
 
 #define ddtrace_zval_ptr_dtor(x) zval_ptr_dtor(x)
 #define INIT_ZVAL(x) ZVAL_NULL(&x)
 
-HashTable *ddtrace_new_class_lookup(zval *clazz TSRMLS_DC);
+HashTable *ddtrace_new_class_lookup(zval *clazz);
 zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *dispatch);
 
 #endif  // DISPATCH_H

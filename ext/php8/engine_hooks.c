@@ -76,7 +76,7 @@ void ddtrace_restore_error_handling(ddtrace_error_handling *eh) {
     EG(error_reporting) = eh->error_reporting;
 }
 
-extern inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup TSRMLS_DC);
+extern inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup);
 extern inline ddtrace_sandbox_backup ddtrace_sandbox_begin(void);
 extern inline void ddtrace_maybe_clear_exception(void);
 extern inline zend_class_entry *ddtrace_get_exception_base(zval *object);

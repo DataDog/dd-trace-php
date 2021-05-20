@@ -14,7 +14,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-int dd_execute_php_file(const char *filename TSRMLS_DC) {
+int dd_execute_php_file(const char *filename) {
     int filename_len = strlen(filename);
     if (filename_len == 0) {
         return FAILURE;
@@ -106,7 +106,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     return rv;
 }
 
-int dd_execute_auto_prepend_file(char *auto_prepend_file TSRMLS_DC) {
+int dd_execute_auto_prepend_file(char *auto_prepend_file) {
     zend_file_handle prepend_file;
     // We could technically do this to synthetically adjust the stack
     // zend_execute_data *ex = EG(current_execute_data);
@@ -114,7 +114,7 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file TSRMLS_DC) {
     memset(&prepend_file, 0, sizeof(zend_file_handle));
     prepend_file.type = ZEND_HANDLE_FILENAME;
     prepend_file.filename = auto_prepend_file;
-    int ret = zend_execute_scripts(ZEND_REQUIRE TSRMLS_CC, NULL, 1, &prepend_file) == SUCCESS;
+    int ret = zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &prepend_file) == SUCCESS;
     // Exit no longer calls zend_bailout in PHP 8, so we need to "rethrow" the exit
     if (ret == 0) {
         zend_throw_unwind_exit();
@@ -123,16 +123,16 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file TSRMLS_DC) {
     return ret;
 }
 
-void dd_request_init_hook_rinit(TSRMLS_D) {
+void dd_request_init_hook_rinit(void) {
     DDTRACE_G(auto_prepend_file) = PG(auto_prepend_file);
-    if (php_check_open_basedir_ex(DDTRACE_G(request_init_hook), 0 TSRMLS_CC) == -1) {
+    if (php_check_open_basedir_ex(DDTRACE_G(request_init_hook), 0) == -1) {
         ddtrace_log_debugf("open_basedir restriction in effect; cannot open request init hook: '%s'",
                            DDTRACE_G(request_init_hook));
         return;
     }
 
     zval exists_flag;
-    php_stat(DDTRACE_G(request_init_hook), strlen(DDTRACE_G(request_init_hook)), FS_EXISTS, &exists_flag TSRMLS_CC);
+    php_stat(DDTRACE_G(request_init_hook), strlen(DDTRACE_G(request_init_hook)), FS_EXISTS, &exists_flag);
     if (Z_TYPE(exists_flag) == IS_FALSE) {
         ddtrace_log_debugf("Cannot open request init hook; file does not exist: '%s'", DDTRACE_G(request_init_hook));
         return;
@@ -144,4 +144,4 @@ void dd_request_init_hook_rinit(TSRMLS_D) {
     }
 }
 
-void dd_request_init_hook_rshutdown(TSRMLS_D) { PG(auto_prepend_file) = DDTRACE_G(auto_prepend_file); }
+void dd_request_init_hook_rshutdown(void) { PG(auto_prepend_file) = DDTRACE_G(auto_prepend_file); }
