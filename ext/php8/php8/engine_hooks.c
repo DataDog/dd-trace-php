@@ -6,6 +6,7 @@
 #include <Zend/zend_generators.h>
 #include <Zend/zend_interfaces.h>
 #include <Zend/zend_observer.h>
+#include <functions/functions.h>
 #include <stdbool.h>
 
 #include <ext/spl/spl_exceptions.h>
@@ -22,8 +23,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 int ddtrace_resource = -1;
 int ddtrace_op_array_extension = 0;
-
-ZEND_TLS zend_function *dd_integrations_load_deferred_integration = NULL;
 
 #define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
 
@@ -101,70 +100,66 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
     return ret;
 }
 
+static void dd_load_deferred_integration(zend_class_entry *scope, zval *fname, ddtrace_dispatch_t **dispatch,
+                                         HashTable *dispatch_table) {
+    zval *integration = &(*dispatch)->deferred_load_integration_name;
+
+    if (Z_TYPE_P(integration) == IS_NULL) {
+        *dispatch = NULL;
+        return;
+    }
+
+    // Protect against the free when we remove the dispatch from dispatch_table
+    ddtrace_dispatch_copy(*dispatch);
+
+    if (UNEXPECTED(FAILURE == zend_hash_del(dispatch_table, Z_STR((*dispatch)->function_name)))) {
+        ddtrace_log_debugf("Failed to remove deferred dispatch for %s%s%s", ZSTR_VAL(scope->name), (scope ? "::" : ""),
+                           Z_STRVAL_P(fname));
+    }
+
+    zval retval = {0};
+    bool success = zai_call_function_literal("ddtrace\\integrations\\load_deferred_integration", &retval, integration);
+    zval_ptr_dtor(&retval);
+
+    ddtrace_dispatch_release(*dispatch);
+
+    if (UNEXPECTED(!success)) {
+        *dispatch = NULL;
+        ddtrace_log_debugf(
+            "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
+            Z_STRVAL_P(integration));
+        return;
+    }
+
+    *dispatch = ddtrace_find_dispatch(scope, fname);
+}
+
 static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch_ptr) {
     if (DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
         return false;
     }
 
-    // Don't trace closures or functions without names
+    // Don't trace closures or {main}/includes
     if ((fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !fbc->common.function_name) {
         return false;
     }
 
-    zval fname = ddtrace_zval_zstr(fbc->common.function_name);
-
     zend_class_entry *scope = dd_get_called_scope(call);
-
+    zval fname = ddtrace_zval_zstr(fbc->common.function_name);
     ddtrace_dispatch_t *dispatch = NULL;
-    HashTable *function_table = NULL;
-    bool found = ddtrace_try_find_dispatch(scope, &fname, &dispatch, &function_table);
-    if (found && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
-        do {
-            if (Z_TYPE(dispatch->deferred_load_integration_name) == IS_NULL) {
-                dispatch = NULL;
-                break;
-            }
-            zend_string *load_func = zend_string_init(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), 0);
-            if (!zend_hash_exists(EG(function_table), load_func)) {
-                dispatch = NULL;
-                zend_string_release(load_func);
-                ddtrace_log_debug(
-                    "Cannot load deferred integrations: DDTrace\\Integrations\\load_deferred_integration does not "
-                    "exist");
-                break;
-            }
+    HashTable *dispatch_table = NULL;
 
-            ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
+    bool found = ddtrace_try_find_dispatch(scope, &fname, &dispatch, &dispatch_table);
 
-            // protect against the free when we remove the dispatch from function_table
-            ddtrace_dispatch_copy(dispatch);
-
-            ZEND_RESULT_CODE deleted = zend_hash_del(function_table, Z_STR(dispatch->function_name));
-            if (UNEXPECTED(deleted != SUCCESS)) {
-                ddtrace_log_debugf("Failed to remove deferred dispatch for %s%s%s", ZSTR_VAL(scope->name),
-                                   scope ? "::" : "", Z_STRVAL(fname));
-            }
-
-            zval retval = {.u1.type_info = IS_UNDEF};
-            zval *integration = &dispatch->deferred_load_integration_name;
-            zend_function **fn_proxy = &dd_integrations_load_deferred_integration;
-            ZEND_RESULT_CODE status =
-                ddtrace_call_function(fn_proxy, ZSTR_VAL(load_func), ZSTR_LEN(load_func), &retval, 1, integration);
-
-            ddtrace_dispatch_release(dispatch);
-            dispatch = EXPECTED(status == SUCCESS) ? ddtrace_find_dispatch(scope, &fname) : NULL;
-            zval_ptr_dtor(&retval);
-
-            ddtrace_sandbox_end(&backup);
-
-            zend_string_release(load_func);
-        } while (0);
+    if (found && (dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER)) {
+        dd_load_deferred_integration(scope, &fname, &dispatch, dispatch_table);
     }
 
     if (dispatch_ptr != NULL) {
         *dispatch_ptr = dispatch;
     }
-    return dispatch;
+
+    return dispatch != NULL;
 }
 
 static bool dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
@@ -765,9 +760,6 @@ zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *exec
     }
     return (zend_observer_fcall_handlers){NULL, NULL};
 }
-
-void ddtrace_engine_hooks_rinit(void) { dd_integrations_load_deferred_integration = NULL; }
-void ddtrace_engine_hooks_rshutdown(void) { dd_integrations_load_deferred_integration = NULL; }
 
 PHP_FUNCTION(ddtrace_internal_function_handler) {
     ddtrace_dispatch_t *dispatch;
