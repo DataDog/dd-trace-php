@@ -15,10 +15,10 @@ var_dump(dd_trace('foo', [
     'instrument_when_limited' => 'foo',
 ]));
 var_dump(dd_trace('foo', [
-    'innerhook' => 'foo',
+    'prehook' => 'foo',
 ]));
 var_dump(dd_trace('foo', [
-    'innerhook' => new stdClass(),
+    'prehook' => new stdClass(),
 ]));
 var_dump(dd_trace('foo', [
     'posthook' => function () {},
@@ -36,10 +36,10 @@ var_dump(dd_trace('foo', 'foo', [
     'instrument_when_limited' => 'foo',
 ]));
 var_dump(dd_trace('foo', 'foo', [
-    'innerhook' => 'foo',
+    'prehook' => 'foo',
 ]));
 var_dump(dd_trace('foo', 'foo', [
-    'innerhook' => new stdClass(),
+    'prehook' => new stdClass(),
 ]));
 var_dump(dd_trace('foo', 'foo', [
     'posthook' => function () {},

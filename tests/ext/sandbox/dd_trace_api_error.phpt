@@ -19,9 +19,6 @@ var_dump(DDTrace\trace_function('foo', [
 var_dump(DDTrace\trace_function('foo', [
     'posthook' => new stdClass(),
 ]));
-var_dump(DDTrace\trace_function('foo', [
-    'innerhook' => function () {},
-]));
 var_dump(DDTrace\trace_function('foo', []));
 
 # Methods
@@ -40,9 +37,6 @@ var_dump(DDTrace\trace_method('foo', 'foo', [
 var_dump(DDTrace\trace_method('foo', 'foo', [
     'posthook' => new stdClass(),
 ]));
-var_dump(DDTrace\trace_method('foo', 'foo', [
-    'innerhook' => function () {},
-]));
 var_dump(DDTrace\trace_method('foo', 'foo', []));
 ?>
 --EXPECT--
@@ -58,9 +52,7 @@ Expected 'posthook' to be an instance of Closure
 bool(false)
 Expected 'posthook' to be an instance of Closure
 bool(false)
-Sandbox API does not support 'innerhook'
-bool(false)
-Required key 'posthook', 'prehook' or 'innerhook' not found in config_array
+Required key 'posthook' or 'prehook' not found in config_array
 bool(false)
 
 Unexpected parameters, expected (class_name, method_name, tracing_closure | config_array)
@@ -75,7 +67,5 @@ Expected 'posthook' to be an instance of Closure
 bool(false)
 Expected 'posthook' to be an instance of Closure
 bool(false)
-Sandbox API does not support 'innerhook'
-bool(false)
-Required key 'posthook', 'prehook' or 'innerhook' not found in config_array
+Required key 'posthook' or 'prehook' not found in config_array
 bool(false)
