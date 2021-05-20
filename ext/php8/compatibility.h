@@ -6,13 +6,13 @@
 #include <php_version.h>
 
 #if !defined(ZEND_ASSERT)
-#if ZEND_DEBUG
-#include <assert.h>
-#define ZEND_ASSERT(c) assert(c)
-#else
-// the void cast is there to avoid warnings about empty statements from linters
-#define ZEND_ASSERT(c) ((void)0)
-#endif
+    #if ZEND_DEBUG
+        #include <assert.h>
+        #define ZEND_ASSERT(c) assert(c)
+    #else
+        // the void cast is there to avoid warnings about empty statements from linters
+        #define ZEND_ASSERT(c) ((void)0)
+    #endif
 #endif
 
 /* BC only */

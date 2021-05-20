@@ -5,30 +5,30 @@
 
 #if HAVE_SIGACTION
 
-#include <dogstatsd_client/client.h>
-#include <php.h>
-#include <signal.h>
+    #include <dogstatsd_client/client.h>
+    #include <php.h>
+    #include <signal.h>
 
-#include "configuration.h"
-#include "ddtrace.h"
-#include "ext/version.h"
-#include "logging.h"
+    #include "configuration.h"
+    #include "ddtrace.h"
+    #include "ext/version.h"
+    #include "logging.h"
 
-#if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE
-#define DDTRACE_HAVE_BACKTRACE 1
-#else
-#define DDTRACE_HAVE_BACKTRACE 0
-#endif
+    #if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE
+        #define DDTRACE_HAVE_BACKTRACE 1
+    #else
+        #define DDTRACE_HAVE_BACKTRACE 0
+    #endif
 
-#if DDTRACE_HAVE_BACKTRACE
-#include <execinfo.h>
-#endif
+    #if DDTRACE_HAVE_BACKTRACE
+        #include <execinfo.h>
+    #endif
 
 // true globals; only modify in MINIT/MSHUTDOWN
 static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
 
-#define MAX_STACK_SIZE 1024
+    #define MAX_STACK_SIZE 1024
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -38,7 +38,7 @@ static void ddtrace_sigsegv_handler(int sig) {
         DDTRACE_G(backtrace_handler_already_run) = TRUE;
         ddtrace_log_errf("Segmentation fault");
 
-#if HAVE_SIGACTION
+    #if HAVE_SIGACTION
         bool health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
         if (health_metrics_enabled) {
             dogstatsd_client *client = &DDTRACE_G(dogstatsd_client);
@@ -50,9 +50,9 @@ static void ddtrace_sigsegv_handler(int sig) {
                 ddtrace_log_errf("sigsegv health metric sent");
             }
         }
-#endif
+    #endif
 
-#if DDTRACE_HAVE_BACKTRACE
+    #if DDTRACE_HAVE_BACKTRACE
         ddtrace_log_err("Datadog PHP Trace extension (DEBUG MODE)");
         ddtrace_log_errf("Received Signal %d", sig);
         void *array[MAX_STACK_SIZE];
@@ -71,7 +71,7 @@ static void ddtrace_sigsegv_handler(int sig) {
             }
             free(backtraces);
         }
-#endif
+    #endif
     }
 
     exit(128 + sig);
@@ -80,9 +80,9 @@ static void ddtrace_sigsegv_handler(int sig) {
 void ddtrace_signals_minit(TSRMLS_D) {
     bool install_handler = get_dd_trace_heath_metrics_enabled();
 
-#if DDTRACE_HAVE_BACKTRACE
+    #if DDTRACE_HAVE_BACKTRACE
     install_handler |= get_dd_log_backtrace();
-#endif
+    #endif
 
     DDTRACE_G(backtrace_handler_already_run) = FALSE;
 

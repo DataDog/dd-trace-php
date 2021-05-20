@@ -122,12 +122,12 @@ bool zai_sapi_append_system_ini_entry(const char *key, const char *value) {
 
 #ifdef ZTS
 static void zs_tsrm_startup(void) {
-#if PHP_VERSION_ID >= 70400
+    #if PHP_VERSION_ID >= 70400
     php_tsrm_startup();
-#else
+    #else
     tsrm_startup(1, 1, 0, NULL);
     (void)ts_resource(0);
-#endif
+    #endif
     ZEND_TSRMLS_CACHE_UPDATE();
 }
 #endif

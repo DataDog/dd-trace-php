@@ -1,13 +1,13 @@
 #include "zai_sapi_functions.h"
 
 #if PHP_VERSION_ID < 70000
-#define UNUSED_PHP_FN_VARS()   \
-    (void)(ht);                \
-    (void)(return_value_ptr);  \
-    (void)(return_value_used); \
-    (void)(this_ptr)
+    #define UNUSED_PHP_FN_VARS()   \
+        (void)(ht);                \
+        (void)(return_value_ptr);  \
+        (void)(return_value_used); \
+        (void)(this_ptr)
 #else
-#define UNUSED_PHP_FN_VARS()
+    #define UNUSED_PHP_FN_VARS()
 #endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_void, 0, 0, 0)
@@ -20,9 +20,9 @@ ZEND_END_ARG_INFO()
 static PHP_FUNCTION(noop) {
     UNUSED_PHP_FN_VARS();
 #if PHP_VERSION_ID < 70000
-#ifdef ZTS
+    #ifdef ZTS
     (void)(TSRMLS_C);
-#endif
+    #endif
 #else
     (void)(execute_data);
 #endif
