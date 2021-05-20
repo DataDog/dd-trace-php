@@ -324,6 +324,7 @@ ext/standard/tests/serialize/bug70213.phpt
 ext/standard/tests/serialize/bug70219_1.phpt
 ext/standard/tests/serialize/bug72785.phpt
 ext/standard/tests/serialize/serialization_objects_007.phpt
+ext/standard/tests/streams/proc_open_bug69900.phpt
 ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/zip/tests/bug38943.phpt
