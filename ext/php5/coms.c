@@ -812,9 +812,9 @@ static void _dd_signal_data_processed(struct _writer_loop_data_t *writer) {
 }
 
 #ifdef __CYGWIN__
-#define TIMEOUT_SIG SIGALRM
+#    define TIMEOUT_SIG SIGALRM
 #else
-#define TIMEOUT_SIG SIGPROF
+#    define TIMEOUT_SIG SIGPROF
 #endif
 
 static void *_dd_writer_loop(void *_) {

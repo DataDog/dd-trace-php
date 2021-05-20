@@ -190,20 +190,20 @@ void zai_sapi_unhandled_exception_ignore(void);
 
 #if PHP_VERSION_ID >= 80000
 /********************************** <PHP 8> **********************************/
-#define ZAI_SAPI_EVAL_STR(str) zend_eval_stringl(str, sizeof(str) - 1, NULL, "ZAI SAPI")
-#define ZAI_SAPI_INI_STR(name) zend_ini_string_ex((name), strlen(name), 0, NULL)
+#    define ZAI_SAPI_EVAL_STR(str) zend_eval_stringl(str, sizeof(str) - 1, NULL, "ZAI SAPI")
+#    define ZAI_SAPI_INI_STR(name) zend_ini_string_ex((name), strlen(name), 0, NULL)
 /********************************** </PHP 8> *********************************/
 #elif PHP_VERSION_ID >= 70000
 /********************************** <PHP 7> **********************************/
-#define ZAI_SAPI_EVAL_STR(str) zend_eval_stringl((char *)str, sizeof(str) - 1, NULL, (char *)"ZAI SAPI")
-#define ZAI_SAPI_INI_STR(name) zend_ini_string_ex((char *)(name), strlen(name), 0, NULL)
+#    define ZAI_SAPI_EVAL_STR(str) zend_eval_stringl((char *)str, sizeof(str) - 1, NULL, (char *)"ZAI SAPI")
+#    define ZAI_SAPI_INI_STR(name) zend_ini_string_ex((char *)(name), strlen(name), 0, NULL)
 /********************************** </PHP 7> *********************************/
 #else
 /********************************** <PHP 5> **********************************/
-#undef ZAI_SAPI_TSRMLS_FETCH
-#define ZAI_SAPI_TSRMLS_FETCH() TSRMLS_FETCH()
-#define ZAI_SAPI_EVAL_STR(str) zend_eval_stringl((char *)str, sizeof(str) - 1, NULL, (char *)"ZAI SAPI" TSRMLS_CC)
-#define ZAI_SAPI_INI_STR(name) zend_ini_string_ex((char *)(name), sizeof(name) /* - 1 */, 0, NULL)
+#    undef ZAI_SAPI_TSRMLS_FETCH
+#    define ZAI_SAPI_TSRMLS_FETCH() TSRMLS_FETCH()
+#    define ZAI_SAPI_EVAL_STR(str) zend_eval_stringl((char *)str, sizeof(str) - 1, NULL, (char *)"ZAI SAPI" TSRMLS_CC)
+#    define ZAI_SAPI_INI_STR(name) zend_ini_string_ex((char *)(name), sizeof(name) /* - 1 */, 0, NULL)
 /********************************** </PHP 5> *********************************/
 #endif
 

@@ -14,7 +14,7 @@ extern int ddtrace_resource;
 
 #if PHP_VERSION_ID >= 70400
 extern int ddtrace_op_array_extension;
-#define DDTRACE_OP_ARRAY_EXTENSION(op_array) ZEND_OP_ARRAY_EXTENSION(op_array, ddtrace_op_array_extension)
+#    define DDTRACE_OP_ARRAY_EXTENSION(op_array) ZEND_OP_ARRAY_EXTENSION(op_array, ddtrace_op_array_extension)
 #endif
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
@@ -127,15 +127,15 @@ inline zend_class_entry *ddtrace_get_exception_base(zval *object) {
     return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
 }
 #if PHP_VERSION_ID < 70100
-#define ZEND_STR_MESSAGE "message"
-#define GET_PROPERTY(object, name) \
-    zend_read_property(ddtrace_get_exception_base(object), (object), name, sizeof(name) - 1, 1, &rv)
+#    define ZEND_STR_MESSAGE "message"
+#    define GET_PROPERTY(object, name) \
+        zend_read_property(ddtrace_get_exception_base(object), (object), name, sizeof(name) - 1, 1, &rv)
 #elif PHP_VERSION_ID < 70200
-#define GET_PROPERTY(object, id) \
-    zend_read_property_ex(ddtrace_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
+#    define GET_PROPERTY(object, id) \
+        zend_read_property_ex(ddtrace_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
 #else
-#define GET_PROPERTY(object, id) \
-    zend_read_property_ex(ddtrace_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
+#    define GET_PROPERTY(object, id) \
+        zend_read_property_ex(ddtrace_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
 #endif
 
 #endif  // DD_ENGINE_HOOKS_H

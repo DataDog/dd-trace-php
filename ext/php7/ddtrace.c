@@ -1,5 +1,5 @@
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#    include "config.h"
 #endif
 #include <SAPI.h>
 #include <Zend/zend.h>
@@ -1391,9 +1391,9 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)
-#if defined(ZTS) && PHP_VERSION_ID >= 70000
+#    if defined(ZTS) && PHP_VERSION_ID >= 70000
 ZEND_TSRMLS_CACHE_DEFINE();
-#endif
+#    endif
 #endif
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:

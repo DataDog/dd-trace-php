@@ -6,13 +6,13 @@
 #include <php_version.h>
 
 #if !defined(ZEND_ASSERT)
-#if ZEND_DEBUG
-#include <assert.h>
-#define ZEND_ASSERT(c) assert(c)
-#else
+#    if ZEND_DEBUG
+#        include <assert.h>
+#        define ZEND_ASSERT(c) assert(c)
+#    else
 // the void cast is there to avoid warnings about empty statements from linters
-#define ZEND_ASSERT(c) ((void)0)
-#endif
+#        define ZEND_ASSERT(c) ((void)0)
+#    endif
 #endif
 
 #define UNUSED_1(x) (void)(x)
@@ -46,8 +46,8 @@
 #define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 5, 4, 3, 2, 1)(__VA_ARGS__)
 
 #if PHP_VERSION_ID < 70300
-#define GC_ADDREF(x) (++GC_REFCOUNT(x))
-#define GC_DELREF(x) (--GC_REFCOUNT(x))
+#    define GC_ADDREF(x) (++GC_REFCOUNT(x))
+#    define GC_DELREF(x) (--GC_REFCOUNT(x))
 #endif
 
 #define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c)

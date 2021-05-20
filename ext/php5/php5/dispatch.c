@@ -11,11 +11,11 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 // todo: is this used anywhere?
 #if !defined(ZVAL_COPY_VALUE)
-#define ZVAL_COPY_VALUE(z, v)      \
-    do {                           \
-        (z)->value = (v)->value;   \
-        Z_TYPE_P(z) = Z_TYPE_P(v); \
-    } while (0)
+#    define ZVAL_COPY_VALUE(z, v)      \
+        do {                           \
+            (z)->value = (v)->value;   \
+            Z_TYPE_P(z) = Z_TYPE_P(v); \
+        } while (0)
 #endif
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {

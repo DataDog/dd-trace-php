@@ -58,14 +58,14 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
 #ifdef ZTS
-#define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
+#    define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
-#define DDTRACE_G(v) (ddtrace_globals.v)
+#    define DDTRACE_G(v) (ddtrace_globals.v)
 #endif
 
 #define PHP_DDTRACE_EXTNAME "ddtrace"
 #ifndef PHP_DDTRACE_VERSION
-#define PHP_DDTRACE_VERSION "0.0.0-unknown"
+#    define PHP_DDTRACE_VERSION "0.0.0-unknown"
 #endif
 
 #define DDTRACE_CALLBACK_NAME "dd_trace_callback"

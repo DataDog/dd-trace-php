@@ -41,9 +41,9 @@ static user_opcode_handler_t prev_handle_exception_handler;
 static user_opcode_handler_t prev_exit_handler;
 
 #if PHP_VERSION_ID < 70100
-#define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
+#    define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
 #else
-#define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
+#    define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
 #endif
 
 static zval *dd_call_this(zend_execute_data *call) {
@@ -218,23 +218,23 @@ static bool dd_should_trace_call(zend_execute_data *call, ddtrace_dispatch_t **d
          * After that, you must use ZEND_OP_ARRAY_EXTENSION.
          * We don't use it at compile-time yet, so only check this on < 7.4.
          */
-#if PHP_VERSION_ID < 70400
+#    if PHP_VERSION_ID < 70400
         if (fbc->op_array.reserved[ddtrace_resource] == DDTRACE_NOT_TRACED) {
             return false;
         }
-#else
+#    else
         ddtrace_dispatch_t *cached_dispatch = DDTRACE_OP_ARRAY_EXTENSION(&fbc->op_array);
         if (cached_dispatch == DDTRACE_NOT_TRACED) {
             return false;
         }
-#endif
+#    endif
 
         if (!dd_should_trace_helper(call, fbc, dispatch)) {
-#if PHP_VERSION_ID < 70400
+#    if PHP_VERSION_ID < 70400
             fbc->op_array.reserved[ddtrace_resource] = DDTRACE_NOT_TRACED;
-#else
+#    else
             DDTRACE_OP_ARRAY_EXTENSION(&fbc->op_array) = DDTRACE_NOT_TRACED;
-#endif
+#    endif
             return false;
         }
         return dd_should_trace_runtime(*dispatch);
@@ -901,11 +901,11 @@ static void dd_yield_helper(zend_execute_data *execute_data) {
         span_fci->execute_data = execute_data;
         switch (EX(opline)->op1_type) {
             case IS_CONST:
-#if PHP_VERSION_ID >= 70300
+#    if PHP_VERSION_ID >= 70300
                 retval = RT_CONSTANT(EX(opline), EX(opline)->op1);
-#else
+#    else
                 retval = EX_CONSTANT(EX(opline)->op1);
-#endif
+#    endif
                 break;
             case IS_TMP_VAR:
             case IS_VAR:

@@ -68,7 +68,7 @@
 
 #if PHP_VERSION_ID >= 80000
 /********************************** <PHP 8> **********************************/
-#include <Zend/zend_exceptions.h>
+#    include <Zend/zend_exceptions.h>
 
 typedef struct zai_error_state_s {
     int type;
@@ -163,7 +163,7 @@ inline void zai_sandbox_close(zai_sandbox *sandbox) {
 /********************************** </PHP 8> *********************************/
 #elif PHP_VERSION_ID >= 70000
 /********************************** <PHP 7> **********************************/
-#include <Zend/zend_exceptions.h>
+#    include <Zend/zend_exceptions.h>
 
 typedef struct zai_error_state_s {
     int type;
@@ -347,9 +347,9 @@ inline void zai_sandbox_exception_state_restore_ex(zai_exception_state *es TSRML
         EG(exception) = es->exception;
         EG(prev_exception) = es->prev_exception;
         EG(opline_before_exception) = es->opline_before_exception;
-#if PHP_VERSION_ID >= 50500
+#    if PHP_VERSION_ID >= 50500
         EG(current_execute_data)->opline = EG(exception_op);
-#endif
+#    endif
     }
 }
 
@@ -364,14 +364,14 @@ inline void zai_sandbox_close_ex(zai_sandbox *sandbox TSRMLS_DC) {
 }
 
 /* Mask away the TSRMLS_* macros with more macros */
-#define zai_sandbox_open(sandbox) zai_sandbox_open_ex(sandbox TSRMLS_CC)
-#define zai_sandbox_close(sandbox) zai_sandbox_close_ex(sandbox TSRMLS_CC)
+#    define zai_sandbox_open(sandbox) zai_sandbox_open_ex(sandbox TSRMLS_CC)
+#    define zai_sandbox_close(sandbox) zai_sandbox_close_ex(sandbox TSRMLS_CC)
 
-#define zai_sandbox_error_state_backup(es) zai_sandbox_error_state_backup_ex(es TSRMLS_CC)
-#define zai_sandbox_error_state_restore(es) zai_sandbox_error_state_restore_ex(es TSRMLS_CC)
+#    define zai_sandbox_error_state_backup(es) zai_sandbox_error_state_backup_ex(es TSRMLS_CC)
+#    define zai_sandbox_error_state_restore(es) zai_sandbox_error_state_restore_ex(es TSRMLS_CC)
 
-#define zai_sandbox_exception_state_backup(es) zai_sandbox_exception_state_backup_ex(es TSRMLS_CC)
-#define zai_sandbox_exception_state_restore(es) zai_sandbox_exception_state_restore_ex(es TSRMLS_CC)
+#    define zai_sandbox_exception_state_backup(es) zai_sandbox_exception_state_backup_ex(es TSRMLS_CC)
+#    define zai_sandbox_exception_state_restore(es) zai_sandbox_exception_state_restore_ex(es TSRMLS_CC)
 /********************************** </PHP 5> *********************************/
 #endif
 
