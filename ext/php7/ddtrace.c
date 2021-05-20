@@ -557,14 +557,6 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
                 ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
                 return FALSE;
             }
-        } else if (strcmp("innerhook", ZSTR_VAL(key)) == 0) {
-            if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
-                *tracing_closure = value;
-                *options |= DDTRACE_DISPATCH_INNERHOOK;
-            } else {
-                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
-                return FALSE;
-            }
         } else if (strcmp("instrument_when_limited", ZSTR_VAL(key)) == 0) {
             if (Z_TYPE_P(value) == IS_LONG) {
                 if (Z_LVAL_P(value)) {
@@ -581,7 +573,7 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
     }
     ZEND_HASH_FOREACH_END();
     if (!*tracing_closure) {
-        ddtrace_log_debug("Required key 'posthook', 'prehook' or 'innerhook' not found in config_array");
+        ddtrace_log_debug("Required key 'posthook' or 'prehook' not found in config_array");
         return FALSE;
     }
     return TRUE;
@@ -657,10 +649,6 @@ static PHP_FUNCTION(trace_method) {
 
     if (config_array) {
         if (_parse_config_array(config_array, &tracing_closure, &options TSRMLS_CC) == FALSE) {
-            RETURN_BOOL(0);
-        }
-        if (options & DDTRACE_DISPATCH_INNERHOOK) {
-            ddtrace_log_debug("Sandbox API does not support 'innerhook'");
             RETURN_BOOL(0);
         }
     } else {
@@ -793,10 +781,6 @@ static PHP_FUNCTION(trace_function) {
 
     if (config_array) {
         if (_parse_config_array(config_array, &tracing_closure, &options TSRMLS_CC) == FALSE) {
-            RETURN_BOOL(0);
-        }
-        if (options & DDTRACE_DISPATCH_INNERHOOK) {
-            ddtrace_log_debug("Sandbox API does not support 'innerhook'");
             RETURN_BOOL(0);
         }
     } else {
