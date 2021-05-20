@@ -17,7 +17,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-void ddtrace_init_span_stacks(TSRMLS_D) {
+void ddtrace_init_span_stacks(void) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
@@ -59,7 +59,7 @@ static void _free_span_stack(ddtrace_span_fci *span_fci) {
     }
 }
 
-void ddtrace_free_span_stacks(TSRMLS_D) {
+void ddtrace_free_span_stacks(void) {
     _free_span_stack(DDTRACE_G(open_spans_top));
     DDTRACE_G(open_spans_top) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top));
@@ -76,13 +76,13 @@ static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
     return 0;
 }
 
-void ddtrace_push_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
+void ddtrace_push_span(ddtrace_span_fci *span_fci) {
     span_fci->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span_fci;
 }
 
-void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
-    ddtrace_push_span(span_fci TSRMLS_CC);
+void ddtrace_open_span(ddtrace_span_fci *span_fci) {
+    ddtrace_push_span(span_fci);
 
     ddtrace_span_t *span = &span_fci->span;
 
@@ -90,8 +90,8 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     object_init_ex(span->span_data, ddtrace_ce_span_data);
 
     // Peek at the active span ID before we push a new one onto the stack
-    span->parent_id = ddtrace_peek_span_id(TSRMLS_C);
-    span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
+    span->parent_id = ddtrace_peek_span_id();
+    span->span_id = ddtrace_push_span_id(0);
     // Set the trace_id last so we have ID's on the stack
     span->trace_id = DDTRACE_G(trace_id);
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
@@ -105,14 +105,14 @@ void dd_trace_stop_span_time(ddtrace_span_t *span) {
     span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
 }
 
-void ddtrace_close_span(TSRMLS_D) {
+void ddtrace_close_span(void) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
     if (span_fci == NULL) {
         return;
     }
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
-    ddtrace_pop_span_id(TSRMLS_C);
+    ddtrace_pop_span_id();
     // TODO Assuming the tracing closure has run at this point, we can serialize the span onto a buffer with
     // ddtrace_coms_buffer_data() and free the span
     span_fci->next = DDTRACE_G(closed_spans_top);
@@ -131,23 +131,23 @@ void ddtrace_close_span(TSRMLS_D) {
     }
 }
 
-void ddtrace_drop_top_open_span(TSRMLS_D) {
+void ddtrace_drop_top_open_span(void) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
     if (span_fci == NULL) {
         return;
     }
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
-    ddtrace_pop_span_id(TSRMLS_C);
+    ddtrace_pop_span_id();
     ddtrace_drop_span(span_fci);
 }
 
-void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
+void ddtrace_serialize_closed_spans(zval *serialized) {
     // The tracer supports only one trace per request so free any remaining open spans
     _free_span_stack(DDTRACE_G(open_spans_top));
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
-    ddtrace_free_span_id_stack(TSRMLS_C);
+    ddtrace_free_span_id_stack();
     // Clear out additional trace meta; re-initialize it to empty
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
@@ -157,7 +157,7 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     while (span_fci != NULL) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
-        ddtrace_serialize_span_to_array(tmp, serialized TSRMLS_CC);
+        ddtrace_serialize_span_to_array(tmp, serialized);
         _free_span(tmp);
         // Move the stack down one as ddtrace_serialize_span_to_array() might do a long jump
         DDTRACE_G(closed_spans_top) = span_fci;
@@ -165,5 +165,5 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(closed_spans_count) = 0;
     // Reset the span ID stack and trace ID
-    ddtrace_free_span_id_stack(TSRMLS_C);
+    ddtrace_free_span_id_stack();
 }

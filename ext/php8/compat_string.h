@@ -19,6 +19,6 @@ size_t ddtrace_spprintf(char **message, size_t max_len, char *format, ...);
  *      object(%s)#%d, where %s is the class name and %d is the object handle
  *      (like var_dump).
  **/
-void ddtrace_convert_to_string(zval *dst, zval *src TSRMLS_DC);
+void ddtrace_convert_to_string(zval *dst, zval *src);
 
 #endif  // COMPAT_STRING_H

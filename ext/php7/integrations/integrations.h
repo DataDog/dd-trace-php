@@ -44,7 +44,7 @@ extern size_t ddtrace_integrations_len;
 
 void ddtrace_integrations_minit(void);
 void ddtrace_integrations_mshutdown(void);
-void ddtrace_integrations_rinit(TSRMLS_D);
+void ddtrace_integrations_rinit(void);
 
 ddtrace_integration *ddtrace_get_integration_from_string(ddtrace_string integration);
 

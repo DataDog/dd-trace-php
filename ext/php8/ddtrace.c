@@ -88,7 +88,7 @@ static void ddtrace_activate(void) {}
 static void ddtrace_deactivate(void) {}
 
 // prepare the tracer state to start handling a new trace
-static void dd_prepare_for_new_trace(TSRMLS_D);
+static void dd_prepare_for_new_trace(void);
 
 static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   PHP_DDTRACE_VERSION,
@@ -215,10 +215,10 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
 
-static void dd_register_span_data_ce(TSRMLS_D) {
+static void dd_register_span_data_ce(void) {
     zend_class_entry ce_span_data;
     INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
-    ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data TSRMLS_CC);
+    ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data);
 
     // trace_id, span_id, parent_id, start & duration are stored directly on
     // ddtrace_span_t so we don't need to make them properties on DDTrace\SpanData
@@ -226,12 +226,12 @@ static void dd_register_span_data_ce(TSRMLS_D) {
      * ORDER MATTERS: If you make any changes to the properties below, update the
      * corresponding ddtrace_spandata_property_*() function with the proper offset.
      */
-    zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
 }
 
 // SpanData::$name
@@ -250,10 +250,10 @@ zval *ddtrace_spandata_property_metrics(zval *spandata) { return OBJ_PROP_NUM(Z_
 /* DDTrace\FatalError */
 zend_class_entry *ddtrace_ce_fatal_error;
 
-static void dd_register_fatal_error_ce(TSRMLS_D) {
+static void dd_register_fatal_error_ce(void) {
     zend_class_entry ce;
     INIT_NS_CLASS_ENTRY(ce, "DDTrace", "FatalError", NULL);
-    ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception TSRMLS_CC);
+    ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception);
 }
 
 static bool dd_is_compatible_sapi(datadog_php_string_view module_name) {
@@ -284,7 +284,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     REGISTER_INI_ENTRIES();
 
     // config initialization needs to be at the top
-    ddtrace_initialize_config(TSRMLS_C);
+    ddtrace_initialize_config();
     dd_disable_if_incompatible_sapi_detected();
     atomic_init(&ddtrace_first_rinit, 1);
     atomic_init(&ddtrace_warn_legacy_api, 1);
@@ -305,12 +305,12 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_bgs_log_minit();
 
-    ddtrace_dogstatsd_client_minit(TSRMLS_C);
-    ddtrace_signals_minit(TSRMLS_C);
+    ddtrace_dogstatsd_client_minit();
+    ddtrace_signals_minit();
     ddshared_minit();
 
-    dd_register_span_data_ce(TSRMLS_C);
-    dd_register_fatal_error_ce(TSRMLS_C);
+    dd_register_span_data_ce();
+    dd_register_fatal_error_ce();
 
     ddtrace_engine_hooks_minit();
 
@@ -370,37 +370,37 @@ static PHP_RINIT_FUNCTION(ddtrace) {
          * We use the first RINIT to bust the env var cache and use the SAPI env vars.
          * TODO Audit/remove config usages before RINIT and move config init to RINIT.
          */
-        ddtrace_reload_config(TSRMLS_C);
+        ddtrace_reload_config();
 
         ddtrace_startup_logging_first_rinit();
     }
 
     DDTRACE_G(request_init_hook_loaded) = 0;
     if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
-        dd_request_init_hook_rinit(TSRMLS_C);
+        dd_request_init_hook_rinit();
     }
 
     ddtrace_internal_handlers_rinit();
-    ddtrace_engine_hooks_rinit(TSRMLS_C);
+    ddtrace_engine_hooks_rinit();
     ddtrace_bgs_log_rinit(PG(error_log));
-    ddtrace_dispatch_init(TSRMLS_C);
+    ddtrace_dispatch_init();
     DDTRACE_G(disable_in_current_request) = 0;
     DDTRACE_G(drop_all_spans) = 0;
 
-    ddtrace_dogstatsd_client_rinit(TSRMLS_C);
+    ddtrace_dogstatsd_client_rinit();
 
-    ddtrace_seed_prng(TSRMLS_C);
-    ddtrace_init_span_id_stack(TSRMLS_C);
-    ddtrace_init_span_stacks(TSRMLS_C);
+    ddtrace_seed_prng();
+    ddtrace_init_span_id_stack();
+    ddtrace_init_span_stacks();
     ddtrace_coms_on_pid_change();
 
     // Initialize C integrations and deferred loading
-    ddtrace_integrations_rinit(TSRMLS_C);
+    ddtrace_integrations_rinit();
 
     // Reset compile time after request init hook has compiled
-    ddtrace_compile_time_reset(TSRMLS_C);
+    ddtrace_compile_time_reset();
 
-    dd_prepare_for_new_trace(TSRMLS_C);
+    dd_prepare_for_new_trace();
 
     return SUCCESS;
 }
@@ -415,23 +415,23 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
 
-    ddtrace_engine_hooks_rshutdown(TSRMLS_C);
+    ddtrace_engine_hooks_rshutdown();
     ddtrace_internal_handlers_rshutdown();
-    ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
+    ddtrace_dogstatsd_client_rshutdown();
 
-    ddtrace_dispatch_destroy(TSRMLS_C);
-    ddtrace_free_span_id_stack(TSRMLS_C);
-    ddtrace_free_span_stacks(TSRMLS_C);
+    ddtrace_dispatch_destroy();
+    ddtrace_free_span_id_stack();
+    ddtrace_free_span_stacks();
     ddtrace_coms_rshutdown();
 
     if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
-        dd_request_init_hook_rshutdown(TSRMLS_C);
+        dd_request_init_hook_rshutdown();
     }
 
     return SUCCESS;
 }
 
-static int datadog_info_print(const char *str TSRMLS_DC) { return php_output_write(str, strlen(str) TSRMLS_CC); }
+static int datadog_info_print(const char *str) { return php_output_write(str, strlen(str)); }
 
 static void _dd_info_tracer_config(void) {
     smart_str buf = {0};
@@ -440,19 +440,19 @@ static void _dd_info_tracer_config(void) {
     smart_str_free(&buf);
 }
 
-static void _dd_info_diagnostics_row(const char *key, const char *value TSRMLS_DC) {
+static void _dd_info_diagnostics_row(const char *key, const char *value) {
     if (sapi_module.phpinfo_as_text) {
         php_info_print_table_row(2, key, value);
         return;
     }
-    datadog_info_print("<tr><td class='e'>" TSRMLS_CC);
-    datadog_info_print(key TSRMLS_CC);
-    datadog_info_print("</td><td class='v' style='background-color:#f0e881;'>" TSRMLS_CC);
-    datadog_info_print(value TSRMLS_CC);
-    datadog_info_print("</td></tr>" TSRMLS_CC);
+    datadog_info_print("<tr><td class='e'>");
+    datadog_info_print(key);
+    datadog_info_print("</td><td class='v' style='background-color:#f0e881;'>");
+    datadog_info_print(value);
+    datadog_info_print("</td></tr>");
 }
 
-static void _dd_info_diagnostics_table(TSRMLS_D) {
+static void _dd_info_diagnostics_table(void) {
     php_info_print_table_start();
     php_info_print_table_colspan_header(2, "Diagnostics");
 
@@ -467,17 +467,17 @@ static void _dd_info_diagnostics_table(TSRMLS_D) {
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, key, val) {
         switch (Z_TYPE_P(val)) {
             case IS_STRING:
-                _dd_info_diagnostics_row(ZSTR_VAL(key), Z_STRVAL_P(val) TSRMLS_CC);
+                _dd_info_diagnostics_row(ZSTR_VAL(key), Z_STRVAL_P(val));
                 break;
             case IS_NULL:
-                _dd_info_diagnostics_row(ZSTR_VAL(key), "NULL" TSRMLS_CC);
+                _dd_info_diagnostics_row(ZSTR_VAL(key), "NULL");
                 break;
             case IS_TRUE:
             case IS_FALSE:
-                _dd_info_diagnostics_row(ZSTR_VAL(key), Z_TYPE_P(val) == IS_TRUE ? "true" : "false" TSRMLS_CC);
+                _dd_info_diagnostics_row(ZSTR_VAL(key), Z_TYPE_P(val) == IS_TRUE ? "true" : "false");
                 break;
             default:
-                _dd_info_diagnostics_row(ZSTR_VAL(key), "{unknown type}" TSRMLS_CC);
+                _dd_info_diagnostics_row(ZSTR_VAL(key), "{unknown type}");
                 break;
         }
     }
@@ -495,19 +495,19 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     UNUSED(zend_module);
 
     php_info_print_box_start(0);
-    datadog_info_print("Datadog PHP tracer extension" TSRMLS_CC);
+    datadog_info_print("Datadog PHP tracer extension");
     if (!sapi_module.phpinfo_as_text) {
-        datadog_info_print("<br><strong>For help, check out " TSRMLS_CC);
+        datadog_info_print("<br><strong>For help, check out ");
         datadog_info_print(
             "<a href=\"https://docs.datadoghq.com/tracing/languages/php/\" "
-            "style=\"background:transparent;\">the documentation</a>.</strong>" TSRMLS_CC);
+            "style=\"background:transparent;\">the documentation</a>.</strong>");
     } else {
         datadog_info_print(
             "\nFor help, check out the documentation at "
-            "https://docs.datadoghq.com/tracing/languages/php/" TSRMLS_CC);
+            "https://docs.datadoghq.com/tracing/languages/php/");
     }
-    datadog_info_print(!sapi_module.phpinfo_as_text ? "<br><br>" : "\n" TSRMLS_CC);
-    datadog_info_print("(c) Datadog 2020\n" TSRMLS_CC);
+    datadog_info_print(!sapi_module.phpinfo_as_text ? "<br><br>" : "\n");
+    datadog_info_print("(c) Datadog 2020\n");
     php_info_print_box_end();
 
     php_info_print_table_start();
@@ -516,12 +516,12 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     _dd_info_tracer_config();
     php_info_print_table_end();
 
-    _dd_info_diagnostics_table(TSRMLS_C);
+    _dd_info_diagnostics_table();
 
     DISPLAY_INI_ENTRIES();
 }
 
-static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options TSRMLS_DC) {
+static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options) {
     if (Z_TYPE_P(config_array) != IS_ARRAY) {
         ddtrace_log_debug("Expected config_array to be an associative array");
         return FALSE;
@@ -598,14 +598,13 @@ static PHP_FUNCTION(dd_trace) {
         RETURN_BOOL(0);
     }
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzO", &class_name, &function,
-                                 &callable, zend_ce_closure) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zO", &function, &callable,
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zzO", &class_name, &function, &callable,
                                  zend_ce_closure) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zza", &class_name, &function,
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zO", &function, &callable,
+                                 zend_ce_closure) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zza", &class_name, &function,
                                  &config_array) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &function, &config_array) !=
-            SUCCESS) {
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "za", &function, &config_array) != SUCCESS) {
         ddtrace_log_debug(
             "Unexpected parameter combination, expected (class, function, closure | config_array) or (function, "
             "closure | config_array)");
@@ -637,9 +636,9 @@ static PHP_FUNCTION(trace_method) {
         RETURN_BOOL(0);
     }
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzO", &class_name, &function,
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zzO", &class_name, &function,
                                  &tracing_closure, zend_ce_closure) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zza", &class_name, &function,
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zza", &class_name, &function,
                                  &config_array) != SUCCESS) {
         ddtrace_log_debug("Unexpected parameters, expected (class_name, method_name, tracing_closure | config_array)");
         RETURN_BOOL(0);
@@ -651,7 +650,7 @@ static PHP_FUNCTION(trace_method) {
     }
 
     if (config_array) {
-        if (_parse_config_array(config_array, &tracing_closure, &options TSRMLS_CC) == FALSE) {
+        if (_parse_config_array(config_array, &tracing_closure, &options) == FALSE) {
             RETURN_BOOL(0);
         }
         if (options & DDTRACE_DISPATCH_INNERHOOK) {
@@ -662,7 +661,7 @@ static PHP_FUNCTION(trace_method) {
         options |= DDTRACE_DISPATCH_POSTHOOK;
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, options TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, options);
     RETURN_BOOL(rv);
 }
 
@@ -709,7 +708,7 @@ static PHP_FUNCTION(hook_method) {
     ZVAL_STR(&class_name_zv, class_name);
     ZVAL_STR(&method_name_zv, method_name);
 
-    RETURN_BOOL(ddtrace_trace(&class_name_zv, &method_name_zv, callable, options TSRMLS_CC));
+    RETURN_BOOL(ddtrace_trace(&class_name_zv, &method_name_zv, callable, options));
 }
 
 static PHP_FUNCTION(hook_function) {
@@ -749,11 +748,11 @@ static PHP_FUNCTION(hook_function) {
     zval function_name_zv;
     ZVAL_STR(&function_name_zv, function_name);
 
-    RETURN_BOOL(ddtrace_trace(NULL, &function_name_zv, callable, options TSRMLS_CC));
+    RETURN_BOOL(ddtrace_trace(NULL, &function_name_zv, callable, options));
 }
 
 static PHP_FUNCTION(additional_trace_meta) {
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "")) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "")) {
         ddtrace_log_debug("Unexpected parameters to DDTrace\\additional_trace_meta");
         array_init(return_value);
         return;
@@ -773,10 +772,9 @@ static PHP_FUNCTION(trace_function) {
         RETURN_BOOL(0);
     }
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zO", &function, &tracing_closure,
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zO", &function, &tracing_closure,
                                  zend_ce_closure) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &function, &config_array) !=
-            SUCCESS) {
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "za", &function, &config_array) != SUCCESS) {
         ddtrace_log_debug("Unexpected parameters, expected (function_name, tracing_closure | config_array)");
         RETURN_BOOL(0);
     }
@@ -787,7 +785,7 @@ static PHP_FUNCTION(trace_function) {
     }
 
     if (config_array) {
-        if (_parse_config_array(config_array, &tracing_closure, &options TSRMLS_CC) == FALSE) {
+        if (_parse_config_array(config_array, &tracing_closure, &options) == FALSE) {
             RETURN_BOOL(0);
         }
         if (options & DDTRACE_DISPATCH_INNERHOOK) {
@@ -798,13 +796,13 @@ static PHP_FUNCTION(trace_function) {
         options |= DDTRACE_DISPATCH_POSTHOOK;
     }
 
-    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, options TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, options);
     RETURN_BOOL(rv);
 }
 
 static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     UNUSED(execute_data);
-    ddtrace_serialize_closed_spans(return_value TSRMLS_CC);
+    ddtrace_serialize_closed_spans(return_value);
 }
 
 // Invoke the function/method from the original context
@@ -817,7 +815,7 @@ static PHP_FUNCTION(dd_trace_env_config) {
     UNUSED(execute_data);
     zval *env_name = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &env_name) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &env_name) != SUCCESS) {
         ddtrace_log_debug("unexpected parameter. the environment variable name must be provided");
         RETURN_FALSE;
     }
@@ -840,7 +838,7 @@ static PHP_FUNCTION(dd_untrace) {
     zval *function = NULL;
 
     // Remove the traced function from the global lookup
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z", &function) != SUCCESS) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "z", &function) != SUCCESS) {
         ddtrace_log_debug("unexpected parameter. the function name must be provided");
         RETURN_BOOL(0);
     }
@@ -881,12 +879,12 @@ static PHP_FUNCTION(dd_trace_serialize_msgpack) {
 
     zval *trace_array;
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "a", &trace_array) == FAILURE) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "a", &trace_array) == FAILURE) {
         ddtrace_log_debug("Expected argument to dd_trace_serialize_msgpack() to be an array");
         RETURN_BOOL(0);
     }
 
-    if (ddtrace_serialize_simple_array(trace_array, return_value TSRMLS_CC) != 1) {
+    if (ddtrace_serialize_simple_array(trace_array, return_value) != 1) {
         RETURN_BOOL(0);
     }
 } /* }}} */
@@ -906,13 +904,13 @@ static PHP_FUNCTION(dd_trace_noop) {
 static PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
     UNUSED(execute_data);
 
-    RETURN_LONG(ddtrace_get_memory_limit(TSRMLS_C));
+    RETURN_LONG(ddtrace_get_memory_limit());
 }
 
 /* {{{ proto bool dd_trace_check_memory_under_limit() */
 static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     UNUSED(execute_data);
-    RETURN_BOOL(ddtrace_check_memory_under_limit(TSRMLS_C) == TRUE ? 1 : 0);
+    RETURN_BOOL(ddtrace_check_memory_under_limit() == TRUE ? 1 : 0);
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
@@ -958,7 +956,7 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
         .len = 0,
     };
     zend_string *default_zstr = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|S", &default_zstr) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|S", &default_zstr) != SUCCESS) {
         RETURN_NULL();
     }
     if (default_zstr) {
@@ -966,8 +964,7 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
         default_str.len = ZSTR_LEN(default_zstr);
     }
 
-    ddtrace_string app_name =
-        ddtrace_string_getenv_multi(ZEND_STRL("DD_SERVICE"), ZEND_STRL("DD_SERVICE_NAME") TSRMLS_CC);
+    ddtrace_string app_name = ddtrace_string_getenv_multi(ZEND_STRL("DD_SERVICE"), ZEND_STRL("DD_SERVICE_NAME"));
     bool should_free_app_name = app_name.ptr;
     if (!app_name.len) {
         if (should_free_app_name) {
@@ -994,39 +991,39 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
 
 static PHP_FUNCTION(ddtrace_config_distributed_tracing_enabled) {
     UNUSED(execute_data);
-    RETURN_BOOL(ddtrace_config_distributed_tracing_enabled(TSRMLS_C));
+    RETURN_BOOL(ddtrace_config_distributed_tracing_enabled());
 }
 
 static PHP_FUNCTION(ddtrace_config_trace_enabled) {
     UNUSED(execute_data);
-    RETURN_BOOL(ddtrace_config_trace_enabled(TSRMLS_C));
+    RETURN_BOOL(ddtrace_config_trace_enabled());
 }
 
 static PHP_FUNCTION(ddtrace_config_integration_enabled) {
-    if (!ddtrace_config_trace_enabled(TSRMLS_C)) {
+    if (!ddtrace_config_trace_enabled()) {
         RETURN_FALSE;
     }
     ddtrace_string integration;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &integration.ptr, &integration.len) != SUCCESS) {
         RETURN_NULL();
     }
-    RETVAL_BOOL(ddtrace_config_integration_enabled(integration TSRMLS_CC));
+    RETVAL_BOOL(ddtrace_config_integration_enabled(integration));
 }
 
 static PHP_FUNCTION(integration_analytics_enabled) {
     ddtrace_string integration;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &integration.ptr, &integration.len) != SUCCESS) {
         RETURN_NULL();
     }
-    RETVAL_BOOL(ddtrace_config_integration_analytics_enabled(integration TSRMLS_CC));
+    RETVAL_BOOL(ddtrace_config_integration_analytics_enabled(integration));
 }
 
 static PHP_FUNCTION(integration_analytics_sample_rate) {
     ddtrace_string integration;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &integration.ptr, &integration.len) != SUCCESS) {
         RETURN_NULL();
     }
-    RETVAL_DOUBLE(ddtrace_config_integration_analytics_sample_rate(integration TSRMLS_CC));
+    RETVAL_DOUBLE(ddtrace_config_integration_analytics_sample_rate(integration));
 }
 
 /* This is only exposed to serialize the container ID into an HTTP Agent header for the userland transport
@@ -1047,7 +1044,7 @@ static PHP_FUNCTION(container_id) {
 static PHP_FUNCTION(trigger_error) {
     ddtrace_string message;
     ddtrace_zpplong_t error_type;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl", &message.ptr, &message.len, &error_type) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sl", &message.ptr, &message.len, &error_type) != SUCCESS) {
         RETURN_NULL();
     }
 
@@ -1084,16 +1081,15 @@ static PHP_FUNCTION(ddtrace_init) {
     ddtrace_string dir;
     int ret = 0;
     DDTRACE_G(request_init_hook_loaded) = 1;
-    if (ddtrace_config_trace_enabled(TSRMLS_C) &&
-        zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &dir.ptr, &dir.len) == SUCCESS) {
+    if (ddtrace_config_trace_enabled() && zend_parse_parameters(ZEND_NUM_ARGS(), "s", &dir.ptr, &dir.len) == SUCCESS) {
         char *init_file = emalloc(dir.len + sizeof("/dd_init.php"));
         sprintf(init_file, "%s/dd_init.php", dir.ptr);
-        ret = dd_execute_php_file(init_file TSRMLS_CC);
+        ret = dd_execute_php_file(init_file);
         efree(init_file);
     }
 
     if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
-        dd_execute_auto_prepend_file(DDTRACE_G(auto_prepend_file) TSRMLS_CC);
+        dd_execute_auto_prepend_file(DDTRACE_G(auto_prepend_file));
     }
     RETVAL_BOOL(ret);
 }
@@ -1105,14 +1101,14 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     zval *curl_headers = NULL;
 
     // Agent HTTP headers are now set at the extension level so 'curl_headers' from userland is ignored
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "las", &num_traces, &curl_headers,
-                                 &payload, &payload_len) == FAILURE) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "las", &num_traces, &curl_headers, &payload,
+                                 &payload_len) == FAILURE) {
         ddtrace_log_debug("dd_trace_send_traces_via_thread() expects trace count, http headers, and http body");
         RETURN_FALSE;
     }
 
     bool result = ddtrace_send_traces_via_thread(num_traces, payload, payload_len);
-    dd_prepare_for_new_trace(TSRMLS_C);
+    dd_prepare_for_new_trace();
     RETURN_BOOL(result);
 }
 
@@ -1122,14 +1118,14 @@ static PHP_FUNCTION(dd_trace_buffer_span) {
     }
     zval *trace_array = NULL;
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "a", &trace_array) == FAILURE) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "a", &trace_array) == FAILURE) {
         ddtrace_log_debug("Expected group id and an array");
         RETURN_BOOL(0);
     }
 
     char *data;
     size_t size;
-    if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size TSRMLS_CC)) {
+    if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size)) {
         RETVAL_BOOL(ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), data, size));
 
         free(data);
@@ -1153,7 +1149,7 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
     uint32_t params_count = 0;
 
     zval *function_val = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z*", &function_val, &params, &params_count) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z*", &function_val, &params, &params_count) != SUCCESS) {
         ddtrace_log_debug("unexpected parameter. the function name must be provided");
         RETURN_BOOL(0);
     }
@@ -1171,7 +1167,7 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (fn && fn_len > 0) {
         if (FUNCTION_NAME_MATCHES("ddtrace_reload_config")) {
-            ddtrace_reload_config(TSRMLS_C);
+            ddtrace_reload_config();
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
             RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
@@ -1182,7 +1178,7 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
             zval *trace_array = ZVAL_VARARG_PARAM(params, 1);
             char *data = NULL;
             size_t size = 0;
-            if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size TSRMLS_CC)) {
+            if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size)) {
                 RETVAL_BOOL(ddtrace_coms_buffer_data(Z_LVAL_P(group_id), data, size));
                 free(data);
             } else {
@@ -1221,8 +1217,8 @@ static PHP_FUNCTION(dd_trace_set_trace_id) {
     UNUSED(execute_data);
 
     zval *trace_id = NULL;
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &trace_id) == SUCCESS) {
-        if (ddtrace_set_userland_trace_id(trace_id TSRMLS_CC) == TRUE) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "|z!", &trace_id) == SUCCESS) {
+        if (ddtrace_set_userland_trace_id(trace_id) == TRUE) {
             RETURN_BOOL(1);
         }
     }
@@ -1241,20 +1237,20 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
     UNUSED(execute_data);
 
     zval *existing_id = NULL;
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &existing_id) == SUCCESS) {
-        if (ddtrace_push_userland_span_id(existing_id TSRMLS_CC) == TRUE) {
-            return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "|z!", &existing_id) == SUCCESS) {
+        if (ddtrace_push_userland_span_id(existing_id) == TRUE) {
+            return_span_id(return_value, ddtrace_peek_span_id());
             return;
         }
     }
 
-    return_span_id(return_value, ddtrace_push_span_id(0 TSRMLS_CC));
+    return_span_id(return_value, ddtrace_push_span_id(0));
 }
 
 /* {{{ proto string dd_trace_pop_span_id() */
 static PHP_FUNCTION(dd_trace_pop_span_id) {
     UNUSED(execute_data);
-    uint64_t id = ddtrace_pop_span_id(TSRMLS_C);
+    uint64_t id = ddtrace_pop_span_id();
 
     if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
         if (ddtrace_flush_tracer() == FAILURE) {
@@ -1268,7 +1264,7 @@ static PHP_FUNCTION(dd_trace_pop_span_id) {
 /* {{{ proto string dd_trace_peek_span_id() */
 static PHP_FUNCTION(dd_trace_peek_span_id) {
     UNUSED(execute_data);
-    return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
+    return_span_id(return_value, ddtrace_peek_span_id());
 }
 
 /* {{{ proto string \DDTrace\trace_id() */
@@ -1283,7 +1279,7 @@ static PHP_FUNCTION(dd_trace_closed_spans_count) {
     RETURN_LONG(DDTRACE_G(closed_spans_count));
 }
 
-BOOL_T ddtrace_tracer_is_limited(TSRMLS_D) {
+BOOL_T ddtrace_tracer_is_limited(void) {
     int64_t limit = get_dd_trace_spans_limit();
     if (limit >= 0) {
         int64_t open_spans = DDTRACE_G(open_spans_count);
@@ -1292,19 +1288,19 @@ BOOL_T ddtrace_tracer_is_limited(TSRMLS_D) {
             return TRUE;
         }
     }
-    return ddtrace_check_memory_under_limit(TSRMLS_C) == TRUE ? FALSE : TRUE;
+    return ddtrace_check_memory_under_limit() == TRUE ? FALSE : TRUE;
 }
 
 /* {{{ proto string dd_trace_tracer_is_limited() */
 static PHP_FUNCTION(dd_trace_tracer_is_limited) {
     UNUSED(execute_data);
-    RETURN_BOOL(ddtrace_tracer_is_limited(TSRMLS_C) == TRUE ? 1 : 0);
+    RETURN_BOOL(ddtrace_tracer_is_limited() == TRUE ? 1 : 0);
 }
 
 /* {{{ proto string dd_trace_compile_time_microseconds() */
 static PHP_FUNCTION(dd_trace_compile_time_microseconds) {
     UNUSED(execute_data);
-    RETURN_LONG(ddtrace_compile_time_get(TSRMLS_C));
+    RETURN_LONG(ddtrace_compile_time_get());
 }
 
 static PHP_FUNCTION(startup_logs) {
@@ -1388,4 +1384,4 @@ ZEND_TSRMLS_CACHE_DEFINE();
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
 //   - set a new trace (group) id
-static void dd_prepare_for_new_trace(TSRMLS_D) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
+static void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }

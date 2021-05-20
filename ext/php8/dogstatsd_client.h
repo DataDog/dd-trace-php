@@ -3,8 +3,8 @@
 
 #include "compatibility.h"
 
-void ddtrace_dogstatsd_client_minit(TSRMLS_D);
-void ddtrace_dogstatsd_client_rinit(TSRMLS_D);
-void ddtrace_dogstatsd_client_rshutdown(TSRMLS_D);
+void ddtrace_dogstatsd_client_minit(void);
+void ddtrace_dogstatsd_client_rinit(void);
+void ddtrace_dogstatsd_client_rshutdown(void);
 
 #endif  // DDTRACE_DOGSTATSD_CLIENT_H
