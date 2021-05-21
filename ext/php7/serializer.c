@@ -40,15 +40,20 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
                 mpack_start_array(writer, zend_hash_num_elements(ht));
             }
         }
-        bool string_as_uint64 = false;
+        bool zval_string_as_uint64 = false;
+
         if (is_assoc == 1) {
             char *key = ZSTR_VAL(string_key);
             mpack_write_cstr(writer, key);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
             if (0 == strcmp(trace_id_keyword, key) || 0 == strcmp(span_id_keyword, key) ||
                 0 == strcmp(parent_id_keyword, key)) {
-                string_as_uint64 = true;
+                zval_string_as_uint64 = true;
             }
+        }
+
+        if (zval_string_as_uint64) {
+            mpack_write_u64(writer, strtoull(Z_STRVAL_PP(tmp), NULL, 10));
         }
         if (msgpack_write_zval(writer, tmp, string_as_uint64 TSRMLS_CC) != 1) {
             return 0;

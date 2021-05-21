@@ -144,7 +144,7 @@ final class Http implements Transport
 
         // Now that bgs is enabled by default, allow disabling it by disabling either option
         $bgsEnabled = \dd_trace_env_config('DD_TRACE_BGS_ENABLED')
-                    && \dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD');
+            && \dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD');
         if (
             $bgsEnabled
             && $this->encoder->getContentType() === 'application/msgpack'
@@ -155,8 +155,8 @@ final class Http implements Transport
 
         if ($this->isLogDebugActive() && function_exists('dd_tracer_circuit_breaker_info')) {
             self::logDebug('circuit breaker status: closed => {closed}, total_failures => {total_failures},'
-            . 'consecutive_failures => {consecutive_failures}, opened_timestamp => {opened_timestamp}, '
-            . 'last_failure_timestamp=> {last_failure_timestamp}', dd_tracer_circuit_breaker_info());
+                . 'consecutive_failures => {consecutive_failures}, opened_timestamp => {opened_timestamp}, '
+                . 'last_failure_timestamp=> {last_failure_timestamp}', dd_tracer_circuit_breaker_info());
         }
 
         if (function_exists('dd_tracer_circuit_breaker_can_try') && !dd_tracer_circuit_breaker_can_try()) {
