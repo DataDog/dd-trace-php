@@ -57,7 +57,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
         // Writing the value
         if (zval_string_as_uint64) {
             mpack_write_u64(writer, strtoull(Z_STRVAL_P(tmp), NULL, 10));
-        } else if (msgpack_write_zval(writer, tmp, string_as_uint64 TSRMLS_CC) != 1) {
+        } else if (msgpack_write_zval(writer, tmp TSRMLS_CC) != 1) {
             return 0;
         }
     }
@@ -116,7 +116,7 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    if (msgpack_write_zval(&writer, trace, false TSRMLS_CC) != 1) {
+    if (msgpack_write_zval(&writer, trace TSRMLS_CC) != 1) {
         mpack_writer_destroy(&writer);
         free(data);
         return 0;
