@@ -624,8 +624,8 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
     struct curl_slist *list = NULL;
 
     dd_append_header(&list, "Datadog-Meta-Lang", "php");
-    dd_append_header(&list, "Datadog-Meta-Version", PHP_VERSION);
     dd_append_header(&list, "Datadog-Meta-Lang-Interpreter", sapi_module.name);
+    dd_append_header(&list, "Datadog-Meta-Lang-Version", PHP_VERSION);
     dd_append_header(&list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
 
     char *id = ddshared_container_id();

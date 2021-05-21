@@ -25,8 +25,8 @@ $headers = $rr->replayHeaders([
     'Content-Type',
     'Datadog-Meta-Lang',
     'Datadog-Meta-Lang-Interpreter',
+    'Datadog-Meta-Lang-Version',
     'Datadog-Meta-Tracer-Version',
-    'Datadog-Meta-Version',
     'X-Datadog-Trace-Count',
 ]);
 foreach ($headers as $name => $value) {
@@ -42,8 +42,8 @@ bool(true)
 Content-Type: application/msgpack
 Datadog-Meta-Lang: php
 Datadog-Meta-Lang-Interpreter: cli
+Datadog-Meta-Lang-Version: %d.%d.%d
 Datadog-Meta-Tracer-Version: %s
-Datadog-Meta-Version: %s
 X-Datadog-Trace-Count: 1
 
 Done.
