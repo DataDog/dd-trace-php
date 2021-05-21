@@ -96,11 +96,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) {
             mpack_write_bool(writer, Z_TYPE_P(trace) == IS_TRUE);
             break;
         case IS_STRING:
-            if (string_as_uint64) {
-                mpack_write_u64(writer, strtoull(Z_STRVAL_P(trace), NULL, 10));
-            } else {
-                mpack_write_cstr(writer, Z_STRVAL_P(trace));
-            }
+            mpack_write_cstr(writer, Z_STRVAL_P(trace));
             break;
         default:
             ddtrace_log_debug("Serialize values must be of type array, string, int, float, bool or null");
