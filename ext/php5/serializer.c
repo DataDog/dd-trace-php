@@ -19,9 +19,9 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static const char *trace_id_keyword = "trace_id";
-static const char *span_id_keyword = "span_id";
-static const char *parent_id_keyword = "parent_id";
+#define KEY_TRACE_ID "trace_id"
+#define KEY_SPAN_ID "span_id"
+#define KEY_PARENT_ID "parent_id"
 
 static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, bool string_as_uint64 TSRMLS_DC);
 
@@ -51,7 +51,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
             if (0 == strcmp(trace_id_keyword, string_key) || 0 == strcmp(span_id_keyword, string_key) ||
                 0 == strcmp(parent_id_keyword, string_key)) {
-                string_as_uint64 = true;
+                mpack_write_u64(writer, strtoull(Z_STRVAL_PP(tmp), NULL, 10));
             }
         }
         if (msgpack_write_zval(writer, *tmp, string_as_uint64 TSRMLS_CC) != 1) {
@@ -414,7 +414,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
 
     char trace_id_str[21];  // 1.8e^19 = 20 chars + terminator
     sprintf(trace_id_str, "%zu", span->trace_id);
-    add_assoc_string(el, "trace_id", trace_id_str, 0);
+    add_assoc_string(el, "trace_id", trace_id_str, /* duplicate */ 1);
 
     char span_id_str[21];  // 1.8e^19 = 20 chars + terminator
     sprintf(span_id_str, "%zu", span->span_id);
