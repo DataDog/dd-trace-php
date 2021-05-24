@@ -448,16 +448,16 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
 
     char trace_id_str[MAX_ID_LEN + 1];
     sprintf(trace_id_str, "%zu", span->trace_id);
-    add_assoc_string(el, "trace_id", trace_id_str);
+    add_assoc_string(el, KEY_TRACE_ID, trace_id_str);
 
     char span_id_str[MAX_ID_LEN + 1];
     sprintf(span_id_str, "%zu", span->span_id);
-    add_assoc_string(el, "span_id", span_id_str);
+    add_assoc_string(el, KEY_SPAN_ID, span_id_str);
 
     if (span->parent_id > 0) {
         char parent_id_str[MAX_ID_LEN + 1];
         sprintf(parent_id_str, "%zu", span->parent_id);
-        add_assoc_string(el, "parent_id", parent_id_str);
+        add_assoc_string(el, KEY_PARENT_ID, parent_id_str);
     }
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);
