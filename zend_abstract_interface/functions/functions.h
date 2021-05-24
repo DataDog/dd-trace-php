@@ -26,17 +26,16 @@ bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int a
 
 /* A wrapper for zai_call_function_ex() that automatically populates 'argc'. */
 #define zai_call_function(name, name_len, retval, ...) \
-    zai_call_function_ex(name, name_len, retval, ZAI_CALL_FUNCTION_VA_ARG_COUNT(__VA_ARGS__), ## __VA_ARGS__)
+    zai_call_function_ex(name, name_len, retval, ZAI_CALL_FUNCTION_VA_ARG_COUNT(__VA_ARGS__), ##__VA_ARGS__)
 
 /* A convenience wrapper to call zai_call_function() using a string literal.
  * This API only works when the function name is a string literal. If the
  * function name exists as a 'const char *', use zai_call_function() or
  * zai_call_function_ex() directly. */
-#define zai_call_function_literal(name, retval, ...) \
-    zai_call_function(name, sizeof(name) - 1, retval, ## __VA_ARGS__)
+#define zai_call_function_literal(name, retval, ...) zai_call_function(name, sizeof(name) - 1, retval, ##__VA_ARGS__)
 
 #define ZAI_CALL_FUNCTION_VA_ARG_COUNT(...) \
-    ZAI_CALL_FUNCTION_VA_ARG_MAX(ignore, ## __VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+    ZAI_CALL_FUNCTION_VA_ARG_MAX(ignore, ##__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 #define ZAI_CALL_FUNCTION_VA_ARG_MAX(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, ...) arg10
 
 #endif  // ZAI_FUNCTIONS_H
