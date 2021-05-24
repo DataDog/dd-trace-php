@@ -143,15 +143,15 @@ strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
 
 clang_find_files_to_lint:
-	@find ./ \
+	@find . \( \
 	-path ./tmp -prune -o \
 	-path ./vendor -prune -o \
 	-path ./tests -prune -o \
 	-path ./ext/vendor/mpack -prune -o \
 	-path ./ext/vendor/mt19937 -prune -o \
 	-path ./tooling/generation -prune -o \
-	-iname "*.h" -o -iname "*.c" \
-	-type f
+	-type f \) \
+	\( -iname "*.h" -o -iname "*.c" \)
 
 CLANG_FORMAT := clang-format-6.0
 

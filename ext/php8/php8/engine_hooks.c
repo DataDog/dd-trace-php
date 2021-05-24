@@ -433,7 +433,7 @@ static ddtrace_span_fci *dd_create_duplicate_span(zend_execute_data *call, ddtra
     ddtrace_span_t *span = &span_fci->span;
 
     span->trace_id = DDTRACE_G(trace_id);
-    span->span_id = ddtrace_peek_span_id(TSRMLS_C);
+    span->span_id = ddtrace_peek_span_id();
 
     // if you push a span_id of 0 it makes a new span id, which we don't want
     if (span->span_id) {

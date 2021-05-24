@@ -19,7 +19,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-int64_t ddtrace_get_memory_limit(TSRMLS_D) {
+int64_t ddtrace_get_memory_limit(void) {
     char *raw_memory_limit = get_dd_trace_memory_limit();
     size_t len = 0;
     int64_t limit = -1;
@@ -51,15 +51,15 @@ int64_t ddtrace_get_memory_limit(TSRMLS_D) {
     return limit;
 }
 
-BOOL_T ddtrace_check_memory_under_limit(TSRMLS_D) {
+BOOL_T ddtrace_check_memory_under_limit(void) {
     static int64_t limit = -1;
     static zend_bool fetched_limit = 0;
     if (!fetched_limit) {  // cache get_memory_limit() result to make this function blazing fast
         fetched_limit = 1;
-        limit = ddtrace_get_memory_limit(TSRMLS_C);
+        limit = ddtrace_get_memory_limit();
     }
     if (limit > 0) {
-        return ((zend_ulong)limit > zend_memory_usage(0 TSRMLS_CC)) ? TRUE : FALSE;
+        return ((zend_ulong)limit > zend_memory_usage(0)) ? TRUE : FALSE;
     }
     return TRUE;
 }

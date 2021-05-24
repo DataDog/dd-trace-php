@@ -26,10 +26,10 @@ bool ddtrace_config_bool(ddtrace_string subject, bool default_value);
  * @param default_value
  * @return If the environment variable does not exist or is not bool-ish, return `default_value` instead.
  */
-bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value TSRMLS_DC);
+bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value);
 
-bool ddtrace_config_distributed_tracing_enabled(TSRMLS_D);
-bool ddtrace_config_trace_enabled(TSRMLS_D);
+bool ddtrace_config_distributed_tracing_enabled(void);
+bool ddtrace_config_trace_enabled(void);
 
 #define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 9   // "DD_TRACE_" FTW!
 #define DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN 22  // "_ANALYTICS_SAMPLE_RATE" FTW!
@@ -38,30 +38,30 @@ bool ddtrace_config_trace_enabled(TSRMLS_D);
      DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN)
 
 // note: only call this if ddtrace_config_trace_enabled() returns true
-bool ddtrace_config_integration_enabled(ddtrace_string integration TSRMLS_DC);
-bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_name TSRMLS_DC);
-bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration TSRMLS_DC);
-double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration TSRMLS_DC);
+bool ddtrace_config_integration_enabled(ddtrace_string integration);
+bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_name);
+bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration);
+double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration);
 
 size_t ddtrace_config_integration_env_name(char *name, const char *prefix, ddtrace_integration *integration,
                                            const char *suffix);
 
-inline ddtrace_string ddtrace_string_getenv(char *str, size_t len TSRMLS_DC) {
-    return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len TSRMLS_CC));
+inline ddtrace_string ddtrace_string_getenv(char *str, size_t len) {
+    return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len));
 }
 
 // Returns an env var value as string. If the env is not defined it uses a fallback env variable name.
 // Used when for backward compatibility we need to support a primary and secondary env variable name.
 inline ddtrace_string ddtrace_string_getenv_multi(char *primary, size_t primary_len, char *secondary,
-                                                  size_t secondary_len TSRMLS_DC) {
-    return ddtrace_string_cstring_ctor(ddtrace_getenv_multi(primary, primary_len, secondary, secondary_len TSRMLS_CC));
+                                                  size_t secondary_len) {
+    return ddtrace_string_cstring_ctor(ddtrace_getenv_multi(primary, primary_len, secondary, secondary_len));
 }
 
 struct ddtrace_memoized_configuration_t;
 extern struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration;
 
-void ddtrace_initialize_config(TSRMLS_D);
-void ddtrace_reload_config(TSRMLS_D);
+void ddtrace_initialize_config(void);
+void ddtrace_reload_config(void);
 void ddtrace_config_shutdown(void);
 
 /* From the curl docs on CONNECT_TIMEOUT_MS:

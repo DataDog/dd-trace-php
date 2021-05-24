@@ -15,13 +15,6 @@
 #endif
 #endif
 
-/* BC only */
-#define TSRMLS_D void
-#define TSRMLS_DC
-#define TSRMLS_C
-#define TSRMLS_CC
-#define TSRMLS_FETCH()
-
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
     do {               \

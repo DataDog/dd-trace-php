@@ -69,28 +69,28 @@ static uint64_t current_timestamp_monotonic_usec() {
     return t.tv_sec * 1000 * 1000 + t.tv_nsec / 1000;
 }
 
-static int64_t get_max_consecutive_failures(TSRMLS_D) {
+static int64_t get_max_consecutive_failures(void) {
     return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_MAX_CONSECUTIVE_FAILURES,
-                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES TSRMLS_CC);
+                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES);
 }
 
-static int64_t get_retry_time_usec(TSRMLS_D) {
+static int64_t get_retry_time_usec(void) {
     return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_RETRY_TIME_MSEC,
-                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC TSRMLS_CC) *
+                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC) *
            1000;
 }
 
-uint32_t dd_tracer_circuit_breaker_can_try(TSRMLS_D) {
+uint32_t dd_tracer_circuit_breaker_can_try(void) {
     if (dd_tracer_circuit_breaker_is_closed()) {
         return 1;
     }
     uint64_t last_failure_timestamp = atomic_load(&dd_trace_circuit_breaker->last_failure_timestamp);
     uint64_t current_time = current_timestamp_monotonic_usec();
 
-    return (last_failure_timestamp + get_retry_time_usec(TSRMLS_C)) <= current_time;
+    return (last_failure_timestamp + get_retry_time_usec()) <= current_time;
 }
 
-void dd_tracer_circuit_breaker_register_error(TSRMLS_D) {
+void dd_tracer_circuit_breaker_register_error(void) {
     prepare_cb();
 
     atomic_fetch_add(&dd_trace_circuit_breaker->consecutive_failures, 1);
@@ -100,7 +100,7 @@ void dd_tracer_circuit_breaker_register_error(TSRMLS_D) {
 
     // if circuit breaker is closed attempt to open it if consecutive failures are higher thatn the threshold
     if (dd_tracer_circuit_breaker_is_closed()) {
-        if (atomic_load(&dd_trace_circuit_breaker->consecutive_failures) >= get_max_consecutive_failures(TSRMLS_C)) {
+        if (atomic_load(&dd_trace_circuit_breaker->consecutive_failures) >= get_max_consecutive_failures()) {
             dd_tracer_circuit_breaker_open();
         }
     }

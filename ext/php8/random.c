@@ -12,7 +12,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-void ddtrace_seed_prng(TSRMLS_D) {
+void ddtrace_seed_prng(void) {
     if (get_dd_trace_debug_prng_seed() > 0) {
         init_genrand64((unsigned long long)get_dd_trace_debug_prng_seed());
     } else {
@@ -20,12 +20,12 @@ void ddtrace_seed_prng(TSRMLS_D) {
     }
 }
 
-void ddtrace_init_span_id_stack(TSRMLS_D) {
+void ddtrace_init_span_id_stack(void) {
     DDTRACE_G(trace_id) = 0;
     DDTRACE_G(span_ids_top) = NULL;
 }
 
-void ddtrace_free_span_id_stack(TSRMLS_D) {
+void ddtrace_free_span_id_stack(void) {
     DDTRACE_G(trace_id) = 0;
     while (DDTRACE_G(span_ids_top) != NULL) {
         ddtrace_span_ids_t *stack = DDTRACE_G(span_ids_top);
@@ -50,7 +50,7 @@ static inline uint64_t zval_to_uint64(zval *zid) {
     return (uid && errno == 0) ? uid : 0U;
 }
 
-BOOL_T ddtrace_set_userland_trace_id(zval *zid TSRMLS_DC) {
+BOOL_T ddtrace_set_userland_trace_id(zval *zid) {
     uint64_t uid = zval_to_uint64(zid);
     if (uid) {
         DDTRACE_G(trace_id) = uid;
@@ -59,7 +59,7 @@ BOOL_T ddtrace_set_userland_trace_id(zval *zid TSRMLS_DC) {
     return FALSE;
 }
 
-uint64_t ddtrace_push_span_id(uint64_t id TSRMLS_DC) {
+uint64_t ddtrace_push_span_id(uint64_t id) {
     ddtrace_span_ids_t *stack = ecalloc(1, sizeof(ddtrace_span_ids_t));
     stack->id = id ? id : (uint64_t)((genrand64_int64()));
     if (0 == stack->id) {
@@ -78,16 +78,16 @@ uint64_t ddtrace_push_span_id(uint64_t id TSRMLS_DC) {
     return stack->id;
 }
 
-BOOL_T ddtrace_push_userland_span_id(zval *zid TSRMLS_DC) {
+BOOL_T ddtrace_push_userland_span_id(zval *zid) {
     uint64_t uid = zval_to_uint64(zid);
     if (uid) {
-        ddtrace_push_span_id(uid TSRMLS_CC);
+        ddtrace_push_span_id(uid);
         return TRUE;
     }
     return FALSE;
 }
 
-uint64_t ddtrace_pop_span_id(TSRMLS_D) {
+uint64_t ddtrace_pop_span_id(void) {
     if (DDTRACE_G(span_ids_top) == NULL) {
         return 0;
     }
@@ -104,7 +104,7 @@ uint64_t ddtrace_pop_span_id(TSRMLS_D) {
     return id;
 }
 
-uint64_t ddtrace_peek_span_id(TSRMLS_D) {
+uint64_t ddtrace_peek_span_id(void) {
     if (DDTRACE_G(span_ids_top) == NULL) {
         return 0;
     }

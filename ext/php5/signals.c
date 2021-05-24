@@ -1,6 +1,9 @@
 #include "signals.h"
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
 #include "php_config.h"
 
 #if HAVE_SIGACTION

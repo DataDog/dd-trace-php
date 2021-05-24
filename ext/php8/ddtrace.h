@@ -22,7 +22,7 @@ zval *ddtrace_spandata_property_type(zval *spandata);
 zval *ddtrace_spandata_property_meta(zval *spandata);
 zval *ddtrace_spandata_property_metrics(zval *spandata);
 
-BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
+BOOL_T ddtrace_tracer_is_limited(void);
 
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
