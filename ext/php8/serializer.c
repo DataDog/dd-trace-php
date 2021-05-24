@@ -21,7 +21,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-#define MAX_ID_LEN 20  // 1.8e^19 = 20 chars
+#define MAX_ID_BUFSIZ 21  // 1.8e^19 = 20 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
@@ -446,16 +446,16 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     el = &zv;
     array_init(el);
 
-    char trace_id_str[MAX_ID_LEN + 1];
+    char trace_id_str[MAX_ID_BUFSIZ];
     sprintf(trace_id_str, "%zu", span->trace_id);
     add_assoc_string(el, KEY_TRACE_ID, trace_id_str);
 
-    char span_id_str[MAX_ID_LEN + 1];
+    char span_id_str[MAX_ID_BUFSIZ];
     sprintf(span_id_str, "%zu", span->span_id);
     add_assoc_string(el, KEY_SPAN_ID, span_id_str);
 
     if (span->parent_id > 0) {
-        char parent_id_str[MAX_ID_LEN + 1];
+        char parent_id_str[MAX_ID_BUFSIZ];
         sprintf(parent_id_str, "%zu", span->parent_id);
         add_assoc_string(el, KEY_PARENT_ID, parent_id_str);
     }
