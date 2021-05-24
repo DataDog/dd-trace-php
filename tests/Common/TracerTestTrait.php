@@ -295,11 +295,6 @@ trait TracerTestTrait
         return $traces;
     }
 
-    private function convertImportedIdsToString($unparsedJson)
-    {
-        return preg_replace('/((?:trace)|(?:span)|(?:parent))_id":(\d+)/', "$1_id\":\"$2\"", $unparsedJson);
-    }
-
     public function parseMultipleRequestsFromDumpedData()
     {
         $response = $this->retrieveDumpedData();
