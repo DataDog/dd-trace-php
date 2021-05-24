@@ -5,7 +5,7 @@
 
 #define MAX_ARGS 3
 
-bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc, ...) {
+bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int argc, ...) {
     if (!retval) return false;
 
     /* For consistency with zend_call_function(), this wrapper also initializes
@@ -136,8 +136,4 @@ bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc
     bool ret = (call_fn_result == SUCCESS && !EG(exception));
     zai_sandbox_close(&sandbox);
     return ret;
-}
-
-bool zai_call_function_without_args(const char *name, size_t name_len, zval *retval) {
-    return zai_call_function(name, name_len, retval, 0);
 }

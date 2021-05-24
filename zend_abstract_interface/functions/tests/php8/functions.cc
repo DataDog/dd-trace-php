@@ -33,7 +33,7 @@ TEST_CASE("call function: int args (internal)", "[zai_functions]") {
 
     zval retval = {0};
     // mt_rand($min, $max)
-    bool result = zai_call_function(ZEND_STRL("mt_rand"), &retval, 2, &min, &max);
+    bool result = zai_call_function(ZEND_STRL("mt_rand"), &retval, &min, &max);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == true);
@@ -64,7 +64,7 @@ TEST_CASE("call function: array arg (internal)", "[zai_functions]") {
 
     zval retval = {0};
     // array_sum($arg)
-    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, 1, &arg);
+    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, &arg);
     zval_ptr_dtor(&arg);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
@@ -90,7 +90,7 @@ TEST_CASE("call function: int arg (userland)", "[zai_functions]") {
 
     zval retval = {0};
     // Zai\Functions\Test\return_arg($arg)
-    bool result = zai_call_function(ZEND_STRL("zai\\functions\\test\\return_arg"), &retval, 1, &arg);
+    bool result = zai_call_function(ZEND_STRL("zai\\functions\\test\\return_arg"), &retval, &arg);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == true);
@@ -115,7 +115,7 @@ TEST_CASE("call function: bool arg (userland)", "[zai_functions]") {
 
     zval retval = {0};
     // Zai\Functions\Test\return_arg($arg)
-    bool result = zai_call_function(ZEND_STRL("zai\\functions\\test\\return_arg"), &retval, 1, &arg);
+    bool result = zai_call_function(ZEND_STRL("zai\\functions\\test\\return_arg"), &retval, &arg);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == true);
@@ -140,7 +140,7 @@ TEST_CASE("call function: string arg (userland)", "[zai_functions]") {
 
     zval retval = {0};
     // Zai\Functions\Test\return_arg($arg)
-    bool result = zai_call_function(ZEND_STRL("zai\\functions\\test\\return_arg"), &retval, 1, &arg);
+    bool result = zai_call_function(ZEND_STRL("zai\\functions\\test\\return_arg"), &retval, &arg);
     zval_ptr_dtor(&arg);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
@@ -160,7 +160,7 @@ TEST_CASE("call function: NULL arg", "[zai_functions]") {
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     zval retval = {0};
-    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, 1, NULL);
+    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, NULL);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
@@ -180,7 +180,7 @@ TEST_CASE("call function: NULL args after refcounted arg", "[zai_functions]") {
     ZVAL_STR(&arg, str);
 
     zval retval = {0};
-    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, 3, &arg, NULL, NULL);
+    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, &arg, NULL, NULL);
     zval_ptr_dtor(&arg);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
@@ -201,7 +201,7 @@ TEST_CASE("call function: -1 args", "[zai_functions]") {
     ZVAL_STR(&arg, str);
 
     zval retval = {0};
-    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, -1, &arg);
+    bool result = zai_call_function_ex(ZEND_STRL("array_sum"), &retval, -1, &arg);
     zval_ptr_dtor(&arg);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
@@ -222,7 +222,7 @@ TEST_CASE("call function: more than MAX_ARGS", "[zai_functions]" SKIP_TEST_IN_DE
     ZVAL_STR(&arg, str);
 
     zval retval = {0};
-    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, 4, &arg, &arg, &arg, &arg);
+    bool result = zai_call_function(ZEND_STRL("array_sum"), &retval, &arg, &arg, &arg, &arg);
     zval_ptr_dtor(&arg);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
@@ -233,7 +233,7 @@ TEST_CASE("call function: more than MAX_ARGS", "[zai_functions]" SKIP_TEST_IN_DE
     zai_sapi_spindown();
 }
 
-/********************* zai_call_function_without_args() **********************/
+/********************* zai_call_function() (without args) *********************/
 
 TEST_CASE("call function no args: (internal)", "[zai_functions]") {
     REQUIRE(zai_sapi_spinup());
@@ -242,7 +242,7 @@ TEST_CASE("call function no args: (internal)", "[zai_functions]") {
 
     zval retval = {0};
     // mt_rand()
-    bool result = zai_call_function_without_args(ZEND_STRL("mt_rand"), &retval);
+    bool result = zai_call_function(ZEND_STRL("mt_rand"), &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == true);
@@ -263,7 +263,7 @@ TEST_CASE("call function no args: (userland)", "[zai_functions]") {
 
     zval retval = {0};
     // Zai\Functions\Test\returns_true()
-    bool result = zai_call_function_without_args(ZEND_STRL("zai\\functions\\test\\returns_true"), &retval);
+    bool result = zai_call_function(ZEND_STRL("zai\\functions\\test\\returns_true"), &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == true);
@@ -282,7 +282,7 @@ TEST_CASE("call function no args: does not exist", "[zai_functions]") {
 
     zval retval = {0};
     // Foo\iDoNotExist()
-    bool result = zai_call_function_without_args(ZEND_STRL("foo\\idonotexist"), &retval);
+    bool result = zai_call_function(ZEND_STRL("foo\\idonotexist"), &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
@@ -298,7 +298,7 @@ TEST_CASE("call function no args: root-scope prefix", "[zai_functions]" SKIP_TES
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     zval retval = {0};
-    bool result = zai_call_function_without_args(ZEND_STRL("\\mt_rand"), &retval);
+    bool result = zai_call_function(ZEND_STRL("\\mt_rand"), &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
@@ -314,7 +314,7 @@ TEST_CASE("call function no args: wrong case", "[zai_functions]" SKIP_TEST_IN_DE
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     zval retval = {0};
-    bool result = zai_call_function_without_args(ZEND_STRL("MT_RAND"), &retval);
+    bool result = zai_call_function(ZEND_STRL("MT_RAND"), &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
@@ -339,7 +339,7 @@ TEST_CASE("call function no args: disable_functions INI", "[zai_functions]") {
 
     zval retval = {0};
     // mt_rand()
-    bool result = zai_call_function_without_args(ZEND_STRL("mt_rand"), &retval);
+    bool result = zai_call_function(ZEND_STRL("mt_rand"), &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
@@ -364,7 +364,7 @@ TEST_CASE("call function no args: throws exception (userland)", "[zai_functions]
 
     zval retval = {0};
     // Zai\Functions\Test\throws_exception()
-    bool result = zai_call_function_without_args(ZEND_STRL("zai\\functions\\test\\throws_exception"), &retval);
+    bool result = zai_call_function(ZEND_STRL("zai\\functions\\test\\throws_exception"), &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
@@ -382,7 +382,7 @@ TEST_CASE("call function no args: NULL name", "[zai_functions]") {
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     zval retval = {0};
-    bool result = zai_call_function_without_args(NULL, 42, &retval);
+    bool result = zai_call_function(NULL, 42, &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
@@ -398,7 +398,7 @@ TEST_CASE("call function no args: zero-len name", "[zai_functions]") {
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     zval retval = {0};
-    bool result = zai_call_function_without_args("mt_rand", 0, &retval);
+    bool result = zai_call_function("mt_rand", 0, &retval);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
@@ -413,7 +413,7 @@ TEST_CASE("call function no args: NULL retval", "[zai_functions]") {
     ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
-    bool result = zai_call_function_without_args(ZEND_STRL("mt_rand"), NULL);
+    bool result = zai_call_function(ZEND_STRL("mt_rand"), NULL);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);

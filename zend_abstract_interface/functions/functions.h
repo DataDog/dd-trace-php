@@ -22,11 +22,12 @@
  * Functions cannot be called outside of a request context so this MUST be
  * called from within a request context (after RINIT and before RSHUTDOWN).
  */
-bool zai_call_function(const char *name, size_t name_len, zval *retval, int argc, ...);
+bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int argc, ...);
 
-/* Calls a function the same way as zai_call_function() but without passing any
- * arguments to the function.
- */
-bool zai_call_function_without_args(const char *name, size_t name_len, zval *retval);
+#define zai_call_function(name, name_len, ...) \
+    zai_call_function_ex(name, name_len, ZAI_CALL_FUNCTION_VA_ARG_COUNT(__VA_ARGS__), ## __VA_ARGS__)
+#define ZAI_CALL_FUNCTION_VA_ARG_COUNT(...) \
+    ZAI_CALL_FUNCTION_VA_ARG_MAX(ignore, ## __VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define ZAI_CALL_FUNCTION_VA_ARG_MAX(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, ...) arg10
 
 #endif  // ZAI_FUNCTIONS_H
