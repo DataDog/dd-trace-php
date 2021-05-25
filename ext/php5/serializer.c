@@ -2,6 +2,7 @@
 #include <Zend/zend_builtin_functions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
+#include <inttypes.h>
 #include <php.h>
 #include <stdlib.h>
 #include <string.h>

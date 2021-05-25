@@ -3,6 +3,7 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
 #include <Zend/zend_smart_str.h>
+#include <inttypes.h>
 #include <php.h>
 #include <stdlib.h>
 #include <string.h>
