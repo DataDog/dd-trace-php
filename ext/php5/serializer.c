@@ -417,16 +417,16 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     array_init(el);
 
     char trace_id_str[MAX_ID_BUFSIZ];
-    sprintf(trace_id_str, "%zu", span->trace_id);
+    sprintf(trace_id_str, "%" PRIu64, span->trace_id);
     add_assoc_string(el, KEY_TRACE_ID, trace_id_str, /* duplicate */ 1);
 
     char span_id_str[MAX_ID_BUFSIZ];
-    sprintf(span_id_str, "%zu", span->span_id);
+    sprintf(span_id_str, "%" PRIu64, span->span_id);
     add_assoc_string(el, KEY_SPAN_ID, span_id_str, /* duplicate */ 1);
 
     if (span->parent_id > 0) {
         char parent_id_str[MAX_ID_BUFSIZ];
-        sprintf(parent_id_str, "%zu", span->parent_id);
+        sprintf(parent_id_str, "%" PRIu64, span->parent_id);
         add_assoc_string(el, KEY_PARENT_ID, parent_id_str, /* duplicate */ 1);
     }
     add_assoc_long(el, "start", span->start);
