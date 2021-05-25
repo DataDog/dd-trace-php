@@ -7,7 +7,7 @@ function aaaa($password)
     // echo $ex->getTraceAsString() . "\n";
     // echo sprintf("#################### %s in %s:%d\n", $ex->getMessage(), $ex->getFile(), $ex->getLine());
     // echo ">>>>>>>>>>>>>>>" . var_export($ex->getTrace(), 1) . "<<<<<<<<<<<<<<<<<<<<<<\n";
-
+    error_log('Traceeeeeeeeeee: ' . var_export($ex->getTrace(), 1));
     throw $ex;
 }
 

@@ -4,6 +4,7 @@
 #include <Zend/zend_interfaces.h>
 #include <Zend/zend_smart_str.h>
 #include <php.h>
+#include <stdio.h>
 
 #include <ext/spl/spl_exceptions.h>
 
@@ -203,17 +204,34 @@ static zval dd_serialize_stack_trace(zval *trace) {
     zval *frame, output;
     smart_str str = {0};
     uint32_t num = 0;
+    // char *buffer = "";
+    // int buffer_len = 0;
+
+    // ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(trace), framezv) {
+    //     if (Z_TYPE_P(frame) != IS_ARRAY) {
+    //         ddtrace_log_debug("Frame is not an array!");
+    //         /* zend_error(E_WARNING, "Expected array for frame %" ZEND_ULONG_FMT_SPEC, index); */
+    //         continue;
+    //     }
+    //     len += snprintf(NULL, 0, "#%d %s(%d): %s(...)\n", some, params, from, framezv);
+
+    //     // : _trace_string(&str, Z_ARRVAL_P(frame), num++);
+    // }
+    // ZEND_HASH_FOREACH_END();
 
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(trace), frame) {
+        ddtrace_log_debug(" --------> iteration");
         if (Z_TYPE_P(frame) != IS_ARRAY) {
             ddtrace_log_debug("Frame is not an array!");
             /* zend_error(E_WARNING, "Expected array for frame %" ZEND_ULONG_FMT_SPEC, index); */
             continue;
         }
 
+        ddtrace_log_debug(" ------------------------------> iteration");
         _trace_string(&str, Z_ARRVAL_P(frame), num++);
     }
     ZEND_HASH_FOREACH_END();
+    ddtrace_log_debug(" --------> done");
     ddtrace_log_debug("Almost done creating stack trace");
 
     smart_str_appendc(&str, '#');

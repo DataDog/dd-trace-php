@@ -1054,7 +1054,7 @@ static int dd_handle_exception_handler(zend_execute_data *execute_data) {
 
     if (!is_caught && !EX(prev_execute_data)) {
         DDTRACE_G(pending_exception) = EG(exception);
-        // php_printf("ABOUT TO BE UNCAUGHT: '%s'\n", ZSTR_VAL(EG(exception)->ce->name));
+        php_printf("ABOUT TO BE UNCAUGHT: '%s'\n", ZSTR_VAL(EG(exception)->ce->name));
     }
 
     return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
