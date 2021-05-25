@@ -109,22 +109,7 @@ inline void zai_sandbox_error_state_backup(zai_error_state *es) {
     zend_replace_error_handling(EH_THROW, NULL, &es->error_handling);
 }
 
-inline void zai_sandbox_error_state_restore(zai_error_state *es) {
-    if (PG(last_error_message)) {
-        if (PG(last_error_message) != es->message) {
-            zend_string_release(PG(last_error_message));
-        }
-        if (PG(last_error_file) != es->file) {
-            free(PG(last_error_file));
-        }
-    }
-    zend_restore_error_handling(&es->error_handling);
-    PG(last_error_type) = es->type;
-    PG(last_error_message) = es->message;
-    PG(last_error_file) = es->file;
-    PG(last_error_lineno) = es->lineno;
-    EG(error_reporting) = es->error_reporting;
-}
+void zai_sandbox_error_state_restore(zai_error_state *es);
 
 inline void zai_sandbox_exception_state_backup(zai_exception_state *es) {
     if (UNEXPECTED(EG(exception) != NULL)) {
