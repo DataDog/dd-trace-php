@@ -228,6 +228,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
     ZAI_SOURCES="\
       zend_abstract_interface/functions/php8/functions.c \
+      zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
       zend_abstract_interface/zai_sapi/php8/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
@@ -264,6 +265,8 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/functions/php8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/methods])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/methods/php5])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])
