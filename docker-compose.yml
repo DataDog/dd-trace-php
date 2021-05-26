@@ -114,7 +114,7 @@ services:
       - "8126:8126"
 
   request-replayer:
-    image: datadog/dd-trace-ci:php-request-replayer
+    image: datadog/dd-trace-ci:php-request-replayer-1.0
     ports:
       - "8766:80"
 

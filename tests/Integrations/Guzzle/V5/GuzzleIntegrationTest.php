@@ -139,7 +139,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Trace-Id']);
 
         // Find either the guzzle or curl span; prefer the latter
         $guzzleSpan = find_span_name($traces[0], 'GuzzleHttp\\Client.send');
@@ -151,7 +151,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             self::fail('Unable to find a guzzle or curl span!');
         }
 
-        self::assertSame($span['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+        self::assertSame($span['span_id'], $found['headers']['X-Datadog-Parent-Id']);
 
         self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
@@ -252,11 +252,11 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     {
         self::assertSame(
             $span['span_id'],
-            (int) $headers['X-Datadog-Parent-Id']
+            $headers['X-Datadog-Parent-Id']
         );
         self::assertSame(
             $span['trace_id'],
-            (int) $headers['X-Datadog-Trace-Id']
+            $headers['X-Datadog-Trace-Id']
         );
         self::assertSame('preserved_value', $headers['Honored']);
     }
@@ -297,8 +297,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         self::assertEquals(1, sizeof($traces[0]));
 
         // trace is: custom
-        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
-        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+        self::assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
 
         self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored

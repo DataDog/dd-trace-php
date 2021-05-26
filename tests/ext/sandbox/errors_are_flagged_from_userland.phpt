@@ -24,9 +24,9 @@ array(1) {
   [0]=>
   array(8) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>

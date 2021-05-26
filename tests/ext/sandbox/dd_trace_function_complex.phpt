@@ -94,9 +94,9 @@ array(5) {
   [0]=>
   array(10) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>
@@ -133,11 +133,11 @@ array(5) {
   [1]=>
   array(7) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["parent_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>
@@ -150,11 +150,11 @@ array(5) {
   [2]=>
   array(7) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["parent_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>
@@ -167,9 +167,9 @@ array(5) {
   [3]=>
   array(7) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>
@@ -187,9 +187,9 @@ array(5) {
   [4]=>
   array(7) {
     ["trace_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["span_id"]=>
-    int(%d)
+    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>

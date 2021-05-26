@@ -60,6 +60,6 @@ class SyntheticsTest extends WebFrameworkTestCase
                 '_sampling_priority_v1' => 1,
             ])
         );
-        $this->assertSame(123456, $traces[0][0]['trace_id']);
+        $this->assertSame('123456', $traces[0][0]['trace_id']);
     }
 }

@@ -203,9 +203,11 @@ final class SpanChecker
         foreach ($flatSpans as $span) {
             $byId[$span['span_id']] = ['span' => $span, 'children' => []];
         }
-        // PHP 5.6 and 7.* handle differently the way a foreach is done while removing in the loop items
+        // Note 1: PHP 5.6 and 7.* handle differently the way a foreach is done while removing in the loop items
         // from the array itself. As a quick fix, we iterate over keys instead of elements themselves.
-        $spanIds = \array_keys($byId);
+        // Note 2: On PHP 7.4 - at least - $array['123'] = 'a' is converted to $array[123] = 'a'. So we need to convert
+        // IDs back to string.
+        $spanIds = \array_map('strval', \array_keys($byId));
 
         do {
             $lastCount = count($byId);
@@ -413,7 +415,7 @@ final class SpanChecker
             TestCase::assertTrue(
                 $this->exactWildcardsMatches($expectedResource, $actualResource),
                 $namePrefix . "Wrong value for 'resource'. Exp: '$expectedResource' - Act: '$actualResource' "
-                . print_r($span, true)
+                    . print_r($span, true)
             );
         }
     }

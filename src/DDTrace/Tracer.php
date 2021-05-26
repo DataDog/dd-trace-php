@@ -393,7 +393,7 @@ final class Tracer implements TracerInterface
             }
         }
 
-        $internalSpans = dd_trace_serialize_closed_spans();
+        $internalSpans = \dd_trace_serialize_closed_spans();
 
         // Setting global tags on internal spans, if any
         $globalTags = $this->getGlobalTags();

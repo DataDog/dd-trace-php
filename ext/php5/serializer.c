@@ -2,7 +2,10 @@
 #include <Zend/zend_builtin_functions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
+#include <inttypes.h>
 #include <php.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <ext/spl/spl_exceptions.h>
 
@@ -16,6 +19,11 @@
 #include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+
+#define MAX_ID_BUFSIZ 21  // 1.8e^19 = 20 chars + 1 terminator
+#define KEY_TRACE_ID "trace_id"
+#define KEY_SPAN_ID "span_id"
+#define KEY_PARENT_ID "parent_id"
 
 static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC);
 
@@ -39,12 +47,25 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
                 mpack_start_array(writer, zend_hash_num_elements(ht));
             }
         }
+
+        // Writing the key, if associative
+        bool zval_string_as_uint64 = false;
         if (key_type == HASH_KEY_IS_STRING) {
             mpack_write_cstr(writer, string_key);
+            // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
+            if (0 == strcmp(KEY_TRACE_ID, string_key) || 0 == strcmp(KEY_SPAN_ID, string_key) ||
+                0 == strcmp(KEY_PARENT_ID, string_key)) {
+                zval_string_as_uint64 = true;
+            }
         }
-        if (msgpack_write_zval(writer, *tmp TSRMLS_CC) != 1) {
+
+        // Writing the value
+        if (zval_string_as_uint64) {
+            mpack_write_u64(writer, strtoull(Z_STRVAL_PP(tmp), NULL, 10));
+        } else if (msgpack_write_zval(writer, *tmp TSRMLS_CC) != 1) {
             return 0;
         }
+
         zend_hash_move_forward_ex(ht, &iterator);
     }
 
@@ -396,10 +417,18 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     ALLOC_INIT_ZVAL(el);
     array_init(el);
 
-    add_assoc_long(el, "trace_id", span->trace_id);
-    add_assoc_long(el, "span_id", span->span_id);
+    char trace_id_str[MAX_ID_BUFSIZ];
+    sprintf(trace_id_str, "%" PRIu64, span->trace_id);
+    add_assoc_string(el, KEY_TRACE_ID, trace_id_str, /* duplicate */ 1);
+
+    char span_id_str[MAX_ID_BUFSIZ];
+    sprintf(span_id_str, "%" PRIu64, span->span_id);
+    add_assoc_string(el, KEY_SPAN_ID, span_id_str, /* duplicate */ 1);
+
     if (span->parent_id > 0) {
-        add_assoc_long(el, "parent_id", span->parent_id);
+        char parent_id_str[MAX_ID_BUFSIZ];
+        sprintf(parent_id_str, "%" PRIu64, span->parent_id);
+        add_assoc_string(el, KEY_PARENT_ID, parent_id_str, /* duplicate */ 1);
     }
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);

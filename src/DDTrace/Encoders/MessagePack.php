@@ -15,7 +15,7 @@ final class MessagePack implements Encoder
      */
     public function encodeTraces(Tracer $tracer)
     {
-        $messagePack = dd_trace_serialize_msgpack($tracer->getTracesAsArray());
+        $messagePack = \dd_trace_serialize_msgpack($tracer->getTracesAsArray());
         if (false === $messagePack) {
             self::logDebug('Failed to MessagePack-encode trace');
             return '';

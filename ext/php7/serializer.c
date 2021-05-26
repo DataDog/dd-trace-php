@@ -3,7 +3,10 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
 #include <Zend/zend_smart_str.h>
+#include <inttypes.h>
 #include <php.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <ext/spl/spl_exceptions.h>
 
@@ -17,6 +20,11 @@
 #include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+
+#define MAX_ID_BUFSIZ 21  // 1.8e^19 = 20 chars + 1 terminator
+#define KEY_TRACE_ID "trace_id"
+#define KEY_SPAN_ID "span_id"
+#define KEY_PARENT_ID "parent_id"
 
 static int msgpack_write_zval(mpack_writer_t *writer, zval *trace);
 
@@ -34,10 +42,22 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
                 mpack_start_array(writer, zend_hash_num_elements(ht));
             }
         }
+
+        // Writing the key, if associative
+        bool zval_string_as_uint64 = false;
         if (is_assoc == 1) {
-            mpack_write_cstr(writer, ZSTR_VAL(string_key));
+            char *key = ZSTR_VAL(string_key);
+            mpack_write_cstr(writer, key);
+            // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
+            if (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key)) {
+                zval_string_as_uint64 = true;
+            }
         }
-        if (msgpack_write_zval(writer, tmp) != 1) {
+
+        // Writing the value
+        if (zval_string_as_uint64) {
+            mpack_write_u64(writer, strtoull(Z_STRVAL_P(tmp), NULL, 10));
+        } else if (msgpack_write_zval(writer, tmp) != 1) {
             return 0;
         }
     }
@@ -76,7 +96,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace) {
             mpack_write_bool(writer, Z_TYPE_P(trace) == IS_TRUE);
             break;
         case IS_STRING:
-            mpack_write_cstr(writer, ZSTR_VAL(Z_STR_P(trace)));
+            mpack_write_cstr(writer, Z_STRVAL_P(trace));
             break;
         default:
             ddtrace_log_debug("Serialize values must be of type array, string, int, float, bool or null");
@@ -536,10 +556,18 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     el = &zv;
     array_init(el);
 
-    add_assoc_long(el, "trace_id", span->trace_id);
-    add_assoc_long(el, "span_id", span->span_id);
+    char trace_id_str[MAX_ID_BUFSIZ];
+    sprintf(trace_id_str, "%" PRIu64, span->trace_id);
+    add_assoc_string(el, KEY_TRACE_ID, trace_id_str);
+
+    char span_id_str[MAX_ID_BUFSIZ];
+    sprintf(span_id_str, "%" PRIu64, span->span_id);
+    add_assoc_string(el, KEY_SPAN_ID, span_id_str);
+
     if (span->parent_id > 0) {
-        add_assoc_long(el, "parent_id", span->parent_id);
+        char parent_id_str[MAX_ID_BUFSIZ];
+        sprintf(parent_id_str, "%" PRIu64, span->parent_id);
+        add_assoc_string(el, KEY_PARENT_ID, parent_id_str);
     }
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);
