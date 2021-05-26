@@ -370,6 +370,7 @@ static zend_string *dd_fatal_error_stack(void) {
     zend_fetch_debug_backtrace(&stack, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
     zend_string *error_stack = NULL;
     if (Z_TYPE(stack) == IS_ARRAY) {
+        ddtrace_log_debug("stack is an array, lets serailize it!");
         zval zstack = dd_serialize_stack_trace(&stack);
         if (Z_TYPE(zstack) == IS_STRING) {
             error_stack = Z_STR(zstack);
@@ -505,6 +506,7 @@ static int dd_add_meta_array(void *context, ddtrace_string key, ddtrace_string v
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
+    ddtrace_log_debug("beginning of _serialize_meta()");
     ddtrace_span_t *span = &span_fci->span;
     zval meta_zv, *meta = ddtrace_spandata_property_meta(span->span_data);
 
