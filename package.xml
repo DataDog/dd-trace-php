@@ -36,7 +36,32 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    **Breaking change**: Users that are not explicitly setting or using json encoding are not impacted but this breaking change. Users either requiring json encoding for special purposes to send traces to their own custom targets or relying on the Stream class (that was not part of the public api in src/api) will have to manually clone the classes from the previous release SHA and register themselves. This is discouraged because as of today, json causes a fallback to blocking sync transmission to the Datadog agent, while using messagepack we support the unblocking async transport to our agent.
+
+    ### Added
+    - Zend Abstract Interface: Method call seam (PHP 5) #1186
+    - ZAI Sandbox #1213
+    - Auto-flushing (PHP 5) #1189
+    - Nette integration (v2 and v3) #504 #1220 (thanks @kozaktomas for the original contribution and thanks @Anilm3 for reviving the original PR)
+    - Begin documenting architecture #1225
+    - Detect ZAI ZMM leaks #1229
+    - ZAI function-call seam (PHP 8) #1234
+    ### Changed
+    - Update Docker ci docs #1202
+    - Remove Json encoder and Stream transport #1235
+    - Move from uint63 to uint64 for trace_id span_id and parent_id #1237
+    - Remove redundant dd_trace_tracer_is_limited() calls #1239
+    - Change config.m4 to allow in-tree build #1238
+    - Eliminate "innerhook" from trace_method and trace_function #1240
+    - Remove TSRMLS_* macros from PHP 7 and PHP 8 #1241
+    - Deferred loading with ZAI function-call seam (PHP 8) #1243
+    - Speed up randomized testing using a post #1192 version #1245
+    - Self update composer in the image we use to prepare the code in CI (#1221)
+    ### Fixed
+    - Fix meta header name for language version in BGS agent request #1244
+    - Fix flaky PCNTL tests (#1232)
+    </notes>
     <contents>
         <dir name="/">
             <!-- components -->
