@@ -1041,11 +1041,14 @@ static bool dd_is_catching_frame(zend_execute_data *execute_data) {
 
 static int dd_handle_exception_handler(zend_execute_data *execute_data) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
+    ddtrace_log_debugf("#1 dd_handle_exception_handler(): %d / %d", EX(opline)->opcode, span_fci == NULL);
     bool is_caught = dd_is_catching_frame(execute_data);
     if (ZEND_HANDLE_EXCEPTION == EX(opline)->opcode && span_fci && span_fci->execute_data == execute_data) {
         zval retval;
         ZVAL_NULL(&retval);
         // The catching frame's span will get closed by the return handler so we leave it open
+        ddtrace_log_debug("#2 dd_handle_exception_handler()");
+
         if (!is_caught) {
             ddtrace_span_attach_exception(span_fci, EG(exception));
             dd_observer_end(NULL, span_fci, &retval);
