@@ -56,6 +56,9 @@
             <file name="zend_abstract_interface/sandbox/php7/sandbox.c" role="src" />
             <file name="zend_abstract_interface/sandbox/php8/sandbox.c" role="src" />
             <file name="zend_abstract_interface/sandbox/sandbox.h" role="src" />
+            <file name="zend_abstract_interface/properties/php7-8/properties.c" role="src" />
+            <file name="zend_abstract_interface/properties/php7-8/properties.h" role="src" />
+            <file name="zend_abstract_interface/properties/properties.h" role="src" />
             <file name="zend_abstract_interface/zai_assert/zai_assert.h" role="src" />
             <file name="zend_abstract_interface/zai_sapi/php5/zai_sapi.c" role="src" />
             <file name="zend_abstract_interface/zai_sapi/php7/zai_sapi.c" role="src" />
