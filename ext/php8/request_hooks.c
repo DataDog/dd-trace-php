@@ -2,6 +2,7 @@
 
 #include <Zend/zend.h>
 #include <Zend/zend_compile.h>
+#include <exceptions/exceptions.h>
 #include <php_main.h>
 #include <string.h>
 
@@ -84,15 +85,8 @@ int dd_execute_php_file(const char *filename) {
                 zend_object *ex = EG(exception);
 
                 const char *type = ex->ce->name->val;
-                zval rv, obj;
-                ZVAL_OBJ(&obj, ex);
-                zval *message = GET_PROPERTY(&obj, ZEND_STR_MESSAGE);
-                const char *msg = Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val
-                                                                 : "(internal error reading exception message)";
-                ddtrace_log_errf("%s thrown in request init hook: %s", type, msg);
-                if (message == &rv) {
-                    zval_dtor(message);
-                }
+                zend_string *msg = zai_exception_message(ex);
+                ddtrace_log_errf("%s thrown in request init hook: %s", type, ZSTR_VAL(msg));
             }
             ddtrace_maybe_clear_exception();
             rv = TRUE;

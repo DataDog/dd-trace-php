@@ -92,12 +92,4 @@ void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t er
 void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception);
 void ddtrace_close_all_open_spans(void);
 
-inline zend_class_entry *ddtrace_get_exception_base(zval *object) {
-    return (Z_OBJCE_P(object) == zend_ce_exception || instanceof_function_slow(Z_OBJCE_P(object), zend_ce_exception))
-               ? zend_ce_exception
-               : zend_ce_error;
-}
-#define GET_PROPERTY(object, id) \
-    zend_read_property_ex(ddtrace_get_exception_base(object), Z_OBJ_P(object), ZSTR_KNOWN(id), 1, &rv)
-
 #endif  // DD_ENGINE_HOOKS_H
