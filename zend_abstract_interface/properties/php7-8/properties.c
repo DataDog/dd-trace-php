@@ -37,8 +37,7 @@ zval *zai_read_property_direct(zend_class_entry *ce, zend_object *object, zend_s
     return OBJ_PROP(object, prop_info->offset);
 }
 
-#undef zai_read_property_direct_literal
-zval *zai_read_property_direct_literal(zend_class_entry *ce, zend_object *obj, const char *name, int name_len) {
+zval *zai_read_property_direct_cstr(zend_class_entry *ce, zend_object *obj, const char *name, int name_len) {
     zend_string *name_str;
     ALLOCA_FLAG(use_heap);
     ZSTR_ALLOCA_INIT(name_str, name, name_len, use_heap);
