@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+TMP_DIR=.tmp
+SOURCE_DIRS="src/DDTrace src/private bridge"
+CLOC_EXCLUDE_FILE=tooling/metrics/.cloc-exclude-list
+
+rm -rf ${TMP_DIR}
+mkdir -p ${TMP_DIR}
+
+docker run --rm -v ${PWD}:/tmp aldanial/cloc --include-ext=php --exclude-list-file=${CLOC_EXCLUDE_FILE} ${SOURCE_DIRS}
