@@ -130,4 +130,10 @@ switch ($_SERVER['REQUEST_URI']) {
         set_error_handler('Handler::handleErrorNotResultingInError');
         function_that_calls_a_function_that_triggers_an_error();
         break;
+
+    // TODO:
+    // previous exception
+    // caught for good (no error)
+    // exception thrown and caught (code keeps running) --> after it another exception resulting in 500
+    // exception try-catch BUT without setting status code to 500.
 }
