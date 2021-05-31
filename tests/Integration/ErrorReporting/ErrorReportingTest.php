@@ -250,7 +250,13 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $this->assertError(
             $traces[0][0],
             "Index message",
-            [ ['index.php', '{main}'] ]);
+            [
+                [
+                    'index.php',
+                    '{main}',
+                ]
+            ]
+        );
     }
 
     public function testInternalExceptionThatShouldNotResultInError()
