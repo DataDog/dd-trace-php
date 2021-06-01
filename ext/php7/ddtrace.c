@@ -1281,7 +1281,7 @@ static PHP_FUNCTION(current_context) {
     add_assoc_stringl_ex(return_value, "trace_id", sizeof("trace_id") - 1, buf, length);
 
     // Add Span ID
-    length = snprintf(buf, sizeof(buf), "%" PRIu64, ddtrace_peek_span_id(TSRMLS_C));
+    length = snprintf(buf, sizeof(buf), "%" PRIu64, ddtrace_peek_span_id());
     add_assoc_stringl_ex(return_value, "span_id", sizeof("span_id") - 1, buf, length);
 
     // Add Version
