@@ -1332,8 +1332,8 @@ static PHP_FUNCTION(trace_id) {
     return_span_id(return_value, DDTRACE_G(trace_id));
 }
 
-/* {{{ proto array \DDTrace\get_current_context() */
-static PHP_FUNCTION(get_current_context) {
+/* {{{ proto array \DDTrace\current_context() */
+static PHP_FUNCTION(current_context) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
 
     size_t length;
@@ -1426,7 +1426,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_NS_FE(trace_id, arginfo_ddtrace_void),
-    DDTRACE_NS_FE(get_current_context, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),
