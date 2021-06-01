@@ -9,6 +9,7 @@ composer.lock
 .deps
 .phpunit.result.cache
 .tmp/
+.tmp.metrics
 **.code-workspace
 /Makefile*
 acinclude.m4

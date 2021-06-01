@@ -2,23 +2,27 @@
 
 set -e
 
-TMP_DIR=.tmp
+TMP_DIR=.tmp.metrics
 SOURCE_DIRS="src/DDTrace src/private bridge"
 CLOC_EXCLUDE_FILE=tooling/metrics/.cloc-exclude-list
+REPETITIONS=1
+VERSIONS=(0.56.0 0.59.0 0.60.0 master)
+
 
 rm -rf ${TMP_DIR}
 mkdir -p ${TMP_DIR}
 
-php_lines="$(docker run --rm -v ${PWD}:/tmp aldanial/cloc --include-ext=php --exclude-list-file=${CLOC_EXCLUDE_FILE} ${SOURCE_DIRS} \
-    | grep PHP \
-    | rev \
-    | cut -d' ' -f 1 \
-    | rev)"
-echo "Found ${php_lines} PHP lines."
+
+# php_lines="$(docker run --rm -v ${PWD}:/tmp aldanial/cloc --include-ext=php --exclude-list-file=${CLOC_EXCLUDE_FILE} ${SOURCE_DIRS} \
+#     | grep PHP \
+#     | rev \
+#     | cut -d' ' -f 1 \
+#     | rev)"
+# echo "Found ${php_lines} PHP lines."
 
 # AGENT="DD_AGENT_HOST=request-replayer DD_TRACE_CLI_ENABLED=1"
 # REQUEST_HOOK="DD_AGENT_HOST=request-replayer DD_TRACE_CLI_ENABLED=1"
-# instructions_notracer="$(docker-compose --ansi always run --rm 7.4-buster bash -c 'for i in {1..2}; do valgrind --tool=callgrind php tooling/metrics/synthetic.php; done' \
+# instructions_notracer="$(docker-compose --ansi always run --rm 7.4-buster bash -c 'for i in {1..${REPETITIONS}}; do valgrind --tool=callgrind php tooling/metrics/synthetic.php; done' \
 #     | grep 'Collected :' \
 #     | tail -1 \
 #     | rev \
@@ -27,14 +31,48 @@ echo "Found ${php_lines} PHP lines."
 #     | sed 's/[^0-9]*//g')"
 # echo "Instructions executed ${instructions_notracer} when notracer."
 
-memory_notracer="$(docker-compose --ansi always run --rm 7.4-buster bash -c 'for i in {1..2}; do valgrind --tool=memcheck php tooling/metrics/synthetic.php; done' \
-    | grep 'total heap usage' \
-    | tail -1 \
-    | sed -E 's/.*frees, ([0-9,]+) bytes allocated/\1/g' \
-    | sed 's:,::g' \
-    | sed 's/[^0-9]*//g')"
-echo "Bytes allocated ${memory_notracer} when notracer."
+# memory_notracer="$(docker-compose --ansi always run --rm 7.4-buster bash -c 'for i in {1..${REPETITIONS}}; do valgrind --tool=memcheck php tooling/metrics/synthetic.php; done' \
+#     | grep 'total heap usage' \
+#     | tail -1 \
+#     | sed -E 's/.*frees, ([0-9,]+) bytes allocated/\1/g' \
+#     | sed 's:,::g' \
+#     | sed 's/[^0-9]*//g')"
+# echo "Bytes allocated ${memory_notracer} when notracer."
 
 # DD_AGENT_HOST=request-replayer DD_TRACE_CLI_ENABLED=1 valgrind --tool=callgrind  php -d ddtrace.request_init_hook=bridge/dd_wrap_autoloader.php tooling/metrics/synthetic.php
 
 # DD_AGENT_HOST=request-replayer DD_TRACE_CLI_ENABLED=1 valgrind --tool=memcheck  php -d ddtrace.request_init_hook=bridge/dd_wrap_autoloader.php tooling/metrics/synthetic.php
+
+php_lines=()
+
+function setup_version {
+    version=${1}
+    echo "Setting up version: ${version}"
+    rm -rf ${TMP_DIR}
+    mkdir -p ${TMP_DIR}
+    git clone --single-branch --branch=${1} --depth=1 git@github.com:DataDog/dd-trace-php.git ${TMP_DIR}
+}
+
+
+function php_lines {
+    echo "Counting PHP lines"
+    php_lines+=("$(docker run --rm -v ${PWD}/${TMP_DIR}:/tmp aldanial/cloc --include-ext=php ${SOURCE_DIRS} \
+        | grep PHP \
+        | rev \
+        | cut -d' ' -f 1 \
+        | rev)")
+}
+
+for version in "${VERSIONS[@]}";
+do
+    echo "Analyzing version: ${version}"
+    setup_version ${version}
+    php_lines
+    echo "Done version ${version}"
+    echo "-------------------------------------------------------------------------------------------------------------"
+done
+
+for version_index in "${!VERSIONS[@]}";
+do
+    echo "Version: ${VERSIONS[$version_index]} - Lines: ${php_lines[$version_index]}"
+done
