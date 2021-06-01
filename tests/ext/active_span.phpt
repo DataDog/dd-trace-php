@@ -24,10 +24,10 @@ var_dump(DDTrace\active_span());
 var_dump(DDTrace\active_span() == DDTrace\active_span());
 
 ?>
---EXPECT--
+--EXPECTF--
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\SpanData)#1 (0) {
+object(DDTrace\SpanData)#%d (0) {
 }
 bool(true)

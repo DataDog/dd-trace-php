@@ -196,14 +196,18 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
         }
 
         zval *val;
-        zend_long idx;
+        zend_ulong idx;
         zend_string *key;
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARR(DDTRACE_G(additional_trace_meta)), idx, key, val) {
-            Z_TRY_ADDREF_P(val);
+            zval *added;
+            // let default serialization keys always take precendence
             if (key) {
-                zend_hash_update(Z_ARR_P(meta), key, val);
+                added = zend_hash_add(Z_ARR_P(meta), key, val);
             } else {
-                zend_hash_index_update(Z_ARR_P(meta), idx, val);
+                added = zend_hash_index_add(Z_ARR_P(meta), idx, val);
+            }
+            if (added) {
+                Z_TRY_ADDREF_P(val);
             }
         }
         ZEND_HASH_FOREACH_END();

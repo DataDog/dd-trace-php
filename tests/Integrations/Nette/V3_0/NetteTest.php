@@ -134,7 +134,11 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.url' => '/error',
                         'http.status_code' => '500',
                     ])
-                    ->setError('Internal Server Error')
+                    ->setError(
+                        PHP_VERSION_ID >= 80000 ? 'Exception' : 'Internal Server Error',
+                        PHP_VERSION_ID >= 80000 ? 'An exception occurred' : null,
+                        PHP_VERSION_ID >= 80000
+                    )
                     ->withChildren([
                         SpanAssertion::build(
                             'nette.configurator.createRobotLoader',

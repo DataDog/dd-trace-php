@@ -117,7 +117,9 @@ final class SpanAssertion
             $this->existingTags[] = Tag::ERROR_TYPE;
         }
         if (null !== $errorMessage) {
-            $this->exactTags[Tag::ERROR_MSG] = $errorMessage;
+            // commonly contains file/line info, use global format
+            // we do not want to test the specific formatting of exceptions here
+            $this->exactTags[Tag::ERROR_MSG] = "%S$errorMessage%S";
         }
         if ($exceptionThrown) {
             $this->existingTags[] = Tag::ERROR_STACK;

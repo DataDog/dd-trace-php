@@ -24,13 +24,13 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#2 (2) {
+object(DDTrace\SpanData)#%d (2) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
   string(3) "abc"
 }
-object(DDTrace\SpanData)#3 (1) {
+object(DDTrace\SpanData)#%d (1) {
   ["resource"]=>
   string(3) "abc"
 }

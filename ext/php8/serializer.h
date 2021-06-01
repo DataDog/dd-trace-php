@@ -12,5 +12,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array);
  */
 int ddtrace_exception_to_meta(ddtrace_exception_t *exception, void *context,
                               int (*add_tag)(void *context, ddtrace_string key, ddtrace_string value));
+void ddtrace_save_active_error_to_metadata();
 
 #endif  // DD_SERIALIZER_H

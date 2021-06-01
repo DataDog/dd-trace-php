@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 // comment to prevent clang from reordering these headers
+#include <SAPI.h>
 #include <exceptions/exceptions.h>
 #include <properties/properties.h>
 
@@ -160,10 +161,36 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
 typedef zend_result (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_string value);
 
 static zend_result dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag) {
-    ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
     zend_string *msg = zai_exception_message(exception);
-    ddtrace_string value = {ZSTR_VAL(msg), ZSTR_LEN(msg)};
-    return add_tag(context, key, value);
+    zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
+    zend_string *file = zval_get_string(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
+
+    char *error_text, *status_line;
+    zend_bool uncaught = SG(sapi_headers).http_response_code < 500;
+
+    if (!uncaught) {
+        if (SG(sapi_headers).http_status_line) {
+            asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line);
+        } else {
+            asprintf(&status_line, " (%d)", SG(sapi_headers).http_response_code);
+        }
+    }
+
+    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:" ZEND_LONG_FMT, uncaught ? "Uncaught" : "Caught",
+                             ZSTR_VAL(exception->ce->name), uncaught ? "" : status_line, ZSTR_LEN(msg) > 0 ? ": " : "",
+                             (int)ZSTR_LEN(msg), ZSTR_VAL(msg), ZSTR_VAL(file), line);
+
+    if (!uncaught) {
+        free(status_line);
+    }
+
+    ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
+    ddtrace_string value = {error_text, error_len};
+    zend_result result = add_tag(context, key, value);
+
+    zend_string_release(file);
+    free(error_text);
+    return result;
 }
 
 static zend_result dd_exception_to_error_type(zend_object *exception, void *context, add_tag_fn_t add_tag) {
@@ -206,19 +233,50 @@ static zend_result dd_exception_to_error_type(zend_object *exception, void *cont
     return add_tag(context, key, value);
 }
 
-static zend_result dd_exception_to_error_stack(zend_object *exception, void *context, add_tag_fn_t add_tag) {
-    zend_string *trace_string = zai_get_trace_without_args_from_exception(exception);
+static zend_result dd_exception_trace_to_error_stack(zend_string *trace, void *context, add_tag_fn_t add_tag) {
     ddtrace_string key = DDTRACE_STRING_LITERAL("error.stack");
-    ddtrace_string value = {ZSTR_VAL(trace_string), ZSTR_LEN(trace_string)};
+    ddtrace_string value = {ZSTR_VAL(trace), ZSTR_LEN(trace)};
     zend_result result = add_tag(context, key, value);
-    zend_string_release(trace_string);
+    zend_string_release(trace);
     return result;
 }
 
 zend_result ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta) {
+    zend_object *exception_root = exception;
+    zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
+
+    zval *previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
+           instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
+        zend_string *trace_string = zai_get_trace_without_args_from_exception(Z_OBJ_P(previous));
+
+        zend_string *msg = zai_exception_message(exception);
+        zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
+        zend_string *file = zval_get_string(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
+
+        zend_string *complete_trace =
+            zend_strpprintf(0, "%s\n\nNext %s%s%s in %s:" ZEND_LONG_FMT "\nStack trace:\n%s", ZSTR_VAL(trace_string),
+                            ZSTR_VAL(exception->ce->name), ZSTR_LEN(msg) ? ": " : "", ZSTR_VAL(msg), ZSTR_VAL(file),
+                            line, ZSTR_VAL(full_trace));
+        zend_string_release(trace_string);
+        zend_string_release(full_trace);
+        zend_string_release(file);
+        full_trace = complete_trace;
+
+        Z_PROTECT_RECURSION_P(previous);
+        exception = Z_OBJ_P(previous);
+        previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
+    }
+
+    previous = ZAI_EXCEPTION_PROPERTY(exception_root, ZEND_STR_PREVIOUS);
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous)) {
+        Z_UNPROTECT_RECURSION_P(previous);
+        previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
+    }
+
     bool success = dd_exception_to_error_msg(exception, context, add_meta) == SUCCESS &&
                    dd_exception_to_error_type(exception, context, add_meta) == SUCCESS &&
-                   dd_exception_to_error_stack(exception, context, add_meta) == SUCCESS;
+                   dd_exception_trace_to_error_stack(full_trace, context, add_meta) == SUCCESS;
     return success ? SUCCESS : FAILURE;
 }
 
@@ -487,7 +545,31 @@ static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
     return zend_string_copy(msg);
 }
 
-void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message) {
+void ddtrace_save_active_error_to_metadata() {
+    if (!DDTRACE_G(active_error).type) {
+        return;
+    }
+
+    dd_error_info error = {
+        .type = dd_error_type(DDTRACE_G(active_error).type),
+        .msg = zend_string_copy(DDTRACE_G(active_error).message),
+        .stack = dd_fatal_error_stack(),
+    };
+    for (ddtrace_span_fci *span = DDTRACE_G(open_spans_top); span; span = span->next) {
+        if (span->exception) {  // exceptions take priority
+            continue;
+        }
+
+        zval *meta = ddtrace_spandata_property_meta(&span->span);
+        if (Z_TYPE_P(meta) != IS_ARRAY) {
+            zval_ptr_dtor(meta);
+            array_init_size(meta, ddtrace_num_error_tags);
+        }
+        dd_fatal_error_to_meta(meta, error);
+    }
+}
+
+void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     UNUSED(error_filename, error_lineno);
 
     /* We need the error handling to place nicely with the sandbox. The best
@@ -496,7 +578,7 @@ void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t er
      * EH_THROW, then they are likely to be handled and accordingly they
      * shouldn't be treated as fatal.
      */
-    bool is_fatal_error = type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
+    bool is_fatal_error = orig_type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
     if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
         /* If there is a fatal error in shutdown then this might not be an array
          * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
@@ -504,7 +586,7 @@ void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t er
          */
         if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
             dd_error_info error = {
-                .type = dd_error_type(type),
+                .type = dd_error_type(orig_type),
                 .msg = dd_truncate_uncaught_exception(message),
                 .stack = dd_fatal_error_stack(),
             };
@@ -534,4 +616,6 @@ void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t er
             ddtrace_close_all_open_spans();
         }
     }
+
+    ddtrace_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
 }
