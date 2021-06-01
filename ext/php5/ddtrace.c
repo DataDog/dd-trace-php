@@ -1317,6 +1317,44 @@ static PHP_FUNCTION(trace_id) {
     return_span_id(return_value, DDTRACE_G(trace_id));
 }
 
+/* {{{ proto array \DDTrace\current_context() */
+static PHP_FUNCTION(current_context) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+
+    size_t length;
+    char buf[DD_TRACE_MAX_ID_LEN + 1];
+
+    array_init(return_value);
+
+    // Add Trace ID
+    length = snprintf(buf, sizeof(buf), "%" PRIu64, DDTRACE_G(trace_id));
+    add_assoc_stringl_ex(return_value, "trace_id", sizeof("trace_id"), buf, length, 1);
+
+    // Add Span ID
+    length = snprintf(buf, sizeof(buf), "%" PRIu64, ddtrace_peek_span_id(TSRMLS_C));
+    add_assoc_stringl_ex(return_value, "span_id", sizeof("span_id"), buf, length, 1);
+
+    // Add Version
+    char *version = get_dd_version();
+    length = strlen(version);
+    if (length > 0) {
+        add_assoc_stringl_ex(return_value, "version", sizeof("version"), version, length, 1);
+    } else {
+        add_assoc_null_ex(return_value, "version", sizeof("version"));
+    }
+    free(version);
+
+    // Add Env
+    char *env = get_dd_env();
+    length = strlen(env);
+    if (length > 0) {
+        add_assoc_stringl_ex(return_value, "env", sizeof("env"), env, length, 1);
+    } else {
+        add_assoc_null_ex(return_value, "env", sizeof("env"));
+    }
+    free(env);
+}
+
 /* {{{ proto string dd_trace_closed_spans_count() */
 static PHP_FUNCTION(dd_trace_closed_spans_count) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
@@ -1373,6 +1411,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_NS_FE(trace_id, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),

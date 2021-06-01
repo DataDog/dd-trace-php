@@ -610,6 +610,8 @@
             <file name="tests/ext/circuit_breaker_retry_time.phpt" role="test" />
             <file name="tests/ext/dd_trace_api_error.phpt" role="test" />
             <file name="tests/ext/dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
+            <file name="tests/ext/dd_trace_current_context.phpt" role="test" />
+            <file name="tests/ext/dd_trace_current_context_noenv.phpt" role="test" />
             <file name="tests/ext/dd_trace_push_span_id_from_userland.phpt" role="test" />
             <file name="tests/ext/dd_trace_send_traces_via_thread_001.phpt" role="test" />
             <file name="tests/ext/dd_trace_send_traces_via_thread_002.phpt" role="test" />
