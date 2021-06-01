@@ -16,8 +16,10 @@ ddtrace.request_init_hook=
 <?php
 register_shutdown_function(function () {
     echo 'Flushing...' . PHP_EOL;
-    dd_trace_serialize_closed_spans();
-    echo 'You should not see this.' . PHP_EOL;
+    if (PHP_VERSION_ID < 80000) {
+        dd_trace_serialize_closed_spans();
+        echo 'You should not see this.' . PHP_EOL;
+    }
 });
 
 DDTrace\trace_function('array_sum', function (DDTrace\SpanData $span) {

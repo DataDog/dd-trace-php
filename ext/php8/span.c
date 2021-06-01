@@ -8,6 +8,7 @@
 #include "configuration.h"
 #include "ddtrace.h"
 #include "dispatch.h"
+#include "engine_hooks.h"
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
@@ -24,31 +25,13 @@ void ddtrace_init_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static void _free_span(ddtrace_span_fci *span_fci) {
-    if (!span_fci) {
-        return;
-    }
-    ddtrace_span_t *span = &span_fci->span;
-    if (span->span_data) {
-        zval_ptr_dtor(span->span_data);
-        efree(span->span_data);
-        span->span_data = NULL;
-    }
-    if (span_fci->exception) {
-        OBJ_RELEASE(span_fci->exception);
-        span_fci->exception = NULL;
-    }
-
-    efree(span_fci);
-}
-
 void ddtrace_drop_span(ddtrace_span_fci *span_fci) {
     if (span_fci->dispatch) {
         ddtrace_dispatch_release(span_fci->dispatch);
         span_fci->dispatch = NULL;
     }
 
-    _free_span(span_fci);
+    OBJ_RELEASE(&span_fci->span.std);
 }
 
 static void _free_span_stack(ddtrace_span_fci *span_fci) {
@@ -85,10 +68,6 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     ddtrace_push_span(span_fci);
 
     ddtrace_span_t *span = &span_fci->span;
-
-    span->span_data = (zval *)ecalloc(1, sizeof(zval));
-    object_init_ex(span->span_data, ddtrace_ce_span_data);
-
     // Peek at the active span ID before we push a new one onto the stack
     span->parent_id = ddtrace_peek_span_id();
     span->span_id = ddtrace_push_span_id(0);
@@ -101,15 +80,44 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 }
 
+ddtrace_span_fci *ddtrace_init_span() {
+    zval fci_zv;
+    object_init_ex(&fci_zv, ddtrace_ce_span_data);
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ(fci_zv);
+    return span_fci;
+}
+
+void ddtrace_push_root_span() { ddtrace_open_span(ddtrace_init_span()); }
+
 void dd_trace_stop_span_time(ddtrace_span_t *span) {
     span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
 }
 
-void ddtrace_close_span(void) {
-    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
+void ddtrace_close_userland_spans_until(ddtrace_span_fci *until) {
+    ddtrace_span_fci *span_fci;
+    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until &&
+           (span_fci->execute_data != NULL || span_fci->next)) {
+        if (span_fci->execute_data) {
+            ddtrace_log_err("Found internal span data while closing userland spans");
+        }
+
+        if (get_dd_autofinish_spans()) {
+            dd_trace_stop_span_time(&span_fci->span);
+            ddtrace_close_span(span_fci);
+        } else {
+            ddtrace_drop_top_open_span();
+        }
+    }
+    DDTRACE_G(open_spans_top) = span_fci;
+}
+
+void ddtrace_close_span(ddtrace_span_fci *span_fci) {
     if (span_fci == NULL) {
         return;
     }
+
+    ddtrace_close_userland_spans_until(span_fci);
+
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id();
@@ -124,6 +132,7 @@ void ddtrace_close_span(void) {
     }
 
     // A userland span might still be open so we check the span ID stack instead of the internal span stack
+    // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
     if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
         if (ddtrace_flush_tracer() == FAILURE) {
             ddtrace_log_debug("Unable to auto flush the tracer");
@@ -148,17 +157,13 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     ddtrace_free_span_id_stack();
-    // Clear out additional trace meta; re-initialize it to empty
-    zval_dtor(&DDTRACE_G(additional_trace_meta));
-    array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
-
     ddtrace_span_fci *span_fci = DDTRACE_G(closed_spans_top);
     array_init(serialized);
     while (span_fci != NULL) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
         ddtrace_serialize_span_to_array(tmp, serialized);
-        _free_span(tmp);
+        OBJ_RELEASE(&tmp->span.std);
         // Move the stack down one as ddtrace_serialize_span_to_array() might do a long jump
         DDTRACE_G(closed_spans_top) = span_fci;
     }
@@ -166,4 +171,48 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
     DDTRACE_G(closed_spans_count) = 0;
     // Reset the span ID stack and trace ID
     ddtrace_free_span_id_stack();
+
+    // root span is always first on the array
+    HashPosition start;
+    zend_hash_internal_pointer_reset_ex(Z_ARR_P(serialized), &start);
+    zval *root = zend_hash_get_current_data_ex(Z_ARR_P(serialized), &start);
+    if (!root) {
+        return;
+    }
+
+    // Assign and clear out additional trace meta; re-initialize it to empty
+    if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(serialized)) > 0) {
+        zval *meta = zend_hash_str_find(Z_ARR_P(root), ZEND_STRL("meta"));
+        if (meta) {
+            zval *val;
+            zend_long idx;
+            zend_string *key;
+            ZEND_HASH_FOREACH_KEY_VAL(Z_ARR(DDTRACE_G(additional_trace_meta)), idx, key, val) {
+                Z_TRY_ADDREF_P(val);
+                if (key) {
+                    zend_hash_add(Z_ARR_P(root), key, val);
+                } else {
+                    zend_hash_index_add(Z_ARR_P(root), idx, val);
+                }
+            }
+            ZEND_HASH_FOREACH_END();
+        } else if (zend_array_count(Z_ARR(DDTRACE_G(additional_trace_meta)))) {
+            Z_ADDREF(DDTRACE_G(additional_trace_meta));
+            add_assoc_zval(root, "meta", &DDTRACE_G(additional_trace_meta));
+        }
+    }
+    zval_dtor(&DDTRACE_G(additional_trace_meta));
+    array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
+
+    if (get_dd_trace_measure_compile_time()) {
+        zval *metrics = zend_hash_str_find(Z_ARR_P(root), ZEND_STRL("metrics"));
+        if (!metrics) {
+            zval metrics_array;
+            array_init(&metrics_array);
+            metrics = zend_hash_str_add_new(Z_ARR_P(root), ZEND_STRL("metrics"), &metrics_array);
+        } else {
+            SEPARATE_ARRAY(metrics);
+        }
+        add_assoc_double(metrics, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
+    }
 }

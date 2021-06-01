@@ -292,12 +292,12 @@ static bool dd_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
 static bool dd_call_sandboxed_tracing_closure(ddtrace_span_fci *span_fci, zval *callable, zval *user_retval) {
     zend_execute_data *call = span_fci->execute_data;
     ddtrace_span_t *span = &span_fci->span;
-    zval user_args;
+    zval user_args, span_zv;
 
+    ZVAL_OBJ(&span_zv, &span->std);
     dd_copy_args(&user_args, call);
 
-    bool keep_span =
-        dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, EG(exception));
+    bool keep_span = dd_execute_tracing_closure(callable, &span_zv, call, &user_args, user_retval, EG(exception));
 
     zval_dtor(&user_args);
 
@@ -374,7 +374,9 @@ static ZEND_RESULT_CODE dd_do_hook_method_prehook(zend_execute_data *call, ddtra
 }
 
 static ddtrace_span_fci *dd_fcall_begin_tracing_hook(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+    zval span_zv;
+    object_init_ex(&span_zv, ddtrace_ce_span_data);
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ(span_zv);
     span_fci->execute_data = call;
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci);
@@ -410,7 +412,9 @@ static ddtrace_span_fci *dd_create_duplicate_span(zend_execute_data *call, ddtra
      * We want any children to be inherited by the currently active span, not
      * this fake one, so we duplicate the span_id.
      */
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+    zval span_zv;
+    object_init_ex(&span_zv, ddtrace_ce_span_data);
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ(span_zv);
     span_fci->execute_data = call;
     span_fci->dispatch = dispatch;
 
@@ -482,21 +486,19 @@ void dd_set_fqn(zval *zv, zend_execute_data *ex) {
 
 static void dd_set_default_properties(void) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
-    if (span_fci == NULL || span_fci->span.span_data == NULL || span_fci->execute_data == NULL) {
+    if (span_fci == NULL || span_fci->execute_data == NULL) {
         return;
     }
 
     ddtrace_span_t *span = &span_fci->span;
     // SpanData::$name defaults to fully qualified called name
     // The other span property defaults are set at serialization time
-    zval *prop_name = ddtrace_spandata_property_name(span->span_data);
-    if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
+    zval *prop_name = ddtrace_spandata_property_name(span);
+    if (prop_name && Z_TYPE_P(prop_name) <= IS_NULL) {
         zval prop_name_default;
         ZVAL_NULL(&prop_name_default);
         dd_set_fqn(&prop_name_default, span_fci->execute_data);
         ZVAL_COPY_VALUE(prop_name, &prop_name_default);
-        zval_copy_ctor(prop_name);
-        zval_dtor(&prop_name_default);
     }
 }
 
@@ -589,9 +591,11 @@ static void dd_fcall_end_tracing_posthook(ddtrace_span_fci *span_fci, zval *user
 
     bool keep_span = dd_call_sandboxed_tracing_closure(span_fci, &dispatch->posthook, user_retval);
 
+    ddtrace_close_userland_spans_until(span_fci);  // because dropping / setting default properties happens on top span
+
     if (keep_span) {
         dd_set_default_properties();
-        ddtrace_close_span();
+        ddtrace_close_span(span_fci);
     } else {
         ddtrace_drop_top_open_span();
     }
@@ -615,8 +619,10 @@ static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_
     UNUSED(user_retval);
     dd_trace_stop_span_time(&span_fci->span);
 
+    ddtrace_close_userland_spans_until(span_fci);  // because setting default properties happens on top span
+
     dd_set_default_properties();
-    ddtrace_close_span();
+    ddtrace_close_span(span_fci);
 }
 
 static void dd_fcall_end_non_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_retval) {
@@ -710,11 +716,19 @@ static bool dd_is_catching_frame(zend_execute_data *execute_data) {
 
 void ddtrace_close_all_open_spans(void) {
     ddtrace_span_fci *span_fci;
-    while ((span_fci = DDTRACE_G(open_spans_top))) {
-        zval retval;
-        ZVAL_NULL(&retval);
-        dd_observer_end(NULL, span_fci, &retval);
+    while ((span_fci = DDTRACE_G(open_spans_top)) && (span_fci->execute_data != NULL || span_fci->next)) {
+        if (span_fci->execute_data) {
+            zval retval;
+            ZVAL_NULL(&retval);
+            dd_observer_end(NULL, span_fci, &retval);
+        } else if (get_dd_autofinish_spans()) {
+            dd_trace_stop_span_time(&span_fci->span);
+            ddtrace_close_span(span_fci);
+        } else {
+            ddtrace_drop_top_open_span();
+        }
     }
+    DDTRACE_G(open_spans_top) = span_fci;
 }
 
 static void dd_observer_begin_handler(zend_execute_data *execute_data) {

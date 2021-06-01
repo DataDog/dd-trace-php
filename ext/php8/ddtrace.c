@@ -87,9 +87,6 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
 static void ddtrace_activate(void) {}
 static void ddtrace_deactivate(void) {}
 
-// prepare the tracer state to start handling a new trace
-static void dd_prepare_for_new_trace(void);
-
 static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   PHP_DDTRACE_VERSION,
                                                   "Datadog",
@@ -153,6 +150,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_push_span_id, 0, 0, 0)
 ZEND_ARG_INFO(0, existing_id)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_close_span, 0, 0, 0)
+ZEND_ARG_INFO(0, finish_time)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_add_global_tag, 0, 0, 2)
+ZEND_ARG_INFO(0, key)
+ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_internal_fn, 0, 0, 1)
 ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_VARIADIC_INFO(0, vars)
@@ -214,17 +220,53 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
+zend_object_handlers ddtrace_span_data_handlers;
+
+static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
+    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+    zend_object_std_init(&span_fci->span.std, class_type);
+    span_fci->span.std.handlers = &ddtrace_span_data_handlers;
+    return &span_fci->span.std;
+}
+
+static void ddtrace_span_data_free_storage(zend_object *object) {
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)object;
+    if (span_fci->exception) {
+        OBJ_RELEASE(span_fci->exception);
+    }
+    zend_object_std_dtor(object);
+}
+
+static PHP_METHOD(DDTrace_SpanData, getDuration) {
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ_P(ZEND_THIS);
+    RETURN_LONG(span_fci->span.duration);
+}
+
+static PHP_METHOD(DDTrace_SpanData, getStartTime) {
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ_P(ZEND_THIS);
+    RETURN_LONG(span_fci->span.start);
+}
+
+const zend_function_entry class_DDTrace_SpanData_methods[] = {
+    PHP_ME(DDTrace_SpanData, getDuration, arginfo_ddtrace_void, ZEND_ACC_PUBLIC)
+        PHP_ME(DDTrace_SpanData, getStartTime, arginfo_ddtrace_void, ZEND_ACC_PUBLIC) PHP_FE_END};
 
 static void dd_register_span_data_ce(void) {
+    memcpy(&ddtrace_span_data_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+    ddtrace_span_data_handlers.clone_obj = NULL;
+    ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
+
     zend_class_entry ce_span_data;
-    INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
+    INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", class_DDTrace_SpanData_methods);
     ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data);
+    ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
 
     // trace_id, span_id, parent_id, start & duration are stored directly on
     // ddtrace_span_t so we don't need to make them properties on DDTrace\SpanData
     /*
      * ORDER MATTERS: If you make any changes to the properties below, update the
      * corresponding ddtrace_spandata_property_*() function with the proper offset.
+     * ALSO: Update the properties_table_placeholder size of ddtrace_span_t to property count - 1.
      */
     zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC);
@@ -234,18 +276,21 @@ static void dd_register_span_data_ce(void) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
 // SpanData::$name
-zval *ddtrace_spandata_property_name(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 0); }
+zval *ddtrace_spandata_property_name(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 0); }
 // SpanData::$resource
-zval *ddtrace_spandata_property_resource(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 1); }
+zval *ddtrace_spandata_property_resource(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 1); }
 // SpanData::$service
-zval *ddtrace_spandata_property_service(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 2); }
+zval *ddtrace_spandata_property_service(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 2); }
 // SpanData::$type
-zval *ddtrace_spandata_property_type(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 3); }
+zval *ddtrace_spandata_property_type(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 3); }
 // SpanData::$meta
-zval *ddtrace_spandata_property_meta(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 4); }
+zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 4); }
 // SpanData::$metrics
-zval *ddtrace_spandata_property_metrics(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 5); }
+zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 5); }
+#pragma GCC diagnostic pop
 
 /* DDTrace\FatalError */
 zend_class_entry *ddtrace_ce_fatal_error;
@@ -362,6 +407,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
+    DDTRACE_G(additional_global_tags) = zend_new_array(0);
 
     // Things that should only run on the first RINIT
     int expected_first_rinit = 1;
@@ -401,6 +447,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     dd_prepare_for_new_trace();
 
+    if (get_dd_trace_generate_root_span()) {
+        ddtrace_push_root_span();
+    }
+
     return SUCCESS;
 }
 
@@ -411,7 +461,18 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_close_all_open_spans();  // All remaining non-internal userland spans
+    if (DDTRACE_G(open_spans_top) && DDTRACE_G(open_spans_top)->execute_data == NULL) {
+        // we have a root span. Close it.
+        dd_trace_stop_span_time(&DDTRACE_G(open_spans_top)->span);
+        ddtrace_close_span(DDTRACE_G(open_spans_top));
+    }
+    if (ddtrace_flush_tracer() == FAILURE) {
+        ddtrace_log_debug("Unable to flush the tracer");
+    }
+
     zval_dtor(&DDTRACE_G(additional_trace_meta));
+    zend_array_destroy(DDTRACE_G(additional_global_tags));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
 
     ddtrace_internal_handlers_rshutdown();
@@ -746,6 +807,23 @@ static PHP_FUNCTION(additional_trace_meta) {
 
     ZVAL_COPY_VALUE(return_value, &DDTRACE_G(additional_trace_meta));
     zval_copy_ctor(return_value);
+}
+
+/* {{{ proto string DDTrace\add_global_tag(string $key, string $value) */
+static PHP_FUNCTION(add_global_tag) {
+    UNUSED(execute_data);
+
+    zend_string *key, *val;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS", &key, &val) == FAILURE) {
+        ddtrace_log_debug(
+            "Unable to parse parameters for DDTrace\\add_global_tag; expected (string $key, string $value)");
+    }
+
+    zval value_zv;
+    ZVAL_STR_COPY(&value_zv, val);
+    zend_hash_update(DDTRACE_G(additional_global_tags), key, &value_zv);
+
+    RETURN_NULL();
 }
 
 static PHP_FUNCTION(trace_function) {
@@ -1249,6 +1327,50 @@ static PHP_FUNCTION(dd_trace_peek_span_id) {
     return_span_id(return_value, ddtrace_peek_span_id());
 }
 
+/* {{{ proto string DDTrace\active_span() */
+static PHP_FUNCTION(active_span) {
+    UNUSED(execute_data);
+    if (DDTRACE_G(open_spans_top)) {
+        RETURN_OBJ_COPY(&DDTRACE_G(open_spans_top)->span.std);
+    }
+    RETURN_NULL();
+}
+
+/* {{{ proto string DDTrace\start_span() */
+static PHP_FUNCTION(start_span) {
+    UNUSED(execute_data);
+    ddtrace_span_fci *span_fci = ddtrace_init_span();
+    ddtrace_open_span(span_fci);
+    RETURN_OBJ_COPY(&span_fci->span.std);
+}
+
+/* {{{ proto string DDTrace\close_span() */
+static PHP_FUNCTION(close_span) {
+    UNUSED(execute_data);
+    double finish_time_seconds = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|f", &finish_time_seconds) != SUCCESS) {
+        ddtrace_log_debug("unexpected parameter. the environment variable name must be provided");
+        RETURN_FALSE;
+    }
+
+    if (!DDTRACE_G(open_spans_top) || DDTRACE_G(open_spans_top)->execute_data ||
+        (get_dd_trace_generate_root_span() && DDTRACE_G(open_spans_top)->next == NULL)) {
+        ddtrace_log_err("There is no user-span on the top of the stack. Cannot close.");
+        RETURN_NULL();
+    }
+
+    uint64_t start_time = DDTRACE_G(open_spans_top)->span.duration_start;
+    uint64_t finish_time = (uint64_t)(finish_time_seconds * 1000000000);
+    if (finish_time < start_time) {
+        dd_trace_stop_span_time(&DDTRACE_G(open_spans_top)->span);
+    } else {
+        DDTRACE_G(open_spans_top)->span.duration = finish_time - start_time;
+    }
+
+    ddtrace_close_span(DDTRACE_G(open_spans_top));
+    RETURN_NULL();
+}
+
 /* {{{ proto string \DDTrace\trace_id() */
 static PHP_FUNCTION(trace_id) {
     UNUSED(execute_data);
@@ -1344,6 +1466,9 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_FE(dd_trace_internal_fn, arginfo_dd_trace_internal_fn),
     DDTRACE_FE(dd_trace_noop, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(start_span, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(close_span, arginfo_dd_trace_close_span),
+    DDTRACE_NS_FE(active_span, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
@@ -1366,6 +1491,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_void),
     DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
+    DDTRACE_NS_FE(add_global_tag, arginfo_ddtrace_add_global_tag),
     DDTRACE_NS_FE(additional_trace_meta, arginfo_ddtrace_void),
     DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),
@@ -1405,4 +1531,4 @@ ZEND_TSRMLS_CACHE_DEFINE();
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
 //   - set a new trace (group) id
-static void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
+void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }

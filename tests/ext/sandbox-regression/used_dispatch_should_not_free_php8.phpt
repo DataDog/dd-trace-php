@@ -25,3 +25,4 @@ Cannot overwrite existing dispatch for 'test()'
 OLD HOOK METHOD exec_a
 Cannot overwrite existing dispatch for 'test()'
 OLD HOOK METHOD exec_b
+Successfully triggered auto-flush with trace of size 3

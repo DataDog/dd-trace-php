@@ -1,5 +1,7 @@
 --TEST--
 Exceptions and errors are ignored when inside a tracing closure
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
@@ -53,3 +55,4 @@ TestFoo
 MTRand
 MTSeed
 NULL
+No finished traces to be sent to the agent

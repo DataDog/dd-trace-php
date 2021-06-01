@@ -14,15 +14,18 @@ extern zend_class_entry *ddtrace_ce_fatal_error;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_fci ddtrace_span_fci;
+typedef struct ddtrace_span_t ddtrace_span_t;
 
-zval *ddtrace_spandata_property_name(zval *spandata);
-zval *ddtrace_spandata_property_resource(zval *spandata);
-zval *ddtrace_spandata_property_service(zval *spandata);
-zval *ddtrace_spandata_property_type(zval *spandata);
-zval *ddtrace_spandata_property_meta(zval *spandata);
-zval *ddtrace_spandata_property_metrics(zval *spandata);
+zval *ddtrace_spandata_property_name(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_resource(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_service(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_type(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
 
 BOOL_T ddtrace_tracer_is_limited(void);
+// prepare the tracer state to start handling a new trace
+void dd_prepare_for_new_trace(void);
 
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
@@ -38,6 +41,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *class_lookup;
     HashTable *function_lookup;
     zval additional_trace_meta; // IS_ARRAY
+    zend_array *additional_global_tags;
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
     dogstatsd_client dogstatsd_client;

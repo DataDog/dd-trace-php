@@ -3,6 +3,7 @@
 --ENV--
 DD_TRACE_SPANS_LIMIT=1000
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 DDTrace\trace_function('array_sum', function () {});

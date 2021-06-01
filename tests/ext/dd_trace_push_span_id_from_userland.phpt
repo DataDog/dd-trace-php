@@ -2,6 +2,7 @@
 Push a span ID onto the stack from userland
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 echo dd_trace_push_span_id('42') . PHP_EOL;

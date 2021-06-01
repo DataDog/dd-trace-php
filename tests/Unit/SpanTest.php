@@ -266,16 +266,6 @@ final class SpanTest extends BaseTestCase
         $this->assertSame(1.0, $span->getMetrics()['exists']);
     }
 
-    public function testIsTraceAnalyticsConfigCandidate()
-    {
-        $span = $this->createSpan();
-        $this->assertFalse($span->isTraceAnalyticsCandidate());
-        $span->setTraceAnalyticsCandidate();
-        $this->assertTrue($span->isTraceAnalyticsCandidate());
-        $span->setTraceAnalyticsCandidate(false);
-        $this->assertFalse($span->isTraceAnalyticsCandidate());
-    }
-
     public function testTraceAnalyticsConfigEnabledByTag()
     {
         $span = $this->createSpan();

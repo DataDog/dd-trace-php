@@ -246,10 +246,6 @@ final class TracerTest extends BaseTestCase
 
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
-        $this->assertNull($tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
-
-        $tracer->flush();
-
         $this->assertEquals(gethostname(), $tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
     }
 

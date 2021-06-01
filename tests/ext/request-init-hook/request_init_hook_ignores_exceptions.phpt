@@ -1,5 +1,7 @@
 --TEST--
 Request init hook ignores exceptions
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --INI--
@@ -13,3 +15,4 @@ echo "Request start" . PHP_EOL;
 Throwing an exception...
 Exception thrown in request init hook: Oops!
 Request start
+Successfully triggered auto-flush with trace of size 1

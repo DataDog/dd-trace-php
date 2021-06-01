@@ -33,6 +33,11 @@ foreach ($headers as $name => $value) {
 echo PHP_EOL;
 
 echo 'Done.' . PHP_EOL;
+
+if (PHP_VERSION_ID < 80000) {
+    echo "Successfully triggered auto-flush with trace of size 1", PHP_EOL;
+}
+
 ?>
 --EXPECTF--
 bool(true)
@@ -41,3 +46,4 @@ Datadog-Container-Id: 9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416
 Datadog-Meta-Lang: php
 
 Done.
+Successfully triggered auto-flush with trace of size 1

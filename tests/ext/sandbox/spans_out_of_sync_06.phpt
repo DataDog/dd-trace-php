@@ -1,5 +1,7 @@
 --TEST--
 Gracefully handle out-of-sync spans in closure itself [user][default properties]
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--
@@ -19,3 +21,4 @@ echo 'Done.' . PHP_EOL;
 ?>
 --EXPECT--
 Done.
+Successfully triggered auto-flush with trace of size 2

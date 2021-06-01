@@ -113,6 +113,11 @@ final class Tracer implements TracerInterface
         ];
         $this->config = array_merge($this->config, $config);
         $this->reset();
+        if (PHP_VERSION_ID >= 80000) {
+            foreach ($this->config['global_tags'] as $key => $val) {
+                add_global_tag($key, $val);
+            }
+        }
         $this->config['global_tags'] = array_merge($this->config['global_tags'], \ddtrace_config_global_tags());
         $this->serviceVersion = \ddtrace_config_service_version();
         $this->environment = \ddtrace_config_env();
@@ -170,13 +175,18 @@ final class Tracer implements TracerInterface
             $context = SpanContext::createAsChild($reference->getContext());
         }
 
-        $span = new Span(
-            $operationName,
-            $context,
-            $this->config['service_name'],
-            array_key_exists('resource', $this->config) ? $this->config['resource'] : null,
-            $options->getStartTime()
-        );
+        $resource = array_key_exists('resource', $this->config) ? (string) $this->config['resource'] : null;
+        $service = $this->config['service_name'];
+
+        if (PHP_VERSION_ID >= 80000) {
+            $internalSpan = active_span();
+            $internalSpan->name = (string) $operationName;
+            $internalSpan->service = $service;
+            $internalSpan->resource = $resource;
+            $span = new Span($internalSpan, $context);
+        } else {
+            $span = new Span($operationName, $context, $service, $resource, $options->getStartTime());
+        }
 
         $tags = $options->getTags() + $this->getGlobalTags();
         if ($context->getParentId() === null) {
@@ -185,6 +195,17 @@ final class Tracer implements TracerInterface
 
         foreach ($tags as $key => $value) {
             $span->setTag($key, $value);
+        }
+
+        if ($reference === null) {
+            if (\ddtrace_config_hostname_reporting_enabled()) {
+                $hostname = gethostname();
+                if ($hostname !== false) {
+                    $span->setTag(Tag::HOSTNAME, $hostname);
+                }
+            }
+            // Call it here so that the data is there in any case, even when shutdown fatal errors
+            $this->addUrlAsResourceNameToSpan($span);
         }
 
         $this->record($span);
@@ -253,7 +274,8 @@ final class Tracer implements TracerInterface
             $span->setTag(Tag::SERVICE_NAME, $parentService);
         }
 
-        return $this->scopeManager->activate($span, $options->shouldFinishSpanOnClose());
+        $shouldFinish = $options->shouldFinishSpanOnClose() && (PHP_VERSION_ID < 80000 || $span->getParentId() != 0);
+        return $this->scopeManager->activate($span, $shouldFinish);
     }
 
     /**
@@ -305,12 +327,8 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        // We should refactor these blocks to use a pre-flush hook
-        if (\ddtrace_config_hostname_reporting_enabled()) {
-            $this->addHostnameToRootSpan();
-        }
-        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled()) {
-            $this->addUrlAsResourceNameToRootSpan();
+        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled() && $rootScope = $this->getRootScope()) {
+            $this->addUrlAsResourceNameToSpan($rootScope->getSpan());
         }
 
         if (self::isLogDebugActive()) {
@@ -430,24 +448,8 @@ final class Tracer implements TracerInterface
         return $tracesToBeSent;
     }
 
-    private function addHostnameToRootSpan()
+    private function addUrlAsResourceNameToSpan(Contracts\Span $span)
     {
-        $hostname = gethostname();
-        if ($hostname !== false) {
-            $span = $this->getRootScope()->getSpan();
-            if ($span !== null) {
-                $span->setTag(Tag::HOSTNAME, $hostname);
-            }
-        }
-    }
-
-    private function addUrlAsResourceNameToRootSpan()
-    {
-        $scope = $this->getRootScope();
-        if (null === $scope) {
-            return;
-        }
-        $span = $scope->getSpan();
         if (null !== $span->getResource()) {
             return;
         }
@@ -494,10 +496,11 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        $this->prioritySampling = $span->getContext()->getPropagatedPrioritySampling();
-        if (null === $this->prioritySampling) {
-            $this->prioritySampling = $this->sampler->getPrioritySampling($span);
+        $prioritySampling = $span->getContext()->getPropagatedPrioritySampling();
+        if (null === $prioritySampling) {
+            $prioritySampling = $this->sampler->getPrioritySampling($span);
         }
+        $this->setPrioritySampling($prioritySampling);
     }
 
     /**
@@ -506,6 +509,20 @@ final class Tracer implements TracerInterface
     public function setPrioritySampling($prioritySampling)
     {
         $this->prioritySampling = $prioritySampling;
+
+        $rootScope = $this->getRootScope();
+        if (null === $rootScope) {
+            return;
+        }
+        $rootSpan = $rootScope->getSpan();
+        if (null === $rootSpan) {
+            return;
+        }
+        if ($prioritySampling === Sampling\PrioritySampling::UNKNOWN) {
+            unset($rootSpan->metrics['_sampling_priority_v1']);
+        } else {
+            $rootSpan->metrics['_sampling_priority_v1'] = $prioritySampling;
+        }
     }
 
     /**
@@ -551,7 +568,7 @@ final class Tracer implements TracerInterface
     /**
      * Enforce priority sampling on the root span.
      */
-    private function enforcePrioritySamplingOnRootSpan()
+    public function enforcePrioritySamplingOnRootSpan()
     {
         if ($this->prioritySampling !== Sampling\PrioritySampling::UNKNOWN) {
             return;

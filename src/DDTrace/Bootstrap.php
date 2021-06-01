@@ -30,14 +30,16 @@ final class Bootstrap
 
         $tracer = self::resetTracer();
 
-        \DDTrace\hook_method('DDTrace\\Bootstrap', 'flushTracerShutdown', null, function () {
-            $tracer = GlobalTracer::get();
-            $scopeManager = $tracer->getScopeManager();
-            $scopeManager->close();
-            if (!\dd_trace_env_config('DD_TRACE_AUTO_FLUSH_ENABLED')) {
-                $tracer->flush();
-            }
-        });
+        if (PHP_VERSION_ID < 80000) {
+            \DDTrace\hook_method('DDTrace\\Bootstrap', 'flushTracerShutdown', null, function () {
+                $tracer = GlobalTracer::get();
+                $scopeManager = $tracer->getScopeManager();
+                $scopeManager->close();
+                if (!\dd_trace_env_config('DD_TRACE_AUTO_FLUSH_ENABLED')) {
+                    $tracer->flush();
+                }
+            });
+        }
 
         if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
             self::initRootSpan($tracer);
@@ -51,7 +53,26 @@ final class Bootstrap
                 */
                 register_shutdown_function(function () {
                     // We wrap the call in a closure to prevent OPcache from skipping the call.
-                    Bootstrap::flushTracerShutdown();
+                    if (PHP_VERSION_ID < 80000) { // internal handling
+                        Bootstrap::flushTracerShutdown();
+                    } else {
+                        // this also gets set when creating a root span, but may not have the latest up-to-date data
+                        if (
+                            'cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled()
+                            && $rootScope = $this->getRootScope()
+                        ) {
+                            $this->addUrlAsResourceNameToSpan($rootScope->getSpan());
+                        }
+                        /*
+                         * Having this priority sampling here is actually a bug (should happen after service name
+                         * substitutions), but it was this way before the refactor, so let's fix this in a
+                         * subsequent release, when we will have ported everything else to the extension.
+                         */
+                        $tracer = GlobalTracer::get();
+                        if (method_exists($tracer, "enforcePrioritySamplingOnRootSpan")) {
+                            $tracer->enforcePrioritySamplingOnRootSpan();
+                        }
+                    }
                 });
             });
         }
@@ -125,6 +146,14 @@ final class Bootstrap
             // Adding configured incoming request http headers
             foreach (Private_\util_extract_configured_headers_as_tags($httpHeaders, true) as $tag => $value) {
                 $span->setTag($tag, $value);
+            }
+
+            if (PHP_VERSION_ID >= 80000) {
+                foreach ($httpHeaders as $header => $value) {
+                    if (stripos($header, Propagator::DEFAULT_ORIGIN_HEADER) === 0) {
+                        add_global_tag(Tag::ORIGIN, $value);
+                    }
+                }
             }
         }
         $integration = WebIntegration::getInstance();

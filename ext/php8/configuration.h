@@ -88,6 +88,7 @@ void ddtrace_config_shutdown(void);
     BOOL(get_dd_distributed_tracing, "DD_DISTRIBUTED_TRACING", true)                                                 \
     CHAR(get_dd_dogstatsd_port, "DD_DOGSTATSD_PORT", "8125")                                                         \
     CHAR(get_dd_env, "DD_ENV", "")                                                                                   \
+    BOOL(get_dd_autofinish_spans, "DD_AUTOFINISH_SPANS", false)                                                      \
     CHAR(get_dd_integrations_disabled, "DD_INTEGRATIONS_DISABLED", "")                                               \
     BOOL(get_dd_priority_sampling, "DD_PRIORITY_SAMPLING", true)                                                     \
     CHAR(get_dd_service, "DD_SERVICE", "")                                                                           \
@@ -120,10 +121,6 @@ void ddtrace_config_shutdown(void);
     BOOL(get_dd_trace_generate_root_span, "DD_TRACE_GENERATE_ROOT_SPAN", true)                                       \
     BOOL(get_dd_trace_sandbox_enabled, "DD_TRACE_SANDBOX_ENABLED", true)                                             \
     INT(get_dd_trace_spans_limit, "DD_TRACE_SPANS_LIMIT", 1000)                                                      \
-    BOOL(get_dd_trace_send_traces_via_thread, "DD_TRACE_BETA_SEND_TRACES_VIA_THREAD", true,                          \
-         "use background thread to send traces to the agent")                                                        \
-    BOOL(get_dd_trace_bgs_enabled, "DD_TRACE_BGS_ENABLED", true,                                                     \
-         "use background sender (BGS) to send traces to the agent")                                                  \
     INT(get_dd_trace_bgs_connect_timeout, "DD_TRACE_BGS_CONNECT_TIMEOUT", DD_TRACE_BGS_CONNECT_TIMEOUT)              \
     INT(get_dd_trace_bgs_timeout, "DD_TRACE_BGS_TIMEOUT", DD_TRACE_BGS_TIMEOUT)                                      \
     INT(get_dd_trace_agent_flush_interval, "DD_TRACE_AGENT_FLUSH_INTERVAL", 5000)                                    \

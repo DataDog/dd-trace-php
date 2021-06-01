@@ -32,6 +32,11 @@ echo 'Datadog-Meta-Lang: ' . $headers['Datadog-Meta-Lang'] . PHP_EOL;
 echo PHP_EOL;
 
 echo 'Done.' . PHP_EOL;
+
+if (PHP_VERSION_ID < 80000) {
+    echo "Successfully triggered auto-flush with trace of size 1", PHP_EOL;
+}
+
 ?>
 --EXPECTF--
 bool(true)
@@ -40,3 +45,4 @@ Datadog-Container-Id: 34dc0b5e626f2c5c4c5170e34b10e765-1234567890
 Datadog-Meta-Lang: php
 
 Done.
+Successfully triggered auto-flush with trace of size 1

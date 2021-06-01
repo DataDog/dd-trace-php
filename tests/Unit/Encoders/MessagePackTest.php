@@ -19,7 +19,6 @@ final class MessagePackTest extends BaseTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        putenv('DD_AUTOFINISH_SPANS=true');
         $this->tracer = new Tracer(
             new DebugTransport(),
             null,
@@ -43,7 +42,7 @@ final class MessagePackTest extends BaseTestCase
 \x91\x91%a\xa8trace_id%aspan_id%aname%atest_name%aresource%atest_resource%aservice%atest_service%astart%aerror%a
 MPACK;
 
-        $this->tracer->startSpan('test_name');
+        $this->tracer->startSpan('test_name')->finish();
 
         $encoder = new MessagePack();
         $encodedTrace = $encoder->encodeTraces($this->tracer);
@@ -52,8 +51,9 @@ MPACK;
 
     public function testEncodeNoPrioritySampling()
     {
-        $this->tracer->startSpan('test_name');
+        $span = $this->tracer->startSpan('test_name');
         $this->tracer->setPrioritySampling(null);
+        $span->finish();
 
         $encoder = new MessagePack();
         $this->assertStringNotContains('_sampling_priority_v1', $encoder->encodeTraces($this->tracer));
@@ -61,8 +61,9 @@ MPACK;
 
     public function testEncodeWithPrioritySampling()
     {
-        $this->tracer->startSpan('test_name');
+        $span = $this->tracer->startSpan('test_name');
         $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
+        $span->finish();
 
         $encoder = new MessagePack();
         $this->assertStringContains("\xb5_sampling_priority_v1\x02", $encoder->encodeTraces($this->tracer));
@@ -72,6 +73,7 @@ MPACK;
     {
         $span = $this->tracer->startSpan('test_name');
         $span->setMetric('_a', 0.1);
+        $span->finish();
 
         $encoder = new MessagePack();
         $encoded = $encoder->encodeTraces($this->tracer);
@@ -81,8 +83,9 @@ MPACK;
 
     public function testAlwaysContainsDefaultMetrics()
     {
-        $this->tracer->startSpan('test_name');
+        $span = $this->tracer->startSpan('test_name');
         $this->tracer->setPrioritySampling(null);
+        $span->finish();
 
         $encoder = new MessagePack();
         $encoded = $encoder->encodeTraces($this->tracer);

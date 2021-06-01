@@ -2,6 +2,7 @@
 deferred loading only happens once, even if dispatch is not overwritten
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_TRACE_DEBUG=1
@@ -42,3 +43,4 @@ namespace
 autoload_attempted
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD
+Successfully triggered auto-flush with trace of size 1
