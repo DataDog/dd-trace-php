@@ -1,7 +1,6 @@
 #include "../zai_sapi.h"
 
 #include <Zend/zend_exceptions.h>
-#include <main/SAPI.h>
 #include <main/php_main.h>
 #include <main/php_variables.h>
 
@@ -55,7 +54,7 @@ static void zs_io_log_message(char *message) {
 }
 #endif
 
-static sapi_module_struct zai_module = {
+sapi_module_struct zai_module = {
     "zai",                     /* name */
     "Zend Abstract Interface", /* pretty name */
 

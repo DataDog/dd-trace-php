@@ -13,12 +13,15 @@
 #define ZAI_SAPI_H
 
 #include <assert.h>
+#include <main/SAPI.h>
 #include <main/php.h>
 #include <stdbool.h>
 
 #if PHP_VERSION_ID >= 70000 && defined(ZTS)
 ZEND_TSRMLS_CACHE_EXTERN()
 #endif
+
+extern sapi_module_struct zai_module;
 
 /* Initializes the SAPI, modules, and request. */
 bool zai_sapi_spinup(void);
