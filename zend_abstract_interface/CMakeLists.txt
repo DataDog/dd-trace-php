@@ -91,6 +91,7 @@ add_subdirectory(zai_assert)
 if(PHP_VERSION_DIRECTORY STREQUAL "php8")
   # should support php7 as well, but depends on functions ZAI to test, disabling for now
   add_subdirectory(properties)
+  add_subdirectory(exceptions)
 endif()
 
 install(EXPORT ZendAbstractInterfaceTargets

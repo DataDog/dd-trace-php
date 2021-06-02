@@ -2,14 +2,14 @@
 #include <Zend/zend_builtin_functions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
-#include <Zend/zend_smart_str.h>
 #include <Zend/zend_types.h>
 #include <inttypes.h>
 #include <php.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <ext/spl/spl_exceptions.h>
+// comment to prevent clang from reordering these headers
+#include <exceptions/exceptions.h>
+#include <properties/properties.h>
 
 #include "arrays.h"
 #include "compat_string.h"
@@ -154,110 +154,24 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
     add_assoc_zval(el, (name), &value);
 }
 
-/* Modeled after Exception::getTraceAsString:
- * @see https://heap.space/xref/PHP-8.0/Zend/zend_exceptions.c#getTraceAsString
- */
-static zend_string *dd_serialize_exception_trace_without_args(HashTable *trace) {
-    zval *frame;
-    smart_str str = {0};
-    uint32_t num = 0;
-    ZEND_HASH_FOREACH_VAL(trace, frame) {
-        if (UNEXPECTED(Z_TYPE_P(frame) != IS_ARRAY)) {
-            smart_str_free(&str);
-            return NULL;
-        }
-
-        HashTable *ht = Z_ARRVAL_P(frame);
-        smart_str_appendc(&str, '#');
-        smart_str_append_long(&str, num++);
-        smart_str_appendc(&str, ' ');
-
-        zval *file = zend_hash_find_ex(ht, ZSTR_KNOWN(ZEND_STR_FILE), 1);
-        if (file) {
-            if (Z_TYPE_P(file) != IS_STRING) {
-                /* This is not the function, but the file. However, this is what
-                 * PHP itself reports, so we'll match it for consistency.
-                 */
-                smart_str_appends(&str, "[unknown function]");
-            } else {
-                zend_long line = 0;
-                zval *tmp = zend_hash_find_ex(ht, ZSTR_KNOWN(ZEND_STR_LINE), 1);
-                if (tmp && Z_TYPE_P(tmp) == IS_LONG) {
-                    line = Z_LVAL_P(tmp);
-                }
-                smart_str_append(&str, Z_STR_P(file));
-                smart_str_appendc(&str, '(');
-                smart_str_append_long(&str, line);
-                smart_str_appends(&str, "): ");
-            }
-        } else {
-            smart_str_appends(&str, "[internal function]: ");
-        }
-
-        {
-            zval *tmp = zend_hash_find(ht, ZSTR_KNOWN(ZEND_STR_CLASS));
-            if (tmp) {
-                smart_str_appends(&str, Z_TYPE_P(tmp) == IS_STRING ? Z_STRVAL_P(tmp) : "[unknown]");
-            }
-        }
-        {
-            zval *tmp = zend_hash_find(ht, ZSTR_KNOWN(ZEND_STR_TYPE));
-            if (tmp) {
-                smart_str_appends(&str, Z_TYPE_P(tmp) == IS_STRING ? Z_STRVAL_P(tmp) : "[unknown]");
-            }
-        }
-        {
-            zval *tmp = zend_hash_find(ht, ZSTR_KNOWN(ZEND_STR_FUNCTION));
-            if (tmp) {
-                smart_str_appends(&str, Z_TYPE_P(tmp) == IS_STRING ? Z_STRVAL_P(tmp) : "[unknown]");
-            }
-        }
-
-        /* We intentionally do not show any arguments, not even an ellipsis if
-         * there are arguments. This is because in PHP 7.4+ there is an INI
-         * setting called zend.exception_ignore_args that prevents them from
-         * being generated, so we can't even reliably know if there are args.
-         */
-        smart_str_appends(&str, "()\n");
-    }
-    ZEND_HASH_FOREACH_END();
-
-    smart_str_appendc(&str, '#');
-    smart_str_append_long(&str, num);
-    smart_str_appends(&str, " {main}");
-    smart_str_0(&str);
-
-    return str.s;
-}
-
 typedef zend_result (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_string value);
 
 static zend_result dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag) {
-    zval msg = ddtrace_zval_undef();
-    zend_result status = ddtrace_call_method(exception, exception->ce, NULL, ZEND_STRL("getmessage"), &msg, 0, NULL);
-
-    if (status == SUCCESS && Z_TYPE(msg) == IS_STRING) {
-        ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
-        ddtrace_string value = {Z_STRVAL(msg), Z_STRLEN(msg)};
-        status = add_tag(context, key, value);
-    } else {
-        ddtrace_assert_log_debug("Failed calling exception's getMessage()");
-    }
-
-    zval_ptr_dtor(&msg);
-    return status;
+    ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
+    zend_string *msg = zai_exception_message(exception);
+    ddtrace_string value = {ZSTR_VAL(msg), ZSTR_LEN(msg)};
+    return add_tag(context, key, value);
 }
 
 static zend_result dd_exception_to_error_type(zend_object *exception, void *context, add_tag_fn_t add_tag) {
     ddtrace_string value, key = DDTRACE_STRING_LITERAL("error.type");
 
     if (instanceof_function(exception->ce, ddtrace_ce_fatal_error)) {
-        zval code = ddtrace_zval_undef();
-        int status = ddtrace_call_method(exception, exception->ce, NULL, ZEND_STRL("getcode"), &code, 0, NULL);
+        zval *code = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_CODE);
         const char *error_type_string = "{unknown error}";
 
-        if (status == SUCCESS && Z_TYPE_INFO(code) == IS_LONG) {
-            switch (Z_LVAL(code)) {
+        if (Z_TYPE_P(code) == IS_LONG) {
+            switch (Z_LVAL_P(code)) {
                 case E_ERROR:
                     error_type_string = "E_ERROR";
                     break;
@@ -279,9 +193,7 @@ static zend_result dd_exception_to_error_type(zend_object *exception, void *cont
             ddtrace_assert_log_debug("Exception was a DDTrace\\FatalError but failed to get an exception code");
         }
 
-        zval_ptr_dtor(&code);
         value = ddtrace_string_cstring_ctor((char *)error_type_string);
-
     } else {
         zend_string *type_name = exception->ce->name;
         value.ptr = ZSTR_VAL(type_name);
@@ -292,25 +204,11 @@ static zend_result dd_exception_to_error_type(zend_object *exception, void *cont
 }
 
 static zend_result dd_exception_to_error_stack(zend_object *exception, void *context, add_tag_fn_t add_tag) {
-    zend_class_entry *base_ce =
-        instanceof_function(exception->ce, zend_ce_exception) ? zend_ce_exception : zend_ce_error;
-
-    // todo: we apparently need to sandbox this, as getTraceAsString checks for an exception.
-    zval rv;
-    zval *trace = zend_read_property_ex(base_ce, exception, ZSTR_KNOWN(ZEND_STR_TRACE), 1, &rv);
-    if (EG(exception) || !trace || Z_TYPE_P(trace) != IS_ARRAY) {
-        ddtrace_assert_log_debug("Failed getting exception's trace");
-        return FAILURE;
-    }
-
-    zend_string *trace_string = dd_serialize_exception_trace_without_args(Z_ARR_P(trace));
-    zend_result result = FAILURE;
-    if (trace_string) {
-        ddtrace_string key = DDTRACE_STRING_LITERAL("error.stack");
-        ddtrace_string value = {ZSTR_VAL(trace_string), ZSTR_LEN(trace_string)};
-        result = add_tag(context, key, value);
-        zend_string_release(trace_string);
-    }
+    zend_string *trace_string = zai_get_trace_without_args_from_exception(exception);
+    ddtrace_string key = DDTRACE_STRING_LITERAL("error.stack");
+    ddtrace_string value = {ZSTR_VAL(trace_string), ZSTR_LEN(trace_string)};
+    zend_result result = add_tag(context, key, value);
+    zend_string_release(trace_string);
     return result;
 }
 
@@ -352,14 +250,11 @@ static zend_string *dd_error_type(int code) {
 }
 
 static zend_string *dd_fatal_error_stack(void) {
-    zval stack;
+    zval stack = {0};
     zend_fetch_debug_backtrace(&stack, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
     zend_string *error_stack = NULL;
     if (Z_TYPE(stack) == IS_ARRAY) {
-        zend_string *s = dd_serialize_exception_trace_without_args(Z_ARR(stack));
-        if (s) {
-            error_stack = s;
-        }
+        error_stack = zai_get_trace_without_args(Z_ARR(stack));
     }
     zval_ptr_dtor(&stack);
     return error_stack;
