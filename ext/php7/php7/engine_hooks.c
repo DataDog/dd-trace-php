@@ -5,9 +5,9 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_generators.h>
 #include <Zend/zend_interfaces.h>
+#include <exceptions/exceptions.h>
+#include <functions/functions.h>
 #include <stdbool.h>
-
-#include <ext/spl/spl_exceptions.h>
 
 #include "ext/php7/compatibility.h"
 #include "ext/php7/ddtrace.h"
@@ -94,8 +94,7 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
         dd_try_fetch_executing_function_name(call, &scope, &colon, &name);
 
         if (PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
-            char *error;
-            error = PG(last_error_message);
+            char *error = PG(last_error_message);
             ddtrace_log_errf("Error raised in ddtrace's closure for %s%s%s(): %s in %s on line %d", scope, colon, name,
                              error, PG(last_error_file), PG(last_error_lineno));
         }
@@ -103,16 +102,10 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
         if (UNEXPECTED(EG(exception))) {
             zend_object *ex = EG(exception);
 
-            const char *type = ex->ce->name->val;
-            zval rv, obj;
-            ZVAL_OBJ(&obj, ex);
-            zval *message = GET_PROPERTY(&obj, ZEND_STR_MESSAGE);
-            const char *msg =
-                Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val : "(internal error reading exception message)";
-            ddtrace_log_errf("%s thrown in ddtrace's closure for %s%s%s(): %s", type, scope, colon, name, msg);
-            if (message == &rv) {
-                zval_dtor(message);
-            }
+            const char *type = ZSTR_VAL(ex->ce->name);
+            zend_string *msg = zai_exception_message(ex);
+            ddtrace_log_errf("%s thrown in ddtrace's closure for %s%s%s(): %s", type, scope, colon, name,
+                             ZSTR_VAL(msg));
         }
     }
     ddtrace_sandbox_end(&backup);
