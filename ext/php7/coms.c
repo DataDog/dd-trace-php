@@ -907,17 +907,19 @@ bool ddtrace_coms_init_and_start_writer(void) {
     atomic_store(&writer->current_pid, getpid());
     atomic_store(&memoized_agent_curl_headers, (uintptr_t)NULL);
 
+    // TODO When would this be the case?
     if (writer->thread) {
         return false;
     }
-    struct _writer_thread_variables_t *thread = _dd_create_thread_variables();
-    writer->thread = thread;
+
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, &_dd_writer_loop, NULL) != 0) return false;
+
+    writer->thread = _dd_create_thread_variables();
+    writer->thread->self = thread;
     atomic_store(&writer->starting_up, true);
-    if (pthread_create(&thread->self, NULL, &_dd_writer_loop, NULL) == 0) {
-        return true;
-    } else {
-        return false;
-    }
+
+    return true;
 }
 
 static bool _dd_has_pid_changed(void) {

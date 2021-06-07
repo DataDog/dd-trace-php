@@ -13,6 +13,7 @@
 #include <php_ini.h>
 #include <php_main.h>
 #include <stdatomic.h>
+#include <sys/resource.h>
 
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
@@ -44,6 +45,7 @@
 #include "startup_logging.h"
 
 bool ddtrace_has_excluded_module;
+bool ddtrace_bgs_loaded = false;
 
 atomic_int ddtrace_first_rinit;
 atomic_int ddtrace_warn_legacy_api;
@@ -297,7 +299,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_engine_hooks_minit();
 
     ddtrace_coms_minit();
-    ddtrace_coms_init_and_start_writer();
+
+    // TODO Move BGS initialization to first-time RINIT
+    ddtrace_bgs_loaded = ddtrace_coms_init_and_start_writer();
 
     ddtrace_integrations_minit();
 
@@ -343,8 +347,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
-
     // Things that should only run on the first RINIT
     int expected_first_rinit = 1;
     if (atomic_compare_exchange_strong(&ddtrace_first_rinit, &expected_first_rinit, 0)) {
@@ -354,8 +356,27 @@ static PHP_RINIT_FUNCTION(ddtrace) {
          */
         ddtrace_reload_config(TSRMLS_C);
 
+        if (!ddtrace_bgs_loaded) {
+            ddtrace_log_debug("Failed to initialize background sender; ddtrace is disabled");
+
+            struct rlimit limit = {0};
+            if (getrlimit(RLIMIT_NPROC, &limit) == 0) {
+                ddtrace_log_debugf("RLIMIT_NPROC soft: %d, hard: %d", limit.rlim_cur, limit.rlim_max);
+            } else {
+                ddtrace_log_debug("Failed obtaining RLIMIT_NPROC");
+            }
+
+            return SUCCESS;
+        }
+
         ddtrace_startup_logging_first_rinit();
     }
+
+    if (!ddtrace_bgs_loaded) {
+        return SUCCESS;
+    }
+
+    array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
 
     DDTRACE_G(request_init_hook_loaded) = 0;
     if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
@@ -393,7 +414,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-    if (DDTRACE_G(disable)) {
+    if (DDTRACE_G(disable) || !ddtrace_bgs_loaded) {
         return SUCCESS;
     }
 
