@@ -13,6 +13,7 @@
 #include <php_ini.h>
 #include <php_main.h>
 #include <stdatomic.h>
+#include <sys/resource.h>
 
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
@@ -46,6 +47,7 @@
 #include "startup_logging.h"
 
 bool ddtrace_has_excluded_module;
+bool ddtrace_bgs_loaded = false;
 
 atomic_int ddtrace_first_rinit;
 atomic_int ddtrace_warn_legacy_api;
@@ -317,6 +319,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_coms_minit();
 
+    // TODO Move BGS initialization to first-time RINIT
+    ddtrace_bgs_loaded = ddtrace_coms_init_and_start_writer();
+
     ddtrace_integrations_minit();
 
     return SUCCESS;
@@ -370,13 +375,24 @@ static PHP_RINIT_FUNCTION(ddtrace) {
          */
         ddtrace_reload_config();
 
-        if (!ddtrace_coms_init_and_start_writer()) {
-            DDTRACE_G(disable) = 1;
+        if (!ddtrace_bgs_loaded) {
             ddtrace_log_debug("Failed to initialize background sender; ddtrace is disabled");
+
+            struct rlimit limit = {0};
+            if (getrlimit(RLIMIT_NPROC, &limit) == 0) {
+                ddtrace_log_debugf("RLIMIT_NPROC soft: %d, hard: %d", limit.rlim_cur, limit.rlim_max);
+            } else {
+                ddtrace_log_debug("Failed obtaining RLIMIT_NPROC");
+            }
+
             return SUCCESS;
         }
 
         ddtrace_startup_logging_first_rinit();
+    }
+
+    if (!ddtrace_bgs_loaded) {
+        return SUCCESS;
     }
 
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
@@ -418,7 +434,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-    if (DDTRACE_G(disable)) {
+    if (DDTRACE_G(disable) || !ddtrace_bgs_loaded) {
         return SUCCESS;
     }
 

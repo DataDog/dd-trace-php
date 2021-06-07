@@ -29,6 +29,8 @@ typedef uint32_t group_id_t;
 
 ddtrace_coms_state_t ddtrace_coms_globals = {.stacks = NULL};
 
+static struct curl_slist *dd_agent_curl_headers = NULL;
+
 static bool _dd_is_memory_pressure_high(void) {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
     if (stack) {
@@ -119,6 +121,8 @@ static void _dd_at_exit_hook() {
     }
 }
 
+static struct curl_slist *dd_agent_headers_alloc(void);
+
 bool ddtrace_coms_minit(void) {
     atomic_store(&ddtrace_coms_globals.stack_size, DDTRACE_COMS_STACK_INITIAL_SIZE);
     ddtrace_coms_stack_t *stack = _dd_new_stack(DDTRACE_COMS_STACK_INITIAL_SIZE);
@@ -131,6 +135,8 @@ bool ddtrace_coms_minit(void) {
 
     _dd_ptr_at_exit_callback = _dd_at_exit_callback;
     atexit(_dd_at_exit_hook);
+
+    dd_agent_curl_headers = dd_agent_headers_alloc();
 
     return true;
 }
@@ -606,8 +612,6 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
 #define TRACE_PATH_STR "/v0.4/traces"
 #define HOST_FORMAT_STR "http://%s:%u"
 
-static struct curl_slist *dd_agent_curl_headers = NULL;
-
 static void dd_append_header(struct curl_slist **list, const char *key, const char *val) {
     /* The longest Agent header should be:
      * Datadog-Container-Id: <64-char-hash>
@@ -940,20 +944,19 @@ bool ddtrace_coms_init_and_start_writer(void) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
     _dd_writer_set_operational_state(writer);
     atomic_store(&writer->current_pid, getpid());
-
-    dd_agent_curl_headers = dd_agent_headers_alloc();
-
+    // TODO When would this be the case?
     if (writer->thread) {
         return false;
     }
-    struct _writer_thread_variables_t *thread = _dd_create_thread_variables();
-    writer->thread = thread;
+
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, &_dd_writer_loop, NULL) != 0) return false;
+
+    writer->thread = _dd_create_thread_variables();
+    writer->thread->self = thread;
     atomic_store(&writer->starting_up, true);
-    if (pthread_create(&thread->self, NULL, &_dd_writer_loop, NULL) == 0) {
-        return true;
-    } else {
-        return false;
-    }
+
+    return true;
 }
 
 static bool _dd_has_pid_changed(void) {
