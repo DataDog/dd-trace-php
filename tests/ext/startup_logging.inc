@@ -26,7 +26,7 @@ function dd_get_startup_logs(array $args = [], array $env = [])
     $argList = implode(' ', $args);
     $envVars = implode(' ', $env);
     $cgi = dd_get_php_cgi();
-    $cmd = $envVars . ' ' . $cgi . ' ' . $argList . ' -v 2>&1';
+    $cmd = $envVars . ' ' . $cgi . ' ' . getenv("TEST_PHP_EXTRA_ARGS") . ' ' . $argList . ' -v 2>&1';
     exec($cmd, $o);
 
     $target = 'DATADOG TRACER CONFIGURATION - ';
@@ -70,6 +70,8 @@ function dd_dump_startup_logs($logs, array $only = [])
             echo $v;
         } elseif (is_float($v)) {
             printf('%.4f', $v);
+        } elseif (is_array($v)) {
+            echo json_encode($v);
         }
         echo PHP_EOL;
     }

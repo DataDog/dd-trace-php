@@ -91,9 +91,9 @@ void ddtrace_config_shutdown(void);
     CHAR(get_dd_integrations_disabled, "DD_INTEGRATIONS_DISABLED", "")                                               \
     BOOL(get_dd_priority_sampling, "DD_PRIORITY_SAMPLING", true)                                                     \
     CHAR(get_dd_service, "DD_SERVICE", "")                                                                           \
-    CHAR(get_dd_service_mapping, "DD_SERVICE_MAPPING", "")                                                           \
+    HASH(get_dd_service_mapping, "DD_SERVICE_MAPPING")                                                               \
     CHAR(get_dd_service_name, "DD_SERVICE_NAME", "")                                                                 \
-    CHAR(get_dd_tags, "DD_TAGS", "")                                                                                 \
+    HASH(get_dd_tags, "DD_TAGS")                                                                                     \
     INT(get_dd_trace_agent_port, "DD_TRACE_AGENT_PORT", 8126)                                                        \
     BOOL(get_dd_trace_analytics_enabled, "DD_TRACE_ANALYTICS_ENABLED", false)                                        \
     BOOL(get_dd_trace_auto_flush_enabled, "DD_TRACE_AUTO_FLUSH_ENABLED", false)                                      \
@@ -101,7 +101,7 @@ void ddtrace_config_shutdown(void);
     BOOL(get_dd_trace_measure_compile_time, "DD_TRACE_MEASURE_COMPILE_TIME", true)                                   \
     BOOL(get_dd_trace_debug, "DD_TRACE_DEBUG", false)                                                                \
     BOOL(get_dd_trace_enabled, "DD_TRACE_ENABLED", true)                                                             \
-    CHAR(get_dd_trace_global_tags, "DD_TRACE_GLOBAL_TAGS", "")                                                       \
+    HASH(get_dd_trace_global_tags, "DD_TRACE_GLOBAL_TAGS")                                                           \
     BOOL(get_dd_trace_heath_metrics_enabled, "DD_TRACE_HEALTH_METRICS_ENABLED", false)                               \
     DOUBLE(get_dd_trace_heath_metrics_heartbeat_sample_rate, "DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE", 0.001) \
     BOOL(get_dd_trace_http_client_split_by_domain, "DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN", false)                    \

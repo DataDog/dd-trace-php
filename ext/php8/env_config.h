@@ -31,5 +31,6 @@ double ddtrace_get_double_config(char *name, double def);
 double ddtrace_char_to_double(char *subject, double default_value);
 char *ddtrace_get_c_string_config_with_default(char *name, const char *def);
 char *ddtrace_strdup(const char *source);
+zend_array *ddtrace_get_hash_config(char *name);
 
 #endif  // DD_ENV_CONFIG_H

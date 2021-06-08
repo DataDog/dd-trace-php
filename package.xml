@@ -642,11 +642,15 @@
             <file name="tests/ext/segfault_backtrace_enabled.phpt" role="test" />
             <file name="tests/ext/startup_logging.inc" role="test" />
             <file name="tests/ext/startup_logging.phpt" role="test" />
+            <file name="tests/ext/startup_logging-legacy.phpt" role="test" />
             <file name="tests/ext/startup_logging_config.phpt" role="test" />
+            <file name="tests/ext/startup_logging_config-legacy.phpt" role="test" />
             <file name="tests/ext/startup_logging_diagnostics.phpt" role="test" />
             <file name="tests/ext/startup_logging_disabled.phpt" role="test" />
             <file name="tests/ext/startup_logging_json.phpt" role="test" />
+            <file name="tests/ext/startup_logging_json-legacy.phpt" role="test" />
             <file name="tests/ext/startup_logging_json_config.phpt" role="test" />
+            <file name="tests/ext/startup_logging_json_config-legacy.phpt" role="test" />
             <file name="tests/ext/startup_logging_skipif.inc" role="test" />
             <file name="tests/ext/traced_internal_functions_override_01.phpt" role="test" />
             <file name="tests/ext/traced_internal_functions_override_02.phpt" role="test" />

@@ -10,7 +10,10 @@
 // define memoization struct
 struct ddtrace_memoized_configuration_t {
 #define CHAR(getter_name, env_name, default, ...) \
-    char* getter_name;                            \
+    char *getter_name;                            \
+    bool __is_set_##getter_name;
+#define HASH(getter_name, env_name, ...) \
+    zend_array *getter_name;             \
     bool __is_set_##getter_name;
 #define BOOL(getter_name, env_name, default, ...) \
     bool getter_name;                             \
@@ -27,6 +30,7 @@ struct ddtrace_memoized_configuration_t {
 
 // cleanup macros
 #undef CHAR
+#undef HASH
 #undef BOOL
 #undef INT
 #undef DOUBLE
@@ -36,11 +40,11 @@ struct ddtrace_memoized_configuration_t {
 
 // define configuration getters macros
 #define CHAR(getter_name, env_name, default, ...)                                      \
-    inline char* getter_name(void) {                                                   \
+    inline char *getter_name(void) {                                                   \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) {                   \
             if (ddtrace_memoized_configuration.getter_name) {                          \
                 pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);             \
-                char* rv = ddtrace_strdup(ddtrace_memoized_configuration.getter_name); \
+                char *rv = ddtrace_strdup(ddtrace_memoized_configuration.getter_name); \
                 pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);           \
                 return rv;                                                             \
             } else {                                                                   \
@@ -53,6 +57,20 @@ struct ddtrace_memoized_configuration_t {
                 return NULL;                                                           \
             }                                                                          \
         }                                                                              \
+    }
+
+#define HASH(getter_name, env_name, ...)                                     \
+    static inline zend_array *getter_name(void) {                            \
+        if (ddtrace_memoized_configuration.__is_set_##getter_name) {         \
+            if (ddtrace_memoized_configuration.getter_name) {                \
+                pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);   \
+                zend_array *rv = ddtrace_memoized_configuration.getter_name; \
+                GC_ADDREF(rv);                                               \
+                pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex); \
+                return rv;                                                   \
+            }                                                                \
+        }                                                                    \
+        return (zend_array *)&zend_empty_array;                              \
     }
 
 #define BOOL(getter_name, env_name, default, ...)                    \
@@ -87,6 +105,7 @@ DD_CONFIGURATION
 
 // cleanup configuration getter macros
 #undef CHAR
+#undef HASH
 #undef BOOL
 #undef INT
 #undef DOUBLE

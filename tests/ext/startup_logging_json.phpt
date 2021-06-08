@@ -1,5 +1,7 @@
 --TEST--
 Startup logging from JSON fetched at runtime
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --FILE--
 <?php
 include_once 'startup_logging.inc';
@@ -26,8 +28,8 @@ debug: false
 analytics_enabled: false
 sample_rate: 1.0000
 sampling_rules: null
-tags: null
-service_mapping: null
+tags: []
+service_mapping: []
 distributed_tracing_enabled: true
 priority_sampling_enabled: true
 dd_version: null
