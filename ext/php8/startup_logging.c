@@ -45,6 +45,12 @@ static void _dd_add_assoc_string_free(HashTable *ht, const char *name, size_t na
     free(str);
 }
 
+static void _dd_add_assoc_array(HashTable *ht, const char *name, size_t name_len, zend_array *array) {
+    zval value;
+    ZVAL_ARR(&value, array);
+    zend_hash_str_update(ht, name, name_len, &value);
+}
+
 static void _dd_add_assoc_zstring(HashTable *ht, const char *name, size_t name_len, zend_string *str) {
     zval value;
     ZVAL_STR(&value, str);
@@ -107,8 +113,8 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_string_free(ht, ZEND_STRL("sampling_rules"), get_dd_trace_sampling_rules());
     // TODO Add integration-specific config: integration_<integration>_analytics_enabled,
     // integration_<integration>_sample_rate, integrations_loaded
-    _dd_add_assoc_string_free(ht, ZEND_STRL("tags"), get_dd_tags());
-    _dd_add_assoc_string_free(ht, ZEND_STRL("service_mapping"), get_dd_service_mapping());
+    _dd_add_assoc_array(ht, ZEND_STRL("tags"), get_dd_tags());
+    _dd_add_assoc_array(ht, ZEND_STRL("service_mapping"), get_dd_service_mapping());
     // "log_injection_enabled" N/A for PHP
     // "runtime_metrics_enabled" N/A for PHP
     // "configuration_file" N/A for PHP
@@ -390,6 +396,26 @@ static void _dd_serialize_json(HashTable *ht, smart_str *buf) {
                 break;
             case IS_FALSE:
                 smart_str_appendl(buf, "false", 5);
+                break;
+            case IS_ARRAY:
+                smart_str_appendc(buf, '{');
+                zval *value;
+                bool first_value = true;
+                ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(val), key, value) {
+                    if (!first_value) {
+                        smart_str_appendc(buf, ',');
+                    }
+                    first_value = false;
+                    _dd_json_escape_string(buf, ZSTR_VAL(key), ZSTR_LEN(key));
+                    smart_str_appendc(buf, ':');
+                    if (Z_TYPE_P(value) == IS_STRING) {
+                        _dd_json_escape_string(buf, Z_STRVAL_P(value), Z_STRLEN_P(value));
+                    } else {
+                        smart_str_appendl(buf, "\"{unknown type}\"", 16);
+                    }
+                }
+                ZEND_HASH_FOREACH_END();
+                smart_str_appendc(buf, '}');
                 break;
             default:
                 smart_str_appendl(buf, "\"{unknown type}\"", 16);

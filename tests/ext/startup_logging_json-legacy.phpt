@@ -1,13 +1,11 @@
 --TEST--
-Startup logging is enabled by default
+Startup logging from JSON fetched at runtime
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: run-tests crashes with shell commands on PHP 5'); ?>
-<?php include 'startup_logging_skipif.inc'; ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 80000) die('skip: Test does not work with internal spans'); ?>
 --FILE--
 <?php
 include_once 'startup_logging.inc';
-$logs = dd_get_startup_logs(['-dddtrace.request_init_hook='], ['DD_TRACE_DEBUG=1']);
+$logs = json_decode(\DDTrace\startup_logs(), true);
 
 // Ignore any Agent connection errors for now
 unset($logs['agent_error']);
@@ -15,7 +13,6 @@ unset($logs['agent_error']);
 dd_dump_startup_logs($logs);
 ?>
 --EXPECTF--
-ddtrace.request_init_hook_reachable: false
 date: "%s"
 os_name: "%s"
 os_version: "%s"
@@ -27,17 +24,17 @@ enabled: true
 service: null
 enabled_cli: %s
 agent_url: "%s"
-debug: true
+debug: false
 analytics_enabled: false
 sample_rate: 1.0000
 sampling_rules: null
-tags: []
-service_mapping: []
+tags: null
+service_mapping: null
 distributed_tracing_enabled: true
 priority_sampling_enabled: true
 dd_version: null
 architecture: "%s"
-sapi: "cgi-fcgi"
+sapi: "cli"
 ddtrace.request_init_hook: null
 open_basedir_configured: false
 uri_fragment_regex: null
@@ -53,3 +50,4 @@ auto_prepend_file_configured: false
 integrations_disabled: null
 enabled_from_env: true
 opcache.file_cache: null
+ddtrace.request_init_hook_reachable: false

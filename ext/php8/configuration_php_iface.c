@@ -94,6 +94,14 @@ BOOL_T get_configuration(zval *return_value, char *env_name, size_t env_name_len
         }                                                    \
     } while (0);
 
+#define HASH(getter, env, ...)                               \
+    do {                                                     \
+        if (ENV_NAME_MATCHES(env, env_name, env_name_len)) { \
+            RETVAL_ARR(getter());                            \
+            return TRUE;                                     \
+        }                                                    \
+    } while (0);
+
 #define BOOL(getter, env, ...)                               \
     do {                                                     \
         if (ENV_NAME_MATCHES(env, env_name, env_name_len)) { \

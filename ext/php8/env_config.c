@@ -170,3 +170,65 @@ char *ddtrace_strdup(const char *source) {
     }
     return dest;
 }
+
+static void ddtrace_config_str_dtor(zval *zval_ptr) {
+    ZEND_ASSERT(Z_TYPE_P(zval_ptr) == IS_STRING);
+    zend_string_release_ex(Z_STR_P(zval_ptr), 1);
+}
+
+zend_array *ddtrace_parse_c_string_to_hash(const char *data) {
+    zend_array *array = malloc(sizeof(*array));
+    _zend_hash_init(array, 0, ddtrace_config_str_dtor, 1);
+    if (data && *data) {  // non-empty
+        const char *key_start, *key_end, *value_start, *value_end;
+        do {
+            if (*data != ',' && *data != ' ' && *data != '\t' && *data != '\n') {
+                key_start = key_end = data;
+                while (*++data) {
+                    if (*data == ':') {
+                        while (*++data && (*data == ' ' || *data == '\t' || *data == '\n'))
+                            ;
+
+                        if (!*data) {
+                            break;
+                        }
+
+                        value_start = value_end = data;
+                        if (*data == ',') {
+                            --value_end;  // empty string instead of single char
+                        } else {
+                            while (*++data && *data != ',') {
+                                if (*data != ' ' && *data != '\t' && *data != '\n') {
+                                    value_end = data;
+                                }
+                            }
+                        }
+
+                        zval val;
+                        zend_string *key = zend_string_init(key_start, key_end - key_start + 1, 1);
+                        ZVAL_PSTRINGL(&val, value_start, value_end - value_start + 1);
+                        zend_hash_add(array, key, &val);
+                        zend_string_release(key);
+
+                        break;
+                    }
+                    if (*data != ' ' && *data != '\t' && *data != '\n') {
+                        key_end = data;
+                    }
+                }
+            } else {
+                ++data;
+            }
+        } while (*data);
+    }
+    return array;
+}
+
+// Note that these arrays shall never be touched, except GC_ADDREF() and zend_hash_release() to avoid non-atomic
+// operations causing possible race conditions
+zend_array *ddtrace_get_hash_config(char *name) {
+    char *str = ddtrace_get_c_string_config_with_default(name, "");
+    zend_array *array = ddtrace_parse_c_string_to_hash(str);
+    free(str);
+    return array;
+}
