@@ -17,14 +17,13 @@ final class TracerTest extends BaseTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        \putenv('DD_TAGS=global_tag:global,also_in_span:should_not_override');
         \putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
-        \dd_trace_internal_fn('ddtrace_reload_config'); // tags are now internal config
+        \ini_set('datadog.tags', 'global_tag:global,also_in_span:should_not_override');
     }
 
     protected function ddTearDown()
     {
-        \putenv('DD_TAGS');
+        \ini_set('datadog.tags', '');
         \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
         \putenv('DD_SERVICE_MAPPING');
         \putenv('DD_TRACE_GENERATE_ROOT_SPAN');
@@ -262,7 +261,8 @@ final class TracerTest extends BaseTestCase
 
     public function testDDEnvHasPrecedenceOverGlobalTags()
     {
-        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags']);
+        $this->putEnvAndReloadConfig(['DD_ENV=from-env']);
+        \ini_set('datadog.tags', 'env:from-tags');
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startRootSpan('custom.root');
             $scope->close();
@@ -282,7 +282,8 @@ final class TracerTest extends BaseTestCase
             }
         );
 
-        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags,global:foo']);
+        $this->putEnvAndReloadConfig(['DD_ENV=from-env']);
+        \ini_set('datadog.tags', 'env:from-tags,global:foo');
 
         $test = $this;
         $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
@@ -335,8 +336,8 @@ final class TracerTest extends BaseTestCase
 
     public function testDDVersionHasPrecedenceOverGlobalTags()
     {
-        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags']);
-        \dd_trace_internal_fn('ddtrace_reload_config'); // tags are now internal config
+        $this->putEnvAndReloadConfig(['DD_VERSION=from-env']);
+        \ini_set('datadog.tags', 'version:from-tags');
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startRootSpan('custom.root');
             $scope->close();
@@ -355,7 +356,8 @@ final class TracerTest extends BaseTestCase
             }
         );
 
-        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags,global:foo']);
+        $this->putEnvAndReloadConfig(['DD_VERSION=from-env']);
+        \ini_set('datadog.tags', 'version:from-tags,global:foo');
 
         $test = $this;
         $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {

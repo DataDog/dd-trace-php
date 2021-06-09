@@ -4,6 +4,7 @@
 
 #include "compatibility.h"
 #include "configuration.h"
+#include "ddtrace_config.h"
 
 // eventually this will need to be rewritten to use hashmap populated at startup to perform lookup for performance
 // reasons however for low cardinality of envs of the same name this should be fast enough
@@ -24,6 +25,15 @@ void ddtrace_php_get_configuration(zval *return_value, zval *zenv_name) {
     }
     if (env_name_len == 0) {
         RETURN_NULL();
+    }
+
+    // ZAI config takes precedence
+    zai_config_id id;
+    zai_string_view name = {.len = env_name_len, .ptr = (const char *)env_name};
+    if (zai_config_get_id_by_name(name, &id)) {
+        zval *val = zai_config_get_value(id);
+        ZVAL_COPY_VALUE(return_value, val);
+        return;
     }
 
     if (get_configuration(return_value, env_name, env_name_len)) {

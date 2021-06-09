@@ -57,6 +57,12 @@ static void _dd_add_assoc_zstring(HashTable *ht, const char *name, size_t name_l
     zend_hash_str_update(ht, name, name_len, &value);
 }
 
+static void _dd_add_assoc_string_view(HashTable *ht, const char *name, size_t name_len, zai_string_view str) {
+    zval value;
+    ZVAL_STRINGL(&value, str.ptr, str.len);
+    zend_hash_str_update(ht, name, name_len, &value);
+}
+
 static void _dd_add_assoc_bool(HashTable *ht, const char *name, size_t name_len, bool v) {
     zval value;
     ZVAL_BOOL(&value, v);
@@ -102,7 +108,7 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_string(ht, ZEND_STRL("lang_version"), PHP_VERSION);
     _dd_add_assoc_string_free(ht, ZEND_STRL("env"), get_dd_env());
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled"), !_dd_parse_bool(ZEND_STRL("ddtrace.disable")));
-    _dd_add_assoc_string_free(ht, ZEND_STRL("service"), get_dd_service());
+    _dd_add_assoc_string_view(ht, ZEND_STRL("service"), get_dd_service());
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_cli"), get_dd_trace_cli_enabled());
 
     _dd_add_assoc_string_free(ht, ZEND_STRL("agent_url"), ddtrace_agent_url());
