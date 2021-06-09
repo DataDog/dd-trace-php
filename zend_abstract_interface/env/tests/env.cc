@@ -30,6 +30,7 @@ extern "C" {
 
 #define REQUIRE_SETENV(key, val) REQUIRE(0 == setenv(key, val, /* overwrite */ 1))
 #define REQUIRE_UNSETENV(key) REQUIRE(0 == unsetenv(key))
+#define REQUIRE_BUF_EQ(str, buf) REQUIRE(0 == strcmp(str, buf.ptr))
 
 #if PHP_VERSION_ID >= 80000
 #define ZAI_SAPI_GETENV_FUNCTION(fn) static char *fn(const char *name, size_t name_len)
@@ -39,46 +40,66 @@ extern "C" {
 #define ZAI_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len TSRMLS_DC)
 #endif
 
-/************************** zai_getenv() (from host) **************************/
+/********************** zai_getenv_literal() (from host) **********************/
 
 TEST("get host env: non-empty string", {
     REQUIRE_SETENV("FOO", "bar");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE(strcmp("bar", buf) == 0);
+    REQUIRE_BUF_EQ("bar", buf);
 })
 
 TEST("get host env: empty string", {
     REQUIRE_SETENV("FOO", "");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE(strcmp("", buf) == 0);
+    REQUIRE_BUF_EQ("", buf);
 })
 
 TEST("get host env: not set", {
     REQUIRE_UNSETENV("FOO");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE(strcmp("", buf) == 0);
+    REQUIRE_BUF_EQ("", buf);
+})
+
+TEST("get host env: max buffer size", {
+    REQUIRE_SETENV("FOO", "bar");
+
+    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
+
+    REQUIRE(res == ZAI_ENV_SUCCESS);
+    REQUIRE_BUF_EQ("bar", buf);
 })
 
 TEST("get host env: buffer too small", {
     REQUIRE_SETENV("FOO", "bar");
 
-    char buf[3];  // No room for null terminator
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 3);  // No room for null terminator
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_BUFFER_TOO_SMALL);
-    REQUIRE(strcmp("", buf) == 0);
+    REQUIRE_BUF_EQ("", buf);
+})
+
+TEST("get host env: buffer too big", {
+    REQUIRE_SETENV("FOO", "bar");
+
+    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ + 1);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
+
+    REQUIRE(res == ZAI_ENV_BUFFER_TOO_BIG);
+    REQUIRE_BUF_EQ("", buf);
 })
 
 TEST_CASE("get host env: outside request context", "[zai_env]") {
@@ -89,11 +110,11 @@ TEST_CASE("get host env: outside request context", "[zai_env]") {
 
     REQUIRE_SETENV("FOO", "bar");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_NOT_READY);
-    REQUIRE(strcmp("", buf) == 0);
+    REQUIRE_BUF_EQ("", buf);
 
     ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
     zai_sapi_mshutdown();
@@ -103,28 +124,31 @@ TEST_CASE("get host env: outside request context", "[zai_env]") {
 TEST("get env error: NULL name", {
     REQUIRE_UNSETENV("FOO");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(NULL, 42, buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_string_view name = ZAI_STRL_VIEW("FOO");
+    name.ptr = NULL;
+    zai_env_result res = zai_getenv(name, buf);
 
     REQUIRE(res == ZAI_ENV_ERROR);
-    REQUIRE(strcmp("", buf) == 0);
+    REQUIRE_BUF_EQ("", buf);
 })
 
 TEST("get env error: zero name len", {
     REQUIRE_UNSETENV("FOO");
 
-    char buf[64];
-    zai_env_result res = zai_getenv("FOO", 0, buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("", buf);
 
     REQUIRE(res == ZAI_ENV_ERROR);
-    REQUIRE(strcmp("", buf) == 0);
+    REQUIRE_BUF_EQ("", buf);
 })
 
 TEST("get env error: NULL buffer", {
     REQUIRE_UNSETENV("FOO");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), NULL, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    buf.ptr = NULL;
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_ERROR);
 })
@@ -132,13 +156,14 @@ TEST("get env error: NULL buffer", {
 TEST("get env error: zero buffer size", {
     REQUIRE_UNSETENV("FOO");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, 0);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    buf.len = 0;
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_ERROR);
 })
 
-/************************** zai_getenv() (from SAPI) **************************/
+/********************** zai_getenv_literal() (from SAPI) **********************/
 
 static char zai_str_buf[64];
 
@@ -149,39 +174,39 @@ ZAI_SAPI_GETENV_FUNCTION(zai_sapi_getenv_non_empty) {
 }
 
 TEST_SAPI_GETENV("get SAPI env: non-empty string", zai_sapi_getenv_non_empty, {
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE(strcmp("FOO", buf) == 0);
+    REQUIRE_BUF_EQ("FOO", buf);
 })
 
 TEST_SAPI_GETENV("get SAPI env: non-empty string (no host env fallback)", zai_sapi_getenv_non_empty, {
     REQUIRE_SETENV("FOO", "bar");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE(strcmp("FOO", buf) == 0);
+    REQUIRE_BUF_EQ("FOO", buf);
 })
 
 ZAI_SAPI_GETENV_FUNCTION(zai_sapi_getenv_null) { return NULL; }
 
 TEST_SAPI_GETENV("get SAPI env: not set", zai_sapi_getenv_null, {
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE(strcmp("", buf) == 0);
+    REQUIRE_BUF_EQ("", buf);
 })
 
 TEST_SAPI_GETENV("get SAPI env: not set (no host env fallback)", zai_sapi_getenv_null, {
     REQUIRE_SETENV("FOO", "bar");
 
-    char buf[64];
-    zai_env_result res = zai_getenv(ZEND_STRL("FOO"), buf, sizeof buf);
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+    zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE(strcmp("", buf) == 0);
+    REQUIRE_BUF_EQ("", buf);
 })

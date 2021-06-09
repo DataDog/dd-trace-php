@@ -6,7 +6,7 @@ target_include_directories(
 
 target_compile_features(zai_env PUBLIC c_std_99)
 
-target_link_libraries(zai_env PUBLIC "${PHP_LIB}" Zai::Sandbox)
+target_link_libraries(zai_env PUBLIC "${PHP_LIB}")
 
 set_target_properties(zai_env PROPERTIES EXPORT_NAME Env VERSION
                                                          ${PROJECT_VERSION})
