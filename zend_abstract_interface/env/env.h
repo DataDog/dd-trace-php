@@ -2,7 +2,6 @@
 #define ZAI_ENV_H
 
 #include <stddef.h>
-#include <stdint.h>
 
 /* The upper-bounds limit on the buffer size to hold the value of an arbitrary
  * environment variable.
