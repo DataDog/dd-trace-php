@@ -122,6 +122,11 @@ final class TextMap implements Propagator
         if (!$spanId) {
             return '';
         }
+
+        if (PHP_VERSION_ID >= 80000) {
+            return $spanId;
+        }
+
         $pushedSpanId = \dd_trace_push_span_id($spanId);
         if ($pushedSpanId === $spanId) {
             return $spanId;

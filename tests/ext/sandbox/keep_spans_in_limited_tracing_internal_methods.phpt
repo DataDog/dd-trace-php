@@ -2,6 +2,7 @@
 Keep spans in limited mode (internal methods)
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
+DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=DateTime::format,DateTime::setTime
 --FILE--
 <?php

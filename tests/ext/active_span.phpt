@@ -21,10 +21,13 @@ function greet($name)
 greet('Datadog');
 
 var_dump(DDTrace\active_span());
+var_dump(DDTrace\active_span() == DDTrace\active_span());
 
 ?>
 --EXPECT--
 Hello, Datadog.
 greet tracer.
 bool(true)
-NULL
+object(DDTrace\SpanData)#1 (0) {
+}
+bool(true)

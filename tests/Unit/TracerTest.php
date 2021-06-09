@@ -50,12 +50,14 @@ final class TracerTest extends BaseTestCase
     public function testCreateSpanSuccessWithExpectedValues()
     {
         $tracer = new Tracer(new NoopTransport());
+        $tracer->startRootSpan('foo'); // setting start_time not allowed on internal root span
         $startTime = Time::now();
         $span = $tracer->startSpan(self::OPERATION_NAME, [
             'tags' => [
                 self::TAG_KEY => self::TAG_VALUE
             ],
             'start_time' => $startTime,
+            'child_of' => $tracer->getActiveSpan(),
         ]);
 
         $this->assertEquals(self::OPERATION_NAME, $span->getOperationName());
@@ -143,6 +145,11 @@ final class TracerTest extends BaseTestCase
 
     public function testOnlyFinishedTracesAreBeingSent()
     {
+        if (PHP_VERSION_ID >= 80000) {
+            $this->assertTrue(true); // now extension responsibility, not testable here (
+            return;
+        }
+
         $transport = $this->prophesize('DDTrace\Transport');
         $tracer = new Tracer($transport->reveal());
         $span = $tracer->startSpan(self::OPERATION_NAME);
@@ -197,6 +204,11 @@ final class TracerTest extends BaseTestCase
 
     public function testUnfinishedSpansAreNotSentOnFlush()
     {
+        if (PHP_VERSION_ID >= 80000) {
+            $this->assertTrue(true);
+            return; // obsolete, now interrnal responsibility
+        }
+
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
         $tracer->startActiveSpan('root');
@@ -209,6 +221,11 @@ final class TracerTest extends BaseTestCase
 
     public function testUnfinishedSpansCanBeFinishedOnFlush()
     {
+        if (PHP_VERSION_ID >= 80000) {
+            $this->assertTrue(true);
+            return; // obsolete, now interrnal responsibility
+        }
+
         \putenv('DD_AUTOFINISH_SPANS=true');
 
         $transport = new DebugTransport();
@@ -231,6 +248,11 @@ final class TracerTest extends BaseTestCase
 
     public function testFlushDoesntAddHostnameToRootSpanByDefault()
     {
+        if (PHP_VERSION_ID >= 80000) {
+            $this->assertTrue(true);
+            return; // obsolete, now interrnal responsibility
+        }
+
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
         $this->assertNull($tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
@@ -246,10 +268,6 @@ final class TracerTest extends BaseTestCase
 
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
-        $this->assertNull($tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
-
-        $tracer->flush();
-
         $this->assertEquals(gethostname(), $tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
     }
 
@@ -269,24 +287,38 @@ final class TracerTest extends BaseTestCase
 
         $this->assertSame('value1', $span->getAllTags()['key1']);
         $this->assertSame('value2', $span->getAllTags()['key2']);
+
+        \putenv('DD_TAGS='); // prevent memory leak
     }
 
     public function testInternalAndUserlandSpansAreMergedIntoSameTraceOnSerialization()
     {
+        putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+        dd_trace_internal_fn('ddtrace_reload_config');
+
         // Clear existing internal spans
-        dd_trace_serialize_closed_spans();
+        \dd_trace_serialize_closed_spans();
 
         \DDTrace\trace_function(__NAMESPACE__ . '\\baz', function () {
             // Do nothing
         });
         $tracer = new Tracer(new DebugTransport());
-        $span = $tracer->startSpan('foo');
+
+        $tracer->startActiveSpan('bar');
         baz();
-        $span->finish();
+        $tracer->getActiveSpan()->finish();
 
         $this->assertSame(2, dd_trace_closed_spans_count());
-        $traces = $tracer->getTracesAsArray();
-        $this->assertCount(1, $traces);
-        $this->assertCount(2, $traces[0]);
+        if (PHP_VERSION_ID < 80000) {
+            $traces = $tracer->getTracesAsArray();
+            $this->assertCount(1, $traces);
+            $this->assertCount(2, $traces[0]);
+        } else {
+            $traces = \dd_trace_serialize_closed_spans();
+            $this->assertCount(2, $traces);
+        }
+
+        putenv('DD_TRACE_GENERATE_ROOT_SPAN');
+        dd_trace_internal_fn('ddtrace_reload_config');
     }
 }

@@ -33,9 +33,15 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($headers['x-datadog-parent-id'] === (string) $spans[0]['span_id']);
 
 echo 'Done.' . PHP_EOL;
+
+if (PHP_VERSION_ID < 80000) {
+    echo "No finished traces to be sent to the agent", PHP_EOL;
+}
+
 ?>
 --EXPECTF--
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 bool(true)
 Done.
+No finished traces to be sent to the agent

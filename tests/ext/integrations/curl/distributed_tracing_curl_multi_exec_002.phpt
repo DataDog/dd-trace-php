@@ -60,6 +60,11 @@ $url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/headers';
 doMulti($url);
 
 echo 'Done.' . PHP_EOL;
+
+if (PHP_VERSION_ID < 80000) {
+    echo "Successfully triggered auto-flush with trace of size 2", PHP_EOL;
+}
+
 ?>
 --EXPECTF--
 x-datadog-origin: phpt-test
@@ -67,3 +72,4 @@ x-datadog-parent-id: %d
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 Done.
+Successfully triggered auto-flush with trace of size 2

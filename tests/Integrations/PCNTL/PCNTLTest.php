@@ -161,12 +161,8 @@ final class PCNTLTest extends IntegrationTestCase
         $requests = $this->parseMultipleRequestsFromDumpedData();
         $this->assertCount(2, $requests);
 
-        // Both requests have 1 trace each
-        $this->assertCount(1, $requests[0]);
-        $this->assertCount(1, $requests[1]);
-
         foreach ($requests as $traces) {
-            $this->assertFlameGraph($traces, [
+            $this->assertFlameGraph([$traces], [
                 SpanAssertion::exists('long_running_entry_point')->withChildren([
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
@@ -188,9 +184,8 @@ final class PCNTLTest extends IntegrationTestCase
             ]
         );
         $requests = $this->parseMultipleRequestsFromDumpedData();
-        $this->assertCount(1, $requests, 'Traces are buffered into one request');
 
-        $this->assertFlameGraph($requests[0], [
+        $this->assertFlameGraph($requests, [
             SpanAssertion::exists('manual_tracing')->withChildren([
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),

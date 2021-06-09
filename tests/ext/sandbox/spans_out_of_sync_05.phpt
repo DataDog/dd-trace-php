@@ -1,5 +1,7 @@
 --TEST--
 Gracefully handle out-of-sync spans in closure itself [user]
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--
@@ -21,3 +23,4 @@ echo 'Done.' . PHP_EOL;
 ?>
 --EXPECT--
 Done.
+No finished traces to be sent to the agent

@@ -2,6 +2,7 @@
 Keep spans in limited mode (userland methods)
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 class MyClass

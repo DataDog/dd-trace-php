@@ -45,6 +45,11 @@ var_dump(dd_trace('foo', 'foo', [
     'posthook' => function () {},
 ]));
 var_dump(dd_trace('foo', 'foo', []));
+
+if (PHP_VERSION_ID < 80000) {
+    echo "Successfully triggered auto-flush with trace of size 1", PHP_EOL;
+}
+
 ?>
 --EXPECT--
 Unexpected parameter combination, expected (class, function, closure | config_array) or (function, closure | config_array)
@@ -66,3 +71,4 @@ bool(false)
 bool(false)
 bool(false)
 bool(false)
+Successfully triggered auto-flush with trace of size 1

@@ -1,6 +1,7 @@
 --TEST--
 dd_trace_push_span_id() Generates a 63-bit unsigned int as a string and stores on a stack
 --ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_DEBUG_PRNG_SEED=42
 --FILE--
 <?php

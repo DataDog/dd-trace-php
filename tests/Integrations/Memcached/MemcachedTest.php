@@ -198,6 +198,7 @@ final class MemcachedTest extends IntegrationTestCase
             $this->assertFalse($this->client->get('key2'));
         });
 
+        var_dump($traces);
         $this->assertEmpty($traces);
     }
 

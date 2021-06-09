@@ -1,5 +1,7 @@
 --TEST--
 DDTrace\hook_method prehook error is sandboxed (debug)
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --INI--
@@ -30,3 +32,4 @@ Greeter::greet('Datadog');
 Greeter::greet hooked.
 %s in ddtrace's closure for Greeter::greet(): Undefined variable%sthis_normally_raises_an_%s
 Hello, Datadog.
+Successfully triggered auto-flush with trace of size 1

@@ -5,6 +5,7 @@ namespace DDTrace\Tests\OpenTracer1Unit;
 use DDTrace\OpenTracer1\Span;
 use DDTrace\Span as DDSpan;
 use DDTrace\SpanContext as DDSpanContext;
+use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use Exception;
@@ -47,7 +48,7 @@ final class SpanTest extends BaseTestCase
         $span->finish();
 
         $span->setTag(self::TAG_KEY, self::TAG_VALUE);
-        $this->assertNull($span->unwrapped()->getTag(self::TAG_KEY));
+        $this->assertEmpty($span->unwrapped()->getTag(self::TAG_KEY));
     }
 
     public function testSpanTagWithErrorCreatesExpectedTags()
@@ -145,12 +146,20 @@ final class SpanTest extends BaseTestCase
 
     private function createSpan()
     {
-        $span = new DDSpan(
-            self::OPERATION_NAME,
-            DDSpanContext::createAsRoot(),
-            self::SERVICE,
-            self::RESOURCE
-        );
+        if (PHP_VERSION_ID < 80000) {
+            $span = new DDSpan(
+                self::OPERATION_NAME,
+                DDSpanContext::createAsRoot(),
+                self::SERVICE,
+                self::RESOURCE
+            );
+        } else {
+            $internalSpan = \DDTrace\start_span();
+            $internalSpan->name = self::OPERATION_NAME;
+            $internalSpan->service = self::SERVICE;
+            $internalSpan->resource = self::RESOURCE;
+            $span = new DDSpan($internalSpan, DDSpanContext::createAsRoot());
+        }
         return new Span($span);
     }
 }

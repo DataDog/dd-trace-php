@@ -21,7 +21,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
                 TestCase::assertSame("OK\n", $output);
             },
             __DIR__ . "/app/index.php",
-            [],
+            [
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+            ],
             [
                 'ddtrace.request_init_hook' => 'do_not_exists',
             ]
@@ -39,7 +41,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
                 TestCase::assertSame("OK\n", $output);
             },
             __DIR__ . "/app/index.php",
-            [],
+            [
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+            ],
             [
                 'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
             ]

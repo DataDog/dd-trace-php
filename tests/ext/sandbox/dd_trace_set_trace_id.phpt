@@ -3,6 +3,7 @@ Set the trace ID from userland
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 use DDTrace\SpanData;

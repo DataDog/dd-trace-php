@@ -2,6 +2,7 @@
 Span properties defaults to values if not explicitly set (methods)
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=DateTime::__construct,DateTime::format
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 use DDTrace\SpanData;

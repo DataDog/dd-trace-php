@@ -22,22 +22,41 @@ final class SpanContext extends SpanContextData
         $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
     }
 
-    public static function createAsChild(SpanContextInterface $parentContext)
+    public static function createAsChild(SpanContextInterface $parentContext, $startTime = null)
     {
         // Since dd_trace_push_span_id() updates the return value of
         // dd_trace_peek_span_id(), we need to access the existing
         // value before generating a new ID
         $activeSpanId = dd_trace_peek_span_id();
 
-        $instance = new self(
-            $parentContext->getTraceId(),
-            dd_trace_push_span_id(),
-            // Since the last span could have been generated internally,
-            // we can't use `$parentContext->getSpanId()` here
-            $activeSpanId,
-            $parentContext->getAllBaggageItems(),
-            false
-        );
+        if (PHP_VERSION_ID < 80000) {
+            $instance = new self(
+                $parentContext->getTraceId(),
+                dd_trace_push_span_id(),
+                // Since the last span could have been generated internally,
+                // we can't use `$parentContext->getSpanId()` here
+                $activeSpanId,
+                $parentContext->getAllBaggageItems(),
+                false
+            );
+        } else {
+            if (!$parentContext->isDistributedTracingActivationContext() || !active_span()) {
+                if ($startTime) {
+                    start_span($startTime);
+                } else {
+                    start_span(); // we'll peek at the span stack top later
+                }
+            }
+            $instance = new self(
+                $parentContext->getTraceId(),
+                \dd_trace_peek_span_id(),
+                // Since the last span could have been generated internally,
+                // we can't use `$parentContext->getSpanId()` here
+                $activeSpanId,
+                $parentContext->getAllBaggageItems(),
+                false
+            );
+        }
         $instance->parentContext = $parentContext;
         $instance->setPropagatedPrioritySampling($parentContext->getPropagatedPrioritySampling());
         if (
@@ -51,7 +70,16 @@ final class SpanContext extends SpanContextData
 
     public static function createAsRoot(array $baggageItems = [])
     {
-        $nextId = \dd_trace_push_span_id();
+        // with peek the current span id for the existing root span
+
+        if (PHP_VERSION_ID >= 80000) {
+            if (!active_span()) {
+                start_span();
+            }
+            $nextId = \dd_trace_peek_span_id();
+        } else {
+            $nextId = \dd_trace_push_span_id();
+        }
 
         return new self(
             $nextId,

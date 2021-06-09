@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Unit\Sampling;
 use DDTrace\Sampling\ConfigurableSampler;
 use DDTrace\Span;
 use DDTrace\SpanContext;
+use DDTrace\SpanData;
 use DDTrace\Tests\Common\BaseTestCase;
 
 final class ConfigurableSamplerTest extends BaseTestCase
@@ -40,7 +41,8 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
         for ($i = 0; $i < self::REPETITIONS; $i++) {
             $context = new SpanContext('', dd_trace_generate_id());
-            $output += $sampler->getPrioritySampling(new Span('', $context, '', ''));
+            $span = PHP_VERSION_ID < 80000 ? new Span('', $context, '', '') : new Span(new SpanData(), $context);
+            $output += $sampler->getPrioritySampling($span);
         }
 
         $ratio = $output / self::REPETITIONS;
@@ -68,6 +70,15 @@ final class ConfigurableSamplerTest extends BaseTestCase
         ];
     }
 
+    private function createMySpan()
+    {
+        $context = new SpanContext('', dd_trace_generate_id());
+        $span = PHP_VERSION_ID < 80000 ? new Span('', $context, '', '') : new Span(new SpanData(), $context);
+        $span->operationName = 'my_name';
+        $span->service = 'my_service';
+        return $span;
+    }
+
     /**
      * @dataProvider samplingRulesScenarios
      * @param array $samplingRules
@@ -85,8 +96,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
         $output = 0;
 
         for ($i = 0; $i < self::REPETITIONS; $i++) {
-            $context = new SpanContext('', dd_trace_generate_id());
-            $output += $sampler->getPrioritySampling(new Span('my_name', $context, 'my_service', ''));
+            $output += $sampler->getPrioritySampling($this->createMySpan());
         }
 
         $ratio = $output / self::REPETITIONS;
@@ -137,8 +147,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
         putenv('DD_TRACE_SAMPLING_RULES=[{"sample_rate":0.7}]');
         $sampler = new ConfigurableSampler();
 
-        $context = new SpanContext('', dd_trace_generate_id());
-        $span = new Span('my_name', $context, 'my_service', '');
+        $span = $this->createMySpan();
         $sampler->getPrioritySampling($span);
 
         $this->assertSame(0.7, $span->getMetrics()['_dd.rule_psr']);
@@ -151,8 +160,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
         putenv('DD_TRACE_SAMPLING_RULES=\'[{"sample_rate":0.7}]\'');
         $sampler = new ConfigurableSampler();
 
-        $context = new SpanContext('', dd_trace_generate_id());
-        $span = new Span('my_name', $context, 'my_service', '');
+        $span = $this->createMySpan();
         $sampler->getPrioritySampling($span);
 
         $this->assertSame(0.7, $span->getMetrics()['_dd.rule_psr']);
@@ -163,8 +171,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
         putenv('DD_TRACE_SAMPLE_RATE=0.3');
         $sampler = new ConfigurableSampler();
 
-        $context = new SpanContext('', dd_trace_generate_id());
-        $span = new Span('my_name', $context, 'my_service', '');
+        $span = $this->createMySpan();
         $sampler->getPrioritySampling($span);
 
         $this->assertSame(0.3, $span->getMetrics()['_dd.rule_psr']);
@@ -174,8 +181,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
     {
         $sampler = new ConfigurableSampler();
 
-        $context = new SpanContext('', dd_trace_generate_id());
-        $span = new Span('my_name', $context, 'my_service', '');
+        $span = $this->createMySpan();
         $sampler->getPrioritySampling($span);
 
         $this->assertSame(1.0, $span->getMetrics()['_dd.rule_psr']);

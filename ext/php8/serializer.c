@@ -296,6 +296,7 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     zval meta_zv, *meta = ddtrace_spandata_property_meta(span);
 
     array_init(&meta_zv);
+    ZVAL_DEREF(meta);
     if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
         zend_string *str_key;
         zval *orig_val, val_as_string;
@@ -313,7 +314,8 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
         ddtrace_exception_to_meta(span_fci->exception, meta, dd_add_meta_array);
     }
 
-    zval *error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg"));
+    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg")) ||
+                      ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
     if (error) {
         add_assoc_long(el, "error", 1);
     }
@@ -323,6 +325,40 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
         snprintf(pid, sizeof(pid), "%ld", (long)span->pid);
         add_assoc_string(meta, "system.pid", pid);
     }
+
+    char *version = get_dd_version();
+    if (*version) {  // non-empty
+        add_assoc_string(meta, "version", version);
+    }
+    free(version);
+
+    char *env = get_dd_env();
+    if (*env) {  // non-empty
+        add_assoc_string(meta, "env", env);
+    }
+    free(env);
+
+    zend_array *global_tags = get_dd_tags();
+    if (zend_hash_num_elements(global_tags) == 0) {
+        zend_hash_release(global_tags);
+        global_tags = get_dd_trace_global_tags();
+    }
+    zend_string *global_key;
+    zval *global_val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
+        Z_TRY_ADDREF_P(global_val);  // they're actually persistent strings, but doing the check does no harm here
+        zend_hash_add(Z_ARR_P(meta), global_key, global_val);
+    }
+    ZEND_HASH_FOREACH_END();
+    zend_hash_release(global_tags);
+
+    zend_string *tag_key;
+    zval *tag_value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(DDTRACE_G(additional_global_tags), tag_key, tag_value) {
+        Z_TRY_ADDREF_P(tag_value);
+        zend_hash_add(Z_ARR_P(meta), tag_key, tag_value);
+    }
+    ZEND_HASH_FOREACH_END();
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);
@@ -363,32 +399,43 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
     zval *prop_name = ddtrace_spandata_property_name(span);
-    zval prop_name_as_string;
+    ZVAL_DEREF(prop_name);
     if (Z_TYPE_P(prop_name) > IS_NULL) {
+        zval prop_name_as_string;
         ddtrace_convert_to_string(&prop_name_as_string, prop_name);
-        _add_assoc_zval_copy(el, "name", &prop_name_as_string);
+        prop_name = zend_hash_str_update(Z_ARR_P(el), ZEND_STRL("name"), &prop_name_as_string);
     }
 
     // SpanData::$resource defaults to SpanData::$name
     zval *prop_resource = ddtrace_spandata_property_resource(span);
+    ZVAL_DEREF(prop_resource);
     if (Z_TYPE_P(prop_resource) > IS_FALSE && (Z_TYPE_P(prop_resource) != IS_STRING || Z_STRLEN_P(prop_resource) > 0)) {
         _dd_add_assoc_zval_as_string(el, "resource", prop_resource);
     } else if (Z_TYPE_P(prop_name) > IS_NULL) {
-        _add_assoc_zval_copy(el, "resource", &prop_name_as_string);
-    }
-
-    if (Z_TYPE_P(prop_name) > IS_NULL) {
-        zval_dtor(&prop_name_as_string);
+        _add_assoc_zval_copy(el, "resource", prop_name);
     }
 
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
     zval *prop_service = ddtrace_spandata_property_service(span);
+    ZVAL_DEREF(prop_service);
     if (Z_TYPE_P(prop_service) > IS_NULL) {
-        _dd_add_assoc_zval_as_string(el, "service", prop_service);
+        zval prop_service_as_string;
+        ddtrace_convert_to_string(&prop_service_as_string, prop_service);
+
+        zend_array *service_mappings = get_dd_service_mapping();
+        zval *new_name = zend_hash_find(service_mappings, Z_STR(prop_service_as_string));
+        if (new_name) {
+            zend_string_release(Z_STR(prop_service_as_string));
+            ZVAL_COPY(&prop_service_as_string, new_name);
+        }
+        zend_hash_release(service_mappings);
+
+        add_assoc_zval(el, "service", &prop_service_as_string);
     }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
     zval *prop_type = ddtrace_spandata_property_type(span);
+    ZVAL_DEREF(prop_type);
     if (Z_TYPE_P(prop_type) > IS_NULL) {
         _dd_add_assoc_zval_as_string(el, "type", prop_type);
     }
