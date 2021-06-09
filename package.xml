@@ -54,6 +54,14 @@
             <file name="components/string_view/string_view.h" role="src" />
 
             <!-- Zend Abstract Interface -->
+            <file name="zend_abstract_interface/config/config.c" role="src" />
+            <file name="zend_abstract_interface/config/config.h" role="src" />
+            <file name="zend_abstract_interface/config/config_decode.c" role="src" />
+            <file name="zend_abstract_interface/config/config_decode.h" role="src" />
+            <file name="zend_abstract_interface/config/config_ini.c" role="src" />
+            <file name="zend_abstract_interface/config/config_ini.h" role="src" />
+            <file name="zend_abstract_interface/config/tests/config_test_helpers.h" role="src" />
+            <file name="zend_abstract_interface/config/tests/ext_zai_config.h" role="src" />
             <file name="zend_abstract_interface/env/env.c" role="src" />
             <file name="zend_abstract_interface/env/env.h" role="src" />
             <file name="zend_abstract_interface/exceptions/exceptions.h" role="src" />
@@ -267,6 +275,8 @@
             <file name="ext/php8/configuration_render.h" role="src" />
             <file name="ext/php8/ddshared.c" role="src" />
             <file name="ext/php8/ddshared.h" role="src" />
+            <file name="ext/php8/ddtrace_config.c" role="src" />
+            <file name="ext/php8/ddtrace_config.h" role="src" />
             <file name="ext/php8/ddtrace_string.c" role="src" />
             <file name="ext/php8/ddtrace_string.h" role="src" />
             <file name="ext/php8/ddtrace.c" role="src">

@@ -211,6 +211,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/configuration.c \
       ext/php8/configuration_php_iface.c \
       ext/php8/ddshared.c \
+      ext/php8/ddtrace_config.c \
       ext/php8/ddtrace_string.c \
       ext/php8/dispatch.c \
       ext/php8/dogstatsd_client.c \
@@ -240,6 +241,9 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     ZAI_SOURCES="\
+      zend_abstract_interface/config/config.c \
+      zend_abstract_interface/config/config_decode.c \
+      zend_abstract_interface/config/config_ini.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/functions/php8/functions.c \
@@ -278,6 +282,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_INCLUDE([$ext_srcdir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/env])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions/php7-8])

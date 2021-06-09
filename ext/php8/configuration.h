@@ -4,9 +4,37 @@
 #include <stdbool.h>
 
 #include "compatibility.h"
+#include "ddtrace_config.h"
 #include "ddtrace_string.h"
 #include "env_config.h"
 #include "integrations/integrations.h"
+
+// TODO Tie these into the X Macros below
+static inline bool get_dd_trace_debug(void) {
+    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_DEBUG);
+    return Z_TYPE_P(val) == IS_TRUE;
+}
+
+static inline zai_string_view get_dd_service(void) {
+    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_SERVICE);
+    return (zai_string_view){.len = Z_STRLEN_P(val), .ptr = Z_STRVAL_P(val)};
+}
+
+static inline zend_array *get_dd_tags(void) {
+    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_TAGS);
+    GC_ADDREF(Z_ARRVAL_P(val));
+    return Z_ARRVAL_P(val);
+}
+
+static inline int64_t get_dd_trace_agent_port(void) {
+    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_AGENT_PORT);
+    return (int64_t)Z_LVAL_P(val);
+}
+
+static inline double get_dd_trace_sample_rate(void) {
+    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE);
+    return Z_DVAL_P(val);
+}
 
 /**
  * Returns true if `subject` matches "true" or "1".
@@ -92,18 +120,13 @@ void ddtrace_config_shutdown(void);
     BOOL(get_dd_trace_url_as_resource_names, "DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED", true)                         \
     CHAR(get_dd_integrations_disabled, "DD_INTEGRATIONS_DISABLED", "")                                               \
     BOOL(get_dd_priority_sampling, "DD_PRIORITY_SAMPLING", true)                                                     \
-    CHAR(get_dd_service, "DD_SERVICE", "")                                                                           \
     HASH(get_dd_service_mapping, "DD_SERVICE_MAPPING")                                                               \
     CHAR(get_dd_service_name, "DD_SERVICE_NAME", "")                                                                 \
-    HASH(get_dd_tags, "DD_TAGS")                                                                                     \
-    INT(get_dd_trace_agent_port, "DD_TRACE_AGENT_PORT", 8126)                                                        \
     BOOL(get_dd_trace_analytics_enabled, "DD_TRACE_ANALYTICS_ENABLED", false)                                        \
     BOOL(get_dd_trace_auto_flush_enabled, "DD_TRACE_AUTO_FLUSH_ENABLED", false)                                      \
     BOOL(get_dd_trace_cli_enabled, "DD_TRACE_CLI_ENABLED", false)                                                    \
     BOOL(get_dd_trace_measure_compile_time, "DD_TRACE_MEASURE_COMPILE_TIME", true)                                   \
-    BOOL(get_dd_trace_debug, "DD_TRACE_DEBUG", false)                                                                \
     BOOL(get_dd_trace_enabled, "DD_TRACE_ENABLED", true)                                                             \
-    HASH(get_dd_trace_global_tags, "DD_TRACE_GLOBAL_TAGS")                                                           \
     BOOL(get_dd_trace_heath_metrics_enabled, "DD_TRACE_HEALTH_METRICS_ENABLED", false)                               \
     DOUBLE(get_dd_trace_heath_metrics_heartbeat_sample_rate, "DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE", 0.001) \
     BOOL(get_dd_trace_http_client_split_by_domain, "DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN", false)                    \
@@ -112,7 +135,6 @@ void ddtrace_config_shutdown(void);
     CHAR(get_dd_trace_resource_uri_fragment_regex, "DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX", "")                       \
     CHAR(get_dd_trace_resource_uri_mapping_incoming, "DD_TRACE_RESOURCE_URI_MAPPING_INCOMING", "")                   \
     CHAR(get_dd_trace_resource_uri_mapping_outgoing, "DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING", "")                   \
-    DOUBLE(get_dd_trace_sample_rate, "DD_TRACE_SAMPLE_RATE", 1.0)                                                    \
     CHAR(get_dd_trace_sampling_rules, "DD_TRACE_SAMPLING_RULES", "")                                                 \
     CHAR(get_dd_trace_traced_internal_functions, "DD_TRACE_TRACED_INTERNAL_FUNCTIONS", "")                           \
     INT(get_dd_trace_agent_timeout, "DD_TRACE_AGENT_TIMEOUT", DD_TRACE_AGENT_TIMEOUT)                                \

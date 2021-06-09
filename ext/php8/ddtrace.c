@@ -25,10 +25,12 @@
 #include "compat_string.h"
 #include "compatibility.h"
 #include "coms.h"
+#include "config/config.h"
 #include "configuration.h"
 #include "configuration_php_iface.h"
 #include "ddshared.h"
 #include "ddtrace.h"
+#include "ddtrace_config.h"
 #include "ddtrace_string.h"
 #include "dispatch.h"
 #include "dogstatsd_client.h"
@@ -48,7 +50,6 @@
 
 bool ddtrace_has_excluded_module;
 
-atomic_int ddtrace_first_rinit;
 atomic_int ddtrace_warn_legacy_api;
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -350,6 +351,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     REGISTER_INI_ENTRIES();
 
     // config initialization needs to be at the top
+    ddtrace_config_minit(module_number);
     ddtrace_initialize_config();
     dd_disable_if_incompatible_sapi_detected();
     atomic_init(&ddtrace_first_rinit, 1);
@@ -413,8 +415,23 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_engine_hooks_mshutdown();
 
+    zai_config_mshutdown();
+
     return SUCCESS;
 }
+
+static void dd_rinit_once() {
+    zai_config_first_time_rinit();
+    /* The env vars are memoized on MINIT before the SAPI env vars are available.
+     * We use the first RINIT to bust the env var cache and use the SAPI env vars.
+     * TODO Audit/remove config usages before RINIT and move config init to RINIT.
+     */
+    ddtrace_reload_config();
+
+    ddtrace_startup_logging_first_rinit();
+}
+
+static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
@@ -431,16 +448,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
 
     // Things that should only run on the first RINIT
-    int expected_first_rinit = 1;
-    if (atomic_compare_exchange_strong(&ddtrace_first_rinit, &expected_first_rinit, 0)) {
-        /* The env vars are memoized on MINIT before the SAPI env vars are available.
-         * We use the first RINIT to bust the env var cache and use the SAPI env vars.
-         * TODO Audit/remove config usages before RINIT and move config init to RINIT.
-         */
-        ddtrace_reload_config();
+    pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
-        ddtrace_startup_logging_first_rinit();
-    }
+    zai_config_rinit();
 
     DDTRACE_G(request_init_hook_loaded) = 0;
     if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
@@ -509,6 +519,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
         dd_request_init_hook_rshutdown();
     }
+
+    zai_config_rshutdown();
 
     return SUCCESS;
 }

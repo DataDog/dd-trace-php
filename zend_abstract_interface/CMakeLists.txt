@@ -102,6 +102,7 @@ if(PHP_VERSION_DIRECTORY STREQUAL "php8")
   add_subdirectory(exceptions)
 endif()
 if (PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
+  add_subdirectory(config)
   add_subdirectory(headers)
 endif()
 

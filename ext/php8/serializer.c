@@ -397,10 +397,6 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     free(env);
 
     zend_array *global_tags = get_dd_tags();
-    if (zend_hash_num_elements(global_tags) == 0) {
-        zend_hash_release(global_tags);
-        global_tags = get_dd_trace_global_tags();
-    }
     zend_string *global_key;
     zval *global_val;
     ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
