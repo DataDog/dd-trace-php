@@ -21,6 +21,15 @@
 ZEND_TSRMLS_CACHE_EXTERN()
 #endif
 
+/* TODO Instead of exposing the SAPI module global and the 'zai_sapi_extension'
+ * global, add these to a 'zai_sapi_runtime' struct that can be out-paramed
+ * during SINIT:
+ *
+ *   bool zai_sapi_sinit_with_runtime(zai_sapi_runtime *runtime).
+ *
+ * TODO Also reset 'zai_module' every SINIT to make sure no state lingers from
+ * test to test.
+ */
 extern sapi_module_struct zai_module;
 
 /* Initializes the SAPI, modules, and request. */

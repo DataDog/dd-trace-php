@@ -27,10 +27,10 @@ zai_env_result zai_getenv(zai_string_view name, zai_env_buffer buf) {
     if (buf.len > ZAI_ENV_MAX_BUFSIZ) return ZAI_ENV_BUFFER_TOO_BIG;
 
     /* Some SAPIs do not initialize the SAPI-controlled environment variables
-     * until the request has started. It is for this reason we cannot reliably
-     * access environment variables outside of a request context.
+     * until SAPI RINIT. It is for this reason we cannot reliably access
+     * environment variables until module RINIT.
      */
-    if (!PG(modules_activated)) return ZAI_ENV_NOT_READY;
+    if (!PG(modules_activated) && !PG(during_request_startup)) return ZAI_ENV_NOT_READY;
 
     /* If 'sapi_module.getenv' is not set, sapi_getenv() will return NULL; but a
      * NULL return value could also mean that the target environment variable

@@ -4,6 +4,7 @@
 #include <main/php_main.h>
 #include <main/php_variables.h>
 
+#include "../zai_sapi_extension.h"
 #include "../zai_sapi_functions.h"
 #include "../zai_sapi_ini.h"
 #include "../zai_sapi_io.h"
@@ -18,7 +19,9 @@
 
 static ssize_t ini_entries_len = -1;
 
-static int zs_startup(sapi_module_struct *sapi_module) { return php_module_startup(sapi_module, NULL, 0); }
+static int zs_startup(sapi_module_struct *sapi_module) {
+    return php_module_startup(sapi_module, &zai_sapi_extension, 1);
+}
 
 static int zs_deactivate(TSRMLS_D) {
 #ifdef ZTS
@@ -162,6 +165,9 @@ bool zai_sapi_sinit(void) {
 
     /* Show phpinfo()/module info as plain text. */
     zai_module.phpinfo_as_text = 1;
+
+    /* Reset the additional module global. */
+    zai_sapi_reset_extension_global();
 
     return true;
 }

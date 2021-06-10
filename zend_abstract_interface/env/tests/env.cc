@@ -1,6 +1,7 @@
 extern "C" {
 #include "env/env.h"
 #include "zai_sapi/zai_sapi.h"
+#include "zai_sapi/zai_sapi_extension.h"
 }
 
 #include <catch2/catch.hpp>
@@ -8,7 +9,10 @@ extern "C" {
 #include <cstring>
 
 #define TEST(name, code) TEST_CASE(name, "[zai_env]") { \
-        REQUIRE(zai_sapi_spinup()); \
+        REQUIRE(zai_sapi_sinit()); \
+        REQUIRE(zai_module.getenv == NULL); \
+        REQUIRE(zai_sapi_minit()); \
+        REQUIRE(zai_sapi_rinit()); \
         ZAI_SAPI_TSRMLS_FETCH(); \
         ZAI_SAPI_ABORT_ON_BAILOUT_OPEN() \
         { code } \
@@ -210,3 +214,56 @@ TEST_SAPI_GETENV("get SAPI env: not set (no host env fallback)", zai_sapi_getenv
     REQUIRE(res == ZAI_ENV_NOT_SET);
     REQUIRE_BUF_EQ("", buf);
 })
+
+/****************************** Access from RINIT *****************************/
+
+zai_env_result zai_rinit_last_res;
+static char zai_rinit_str_buf[64];
+
+static PHP_RINIT_FUNCTION(zai_env) {
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    zai_env_buffer buf = {sizeof zai_rinit_str_buf, zai_rinit_str_buf};
+    zai_rinit_last_res = zai_getenv_literal("FROM_RINIT", buf);
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    return SUCCESS;
+}
+
+TEST_CASE("get SAPI env (RINIT): non-empty string", "[zai_env]") {
+    REQUIRE(zai_sapi_sinit());
+
+    zai_module.getenv = zai_sapi_getenv_non_empty;
+
+    zai_rinit_last_res = ZAI_ENV_ERROR;
+    zai_rinit_str_buf[0] = '\0';
+    zai_sapi_extension.request_startup_func = PHP_RINIT(zai_env);
+
+    REQUIRE(zai_sapi_minit());
+    REQUIRE(zai_sapi_rinit());  // Env var is fetched here
+
+    REQUIRE(zai_rinit_last_res == ZAI_ENV_SUCCESS);
+    REQUIRE(0 == strcmp("FROM_RINIT", zai_rinit_str_buf));
+
+    zai_sapi_spindown();
+}
+
+TEST_CASE("get host env (RINIT): non-empty string", "[zai_env]") {
+    REQUIRE(zai_sapi_sinit());
+
+    REQUIRE(zai_module.getenv == NULL);
+
+    zai_rinit_last_res = ZAI_ENV_ERROR;
+    zai_rinit_str_buf[0] = '\0';
+    zai_sapi_extension.request_startup_func = PHP_RINIT(zai_env);
+
+    REQUIRE_SETENV("FROM_RINIT", "bar");
+
+    REQUIRE(zai_sapi_minit());
+    REQUIRE(zai_sapi_rinit());  // Env var is fetched here
+
+    REQUIRE(zai_rinit_last_res == ZAI_ENV_SUCCESS);
+    REQUIRE(0 == strcmp("bar", zai_rinit_str_buf));
+
+    zai_sapi_spindown();
+}
