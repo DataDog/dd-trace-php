@@ -88,11 +88,15 @@ if(PHP_VERSION_DIRECTORY STREQUAL "php5")
   add_subdirectory(methods)
 endif()
 add_subdirectory(sandbox)
+add_subdirectory(zai_string)
 add_subdirectory(zai_assert)
 if(PHP_VERSION_DIRECTORY STREQUAL "php8")
   # should support php7 as well, but depends on functions ZAI to test, disabling for now
   add_subdirectory(properties)
   add_subdirectory(exceptions)
+endif()
+if (PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
+  add_subdirectory(headers)
 endif()
 
 install(EXPORT ZendAbstractInterfaceTargets

@@ -219,4 +219,11 @@ void zai_sapi_unhandled_exception_ignore(void);
 /********************************** </PHP 5> *********************************/
 #endif
 
+/* Called from sapi_module_struct.register_server_variables */
+#if PHP_VERSION_ID >= 70000
+extern void (*zai_sapi_register_custom_server_variables)(zval *track_vars_server_array);
+#else
+extern void (*zai_sapi_register_custom_server_variables)(zval *track_vars_server_array TSRMLS_DC);
+#endif
+
 #endif  // ZAI_SAPI_H
