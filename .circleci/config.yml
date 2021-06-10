@@ -1478,6 +1478,14 @@ workflows:
       #     name: "Symfony baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
+          framework_target: mongodb-driver
+          name: "Mongodb driver testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: mongodb-driver_no_ddtrace
+          name: "Mongodb driver baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
           framework_target: phpredis3
           name: "PHPRedis 3 testsuite"
       - framework_tests:

@@ -217,3 +217,30 @@ RUN set -xe; \
 WORKDIR /home/phpredis-${PHPREDIS_VERSION_TAG}
 ADD phpredis/${PHPREDIS_VERSION_TAG}/run.sh ./run.sh
 CMD [ "./run.sh" ]
+
+########################################################################################################################
+## mongodb-driver frameworks tests
+########################################################################################################################
+FROM base AS mongodb-driver
+ARG MONGODB_VERSION_TAG
+
+RUN set -xe; \
+    git clone --depth 1 --branch ${MONGODB_VERSION_TAG} https://github.com/mongodb/mongo-php-driver.git \
+        /home/mongodb-driver-${MONGODB_VERSION_TAG};
+
+WORKDIR /home/mongodb-driver-${MONGODB_VERSION_TAG}
+
+ENV DD_SERVICE=mongodb-driver-${MONGODB_VERSION_TAG}
+
+# Building mongodb-driver
+#   https://github.com/mongodb/mongo-php-driver/blob/master/CONTRIBUTING.md
+RUN git submodule update --init
+RUN phpize
+RUN ./configure --enable-mongodb-developer-flags
+RUN make clean
+RUN make all
+RUN make install
+
+ADD mongodb-driver/run.sh ./run.sh
+
+CMD [ "./run.sh" ]
