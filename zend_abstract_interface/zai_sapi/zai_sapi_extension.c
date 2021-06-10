@@ -15,6 +15,6 @@ static const zend_module_entry zai_sapi_extension_orig = {
 };
 // clang-format on
 
-zend_module_entry zai_sapi_extension = zai_sapi_extension_orig;
+zend_module_entry zai_sapi_extension;
 
 void zai_sapi_reset_extension_global(void) { zai_sapi_extension = zai_sapi_extension_orig; }
