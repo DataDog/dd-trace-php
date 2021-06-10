@@ -11,10 +11,23 @@
 #define DDTRACE_COMS_STACK_INITIAL_SIZE (1024u * 128u)         // 128 KiB
 #define DDTRACE_COMS_STACKS_BACKLOG_SIZE 10
 
+/*
+Each stack will contain multiple payload. Each fragment has the form: <payload_N>=<size_N><group_id_N><data_N>
+For example, asssuming sizeof(size_t) == 8 and sizeof(data) == 100:
+    <size_0><group_id_0><data_0><size_1><group_id_1><data_1>...
+    |       |           |       |       |           |
+    |       |           |       |       |           └> position 132
+    |       |           |       |       └> position 124
+    |       |           |       └> position 116
+    |       |           └> position 16
+    |       └> position 8
+    └> position 0
+*/
 typedef struct ddtrace_coms_stack_t {
     size_t size;
-    _Atomic(size_t) position;
-    _Atomic(size_t) bytes_written;
+    _Atomic(size_t) position;       // current cursor in the stack. Next data will be written starting at this position.
+    _Atomic(size_t) bytes_written;  // includes size_t bytes to store `size` and and size_t bytes to store the group id
+                                    // for each payload.
     _Atomic(int32_t) refcount;
     char *data;
 } ddtrace_coms_stack_t;
@@ -33,7 +46,10 @@ inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
     return ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0;
 }
 
+// Adds serialized data to the transmission buffer. This function is called by the main thread serving the
+// request and is the only interface between the main thread and the background sender thread.
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
+
 bool ddtrace_coms_minit(void);
 void ddtrace_coms_mshutdown(void);
 void ddtrace_coms_curl_shutdown(void);
