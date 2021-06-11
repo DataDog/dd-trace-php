@@ -1,0 +1,29 @@
+version: "3.6"
+
+services:
+  mongodb-driver:
+    depends_on:
+      - nginx_file_server
+      - mongodb
+    environment:
+      - MONGODB_URI=mongodb://mongodb
+      - NO_INTERACTION=1
+    image: datadog/dd-trace-ci:php-framework-mongodb-driver-1.9
+    build:
+      context: contrib
+      target: mongodb-driver
+      args:
+        - MONGODB_VERSION_TAG=1.9.1
+    ulimits:
+      core: 99999999999
+    cap_add:
+      - SYS_PTRACE
+
+  mongodb:
+    image: "circleci/mongo:4"
+    ports:
+      - "27017:27017"
+
+  nginx_file_server:
+    build: nginx_file_server
+    expose: ["80"]
