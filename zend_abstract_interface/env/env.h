@@ -52,7 +52,7 @@ typedef struct zai_string_view_s {
 } zai_string_view;
 
 #define ZAI_STRL_VIEW(cstr) \
-    { sizeof(cstr) - 1, cstr }
+    (zai_string_view) { .len = sizeof(cstr) - 1, .ptr = (cstr) }
 
 /* Fills 'buf.ptr' with the value of a target environment variable identified by
  * 'name'. Must be called after the SAPI envrionment variables are available
