@@ -124,6 +124,11 @@ switch ($_SERVER['REQUEST_URI']) {
         (new MyApp\MyBundle\Dispatcher())->dispatchInternalExcetionNotResultingInError();
         break;
 
+    case "/internal-exception-used-for-redirect":
+        require __DIR__ . '/dispatcher.php';
+        (new MyApp\MyBundle\Dispatcher())->dispatchInternalExcetionUsedForRedirect();
+        break;
+
     case "/internal-user-error-not-resulting-in-error":
         require __DIR__ . '/handlers.php';
         require __DIR__ . '/functions.php';

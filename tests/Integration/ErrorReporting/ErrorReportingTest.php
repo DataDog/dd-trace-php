@@ -267,6 +267,17 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $this->assertSame(0, $traces[0][0]['error']);
     }
 
+    public function testInternalExceptionUsedForRedirect()
+    {
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(GetSpec::create('', '/internal-exception-used-for-redirect'));
+        });
+
+        $this->assertSame('303', $traces[0][0]['meta']['http.status_code']);
+        $this->assertSame(0, $traces[0][0]['error']);
+    }
+
+
     public function testInternalUserErrorThatShouldNotResultInError()
     {
         $traces = $this->tracesFromWebRequest(function () {

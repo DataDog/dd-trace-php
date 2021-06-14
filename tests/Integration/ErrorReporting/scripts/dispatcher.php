@@ -50,4 +50,18 @@ class Dispatcher
             // doing nothing
         }
     }
+
+    /**
+     * As seen in drupal 8, exceptions can be used to create a RedirectResponse that are rendered as 303.
+     *   - https://github.com/drupal/drupal/blob/802b06b100a33a79ab254104252464dcf68c05d0/core/lib/Drupal/Core/Form/FormSubmitter.php#L122-L145
+     */
+    public function dispatchInternalExcetionUsedForRedirect()
+    {
+        require_once __DIR__ . '/service_throwing_exception.php';
+        try {
+            (new SomeServiceForExceptions())->doThrow();
+        } catch (\Exception $ex) {
+            header('HTTP/1.1 303 See Other');
+        }
+    }
 }
