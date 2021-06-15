@@ -24,31 +24,13 @@ void ddtrace_init_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static void _free_span(ddtrace_span_fci *span_fci) {
-    if (!span_fci) {
-        return;
-    }
-    ddtrace_span_t *span = &span_fci->span;
-    if (span->span_data) {
-        zval_ptr_dtor(span->span_data);
-        efree(span->span_data);
-        span->span_data = NULL;
-    }
-    if (span_fci->exception) {
-        OBJ_RELEASE(span_fci->exception);
-        span_fci->exception = NULL;
-    }
-
-    efree(span_fci);
-}
-
 void ddtrace_drop_span(ddtrace_span_fci *span_fci) {
     if (span_fci->dispatch) {
         ddtrace_dispatch_release(span_fci->dispatch);
         span_fci->dispatch = NULL;
     }
 
-    _free_span(span_fci);
+    OBJ_RELEASE(&span_fci->span.std);
 }
 
 static void _free_span_stack(ddtrace_span_fci *span_fci) {
@@ -85,10 +67,6 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     ddtrace_push_span(span_fci);
 
     ddtrace_span_t *span = &span_fci->span;
-
-    span->span_data = (zval *)ecalloc(1, sizeof(zval));
-    object_init_ex(span->span_data, ddtrace_ce_span_data);
-
     // Peek at the active span ID before we push a new one onto the stack
     span->parent_id = ddtrace_peek_span_id();
     span->span_id = ddtrace_push_span_id(0);
@@ -99,6 +77,13 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+}
+
+ddtrace_span_fci *ddtrace_init_span() {
+    zval fci_zv;
+    object_init_ex(&fci_zv, ddtrace_ce_span_data);
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ(fci_zv);
+    return span_fci;
 }
 
 void dd_trace_stop_span_time(ddtrace_span_t *span) {
@@ -158,7 +143,7 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
         ddtrace_serialize_span_to_array(tmp, serialized);
-        _free_span(tmp);
+        OBJ_RELEASE(&tmp->span.std);
         // Move the stack down one as ddtrace_serialize_span_to_array() might do a long jump
         DDTRACE_G(closed_spans_top) = span_fci;
     }

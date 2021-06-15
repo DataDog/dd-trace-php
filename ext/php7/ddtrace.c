@@ -215,17 +215,64 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
+zend_object_handlers ddtrace_span_data_handlers;
+
+static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
+    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+    zend_object_std_init(&span_fci->span.std, class_type);
+    span_fci->span.std.handlers = &ddtrace_span_data_handlers;
+    return &span_fci->span.std;
+}
+
+static void ddtrace_span_data_free_storage(zend_object *object) {
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)object;
+    if (span_fci->exception) {
+        OBJ_RELEASE(span_fci->exception);
+    }
+    zend_object_std_dtor(object);
+}
+
+static zend_object *ddtrace_span_data_clone_obj(zval *old_zv) {
+    zend_object *old_obj = Z_OBJ_P(old_zv);
+    zend_object *new_obj = ddtrace_span_data_create(old_obj->ce);
+    zend_objects_clone_members(new_obj, old_obj);
+    return new_obj;
+}
+
+static PHP_METHOD(DDTrace_SpanData, getDuration) {
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ_P(getThis());
+    RETURN_LONG(span_fci->span.duration);
+}
+
+static PHP_METHOD(DDTrace_SpanData, getStartTime) {
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ_P(getThis());
+    RETURN_LONG(span_fci->span.start);
+}
+
+const zend_function_entry class_DDTrace_SpanData_methods[] = {
+    // clang-format off
+    PHP_ME(DDTrace_SpanData, getDuration, arginfo_ddtrace_void, ZEND_ACC_PUBLIC)
+    PHP_ME(DDTrace_SpanData, getStartTime, arginfo_ddtrace_void, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+    // clang-format on
+};
 
 static void dd_register_span_data_ce(void) {
+    memcpy(&ddtrace_span_data_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+    ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
+    ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
+
     zend_class_entry ce_span_data;
-    INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
+    INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", class_DDTrace_SpanData_methods);
     ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data);
+    ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
 
     // trace_id, span_id, parent_id, start & duration are stored directly on
     // ddtrace_span_t so we don't need to make them properties on DDTrace\SpanData
     /*
      * ORDER MATTERS: If you make any changes to the properties below, update the
      * corresponding ddtrace_spandata_property_*() function with the proper offset.
+     * ALSO: Update the properties_table_placeholder size of ddtrace_span_t to property count - 1.
      */
     zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC);
@@ -235,18 +282,21 @@ static void dd_register_span_data_ce(void) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
 // SpanData::$name
-zval *ddtrace_spandata_property_name(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 0); }
+zval *ddtrace_spandata_property_name(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 0); }
 // SpanData::$resource
-zval *ddtrace_spandata_property_resource(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 1); }
+zval *ddtrace_spandata_property_resource(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 1); }
 // SpanData::$service
-zval *ddtrace_spandata_property_service(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 2); }
+zval *ddtrace_spandata_property_service(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 2); }
 // SpanData::$type
-zval *ddtrace_spandata_property_type(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 3); }
+zval *ddtrace_spandata_property_type(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 3); }
 // SpanData::$meta
-zval *ddtrace_spandata_property_meta(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 4); }
+zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 4); }
 // SpanData::$metrics
-zval *ddtrace_spandata_property_metrics(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 5); }
+zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 5); }
+#pragma GCC diagnostic pop
 
 /* DDTrace\FatalError */
 zend_class_entry *ddtrace_ce_fatal_error;
@@ -1261,6 +1311,17 @@ static PHP_FUNCTION(dd_trace_peek_span_id) {
     return_span_id(return_value, ddtrace_peek_span_id());
 }
 
+/* {{{ proto string DDTrace\active_span() */
+static PHP_FUNCTION(active_span) {
+    UNUSED(execute_data);
+    if (DDTRACE_G(open_spans_top)) {
+        zend_object *obj = &DDTRACE_G(open_spans_top)->span.std;
+        ++GC_REFCOUNT(obj);
+        RETURN_OBJ(obj);
+    }
+    RETURN_NULL();
+}
+
 /* {{{ proto string \DDTrace\trace_id() */
 static PHP_FUNCTION(trace_id) {
     UNUSED(execute_data);
@@ -1356,6 +1417,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_FE(dd_trace_internal_fn, arginfo_dd_trace_internal_fn),
     DDTRACE_FE(dd_trace_noop, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(active_span, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
     DDTRACE_NS_FE(trace_id, arginfo_ddtrace_void),

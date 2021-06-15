@@ -14,13 +14,14 @@ extern zend_class_entry *ddtrace_ce_fatal_error;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_fci ddtrace_span_fci;
+typedef struct ddtrace_span_t ddtrace_span_t;
 
-zval *ddtrace_spandata_property_name(zval *spandata);
-zval *ddtrace_spandata_property_resource(zval *spandata);
-zval *ddtrace_spandata_property_service(zval *spandata);
-zval *ddtrace_spandata_property_type(zval *spandata);
-zval *ddtrace_spandata_property_meta(zval *spandata);
-zval *ddtrace_spandata_property_metrics(zval *spandata);
+zval *ddtrace_spandata_property_name(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_resource(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_service(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_type(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
 
 BOOL_T ddtrace_tracer_is_limited(void);
 

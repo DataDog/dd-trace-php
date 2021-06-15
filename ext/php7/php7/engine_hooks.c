@@ -410,14 +410,14 @@ static bool dd_call_sandboxed_tracing_closure(ddtrace_span_fci *span_fci, zval *
     zend_execute_data *call = span_fci->execute_data;
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
     ddtrace_span_t *span = &span_fci->span;
-    zval user_args;
+    zval user_args, span_zv;
 
+    ZVAL_OBJ(&span_zv, &span->std);
     void (*copy_args)(zval * args, zend_execute_data * call) =
         dispatch->options & DDTRACE_DISPATCH_PREHOOK ? dd_copy_prehook_args : dd_copy_posthook_args;
     copy_args(&user_args, call);
 
-    bool keep_span =
-        dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, EG(exception));
+    bool keep_span = dd_execute_tracing_closure(callable, &span_zv, call, &user_args, user_retval, EG(exception));
 
     zval_dtor(&user_args);
 
@@ -494,7 +494,7 @@ static ZEND_RESULT_CODE dd_do_hook_method_prehook(zend_execute_data *call, ddtra
 }
 
 static ddtrace_span_fci *dd_fcall_begin_tracing_hook(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+    ddtrace_span_fci *span_fci = ddtrace_init_span();
     span_fci->execute_data = call;
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci);
@@ -530,7 +530,7 @@ static ddtrace_span_fci *dd_create_duplicate_span(zend_execute_data *call, ddtra
      * We want any children to be inherited by the currently active span, not
      * this fake one, so we duplicate the span_id.
      */
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+    ddtrace_span_fci *span_fci = ddtrace_init_span();
     span_fci->execute_data = call;
     span_fci->dispatch = dispatch;
 
@@ -613,21 +613,19 @@ void dd_set_fqn(zval *zv, zend_execute_data *ex) {
 
 static void dd_set_default_properties(void) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
-    if (span_fci == NULL || span_fci->span.span_data == NULL || span_fci->execute_data == NULL) {
+    if (span_fci == NULL || span_fci->execute_data == NULL) {
         return;
     }
 
     ddtrace_span_t *span = &span_fci->span;
     // SpanData::$name defaults to fully qualified called name
     // The other span property defaults are set at serialization time
-    zval *prop_name = ddtrace_spandata_property_name(span->span_data);
-    if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
+    zval *prop_name = ddtrace_spandata_property_name(span);
+    if (prop_name && Z_TYPE_P(prop_name) <= IS_NULL) {
         zval prop_name_default;
         ZVAL_NULL(&prop_name_default);
         dd_set_fqn(&prop_name_default, span_fci->execute_data);
         ZVAL_COPY_VALUE(prop_name, &prop_name_default);
-        zval_copy_ctor(prop_name);
-        zval_dtor(&prop_name_default);
     }
 }
 
