@@ -6,7 +6,7 @@ TMP_DIR=.tmp.metrics
 SOURCE_DIRS="src/DDTrace src/private bridge"
 CLOC_EXCLUDE_FILE=tooling/metrics/.cloc-exclude-list
 REPETITIONS=1
-VERSIONS=(0.60.0 master)
+VERSIONS=(0.55.0 0.56.0 0.57.0 0.58.0 0.59.0 0.60.0 master)
 
 
 rm -rf ${TMP_DIR}
@@ -79,13 +79,25 @@ function php_lines {
         | rev)")
 }
 
+function remove_comments_from_ext {
+    find ${TMP_DIR}/ext -type f -name "*.h" -o -name "*.c" | xargs sed -i '' -n -f tooling/metrics/strip-c-comments.sed
+}
+
+function count_risky_php_functions_outside_zai {
+    risky_words='OBJ_RELEASE\|zend_call_function\|zend_execute\|zend_execute_scripts\|zend_hash_destroy\|zend_object_handlers.cast_object\|zend_object_handlers.has_property\|zend_object_handlers.read_property\|zval_ptr_dtor'
+    lines=$(grep -roh "${risky_words}" .tmp.metrics/ext | wc -w)
+    echo "Found ${lines} risky invocations."
+}
+
 for version in "${VERSIONS[@]}";
 do
     echo "Analyzing version: ${version}"
     setup_version ${version}
-    php_lines
-    instructions
-    echo "Done version ${version}"
+    # php_lines
+    # instructions
+    # echo "Done version ${version}"
+    # remove_comments_from_ext
+    count_risky_php_functions_outside_zai
     echo "-------------------------------------------------------------------------------------------------------------"
 done
 
