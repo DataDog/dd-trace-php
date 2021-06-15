@@ -13,12 +13,24 @@
 #define ZAI_SAPI_H
 
 #include <assert.h>
+#include <main/SAPI.h>
 #include <main/php.h>
 #include <stdbool.h>
 
 #if PHP_VERSION_ID >= 70000 && defined(ZTS)
 ZEND_TSRMLS_CACHE_EXTERN()
 #endif
+
+/* TODO Instead of exposing the SAPI module global and the 'zai_sapi_extension'
+ * global, add these to a 'zai_sapi_runtime' struct that can be out-paramed
+ * during SINIT:
+ *
+ *   bool zai_sapi_sinit_with_runtime(zai_sapi_runtime *runtime).
+ *
+ * TODO Also reset 'zai_module' every SINIT to make sure no state lingers from
+ * test to test.
+ */
+extern sapi_module_struct zai_module;
 
 /* Initializes the SAPI, modules, and request. */
 bool zai_sapi_spinup(void);

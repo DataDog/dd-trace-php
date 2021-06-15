@@ -1,10 +1,10 @@
 #include "../zai_sapi.h"
 
 #include <Zend/zend_exceptions.h>
-#include <main/SAPI.h>
 #include <main/php_main.h>
 #include <main/php_variables.h>
 
+#include "../zai_sapi_extension.h"
 #include "../zai_sapi_functions.h"
 #include "../zai_sapi_ini.h"
 #include "../zai_sapi_io.h"
@@ -19,7 +19,9 @@
 
 static ssize_t ini_entries_len = -1;
 
-static int zs_startup(sapi_module_struct *sapi_module) { return php_module_startup(sapi_module, NULL, 0); }
+static int zs_startup(sapi_module_struct *sapi_module) {
+    return php_module_startup(sapi_module, &zai_sapi_extension, 1);
+}
 
 static int zs_deactivate(TSRMLS_D) {
 #ifdef ZTS
@@ -66,7 +68,7 @@ static void zs_io_log_message(char *message TSRMLS_DC) {
     (void)zai_sapi_io_write_stderr(buf, len);
 }
 
-static sapi_module_struct zai_module = {
+sapi_module_struct zai_module = {
     "zai",                     /* name */
     "Zend Abstract Interface", /* pretty name */
 
@@ -163,6 +165,9 @@ bool zai_sapi_sinit(void) {
 
     /* Show phpinfo()/module info as plain text. */
     zai_module.phpinfo_as_text = 1;
+
+    /* Reset the additional module global. */
+    zai_sapi_reset_extension_global();
 
     return true;
 }
