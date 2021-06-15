@@ -36,7 +36,18 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - Add \DDTrace\get_current_context #1227
+    - Create property ZAI seam for PHP 8 #1246
+    - Create exceptions ZAI seam for PHP 8 #1248
+    - Run mongodb-driver testsuite in CI with and without the tracer #1255
+    ### Changed
+    - Move mapping-settings to be deserialized as a zend_array * #1253
+    ### Fixed
+    - Remove TSRMLS_C from \DDTrace\current_context #1249
+
+    </notes>
     <contents>
         <dir name="/">
             <!-- components -->
