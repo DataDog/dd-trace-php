@@ -528,6 +528,8 @@
             <file name="tests/ext/sandbox/safe_to_string_metadata.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_properties.phpt" role="test" />
+            <file name="tests/ext/sandbox/span_clone.phpt" role="test" />
+            <file name="tests/ext/sandbox/span_resource_serialization.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_01.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_02.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_03_php5.phpt" role="test" />
@@ -604,6 +606,7 @@
             <file name="tests/ext/sandbox-regression/with_params_function_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/with_params_method_hook.phpt" role="test" />
 
+            <file name="tests/ext/active_span.phpt" role="test" />
             <file name="tests/ext/check_memory_under_limit_default.phpt" role="test" />
             <file name="tests/ext/check_memory_under_limit_high_limit.phpt" role="test" />
             <file name="tests/ext/check_memory_under_limit_high_user_limit.phpt" role="test" />
