@@ -33,7 +33,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
     uint str_len;
     HashPosition iterator;
     zend_ulong num_key;
-    int key_type;
+    int key_type = HASH_KEY_NON_EXISTANT;
     bool first_time = true;
 
     zend_hash_internal_pointer_reset_ex(ht, &iterator);
@@ -69,7 +69,10 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
         zend_hash_move_forward_ex(ht, &iterator);
     }
 
-    if (key_type == HASH_KEY_IS_STRING) {
+    if (key_type == HASH_KEY_NON_EXISTANT) {
+        mpack_start_array(writer, 0);
+        mpack_finish_array(writer);
+    } else if (key_type == HASH_KEY_IS_STRING) {
         mpack_finish_map(writer);
     } else {
         mpack_finish_array(writer);
