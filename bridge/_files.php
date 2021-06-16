@@ -88,6 +88,6 @@ return [
     __DIR__ . '/../src/api/Log/NullLogger.php',
 
     __DIR__ . '/../src/DDTrace/Obfuscation.php',
-    __DIR__ . '/../src/DDTrace/Format.php',
+    __DIR__ . '/../src/api/Format.php',
     __DIR__ . '/../src/api/StartSpanOptions.php',
 ];
