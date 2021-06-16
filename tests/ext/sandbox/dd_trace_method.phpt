@@ -73,7 +73,7 @@ $testService = new TestService();
 $testService->testServiceFoo();
 
 $foo = new Foo();
-$ret = $foo->bar('tracing is awesome', ['first', 'foo-red', 'bar-green']);
+$ret = $foo->bar('tracing is awesome', ['first', '100', false]);
 var_dump($ret);
 
 echo "---\n";
@@ -133,9 +133,9 @@ array(3) {
     ["metrics"]=>
     array(2) {
       ["foo"]=>
-      string(7) "foo-red"
+      float(100)
       ["bar"]=>
-      string(9) "bar-green"
+      float(0)
     }
   }
   [1]=>

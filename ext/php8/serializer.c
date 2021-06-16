@@ -393,8 +393,19 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     _serialize_meta(el, span_fci);
 
     zval *metrics = ddtrace_spandata_property_metrics(span);
-    if (Z_TYPE_P(metrics) == IS_ARRAY) {
-        _add_assoc_zval_copy(el, "metrics", metrics);
+    ZVAL_DEREF(metrics);
+    if (Z_TYPE_P(metrics) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(metrics))) {
+        zval metrics_zv;
+        array_init(&metrics_zv);
+        zend_string *str_key;
+        zval *val;
+        ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR_P(metrics), str_key, val) {
+            if (str_key) {
+                add_assoc_double(&metrics_zv, ZSTR_VAL(str_key), zval_get_double(val));
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+        add_assoc_zval(el, "metrics", &metrics_zv);
     }
 
     add_next_index_zval(array, el);

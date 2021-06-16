@@ -62,7 +62,7 @@ var_dump(DDTrace\trace_function(
 
 testFoo();
 var_dump(addOne(0));
-$ret = bar('tracing is awesome', ['first', 'foo-red', 'bar-green']);
+$ret = bar('tracing is awesome', ['first', 1.2, '25']);
 var_dump($ret);
 
 echo "---\n";
@@ -125,9 +125,9 @@ array(5) {
     ["metrics"]=>
     array(2) {
       ["foo"]=>
-      string(7) "foo-red"
+      float(1.2)
       ["bar"]=>
-      string(9) "bar-green"
+      float(25)
     }
   }
   [1]=>
