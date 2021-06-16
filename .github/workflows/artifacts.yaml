@@ -2,6 +2,7 @@ name: Learn artifacts
 
 on: push
 
+# Just add a comment to commit something
 jobs:
   create_a_file:
     runs-on: ubuntu-latest
