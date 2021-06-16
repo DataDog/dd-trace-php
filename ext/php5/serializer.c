@@ -152,14 +152,6 @@ static zval *_read_span_property(zval *span_data, const char *name, size_t name_
     return zend_read_property(ddtrace_ce_span_data, span_data, name, name_len, 1 TSRMLS_CC);
 }
 
-static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
-    zval *value;
-    ALLOC_ZVAL(value);
-    INIT_PZVAL_COPY(value, prop);
-    zval_copy_ctor(value);
-    add_assoc_zval(el, name, value);
-}
-
 /* gettraceasstring() macros
  * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L364-L395
  * {{{ */
@@ -463,8 +455,26 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     _serialize_meta(el, span_fci TSRMLS_CC);
 
     zval *metrics = _read_span_property(span->span_data, ZEND_STRL("metrics") TSRMLS_CC);
-    if (Z_TYPE_P(metrics) == IS_ARRAY) {
-        _add_assoc_zval_copy(el, "metrics", metrics);
+    if (Z_TYPE_P(metrics) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(metrics))) {
+        zval *metrics_zv;
+        ALLOC_INIT_ZVAL(metrics_zv);
+        array_init(metrics_zv);
+        HashPosition pos;
+        zval **metric_value;
+        for (zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(metrics), &pos);
+             zend_hash_get_current_data_ex(Z_ARRVAL_P(metrics), (void **)&metric_value, &pos) == SUCCESS;
+             zend_hash_move_forward_ex(Z_ARRVAL_P(metrics), &pos)) {
+            ulong num_key;
+            char *str_key;
+            if (zend_hash_get_current_key_ex(Z_ARRVAL_P(metrics), &str_key, NULL, &num_key, 0, &pos) ==
+                HASH_KEY_IS_STRING) {
+                zval value;
+                MAKE_COPY_ZVAL(metric_value, &value);
+                convert_to_double(&value);
+                add_assoc_double(metrics_zv, str_key, Z_DVAL(value));
+            }
+        }
+        add_assoc_zval(el, "metrics", metrics_zv);
     }
 
     add_next_index_zval(array, el);
