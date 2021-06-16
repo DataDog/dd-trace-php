@@ -64,7 +64,10 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
     }
     ZEND_HASH_FOREACH_END();
 
-    if (is_assoc) {
+    if (is_assoc == -1) {
+        mpack_start_array(writer, 0);
+        mpack_finish_array(writer);
+    } else if (is_assoc) {
         mpack_finish_map(writer);
     } else {
         mpack_finish_array(writer);
