@@ -45,8 +45,13 @@ static char *zs_read_cookies(TSRMLS_D) {
     return NULL;
 }
 
+void (*zai_sapi_register_custom_server_variables)(zval *track_vars_server_array TSRMLS_DC) = NULL;
+
 static void zs_register_variables(zval *track_vars_array TSRMLS_DC) {
     php_import_environment_variables(track_vars_array TSRMLS_CC);
+    if (zai_sapi_register_custom_server_variables) {
+        zai_sapi_register_custom_server_variables(track_vars_array TSRMLS_CC);
+    }
 }
 
 static int zs_io_write_stdout(const char *str, unsigned int str_length TSRMLS_DC) {

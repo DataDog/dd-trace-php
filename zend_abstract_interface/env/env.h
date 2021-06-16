@@ -2,6 +2,7 @@
 #define ZAI_ENV_H
 
 #include <stddef.h>
+#include <zai_string/string.h>
 
 /* The upper-bounds limit on the buffer size to hold the value of an arbitrary
  * environment variable.
@@ -44,15 +45,6 @@ typedef struct zai_env_buffer_s {
 #define ZAI_ENV_BUFFER_INIT(name, size) \
     char name##_storage[size];          \
     zai_env_buffer name = {size, name##_storage}
-
-// TODO Move this to Zai::String
-typedef struct zai_string_view_s {
-    size_t len;
-    const char *ptr;
-} zai_string_view;
-
-#define ZAI_STRL_VIEW(cstr) \
-    (zai_string_view) { .len = sizeof(cstr) - 1, .ptr = (cstr) }
 
 /* Fills 'buf.ptr' with the value of a target environment variable identified by
  * 'name'. Must be called after the SAPI envrionment variables are available

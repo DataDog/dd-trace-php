@@ -32,7 +32,14 @@ static void zs_send_header(sapi_header_struct *sapi_header, void *server_context
 
 static char *zs_read_cookies(void) { return NULL; }
 
-static void zs_register_variables(zval *track_vars_array) { php_import_environment_variables(track_vars_array); }
+void (*zai_sapi_register_custom_server_variables)(zval *track_vars_server_array) = NULL;
+
+static void zs_register_variables(zval *track_vars_array) {
+    php_import_environment_variables(track_vars_array);
+    if (zai_sapi_register_custom_server_variables) {
+        zai_sapi_register_custom_server_variables(track_vars_array);
+    }
+}
 
 static size_t zs_io_write_stdout(const char *str, size_t str_length) {
     size_t len = zai_sapi_io_write_stdout(str, str_length);
