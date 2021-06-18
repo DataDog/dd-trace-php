@@ -1,4 +1,3 @@
 **/** linguist-generated
 .gitattributes -linguist-generated
 app/Http/Controllers/ -linguist-generated
-config/app.php -linguist-generated
