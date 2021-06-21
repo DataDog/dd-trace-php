@@ -719,6 +719,7 @@ if (PHP_VERSION_ID < 80000) {
         public function finish($finishTime = null)
         {
             if (!$this->isFinished()) {
+                // @phpstan-ignore-next-line
                 close_span($finishTime);
             }
         }

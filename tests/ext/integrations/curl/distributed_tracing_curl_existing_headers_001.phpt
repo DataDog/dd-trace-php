@@ -47,7 +47,7 @@ foreach ($responses as $key => $response) {
 echo 'Done.' . PHP_EOL;
 
 if (PHP_VERSION_ID < 80000) {
-    echo "Successfully triggered auto-flush with trace of size 3", PHP_EOL;
+    echo "Successfully triggered flush with trace of size 3", PHP_EOL;
 }
 
 ?>
@@ -65,4 +65,4 @@ x-mas: tree
 x-my-custom-header: foo
 
 Done.
-Successfully triggered auto-flush with trace of size 3
+Successfully triggered flush with trace of size 3

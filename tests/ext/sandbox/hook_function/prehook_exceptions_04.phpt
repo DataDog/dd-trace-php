@@ -31,4 +31,4 @@ try {
 array_sum hooked.
 Exception thrown in ddtrace's closure for array_sum(): !
 Sum = 4.
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

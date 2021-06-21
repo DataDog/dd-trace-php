@@ -16,6 +16,7 @@ use DDTrace\Propagators\TextMap;
 use DDTrace\Sampling\ConfigurableSampler;
 use DDTrace\Sampling\Sampler;
 use DDTrace\Transport\Http;
+use DDTrace\Transport\Internal;
 use DDTrace\Transport\Noop;
 use DDTrace\Transport\Noop as NoopTransport;
 
@@ -105,7 +106,7 @@ final class Tracer implements TracerInterface
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
         $encoder = new MessagePack();
-        $this->transport = $transport ?: (PHP_VERSION_ID >= 80000 ? new Noop() : new Http($encoder));
+        $this->transport = $transport ?: (PHP_VERSION_ID >= 80000 ? new Internal() : new Http($encoder));
         $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
             Format::TEXT_MAP => $textMapPropagator,
@@ -116,6 +117,7 @@ final class Tracer implements TracerInterface
         $this->reset();
         if (PHP_VERSION_ID >= 80000) {
             foreach ($this->config['global_tags'] as $key => $val) {
+                // @phpstan-ignore-next-line
                 add_global_tag($key, $val);
             }
         }
@@ -182,6 +184,7 @@ final class Tracer implements TracerInterface
         $service = $this->config['service_name'];
 
         if (PHP_VERSION_ID >= 80000) {
+            // @phpstan-ignore-next-line
             $internalSpan = active_span();
             $internalSpan->name = (string) $operationName;
             $internalSpan->service = $service;
@@ -334,12 +337,6 @@ final class Tracer implements TracerInterface
     {
         if (!$this->config['enabled']) {
             return;
-        }
-
-        if (PHP_VERSION_ID >= 80000) {
-            // when we explicitly flush to get the closed spans, drop the open spans to trigger an auto-flush
-            // this is needed for minimal compatibility with OpenTracer
-            while (\dd_trace_pop_span_id());
         }
 
         if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled() && $rootScope = $this->getRootScope()) {

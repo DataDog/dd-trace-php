@@ -14,4 +14,4 @@ echo "Request start" . PHP_EOL;
 --EXPECTF--
 Cannot open request init hook; file does not exist: '%s/this_file_doesnt_exist.php'
 Request start
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

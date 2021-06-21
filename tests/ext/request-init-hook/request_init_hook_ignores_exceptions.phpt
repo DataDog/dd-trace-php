@@ -15,4 +15,4 @@ echo "Request start" . PHP_EOL;
 Throwing an exception...
 Exception thrown in request init hook: Oops!
 Request start
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

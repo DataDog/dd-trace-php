@@ -30,7 +30,7 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $output = ob_get_contents();
     ob_end_clean();
     $lines = explode(PHP_EOL, $output);
-    if ((in_array("Flushing tracer...", $lines) && in_array("Tracer reset", $lines)) || in_array("Successfully triggered auto-flush with trace of size 1", $lines)) {
+    if ((in_array("Flushing tracer...", $lines) && in_array("Tracer reset", $lines)) || in_array("Successfully triggered flush with trace of size 1", $lines)) {
         echo "OK" . PHP_EOL;
     }
 }

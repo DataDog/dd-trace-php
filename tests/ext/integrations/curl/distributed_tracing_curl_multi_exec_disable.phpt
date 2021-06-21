@@ -74,7 +74,7 @@ doMulti($url);
 echo 'Done.' . PHP_EOL;
 
 if (PHP_VERSION_ID < 80000) {
-    echo "Successfully triggered auto-flush with trace of size 2", PHP_EOL;
+    echo "Successfully triggered flush with trace of size 2", PHP_EOL;
 }
 
 ?>
@@ -89,4 +89,4 @@ Disabled.
 x-foo: foo
 x-foo: foo
 Done.
-Successfully triggered auto-flush with trace of size 2
+Successfully triggered flush with trace of size 2

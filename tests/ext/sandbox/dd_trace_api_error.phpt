@@ -71,4 +71,4 @@ Expected 'posthook' to be an instance of Closure
 bool(false)
 Required key 'posthook' or 'prehook' not found in config_array
 bool(false)
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

@@ -37,16 +37,16 @@ echo PHP_EOL;
 3
 6
 Has not flushed yet.
-Successfully triggered auto-flush with trace of size 2
+Successfully triggered flush with trace of size 2
 
 10
 15
 Has not flushed yet.
-Successfully triggered auto-flush with trace of size 2
+Successfully triggered flush with trace of size 2
 
 21
 28
 Has not flushed yet.
-Successfully triggered auto-flush with trace of size 2
+Successfully triggered flush with trace of size 2
 
 No finished traces to be sent to the agent

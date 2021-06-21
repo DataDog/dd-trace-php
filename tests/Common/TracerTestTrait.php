@@ -353,10 +353,11 @@ trait TracerTestTrait
         foreach ($manyRequests as $uniqueRequest) {
             // error_log('Request: ' . print_r($uniqueRequest, 1));
             $rawTraces = json_decode($uniqueRequest['body'], true);
-            $tracesAllRequests = array_merge($tracesAllRequests, $this->parseRawDumpedTraces($rawTraces));
+            $tracesAllRequests[] = $this->parseRawDumpedTraces($rawTraces);
         }
 
-        return $tracesAllRequests;
+        // We need to handle potential empty flushes (without internal flushing)...
+        return PHP_VERSION_ID >= 80000 ? $tracesAllRequests : array_values(array_filter($tracesAllRequests));
     }
 
     /**

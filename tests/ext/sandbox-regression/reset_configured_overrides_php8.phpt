@@ -56,4 +56,4 @@ METHOD
 METHOD HOOK
 FUNCTION
 FUNCTION HOOK
-Successfully triggered auto-flush with trace of size 5
+Successfully triggered flush with trace of size 5

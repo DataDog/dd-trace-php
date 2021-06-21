@@ -52,12 +52,12 @@ function long_running_entry_point()
 
 ?>
 --EXPECTF--
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1
 Traces are dropped by PID %d because global 'drop_all_spans' is set.
-Successfully triggered auto-flush with trace of size 1
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1
+Successfully triggered flush with trace of size 1
 Traces are dropped by PID %d because global 'drop_all_spans' is set.
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1
 No finished traces to be sent to the agent
 No finished traces to be sent to the agent
 No finished traces to be sent to the agent

@@ -58,4 +58,4 @@ $app->run();
 App::__construct hooked.
 App::run
 App::run traced.
-Successfully triggered auto-flush with trace of size 2
+Successfully triggered flush with trace of size 2

@@ -32,4 +32,4 @@ try {
 bool(true)
 NULL
 Oops!
-Successfully triggered auto-flush with trace of size 2
+Successfully triggered flush with trace of size 2

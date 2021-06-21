@@ -9,3 +9,6 @@ parameters:
 		- src/DDTrace/Integrations
 		- src/DDTrace/OpenTracer
 		- src/dd-doctor.php
+	reportUnmatchedIgnoredErrors: false
+	ignoreErrors:
+		- '#Access to an undefined property DDTrace\\Span::\$internalSpan#'

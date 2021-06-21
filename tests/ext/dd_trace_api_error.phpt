@@ -47,7 +47,7 @@ var_dump(dd_trace('foo', 'foo', [
 var_dump(dd_trace('foo', 'foo', []));
 
 if (PHP_VERSION_ID < 80000) {
-    echo "Successfully triggered auto-flush with trace of size 1", PHP_EOL;
+    echo "Successfully triggered flush with trace of size 1", PHP_EOL;
 }
 
 ?>
@@ -71,4 +71,4 @@ bool(false)
 bool(false)
 bool(false)
 bool(false)
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

@@ -17,4 +17,4 @@ var_dump($sum);
 --EXPECT--
 RuntimeException thrown in ddtrace's closure for array_sum(): This exception is expected
 int(9)
-Successfully triggered auto-flush with trace of size 2
+Successfully triggered flush with trace of size 2

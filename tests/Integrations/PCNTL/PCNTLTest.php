@@ -145,7 +145,7 @@ final class PCNTLTest extends IntegrationTestCase
     public function testCliLongRunningMultipleForksAutoFlush()
     {
         if ($this->matchesPhpVersion('5')) {
-            $this->markTestSkipped('autoflushing is not implelented on 5');
+            $this->markTestSkipped('autoflushing is not implemented on 5');
             return;
         }
 
@@ -155,14 +155,19 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_AGENT_FLUSH_INTERVAL' => 0,
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
             ]
         );
         $requests = $this->parseMultipleRequestsFromDumpedData();
         $this->assertCount(2, $requests);
 
+        // Both requests have 1 trace each
+        $this->assertCount(1, $requests[0]);
+        $this->assertCount(1, $requests[1]);
+
         foreach ($requests as $traces) {
-            $this->assertFlameGraph([$traces], [
+            $this->assertFlameGraph($traces, [
                 SpanAssertion::exists('long_running_entry_point')->withChildren([
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
@@ -184,8 +189,9 @@ final class PCNTLTest extends IntegrationTestCase
             ]
         );
         $requests = $this->parseMultipleRequestsFromDumpedData();
+        $this->assertCount(1, $requests, 'Traces are buffered into one request');
 
-        $this->assertFlameGraph($requests, [
+        $this->assertFlameGraph($requests[0], [
             SpanAssertion::exists('manual_tracing')->withChildren([
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),

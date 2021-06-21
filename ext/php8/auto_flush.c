@@ -33,7 +33,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer() {
         } else {
             success = ddtrace_send_traces_via_thread(1, payload, size);
             if (success) {
-                ddtrace_log_debugf("Successfully triggered auto-flush with trace of size %d",
+                ddtrace_log_debugf("Successfully triggered flush with trace of size %d",
                                    zend_hash_num_elements(Z_ARR(trace)));
             }
             dd_prepare_for_new_trace();

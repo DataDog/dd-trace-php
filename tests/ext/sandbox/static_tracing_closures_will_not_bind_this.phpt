@@ -26,4 +26,4 @@ $foo->test();
 --EXPECT--
 Foo::test()
 Cannot trace non-static method with static tracing closure
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

@@ -51,4 +51,4 @@ METHOD 1
 HOOK 11
 METHOD 10
 HOOK 20
-Successfully triggered auto-flush with trace of size 4
+Successfully triggered flush with trace of size 4

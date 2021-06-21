@@ -32,4 +32,4 @@ Greeter::greet('Datadog');
 Hello, Datadog.
 Greeter::greet hooked.
 %s in ddtrace's closure for Greeter::greet(): Undefined variable%sthis_normally_raises_an_%s
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

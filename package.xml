@@ -560,6 +560,7 @@
             <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
             <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
             <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
+            <file name="tests/ext/sandbox/manual_flush.phpt" role="test" />
             <file name="tests/ext/sandbox/memory_limit_graceful_bailout.phpt" role="test" />
             <file name="tests/ext/sandbox/new_static.phpt" role="test" />
             <file name="tests/ext/sandbox/non-zero_duration.phpt" role="test" />

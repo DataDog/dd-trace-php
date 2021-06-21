@@ -40,10 +40,13 @@ final class SpanContext extends SpanContextData
                 false
             );
         } else {
+            // @phpstan-ignore-next-line
             if (!$parentContext->isDistributedTracingActivationContext() || !active_span()) {
                 if ($startTime) {
+                    // @phpstan-ignore-next-line
                     start_span($startTime);
                 } else {
+                    // @phpstan-ignore-next-line
                     start_span(); // we'll peek at the span stack top later
                 }
             }
@@ -73,7 +76,9 @@ final class SpanContext extends SpanContextData
         // with peek the current span id for the existing root span
 
         if (PHP_VERSION_ID >= 80000) {
+            // @phpstan-ignore-next-line
             if (!active_span()) {
+                // @phpstan-ignore-next-line
                 start_span();
             }
             $nextId = \dd_trace_peek_span_id();

@@ -59,7 +59,7 @@ foreach ($responses as $key => $response) {
 echo 'Done.' . PHP_EOL;
 
 if (PHP_VERSION_ID < 80000) {
-    echo "Successfully triggered auto-flush with trace of size 5", PHP_EOL;
+    echo "Successfully triggered flush with trace of size 5", PHP_EOL;
 }
 
 ?>
@@ -85,4 +85,4 @@ x-datadog-parent-id: %d
 x-foo: after-the-copy
 
 Done.
-Successfully triggered auto-flush with trace of size 5
+Successfully triggered flush with trace of size 5

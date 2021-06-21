@@ -14,4 +14,4 @@ var_dump(error_get_last());
 --EXPECTF--
 %s in request init hook: Undefined variable%sthis_does_not_%s
 NULL
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

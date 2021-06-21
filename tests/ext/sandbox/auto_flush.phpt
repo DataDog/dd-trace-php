@@ -35,14 +35,14 @@ echo PHP_EOL;
 --EXPECT--
 3
 6
-Successfully triggered auto-flush with trace of size 3
+Successfully triggered flush with trace of size 3
 
 10
 15
-Successfully triggered auto-flush with trace of size 3
+Successfully triggered flush with trace of size 3
 
 21
 28
-Successfully triggered auto-flush with trace of size 3
+Successfully triggered flush with trace of size 3
 
 No finished traces to be sent to the agent

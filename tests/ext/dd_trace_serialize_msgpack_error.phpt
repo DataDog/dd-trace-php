@@ -42,4 +42,4 @@ array(2) {
 }
 bool(false)
 
-Successfully triggered auto-flush with trace of size 1
+Successfully triggered flush with trace of size 1

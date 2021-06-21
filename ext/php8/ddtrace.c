@@ -1408,6 +1408,14 @@ static PHP_FUNCTION(close_span) {
     RETURN_NULL();
 }
 
+static PHP_FUNCTION(flush) {
+    UNUSED(execute_data);
+    if (ddtrace_flush_tracer() == FAILURE) {
+        ddtrace_log_debug("Unable to flush the tracer");
+    }
+    RETURN_NULL();
+}
+
 /* {{{ proto string \DDTrace\trace_id() */
 static PHP_FUNCTION(trace_id) {
     UNUSED(execute_data);
@@ -1503,6 +1511,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_FE(dd_trace_internal_fn, arginfo_dd_trace_internal_fn),
     DDTRACE_FE(dd_trace_noop, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(flush, arginfo_ddtrace_void),
     DDTRACE_NS_FE(start_span, arginfo_dd_trace_start_span),
     DDTRACE_NS_FE(close_span, arginfo_dd_trace_close_span),
     DDTRACE_NS_FE(active_span, arginfo_ddtrace_void),
