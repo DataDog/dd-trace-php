@@ -7,7 +7,7 @@ BUILD_DIR := $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 EXTRA_CFLAGS :=
-CFLAGS := -O2 $(EXTRA_CFLAGS) $(WALL_FLAGS)
+CFLAGS := -O2 $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 -g) $(EXTRA_CFLAGS) $(WALL_FLAGS)
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
@@ -137,7 +137,10 @@ sudo:
 	$(eval SUDO:=sudo)
 
 debug:
-	$(eval CFLAGS="-g")
+	$(eval CFLAGS="$(CFLAGS) -O0 -g")
+
+prod:
+	$(eval CFLAGS="$(CFLAGS) -O2 -g0")
 
 strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
@@ -231,7 +234,7 @@ cores:
 # TESTS
 ########################################################################################################################
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(REQUEST_INIT_HOOK_PATH)
-ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=true
+ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true) DD_TRACE_CLI_ENABLED=true
 
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
@@ -573,6 +576,10 @@ dev:
 	$(Q) :
 	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
 
+use_generated:
+	$(Q) :
+	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=)
+
 clean_test: clean_test_scenarios
 	rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock $(TESTS_ROOT)/vendor
 	find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
@@ -780,4 +787,4 @@ composer.lock: composer.json
 	$(Q) composer update
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
+	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all

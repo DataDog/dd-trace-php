@@ -27,6 +27,7 @@ x-aliases:
         - DDAGENT_HOSTNAME=ddagent_integration
         - COMPOSER_MEMORY_LIMIT=-1
         - PHP_IDE_CONFIG=serverName=docker
+        - DD_TRACE_DOCKER_DEBUG
       cap_add:
         - SYS_PTRACE
       # Privileged is requires to run some pcntl tests locally.
