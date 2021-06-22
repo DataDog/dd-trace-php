@@ -17,7 +17,7 @@ VERSION:=$(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
-RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(BUILD_DIR) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php --show-diff -n -p $(shell which php) -q
+RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php --show-diff -n -p $(shell which php) -q
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -78,15 +78,15 @@ install_ini: $(INI_FILE)
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/configure
-	$(RUN_TESTS_CMD) $(TESTS)
+	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
 
 test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(TESTS)
+	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(TESTS)
+	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)
 
 test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	( \
@@ -113,7 +113,7 @@ test_c_asan: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	set -xe; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) --asan $(TESTS); \
+	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) --asan $(BUILD_DIR)/$(TESTS); \
 	)
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
@@ -121,11 +121,11 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	set -xe; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(TESTS); \
+	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 build_zai:
