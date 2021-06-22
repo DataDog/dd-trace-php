@@ -69,15 +69,16 @@ final class PhpFpm implements Sapi
     public function start()
     {
         $cmd = sprintf(
-            'exec php-fpm -p %s --fpm-config %s -F',
+            'php-fpm -p %s --fpm-config %s -F',
             __DIR__,
             $this->configFile
         );
+        $processCmd = "exec $cmd";
 
         // See phpunit_error.log in CircleCI artifacts
         error_log("[php-fpm] Starting: '{$cmd}'");
 
-        $this->process = new Process($cmd);
+        $this->process = new Process($processCmd);
         $this->process->start();
     }
 

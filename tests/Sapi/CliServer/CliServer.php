@@ -79,7 +79,7 @@ final class CliServer implements Sapi
         $processCmd = "$envs exec $cmd";
 
         // See phpunit_error.log in CircleCI artifacts
-        error_log("[cli-server] Starting: '{$processCmd}'");
+        error_log("[cli-server] Starting: '$envs $processCmd'");
         if (isset($this->inis['error_log'])) {
             error_log("[cli-server] Error log: '" . realpath($this->inis['error_log']) . "'");
         }
