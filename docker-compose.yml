@@ -11,7 +11,7 @@ x-aliases:
         - .:/home/circleci/app
         - .composer:/home/circleci/.composer
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
-      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
+      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec', '/home/circleci/app/tests/vendor:uid=3434,gid=3434,exec' ]
       depends_on:
         - agent
         - ddagent_integration
