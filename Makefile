@@ -139,6 +139,18 @@ build_zai:
 test_zai: build_zai
 	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
 
+build_zai_asan:
+	( \
+	mkdir -p "$(ZAI_BUILD_DIR)"; \
+	cd $(ZAI_BUILD_DIR); \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DBUILD_ZAI_ASAN=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	$(MAKE) clean $(MAKEFLAGS); \
+	$(MAKE) $(MAKEFLAGS); \
+	)
+
+test_zai_asan: build_zai_asan
+	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
+
 clean_zai:
 	rm -rf $(ZAI_BUILD_DIR)
 
@@ -808,5 +820,5 @@ test_api_unit: composer.lock global_test_run_dependencies
 composer.lock: composer.json
 	$(Q) composer update
 
-.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test install_ini install_all \
+.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
