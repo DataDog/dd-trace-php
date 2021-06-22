@@ -4,6 +4,7 @@ REQUEST_INIT_HOOK_PATH := $(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
 SHELL := /bin/bash
 BUILD_SUFFIX := extension
 BUILD_DIR := $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
+ZAI_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_zai
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 EXTRA_CFLAGS :=
@@ -124,8 +125,22 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
+build_zai:
+	( \
+	mkdir -p "$(ZAI_BUILD_DIR)"; \
+	cd $(ZAI_BUILD_DIR); \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	$(MAKE) $(MAKEFLAGS); \
+	)
+
+test_zai: build_zai
+	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
+
+clean_zai:
+	rm -rf $(ZAI_BUILD_DIR)
+
 dist_clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(ZAI_BUILD_DIR)
 
 clean:
 	if [[ -f "$(BUILD_DIR)/Makefile" ]]; then $(MAKE) -C $(BUILD_DIR) clean; fi
@@ -786,5 +801,5 @@ test_api_unit: composer.lock
 composer.lock: composer.json
 	$(Q) composer update
 
-.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test install_ini install_all \
+.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
