@@ -60,7 +60,7 @@ final class PhpCgi implements Sapi
         $processCmd = "$envs exec $cmd";
 
         // See phpunit_error.log in CircleCI artifacts
-        error_log("[php-cgi] Starting: '{$processCmd}'");
+        error_log("[php-cgi] Starting: '$envs $processCmd'");
         if (isset($this->inis['error_log'])) {
             error_log("[php-cgi] Error log: '" . realpath($this->inis['error_log']) . "'");
         }

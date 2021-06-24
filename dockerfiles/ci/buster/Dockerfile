@@ -89,6 +89,8 @@ RUN set -eux; \
     (echo "${CMAKE_SHA256} cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz" | sha256sum -c -); \
     mkdir -p /opt/cmake/${CMAKE_VERSION}; \
     tar --strip-components 1 -C /opt/cmake/${CMAKE_VERSION} -xf /tmp/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz; \
+# Currently there's only one version of smake, make it default
+    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake; \
 # Install Catch2
     CATCH2_VERSION="2.13.5"; \
     CATCH2_SHA256="7fee7d643599d10680bfd482799709f14ed282a8b7db82f54ec75ec9af32fa76"; \

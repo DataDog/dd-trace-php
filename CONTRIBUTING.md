@@ -12,6 +12,8 @@ The easiest way to get the development environment set up is to install [Docker]
 While tests in CI run on all php versions, you typically develop on one version locally. Currently the latest local
 dev environment we support is `8.0`.
 
+Ensure that docker has at least 4 GB of RAM available, otherwise composer may run out of memory.
+
 Execute one the following commands from your command line, this will bring up all required services:
 
 ```bash
@@ -34,6 +36,8 @@ $ docker-compose run --rm 7.4-buster bash
 # For 8.0
 $ docker-compose run --rm 8.0-buster bash
 ```
+
+> :memo: **Note:** To run the container in debug mode, pass pass docker-composer an environment variable: `DD_TRACE_DOCKER_DEBUG=1`
 
 Once inside the container, update dependencies with Composer.
 
