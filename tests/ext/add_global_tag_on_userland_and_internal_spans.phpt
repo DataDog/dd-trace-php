@@ -31,7 +31,7 @@ var_dump(dd_trace_serialize_closed_spans());
 HOOK METHOD arg
 array(2) {
   [0]=>
-  array(9) {
+  array(8) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -52,11 +52,6 @@ array(2) {
       string(2) "no"
       ["cubs"]=>
       string(3) "yes"
-    }
-    ["metrics"]=>
-    array(1) {
-      ["php.compilation.total_time_ms"]=>
-      float(%f)
     }
   }
   [1]=>

@@ -22,7 +22,6 @@ struct ddtrace_span_t {
     uint64_t start;
     uint64_t duration_start;
     uint64_t duration;
-    pid_t pid;
 };
 
 struct ddtrace_span_fci {

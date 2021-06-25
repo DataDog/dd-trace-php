@@ -527,17 +527,14 @@ final class Tracer implements TracerInterface
     {
         $this->prioritySampling = $prioritySampling;
 
-        $rootScope = $this->getRootScope();
-        if (null === $rootScope) {
-            return;
-        }
-        $rootSpan = $rootScope->getSpan();
+        $rootSpan = $this->getSafeRootSpan();
         if (null === $rootSpan) {
             return;
         }
+
         if ($prioritySampling !== Sampling\PrioritySampling::UNKNOWN) {
             $rootSpan->setMetric('_sampling_priority_v1', $prioritySampling);
-        } elseif (property_exists($rootSpan, "metrics")) { // official API does not allow removal, so...
+        } elseif (isset($rootSpan->metrics)) { // official API does not allow removal, so...
             unset($rootSpan->metrics['_sampling_priority_v1']);
         }
     }

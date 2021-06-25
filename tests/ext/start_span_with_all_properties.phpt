@@ -2,6 +2,8 @@
 Set DDTrace\start_span() properties
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+--ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 
@@ -58,12 +60,15 @@ array(2) {
     string(%d) "%d"
     ["span_id"]=>
     string(%d) "%d"
-    ["parent_id"]=>
-    string(%d) "%d"
     ["start"]=>
     int(%d)
     ["duration"]=>
     int(2000000%d)
+    ["meta"]=>
+    array(1) {
+      ["system.pid"]=>
+      string(%d) "%d"
+    }
     ["metrics"]=>
     array(1) {
       ["php.compilation.total_time_ms"]=>
@@ -71,12 +76,10 @@ array(2) {
     }
   }
   [1]=>
-  array(11) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
-    string(%d) "%d"
-    ["parent_id"]=>
     string(%d) "%d"
     ["start"]=>
     int(%d)
@@ -91,14 +94,18 @@ array(2) {
     ["type"]=>
     string(6) "runner"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["aa"]=>
       string(2) "bb"
+      ["system.pid"]=>
+      string(%d) "%d"
     }
     ["metrics"]=>
-    array(1) {
+    array(2) {
       ["cc"]=>
       float(0)
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
     }
   }
 }

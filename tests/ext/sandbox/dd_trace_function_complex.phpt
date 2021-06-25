@@ -170,7 +170,7 @@ array(5) {
     string(6) "AddOne"
   }
   [3]=>
-  array(7) {
+  array(8) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -188,9 +188,14 @@ array(5) {
       ["system.pid"]=>
       string(%d) "%d"
     }
+    ["metrics"]=>
+    array(1) {
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
+    }
   }
   [4]=>
-  array(7) {
+  array(8) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -207,6 +212,11 @@ array(5) {
     array(1) {
       ["system.pid"]=>
       string(%d) "%d"
+    }
+    ["metrics"]=>
+    array(1) {
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
     }
   }
 }

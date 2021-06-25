@@ -152,7 +152,7 @@ array(3) {
     }
   }
   [2]=>
-  array(7) {
+  array(8) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -169,6 +169,11 @@ array(3) {
     array(1) {
       ["system.pid"]=>
       string(%d) "%d"
+    }
+    ["metrics"]=>
+    array(1) {
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
     }
   }
 }

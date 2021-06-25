@@ -66,7 +66,6 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     // Set the trace_id last so we have ID's on the stack
     span->trace_id = DDTRACE_G(trace_id);
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
-    span->pid = getpid();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
@@ -187,38 +186,28 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
     }
 
     // Assign and clear out additional trace meta; re-initialize it to empty
-    if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(serialized)) > 0) {
+    if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY &&
+        zend_hash_num_elements(Z_ARR_P(&DDTRACE_G(additional_trace_meta))) > 0) {
         zval *meta = zend_hash_str_find(Z_ARR_P(root), ZEND_STRL("meta"));
-        if (meta) {
-            zval *val;
-            zend_long idx;
-            zend_string *key;
-            ZEND_HASH_FOREACH_KEY_VAL(Z_ARR(DDTRACE_G(additional_trace_meta)), idx, key, val) {
-                Z_TRY_ADDREF_P(val);
-                if (key) {
-                    zend_hash_add(Z_ARR_P(root), key, val);
-                } else {
-                    zend_hash_index_add(Z_ARR_P(root), idx, val);
-                }
-            }
-            ZEND_HASH_FOREACH_END();
-        } else if (zend_array_count(Z_ARR(DDTRACE_G(additional_trace_meta)))) {
-            Z_ADDREF(DDTRACE_G(additional_trace_meta));
-            add_assoc_zval(root, "meta", &DDTRACE_G(additional_trace_meta));
+        if (!meta) {
+            zval meta_zv;
+            array_init(&meta_zv);
+            meta = zend_hash_str_add_new(Z_ARR_P(root), ZEND_STRL("meta"), &meta_zv);
         }
+
+        zval *val;
+        zend_long idx;
+        zend_string *key;
+        ZEND_HASH_FOREACH_KEY_VAL(Z_ARR(DDTRACE_G(additional_trace_meta)), idx, key, val) {
+            Z_TRY_ADDREF_P(val);
+            if (key) {
+                zend_hash_update(Z_ARR_P(meta), key, val);
+            } else {
+                zend_hash_index_update(Z_ARR_P(meta), idx, val);
+            }
+        }
+        ZEND_HASH_FOREACH_END();
     }
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
-
-    if (get_dd_trace_measure_compile_time()) {
-        zval *metrics = zend_hash_str_find(Z_ARR_P(root), ZEND_STRL("metrics"));
-        if (!metrics) {
-            zval metrics_array;
-            array_init(&metrics_array);
-            metrics = zend_hash_str_add_new(Z_ARR_P(root), ZEND_STRL("metrics"), &metrics_array);
-        } else {
-            SEPARATE_ARRAY(metrics);
-        }
-        add_assoc_double(metrics, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
-    }
 }

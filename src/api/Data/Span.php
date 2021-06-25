@@ -140,5 +140,10 @@ if (PHP_VERSION_ID < 80000) {
             }
             return $this->internalSpan->$name = $value;
         }
+
+        public function __isset($name)
+        {
+            return $this->__get($name) !== null;
+        }
     }
 }

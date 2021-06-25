@@ -293,6 +293,7 @@ static zend_result dd_add_meta_array(void *context, ddtrace_string key, ddtrace_
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     ddtrace_span_t *span = &span_fci->span;
+    BOOL_T top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     zval meta_zv, *meta = ddtrace_spandata_property_meta(span);
 
     array_init(&meta_zv);
@@ -320,10 +321,8 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
         add_assoc_long(el, "error", 1);
     }
 
-    if (span->parent_id == 0) {
-        char pid[MAX_LENGTH_OF_LONG + 1];
-        snprintf(pid, sizeof(pid), "%ld", (long)span->pid);
-        add_assoc_string(meta, "system.pid", pid);
+    if (top_level_span) {
+        add_assoc_str(meta, "system.pid", zend_strpprintf(0, "%ld", (long)getpid()));
     }
 
     char *version = get_dd_version();
@@ -376,6 +375,7 @@ static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value
 
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     ddtrace_span_t *span = &span_fci->span;
+    BOOL_T top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     zval *el;
     zval zv;
     el = &zv;
@@ -455,7 +455,18 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
             }
         }
         ZEND_HASH_FOREACH_END();
-        add_assoc_zval(el, "metrics", &metrics_zv);
+        metrics = zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_zv);
+    } else {
+        metrics = NULL;
+    }
+
+    if (top_level_span && get_dd_trace_measure_compile_time()) {
+        if (!metrics) {
+            zval metrics_array;
+            array_init(&metrics_array);
+            metrics = zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_array);
+        }
+        add_assoc_double(metrics, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
     }
 
     add_next_index_zval(array, el);

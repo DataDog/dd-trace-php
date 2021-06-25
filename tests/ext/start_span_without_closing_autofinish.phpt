@@ -28,7 +28,7 @@ var_dump(dd_trace_serialize_closed_spans());
 --EXPECTF--
 array(2) {
   [0]=>
-  array(8) {
+  array(7) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -43,11 +43,6 @@ array(2) {
     string(4) "test"
     ["resource"]=>
     string(4) "test"
-    ["metrics"]=>
-    array(1) {
-      ["php.compilation.total_time_ms"]=>
-      float(%f)
-    }
   }
   [1]=>
   array(7) {

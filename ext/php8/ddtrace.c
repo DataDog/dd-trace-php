@@ -840,6 +840,7 @@ static PHP_FUNCTION(add_global_tag) {
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS", &key, &val) == FAILURE) {
         ddtrace_log_debug(
             "Unable to parse parameters for DDTrace\\add_global_tag; expected (string $key, string $value)");
+        RETURN_NULL();
     }
 
     zval value_zv;
@@ -1594,9 +1595,12 @@ void dd_read_distributed_tracing_ids(void) {
     if (success && zai_read_header_literal("X_DATADOG_PARENT_ID", &parent_id_str) == ZAI_HEADER_SUCCESS) {
         zval parent_zv;
         ZVAL_STR(&parent_zv, parent_id_str);
-        if ((ZSTR_LEN(parent_id_str) != 1 || ZSTR_VAL(parent_id_str)[0] != '0') &&
-            !ddtrace_push_userland_span_id(&parent_zv)) {
-            DDTRACE_G(trace_id) = 0;
+        if (ZSTR_LEN(parent_id_str) != 1 || ZSTR_VAL(parent_id_str)[0] != '0') {
+            if (ddtrace_push_userland_span_id(&parent_zv)) {
+                DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(span_ids_top)->id;
+            } else {
+                DDTRACE_G(trace_id) = 0;
+            }
         }
     }
 }

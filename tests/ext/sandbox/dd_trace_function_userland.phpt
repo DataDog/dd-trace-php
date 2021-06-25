@@ -40,7 +40,7 @@ array (
 ---
 array(1) {
   [0]=>
-  array(8) {
+  array(7) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -55,11 +55,6 @@ array(1) {
     string(15) "filter_to_array"
     ["resource"]=>
     string(15) "filter_to_array"
-    ["metrics"]=>
-    array(1) {
-      ["php.compilation.total_time_ms"]=>
-      float(%f)
-    }
   }
 }
 array(0) {
