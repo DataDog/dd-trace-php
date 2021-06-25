@@ -42,10 +42,15 @@ final class SpanTest extends BaseTestCase
         $this->tracer = new Tracer();
         $this->oldTracer = \DDTrace\GlobalTracer::get();
         \DDTrace\GlobalTracer::set($this->tracer);
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+        dd_trace_internal_fn('ddtrace_reload_config');
     }
+
     protected function ddTearDown()
     {
         \DDTrace\GlobalTracer::set($this->oldTracer);
+        dd_trace_serialize_closed_spans();
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
 
     public function testCreateSpanSuccess()

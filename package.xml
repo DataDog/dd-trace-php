@@ -342,6 +342,9 @@
             <file name="tests/ext/call_user_func/not-namespaced-array.phpt" role="test" />
             <file name="tests/ext/call_user_func/not-namespaced.phpt" role="test" />
 
+            <file name="tests/ext/distributed_tracing/distributed_trace_bogus_ids.phpt" role="test" />
+            <file name="tests/ext/distributed_tracing/distributed_trace_inherit.phpt" role="test" />
+
             <file name="tests/ext/includes/dd_init.php" role="test" />
             <file name="tests/ext/includes/fake_scope.inc" role="test" />
             <file name="tests/ext/includes/fake_span.inc" role="test" />
@@ -370,6 +373,7 @@
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_disable.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_001.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_002.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_sampling_priority.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_sandboxed.phpt" role="test" />
 
             <file name="tests/ext/pcntl/functions.inc" role="test" />

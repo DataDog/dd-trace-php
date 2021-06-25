@@ -3,6 +3,7 @@ Calls to curl_inject_distributed_headers() are sandboxed
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
+<?php if (PHP_VERSION_ID >= 80000) die('skip: Test obsolete with internal distributed tracing handling'); ?>
 --INI--
 ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject_exception.inc
 --ENV--

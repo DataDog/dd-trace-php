@@ -388,6 +388,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testTracerRunningAtLimitedCapacityCurlWorksWithoutARootSpan()
     {
+        if (PHP_VERSION_ID >= 80000) {
+            $this->markTestSkipped("This test is obsolete with curl headers looking at internal root spans");
+        }
+
         $found = [];
         $traces = $this->inWebServer(
             function ($execute) use (&$found) {

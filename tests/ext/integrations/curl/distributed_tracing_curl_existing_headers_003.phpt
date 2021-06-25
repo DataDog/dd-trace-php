@@ -14,6 +14,7 @@ setting the curl opts.
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
+HTTP_X_DATADOG_ORIGIN=phpt-test
 --FILE--
 <?php
 DDTrace\trace_function('curl_exec', function (\DDTrace\SpanData $span) {

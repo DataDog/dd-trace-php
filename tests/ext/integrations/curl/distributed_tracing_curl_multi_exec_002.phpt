@@ -7,6 +7,7 @@ Distributed tracing headers propagate when curl_multi_init() is called before cu
 ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
 DD_TRACE_DEBUG=1
+HTTP_X_DATADOG_ORIGIN=phpt-test
 --FILE--
 <?php
 include 'distributed_tracing.inc';

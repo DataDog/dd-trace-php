@@ -1664,6 +1664,7 @@ void dd_read_distributed_tracing_ids(void) {
         }
     }
 
+    DDTRACE_G(distributed_parent_trace_id) = 0;
     if (success && zai_read_header_literal("X_DATADOG_PARENT_ID", &parent_id_str) == ZAI_HEADER_SUCCESS) {
         zval parent_zv;
         ZVAL_STR(&parent_zv, parent_id_str);

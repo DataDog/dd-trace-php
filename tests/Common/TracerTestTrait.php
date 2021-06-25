@@ -231,6 +231,11 @@ trait TracerTestTrait
      */
     public function tracesFromWebRequest($fn, $tracer = null)
     {
+        if ($tracer === null) {
+            // Avoid phpunits default spans from being acknowledged for distributed tracing
+            $this->resetTracer();
+        }
+
         // Clearing existing dumped file
         $this->resetRequestDumper();
 
