@@ -274,14 +274,17 @@ static void dd_set_default_properties(ddtrace_span_fci *span_fci, zend_function 
 static void dd_tracing_posthook_impl(zend_function *fbc, ddtrace_span_fci *span_fci, zval *return_value TSRMLS_DC) {
     bool keep_span = dd_tracing_posthook_impl_impl(fbc, span_fci, return_value TSRMLS_CC);
 
-    if (span_fci != DDTRACE_G(open_spans_top)) {
+    if (!ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         // This can happen if the tracer flushes while an internal span is active
         return;
     }
 
+    ddtrace_close_userland_spans_until(
+        span_fci TSRMLS_CC);  // because dropping / setting default properties happens on top span
+
     if (keep_span) {
         dd_set_default_properties(span_fci, fbc TSRMLS_CC);
-        ddtrace_close_span(TSRMLS_C);
+        ddtrace_close_span(span_fci TSRMLS_CC);
     } else {
         ddtrace_drop_top_open_span(TSRMLS_C);
     }
@@ -322,7 +325,7 @@ static void dd_execute_tracing_posthook(zend_op_array *op_array TSRMLS_DC) {
     zval *actual_retval =
         (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) ? *EG(return_value_ptr_ptr) : &zval_used_for_init;
 
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         dd_tracing_posthook_impl(fbc, span_fci, actual_retval TSRMLS_CC);
     } else if (get_DD_TRACE_DEBUG() && !span_fci->span.duration) {
         // todo: update to Classname::Methodname format
@@ -584,7 +587,7 @@ static void dd_internal_tracing_posthook(zend_execute_data *execute_data, int re
 
     dd_prev_execute_internal(execute_data, return_value_used TSRMLS_CC);
 
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         dd_tracing_posthook_impl(fbc, span_fci, return_value TSRMLS_CC);
     } else if (get_DD_TRACE_DEBUG() && !span_fci->span.duration) {
         // todo: update to Classname::Methodname format
@@ -685,7 +688,7 @@ void ddtrace_close_all_open_spans(TSRMLS_D) {
         // limited closing support, we do not allow posttracing handlers to be invoked on PHP 5.4 in autoclose
         if (get_DD_AUTOFINISH_SPANS() || span_fci->execute_data != NULL || span_fci->dispatch != NULL) {
             dd_trace_stop_span_time(&span_fci->span);
-            ddtrace_close_span(TSRMLS_C);
+            ddtrace_close_span(span_fci TSRMLS_CC);
         } else {
             ddtrace_drop_top_open_span(TSRMLS_C);
         }

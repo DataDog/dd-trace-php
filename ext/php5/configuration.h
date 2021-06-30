@@ -93,7 +93,7 @@ extern bool runtime_config_first_init;
            .ini_change = zai_config_system_ini_change)                                                        \
     CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1")                                                               \
     CONFIG(BOOL, DD_LOG_BACKTRACE, "false")                                                                   \
-    CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true")                                                         \
+    CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)      \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                 \
     CONFIG(INT, DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES,                                                      \
            DD_CFG_EXPSTR(DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES))                          \

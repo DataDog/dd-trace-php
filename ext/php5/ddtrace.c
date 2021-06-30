@@ -8,6 +8,7 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_vm.h>
+#include <headers/headers.h>
 #include <inttypes.h>
 #include <php.h>
 #include <php_ini.h>
@@ -15,16 +16,13 @@
 #include <pthread.h>
 #include <stdatomic.h>
 
-#include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 #include <ext/standard/php_smart_str.h>
 #include <ext/standard/php_string.h>
 
-#include "arrays.h"
 #include "auto_flush.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
-#include "compat_string.h"
 #include "compatibility.h"
 #include "coms.h"
 #include "config/config.h"
@@ -112,9 +110,6 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
 static void ddtrace_activate(void) {}
 static void ddtrace_deactivate(void) {}
 
-// prepare the tracer state to start handling a new trace
-static void dd_prepare_for_new_trace(TSRMLS_D);
-
 static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   PHP_DDTRACE_VERSION,
                                                   "Datadog",
@@ -176,6 +171,19 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_push_span_id, 0, 0, 0)
 ZEND_ARG_INFO(0, existing_id)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_start_span, 0, 0, 0)
+ZEND_ARG_INFO(0, start_time)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_close_span, 0, 0, 0)
+ZEND_ARG_INFO(0, finish_time)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_add_global_tag, 0, 0, 2)
+ZEND_ARG_INFO(0, key)
+ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_internal_fn, 0, 0, 1)
@@ -245,6 +253,10 @@ static void ddtrace_span_data_free_storage(void *object_ptr TSRMLS_DC) {
     ddtrace_span_fci *span_fci = (ddtrace_span_fci *)object_ptr;
     if (span_fci->exception) {
         zval_ptr_dtor(&span_fci->exception);
+    }
+    if (span_fci->dispatch) {
+        ddtrace_dispatch_release(span_fci->dispatch);
+        span_fci->dispatch = NULL;
     }
     zend_object_std_dtor(&span_fci->span.std TSRMLS_CC);
     efree(span_fci);
@@ -453,6 +465,8 @@ static void dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     }
 }
 
+static void dd_read_distributed_tracing_ids(TSRMLS_D);
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -554,6 +568,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
+    zend_hash_init(&DDTRACE_G(additional_global_tags), 8, NULL, ZVAL_PTR_DTOR, 0);
 
     // Things that should only run on the first RINIT
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
@@ -590,6 +605,12 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     dd_prepare_for_new_trace(TSRMLS_C);
 
+    dd_read_distributed_tracing_ids(TSRMLS_C);
+
+    if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
+        ddtrace_push_root_span();
+    }
+
     return SUCCESS;
 }
 
@@ -601,7 +622,18 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_close_all_open_spans(TSRMLS_C);  // All remaining non-internal userland spans
+    if (DDTRACE_G(open_spans_top) && DDTRACE_G(open_spans_top)->execute_data == NULL) {
+        // we have a root span. Close it.
+        dd_trace_stop_span_time(&DDTRACE_G(open_spans_top)->span);
+        ddtrace_close_span(DDTRACE_G(open_spans_top) TSRMLS_CC);
+    }
+    if (!ddtrace_flush_tracer(TSRMLS_C)) {
+        ddtrace_log_debug("Unable to flush the tracer");
+    }
+
     zval_dtor(&DDTRACE_G(additional_trace_meta));
+    zend_hash_destroy(&DDTRACE_G(additional_global_tags));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
 
     ddtrace_engine_hooks_rshutdown(TSRMLS_C);
@@ -963,6 +995,26 @@ static PHP_FUNCTION(additional_trace_meta) {
     zval_copy_ctor(return_value);
 }
 
+/* {{{ proto string DDTrace\add_global_tag(string $key, string $value) */
+static PHP_FUNCTION(add_global_tag) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr);
+
+    char *key, *val;
+    int key_len, val_len;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &key, &key_len, &val, &val_len) == FAILURE) {
+        ddtrace_log_debug(
+            "Unable to parse parameters for DDTrace\\add_global_tag; expected (string $key, string $value)");
+        RETURN_NULL();
+    }
+
+    zval *value_zv;
+    MAKE_STD_ZVAL(value_zv);
+    ZVAL_STRINGL(value_zv, val, val_len, 1);
+    zend_hash_update(&DDTRACE_G(additional_global_tags), key, key_len + 1, &value_zv, sizeof(zval *), NULL);
+
+    RETURN_NULL();
+}
+
 static PHP_FUNCTION(trace_function) {
     UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *function = NULL;
@@ -1152,7 +1204,6 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
     add_assoc_long(return_value, "consecutive_failures", dd_tracer_circuit_breaker_consecutive_failures());
     add_assoc_long(return_value, "opened_timestamp", dd_tracer_circuit_breaker_opened_timestamp());
     add_assoc_long(return_value, "last_failure_timestamp", dd_tracer_circuit_breaker_last_failure_timestamp());
-    return;
 }
 
 typedef long ddtrace_zpplong_t;
@@ -1478,10 +1529,74 @@ static PHP_FUNCTION(dd_trace_peek_span_id) {
 /* {{{ proto string DDTrace\active_span() */
 static PHP_FUNCTION(active_span) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    if (DDTRACE_G(open_spans_top)) {
-        Z_TYPE_P(return_value) = IS_OBJECT;
-        Z_OBJVAL_P(return_value) = DDTRACE_G(open_spans_top)->span.obj_value;
+    if (!DDTRACE_G(open_spans_top)) {
+        if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
+            ddtrace_push_root_span(
+                TSRMLS_C);  // ensure root span always exists, especially after serialization for testing
+        } else {
+            RETURN_NULL();
+        }
+    }
+
+    Z_TYPE_P(return_value) = IS_OBJECT;
+    Z_OBJVAL_P(return_value) = DDTRACE_G(open_spans_top)->span.obj_value;
+    zend_objects_store_add_ref(return_value TSRMLS_CC);
+}
+
+static PHP_FUNCTION(start_span) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    double start_time_seconds = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &start_time_seconds) != SUCCESS) {
+        ddtrace_log_debug("unexpected parameter. expecting double for start time");
+        RETURN_FALSE;
+    }
+    ddtrace_span_fci *span_fci = ddtrace_init_span(TSRMLS_C);
+
+    Z_TYPE_P(return_value) = IS_OBJECT;
+    Z_OBJVAL_P(return_value) = span_fci->span.obj_value;
+
+    if (!DDTRACE_G(disable)) {
         zend_objects_store_add_ref(return_value TSRMLS_CC);
+        ddtrace_open_span(span_fci TSRMLS_CC);
+    }
+
+    if (start_time_seconds > 0) {
+        span_fci->span.start = (uint64_t)(start_time_seconds * 1000000000);
+    }
+}
+
+/* {{{ proto string DDTrace\close_span() */
+static PHP_FUNCTION(close_span) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    double finish_time_seconds = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &finish_time_seconds) != SUCCESS) {
+        ddtrace_log_debug("unexpected parameter. expecting double for finish time");
+        RETURN_FALSE;
+    }
+
+    if (!DDTRACE_G(open_spans_top) || DDTRACE_G(open_spans_top)->execute_data ||
+        (get_DD_TRACE_GENERATE_ROOT_SPAN() && DDTRACE_G(open_spans_top)->next == NULL)) {
+        ddtrace_log_err("There is no user-span on the top of the stack. Cannot close.");
+        RETURN_NULL();
+    }
+
+    // we do not expose the monotonic time here, so do not use it as reference time to calculate difference
+    uint64_t start_time = DDTRACE_G(open_spans_top)->span.start;
+    uint64_t finish_time = (uint64_t)(finish_time_seconds * 1000000000);
+    if (finish_time < start_time) {
+        dd_trace_stop_span_time(&DDTRACE_G(open_spans_top)->span);
+    } else {
+        DDTRACE_G(open_spans_top)->span.duration = finish_time - start_time;
+    }
+
+    ddtrace_close_span(DDTRACE_G(open_spans_top) TSRMLS_CC);
+    RETURN_NULL();
+}
+
+static PHP_FUNCTION(flush) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    if (!ddtrace_flush_tracer(TSRMLS_C)) {
+        ddtrace_log_debug("Unable to flush the tracer");
     }
     RETURN_NULL();
 }
@@ -1578,6 +1693,9 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_FE(dd_trace_internal_fn, arginfo_dd_trace_internal_fn),
     DDTRACE_FE(dd_trace_noop, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(flush, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(start_span, arginfo_dd_trace_start_span),
+    DDTRACE_NS_FE(close_span, arginfo_dd_trace_close_span),
     DDTRACE_NS_FE(active_span, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
@@ -1601,6 +1719,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_void),
     DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
+    DDTRACE_NS_FE(add_global_tag, arginfo_ddtrace_add_global_tag),
     DDTRACE_NS_FE(additional_trace_meta, arginfo_ddtrace_void),
     DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),
@@ -1640,4 +1759,29 @@ ZEND_TSRMLS_CACHE_DEFINE();
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
 //   - set a new trace (group) id
-static void dd_prepare_for_new_trace(TSRMLS_D) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
+void dd_prepare_for_new_trace(TSRMLS_D) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
+
+void dd_read_distributed_tracing_ids(TSRMLS_D) {
+    zai_string_view trace_id_str, parent_id_str;
+    bool success = true;
+
+    if (zai_read_header_literal("X_DATADOG_TRACE_ID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
+        if (trace_id_str.len != 1 || trace_id_str.ptr[0] != '0') {
+            zval trace_zv;
+            ZVAL_STRINGL(&trace_zv, trace_id_str.ptr, trace_id_str.len, 0);
+            success = ddtrace_set_userland_trace_id(&trace_zv TSRMLS_CC);
+        }
+    }
+
+    if (success && zai_read_header_literal("X_DATADOG_PARENT_ID", &parent_id_str) == ZAI_HEADER_SUCCESS) {
+        zval parent_zv;
+        ZVAL_STRINGL(&parent_zv, parent_id_str.ptr, parent_id_str.len, 0);
+        if (parent_id_str.len != 1 || parent_id_str.ptr[0] != '0') {
+            if (ddtrace_push_userland_span_id(&parent_zv TSRMLS_CC)) {
+                DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(span_ids_top)->id;
+            } else {
+                DDTRACE_G(trace_id) = 0;
+            }
+        }
+    }
+}

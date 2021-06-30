@@ -28,6 +28,8 @@ zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
 void ddtrace_assign_prop_zval(zval **propzv, zval *value);
 
 bool ddtrace_tracer_is_limited(TSRMLS_D);
+// prepare the tracer state to start handling a new trace
+void dd_prepare_for_new_trace(TSRMLS_D);
 
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
@@ -42,6 +44,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *class_lookup;
     HashTable *function_lookup;
     zval additional_trace_meta; // IS_ARRAY
+    HashTable additional_global_tags;
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
     dogstatsd_client dogstatsd_client;
@@ -74,6 +77,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
     int64_t compile_time_microseconds;
+    uint64_t distributed_parent_trace_id;
 
     char *cgroup_file;
 ZEND_END_MODULE_GLOBALS(ddtrace)
