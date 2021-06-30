@@ -49,6 +49,7 @@ class Format
     const HTTP_HEADERS = 'http_headers';
 
     /**
+     * @deprecated
      * A propagator that handles curl style http headers arrays.
      */
     const CURL_HTTP_HEADERS = 'curl_http_headers';
