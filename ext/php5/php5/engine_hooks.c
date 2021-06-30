@@ -294,13 +294,16 @@ static void dd_exit_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
         keep_span = dd_execute_tracing_closure(span_fci, user_args, user_retval TSRMLS_CC);
     }
 
+    ddtrace_close_userland_spans_until(
+        span_fci TSRMLS_CC);  // because dropping / setting default properties happens on top span
+
     /* If a closure calls dd_trace_serialize_closed_spans then it will free the
      * open span stack, and the span_fci can go away.
      */
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         if (keep_span) {
             dd_set_default_properties(TSRMLS_C);
-            ddtrace_close_span(TSRMLS_C);
+            ddtrace_close_span(span_fci TSRMLS_CC);
         } else {
             ddtrace_drop_top_open_span(TSRMLS_C);
         }
@@ -369,14 +372,17 @@ static void dd_execute_end_span(ddtrace_span_fci *span_fci, zval *user_retval TS
         keep_span = dd_execute_tracing_closure(span_fci, user_args, user_retval TSRMLS_CC);
     }
 
+    ddtrace_close_userland_spans_until(
+        span_fci TSRMLS_CC);  // because dropping / setting default properties happens on top span
+
     /* The span_fci can be freed during the closure if it calls
      * dd_trace_serialize_closed_spans; pointer comparison is the only valid
      * operation we can do here in such cases.
      */
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         if (keep_span) {
             dd_set_default_properties(TSRMLS_C);
-            ddtrace_close_span(TSRMLS_C);
+            ddtrace_close_span(span_fci TSRMLS_CC);
         } else {
             ddtrace_drop_top_open_span(TSRMLS_C);
         }
@@ -509,7 +515,7 @@ static void dd_execute_tracing_posthook(zend_execute_data *execute_data TSRMLS_D
      * dd_trace_serialize_closed_spans; pointer comparison is the only valid
      * operation we can do here in such cases.
      */
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         dd_execute_end_span(span_fci, actual_retval TSRMLS_CC);
     } else if (get_DD_TRACE_DEBUG() && get_DD_TRACE_ENABLED()) {
         const char *fname = Z_STRVAL(dispatch->function_name);
@@ -667,7 +673,7 @@ static void dd_internal_tracing_posthook(ddtrace_span_fci *span_fci, zend_fcall_
 
     dd_prev_execute_internal(execute_data, fci, retval_used TSRMLS_CC);
 
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         dd_execute_end_span(span_fci, *fci->retval_ptr_ptr TSRMLS_CC);
     } else if (get_DD_TRACE_DEBUG() && get_DD_TRACE_ENABLED()) {
         const char *fname = Z_STRVAL(dispatch->function_name);
@@ -700,7 +706,7 @@ static void dd_internal_non_tracing_posthook(ddtrace_span_fci *span_fci, zend_fc
 
     dd_prev_execute_internal(execute_data, fci, retval_used TSRMLS_CC);
 
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         ddtrace_fcall_end_non_tracing_posthook(span_fci, *fci->retval_ptr_ptr TSRMLS_CC);
     } else if (get_DD_TRACE_DEBUG() && get_DD_TRACE_ENABLED()) {
         const char *fname = Z_STRVAL(dispatch->function_name);
@@ -837,11 +843,19 @@ zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
 
 void ddtrace_close_all_open_spans(TSRMLS_D) {
     ddtrace_span_fci *span_fci;
-    while ((span_fci = DDTRACE_G(open_spans_top))) {
-        if (span_fci->dd_execute_data.free_retval && span_fci->dd_execute_data.retval) {
-            zval_ptr_dtor(&span_fci->dd_execute_data.retval);
-            span_fci->dd_execute_data.retval = NULL;
+    while ((span_fci = DDTRACE_G(open_spans_top)) && (span_fci->execute_data != NULL || span_fci->next)) {
+        if (span_fci->execute_data) {
+            if (span_fci->dd_execute_data.free_retval && span_fci->dd_execute_data.retval) {
+                zval_ptr_dtor(&span_fci->dd_execute_data.retval);
+                span_fci->dd_execute_data.retval = NULL;
+            }
+            dd_exit_span(span_fci TSRMLS_CC);
+        } else if (get_DD_AUTOFINISH_SPANS()) {
+            dd_trace_stop_span_time(&span_fci->span);
+            ddtrace_close_span(span_fci TSRMLS_CC);
+        } else {
+            ddtrace_drop_top_open_span(TSRMLS_C);
         }
-        dd_exit_span(span_fci TSRMLS_CC);
     }
+    DDTRACE_G(open_spans_top) = span_fci;
 }
