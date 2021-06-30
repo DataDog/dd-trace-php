@@ -48,6 +48,12 @@
 #if PHP_VERSION_ID < 70300
 #define GC_ADDREF(x) (++GC_REFCOUNT(x))
 #define GC_DELREF(x) (--GC_REFCOUNT(x))
+
+static inline HashTable *zend_new_array(uint32_t nSize) {
+    HashTable *ht = emalloc(sizeof(HashTable));
+    zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
+    return ht;
+}
 #endif
 
 #define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c)
