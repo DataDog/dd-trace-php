@@ -1,5 +1,7 @@
 --TEST--
 Errors in request init hook do not affect error_get_last()
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --INI--
@@ -12,3 +14,4 @@ var_dump(error_get_last());
 --EXPECTF--
 %s in request init hook: Undefined variable%sthis_does_not_%s
 NULL
+Successfully triggered flush with trace of size 1

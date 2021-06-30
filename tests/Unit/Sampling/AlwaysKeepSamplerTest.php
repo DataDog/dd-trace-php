@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Unit\Sampling;
 use DDTrace\Sampling\AlwaysKeepSampler;
 use DDTrace\Span;
 use DDTrace\SpanContext;
+use DDTrace\SpanData;
 use DDTrace\Tests\Common\BaseTestCase;
 
 final class AlwaysKeepSamplerTest extends BaseTestCase
@@ -13,6 +14,7 @@ final class AlwaysKeepSamplerTest extends BaseTestCase
     {
         $sampler = new AlwaysKeepSampler();
         $context = new SpanContext('', '');
-        $this->assertSame(1, $sampler->getPrioritySampling(new Span('', $context, '', '')));
+        $span = PHP_VERSION_ID < 80000 ? new Span('', $context, '', '') : new Span(new SpanData(), $context);
+        $this->assertSame(1, $sampler->getPrioritySampling($span));
     }
 }

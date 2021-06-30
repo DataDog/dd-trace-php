@@ -2,14 +2,14 @@
 Auto-flushing will attach an exception during exception cleanup
 --DESCRIPTION--
 @see https://github.com/DataDog/dd-trace-php/issues/879
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=1
+DD_TRACE_DEBUG=1
 --FILE--
 <?php
 use DDTrace\SpanData;
-
-require __DIR__ . '/../includes/fake_tracer.inc';
-require __DIR__ . '/../includes/fake_global_tracer.inc';
 
 class Foo
 {
@@ -36,7 +36,6 @@ try {
 }
 ?>
 --EXPECT--
-Flushing tracer...
-Foo.bar (Foo.bar) (error: Oops!)
-Tracer reset
 Caught exception: Oops!
+Successfully triggered flush with trace of size 2
+No finished traces to be sent to the agent

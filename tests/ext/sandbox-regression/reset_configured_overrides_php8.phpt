@@ -56,3 +56,4 @@ METHOD
 METHOD HOOK
 FUNCTION
 FUNCTION HOOK
+Successfully triggered flush with trace of size 5

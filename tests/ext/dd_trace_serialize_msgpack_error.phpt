@@ -1,5 +1,7 @@
 --TEST--
 dd_trace_serialize_msgpack() error conditions
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--
@@ -39,3 +41,5 @@ array(2) {
   resource(%d) of type (stream-context)
 }
 bool(false)
+
+Successfully triggered flush with trace of size 1

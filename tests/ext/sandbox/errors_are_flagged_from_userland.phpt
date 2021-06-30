@@ -1,5 +1,9 @@
 --TEST--
 Errors from userland will be flagged on span
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+--ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -22,7 +26,7 @@ var_dump(dd_trace_serialize_closed_spans());
 testErrorFromUserland()
 array(1) {
   [0]=>
-  array(8) {
+  array(9) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -43,6 +47,11 @@ array(1) {
       string(9) "Foo error"
       ["system.pid"]=>
       string(%d) "%d"
+    }
+    ["metrics"]=>
+    array(1) {
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
     }
   }
 }

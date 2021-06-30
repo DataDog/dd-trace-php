@@ -1,5 +1,7 @@
 --TEST--
 Gracefully handle out-of-sync spans from traced function [internal]
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=dd_trace_serialize_closed_spans
@@ -21,3 +23,4 @@ Cannot run tracing closure for dd_trace_serialize_closed_spans(); spans out of s
 array(0) {
 }
 Done.
+No finished traces to be sent to the agent

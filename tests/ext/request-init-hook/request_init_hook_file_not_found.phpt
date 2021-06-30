@@ -1,5 +1,7 @@
 --TEST--
 Do not fail when PHP code couldn't be loaded
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --INI--
@@ -12,3 +14,4 @@ echo "Request start" . PHP_EOL;
 --EXPECTF--
 Cannot open request init hook; file does not exist: '%s/this_file_doesnt_exist.php'
 Request start
+Successfully triggered flush with trace of size 1

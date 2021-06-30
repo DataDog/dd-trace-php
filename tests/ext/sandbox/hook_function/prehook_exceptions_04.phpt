@@ -1,5 +1,7 @@
 --TEST--
 DDTrace\hook_function prehook exception is sandboxed (debug internal)
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
@@ -29,3 +31,4 @@ try {
 array_sum hooked.
 Exception thrown in ddtrace's closure for array_sum(): !
 Sum = 4.
+Successfully triggered flush with trace of size 1

@@ -1,5 +1,7 @@
 --TEST--
 DDTrace\hook_function returns false with diagnostic when no hook is passed
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--
@@ -19,3 +21,4 @@ greet('Datadog');
 DDTrace\hook_function was given neither prehook nor posthook.
 bool(false)
 Hello, Datadog.
+Successfully triggered flush with trace of size 1

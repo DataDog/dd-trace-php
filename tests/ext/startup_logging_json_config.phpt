@@ -84,3 +84,4 @@ traced_internal_functions: "array_sum,mt_rand,DateTime::add"
 auto_prepend_file_configured: true
 integrations_disabled: "curl,mysqli"
 enabled_from_env: false
+No finished traces to be sent to the agent

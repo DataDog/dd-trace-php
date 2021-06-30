@@ -1,5 +1,7 @@
 --TEST--
 DDTrace\trace_function() and DDTrace\trace_method() declarative API error cases
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--
@@ -69,3 +71,4 @@ Expected 'posthook' to be an instance of Closure
 bool(false)
 Required key 'posthook' or 'prehook' not found in config_array
 bool(false)
+Successfully triggered flush with trace of size 1

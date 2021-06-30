@@ -57,6 +57,11 @@ foreach ($responses as $key => $response) {
 }
 
 echo 'Done.' . PHP_EOL;
+
+if (PHP_VERSION_ID < 80000) {
+    echo "Successfully triggered flush with trace of size 5", PHP_EOL;
+}
+
 ?>
 --EXPECTF--
 Response #0
@@ -80,3 +85,4 @@ x-datadog-parent-id: %d
 x-foo: after-the-copy
 
 Done.
+Successfully triggered flush with trace of size 5

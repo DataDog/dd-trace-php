@@ -30,8 +30,24 @@ void ddtrace_reload_config(void) {
         free(ddtrace_memoized_configuration.getter_name); \
     }                                                     \
     ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;
-#define HASH(getter_name, ...)                                     \
-    zend_hash_release(ddtrace_memoized_configuration.getter_name); \
+// this will leak memory if RC != 1, but prevents crashes. This could only ever happens if an user uses
+// \dd_trace_internal_fn('ddtrace_reload_config'); at the wrong point in time - which is an internal testsuite function
+// which users are not supposed to use
+#define HASH(getter_name, ...)                                                                    \
+    if (GC_REFCOUNT(ddtrace_memoized_configuration.getter_name) == 1) {                           \
+        zval* _value;                                                                             \
+        zend_string* _key;                                                                        \
+        ZEND_HASH_FOREACH_STR_KEY_VAL(ddtrace_memoized_configuration.getter_name, _key, _value) { \
+            if (GC_REFCOUNT(_key) > 1) {                                                          \
+                GC_TRY_ADDREF(_key);                                                              \
+            }                                                                                     \
+            if (Z_REFCOUNT_P(_value) > 1) {                                                       \
+                Z_TRY_ADDREF_P(_value);                                                           \
+            }                                                                                     \
+        }                                                                                         \
+        ZEND_HASH_FOREACH_END();                                                                  \
+        zend_hash_release(ddtrace_memoized_configuration.getter_name);                            \
+    }                                                                                             \
     ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;
 #define BOOL(getter_name, ...) ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;
 #define INT(getter_name, ...) ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;

@@ -1,6 +1,9 @@
 --TEST--
 DDTrace\trace_method() can trace with internal spans
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand
 --FILE--
 <?php
@@ -131,11 +134,13 @@ array(3) {
       string(%d) "%d"
     }
     ["metrics"]=>
-    array(2) {
+    array(3) {
       ["foo"]=>
       float(100)
       ["bar"]=>
       float(0)
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
     }
   }
   [1]=>
@@ -163,7 +168,7 @@ array(3) {
     }
   }
   [2]=>
-  array(7) {
+  array(8) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -180,6 +185,11 @@ array(3) {
     array(1) {
       ["system.pid"]=>
       string(%d) "%d"
+    }
+    ["metrics"]=>
+    array(1) {
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
     }
   }
 }

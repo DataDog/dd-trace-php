@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Unit\Encoders;
 
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\StartSpanOptions;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
@@ -19,7 +20,6 @@ final class MessagePackTest extends BaseTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        putenv('DD_AUTOFINISH_SPANS=true');
         $this->tracer = new Tracer(
             new DebugTransport(),
             null,
@@ -29,31 +29,24 @@ final class MessagePackTest extends BaseTestCase
             ]
         );
         GlobalTracer::set($this->tracer);
+
+        putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+        dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     protected function ddTearDown()
     {
         parent::ddTearDown();
         putenv('DD_AUTOFINISH_SPANS=');
-    }
-
-    public function testEncodeTracesSuccess()
-    {
-        $expectedPayload = <<<MPACK
-\x91\x91%a\xa8trace_id%aspan_id%aname%atest_name%aresource%atest_resource%aservice%atest_service%astart%aerror%a
-MPACK;
-
-        $this->tracer->startSpan('test_name');
-
-        $encoder = new MessagePack();
-        $encodedTrace = $encoder->encodeTraces($this->tracer);
-        $this->assertStringMatchesFormat($expectedPayload, $encodedTrace);
+        putenv('DD_TRACE_GENERATE_ROOT_SPAN');
+        dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     public function testEncodeNoPrioritySampling()
     {
-        $this->tracer->startSpan('test_name');
+        $span = $this->tracer->startRootSpan('test_name')->getSpan();
         $this->tracer->setPrioritySampling(null);
+        $span->finish();
 
         $encoder = new MessagePack();
         $this->assertStringNotContains('_sampling_priority_v1', $encoder->encodeTraces($this->tracer));
@@ -61,8 +54,14 @@ MPACK;
 
     public function testEncodeWithPrioritySampling()
     {
-        $this->tracer->startSpan('test_name');
+        if (PHP_VERSION_ID >= 80000) {
+            $this->assertTrue(true); // no warning
+            return; // priority sampling is no longer set upon encoding, other tests are covering this
+        }
+
+        $span = $this->tracer->startRootSpan('test_name')->getSpan();
         $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
+        $span->finish();
 
         $encoder = new MessagePack();
         $this->assertStringContains("\xb5_sampling_priority_v1\x02", $encoder->encodeTraces($this->tracer));
@@ -70,8 +69,9 @@ MPACK;
 
     public function testEncodeMetricsWhenPresent()
     {
-        $span = $this->tracer->startSpan('test_name');
+        $span = $this->tracer->startRootSpan('test_name')->getSpan();
         $span->setMetric('_a', 0.1);
+        $span->finish();
 
         $encoder = new MessagePack();
         $encoded = $encoder->encodeTraces($this->tracer);
@@ -81,8 +81,9 @@ MPACK;
 
     public function testAlwaysContainsDefaultMetrics()
     {
-        $this->tracer->startSpan('test_name');
+        $span = $this->tracer->startRootSpan('test_name')->getSpan();
         $this->tracer->setPrioritySampling(null);
+        $span->finish();
 
         $encoder = new MessagePack();
         $encoded = $encoder->encodeTraces($this->tracer);

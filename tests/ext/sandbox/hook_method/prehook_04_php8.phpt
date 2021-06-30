@@ -52,3 +52,4 @@ Cannot overwrite existing dispatch for 'greet()'
 bool(false)
 Greeter::greet hooked.
 Hello, Datadog.
+Successfully triggered flush with trace of size 1

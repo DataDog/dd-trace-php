@@ -60,6 +60,7 @@ final class TracerTest extends BaseTestCase
     public function testCreateSpanWithExpectedValues()
     {
         $tracer = Tracer::make(new NoopTransport());
+        $rootSpan = $tracer->startSpan("rootSpan");
         $startTime = Time::now();
         $span = $tracer
             ->startSpan(self::OPERATION_NAME, [
@@ -67,6 +68,7 @@ final class TracerTest extends BaseTestCase
                     self::TAG_KEY => self::TAG_VALUE
                 ],
                 'start_time' => $startTime,
+                'child_of' => $rootSpan->unwrapped(),
             ])
             ->unwrapped();
 
@@ -186,13 +188,14 @@ JSON;
 
         $otcontext = $B->getSpan()->getContext();
         self::assertInstanceOf('DDTrace\OpenTracer1\SpanContext', $otcontext);
-        self::assertEquals('2409624703365403319', $otcontext->unwrapped()->getParentId());
+        self::assertEquals('2409624703365403319', $otcontext->unwrapped()->getTraceId());
     }
 
     public function testOTStartSpanOptions()
     {
         GlobalTracer::set(Tracer::make());
         $tracer = GlobalTracer::get();
+        $tracer->startActiveSpan('dummy-root');
 
         $now = time();
         $scope = $tracer->startActiveSpan(
@@ -265,6 +268,8 @@ JSON;
 
     public function testUnfinishedSpansAreNotSentOnFlush()
     {
+        dd_trace_serialize_closed_spans();
+
         $transport = new DebugTransport();
         $tracer = Tracer::make($transport);
         $tracer->startActiveSpan('root');

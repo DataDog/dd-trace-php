@@ -3,6 +3,7 @@
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_SPANS_LIMIT=5
 --FILE--
 <?php

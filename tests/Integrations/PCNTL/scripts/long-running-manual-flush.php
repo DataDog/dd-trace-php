@@ -6,7 +6,7 @@ const ITERATIONS = 2;
 
 for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $tracer = DDTrace\GlobalTracer::get();
-    $scope = $tracer->startActiveSpan('manual_tracing');
+    $scope = $tracer->startRootSpan('manual_tracing');
     $span = $scope->getSpan();
     $span->setTag(DDTrace\Tag::SERVICE_NAME, 'manual_service');
     $span->setTag(DDTrace\Tag::SPAN_TYPE, 'custom');

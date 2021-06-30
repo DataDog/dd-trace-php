@@ -35,3 +35,4 @@ HOOK 1
 Cannot overwrite existing dispatch for 'm()'
 METHOD
 HOOK 1
+Successfully triggered flush with trace of size 3

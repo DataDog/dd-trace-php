@@ -2,6 +2,7 @@
 Fatal errors are ignored inside a tracing closure (PHP 7)
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip Fatal errors cannot be ignored in PHP 5'); ?>
+<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
@@ -24,3 +25,4 @@ Error thrown in ddtrace's closure for array_sum(): Call to undefined function th
 int(100)
 array_sum
 NULL
+No finished traces to be sent to the agent
