@@ -96,9 +96,9 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::RESOURCE_NAME, 'resource.name'],
             [Tag::DB_STATEMENT, 'sql.query'],
             [Tag::ERROR, 'error'],
-            [Tag::ERROR_MSG, 'error.msg'], // string representing the error message
-            [Tag::ERROR_TYPE, 'error.type'], // string representing the type of the error
-            [Tag::ERROR_STACK, 'error.stack'], // human readable version of the stack
+            [Tag::ERROR_MSG, 'error.msg'],
+            [Tag::ERROR_TYPE, 'error.type'],
+            [Tag::ERROR_STACK, 'error.stack'],
             [Tag::HTTP_METHOD, 'http.method'],
             [Tag::HTTP_STATUS_CODE, 'http.status_code'],
             [Tag::HTTP_URL, 'http.url'],
@@ -114,7 +114,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::HOSTNAME, '_dd.hostname'],
             [Tag::ORIGIN, '_dd.origin'],
             [Tag::VERSION, 'version'],
-            [Tag::SERVICE_VERSION, 'service.version'], // OpenTelemetry compatible tag
+            [Tag::SERVICE_VERSION, 'service.version'],
             [Tag::ELASTICSEARCH_BODY, 'elasticsearch.body'],
             [Tag::ELASTICSEARCH_METHOD, 'elasticsearch.method'],
             [Tag::ELASTICSEARCH_PARAMS, 'elasticsearch.params'],
