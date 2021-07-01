@@ -161,39 +161,41 @@ final class Bootstrap
         $integration->addTraceAnalyticsIfEnabledLegacy($span);
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
-        $rootSpan = $span;
-        \DDTrace\hook_function('header', null, function ($args) use ($rootSpan) {
-            if (isset($args[2])) {
-                $parsedHttpStatusCode = $args[2];
-            } elseif (isset($args[0])) {
-                $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
-            }
+        if (PHP_VERSION_ID < 80000) {
+            $rootSpan = $span;
+            \DDTrace\hook_function('header', null, function ($args) use ($rootSpan) {
+                if (isset($args[2])) {
+                    $parsedHttpStatusCode = $args[2];
+                } elseif (isset($args[0])) {
+                    $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
+                }
 
-            if (isset($parsedHttpStatusCode)) {
-                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
-            }
+                if (isset($parsedHttpStatusCode)) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
+                }
 
-            // Adding configured outgoing response http headers
-            if (isset($args[0]) && \is_string($args[0])) {
-                $headerParts = explode(':', $args[0], 2);
-                if (count($headerParts) == 2) {
-                    foreach (
-                        Private_\util_extract_configured_headers_as_tags(
-                            [$headerParts[0] => $headerParts[1]],
-                            false
-                        ) as $tag => $value
-                    ) {
-                        $rootSpan->setTag($tag, $value);
+                // Adding configured outgoing response http headers
+                if (isset($args[0]) && \is_string($args[0])) {
+                    $headerParts = explode(':', $args[0], 2);
+                    if (count($headerParts) == 2) {
+                        foreach (
+                            Private_\util_extract_configured_headers_as_tags(
+                                [$headerParts[0] => $headerParts[1]],
+                                false
+                            ) as $tag => $value
+                        ) {
+                            $rootSpan->setTag($tag, $value);
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        \DDTrace\hook_function('http_response_code', null, function ($args) use ($rootSpan) {
-            if (isset($args[0]) && \is_numeric($code = $args[0])) {
-                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $code);
-            }
-        });
+            \DDTrace\hook_function('http_response_code', null, function ($args) use ($rootSpan) {
+                if (isset($args[0]) && \is_numeric($code = $args[0])) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $code);
+                }
+            });
+        }
     }
 
     /**

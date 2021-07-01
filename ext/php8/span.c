@@ -3,6 +3,7 @@
 #include <php.h>
 #include <time.h>
 #include <unistd.h>
+#include <SAPI.h>
 
 #include "auto_flush.h"
 #include "configuration.h"
@@ -156,6 +157,27 @@ void ddtrace_drop_top_open_span(void) {
     OBJ_RELEASE(&span_fci->span.std);
 }
 
+static zval *ensure_meta(zend_array *span) {
+    zval *meta = zend_hash_str_find(span, ZEND_STRL("meta"));
+    if (!meta) {
+        zval meta_zv;
+        array_init(&meta_zv);
+        meta = zend_hash_str_add_new(span, ZEND_STRL("meta"), &meta_zv);
+    }
+    return meta;
+}
+
+static void trim_string_view(char **buf, int *len) {
+    char *end = *buf + *len;
+    while (*buf < end && (**buf == ' ' || **buf == '\t')) {
+        ++*buf;
+        --*len;
+    }
+    while (*len > 0 && ((*buf)[*len - 1] == ' ' || (*buf)[*len - 1] == '\t')) {
+        --*len;
+    }
+}
+
 void ddtrace_serialize_closed_spans(zval *serialized) {
     // The tracer supports only one trace per request so free any remaining open spans
     _free_span_stack(DDTRACE_G(open_spans_top));
@@ -185,16 +207,52 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
         return;
     }
 
+    int status_code = SG(sapi_headers).http_response_code;
+    if (status_code) {
+        zval *meta = ensure_meta(Z_ARR_P(root));
+        add_assoc_str(meta, "http.status_code", zend_strpprintf(0, "%d", status_code));
+
+        zend_llist_position pos;
+        zend_llist *header_list = &SG(sapi_headers).headers;
+        for (sapi_header_struct *h = (sapi_header_struct *) zend_llist_get_first_ex(header_list, &pos); h; h = (sapi_header_struct*)zend_llist_get_next_ex(header_list, &pos)) {
+            char *header_name = h->header;
+            size_t name_len = 0;
+            while (name_len < h->header_len && header_name[name_len] != ':') {
+                ++name_len;
+            }
+            char *header_value = header_name + name_len + 1;
+            size_t value_len = h->header_len - name_len - 1;
+            if (0 < (ssize_t) value_len) {
+                trim_string_view(&header_name, &name_len);
+                trim_string_view(&header_value, &value_len);
+
+                if (name_len == 0 || value_len == 0) {
+                    continue;
+                }
+
+                char *lowercase_name = zend_str_tolower_dup(header_name, name_len);
+                // TODO: check against DD_TRACE_HEADER_TAGS list, waiting for ZAI config
+                for (int i = 0; i < name_len; ++i) {
+                    char c = lowercase_name[i];
+                    if (c < 'a' && c > 'z' && c < '0' && c > '9' && c != '_' && c != '-' && c != '/') {
+                        lowercase_name[i] = '_';
+                    }
+                }
+
+                zval value;
+                zend_string *tag = zend_strpprintf(0, "http.response.headers.%.*s", (int) name_len, lowercase_name);
+                ZVAL_STRINGL(&value, header_value, value_len);
+                zend_hash_update(Z_ARR_P(meta), tag, &value);
+                zend_string_release(tag);
+                free(lowercase_name);
+            }
+        }
+    }
+
     // Assign and clear out additional trace meta; re-initialize it to empty
     if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY &&
         zend_hash_num_elements(Z_ARR_P(&DDTRACE_G(additional_trace_meta))) > 0) {
-        zval *meta = zend_hash_str_find(Z_ARR_P(root), ZEND_STRL("meta"));
-        if (!meta) {
-            zval meta_zv;
-            array_init(&meta_zv);
-            meta = zend_hash_str_add_new(Z_ARR_P(root), ZEND_STRL("meta"), &meta_zv);
-        }
-
+        zval *meta = ensure_meta(Z_ARR_P(root));
         zval *val;
         zend_long idx;
         zend_string *key;
