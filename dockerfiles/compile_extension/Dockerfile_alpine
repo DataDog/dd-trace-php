@@ -9,11 +9,11 @@ ADD ./install-php /usr/bin/install-php
 ARG php_version
 ARG php_url
 ARG php_sha
-ARG php_api
+ARG php_major_minor
 
 ENV SRC_DIR=/usr/src
 ENV PHP_VERSION=${php_version}
-ENV PHP_API=${php_api}
+ENV PHP_MAJOR_MINOR=${php_major_minor}
 ENV PHP_URL=${php_url:-https://www.php.net/distributions/php-${php_version}.tar.gz}
 ENV PHP_SHA256=${php_sha}
 ENV PHP_SRC_DIR=${SRC_DIR}/php

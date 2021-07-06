@@ -14,4 +14,4 @@ make all CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror" ECHO_ARG="-e"
 
 mkdir -p extensions
 
-cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-${PHP_API}-alpine.so
+cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-${PHP_MAJOR_MINOR}-alpine.so
