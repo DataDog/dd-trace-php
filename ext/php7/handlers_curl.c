@@ -331,30 +331,54 @@ ZEND_FUNCTION(ddtrace_curl_multi_remove_handle) {
 ZEND_FUNCTION(ddtrace_curl_setopt) {
     zval *ch, *zvalue;
     zend_long option;
+    ddtrace_log_debug("invoked ddtrace_curl_setopt() ### 1");
 
     dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
+    ddtrace_log_debug("invoked ddtrace_curl_setopt() ### 2");
     if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "rlz", &ch, &option, &zvalue) == SUCCESS &&
         dd_should_save_headers && Z_TYPE_P(return_value) == IS_TRUE && dd_const_curlopt_httpheader == option &&
         Z_TYPE_P(zvalue) == IS_ARRAY) {
+        ddtrace_log_debug("invoked ddtrace_curl_setopt() ### 3");
         dd_ch_store_headers(ch, Z_ARRVAL_P(zvalue));
     }
+    ddtrace_log_debug("invoked ddtrace_curl_setopt() ### 4");
 }
 
 ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     zval *ch, *arr;
 
     dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    ddtrace_log_debug("invoked ddtrace_curl_setopt_array() ### 1");
+
+    if (dd_load_curl_integration()) {
+        ddtrace_log_debug("      -> ON");
+    }
+
+    if (Z_TYPE_P(return_value) == IS_TRUE) {
+        ddtrace_log_debug("      -> true");
+    } else {
+        ddtrace_log_debug("      -> false");
+    }
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &ch, &arr) == SUCCESS) {
+        ddtrace_log_debug("      -> params success");
+    } else {
+        ddtrace_log_debug("      -> params failure");
+    }
 
     if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &ch, &arr) == SUCCESS &&
         Z_TYPE_P(return_value) == IS_TRUE) {
+        ddtrace_log_debug("invoked ddtrace_curl_setopt_array() ### 2");
         zval *value = zend_hash_index_find(Z_ARRVAL_P(arr), dd_const_curlopt_httpheader);
         if (value && Z_TYPE_P(value) == IS_ARRAY) {
+            ddtrace_log_debug("invoked ddtrace_curl_setopt_array() ### 3");
             dd_ch_store_headers(ch, Z_ARRVAL_P(value));
         }
     }
+    ddtrace_log_debug("invoked ddtrace_curl_setopt_array() ### 4");
 }
 
 struct dd_curl_handler {

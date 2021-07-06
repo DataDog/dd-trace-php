@@ -8,6 +8,7 @@ namespace DDTrace\Bridge {
 
     function inject_distributed_tracing_headers($format, array &$headers)
     {
+        error_log('Headers: ' . var_export($headers, 1));
         if (
             !\class_exists('DDTrace\\SpanContext', false)
             || !\class_exists('DDTrace\\GlobalTracer', false)
@@ -45,5 +46,4 @@ namespace DDTrace\Bridge {
         inject_distributed_tracing_headers(Format::CURL_HTTP_HEADERS, $headers);
         \curl_setopt($ch, \CURLOPT_HTTPHEADER, $headers);
     }
-
 }
