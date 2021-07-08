@@ -2,6 +2,8 @@
 
 namespace RandomizedTests\Tooling;
 
+require_once __DIR__ . '/Utils.php';
+
 class MakefileGenerator
 {
     public function generate($destination, array $scenarioNames)
@@ -17,14 +19,13 @@ class MakefileGenerator
                 )
             )
         );
-        $template = \file_get_contents(__DIR__ . '/templates/Makefile.template');
-        file_put_contents(
+
+        Utils::writeTemplate(
             $destination,
-            str_replace(
-                ['{{test_targets}}'],
-                [$targetsString],
-                $template
-            )
+            __DIR__ . '/templates/Makefile.template',
+            [
+                'test_targets' => $targetsString,
+            ]
         );
     }
 }

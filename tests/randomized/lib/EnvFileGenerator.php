@@ -2,17 +2,18 @@
 
 namespace RandomizedTests\Tooling;
 
+require_once __DIR__ . '/Utils.php';
+
 class EnvFileGenerator
 {
     public function generate($destination, $scenarioName)
     {
-        file_put_contents(
+        Utils::writeTemplate(
             $destination,
-            \str_replace(
-                ['{{scenario_name}}'],
-                [$scenarioName],
-                file_get_contents(__DIR__ . '/templates/.env.template')
-            )
+            __DIR__ . '/templates/.env.template',
+            [
+                'scenario_name' => $scenarioName,
+            ]
         );
     }
 }

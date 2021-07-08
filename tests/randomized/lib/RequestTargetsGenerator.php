@@ -2,7 +2,7 @@
 
 namespace RandomizedTests\Tooling;
 
-require_once __dir__ . '/Utils.php';
+require_once __DIR__ . '/Utils.php';
 
 use RandomizedTests\Tooling\Utils;
 
