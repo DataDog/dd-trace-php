@@ -18,7 +18,6 @@ abstract class IntegrationTestCase extends BaseTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        // IntegrationsLoader::reload();
     }
 
     public static function ddTearDownAfterClass()

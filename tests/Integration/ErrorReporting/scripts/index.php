@@ -65,7 +65,6 @@ switch ($_SERVER['REQUEST_URI']) {
         break;
 
     case "/handled-exception-try-catch-class-header":
-        require __DIR__ . '/handlers.php';
         require __DIR__ . '/dispatcher.php';
         (new MyApp\MyBundle\Dispatcher())->dispatchWithException();
         break;

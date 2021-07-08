@@ -97,7 +97,6 @@ if (PHP_VERSION_ID >= 80000) {
         {
             $traces = $this->tracesFromWebRequest(function () {
                 $response = $this->call(GetSpec::create('', '/unhandled-exception-class'));
-                error_log('Response: ' . print_r($response, 1));
             });
             $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
         }
@@ -118,7 +117,7 @@ if (PHP_VERSION_ID >= 80000) {
             $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
         }
 
-        public function testNestedHeaderHandledThrowableInClass()
+        public function testNestedHeaderHandledExceptionInClass()
         {
             $traces = $this->tracesFromWebRequest(function () {
                 $this->call(GetSpec::create('', '/unhandled-nested-exception-class'));
@@ -126,7 +125,7 @@ if (PHP_VERSION_ID >= 80000) {
             $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
         }
 
-        public function testUnhandledThrowableInFunction()
+        public function testUnhandledExceptionInFunction()
         {
             $traces = $this->tracesFromWebRequest(function () {
                 $this->call(GetSpec::create('', '/handled-exception-function-header'));
@@ -188,7 +187,7 @@ if (PHP_VERSION_ID >= 80000) {
             $traces = $this->tracesFromWebRequest(function () {
                 $this->call(GetSpec::create('', '/handled-exception-rethrow-class-header'));
             });
-            $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+            $this->assertError($traces[0][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
         }
 
         /**
@@ -216,7 +215,7 @@ if (PHP_VERSION_ID >= 80000) {
             $traces = $this->tracesFromWebRequest(function () {
                 $this->call(GetSpec::create('', '/handled-exception-class-converted-user-error'));
             });
-            $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+            $this->assertError($traces[0][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
         }
 
         public function testHandledThrowableConvertedUserErrorInClass()
@@ -224,7 +223,7 @@ if (PHP_VERSION_ID >= 80000) {
             $traces = $this->tracesFromWebRequest(function () {
                 $this->call(GetSpec::create('', '/handled-throwable-class-converted-user-error'));
             });
-            $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+            $this->assertError($traces[0][0], "Obfuscated*Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
         }
 
         public function testHandledExceptionConvertedUserErrorInFunction()
@@ -232,7 +231,7 @@ if (PHP_VERSION_ID >= 80000) {
             $traces = $this->tracesFromWebRequest(function () {
                 $this->call(GetSpec::create('', '/handled-exception-function-converted-user-error'));
             });
-            $this->assertError($traces[0][0], "Exception in external file", [['do_throw_exception', 'index.php', '{main}']]);
+            $this->assertError($traces[0][0], "Obfuscated*Exception in external file", [['do_throw_exception', 'index.php', '{main}']]);
         }
 
         /**
@@ -244,7 +243,7 @@ if (PHP_VERSION_ID >= 80000) {
             $traces = $this->tracesFromWebRequest(function () {
                 $this->call(GetSpec::create('', '/handled-exception-generated-while-rendering-exception'));
             });
-            $this->assertError($traces[0][0], "Inner handling error", [['throw_handling_error', 'index.php', '{main}']]);
+            $this->assertError($traces[0][0], "Obfuscated*Inner handling error", [['throw_handling_error', 'index.php', '{main}']]);
         }
 
         public function testFirst500HandledExceptionGetsAttachedAsPreviousExceptionToFutureUncaughtExceptions()
