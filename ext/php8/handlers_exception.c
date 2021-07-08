@@ -8,6 +8,11 @@
 #include "serializer.h"
 #include "span.h"
 
+// Keep in mind that we are currently not having special handling for uncaught exceptions thrown within the shutdown
+// sequence. This arises from the exception handlers being only invoked at the end of {main}. Additionally we currently
+// do not handle any exception thrown from an userland exception handler.
+// Adding support for both is open to future scope, should the need arise.
+
 static zend_class_entry dd_exception_or_error_handler_ce;
 static zend_object_handlers dd_exception_or_error_handler_handlers;
 
@@ -243,7 +248,11 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
         zend_catch { has_bailout = true; }
         zend_end_try();
 
-        // Now that we left userland, we can attach this exception without visible user impact as previous exception
+        // Now that we left the main interaction scope with userland:
+        // we can attach this exception without visible user impact as previous exception
+        // Note that the change will leak into shutdown sequence though, but this is a minor tradeoff we make here.
+        // If this ever tunrs out to be problematic, we have to store it somewhere in DDTRACE_G()
+        // and delay attaching until serialization.
         if (root_span && old_exception) {
             zval *previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
             while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
