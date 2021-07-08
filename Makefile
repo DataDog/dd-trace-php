@@ -167,10 +167,10 @@ sudo:
 	$(eval SUDO:=sudo)
 
 debug:
-	$(eval CFLAGS="$(CFLAGS) -O0 -g")
+	$(eval CFLAGS=$(CFLAGS) -O0 -g)
 
 prod:
-	$(eval CFLAGS="$(CFLAGS) -O2 -g0")
+	$(eval CFLAGS=$(CFLAGS) -O2 -g0)
 
 strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
