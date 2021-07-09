@@ -125,7 +125,7 @@ if (PHP_VERSION_ID >= 80000) {
             $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
         }
 
-        public function testUnhandledExceptionInFunction()
+        public function testHandledExceptionInFunction()
         {
             $traces = $this->tracesFromWebRequest(function () {
                 $this->call(GetSpec::create('', '/handled-exception-function-header'));
