@@ -74,7 +74,11 @@ typedef struct zai_error_state_s {
     int type;
     int lineno;
     zend_string *message;
+#if PHP_VERSION_ID < 80100
     char *file;
+#else
+    zend_string *file;
+#endif
     int error_reporting;
     zend_error_handling error_handling;
 } zai_error_state;
