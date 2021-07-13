@@ -122,3 +122,28 @@ _Investigation_
 
 The test fails on new buster containers because we copy on 5.x the `php-development.ini` that enables `log_errors = On`.
 This causes this test to print an extra line (the logged error) and to fail. The failure happen without the tracer installed as well.
+
+## `ext/sockets/tests/socket_create_listen-nobind.phpt`
+
+* Disabled on versions: `5.4 --> 7.3`.
+* [Broken CI build example](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/6016/workflows/dd24ea85-1ec4-47ea-9311-080a66d045a5/jobs/497177)
+
+This test runs succesfully only if a socket CANNOT be created on port 80 in the environment where the test is executed. With recent changes to CircleCI is now possible to create a socket on port 80. As a proof of it, ssh-ing into a CircleCI runner:
+
+```
+$ TEST_PHP_EXECUTABLE=$(which php) php run-tests.php --show-out --show-diff ext/sockets/tests/socket_create_listen-nobind.phpt
+...
+001+ resource(4) of type (Socket)   <<<< dumping the returned socket [here](https://github.com/php/php-src/blob/53ea910d1760c87b6110a461f13ebe0e244c9914/ext/sockets/tests/socket_create_listen-nobind.phpt#L17), it is supposed to return `false` instead.
+...
+```
+
+The reason why this test is not failing on PHP 7.4+ if because it is skipped by this [extra check](https://github.com/php/php-src/blob/9db3eda2cbaa01529d807b2326be13e7b0e5e496/ext/sockets/tests/socket_create_listen-nobind.phpt#L16-L18).
+
+As a confirmation, running the previous test on a 7.4 runner would result in:
+
+```
+$ TEST_PHP_EXECUTABLE=$(which php) php run-tests.php --show-out --show-diff ext/sockets/tests/socket_create_listen-nobind.phpt
+...
+SKIP Test if socket_create_listen() returns false, when it cannot bind to the port. [ext/sockets/tests/socket_create_listen-nobind.phpt] reason: Test cannot be run in environment that will allow binding to port 80 (azure)
+...
+```

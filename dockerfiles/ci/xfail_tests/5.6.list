@@ -143,6 +143,7 @@ ext/simplexml/tests/bug66084_0.phpt
 ext/simplexml/tests/bug69491.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
 ext/sockets/tests/socket_connect_params.phpt
+ext/sockets/tests/socket_create_listen-nobind.phpt
 ext/sockets/tests/socket_create_pair.phpt
 ext/spl/tests/SplDoublylinkedlist_offsetunset_first.phpt
 ext/spl/tests/SplDoublylinkedlist_offsetunset_last.phpt
