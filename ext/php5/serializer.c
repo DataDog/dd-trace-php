@@ -10,8 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <ext/standard/php_smart_str.h>
+// comment to prevent clang from reordering these headers
+#include <SAPI.h>
+
 #include "compat_string.h"
-#include "compatibility.h"
 #include "ddtrace.h"
 #include "engine_hooks.h"
 #include "logging.h"
@@ -150,128 +153,39 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
     }
 }
 
-/* gettraceasstring() macros
- * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L364-L395
- * {{{ */
-#define _DD_TRACE_APPEND_STRL(val, vallen)           \
-    {                                                \
-        int l = vallen;                              \
-        *str = (char *)erealloc(*str, *len + l + 1); \
-        memcpy((*str) + *len, val, l);               \
-        *len += l;                                   \
-    }
-
-#define _DD_TRACE_APPEND_STR(val) _DD_TRACE_APPEND_STRL(val, sizeof(val) - 1)
-
-#define _DD_TRACE_APPEND_KEY(key)                                          \
-    if (zend_hash_find(ht, key, sizeof(key), (void **)&tmp) == SUCCESS) {  \
-        if (Z_TYPE_PP(tmp) != IS_STRING) {                                 \
-            /* zend_error(E_WARNING, "Value for %s is no string", key); */ \
-            _DD_TRACE_APPEND_STR("[unknown]");                             \
-        } else {                                                           \
-            _DD_TRACE_APPEND_STRL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp));     \
-        }                                                                  \
-    }
-/* }}} */
-
-/* This is modeled after _build_trace_string in PHP 5.4
- * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L543-L605
- */
-static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zend_hash_key *hash_key) {
-    UNUSED(hash_key);
-#ifdef ZTS
-    /* This arg is required for the zend_hash_apply_with_arguments function signature, but we don't need it */
-    UNUSED(TSRMLS_C);
-#endif
-
-    char *s_tmp, **str;
-    int *len, *num;
-    long line;
-    HashTable *ht = Z_ARRVAL_PP(frame);
-    zval **file, **tmp;
-
-    if (Z_TYPE_PP(frame) != IS_ARRAY || num_args != 3) {
-        return ZEND_HASH_APPLY_KEEP;
-    }
-
-    str = va_arg(args, char **);
-    len = va_arg(args, int *);
-    num = va_arg(args, int *);
-
-    s_tmp = emalloc(1 + MAX_LENGTH_OF_LONG + 1 + 1);
-    sprintf(s_tmp, "#%d ", (*num)++);
-    _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
-    efree(s_tmp);
-    if (zend_hash_find(ht, "file", sizeof("file"), (void **)&file) == SUCCESS) {
-        if (Z_TYPE_PP(file) != IS_STRING) {
-            ddtrace_log_debug("serializer stack trace: Function name is not a string");
-            _DD_TRACE_APPEND_STR("[unknown function]");
-        } else {
-            if (zend_hash_find(ht, "line", sizeof("line"), (void **)&tmp) == SUCCESS) {
-                if (Z_TYPE_PP(tmp) == IS_LONG) {
-                    line = Z_LVAL_PP(tmp);
-                } else {
-                    ddtrace_log_debug("serializer stack trace: Line is not a long");
-                    line = 0;
-                }
-            } else {
-                line = 0;
-            }
-            s_tmp = emalloc(Z_STRLEN_PP(file) + MAX_LENGTH_OF_LONG + 4 + 1);
-            sprintf(s_tmp, "%s(%ld): ", Z_STRVAL_PP(file), line);
-            _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
-            efree(s_tmp);
-        }
-    } else {
-        _DD_TRACE_APPEND_STR("[internal function]: ");
-    }
-
-    _DD_TRACE_APPEND_KEY("class");
-    _DD_TRACE_APPEND_KEY("type");
-    _DD_TRACE_APPEND_KEY("function");
-
-    /* We intentionally do not show any arguments, not even an ellipsis if there
-     * are arguments; this is for consistency with PHP 7 where there is an INI
-     * setting called zend.exception_ignore_args that prevents "args" from being
-     * generated.
-     */
-    _DD_TRACE_APPEND_STR("()\n");
-
-    return ZEND_HASH_APPLY_KEEP;
-}
-
-/* This is modeled after Exception::getTraceAsString() in PHP 5.4
- * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L607-L635
- */
-static char *dd_serialize_stack_trace(zval *trace TSRMLS_DC) {
-    char *res, **str, *s_tmp;
-    int res_len = 0, *len = &res_len, num = 0;
-
-    if (Z_TYPE_P(trace) != IS_ARRAY) {
-        return NULL;
-    }
-
-    res = estrdup("");
-    str = &res;
-
-    zend_hash_apply_with_arguments(Z_ARRVAL_P(trace) TSRMLS_CC, (apply_func_args_t)_trace_string, 3, str, len, &num);
-
-    s_tmp = emalloc(1 + MAX_LENGTH_OF_LONG + 7 + 1);
-    sprintf(s_tmp, "#%d {main}", num);
-    _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
-    efree(s_tmp);
-
-    res[res_len] = '\0';
-
-    return res;
-}
-
 typedef int (*add_tag_fn_t)(void *context, zai_string_view key, zai_string_view value);
 
 static int dd_exception_to_error_msg(zval *exception, void *context, add_tag_fn_t add_tag TSRMLS_DC) {
-    zai_string_view key = ZAI_STRL_VIEW("error.msg");
     zai_string_view msg = zai_exception_message(exception TSRMLS_CC);
-    return add_tag(context, key, msg);
+    zval *line = ZAI_EXCEPTION_PROPERTY(exception, "line");
+    zval *file = ZAI_EXCEPTION_PROPERTY(exception, "file");
+
+    char *error_text, *status_line;
+    zend_bool uncaught = SG(sapi_headers).http_response_code < 500;
+
+    if (!uncaught) {
+        if (SG(sapi_headers).http_status_line) {
+            asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line);
+        } else {
+            asprintf(&status_line, " (%d)", SG(sapi_headers).http_response_code);
+        }
+    }
+
+    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:%ld", uncaught ? "Uncaught" : "Caught",
+                             Z_OBJCE_P(exception)->name, uncaught ? "" : status_line, msg.len > 0 ? ": " : "",
+                             (int)msg.len, msg.ptr, Z_TYPE_P(file) == IS_STRING ? Z_STRVAL_P(file) : "Unknown",
+                             Z_TYPE_P(line) == IS_LONG ? Z_LVAL_P(line) : 0);
+
+    if (!uncaught) {
+        free(status_line);
+    }
+
+    zai_string_view key = ZAI_STRL_VIEW("error.msg");
+    zai_string_view value = {.ptr = error_text, .len = error_len};
+    int result = add_tag(context, key, value);
+
+    free(error_text);
+    return result;
 }
 
 static int dd_exception_to_error_type(zval *exception, void *context, add_tag_fn_t add_tag TSRMLS_DC) {
@@ -309,23 +223,61 @@ static int dd_exception_to_error_type(zval *exception, void *context, add_tag_fn
     return add_tag(context, key, value);
 }
 
-static int dd_exception_to_error_stack(zval *exception, void *context, add_tag_fn_t add_tag TSRMLS_DC) {
-    smart_str trace_string = zai_get_trace_without_args_from_exception(exception TSRMLS_CC);
+static int dd_exception_to_error_stack(char *trace, size_t trace_len, void *context, add_tag_fn_t add_tag) {
     zai_string_view key = ZAI_STRL_VIEW("error.stack");
-    zai_string_view value = {.ptr = trace_string.c, .len = trace_string.len};
+    zai_string_view value = {.ptr = trace, .len = trace_len};
     int result = add_tag(context, key, value);
-    efree(trace_string.c);
+    efree(trace);
     return result;
 }
 
 int ddtrace_exception_to_meta(zval *exception, void *context, add_tag_fn_t add_meta TSRMLS_DC) {
+    zval *exception_root = exception;
+    smart_str trace_str = zai_get_trace_without_args_from_exception(exception TSRMLS_CC);
+    char *full_trace = trace_str.c;
+    size_t full_trace_len = trace_str.len;
+
+    zval *previous = ZAI_EXCEPTION_PROPERTY(exception, "previous");
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_OBJPROP_P(previous)->nApplyCount &&
+           instanceof_function(Z_OBJCE_P(previous), zend_exception_get_default(TSRMLS_C) TSRMLS_CC)) {
+        smart_str trace_string = zai_get_trace_without_args_from_exception(previous TSRMLS_CC);
+
+        zai_string_view msg = zai_exception_message(exception TSRMLS_CC);
+        zval *line = ZAI_EXCEPTION_PROPERTY(exception, "line");
+        zval *file = ZAI_EXCEPTION_PROPERTY(exception, "file");
+
+        char *old_trace = full_trace;
+        full_trace_len =
+            spprintf(&full_trace, 0, "%.*s\n\nNext %s%s%s in %s:%ld\nStack trace:\n%.*s", (int)trace_string.len,
+                     trace_string.c, Z_OBJCE_P(exception)->name, msg.len ? ": " : "", msg.ptr,
+                     Z_TYPE_P(file) == IS_STRING ? Z_STRVAL_P(file) : "Unknown",
+                     Z_TYPE_P(line) == IS_LONG ? Z_LVAL_P(line) : 0, (int)full_trace_len, old_trace);
+        efree(old_trace);
+
+        ++Z_OBJPROP_P(previous)->nApplyCount;
+        exception = previous;
+        previous = ZAI_EXCEPTION_PROPERTY(exception, "previous");
+    }
+
+    previous = ZAI_EXCEPTION_PROPERTY(exception_root, "previous");
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_OBJPROP_P(previous)->nApplyCount) {
+        --Z_OBJPROP_P(previous)->nApplyCount;
+        previous = ZAI_EXCEPTION_PROPERTY(previous, "previous");
+    }
+
     bool success = dd_exception_to_error_msg(exception, context, add_meta TSRMLS_CC) == SUCCESS &&
                    dd_exception_to_error_type(exception, context, add_meta TSRMLS_CC) == SUCCESS &&
-                   dd_exception_to_error_stack(exception, context, add_meta TSRMLS_CC) == SUCCESS;
+                   dd_exception_to_error_stack(full_trace, full_trace_len, context, add_meta) == SUCCESS;
     return success ? SUCCESS : FAILURE;
 }
 
-static zval *dd_fatal_error_type(int code) {
+typedef struct dd_error_info {
+    zval *type;
+    zval *msg;
+    zval *stack;
+} dd_error_info;
+
+static zval *dd_error_type(int code) {
     zval *type = NULL;
     const char *error_type = "{unknown error}";
     switch (code) {
@@ -347,72 +299,22 @@ static zval *dd_fatal_error_type(int code) {
     return type;
 }
 
-static zval *dd_fatal_error_msg(const char *format, va_list args) {
-    zval *msg = NULL;
-    va_list args2;
-    char *buffer;
-
-    va_copy(args2, args);
-    int buffer_len = vspprintf(&buffer, 0, format, args2);
-    va_end(args2);
-
-    MAKE_STD_ZVAL(msg);
-    if (buffer_len <= 0) {
-        ZVAL_STRING(msg, "Unknown error", 1);
-        efree(buffer);
-        return msg;
-    }
-
-    /* In PHP 5 an uncaught exception results in a fatal error. The error
-     * message includes the call stack and its arguments, which is a vector for
-     * information disclosure. We need to avoid this.
-     */
-    const char uncaught[] = "Uncaught ";
-    /* The -1 is to avoid the null terminator which is included in literals and
-     * will not be present in the rendered error message at that position.
-     */
-    size_t uncaught_len = sizeof uncaught - 1;
-    if ((unsigned)buffer_len >= uncaught_len && memcmp(buffer, uncaught, uncaught_len) == 0) {
-        char *newline = memchr(buffer, '\n', buffer_len);
-        if (newline) {
-            *newline = '\0';
-            size_t linelen = newline - buffer;
-            // +1 for null terminator
-            ZVAL_STRINGL(msg, buffer, linelen + 1, 1);
-        } else {
-            // This is suspect; there is always a newline in these messages
-            ZVAL_STRING(msg, "Unknown uncaught exception", 1);
-        }
-    } else {
-        ZVAL_STRING(msg, buffer, 1);
-    }
-    efree(buffer);
-    return msg;
-}
-
 static zval *dd_fatal_error_stack(void) {
     zval *stack = NULL;
-    zval *trace;
+    zval trace = zval_used_for_init;
     TSRMLS_FETCH();
 
-    MAKE_STD_ZVAL(trace);
-    zend_fetch_debug_backtrace(trace, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
-    if (Z_TYPE_P(trace) == IS_ARRAY) {
-        char *stack_str = dd_serialize_stack_trace(trace TSRMLS_CC);
-        if (stack_str) {
+    zend_fetch_debug_backtrace(&trace, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
+    if (Z_TYPE(trace) == IS_ARRAY) {
+        smart_str stack_str = zai_get_trace_without_args(Z_ARRVAL(trace));
+        if (stack_str.c) {
             MAKE_STD_ZVAL(stack);
-            ZVAL_STRING(stack, stack_str, 0);
+            ZVAL_STRINGL(stack, stack_str.c, stack_str.len, 0);
         }
     }
-    zval_ptr_dtor(&trace);
+    zval_dtor(&trace);
     return stack;
 }
-
-typedef struct dd_error_info {
-    zval *type;
-    zval *msg;
-    zval *stack;
-} dd_error_info;
 
 static void dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
     if (error.type) {
@@ -430,7 +332,7 @@ static void dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
 }
 
 static int dd_add_meta_array(void *meta, zai_string_view key, zai_string_view value) {
-    add_assoc_stringl_ex((zval *)meta, key.ptr, key.len, (char *)value.ptr, value.len, 1);
+    add_assoc_stringl_ex((zval *)meta, key.ptr, key.len + 1, (char *)value.ptr, value.len, 1);
     return SUCCESS;
 }
 
@@ -575,7 +477,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
 
         HashTable *service_mappings = get_DD_SERVICE_MAPPING();
         zval **new_name;
-        if (zend_hash_find(service_mappings, Z_STRVAL_P(prop_service_as_string), Z_STRLEN_P(prop_name_as_string) + 1,
+        if (zend_hash_find(service_mappings, Z_STRVAL_P(prop_service_as_string), Z_STRLEN_P(prop_service_as_string) + 1,
                            (void **)&new_name) == SUCCESS) {
             zval_dtor(prop_service_as_string);
             ZVAL_COPY_VALUE(prop_service_as_string, *new_name);
@@ -630,12 +532,66 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     add_next_index_zval(array, el);
 }
 
-static dd_error_info dd_fatal_error(int type, const char *format, va_list args) {
-    dd_error_info error = {0};
-    error.type = dd_fatal_error_type(type);
-    error.msg = dd_fatal_error_msg(format, args);
-    error.stack = dd_fatal_error_stack();
-    return error;
+void ddtrace_save_active_error_to_metadata(TSRMLS_D) {
+    if (!DDTRACE_G(active_error).type) {
+        return;
+    }
+
+    dd_error_info error = {
+        .type = dd_error_type(DDTRACE_G(active_error).type),
+        .msg = DDTRACE_G(active_error).message,
+        .stack = dd_fatal_error_stack(),
+    };
+    for (ddtrace_span_fci *span = DDTRACE_G(open_spans_top); span; span = span->next) {
+        if (span->exception) {  // exceptions take priority
+            continue;
+        }
+
+        dd_fatal_error_to_meta(ddtrace_spandata_property_meta(&span->span), error);
+    }
+}
+
+static zval *dd_fatal_error_msg(const char *format, va_list args) {
+    zval *msg = NULL;
+    va_list args2;
+    char *buffer;
+
+    va_copy(args2, args);
+    int buffer_len = vspprintf(&buffer, 0, format, args2);
+    va_end(args2);
+
+    MAKE_STD_ZVAL(msg);
+    if (buffer_len <= 0) {
+        ZVAL_STRING(msg, "Unknown error", 1);
+        efree(buffer);
+        return msg;
+    }
+
+    /* In PHP 5 an uncaught exception results in a fatal error. The error
+     * message includes the call stack and its arguments, which is a vector for
+     * information disclosure. We need to avoid this.
+     */
+    const char uncaught[] = "Uncaught ";
+    /* The -1 is to avoid the null terminator which is included in literals and
+     * will not be present in the rendered error message at that position.
+     */
+    size_t uncaught_len = sizeof uncaught - 1;
+    if ((unsigned)buffer_len >= uncaught_len && memcmp(buffer, uncaught, uncaught_len) == 0) {
+        char *newline = memchr(buffer, '\n', buffer_len);
+        if (newline) {
+            *newline = '\0';
+            size_t linelen = newline - buffer;
+            // +1 for null terminator
+            ZVAL_STRINGL(msg, buffer, linelen + 1, 1);
+        } else {
+            // This is suspect; there is always a newline in these messages
+            ZVAL_STRING(msg, "Unknown uncaught exception", 1);
+        }
+    } else {
+        ZVAL_STRING(msg, buffer, 1);
+    }
+    efree(buffer);
+    return msg;
 }
 
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
@@ -655,7 +611,11 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
          * robust way of detecting this, but I'm not sure how yet.
          */
         if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
-            dd_error_info error = dd_fatal_error(type, format, args);
+            dd_error_info error = {
+                .type = dd_error_type(type),
+                .msg = dd_fatal_error_msg(format, args),
+                .stack = dd_fatal_error_stack(),
+            };
             dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
 
             ddtrace_span_fci *span;

@@ -233,11 +233,16 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
                                                     &num_key, 0, &pos),
              zend_hash_get_current_data_ex(Z_ARRVAL(DDTRACE_G(additional_trace_meta)), (void **)&val, &pos) == SUCCESS;
              zend_hash_move_forward_ex(Z_ARRVAL(DDTRACE_G(additional_trace_meta)), &pos)) {
-            zval_addref_p(*val);
+            int success;
+            // let default serialization keys always take precendence
             if (keytype == HASH_KEY_IS_STRING) {
-                zend_hash_update(Z_ARRVAL_PP(meta), key, key_len, (void **)val, sizeof(zval *), NULL);
+                success = zend_hash_add(Z_ARRVAL_PP(meta), key, key_len, (void **)val, sizeof(zval *), NULL);
             } else {
-                zend_hash_index_update(Z_ARRVAL_PP(meta), num_key, (void **)val, sizeof(zval *), NULL);
+                success = _zend_hash_index_update_or_next_insert(Z_ARRVAL_PP(meta), num_key, (void **)val,
+                                                                 sizeof(zval *), NULL, HASH_ADD ZEND_FILE_LINE_CC);
+            }
+            if (success) {
+                zval_addref_p(*val);
             }
         }
     }
