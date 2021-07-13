@@ -395,6 +395,10 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     }
     free(env);
 
+    if (DDTRACE_G(dd_origin)) {
+        add_assoc_str(meta, "_dd.origin", zend_string_copy(DDTRACE_G(dd_origin)));
+    }
+
     zend_array *global_tags = get_dd_tags();
     if (zend_hash_num_elements(global_tags) == 0) {
         zend_hash_release(global_tags);

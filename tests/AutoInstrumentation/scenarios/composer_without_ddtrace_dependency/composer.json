@@ -1,4 +1,7 @@
 {
     "require": {
+    },
+    "config": {
+        "disable-tls": true
     }
 }

@@ -1,5 +1,8 @@
 --TEST--
 Distributed tracing context with an origin
+--ENV--
+HTTP_X_DATADOG_ORIGIN=some-origin
+HTTP_X_DATADOG_PRIORITY_SAMPLING=1
 --FILE--
 <?php
 

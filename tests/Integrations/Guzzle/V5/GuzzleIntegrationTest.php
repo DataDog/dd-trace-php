@@ -261,7 +261,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('custom')->getSpan();
+            $span = $tracer->startRootSpan('custom')->getSpan();
 
             $response = $client->get(self::URL . '/headers', [
                 'headers' => [

@@ -170,21 +170,23 @@ final class TracerTest extends BaseTestCase
         $tracer->flush();
     }
 
-    public function testPrioritySamplingIsLazilyAssignedOnInject()
+    public function testPrioritySamplingIsEarlyAssignedAndRefreshedOnInject()
     {
         $tracer = new Tracer(new DebugTransport());
         $span = $tracer->startRootSpan(self::OPERATION_NAME)->getSpan();
-        $this->assertNull($tracer->getPrioritySampling());
+        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+        $span->metrics = [];
         $carrier = [];
         $tracer->inject($span->getContext(), Format::TEXT_MAP, $carrier);
         $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
     }
 
-    public function testPrioritySamplingIsLazilyAssignedBeforeFlush()
+    public function testPrioritySamplingIsLazilyAssignedAndRefreshedBeforeFlush()
     {
         $tracer = new Tracer(new DebugTransport());
-        $tracer->startRootSpan(self::OPERATION_NAME);
-        $this->assertNull($tracer->getPrioritySampling());
+        $span = $tracer->startRootSpan(self::OPERATION_NAME)->getSpan();
+        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+        $span->metrics = [];
         $tracer->flush();
         $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
     }

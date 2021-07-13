@@ -50,6 +50,7 @@ foreach ($responses as $key => $response) {
     dt_dump_headers_from_httpbin($headers, [
         'x-datadog-trace-id',
         'x-datadog-parent-id',
+        'x-datadog-sampling-priority',
         'x-foo',
         'x-bar',
     ]);
@@ -67,21 +68,25 @@ if (PHP_VERSION_ID < 80000) {
 Response #0
 x-bar: theory
 x-datadog-parent-id: %d
+x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #1
 x-bar: theory
 x-datadog-parent-id: %d
+x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #2
 x-bar: theory
 x-datadog-parent-id: %d
+x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #3
 x-bar: linguistics
 x-datadog-parent-id: %d
+x-datadog-trace-id: %d
 x-foo: after-the-copy
 
 Done.

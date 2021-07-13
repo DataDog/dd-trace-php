@@ -40,6 +40,8 @@ abstract class SpanContext implements SpanContextInterface
     public $isDistributedTracingActivationContext;
 
     /**
+     * Initial priority sampling, upon span creation
+     *
      * @var int
      */
     public $propagatedPrioritySampling;

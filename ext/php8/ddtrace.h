@@ -23,6 +23,8 @@ zval *ddtrace_spandata_property_type(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
 
+BOOL_T ddtrace_fetch_prioritySampling_from_root(int *priority);
+
 BOOL_T ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
 void dd_prepare_for_new_trace(void);
@@ -63,6 +65,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t closed_spans_count;
     int64_t compile_time_microseconds;
     uint64_t distributed_parent_trace_id;
+    zend_string *dd_origin;
 
     char *cgroup_file;
 ZEND_END_MODULE_GLOBALS(ddtrace)

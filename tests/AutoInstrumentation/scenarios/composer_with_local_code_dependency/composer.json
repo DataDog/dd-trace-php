@@ -3,5 +3,8 @@
         "psr-4": {
             "DDTrace\\": "../../../../src/DDTrace"
         }
+    },
+    "config": {
+        "disable-tls": true
     }
 }

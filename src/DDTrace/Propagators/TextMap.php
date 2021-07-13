@@ -54,7 +54,6 @@ final class TextMap implements Propagator
     {
         $traceId = '';
         $spanId = '';
-        $prioritySampling = null;
         $baggageItems = [];
 
         foreach ($carrier as $key => $value) {
