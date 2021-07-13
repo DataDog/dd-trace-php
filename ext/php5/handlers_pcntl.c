@@ -2,6 +2,7 @@
 
 #include "coms.h"
 #include "ddtrace.h"
+#include "handlers_internal.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -21,23 +22,6 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     }
 }
 
-struct dd_pcntl_handler {
-    const char *name;
-    size_t name_len;
-    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
-    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
-};
-typedef struct dd_pcntl_handler dd_pcntl_handler;
-
-static void dd_install_handler(dd_pcntl_handler handler TSRMLS_DC) {
-    zend_function *old_handler;
-    if (zend_hash_find(CG(function_table), handler.name, handler.name_len, (void **)&old_handler) == SUCCESS &&
-        old_handler != NULL) {
-        *handler.old_handler = old_handler->internal_function.handler;
-        old_handler->internal_function.handler = handler.new_handler;
-    }
-}
-
 void ddtrace_pcntl_handlers_startup(void) {
     TSRMLS_FETCH();
     // If we cannot find ext/pcntl then do not hook the functions
@@ -45,8 +29,8 @@ void ddtrace_pcntl_handlers_startup(void) {
         return;
     }
 
-    dd_pcntl_handler handlers[] = {
-        {"pcntl_fork", sizeof("pcntl_fork"), &dd_pcntl_fork_handler, ZEND_FN(ddtrace_pcntl_fork)},
+    dd_zif_handler handlers[] = {
+        {ZEND_STRL("pcntl_fork"), &dd_pcntl_fork_handler, ZEND_FN(ddtrace_pcntl_fork)},
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {

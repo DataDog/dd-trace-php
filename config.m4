@@ -72,6 +72,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/engine_hooks.c \
       ext/php5/excluded_modules.c \
       ext/php5/handlers_curl.c \
+      ext/php5/handlers_exception.c \
       ext/php5/handlers_internal.c \
       ext/php5/handlers_pcntl.c \
       ext/php5/integrations/integrations.c \
@@ -119,6 +120,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/engine_hooks.c \
       ext/php5/excluded_modules.c \
       ext/php5/handlers_curl.c \
+      ext/php5/handlers_exception.c \
       ext/php5/handlers_internal.c \
       ext/php5/handlers_pcntl.c \
       ext/php5/integrations/integrations.c \

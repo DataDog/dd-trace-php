@@ -83,13 +83,7 @@ static void ddtrace_sort_modules(void *base, size_t count, size_t siz, compare_f
 #endif
 
 static int ddtrace_startup(struct _zend_extension *extension) {
-#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
-    // Turns out with zai config we have dynamically allocated INI entries. This does not play well with PHP 7.3
-    // As of PHP 7.3 opcache stores INI entry values in SHM. However, only as of PHP 7.4 opcache delays detaching SHM.
-    // In PHP 7.3 SHM is freed in MSHUTDOWN, which may be executed before our extension, if we do not force an order.
-    // We have to sort this manually here, as opcache only registers itself as extension during zend_extension.startup.
-    zend_hash_sort_ex(&module_registry, ddtrace_sort_modules, NULL, 0);
-#endif
+    TSRMLS_FETCH();
 
     ddtrace_resource = zend_get_resource_handle(extension);
 
@@ -97,7 +91,7 @@ static int ddtrace_startup(struct _zend_extension *extension) {
     // We deliberately leave handler replacement during startup, even though this uses some config
     // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done
     // post-startup
-    ddtrace_internal_handlers_startup();
+    ddtrace_internal_handlers_startup(TSRMLS_C);
     return SUCCESS;
 }
 
@@ -581,6 +575,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_engine_hooks_rinit(TSRMLS_C);
+    ddtrace_internal_handlers_rinit(TSRMLS_C);
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;

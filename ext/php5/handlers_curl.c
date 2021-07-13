@@ -435,23 +435,6 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     }
 }
 
-struct dd_curl_handler {
-    const char *name;
-    size_t name_len;
-    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
-    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
-};
-typedef struct dd_curl_handler dd_curl_handler;
-
-static void dd_install_handler(dd_curl_handler handler TSRMLS_DC) {
-    zend_function *old_handler;
-    if (zend_hash_find(CG(function_table), handler.name, handler.name_len, (void **)&old_handler) == SUCCESS &&
-        old_handler != NULL) {
-        *handler.old_handler = old_handler->internal_function.handler;
-        old_handler->internal_function.handler = handler.new_handler;
-    }
-}
-
 void ddtrace_curl_handlers_startup(void) {
     TSRMLS_FETCH();
     // If we cannot find ext/curl then do not hook the functions
@@ -474,24 +457,19 @@ void ddtrace_curl_handlers_startup(void) {
 
     dd_enable_bug_71523_workaround = (PHP_VERSION_ID < 50616);
 
-    // These are not 'sizeof() - 1' on PHP 5
-    dd_curl_handler handlers[] = {
-        {"curl_close", sizeof("curl_close"), &dd_curl_close_handler, ZEND_FN(ddtrace_curl_close)},
-        {"curl_copy_handle", sizeof("curl_copy_handle"), &dd_curl_copy_handle_handler,
-         ZEND_FN(ddtrace_curl_copy_handle)},
-        {"curl_exec", sizeof("curl_exec"), &dd_curl_exec_handler, ZEND_FN(ddtrace_curl_exec)},
-        {"curl_init", sizeof("curl_init"), &dd_curl_init_handler, ZEND_FN(ddtrace_curl_init)},
-        {"curl_multi_add_handle", sizeof("curl_multi_add_handle"), &dd_curl_multi_add_handle_handler,
-         ZEND_FN(ddtrace_curl_multi_add_handle)},
-        {"curl_multi_close", sizeof("curl_multi_close"), &dd_curl_multi_close_handler,
-         ZEND_FN(ddtrace_curl_multi_close)},
-        {"curl_multi_exec", sizeof("curl_multi_exec"), &dd_curl_multi_exec_handler, ZEND_FN(ddtrace_curl_multi_exec)},
-        {"curl_multi_init", sizeof("curl_multi_init"), &dd_curl_multi_init_handler, ZEND_FN(ddtrace_curl_multi_init)},
-        {"curl_multi_remove_handle", sizeof("curl_multi_remove_handle"), &dd_curl_multi_remove_handle_handler,
+    dd_zif_handler handlers[] = {
+        {ZEND_STRL("curl_close"), &dd_curl_close_handler, ZEND_FN(ddtrace_curl_close)},
+        {ZEND_STRL("curl_copy_handle"), &dd_curl_copy_handle_handler, ZEND_FN(ddtrace_curl_copy_handle)},
+        {ZEND_STRL("curl_exec"), &dd_curl_exec_handler, ZEND_FN(ddtrace_curl_exec)},
+        {ZEND_STRL("curl_init"), &dd_curl_init_handler, ZEND_FN(ddtrace_curl_init)},
+        {ZEND_STRL("curl_multi_add_handle"), &dd_curl_multi_add_handle_handler, ZEND_FN(ddtrace_curl_multi_add_handle)},
+        {ZEND_STRL("curl_multi_close"), &dd_curl_multi_close_handler, ZEND_FN(ddtrace_curl_multi_close)},
+        {ZEND_STRL("curl_multi_exec"), &dd_curl_multi_exec_handler, ZEND_FN(ddtrace_curl_multi_exec)},
+        {ZEND_STRL("curl_multi_init"), &dd_curl_multi_init_handler, ZEND_FN(ddtrace_curl_multi_init)},
+        {ZEND_STRL("curl_multi_remove_handle"), &dd_curl_multi_remove_handle_handler,
          ZEND_FN(ddtrace_curl_multi_remove_handle)},
-        {"curl_setopt", sizeof("curl_setopt"), &dd_curl_setopt_handler, ZEND_FN(ddtrace_curl_setopt)},
-        {"curl_setopt_array", sizeof("curl_setopt_array"), &dd_curl_setopt_array_handler,
-         ZEND_FN(ddtrace_curl_setopt_array)},
+        {ZEND_STRL("curl_setopt"), &dd_curl_setopt_handler, ZEND_FN(ddtrace_curl_setopt)},
+        {ZEND_STRL("curl_setopt_array"), &dd_curl_setopt_array_handler, ZEND_FN(ddtrace_curl_setopt_array)},
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {

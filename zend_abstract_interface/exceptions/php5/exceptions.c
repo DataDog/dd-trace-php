@@ -25,6 +25,7 @@ smart_str zai_get_trace_without_args(HashTable *trace) {
     if (!trace) {
         // should never happen; TODO: fail in CI
         smart_str_appends(&str, "[broken trace]");
+        smart_str_0(&str);
         return str;
     }
 
@@ -92,7 +93,8 @@ smart_str zai_get_trace_without_args(HashTable *trace) {
 smart_str zai_get_trace_without_args_from_exception(zval *ex TSRMLS_DC) {
     if (!ex) {
         smart_str s = (smart_str){0};  // should never happen; TODO: fail in CI
-        smart_str_appendc(&s, '\0');
+        smart_str_alloc4(&s, 1, 0, s.len);
+        smart_str_0(&s);
         return s;
     }
 
@@ -100,7 +102,8 @@ smart_str zai_get_trace_without_args_from_exception(zval *ex TSRMLS_DC) {
     if (Z_TYPE_P(trace) != IS_ARRAY) {
         // return an empty string here instead of NULL to avoid having to think about handling this
         smart_str s = (smart_str){0};
-        smart_str_appendc(&s, '\0');
+        smart_str_alloc4(&s, 1, 0, s.len);
+        smart_str_0(&s);
         return s;
     }
 
