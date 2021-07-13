@@ -26,6 +26,11 @@ bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
 void dd_prepare_for_new_trace(void);
 
+typedef struct {
+    int type;
+    zend_string *message;
+} ddtrace_error_data;
+
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *auto_prepend_file;
@@ -42,6 +47,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_array *additional_global_tags;
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
+    ddtrace_error_data active_error;
     dogstatsd_client dogstatsd_client;
     char *dogstatsd_host;
     char *dogstatsd_port;

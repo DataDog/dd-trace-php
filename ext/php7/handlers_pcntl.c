@@ -24,23 +24,6 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     }
 }
 
-struct dd_pcntl_handler {
-    const char *name;
-    size_t name_len;
-    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
-    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
-};
-typedef struct dd_pcntl_handler dd_pcntl_handler;
-
-static void dd_install_handler(dd_pcntl_handler handler) {
-    zend_function *old_handler;
-    old_handler = zend_hash_str_find_ptr(CG(function_table), handler.name, handler.name_len);
-    if (old_handler != NULL) {
-        *handler.old_handler = old_handler->internal_function.handler;
-        old_handler->internal_function.handler = handler.new_handler;
-    }
-}
-
 /* This function is called during process startup so all of the memory allocations should be
  * persistent to avoid using the Zend Memory Manager. This will avoid an accidental use after free.
  *
@@ -59,7 +42,7 @@ void ddtrace_pcntl_handlers_startup(void) {
         return;
     }
 
-    dd_pcntl_handler handlers[] = {
+    dd_zif_handler handlers[] = {
         {ZEND_STRL("pcntl_fork"), &dd_pcntl_fork_handler, ZEND_FN(ddtrace_pcntl_fork)},
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];

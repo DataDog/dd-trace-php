@@ -172,6 +172,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/engine_hooks.c \
       ext/php7/excluded_modules.c \
       ext/php7/handlers_curl.c \
+      ext/php7/handlers_exception.c \
       ext/php7/handlers_internal.c \
       ext/php7/handlers_memcached.c \
       ext/php7/handlers_mysqli.c \

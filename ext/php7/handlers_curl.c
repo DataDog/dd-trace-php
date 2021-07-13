@@ -382,23 +382,6 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     }
 }
 
-struct dd_curl_handler {
-    const char *name;
-    size_t name_len;
-    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
-    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
-};
-typedef struct dd_curl_handler dd_curl_handler;
-
-static void dd_install_handler(dd_curl_handler handler) {
-    zend_function *old_handler;
-    old_handler = zend_hash_str_find_ptr(CG(function_table), handler.name, handler.name_len);
-    if (old_handler != NULL) {
-        *handler.old_handler = old_handler->internal_function.handler;
-        old_handler->internal_function.handler = handler.new_handler;
-    }
-}
-
 /* This function is called during process startup so all of the memory allocations should be
  * persistent to avoid using the Zend Memory Manager. This will avoid an accidental use after free.
  *
@@ -433,7 +416,7 @@ void ddtrace_curl_handlers_startup(void) {
      * The latter expects the former is already done because it needs a span id for the distributed tracing headers;
      * register them inside-out.
      */
-    dd_curl_handler handlers[] = {
+    dd_zif_handler handlers[] = {
         {ZEND_STRL("curl_close"), &dd_curl_close_handler, ZEND_FN(ddtrace_curl_close)},
         {ZEND_STRL("curl_copy_handle"), &dd_curl_copy_handle_handler, ZEND_FN(ddtrace_curl_copy_handle)},
         {ZEND_STRL("curl_exec"), &dd_curl_exec_handler, ZEND_FN(ddtrace_curl_exec)},

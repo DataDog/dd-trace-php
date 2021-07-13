@@ -116,11 +116,9 @@ PHP_FUNCTION(ddtrace_internal_function_handler);
 #define DDTRACE_ERROR_CB_PARAM_PASSTHRU type, error_filename, error_lineno, format, args
 
 extern void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
+
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS);
-ddtrace_exception_t *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS);
-
 void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception);
-
 void ddtrace_close_all_open_spans(void);
 
 #endif  // DD_ENGINE_HOOKS_H

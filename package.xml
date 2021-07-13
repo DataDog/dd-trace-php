@@ -223,6 +223,7 @@
             <file name="ext/php7/excluded_modules.c" role="src" />
             <file name="ext/php7/excluded_modules.h" role="src" />
             <file name="ext/php7/handlers_curl.c" role="src" />
+            <file name="ext/php7/handlers_exception.c" role="src" />
             <file name="ext/php7/handlers_internal.c" role="src" />
             <file name="ext/php7/handlers_internal.h" role="src" />
             <file name="ext/php7/handlers_memcached.c" role="src" />

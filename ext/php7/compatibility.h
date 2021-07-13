@@ -54,14 +54,19 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
     return ht;
 }
+
+#define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
+#define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
+#define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
 #endif
 
 #define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c)
-#define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval*)list)[arg_num]))
+#define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
 #if PHP_VERSION_ID < 70200
 #define zend_strpprintf strpprintf
+#define zend_vstrpprintf vstrpprintf
 #endif
 
 typedef zend_object ddtrace_exception_t;
