@@ -87,8 +87,15 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
 
 PHP_FUNCTION(ddtrace_internal_function_handler);
 
+#define DDTRACE_ERROR_CB_PARAMETERS \
+    int orig_type, const char *error_filename, const uint32_t error_lineno, zend_string *message
+
+#define DDTRACE_ERROR_CB_PARAM_PASSTHRU orig_type, error_filename, error_lineno, message
+
+extern void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
+
 zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *execute_data);
-void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message);
+void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS);
 void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception);
 void ddtrace_close_all_open_spans(void);
 

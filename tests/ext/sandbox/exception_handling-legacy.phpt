@@ -1,11 +1,10 @@
 --TEST--
-[Prehook Regression] Exceptions get attached to spans
+Exceptions get attached to spans
 --INI--
 ; for PHP 7.4+ we want to ensure that even if args are present that we don't print them
 zend.exception_ignore_args=Off
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 80000) die('skip: requires improved exception handling'); ?>
-<?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
+<?php if (PHP_VERSION_ID >= 80000) die('skip: legacy test for old exception handling'); ?>
 --FILE--
 <?php
 
@@ -16,8 +15,14 @@ function inner($message) {
     throw new Exception($message);
 }
 
-DDTrace\trace_function("outer", ['prehook' => function() {}]);
-DDTrace\trace_function("inner", ['prehook' => function() {}]);
+DDTrace\trace_function("outer", function ($span) {
+    $span->name = $span->resource = 'outer';
+    $span->service = 'phpt';
+});
+DDTrace\trace_function("inner", function ($span) {
+    $span->name = $span->resource = 'inner';
+    $span->service = 'phpt';
+});
 
 try {
     outer();
@@ -43,14 +48,14 @@ try {
 Stack size: 2
 error: 1
 Exception type: Exception
-Exception msg: Uncaught Exception: datadog in %s:%d
+Exception msg: datadog
 Exception stack:
 #0 %s: inner()
 #1 %s: outer()
 #2 {main}
 error: 1
 Exception type: Exception
-Exception msg: Uncaught Exception: datadog in %s:%d
+Exception msg: datadog
 Exception stack:
 #0 %s: inner()
 #1 %s: outer()

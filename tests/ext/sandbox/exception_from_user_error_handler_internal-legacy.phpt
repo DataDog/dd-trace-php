@@ -2,7 +2,7 @@
 Exceptions from user error handler are tracked for instrumented internal functions
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: requires improved exception handling'); ?>
+<?php if (PHP_VERSION_ID >= 80000) die('skip: legacy test for old exception handling'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=chmod
 --FILE--
@@ -32,9 +32,9 @@ try {
     echo 'Has error.stack: ' . isset($span['meta']['error.stack']) . PHP_EOL;
 }
 ?>
---EXPECTF--
+--EXPECT--
 Spans count: 1
 error: 1
 error.type: Exception
-error.msg: Uncaught Exception: chmod(): Can not call chmod() for a non-standard stream in %s:%d
+error.msg: chmod(): Can not call chmod() for a non-standard stream
 Has error.stack: 1

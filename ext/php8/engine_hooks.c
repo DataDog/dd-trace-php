@@ -15,11 +15,15 @@ static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int t
 static void _compile_minit(void);
 static void _compile_mshutdown(void);
 
+void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
+
 void ddtrace_engine_hooks_minit(void) {
     _compile_minit();
 
     zend_observer_fcall_register(ddtrace_observer_fcall_init);
-    zend_observer_error_register(ddtrace_observer_error_cb);
+
+    ddtrace_prev_error_cb = zend_error_cb;
+    zend_error_cb = ddtrace_error_cb;
 }
 
 void ddtrace_engine_hooks_mshutdown(void) { _compile_mshutdown(); }

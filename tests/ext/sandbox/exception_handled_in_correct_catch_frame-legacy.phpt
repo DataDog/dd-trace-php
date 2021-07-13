@@ -3,7 +3,7 @@ Exceptions are handled in the correct catch frame
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
 <?php if (PHP_VERSION_ID < 70000) die('skip: Unaltered VM dispatch required for handling return value on PHP 5'); ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: requires improved exception handling'); ?>
+<?php if (PHP_VERSION_ID >= 80000) die('skip: legacy test for old exception handling'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -77,10 +77,10 @@ array_map(function($span) {
     echo PHP_EOL;
 }, dd_trace_serialize_closed_spans());
 ?>
---EXPECTF--
+--EXPECT--
 Exception was handled by level1(): Oops!
 HANDLED
 Span: level0-HANDLED
 Span: level1-HANDLED
-Span: level2-level2 (Uncaught Exception: Oops! in %s:%d)
-Span: level3-level3 (Uncaught Exception: Oops! in %s:%d)
+Span: level2-level2 (Oops!)
+Span: level3-level3 (Oops!)

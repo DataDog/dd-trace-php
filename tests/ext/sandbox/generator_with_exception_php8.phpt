@@ -48,13 +48,13 @@ array_map(function($span) {
     echo PHP_EOL;
 }, dd_trace_serialize_closed_spans());
 ?>
---EXPECT--
+--EXPECTF--
 0
 1
 2
 FooException caught
 doSomething, FooException caught
-maybeThrowException, NULL, Oops!
+maybeThrowException, NULL, Uncaught FooException: Oops! in %s:%d
 maybeThrowException, 2
 maybeThrowException, 1
 maybeThrowException, 0

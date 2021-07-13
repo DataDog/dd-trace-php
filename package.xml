@@ -281,6 +281,7 @@
             <file name="ext/php8/excluded_modules.c" role="src" />
             <file name="ext/php8/excluded_modules.h" role="src" />
             <file name="ext/php8/handlers_curl.c" role="src" />
+            <file name="ext/php8/handlers_exception.c" role="src" />
             <file name="ext/php8/handlers_internal.c" role="src" />
             <file name="ext/php8/handlers_internal.h" role="src" />
             <file name="ext/php8/handlers_memcached.c" role="src" />
@@ -444,17 +445,25 @@
             <file name="tests/ext/sandbox/exception_error_log.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_error_log-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_from_user_error_handler_internal.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_from_user_error_handler_internal-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_for_correct_catch_block.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handled_for_correct_catch_block-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_in_correct_catch_frame.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handled_in_correct_catch_frame-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_in_multicatch.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handled_in_multicatch-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_with_finally.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handled_with_finally-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handling.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handling-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_is_defined.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_and_errors_are_ignored_in_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
+            <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
+            <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
             <file name="tests/ext/sandbox/exit_and_drop_span.phpt" role="test" />
@@ -608,6 +617,7 @@
             <file name="tests/ext/sandbox-prehook/exception_error_log.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exception_error_log-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exception_handling.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/exception_handling-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exceptions_and_errors_are_ignored_in_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exit_and_drop_span.phpt" role="test" />

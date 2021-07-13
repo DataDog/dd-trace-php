@@ -214,6 +214,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/env_config.c \
       ext/php8/excluded_modules.c \
       ext/php8/handlers_curl.c \
+      ext/php8/handlers_exception.c \
       ext/php8/handlers_internal.c \
       ext/php8/handlers_memcached.c \
       ext/php8/handlers_mysqli.c \
