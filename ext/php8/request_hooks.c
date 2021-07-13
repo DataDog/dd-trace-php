@@ -35,12 +35,10 @@ int dd_execute_php_file(const char *filename) {
 #if PHP_VERSION_ID < 80100
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
 #else
-    {
     zend_string *fn = zend_string_init(filename, filename_len, 0);
     zend_stream_init_filename_ex(&file_handle, fn);
-    ret = php_stream_open_for_zend_ex( &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
+    ret = php_stream_open_for_zend_ex(&file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
     zend_string_release(fn);
-    }
 #endif
 
     if (get_dd_trace_debug() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
@@ -145,14 +143,12 @@ void dd_request_init_hook_rinit(void) {
     }
 
     zval exists_flag;
-#if PHP_VERSION_ID < 8010
+#if PHP_VERSION_ID < 80100
     php_stat(DDTRACE_G(request_init_hook), strlen(DDTRACE_G(request_init_hook)), FS_EXISTS, &exists_flag);
 #else
-    {
     zend_string *hook = zend_string_init(DDTRACE_G(request_init_hook), strlen(DDTRACE_G(request_init_hook)), 0);
     php_stat(hook, FS_EXISTS, &exists_flag);
     zend_string_release(hook);
-    }
 #endif
     if (Z_TYPE(exists_flag) == IS_FALSE) {
         ddtrace_log_debugf("Cannot open request init hook; file does not exist: '%s'", DDTRACE_G(request_init_hook));
