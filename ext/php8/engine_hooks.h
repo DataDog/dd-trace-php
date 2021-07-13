@@ -27,7 +27,11 @@ struct ddtrace_error_handling {
     int type;
     int lineno;
     zend_string *message;
+#if PHP_VERSION_ID < 80100
     char *file;
+#else
+    zend_string *file;
+#endif
     int error_reporting;
     zend_error_handling error_handling;
 };
@@ -87,8 +91,13 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
 
 PHP_FUNCTION(ddtrace_internal_function_handler);
 
+#if PHP_VERSION_ID < 80100
 #define DDTRACE_ERROR_CB_PARAMETERS \
     int orig_type, const char *error_filename, const uint32_t error_lineno, zend_string *message
+#else
+#define DDTRACE_ERROR_CB_PARAMETERS \
+    int orig_type, zend_string *error_filename, const uint32_t error_lineno, zend_string *message
+#endif
 
 #define DDTRACE_ERROR_CB_PARAM_PASSTHRU orig_type, error_filename, error_lineno, message
 
