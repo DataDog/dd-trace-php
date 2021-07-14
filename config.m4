@@ -28,6 +28,8 @@ if test "$PHP_DDTRACE" != "no"; then
       [PHP_ADD_LIBRARY(execinfo, , EXTRA_LDFLAGS)])
   )
 
+  AC_CHECK_HEADERS([linux/securebits.h])
+
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     EXTRA_LDFLAGS="-fsanitize=address"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"

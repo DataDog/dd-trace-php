@@ -1,5 +1,9 @@
 #include "coms.h"
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <SAPI.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -12,6 +16,11 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+
+#if HAVE_LINUX_SECUREBITS_H
+#include <linux/securebits.h>
+#include <sys/prctl.h>
+#endif
 
 #include "compatibility.h"
 #include "configuration.h"
@@ -274,6 +283,8 @@ struct _writer_loop_data_t {
 
     struct _writer_thread_variables_t *thread;
 
+    bool set_secbit;
+
     _Atomic(bool) running, starting_up;
     _Atomic(pid_t) current_pid;
     _Atomic(bool) shutdown_when_idle, suspended, sending, allocate_new_stacks;
@@ -282,6 +293,7 @@ struct _writer_loop_data_t {
 };
 
 static struct _writer_loop_data_t global_writer = {.thread = NULL,
+                                                   .set_secbit = 0,
                                                    .running = ATOMIC_VAR_INIT(0),
                                                    .current_pid = ATOMIC_VAR_INIT(0),
                                                    .shutdown_when_idle = ATOMIC_VAR_INIT(0),
@@ -835,6 +847,14 @@ static void *_dd_writer_loop(void *_) {
 
     struct _writer_loop_data_t *writer = _dd_get_writer();
 
+#if HAVE_LINUX_SECUREBITS_H
+    if (writer->set_secbit) {
+        // prevent setuid from messing with our effective capabilities
+        // this is necessary to handle scenarios where setuid is only called after starting our thread
+        prctl(PR_SET_SECUREBITS, SECBIT_NO_SETUID_FIXUP);
+    }
+#endif
+
     bool running = true;
     _dd_signal_writer_started(writer);
     do {
@@ -948,6 +968,7 @@ bool ddtrace_coms_init_and_start_writer(void) {
     }
     struct _writer_thread_variables_t *thread = _dd_create_thread_variables();
     writer->thread = thread;
+    writer->set_secbit = get_dd_trace_retain_thread_capabilities();
     atomic_store(&writer->starting_up, true);
     if (pthread_create(&thread->self, NULL, &_dd_writer_loop, NULL) == 0) {
         return true;
