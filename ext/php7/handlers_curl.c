@@ -348,10 +348,35 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
     if (dd_load_curl_integration() &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &ch, &arr) == SUCCESS &&
-        Z_TYPE_P(return_value) == IS_TRUE) {
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &ch, &arr) == SUCCESS
+        /* We still want to apply the original headers even if the this call
+         * returns false. The call will (mostly) only ever fail for reasons
+         * unrelated to setting CURLOPT_HTTPHEADER (see comment below).
+         */
+        /* && Z_TYPE_P(return_value) == IS_TRUE */) {
         zval *value = zend_hash_index_find(Z_ARRVAL_P(arr), dd_const_curlopt_httpheader);
         if (value && Z_TYPE_P(value) == IS_ARRAY) {
+            /* Although curl_setopt_array() can return false, it is unlikely to
+             * be related to setting CURLOPT_HTTPHEADER. On the PHP side, the
+             * values in the header array are converted to string before passing
+             * to libcurl.
+             * @see https://github.com/php/php-src/blob/b63ea10/ext/curl/interface.c#L2684-L2704
+             *
+             * On the libcurl side, curl_slist_append will only fail when malloc
+             * or strdup fails.
+             * @see https://github.com/curl/curl/blob/ac0a88f/lib/slist.c#L82-L102
+             *
+             * Additionally curl_easy_setopt is unlikely to fail in this case
+             * also, since it is simply updating the pointer to the slist.
+             * @see https://github.com/curl/curl/blob/4d2f800/lib/setopt.c#L672-L677
+             *
+             * The only other reasons curl_easy_setopt can fail appear to be API
+             * related.
+             * @see https://github.com/curl/curl/blob/4d2f800/lib/setopt.c#L2917-L2940
+             *
+             * For these reasons we do not validate the headers before storing
+             * them.
+             */
             dd_ch_store_headers(ch, Z_ARRVAL_P(value));
         }
     }

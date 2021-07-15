@@ -62,6 +62,20 @@ COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR_DEBUG_
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS
 
+# Build curl versions
+ENV CURL_VERSIONS="7.72.0 7.77.0"
+RUN set -eux; \
+    for curlVer in ${CURL_VERSIONS}; \
+    do \
+        echo "Build curl ${curlVer}..."; \
+        cd /tmp; \
+        curl -L -o curl.tar.gz https://curl.se/download/curl-${curlVer}.tar.gz; \
+        tar -xf curl.tar.gz && rm curl.tar.gz; \
+        cd curl-${curlVer}; \
+        ./configure --with-openssl --prefix=/usr/local/src/curl/${curlVer}; \
+        make; make install; \
+    done;
+
 # Build core extensions as shared libraries.
 # We intentionally do not run 'make install' here so that we can test the
 # scenario where headers are not installed for the shared library.
@@ -73,11 +87,21 @@ RUN set -eux; \
         mkdir -p $(php-config --extension-dir); \
         \
         # ext/curl
-        echo "Building ext/curl..."; \
+        echo "Building ext/curl (system version)..."; \
         cd ${PHP_SRC_DIR}/ext/curl; \
         phpize; ./configure; make; \
         mv ./modules/*.so $(php-config --extension-dir); \
-        make clean; phpize --clean; \
+        make clean; \
+        \
+        for curlVer in ${CURL_VERSIONS}; \
+        do \
+            echo "Building ext/curl ${curlVer}..."; \
+            PKG_CONFIG_PATH=/usr/local/src/curl/${curlVer}/lib/pkgconfig/ \
+            ./configure; make; \
+            mv ./modules/curl.so $(php-config --extension-dir)/curl-${curlVer}.so; \
+            make clean; \
+        done; \
+        phpize --clean; \
         \
         # ext/pdo
         echo "Building ext/pdo..."; \
