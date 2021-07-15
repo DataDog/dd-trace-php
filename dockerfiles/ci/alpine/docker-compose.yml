@@ -13,5 +13,5 @@ services:
       context: ./php-8.0
       args:
         phpVersion: 8.0
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.0.tar.gz
-        phpSha256Hash: 3ed7b48d64357d3e8fa9e828dbe7416228f84105b8290c2f9779cd66be31ea71
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.8.tar.gz
+        phpSha256Hash: 084a1e8020e86fb99b663d195fd9ac98a9f37dfcb9ecb5c159054cdb8f388945

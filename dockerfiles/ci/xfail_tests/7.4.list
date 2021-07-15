@@ -55,6 +55,7 @@ Zend/tests/bug79778.phpt
 Zend/tests/bug79862.phpt
 Zend/tests/bug80037.phpt
 Zend/tests/bug80194.phpt
+Zend/tests/bug81104.phpt
 Zend/tests/class_alias_020.phpt
 Zend/tests/class_name_as_scalar.phpt
 Zend/tests/closure_058.phpt
@@ -80,6 +81,7 @@ Zend/tests/list_keyed_conversions.phpt
 Zend/tests/modify_isref_value_return.phpt
 Zend/tests/multibyte/multibyte_encoding_004.phpt
 Zend/tests/object_array_cast.phpt
+Zend/tests/object_gc_in_shutdown.phpt
 Zend/tests/objects_019.phpt
 Zend/tests/objects_032.phpt
 Zend/tests/offset_array.phpt

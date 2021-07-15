@@ -86,8 +86,8 @@ services:
       context: .
       dockerfile: Dockerfile_alpine
       args:
-        php_version: 7.3.23
-        php_sha: a21094b9ba2d8fe7fa5838e6566e30cf4bfaf2c8a6dce90ff707c45d0d8d494d
+        php_version: 7.3.29
+        php_sha: ba4de3955b0cbd33baee55a83568acc4347605e210a54b5654e4c1e09b544659
         php_api: 20180731
     command: build-dd-trace-php
     volumes:
@@ -99,8 +99,8 @@ services:
       context: .
       dockerfile: Dockerfile_alpine
       args:
-        php_version: 7.4.11
-        php_sha: b4fae5c39ca1eedf5597071996d9c85d0674b83f5003126c39b7b44bbfbcd821
+        php_version: 7.4.21
+        php_sha: 4b9623accbe4b8923a801212f371f784069535009185e7bf7e4dec66bbea61db
         php_api: 20190902
     command: build-dd-trace-php
     volumes:
@@ -112,8 +112,8 @@ services:
       context: .
       dockerfile: Dockerfile_alpine
       args:
-        php_version: 8.0.0
-        php_sha: 3ed7b48d64357d3e8fa9e828dbe7416228f84105b8290c2f9779cd66be31ea71
+        php_version: 8.0.8
+        php_sha: 084a1e8020e86fb99b663d195fd9ac98a9f37dfcb9ecb5c159054cdb8f388945
         php_api: 20200930
     command: build-dd-trace-php
     volumes:

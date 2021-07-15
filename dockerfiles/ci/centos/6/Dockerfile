@@ -1,6 +1,9 @@
 FROM centos:6
 
+COPY CentOS-Base.repo /etc/yum.repos.d/
+
 RUN set -eux; \
+    echo 'ip_resolve = IPv4' >>/etc/yum.conf; \
     yum update -y; \
     yum install -y \
         centos-release-scl \
@@ -19,7 +22,12 @@ RUN set -eux; \
         unzip \
         vim \
         xz \
-        zlib-devel; \
+        zlib-devel;
+
+COPY CentOS-SCLo-scl.repo /etc/yum.repos.d/
+COPY CentOS-SCLo-scl-rh.repo /etc/yum.repos.d/
+
+RUN set -eux; \
     yum install -y devtoolset-7; \
     yum clean all;
 
@@ -43,6 +51,10 @@ RUN set -eux; \
 # Required: libcurl >= 7.29.0 (default version is 7.19.7)
     /root/download-src.sh libcurl https://curl.haxx.se/download/curl-7.72.0.tar.gz; \
     cd "${SRC_DIR}/libcurl"; \
+    ./configure && make && make install; \
+# Required: libffi >= 3.0.11 (default version is 3.0.5)
+    /root/download-src.sh libffi https://github.com/libffi/libffi/releases/download/v3.4.2/libffi-3.4.2.tar.gz; \
+    cd "${SRC_DIR}/libffi"; \
     ./configure && make && make install; \
 # Required: oniguruma (not installed by deafult)
     /root/download-src.sh oniguruma https://github.com/kkos/oniguruma/releases/download/v6.9.5_rev1/onig-6.9.5-rev1.tar.gz; \

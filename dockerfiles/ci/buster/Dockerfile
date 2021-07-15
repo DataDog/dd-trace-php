@@ -15,6 +15,7 @@ ENV RUNTIME_DEPS \
     less \
     libcurl4-openssl-dev \
     libedit-dev \
+    libffi-dev \
     libmcrypt-dev \
     libmemcached-dev \
     libonig-dev \
