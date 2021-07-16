@@ -61,6 +61,8 @@ Zend/tests/bug79778.phpt
 Zend/tests/bug79862.phpt
 Zend/tests/bug80037.phpt
 Zend/tests/bug80194.phpt
+Zend/tests/bug81076.phpt
+Zend/tests/bug81104.phpt
 Zend/tests/class_alias_020.phpt
 Zend/tests/class_name_as_scalar.phpt
 Zend/tests/closure_058.phpt
@@ -96,6 +98,7 @@ Zend/tests/multibyte/multibyte_encoding_004.phpt
 Zend/tests/named_params/attributes.phpt
 Zend/tests/nullsafe_operator/019.phpt
 Zend/tests/object_array_cast.phpt
+Zend/tests/object_gc_in_shutdown.phpt
 Zend/tests/objects_019.phpt
 Zend/tests/objects_032.phpt
 Zend/tests/offset_array.phpt
@@ -245,6 +248,9 @@ ext/openssl/tests/tlsv1.0_wrapper.phpt
 ext/openssl/tests/tlsv1.1_wrapper.phpt
 ext/openssl/tests/tlsv1.2_wrapper.phpt
 ext/openssl/tests/tlsv1.3_wrapper.phpt
+ext/pcntl/tests/pcntl_unshare_01.phpt
+ext/pcntl/tests/pcntl_unshare_02.phpt
+ext/pcntl/tests/pcntl_unshare_03.phpt
 ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt
 ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt

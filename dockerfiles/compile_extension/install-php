@@ -17,6 +17,7 @@ apk add --no-cache --virtual .php-build-deps \
 apk add --no-cache --virtual .php-deps \
     curl-dev \
     libedit-dev \
+    libffi-dev \
     libmcrypt-dev \
     oniguruma-dev \
     libsodium-dev \
@@ -44,6 +45,7 @@ PHP_CONFIG_ARGS=""
     --enable-mbstring \
     --with-sodium=shared \
     --with-curl \
+    --with-ffi \
     --with-libedit \
     --without-pdo-sqlite \
     --without-sqlite3 \

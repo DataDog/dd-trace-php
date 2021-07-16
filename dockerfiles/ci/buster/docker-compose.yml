@@ -13,8 +13,8 @@ services:
       context: ./php-8.0
       args:
         phpVersion: 8.0
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.3.tar.gz
-        phpSha256Hash: e7ecfee901e0843377b64b2d8124132eae75bdb71a2675ba7c5c038d6592383d
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.8.tar.gz
+        phpSha256Hash: 084a1e8020e86fb99b663d195fd9ac98a9f37dfcb9ecb5c159054cdb8f388945
 
   php-8.0-shared-ext:
     image: datadog/dd-trace-ci:php-8.0-shared-ext
@@ -23,8 +23,8 @@ services:
       dockerfile: Dockerfile_shared_ext
       args:
         phpVersion: 8.0
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.3.tar.gz
-        phpSha256Hash: e7ecfee901e0843377b64b2d8124132eae75bdb71a2675ba7c5c038d6592383d
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.8.tar.gz
+        phpSha256Hash: 084a1e8020e86fb99b663d195fd9ac98a9f37dfcb9ecb5c159054cdb8f388945
 
   php-7.4:
     image: datadog/dd-trace-ci:php-7.4_buster
@@ -32,8 +32,8 @@ services:
       context: ./php-7.4
       args:
         phpVersion: 7.4
-        phpTarGzUrl: https://www.php.net/distributions/php-7.4.16.tar.gz
-        phpSha256Hash: ef2d2b463fc3444895ec599337b663a8832c6ade148d9832417e59aa2b9e93da
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.21.tar.gz
+        phpSha256Hash: 4b9623accbe4b8923a801212f371f784069535009185e7bf7e4dec66bbea61db
 
   php-7.3:
     image: datadog/dd-trace-ci:php-7.3_buster
@@ -41,8 +41,8 @@ services:
       context: ./php-7.3
       args:
         phpVersion: 7.3
-        phpTarGzUrl: https://www.php.net/distributions/php-7.3.27.tar.gz
-        phpSha256Hash: 4b7b9bd0526ad3f2c8d6fd950ea7b0ab2478b5b09755c6a620a4f3bcfbf59154
+        phpTarGzUrl: https://www.php.net/distributions/php-7.3.29.tar.gz
+        phpSha256Hash: ba4de3955b0cbd33baee55a83568acc4347605e210a54b5654e4c1e09b544659
 
   php-7.2:
     image: datadog/dd-trace-ci:php-7.2_buster

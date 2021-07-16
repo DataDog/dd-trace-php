@@ -15,6 +15,7 @@ ${PHP_SRC_DIR}/configure \
     --enable-pcntl \
     --enable-sockets \
     --with-curl \
+    --with-ffi \
     --with-fpm-user=www-data \
     --with-fpm-group=www-data \
     --with-libedit \

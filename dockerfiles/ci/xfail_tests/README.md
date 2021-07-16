@@ -39,6 +39,10 @@ On PHP 5, certain tests can have intermittently deep call stacks that are deep e
 
 # Specific tests
 
+## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`
+
+Tests memory limits, which we exceed due to tracer being loaded.
+
 ## `ext/pcntl/tests/pcntl_unshare_01.phpt`
 
 Disabled on versions: `7.4` (it wasn't there on [7.3-](https://github.com/php/php-src/tree/PHP-7.3/ext/pcntl/tests)).
