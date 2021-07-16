@@ -51,7 +51,9 @@ static void dd_check_exception_in_header(int old_response_code TSRMLS_DC) {
         root_span = root_span->next;
     }
 
-    if (root_span->exception) {
+    zval *prop_exception = ddtrace_spandata_property_exception(&root_span->span);
+    if (prop_exception != NULL && Z_TYPE_P(prop_exception) != IS_NULL &&
+        (Z_TYPE_P(prop_exception) != IS_BOOL || Z_BVAL_P(prop_exception) != 0)) {
         return;
     }
 
@@ -107,11 +109,17 @@ static void dd_check_exception_in_header(int old_response_code TSRMLS_DC) {
 #define EX_CV_NUM(ex, var) &(ex)->CVs[var]
 #endif
 
-                zval **exception = *EX_CV_NUM(ex, catch_op->op2.var);
-                if (Z_TYPE_PP(exception) == IS_OBJECT &&
-                    instanceof_function(Z_OBJCE_PP(exception), zend_exception_get_default(TSRMLS_C) TSRMLS_CC)) {
-                    Z_ADDREF_PP(exception);
-                    root_span->exception = *exception;
+                zval *exception = **EX_CV_NUM(ex, catch_op->op2.var);
+                if (Z_TYPE_P(exception) == IS_OBJECT &&
+                    instanceof_function(Z_OBJCE_P(exception), zend_exception_get_default(TSRMLS_C) TSRMLS_CC)) {
+                    Z_ADDREF_P(exception);
+                    zval **prop = ddtrace_spandata_property_exception_write(&root_span->span);
+                    if (*prop) {
+                        zval_ptr_dtor(prop);
+                    }
+
+                    *prop = exception;
+                    SEPARATE_ARG_IF_REF(*prop);
                 }
 
                 break;
@@ -230,9 +238,9 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
 
         // Assign early so that exceptions thrown inside the exception handler won't gain priority
         if (root_span) {
-            old_exception = root_span->exception;
+            old_exception = ddtrace_spandata_property_exception(&root_span->span);
             Z_ADDREF_P(exception);
-            root_span->exception = exception;
+            *ddtrace_spandata_property_exception_write(&root_span->span) = exception;
         }
 
         // Evaluate whether we shall start some span here to show the exception handler
@@ -272,7 +280,7 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
             if (Z_TYPE_P(previous) != IS_NULL && Z_TYPE_P(previous) != IS_BOOL) {
                 // okay, let's not touch this, there's a cycle
                 Z_DELREF_P(exception);
-                root_span->exception = old_exception;
+                *ddtrace_spandata_property_exception_write(&root_span->span) = old_exception;
             } else {
                 zend_exception_set_previous(top_exception, old_exception TSRMLS_CC);
             }
