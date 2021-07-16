@@ -233,7 +233,10 @@ static int dd_exception_to_error_stack(char *trace, size_t trace_len, void *cont
     return result;
 }
 
-int ddtrace_exception_to_meta(zval *exception, void *context, add_tag_fn_t add_meta TSRMLS_DC) {
+/* "int" return types are SUCCESS=0, anything else is a failure
+ * Guarantees that add_tag will only be called once per tag, will stop trying to add tags if one fails.
+ */
+static int ddtrace_exception_to_meta(zval *exception, void *context, add_tag_fn_t add_meta TSRMLS_DC) {
     zval *exception_root = exception;
     smart_str trace_str = zai_get_trace_without_args_from_exception(exception TSRMLS_CC);
     char *full_trace = trace_str.c;
@@ -530,8 +533,10 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
         zend_hash_move_forward_ex(Z_ARRVAL_P(orig_meta), &pos);
     }
 
-    if (span_fci->exception) {
-        ddtrace_exception_to_meta(span_fci->exception, meta, dd_add_meta_array TSRMLS_CC);
+    zval *exception_zv = ddtrace_spandata_property_exception(&span_fci->span);
+    if (exception_zv && Z_TYPE_P(exception_zv) == IS_OBJECT &&
+        instanceof_function(Z_OBJCE_P(exception_zv), zend_exception_get_default(TSRMLS_C) TSRMLS_CC)) {
+        ddtrace_exception_to_meta(exception_zv, meta, dd_add_meta_array TSRMLS_CC);
     }
 
     if (top_level_span) {
@@ -732,7 +737,8 @@ void ddtrace_save_active_error_to_metadata(TSRMLS_D) {
         .stack = dd_fatal_error_stack(),
     };
     for (ddtrace_span_fci *span = DDTRACE_G(open_spans_top); span; span = span->next) {
-        if (span->exception) {  // exceptions take priority
+        zval *exception = ddtrace_spandata_property_exception(&span->span);
+        if (exception && Z_TYPE_P(exception) == IS_OBJECT) {  // exceptions take priority
             continue;
         }
 
@@ -809,7 +815,9 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
 
             ddtrace_span_fci *span;
             for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
-                if (span->exception) {
+                zval *prop_exception = ddtrace_spandata_property_exception(&span->span);
+                if (prop_exception != NULL && Z_TYPE_P(prop_exception) != IS_NULL &&
+                    (Z_TYPE_P(prop_exception) != IS_BOOL || Z_BVAL_P(prop_exception) != 0)) {
                     continue;
                 }
 

@@ -103,7 +103,7 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(ddtrace_execute_data *dd_execute_dat
 
 static bool dd_execute_tracing_closure(ddtrace_span_fci *span_fci, zval *user_args, zval *user_retval TSRMLS_DC) {
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
-    zval *exception = span_fci->exception;
+    zval *exception = ddtrace_spandata_property_exception(&span_fci->span);
     bool keep_span = true;
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
@@ -190,12 +190,19 @@ static ZEND_RESULT_CODE ddtrace_copy_function_args(zval *args, void **p) {
     return SUCCESS;
 }
 
-void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
-    if (exception && !span_fci->exception) {
-        MAKE_STD_ZVAL(span_fci->exception);
-        ZVAL_COPY_VALUE(span_fci->exception, exception);
-        zval_copy_ctor(span_fci->exception);
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zval *exception) {
+    if (!exception) {
+        return;
     }
+
+    zval **prop_exception = ddtrace_spandata_property_exception_write(&span_fci->span);
+    if (*prop_exception != NULL && Z_TYPE_PP(prop_exception) != IS_NULL &&
+        (Z_TYPE_PP(prop_exception) != IS_BOOL || Z_BVAL_PP(prop_exception) != 0)) {
+        return;
+    }
+
+    *prop_exception = exception;
+    SEPARATE_ARG_IF_REF(*prop_exception);
 }
 
 static void ddtrace_fcall_end_non_tracing_posthook(ddtrace_span_fci *span_fci, zval *user_retval TSRMLS_DC) {
@@ -304,8 +311,7 @@ static int dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
 }
 
 static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zend_function *fbc TSRMLS_DC) {
-    if (!get_DD_TRACE_ENABLED() || DDTRACE_G(class_lookup) == NULL ||
-        DDTRACE_G(function_lookup) == NULL) {
+    if (!get_DD_TRACE_ENABLED() || DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
         return false;
     }
     if (!fbc) {

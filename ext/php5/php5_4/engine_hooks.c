@@ -140,12 +140,19 @@ typedef void (*dd_execute_hook)(zend_op_array *op_array TSRMLS_DC);
 
 static void (*dd_prev_execute)(zend_op_array *op_array TSRMLS_DC);
 
-void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
-    if (exception && !span_fci->exception) {
-        MAKE_STD_ZVAL(span_fci->exception);
-        ZVAL_COPY_VALUE(span_fci->exception, exception);
-        zval_copy_ctor(span_fci->exception);
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zval *exception) {
+    if (!exception) {
+        return;
     }
+
+    zval **prop_exception = ddtrace_spandata_property_exception_write(&span_fci->span);
+    if (*prop_exception != NULL && Z_TYPE_PP(prop_exception) != IS_NULL &&
+        (Z_TYPE_PP(prop_exception) != IS_BOOL || Z_BVAL_PP(prop_exception) != 0)) {
+        return;
+    }
+
+    *prop_exception = exception;
+    SEPARATE_ARG_IF_REF(*prop_exception);
 }
 
 // It's impls all the way down

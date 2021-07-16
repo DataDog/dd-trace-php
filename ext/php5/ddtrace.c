@@ -246,9 +246,6 @@ zend_object_handlers ddtrace_span_data_handlers;
 
 static void ddtrace_span_data_free_storage(void *object_ptr TSRMLS_DC) {
     ddtrace_span_fci *span_fci = (ddtrace_span_fci *)object_ptr;
-    if (span_fci->exception) {
-        zval_ptr_dtor(&span_fci->exception);
-    }
     if (span_fci->dispatch) {
         ddtrace_dispatch_release(span_fci->dispatch);
         span_fci->dispatch = NULL;
@@ -320,6 +317,7 @@ static void dd_register_span_data_ce(TSRMLS_D) {
     zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static zval *OBJ_PROP_NUM(zend_object *obj, uint32_t offset) {
@@ -379,6 +377,9 @@ zval **ddtrace_spandata_property_type_write(ddtrace_span_t *span) { return OBJ_P
 zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM_array_init(&span->std, 4); }
 // SpanData::$metrics
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM_array_init(&span->std, 5); }
+// SpanData::$exception
+zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
+zval **ddtrace_spandata_property_exception_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 6); }
 
 static zend_object_handlers ddtrace_fatal_error_handlers;
 /* The goal is to mimic zend_default_exception_new_ex except for adding

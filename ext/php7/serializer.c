@@ -253,7 +253,8 @@ static ZEND_RESULT_CODE dd_exception_trace_to_error_stack(zend_string *trace, vo
     return result;
 }
 
-ZEND_RESULT_CODE ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta) {
+// Guarantees that add_tag will only be called once per tag, will stop trying to add tags if one fails.
+static ZEND_RESULT_CODE ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta) {
     zend_object *exception_root = exception;
     zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
 
