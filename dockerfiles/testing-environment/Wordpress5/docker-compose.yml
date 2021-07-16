@@ -3,6 +3,10 @@ version: "3.7"
 services:
   "5.6":
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-wp5:5.6"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=5.6
     depends_on:
       - agent
       - mysql
@@ -12,7 +16,7 @@ services:
       - DD_SERVICE_NAME=5.6-wp5
       - DD_AGENT_HOST=agent
       - DB_HOST=mysql
-      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.46.0/datadog-php-tracer_0.46.0_amd64.deb
+      - TRACER_DOWNLOAD_URL=${TRACER_DOWNLOAD_URL}
       - DD_TRACE_DEBUG=false
     # volumes:
     #   - ./app:/var/www/html/public
@@ -20,6 +24,10 @@ services:
 
   "7.3":
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-wp5:7.3"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=7.3
     depends_on:
       - agent
       - mysql
@@ -29,7 +37,7 @@ services:
       - DD_SERVICE_NAME=7.3-wp5
       - DD_AGENT_HOST=agent
       - DB_HOST=mysql
-      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.46.0/datadog-php-tracer_0.46.0_amd64.deb
+      - TRACER_DOWNLOAD_URL=${TRACER_DOWNLOAD_URL}
       - DD_TRACE_DEBUG=false
     # volumes:
     #   - ./app:/var/www/html/public
