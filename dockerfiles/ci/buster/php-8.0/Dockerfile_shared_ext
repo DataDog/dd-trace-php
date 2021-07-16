@@ -72,7 +72,7 @@ RUN set -eux; \
         curl -L -o curl.tar.gz https://curl.se/download/curl-${curlVer}.tar.gz; \
         tar -xf curl.tar.gz && rm curl.tar.gz; \
         cd curl-${curlVer}; \
-        ./configure --with-openssl --prefix=/usr/local/src/curl/${curlVer}; \
+        ./configure --with-openssl --prefix=/opt/curl/${curlVer}; \
         make; make install; \
     done;
 
@@ -96,7 +96,7 @@ RUN set -eux; \
         for curlVer in ${CURL_VERSIONS}; \
         do \
             echo "Building ext/curl ${curlVer}..."; \
-            PKG_CONFIG_PATH=/usr/local/src/curl/${curlVer}/lib/pkgconfig/ \
+            PKG_CONFIG_PATH=/opt/curl/${curlVer}/lib/pkgconfig/ \
             ./configure; make; \
             mv ./modules/curl.so $(php-config --extension-dir)/curl-${curlVer}.so; \
             make clean; \
