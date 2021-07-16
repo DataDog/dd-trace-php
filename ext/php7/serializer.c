@@ -375,8 +375,9 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     }
     meta = &meta_zv;
 
-    if (span_fci->exception) {
-        ddtrace_exception_to_meta(span_fci->exception, meta, dd_add_meta_array);
+    zval *exception_zv = ddtrace_spandata_property_exception(&span_fci->span);
+    if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
+        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array);
     }
 
     zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg")) ||
@@ -555,7 +556,7 @@ void ddtrace_save_active_error_to_metadata() {
         .stack = dd_fatal_error_stack(),
     };
     for (ddtrace_span_fci *span = DDTRACE_G(open_spans_top); span; span = span->next) {
-        if (span->exception) {  // exceptions take priority
+        if (Z_TYPE_P(ddtrace_spandata_property_exception(&span->span)) == IS_OBJECT) {  // exceptions take priority
             continue;
         }
 
@@ -595,7 +596,7 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
             dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
             ddtrace_span_fci *span;
             for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
-                if (span->exception) {
+                if (Z_TYPE_P(ddtrace_spandata_property_exception(&span->span)) > IS_FALSE) {
                     continue;
                 }
 

@@ -21,6 +21,7 @@ zval *ddtrace_spandata_property_service(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_type(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_exception(ddtrace_span_t *span);
 
 bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace

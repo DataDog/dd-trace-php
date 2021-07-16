@@ -69,6 +69,4 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define zend_vstrpprintf vstrpprintf
 #endif
 
-typedef zend_object ddtrace_exception_t;
-
 #endif  // DD_COMPATIBILITY_H

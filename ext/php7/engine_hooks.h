@@ -39,7 +39,7 @@ typedef struct ddtrace_error_handling ddtrace_error_handling;
 
 struct ddtrace_sandbox_backup {
     ddtrace_error_handling eh;
-    ddtrace_exception_t *exception, *prev_exception;
+    zend_object *exception, *prev_exception;
 };
 typedef struct ddtrace_sandbox_backup ddtrace_sandbox_backup;
 
@@ -118,7 +118,7 @@ PHP_FUNCTION(ddtrace_internal_function_handler);
 extern void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS);
-void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception);
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zend_object *exception);
 void ddtrace_close_all_open_spans(void);
 
 #endif  // DD_ENGINE_HOOKS_H

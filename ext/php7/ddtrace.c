@@ -263,9 +263,6 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
 
 static void ddtrace_span_data_free_storage(zend_object *object) {
     ddtrace_span_fci *span_fci = (ddtrace_span_fci *)object;
-    if (span_fci->exception) {
-        OBJ_RELEASE(span_fci->exception);
-    }
     if (span_fci->dispatch) {
         ddtrace_dispatch_release(span_fci->dispatch);
         span_fci->dispatch = NULL;
@@ -321,6 +318,7 @@ static void dd_register_span_data_ce(void) {
     zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC);
 }
 
 #pragma GCC diagnostic push
@@ -337,6 +335,8 @@ zval *ddtrace_spandata_property_type(ddtrace_span_t *span) { return OBJ_PROP_NUM
 zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 4); }
 // SpanData::$metrics
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 5); }
+// SpanData::$exception
+zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
 #pragma GCC diagnostic pop
 
 /* DDTrace\FatalError */

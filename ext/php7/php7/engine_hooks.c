@@ -335,10 +335,11 @@ static void dd_copy_posthook_args(zval *args, zend_execute_data *call) {
     }
 }
 
-void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
-    if (exception && span_fci->exception == NULL) {
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zend_object *exception) {
+    zval *exception_zv = ddtrace_spandata_property_exception(&span_fci->span);
+    if (exception && Z_TYPE_P(exception_zv) <= IS_FALSE) {
         GC_ADDREF(exception);
-        span_fci->exception = exception;
+        ZVAL_OBJ(exception_zv, exception);
     }
 }
 
