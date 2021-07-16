@@ -15,7 +15,7 @@ if [ "${OPT_USER}" != "root" ]; then
 fi
 
 DD_USER=$(stat -c '%U' /opt/datadog-php)
-echo "Owner of /opt: ${DD_USER}"
+echo "Owner of /opt/datadog-php: ${DD_USER}"
 if [ "${DD_USER}" != "root" ]; then
     echo "Wrong user for /opt/datadog-php: ${DD_USER}"
     exit 1
