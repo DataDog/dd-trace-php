@@ -224,9 +224,9 @@ static void dd_copy_args(zval *args, zend_execute_data *call) {
 }
 
 void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zend_object *exception) {
-    if (exception && span_fci->exception == NULL && !zend_is_unwind_exit(exception)) {
-        GC_ADDREF(exception);
-        span_fci->exception = exception;
+    zval *exception_zv = ddtrace_spandata_property_exception(&span_fci->span);
+    if (exception && Z_TYPE_P(exception_zv) <= IS_FALSE && !zend_is_unwind_exit(exception)) {
+        ZVAL_OBJ_COPY(exception_zv, exception);
     }
 }
 

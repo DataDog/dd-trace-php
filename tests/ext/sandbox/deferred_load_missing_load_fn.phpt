@@ -1,6 +1,6 @@
 --TEST--
 deferred loading doesn't trigger nor crash if DDTrace\Integrations\load_deferred_integration is missing
-----DESCRIPTION--
+--DESCRIPTION--
 This issue was reported in a GitHub issue:
 https://github.com/DataDog/dd-trace-php/issues/1021
 --SKIPIF--
