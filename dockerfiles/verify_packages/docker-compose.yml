@@ -58,5 +58,11 @@ services:
     depends_on:
       - request-replayer
 
+  tar_gz:
+    image: debian:buster
+    working_dir: /datadog
+    volumes:
+      - ../../:/datadog
+
   request-replayer:
     image: datadog/dd-trace-ci:php-request-replayer
