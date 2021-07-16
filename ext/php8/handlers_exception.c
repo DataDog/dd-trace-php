@@ -42,7 +42,7 @@ static void dd_check_exception_in_header(int old_response_code) {
         root_span = root_span->next;
     }
 
-    if (root_span->exception) {
+    if (Z_TYPE_P(ddtrace_spandata_property_exception(&root_span->span)) > IS_FALSE) {
         return;
     }
 
@@ -102,8 +102,7 @@ static void dd_check_exception_in_header(int old_response_code) {
                 ZVAL_DEREF(exception);
                 if (Z_TYPE_P(exception) == IS_OBJECT &&
                     instanceof_function(Z_OBJ_P(exception)->ce, zend_ce_throwable)) {
-                    Z_ADDREF_P(exception);
-                    root_span->exception = Z_OBJ_P(exception);
+                    ZVAL_COPY(ddtrace_spandata_property_exception(&root_span->span), exception);
                 }
 
                 break;
@@ -215,7 +214,9 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
         DDTRACE_G(active_error).type = 0;
     } else {
         ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-        zend_object *exception, *volatile old_exception;
+        zend_object *exception;
+        zval *volatile span_exception;
+        volatile zval old_exception = {0};
 
         ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_OBJ(exception)
@@ -225,9 +226,9 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
 
         // Assign early so that exceptions thrown inside the exception handler won't gain priority
         if (root_span) {
-            old_exception = root_span->exception;
-            GC_ADDREF(exception);
-            root_span->exception = exception;
+            span_exception = ddtrace_spandata_property_exception(&root_span->span);
+            ZVAL_COPY_VALUE((zval *)&old_exception, span_exception);
+            ZVAL_OBJ_COPY(span_exception, exception);
         }
 
         // Evaluate whether we shall start some span here to show the exception handler
@@ -253,7 +254,7 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
         // Note that the change will leak into shutdown sequence though, but this is a minor tradeoff we make here.
         // If this ever tunrs out to be problematic, we have to store it somewhere in DDTRACE_G()
         // and delay attaching until serialization.
-        if (root_span && old_exception) {
+        if (root_span && Z_TYPE_P((zval *)&old_exception) > IS_FALSE) {
             zval *previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
             while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
                    instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
@@ -261,12 +262,12 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
                 previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
             }
 
-            if (Z_IS_RECURSIVE_P(previous) || !Z_ISNULL_P(previous)) {
+            if (Z_IS_RECURSIVE_P(previous) || Z_TYPE_P(previous) > IS_FALSE) {
                 // okay, let's not touch this, there's a cycle (or something weird)
                 GC_DELREF(exception);
-                root_span->exception = old_exception;
+                ZVAL_COPY_VALUE(span_exception, (zval *)&old_exception);
             } else {
-                ZVAL_OBJ(previous, old_exception);
+                ZVAL_COPY_VALUE(previous, (zval *)&old_exception);
             }
 
             previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
