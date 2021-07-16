@@ -347,6 +347,7 @@
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_copy_handle.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_001.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_002.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_003.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_inject.inc" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_inject_exception.inc" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_missing_fn.phpt" role="test" />

@@ -628,7 +628,23 @@ jobs:
             fi
       - run:
           name: Run << parameters.ext_name >> integration tests with ext/<< parameters.ext_name >> as shared lib + leak detection
-          command: make test_extension_ci BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results TESTS='-d extension=<< parameters.ext_name >>.so ./tests/ext/integrations/<< parameters.ext_name >>'
+          command: |
+            make test_extension_ci \
+              BUILD_DIR=$(pwd)/tmp/build_extension \
+              JUNIT_RESULTS_DIR=$(pwd)/test-results \
+              RUN_TESTS_EXTRA_ARGS="-d extension=<< parameters.ext_name >>.so" \
+              TESTS="tests/ext/integrations/<< parameters.ext_name >>"
+            if [ "<< parameters.ext_name >>" = "curl" ]
+            then
+              for curlVersion in 7.72.0 7.77.0
+              do
+                make test_c \
+                  BUILD_DIR=$(pwd)/tmp/build_extension \
+                  JUNIT_RESULTS_DIR=$(pwd)/test-results \
+                  RUN_TESTS_EXTRA_ARGS="-d extension=<< parameters.ext_name >>-${curlVersion}.so" \
+                  TESTS="tests/ext/integrations/<< parameters.ext_name >>"
+              done
+            fi
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
