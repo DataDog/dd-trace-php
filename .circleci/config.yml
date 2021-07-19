@@ -816,6 +816,19 @@ jobs:
           name: Validate debian package
           command: << parameters.configuration >> bash ./dockerfiles/verify_packages/verify.sh
 
+  verify_tar_gz:
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        type: string
+    docker:
+      - image: debian:buster
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Validate .tar.gz package
+          command: PHP_VERSION=<< parameters.php_major_minor >> bash ./dockerfiles/verify_packages/verify_tar_gz_root.sh
+
   randomized_tests:
     working_directory: ~/datadog
     machine:
@@ -1632,6 +1645,15 @@ workflows:
                   # https://www.linuxcompatible.org/story/suryorg-has-discontinued-debian-8-support/
                   # So we just test the PHP version in the default repo (5.6)
                 - PHP_PACKAGE="php5 php5-fpm libapache2-mod-php5" PHP_FPM_BIN="php5-fpm"
+
+      - verify_tar_gz:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "8.0"
+                # There is little value in testing several versions, since all the packages are already verified on the
+                # respective platforms using the native packages. Let's save some CPU cycles.
 
       - pecl_tests:
           requires: [ "Build PECL" ]

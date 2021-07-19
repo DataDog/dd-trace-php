@@ -46,3 +46,9 @@ verify_centos:
 
 # Centos 6 is verified using the existing images due to difficulties building it after the repos have been disabled.
 verify_centos_6: $(CENTOS6_PHP_VERSIONS)
+
+verify_tar_root:
+	docker-compose run --rm \
+		-e PHP_VERSION="$(PHP_VERSION)" \
+		tar_gz \
+		bash dockerfiles/verify_packages/verify_tar_gz_root.sh

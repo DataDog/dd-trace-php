@@ -226,10 +226,12 @@ $(PACKAGES_BUILD_DIR):
 .apk: $(PACKAGES_BUILD_DIR)
 	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=bash --depends=curl --depends=libexecinfo $(FPM_FILES)
 .tar.gz: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).x86_64.tar.gz -t tar $(FPM_OPTS) $(FPM_FILES)
+	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)
+	fpm -p /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) -t dir $(FPM_OPTS) $(FPM_FILES)
+	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).x86_64.tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
 packages: .apk .rpm .deb .tar.gz
-	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
+	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
 verify_pecl_file_definitions:
 	@for i in $(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES); do\
