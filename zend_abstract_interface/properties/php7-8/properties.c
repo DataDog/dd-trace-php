@@ -1,5 +1,11 @@
 #include "properties.h"
 
+#include <main/php.h>
+
+#if PHP_VERSION_ID < 70100
+#define fake_scope scope
+#endif
+
 zval *zai_read_property_direct(zend_class_entry *ce, zend_object *object, zend_string *name) {
     if (!ce) {
         return &EG(error_zval);

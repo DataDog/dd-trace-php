@@ -2,6 +2,28 @@
 
 #include <Zend/zend_smart_str.h>
 
+#if PHP_VERSION_ID < 70200
+#define zend_string_init_interned(...) zend_new_interned_string(zend_string_init(__VA_ARGS__))
+#endif
+
+#if PHP_VERSION_ID < 70300
+#define zend_hash_find_ex(ht, name, known) zend_hash_find(ht, name)
+#endif
+
+#if PHP_VERSION_ID < 70100
+#define ZEND_STR_FILE "file"
+#define ZEND_STR_LINE "line"
+#define ZEND_STR_CLASS "class"
+#define ZEND_STR_TYPE "type"
+#define ZEND_STR_FUNCTION "function"
+#define ZEND_STR_TRACE "trace"
+
+#define zend_hash_find(ht, name) zend_hash_str_find(ht, ZEND_STRL(name))
+#define ZSTR_KNOWN(id) id
+#elif PHP_VERSION_ID < 70200
+#define ZSTR_KNOWN(id) CG(known_strings)[id]
+#endif
+
 zend_string *zai_exception_message(zend_object *ex) {
     if (!ex) {
         // should never happen; TODO: fail in CI
@@ -61,19 +83,19 @@ zend_string *zai_get_trace_without_args(zend_array *trace) {
         }
 
         {
-            zval *tmp = zend_hash_find(ht, ZSTR_KNOWN(ZEND_STR_CLASS));
+            zval *tmp = zend_hash_find_ex(ht, ZSTR_KNOWN(ZEND_STR_CLASS), 1);
             if (tmp) {
                 smart_str_appends(&str, Z_TYPE_P(tmp) == IS_STRING ? Z_STRVAL_P(tmp) : "[unknown]");
             }
         }
         {
-            zval *tmp = zend_hash_find(ht, ZSTR_KNOWN(ZEND_STR_TYPE));
+            zval *tmp = zend_hash_find_ex(ht, ZSTR_KNOWN(ZEND_STR_TYPE), 1);
             if (tmp) {
                 smart_str_appends(&str, Z_TYPE_P(tmp) == IS_STRING ? Z_STRVAL_P(tmp) : "[unknown]");
             }
         }
         {
-            zval *tmp = zend_hash_find(ht, ZSTR_KNOWN(ZEND_STR_FUNCTION));
+            zval *tmp = zend_hash_find_ex(ht, ZSTR_KNOWN(ZEND_STR_FUNCTION), 1);
             if (tmp) {
                 smart_str_appends(&str, Z_TYPE_P(tmp) == IS_STRING ? Z_STRVAL_P(tmp) : "[unknown]");
             }

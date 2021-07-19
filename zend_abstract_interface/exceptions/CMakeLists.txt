@@ -1,4 +1,10 @@
-add_library(zai_exceptions "${PHP_VERSION_DIRECTORY}/exceptions.c")
+if(PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
+  set(PHP_EXCEPTIONS_VERSION_DIRECTORY "php7-8")
+else()
+  set(PHP_EXCEPTIONS_VERSION_DIRECTORY PHP_VERSION_DIRECTORY)
+endif()
+
+add_library(zai_exceptions "${PHP_EXCEPTIONS_VERSION_DIRECTORY}/exceptions.c")
 
 target_include_directories(zai_exceptions PUBLIC
                                           $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>

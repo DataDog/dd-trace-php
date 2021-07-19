@@ -52,8 +52,8 @@
             <file name="zend_abstract_interface/env/env.h" role="src" />
             <file name="zend_abstract_interface/exceptions/exceptions.h" role="src" />
             <file name="zend_abstract_interface/exceptions/exceptions_common.h" role="src" />
-            <file name="zend_abstract_interface/exceptions/php8/exceptions.c" role="src" />
-            <file name="zend_abstract_interface/exceptions/php8/exceptions.h" role="src" />
+            <file name="zend_abstract_interface/exceptions/php7-8/exceptions.c" role="src" />
+            <file name="zend_abstract_interface/exceptions/php7-8/exceptions.h" role="src" />
             <file name="zend_abstract_interface/functions/functions.h" role="src" />
             <file name="zend_abstract_interface/functions/php8/functions.c" role="src" />
             <file name="zend_abstract_interface/headers/php7-8/headers.c" role="src" />

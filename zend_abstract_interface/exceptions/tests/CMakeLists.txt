@@ -1,4 +1,4 @@
-add_executable(exceptions "${PHP_VERSION_DIRECTORY}/exceptions.cc")
+add_executable(exceptions "${PHP_EXCEPTIONS_VERSION_DIRECTORY}/exceptions.cc")
 
 target_link_libraries(exceptions PUBLIC catch2_main Zai::Sapi Zai::Functions Zai::Exceptions)
 
