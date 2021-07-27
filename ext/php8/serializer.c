@@ -404,7 +404,6 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
         zend_hash_add(Z_ARR_P(meta), global_key, global_val);
     }
     ZEND_HASH_FOREACH_END();
-    zend_hash_release(global_tags);
 
     zend_string *tag_key;
     zval *tag_value;

@@ -264,8 +264,6 @@ bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_
     return result;
 }
 
-#define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
-
 static bool _dd_config_integration_analytics_enabled_ex(ddtrace_integration_name integration_name) {
     bool result = DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT;
     ddtrace_integration* integration = &ddtrace_integrations[integration_name];

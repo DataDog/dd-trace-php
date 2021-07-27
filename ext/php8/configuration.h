@@ -11,29 +11,23 @@
 
 // TODO Tie these into the X Macros below
 static inline bool get_dd_trace_debug(void) {
-    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_DEBUG);
-    return Z_TYPE_P(val) == IS_TRUE;
+    return IS_TRUE == Z_TYPE_P(zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_DEBUG));
 }
 
-static inline zai_string_view get_dd_service(void) {
-    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_SERVICE);
-    return (zai_string_view){.len = Z_STRLEN_P(val), .ptr = Z_STRVAL_P(val)};
+static inline zend_string *get_dd_service(void) {
+    return Z_STR_P(zai_config_get_value(DDTRACE_CONFIG_DD_SERVICE));
 }
 
 static inline zend_array *get_dd_tags(void) {
-    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_TAGS);
-    GC_ADDREF(Z_ARRVAL_P(val));
-    return Z_ARRVAL_P(val);
+    return Z_ARRVAL_P(zai_config_get_value(DDTRACE_CONFIG_DD_TAGS));
 }
 
-static inline int64_t get_dd_trace_agent_port(void) {
-    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_AGENT_PORT);
-    return (int64_t)Z_LVAL_P(val);
+static inline zend_long get_dd_trace_agent_port(void) {
+    return Z_LVAL_P(zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_AGENT_PORT));
 }
 
 static inline double get_dd_trace_sample_rate(void) {
-    zval *val = zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE);
-    return Z_DVAL_P(val);
+    return Z_DVAL_P(zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE));
 }
 
 /**
@@ -59,7 +53,7 @@ bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value);
 bool ddtrace_config_distributed_tracing_enabled(void);
 bool ddtrace_config_trace_enabled(void);
 
-#define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 9   // "DD_TRACE_" FTW!
+#define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 9   // DD_TRACE_ FTW!
 #define DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN 22  // "_ANALYTICS_SAMPLE_RATE" FTW!
 #define DDTRACE_LONGEST_INTEGRATION_ENV_LEN                                              \
     (DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN + DDTRACE_LONGEST_INTEGRATION_NAME_LEN + \
@@ -92,6 +86,8 @@ void ddtrace_initialize_config(void);
 void ddtrace_reload_config(void);
 void ddtrace_config_shutdown(void);
 
+#include "integrations/integrations.h"
+
 /* From the curl docs on CONNECT_TIMEOUT_MS:
  *     If libcurl is built to use the standard system name resolver, that
  *     portion of the transfer will still use full-second resolution for
@@ -101,63 +97,77 @@ void ddtrace_config_shutdown(void);
  * timeout to.
  * A user hit an issue with the userland time of 100.
  */
-#define DD_TRACE_AGENT_CONNECT_TIMEOUT 100L
-#define DD_TRACE_BGS_CONNECT_TIMEOUT 2000L
+#define DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL "100"
+#define DD_TRACE_BGS_CONNECT_TIMEOUT_VAL "2000"
 
 /* Default for the PHP sender; should be kept in sync with DDTrace\Transport\Http::DEFAULT_AGENT_TIMEOUT */
-#define DD_TRACE_AGENT_TIMEOUT 500L
+#define DD_TRACE_AGENT_TIMEOUT_VAL "500"
 
 /* This should be at least an order of magnitude higher than the userland HTTP Transport default. */
-#define DD_TRACE_BGS_TIMEOUT 5000L
+#define DD_TRACE_BGS_TIMEOUT_VAL "5000"
+
+#define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT "false"
+
+#define DD_CONFIGURATION_STRINGIZE(str) #str
+#define INTEGRATION(id, ...) \
+    CFG(BOOL, DD_TRACE_##id##_ENABLED, "true") \
+    CFG(BOOL, DD_TRACE_##id##_ANALYTICS_ENABLED, DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT, ((zai_string_view[]){ \
+        ZAI_STRL_VIEW(DD_CONFIGURATION_STRINGIZE(DD_##id##_ANALYTICS_ENABLED)), \
+    })) \
+    CFG(DOUBLE, DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE, DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT, ((zai_string_view[]){ \
+        ZAI_STRL_VIEW(DD_CONFIGURATION_STRINGIZE(DD_##id##_ANALYTICS_SAMPLE_RATE)), \
+    }))
 
 #define DD_CONFIGURATION                                                                                             \
-    CHAR(get_dd_trace_agent_url, "DD_TRACE_AGENT_URL", "")                                                           \
-    CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost")                                                            \
-    BOOL(get_dd_distributed_tracing, "DD_DISTRIBUTED_TRACING", true)                                                 \
-    CHAR(get_dd_dogstatsd_port, "DD_DOGSTATSD_PORT", "8125")                                                         \
-    CHAR(get_dd_env, "DD_ENV", "")                                                                                   \
-    BOOL(get_dd_autofinish_spans, "DD_AUTOFINISH_SPANS", false)                                                      \
-    BOOL(get_dd_trace_url_as_resource_names, "DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED", true)                         \
-    CHAR(get_dd_integrations_disabled, "DD_INTEGRATIONS_DISABLED", "")                                               \
-    BOOL(get_dd_priority_sampling, "DD_PRIORITY_SAMPLING", true)                                                     \
-    HASH(get_dd_service_mapping, "DD_SERVICE_MAPPING")                                                               \
-    CHAR(get_dd_service_name, "DD_SERVICE_NAME", "")                                                                 \
-    BOOL(get_dd_trace_analytics_enabled, "DD_TRACE_ANALYTICS_ENABLED", false)                                        \
-    BOOL(get_dd_trace_auto_flush_enabled, "DD_TRACE_AUTO_FLUSH_ENABLED", false)                                      \
-    BOOL(get_dd_trace_cli_enabled, "DD_TRACE_CLI_ENABLED", false)                                                    \
-    BOOL(get_dd_trace_measure_compile_time, "DD_TRACE_MEASURE_COMPILE_TIME", true)                                   \
-    BOOL(get_dd_trace_enabled, "DD_TRACE_ENABLED", true)                                                             \
-    BOOL(get_dd_trace_heath_metrics_enabled, "DD_TRACE_HEALTH_METRICS_ENABLED", false)                               \
-    DOUBLE(get_dd_trace_heath_metrics_heartbeat_sample_rate, "DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE", 0.001) \
-    BOOL(get_dd_trace_http_client_split_by_domain, "DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN", false)                    \
-    CHAR(get_dd_trace_memory_limit, "DD_TRACE_MEMORY_LIMIT", NULL)                                                   \
-    BOOL(get_dd_trace_report_hostname, "DD_TRACE_REPORT_HOSTNAME", false)                                            \
-    CHAR(get_dd_trace_resource_uri_fragment_regex, "DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX", "")                       \
-    CHAR(get_dd_trace_resource_uri_mapping_incoming, "DD_TRACE_RESOURCE_URI_MAPPING_INCOMING", "")                   \
-    CHAR(get_dd_trace_resource_uri_mapping_outgoing, "DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING", "")                   \
-    CHAR(get_dd_trace_sampling_rules, "DD_TRACE_SAMPLING_RULES", "")                                                 \
-    CHAR(get_dd_trace_traced_internal_functions, "DD_TRACE_TRACED_INTERNAL_FUNCTIONS", "")                           \
-    INT(get_dd_trace_agent_timeout, "DD_TRACE_AGENT_TIMEOUT", DD_TRACE_AGENT_TIMEOUT)                                \
-    INT(get_dd_trace_agent_connect_timeout, "DD_TRACE_AGENT_CONNECT_TIMEOUT", DD_TRACE_AGENT_CONNECT_TIMEOUT)        \
-    INT(get_dd_trace_debug_prng_seed, "DD_TRACE_DEBUG_PRNG_SEED", -1)                                                \
-    BOOL(get_dd_log_backtrace, "DD_LOG_BACKTRACE", false)                                                            \
-    BOOL(get_dd_trace_generate_root_span, "DD_TRACE_GENERATE_ROOT_SPAN", true)                                       \
-    BOOL(get_dd_trace_sandbox_enabled, "DD_TRACE_SANDBOX_ENABLED", true)                                             \
-    INT(get_dd_trace_spans_limit, "DD_TRACE_SPANS_LIMIT", 1000)                                                      \
-    INT(get_dd_trace_bgs_connect_timeout, "DD_TRACE_BGS_CONNECT_TIMEOUT", DD_TRACE_BGS_CONNECT_TIMEOUT)              \
-    INT(get_dd_trace_bgs_timeout, "DD_TRACE_BGS_TIMEOUT", DD_TRACE_BGS_TIMEOUT)                                      \
-    INT(get_dd_trace_agent_flush_interval, "DD_TRACE_AGENT_FLUSH_INTERVAL", 5000)                                    \
-    INT(get_dd_trace_agent_flush_after_n_requests, "DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS", 10)                      \
-    INT(get_dd_trace_shutdown_timeout, "DD_TRACE_SHUTDOWN_TIMEOUT", 5000)                                            \
-    BOOL(get_dd_trace_startup_logs, "DD_TRACE_STARTUP_LOGS", true)                                                   \
-    BOOL(get_dd_trace_agent_debug_verbose_curl, "DD_TRACE_AGENT_DEBUG_VERBOSE_CURL", false)                          \
-    BOOL(get_dd_trace_debug_curl_output, "DD_TRACE_DEBUG_CURL_OUTPUT", false)                                        \
-    INT(get_dd_trace_beta_high_memory_pressure_percent, "DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT", 80,            \
-        "reaching this percent threshold of a span buffer will trigger background thread "                           \
-        "to attempt to flush existing data to trace agent")                                                          \
-    BOOL(get_dd_trace_warn_legacy_dd_trace, "DD_TRACE_WARN_LEGACY_DD_TRACE", true)                                   \
-    BOOL(get_dd_trace_retain_thread_capabilities, "DD_TRACE_RETAIN_THREAD_CAPABILITIES", false)                      \
-    CHAR(get_dd_version, "DD_VERSION", "")
+    CFG(CHAR, DD_TRACE_AGENT_URL, "")                                                           \
+    CFG(CHAR, DD_AGENT_HOST, "localhost")                                                            \
+    CFG(BOOL, DD_DISTRIBUTED_TRACING, "true")                                                 \
+    CFG(CHAR, DD_DOGSTATSD_PORT, "8125")                                                         \
+    CFG(CHAR, DD_ENV, "")                                                                                   \
+    CFG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                      \
+    CFG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                         \
+    CFG(CHAR, DD_INTEGRATIONS_DISABLED, "")                                               \
+    CFG(BOOL, DD_PRIORITY_SAMPLING, "true")                                                     \
+    CFG(MAP, DD_SERVICE_MAPPING, "")                                                               \
+    CFG(CHAR, DD_SERVICE, "", ((zai_string_view[]){ \
+        ZAI_STRL_VIEW("DD_SERVICE_NAME"), \
+        ZAI_STRL_VIEW("DD_TRACE_APP_NAME"), \
+    }))                                                              \
+    CFG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                        \
+    CFG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                      \
+    CFG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                    \
+    CFG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                   \
+    CFG(BOOL, DD_TRACE_ENABLED, "true")                                                             \
+    CFG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false")                               \
+    CFG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001") \
+    CFG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                    \
+    CFG(CHAR, DD_TRACE_MEMORY_LIMIT, "NULL")                                                   \
+    CFG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                            \
+    CFG(CHAR, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                       \
+    CFG(CHAR, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                   \
+    CFG(CHAR, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                   \
+    CFG(CHAR, DD_TRACE_SAMPLING_RULES, "")                                                 \
+    CFG(CHAR, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                           \
+    CFG(INT, DD_TRACE_AGENT_TIMEOUT, DD_TRACE_AGENT_TIMEOUT_VAL)                                \
+    CFG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL)        \
+    CFG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1")                                                \
+    CFG(BOOL, DD_LOG_BACKTRACE, "false")                                                            \
+    CFG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true")                                       \
+    CFG(BOOL, DD_TRACE_SANDBOX_ENABLED, "true")                                             \
+    CFG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                      \
+    CFG(INT, DD_TRACE_BGS_CONNECT_TIMEOUT, DD_TRACE_BGS_CONNECT_TIMEOUT_VAL)              \
+    CFG(INT, DD_TRACE_BGS_TIMEOUT, DD_TRACE_BGS_TIMEOUT_VAL)                                      \
+    CFG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, "5000")                                    \
+    CFG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "10")                      \
+    CFG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000")                                            \
+    CFG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                   \
+    CFG(BOOL, DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "false")                          \
+    CFG(BOOL, DD_TRACE_DEBUG_CURL_OUTPUT, "false")                                        \
+    CFG(INT, DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "80")            \
+    CFG(BOOL, DD_TRACE_WARN_LEGACY_DD_TRACE, "true")                                   \
+    CFG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false")                      \
+    CFG(CHAR, DD_VERSION, "")                                                                                        \
+    DD_INTEGRATIONS
 
 // render all configuration getters and define memoization struct
 #include "configuration_render.h"

@@ -91,6 +91,10 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     ZAI_SOURCES="\
+      zend_abstract_interface/config/config.c \
+      zend_abstract_interface/config/config_decode.c \
+      zend_abstract_interface/config/php5/config_ini.c \
+      zend_abstract_interface/config/php5/config_runtime.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/methods/php5/methods.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
@@ -137,6 +141,10 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     ZAI_SOURCES="\
+      zend_abstract_interface/config/config.c \
+      zend_abstract_interface/config/config_decode.c \
+      zend_abstract_interface/config/php5/config_ini.c \
+      zend_abstract_interface/config/php5/config_runtime.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/methods/php5/methods.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
@@ -187,6 +195,10 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     ZAI_SOURCES="\
+      zend_abstract_interface/config/config.c \
+      zend_abstract_interface/config/config_decode.c \
+      zend_abstract_interface/config/php7-8/config_ini.c \
+      zend_abstract_interface/config/php7-8/config_runtime.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
@@ -243,7 +255,8 @@ if test "$PHP_DDTRACE" != "no"; then
     ZAI_SOURCES="\
       zend_abstract_interface/config/config.c \
       zend_abstract_interface/config/config_decode.c \
-      zend_abstract_interface/config/config_ini.c \
+      zend_abstract_interface/config/php7-8/config_ini.c \
+      zend_abstract_interface/config/php7-8/config_runtime.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/functions/php8/functions.c \
@@ -283,6 +296,8 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_srcdir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config/php5])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/env])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions/php7-8])

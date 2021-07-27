@@ -7,7 +7,6 @@
 #include "compatibility.h"
 #include "env_config.h"
 
-#define DD_TRACE_DEBUG_PRNG_SEED "DD_TRACE_DEBUG_PRNG_SEED"
 #define DD_TRACE_MAX_ID_LEN 20  // uint64_t -> 2**64 = 20 chars max ID
 
 // We keep a separate stack for span ID generation since spans are

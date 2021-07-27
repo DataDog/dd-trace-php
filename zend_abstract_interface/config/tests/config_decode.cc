@@ -1,4 +1,6 @@
 extern "C" {
+#include "config_test_helpers.h"
+
 #include "config/config_decode.h"
 #include "ext_zai_config.h"
 #include "zai_sapi/zai_sapi.h"
@@ -27,6 +29,8 @@ TEST_CASE("decode bool", "[zai_config_decode]") {
         ZAI_STRL_VIEW("true"),
         ZAI_STRL_VIEW("TRUE"),
         ZAI_STRL_VIEW("True"),
+        ZAI_STRL_VIEW("yes"),
+        ZAI_STRL_VIEW("on"),
     };
 
     for (zai_string_view name : truthy) {
@@ -34,7 +38,7 @@ TEST_CASE("decode bool", "[zai_config_decode]") {
         ret = zai_config_decode_value(name, type, &value, false);
 
         REQUIRE(ret == true);
-        REQUIRE(Z_TYPE(value) == IS_TRUE);
+        REQUIRE(ZVAL_IS_TRUE(&value));
     }
 
     // ---
@@ -44,6 +48,9 @@ TEST_CASE("decode bool", "[zai_config_decode]") {
         ZAI_STRL_VIEW("false"),
         ZAI_STRL_VIEW("FALSE"),
         ZAI_STRL_VIEW("False"),
+        ZAI_STRL_VIEW("no"),
+        ZAI_STRL_VIEW("off"),
+        ZAI_STRL_VIEW(""),
     };
 
     for (zai_string_view name : falsey) {
@@ -51,27 +58,7 @@ TEST_CASE("decode bool", "[zai_config_decode]") {
         ret = zai_config_decode_value(name, type, &value, false);
 
         REQUIRE(ret == true);
-        REQUIRE(Z_TYPE(value) == IS_FALSE);
-    }
-
-    // ---
-
-    zai_string_view errors[] = {
-        ZAI_STRL_VIEW(""),
-        ZAI_STRL_VIEW("yes"),
-        ZAI_STRL_VIEW("no"),
-        ZAI_STRL_VIEW("on"),
-        ZAI_STRL_VIEW("off"),
-        ZAI_STRL_VIEW("42"),
-        ZAI_STRL_VIEW("-1"),
-    };
-
-    for (zai_string_view name : errors) {
-        ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(name, ZAI_CONFIG_TYPE_BOOL, &value, false);
-
-        REQUIRE(ret == false);
-        REQUIRE(Z_TYPE(value) == IS_UNDEF);
+        REQUIRE(ZVAL_IS_FALSE(&value));
     }
 
     // ---
@@ -131,7 +118,7 @@ TEST_CASE("decode double", "[zai_config_decode]") {
         ret = zai_config_decode_value(name, type, &value, false);
 
         REQUIRE(ret == false);
-        REQUIRE(Z_TYPE(value) == IS_UNDEF);
+        REQUIRE(Z_TYPE(value) <= IS_NULL);
     }
 
     // ---
@@ -191,7 +178,75 @@ TEST_CASE("decode int", "[zai_config_decode]") {
         ret = zai_config_decode_value(name, type, &value, false);
 
         REQUIRE(ret == false);
-        REQUIRE(Z_TYPE(value) == IS_UNDEF);
+        REQUIRE(Z_TYPE(value) <= IS_NULL);
+    }
+
+    // ---
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_spindown();
+}
+
+typedef struct expected_map_s {
+    zai_string_view name;
+    const char *key[3];
+    const char *value[3];
+} expected_map;
+
+TEST_CASE("decode map", "[zai_config_decode]") {
+    REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    zval value;
+    bool ret;
+    zai_config_type type = ZAI_CONFIG_TYPE_MAP;
+
+    // ---
+
+    expected_map successes[] = {
+        {ZAI_STRL_VIEW("key:val,c:d"), { "key", "c" }, { "val", "d" }},
+        {ZAI_STRL_VIEW("\t\na\t:\n"), { "a" }, { "" }},
+        {ZAI_STRL_VIEW("\t\na\t:\n,c:"), { "a", "c" }, { "", "" }},
+        {ZAI_STRL_VIEW("\t\na\t: b \n"), { "a" }, { "b" }},
+        {ZAI_STRL_VIEW("a:b\t,\t"), { "a" }, { "b" }},
+        {ZAI_STRL_VIEW("\t,a:b"), { "a" }, { "b" }},
+    };
+
+    for (expected_map expected : successes) {
+        ZVAL_UNDEF(&value);
+        ret = zai_config_decode_value(expected.name, type, &value, false);
+
+        REQUIRE(ret == true);
+        REQUIRE(Z_TYPE(value) == IS_ARRAY);
+        int count = 0;
+        while (expected.key[count]) {
+            REQUIRE_MAP_VALUE_EQ(&value, expected.key[count], expected.value[count]);
+            ++count;
+        }
+        REQUIRE(zend_hash_num_elements(Z_ARRVAL(value)) == count);
+        zend_hash_destroy(Z_ARRVAL(value));
+        efree(Z_ARRVAL(value));
+    }
+
+    // ---
+
+    zai_string_view errors[] = {
+        ZAI_STRL_VIEW(":"),
+        ZAI_STRL_VIEW(","),
+        ZAI_STRL_VIEW(":,"),
+        ZAI_STRL_VIEW(":a"),
+        ZAI_STRL_VIEW(" : "),
+        ZAI_STRL_VIEW(", "),
+        ZAI_STRL_VIEW("\t\n:"),
+    };
+
+    for (zai_string_view name : errors) {
+        ZVAL_UNDEF(&value);
+        ret = zai_config_decode_value(name, type, &value, false);
+
+        REQUIRE(ret == false);
+        REQUIRE(Z_TYPE(value) <= IS_NULL);
     }
 
     // ---

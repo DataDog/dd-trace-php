@@ -7,23 +7,17 @@
 #include <string.h>
 #include <strings.h>
 
-#if PHP_VERSION_ID < 70300
-#define zend_string_release_ex(str, persistent) zend_string_release(str)
-#endif
-
 static bool zai_config_decode_bool(zai_string_view value, zval *decoded_value) {
-    if (value.len == 1) {
-        if (strcmp(value.ptr, "1") == 0) {
-            ZVAL_TRUE(decoded_value);
-        } else if (strcmp(value.ptr, "0") == 0) {
-            ZVAL_FALSE(decoded_value);
-        }
-    } else if ((value.len == 4 && strcasecmp(value.ptr, "true") == 0)) {
+    if ((value.len == 1 && strcmp(value.ptr, "1") == 0)
+    || (value.len == 2 && strcasecmp(value.ptr, "on") == 0)
+    || (value.len == 3 && strcasecmp(value.ptr, "yes") == 0)
+    || (value.len == 4 && strcasecmp(value.ptr, "true") == 0)) {
         ZVAL_TRUE(decoded_value);
-    } else if ((value.len == 5 && strcasecmp(value.ptr, "false") == 0)) {
+    } else {
         ZVAL_FALSE(decoded_value);
     }
-    return Z_TYPE_P(decoded_value) == IS_TRUE || Z_TYPE_P(decoded_value) == IS_FALSE;
+
+    return true;
 }
 
 /* Since strtod() supports conversion of constants like 'NaN' and 'INF', as well
@@ -47,24 +41,15 @@ static bool zai_config_is_valid_double_format(const char *str) {
 static bool zai_config_decode_double(zai_string_view value, zval *decoded_value) {
     if (!zai_config_is_valid_double_format(value.ptr)) return false;
 
-    char *endptr = (char *)value.ptr;
-
-    // The strtod function is a bit tricky, so I've quoted docs to explain code
-
-    /* Since 0 can legitimately be returned on both success and failure, the
-     * calling program should set errno to 0 before the call, and then
-     * determine if an error occurred by checking whether errno has a nonzero
-     * value after the call.
-     */
-    errno = 0;
-    double result = strtod(value.ptr, &endptr);
+    const char *endptr = value.ptr;
+    double result = zend_strtod(value.ptr, &endptr);
 
     /* If endptr is not NULL, a pointer to the character after the last
      * character used in the conversion is stored in the location referenced
      * by endptr. If no conversion is performed, zero is returned and the value
      * of nptr is stored in the location referenced by endptr.
      */
-    if (endptr != value.ptr && errno == 0) {
+    if (endptr != value.ptr) {
         ZVAL_DOUBLE(decoded_value, result);
         return true;
     }
@@ -75,6 +60,9 @@ static bool zai_config_decode_double(zai_string_view value, zval *decoded_value)
  * ill-formatted numbers so we add a number-format check.
  */
 static bool zai_config_is_valid_int_format(const char *str) {
+    if (!*str) {
+        return false;
+    }
     while (*str) {
         if (!isdigit(*str) && !isspace(*str)) return false;
         str++;
@@ -85,32 +73,20 @@ static bool zai_config_is_valid_int_format(const char *str) {
 static bool zai_config_decode_int(zai_string_view value, zval *decoded_value) {
     if (!zai_config_is_valid_int_format(value.ptr)) return false;
 
-    char *endptr = (char *)value.ptr;
-
-    errno = 0;
-    long long int result = strtoll(value.ptr, &endptr, 10);
-
-    if (endptr != value.ptr && errno == 0) {
-        ZVAL_LONG(decoded_value, result);
-        return true;
-    }
-    return false;
-}
-
-static void zai_config_pstr_dtor(zval *zval_ptr) {
-    ZEND_ASSERT(Z_TYPE_P(zval_ptr) == IS_STRING);
-    zend_string_release_ex(Z_STR_P(zval_ptr), 1);
+    ZVAL_LONG(decoded_value, zend_atol(value.ptr, value.len));
+    return true;
 }
 
 static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bool persistent) {
     zval tmp;
-    if (persistent) {
-        HashTable *ht = malloc(sizeof(HashTable));
-        zend_hash_init(ht, 8, NULL, zai_config_pstr_dtor, /* persistent */ 1);
-        ZVAL_ARR(&tmp, ht);
-    } else {
-        array_init(&tmp);
-    }
+#if PHP_VERSION_ID < 70000
+    INIT_PZVAL(&tmp);
+    Z_ARRVAL(tmp) = pemalloc(sizeof(HashTable), persistent);
+    Z_TYPE(tmp) = IS_ARRAY;
+#else
+    ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
+#endif
+    zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
 
     // TODO Extract this
     char *data = (char *)value.ptr;
@@ -124,12 +100,8 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
                         while (*++data && (*data == ' ' || *data == '\t' || *data == '\n'))
                             ;
 
-                        if (!*data) {
-                            break;
-                        }
-
                         value_start = value_end = data;
-                        if (*data == ',') {
+                        if (!*data || *data == ',') {
                             --value_end;  // empty string instead of single char
                         } else {
                             while (*++data && *data != ',') {
@@ -139,16 +111,25 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
                             }
                         }
 
-                        zval val;
-                        zend_string *key = zend_string_init(key_start, key_end - key_start + 1, persistent);
+                        size_t key_len = key_end - key_start + 1;
+                        size_t value_len = value_end - value_start + 1;
+#if PHP_VERSION_ID < 70000
+                        zval *val;
                         if (persistent) {
-                            ZVAL_PSTRINGL(&val, value_start, value_end - value_start + 1);
+                            ALLOC_PERMANENT_ZVAL(val);
                         } else {
-                            ZVAL_STRINGL(&val, value_start, value_end - value_start + 1);
+                            ALLOC_ZVAL(val);
                         }
-                        zend_hash_add(Z_ARRVAL(tmp), key, &val);
-                        zend_string_release(key);
-
+                        INIT_PZVAL(val);
+                        ZVAL_STRINGL(val, pestrndup(value_start, value_len, persistent), value_len, 0);
+                        char *zero_terminated_key = pestrndup(key_start, key_len, persistent);
+                        zend_hash_add(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1, &val, sizeof(void *), NULL);
+                        pefree(zero_terminated_key, persistent);
+#else
+                        zval val;
+                        ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
+                        zend_hash_str_add(Z_ARRVAL(tmp), key_start, key_len, &val);
+#endif
                         break;
                     }
                     if (*data != ' ' && *data != '\t' && *data != '\n') {
@@ -161,12 +142,8 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
         } while (*data);
 
         if (zend_hash_num_elements(Z_ARRVAL(tmp)) == 0) {
-            if (persistent) {
-                zend_hash_destroy(Z_ARRVAL(tmp));
-                free(Z_ARRVAL(tmp));
-            } else {
-                zval_ptr_dtor(&tmp);
-            }
+            zend_hash_destroy(Z_ARRVAL(tmp));
+            pefree(Z_ARRVAL(tmp), persistent);
             return false;
         }
     }
@@ -176,16 +153,16 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
 }
 
 static bool zai_config_decode_string(zai_string_view value, zval *decoded_value, bool persistent) {
-    if (persistent) {
-        ZVAL_PSTRINGL(decoded_value, value.ptr, value.len);
-    } else {
-        ZVAL_STRINGL(decoded_value, value.ptr, value.len);
-    }
+#if PHP_VERSION_ID < 70000
+    ZVAL_STRINGL(decoded_value, pestrndup(value.ptr, value.len, persistent), value.len, 0);
+#else
+    ZVAL_NEW_STR(decoded_value, zend_string_init(value.ptr, value.len, persistent));
+#endif
     return true;
 }
 
 bool zai_config_decode_value(zai_string_view value, zai_config_type type, zval *decoded_value, bool persistent) {
-    assert((Z_TYPE_P(decoded_value) == IS_UNDEF) && "The decoded_value must be IS_UNDEF");
+    assert((Z_TYPE_P(decoded_value) <= IS_NULL) && "The decoded_value must be IS_UNDEF or IS_NULL");
     switch (type) {
         case ZAI_CONFIG_TYPE_BOOL:
             return zai_config_decode_bool(value, decoded_value);
@@ -197,7 +174,8 @@ bool zai_config_decode_value(zai_string_view value, zai_config_type type, zval *
             return zai_config_decode_map(value, decoded_value, persistent);
         case ZAI_CONFIG_TYPE_STRING:
             return zai_config_decode_string(value, decoded_value, persistent);
+        default:
+            assert(false && "Unknown zai_config_type");
     }
-    assert(false && "Unknown zai_config_type");
     return false;
 }

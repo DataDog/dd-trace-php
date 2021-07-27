@@ -354,7 +354,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_config_minit(module_number);
     ddtrace_initialize_config();
     dd_disable_if_incompatible_sapi_detected();
-    atomic_init(&ddtrace_first_rinit, 1);
     atomic_init(&ddtrace_warn_legacy_api, 1);
 
     /* This allows an extension (e.g. extension=ddtrace.so) to have zend_engine

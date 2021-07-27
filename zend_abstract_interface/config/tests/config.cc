@@ -17,15 +17,11 @@ typedef enum {
     EXT_CFG_FOO_INT,
     EXT_CFG_FOO_MAP,
     EXT_CFG_FOO_STRING,
-    EXT_CFG_BAR_ALIASED_BOOL,
-    EXT_CFG_BAR_ALIASED_DOUBLE,
     EXT_CFG_BAR_ALIASED_INT,
     EXT_CFG_BAZ_MAP_EMPTY,
 } ext_cfg_id;
 
 static PHP_MINIT_FUNCTION(zai_config_env) {
-    zai_string_view aliases_bool[] = {ZAI_STRL_VIEW("BAR_ALIASED_BOOL_OLD")};
-    zai_string_view aliases_double[] = {ZAI_STRL_VIEW("BAR_ALIASED_DOUBLE_OLD"), ZAI_STRL_VIEW("BAR_ALIASED_DOUBLE_OLDER")};
     zai_string_view aliases_int[] = {ZAI_STRL_VIEW("BAR_ALIASED_INT_OLD"), ZAI_STRL_VIEW("BAR_ALIASED_INT_OLDER"), ZAI_STRL_VIEW("BAR_ALIASED_INT_OLDEST")};
     zai_config_entry entries[] = {
         EXT_CFG_ENTRY(FOO_BOOL, BOOL, "1"),
@@ -33,8 +29,6 @@ static PHP_MINIT_FUNCTION(zai_config_env) {
         EXT_CFG_ENTRY(FOO_INT, INT, "42"),
         EXT_CFG_ENTRY(FOO_MAP, MAP, "one:1,two:2"),
         EXT_CFG_ENTRY(FOO_STRING, STRING, "foo string"),
-        EXT_CFG_ALIASED_ENTRY(BAR_ALIASED_BOOL, BOOL, "0", aliases_bool),
-        EXT_CFG_ALIASED_ENTRY(BAR_ALIASED_DOUBLE, DOUBLE, "0", aliases_double),
         EXT_CFG_ALIASED_ENTRY(BAR_ALIASED_INT, INT, "0", aliases_int),
         EXT_CFG_ENTRY(BAZ_MAP_EMPTY, MAP, ""),
     };
@@ -59,7 +53,7 @@ TEST("default value: bool", {
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_TRUE);
+    REQUIRE(ZVAL_IS_TRUE(value));
 
     REQUEST_END()
 })
@@ -97,8 +91,8 @@ TEST("default value: map", {
     REQUIRE(Z_TYPE_P(value) == IS_ARRAY);
     REQUIRE(zend_hash_num_elements(Z_ARRVAL_P(value)) == 2);
 
-    REQUIRE_MAP_VALUE_EQ(value, one, 1);
-    REQUIRE_MAP_VALUE_EQ(value, two, 2);
+    REQUIRE_MAP_VALUE_EQ(value, "one", "1");
+    REQUIRE_MAP_VALUE_EQ(value, "two", "2");
 
     REQUEST_END()
 })
@@ -122,14 +116,12 @@ TEST("default value: string", {
 
     REQUIRE(value != NULL);
     REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zend_string_equals_literal(Z_STR_P(value), "foo string"));
+    REQUIRE(zval_string_equals(value, "foo string"));
 
     REQUEST_END()
 })
 
 /********************* zai_config_get_value() (from env) **********************/
-
-#define REQUIRE_SETENV(key, val) REQUIRE(0 == setenv(key, val, /* overwrite */ 1))
 
 TEST("env value: bool", {
     REQUIRE_SETENV("FOO_BOOL", "false");
@@ -139,20 +131,7 @@ TEST("env value: bool", {
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
-
-    REQUEST_END()
-})
-
-TEST("env value: bool (decoding error)", {
-    REQUIRE_SETENV("FOO_BOOL", "nope");
-
-    REQUEST_BEGIN()
-
-    zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
-
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_TRUE);  // Default fallback value
+    REQUIRE(ZVAL_IS_FALSE(value));
 
     REQUEST_END()
 })
@@ -224,9 +203,9 @@ TEST("env value: map", {
     REQUIRE(Z_TYPE_P(value) == IS_ARRAY);
     REQUIRE(zend_hash_num_elements(Z_ARRVAL_P(value)) == 3);
 
-    REQUIRE_MAP_VALUE_EQ(value, env1, one);
-    REQUIRE_MAP_VALUE_EQ(value, env2, two);
-    REQUIRE_MAP_VALUE_EQ(value, env3, three);
+    REQUIRE_MAP_VALUE_EQ(value, "env1", "one");
+    REQUIRE_MAP_VALUE_EQ(value, "env2", "two");
+    REQUIRE_MAP_VALUE_EQ(value, "env3", "three");
 
     REQUEST_END()
 })
@@ -256,8 +235,8 @@ TEST("env value: map (decoding error)", {
     REQUIRE(Z_TYPE_P(value) == IS_ARRAY);
     REQUIRE(zend_hash_num_elements(Z_ARRVAL_P(value)) == 2);
 
-    REQUIRE_MAP_VALUE_EQ(value, one, 1);
-    REQUIRE_MAP_VALUE_EQ(value, two, 2);
+    REQUIRE_MAP_VALUE_EQ(value, "one", "1");
+    REQUIRE_MAP_VALUE_EQ(value, "two", "2");
 
     REQUEST_END()
 })
@@ -271,7 +250,7 @@ TEST("env value: string", {
 
     REQUIRE(value != NULL);
     REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zend_string_equals_literal(Z_STR_P(value), "env string"));
+    REQUIRE(zval_string_equals(value, "env string"));
 
     REQUEST_END()
 })
@@ -285,7 +264,21 @@ TEST("env value: string (empty)", {
 
     REQUIRE(value != NULL);
     REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zend_string_equals_literal(Z_STR_P(value), ""));
+    REQUIRE(zval_string_equals(value, ""));
+
+    REQUEST_END()
+})
+
+TEST("env value: alias", {
+    REQUIRE_SETENV("BAR_ALIASED_INT_OLDER", "1");
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_BAR_ALIASED_INT);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_LONG);
+    REQUIRE(Z_LVAL_P(value) == 1);
 
     REQUEST_END()
 })
@@ -296,6 +289,7 @@ TEST("set bool", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_BOOL(&tmp, false);
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_BOOL, &tmp);
 
@@ -304,7 +298,7 @@ TEST("set bool", {
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
+    REQUIRE(ZVAL_IS_FALSE(value));
 
     REQUEST_END()
 })
@@ -313,34 +307,17 @@ TEST("set bool (encoded)", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "0");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_BOOL, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_SUCCESS);
 
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
-
-    REQUEST_END()
-})
-
-TEST("set bool (encoding error)", {
-    REQUEST_BEGIN()
-
-    zval tmp;
-    ZVAL_STRING(&tmp, "nope");
-    zai_config_result res = zai_config_set_value(EXT_CFG_FOO_BOOL, &tmp);
-    zval_ptr_dtor(&tmp);
-
-    REQUIRE(res == ZAI_CONFIG_ERROR_DECODING);
-
-    zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
-
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_TRUE);
+    REQUIRE(ZVAL_IS_FALSE(value));
 
     REQUEST_END()
 })
@@ -349,6 +326,7 @@ TEST("set double", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_DOUBLE(&tmp, 4.2);
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_DOUBLE, &tmp);
 
@@ -367,9 +345,10 @@ TEST("set double (encoded)", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "4.2");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_DOUBLE, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_SUCCESS);
 
@@ -386,9 +365,10 @@ TEST("set double (encoding error)", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "one");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_DOUBLE, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_ERROR_DECODING);
 
@@ -405,6 +385,7 @@ TEST("set int", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_LONG(&tmp, 1337);
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_INT, &tmp);
 
@@ -423,9 +404,10 @@ TEST("set int (encoded)", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "1337");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_INT, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_SUCCESS);
 
@@ -442,9 +424,10 @@ TEST("set int (encoding error)", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "one");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_INT, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_ERROR_DECODING);
 
@@ -461,10 +444,11 @@ TEST("set map", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     array_init(&tmp);
-    add_assoc_string_ex(&tmp, ZEND_STRL("key_foo"), (char *) "foo");
+    add_assoc_string(&tmp, "key_foo", (char *) "foo");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_MAP, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_SUCCESS);
 
@@ -474,7 +458,7 @@ TEST("set map", {
     REQUIRE(Z_TYPE_P(value) == IS_ARRAY);
     REQUIRE(zend_hash_num_elements(Z_ARRVAL_P(value)) == 1);
 
-    REQUIRE_MAP_VALUE_EQ(value, key_foo, foo);
+    REQUIRE_MAP_VALUE_EQ(value, "key_foo", "foo");
 
     REQUEST_END()
 })
@@ -483,9 +467,10 @@ TEST("set map (encoded)", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "key_foo:foo");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_MAP, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_SUCCESS);
 
@@ -495,7 +480,7 @@ TEST("set map (encoded)", {
     REQUIRE(Z_TYPE_P(value) == IS_ARRAY);
     REQUIRE(zend_hash_num_elements(Z_ARRVAL_P(value)) == 1);
 
-    REQUIRE_MAP_VALUE_EQ(value, key_foo, foo);
+    REQUIRE_MAP_VALUE_EQ(value, "key_foo", "foo");
 
     REQUEST_END()
 })
@@ -504,9 +489,10 @@ TEST("set map (encoding error)", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "key_foo,foo");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_MAP, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_ERROR_DECODING);
 
@@ -516,8 +502,8 @@ TEST("set map (encoding error)", {
     REQUIRE(Z_TYPE_P(value) == IS_ARRAY);
     REQUIRE(zend_hash_num_elements(Z_ARRVAL_P(value)) == 2);
 
-    REQUIRE_MAP_VALUE_EQ(value, one, 1);
-    REQUIRE_MAP_VALUE_EQ(value, two, 2);
+    REQUIRE_MAP_VALUE_EQ(value, "one", "1");
+    REQUIRE_MAP_VALUE_EQ(value, "two", "2");
 
     REQUEST_END()
 })
@@ -526,9 +512,10 @@ TEST("set string", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "updated string");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_STRING, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_SUCCESS);
 
@@ -536,7 +523,7 @@ TEST("set string", {
 
     REQUIRE(value != NULL);
     REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zend_string_equals_literal(Z_STR_P(value), "updated string"));
+    REQUIRE(zval_string_equals(value, "updated string"));
 
     REQUEST_END()
 })
@@ -547,7 +534,7 @@ TEST("set value does not persist", {
     zval tmp;
     ZVAL_STRING(&tmp, "updated string");
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_STRING, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_SUCCESS);
 
@@ -555,7 +542,7 @@ TEST("set value does not persist", {
 
     REQUIRE(value != NULL);
     REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zend_string_equals_literal(Z_STR_P(value), "updated string"));
+    REQUIRE(zval_string_equals(value, "updated string"));
 
     REQUEST_END()
 
@@ -567,7 +554,7 @@ TEST("set value does not persist", {
 
     REQUIRE(value != NULL);
     REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zend_string_equals_literal(Z_STR_P(value), "foo string"));
+    REQUIRE(zval_string_equals(value, "foo string"));
 
     REQUEST_END()
 })
@@ -576,9 +563,10 @@ TEST("set error: invalid id", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_STRING(&tmp, "foo string");
     zai_config_result res = zai_config_set_value(ZAI_CONFIG_ENTRIES_COUNT_MAX, &tmp);
-    zval_ptr_dtor(&tmp);
+    zval_dtor(&tmp);
 
     REQUIRE(res == ZAI_CONFIG_ERROR);
 
@@ -595,7 +583,7 @@ TEST("set error: NULL value", {
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_TRUE);
+    REQUIRE(ZVAL_IS_TRUE(value));
 
     REQUEST_END()
 })
@@ -604,6 +592,7 @@ TEST("set error: invalid type", {
     REQUEST_BEGIN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_LONG(&tmp, 42);
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_BOOL, &tmp);
 
@@ -612,7 +601,7 @@ TEST("set error: invalid type", {
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_TRUE);
+    REQUIRE(ZVAL_IS_TRUE(value));
 
     REQUEST_END()
 })
@@ -622,6 +611,7 @@ TEST("set error: outside of request context", {
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     zval tmp;
+    INIT_PZVAL(&tmp);
     ZVAL_BOOL(&tmp, false);
     zai_config_result res = zai_config_set_value(EXT_CFG_FOO_BOOL, &tmp);
 

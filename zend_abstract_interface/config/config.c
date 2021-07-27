@@ -1,4 +1,4 @@
-#include "config.h"
+#include "./config.h"
 
 #include <assert.h>
 #include <main/php.h>
@@ -6,19 +6,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef ZTS
-#define ZAI_TLS static __thread
-#else
-#define ZAI_TLS static
+#if PHP_VERSION_ID < 70000
+#undef zval_internal_ptr_dtor
+#define zval_internal_ptr_dtor zval_internal_dtor
+#define ZVAL_UNDEF(z) { INIT_PZVAL(z); ZVAL_NULL(z); }
 #endif
 
-static zend_array config_name_map = {0};
+HashTable zai_config_name_map = {0};
 
 uint8_t memoized_entires_count = 0;
 zai_config_memoized_entry memoized_entires[ZAI_CONFIG_ENTRIES_COUNT_MAX];
-
-ZAI_TLS zval runtime_config[ZAI_CONFIG_ENTRIES_COUNT_MAX];
-ZAI_TLS bool runtime_config_initialized = false;
 
 static bool zai_config_get_env_value(zai_string_view name, zai_env_buffer buf) {
     // TODO Handle other return codes
@@ -45,16 +42,20 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized) {
 
     bool found = false;
     int16_t name_index = 0;
-    for (; name_index < memoized->names_count; name_index++) {
+    for (; !found && name_index < memoized->names_count; name_index++) {
         zai_string_view name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
-        if (zai_config_get_env_value(name, buf) || zai_config_get_ini_value(name, buf)) {
+        if (zai_config_get_env_value(name, buf)) {
             found = true;
-            break;
         }
     }
 
-    if (found) {
-        zai_string_view value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
+    zai_string_view value = {.len = strlen(buf.ptr), .ptr = found ? buf.ptr : NULL};
+    int16_t ini_name_index = zai_config_initialize_ini_value(memoized->names, memoized->names_count, &value, memoized->ini_entries);
+    if (!found && ini_name_index >= 0) {
+        name_index = ini_name_index;
+    }
+
+    if (value.ptr) {
         zval tmp;
         ZVAL_UNDEF(&tmp);
         // TODO If name_index > 0, log deprecation notice
@@ -76,57 +77,47 @@ static void zai_config_copy_name(zai_config_name *dest, zai_string_view src) {
     dest->len = src.len;
 }
 
-static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry entry) {
-    assert((entry.id < ZAI_CONFIG_ENTRIES_COUNT_MAX) && "Out of bounds config entry ID");
-    assert((entry.aliases_count < ZAI_CONFIG_NAMES_COUNT_MAX) &&
+static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *entry) {
+    assert((entry->id < ZAI_CONFIG_ENTRIES_COUNT_MAX) && "Out of bounds config entry ID");
+    assert((entry->aliases_count < ZAI_CONFIG_NAMES_COUNT_MAX) &&
            "Number of aliases + name are greater than ZAI_CONFIG_NAMES_COUNT_MAX");
 
-    zai_config_memoized_entry *memoized = &memoized_entires[entry.id];
+    zai_config_memoized_entry *memoized = &memoized_entires[entry->id];
 
-    zai_config_copy_name(&memoized->names[0], entry.name);
-    for (uint8_t i = 0; i < entry.aliases_count; i++) {
-        zai_config_copy_name(&memoized->names[i + 1], entry.aliases[i]);
+    zai_config_copy_name(&memoized->names[0], entry->name);
+    for (uint8_t i = 0; i < entry->aliases_count; i++) {
+        zai_config_copy_name(&memoized->names[i + 1], entry->aliases[i]);
     }
-    memoized->names_count = entry.aliases_count + 1;
+    memoized->names_count = entry->aliases_count + 1;
 
-    memoized->type = entry.type;
+    memoized->type = entry->type;
+    memoized->default_encoded_value = entry->default_encoded_value;
 
     ZVAL_UNDEF(&memoized->decoded_value);
-    bool ret = zai_config_decode_value(entry.default_encoded_value, memoized->type, &memoized->decoded_value,
-                                       /* persistent */ true);
-    assert(ret && "Error decoding default value");
-    (void)ret;  // Used on debug builds only
+    if (!zai_config_decode_value(entry->default_encoded_value, memoized->type, &memoized->decoded_value,
+                                       /* persistent */ true)) {
+        assert(0 && "Error decoding default value");
+    }
     memoized->name_index = -1;
+    memoized->ini_change = entry->ini_change;
 
     return memoized;
 }
 
-static void zai_config_entries_init(zai_config_entry entries[], size_t entries_count) {
+static void zai_config_entries_init(zai_config_entry entries[], zai_config_id entries_count) {
     assert((entries_count <= ZAI_CONFIG_ENTRIES_COUNT_MAX) &&
            "Number of config entries are greater than ZAI_CONFIG_ENTRIES_COUNT_MAX");
 
     memoized_entires_count = entries_count;
 
-    zend_hash_init(&config_name_map, entries_count, NULL, NULL, /* persistent */ 1);
+    zend_hash_init(&zai_config_name_map, entries_count * 2, NULL, NULL, /* persistent */ 1);
 
-    for (size_t i = 0; i < entries_count; i++) {
-        zai_config_memoized_entry *memoized = zai_config_memoize_entry(entries[i]);
+    for (zai_config_id i = 0; i < entries_count; i++) {
+        zai_config_memoized_entry *memoized = zai_config_memoize_entry(&entries[i]);
         for (uint8_t n = 0; n < memoized->names_count; n++) {
-            zval tmp;
-            zai_config_name *name = &memoized->names[n];
-
-            ZVAL_LONG(&tmp, (zend_long)i);
-            zend_hash_str_add(&config_name_map, name->ptr, name->len, &tmp);
+            zai_config_register_config_id(&memoized->names[n], i);
         }
     }
-}
-
-void zai_config_update_runtime_config(zai_config_id id, zval *value) {
-    zval *rt_value = &runtime_config[id];
-    zval_ptr_dtor(rt_value);
-
-    ZVAL_COPY_VALUE(rt_value, value);
-    zval_add_ref(rt_value);
 }
 
 void zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
@@ -144,28 +135,14 @@ static void zai_config_dtor_memoized_zvals(void) {
 
 void zai_config_mshutdown(void) {
     zai_config_dtor_memoized_zvals();
-    if (GC_REFCOUNT(&config_name_map)) {
-        zend_hash_destroy(&config_name_map);
+    if (zai_config_name_map.nTableSize) {
+        zend_hash_destroy(&zai_config_name_map);
     }
     zai_config_ini_mshutdown();
 }
 
-static void zai_config_runtime_config_ctor(void) {
-    if (runtime_config_initialized == true) return;
-    for (uint8_t i = 0; i < memoized_entires_count; i++) {
-        ZVAL_COPY_VALUE(&runtime_config[i], &memoized_entires[i].decoded_value);
-        zval_add_ref(&runtime_config[i]);
-    }
-    runtime_config_initialized = true;
-}
-
-static void zai_config_runtime_config_dtor(void) {
-    if (runtime_config_initialized != true) return;
-    for (uint8_t i = 0; i < memoized_entires_count; i++) {
-        zval_ptr_dtor(&runtime_config[i]);
-    }
-    runtime_config_initialized = false;
-}
+void zai_config_runtime_config_ctor(void);
+void zai_config_runtime_config_dtor(void);
 
 void zai_config_first_time_rinit(void) {
     for (uint8_t i = 0; i < memoized_entires_count; i++) {
@@ -181,14 +158,6 @@ void zai_config_rshutdown(void) { zai_config_runtime_config_dtor(); }
 
 // ---
 
-zval *zai_config_get_value(zai_config_id id) {
-    if (id >= memoized_entires_count) {
-        assert(false && "Config ID is out of bounds");
-        return &EG(error_zval);
-    }
-    return &runtime_config[id];
-}
-
 static bool zai_config_zval_is_map(zval *value) {
     if (Z_TYPE_P(value) != IS_ARRAY) return false;
     // TODO Validate map of strings
@@ -198,7 +167,11 @@ static bool zai_config_zval_is_map(zval *value) {
 static bool zai_config_zval_is_expected_type(zval *value, zai_config_type type) {
     switch (type) {
         case ZAI_CONFIG_TYPE_BOOL:
+#if PHP_VERSION_ID < 70000
+            return Z_TYPE_P(value) == IS_BOOL;
+#else
             return Z_TYPE_P(value) == IS_TRUE || Z_TYPE_P(value) == IS_FALSE;
+#endif
         case ZAI_CONFIG_TYPE_DOUBLE:
             return Z_TYPE_P(value) == IS_DOUBLE;
         case ZAI_CONFIG_TYPE_INT:
@@ -213,6 +186,9 @@ static bool zai_config_zval_is_expected_type(zval *value, zai_config_type type) 
 }
 
 zai_config_result zai_config_set_value(zai_config_id id, zval *value) {
+#if PHP_VERSION_ID < 70000
+    TSRMLS_FETCH();
+#endif
     if (!PG(modules_activated)) return ZAI_CONFIG_ERROR_NOT_READY;
     if (id >= memoized_entires_count || !value) return ZAI_CONFIG_ERROR;
 
@@ -226,29 +202,15 @@ zai_config_result zai_config_set_value(zai_config_id id, zval *value) {
         zai_string_view value_view = {.len = Z_STRLEN_P(value), .ptr = Z_STRVAL_P(value)};
 
         if (zai_config_decode_value(value_view, memoized->type, &tmp, /* persistent */ false)) {
-            zai_config_update_runtime_config(id, &tmp);
-            zval_ptr_dtor(&tmp);
+            zai_config_replace_runtime_config(id, &tmp);
+            zval_dtor(&tmp);
             return ZAI_CONFIG_SUCCESS;
         }
 
         return ZAI_CONFIG_ERROR_DECODING;
     }
 
-    zai_config_update_runtime_config(id, value);
+    zai_config_replace_runtime_config(id, value);
 
     return ZAI_CONFIG_SUCCESS;
-}
-
-bool zai_config_get_id_by_name(zai_string_view name, zai_config_id *id) {
-    if (!PG(modules_activated)) return false;
-    if (!GC_REFCOUNT(&config_name_map)) return false;
-    if (!name.ptr || !name.len || !id) return false;
-
-    zval *zid = zend_hash_str_find(&config_name_map, name.ptr, name.len);
-    if (zid && Z_TYPE_P(zid) == IS_LONG) {
-        *id = Z_LVAL_P(zid);
-        return true;
-    }
-
-    return false;
 }

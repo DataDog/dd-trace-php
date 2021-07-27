@@ -1,4 +1,10 @@
-add_library(zai_config config.c config_decode.c config_ini.c)
+if(PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
+  set(PHP_CONFIG_VERSION_DIRECTORY "php7-8")
+else()
+  set(PHP_CONFIG_VERSION_DIRECTORY "${PHP_VERSION_DIRECTORY}")
+endif()
+
+add_library(zai_config config.c config_decode.c "${PHP_CONFIG_VERSION_DIRECTORY}/config_ini.c" "${PHP_CONFIG_VERSION_DIRECTORY}/config_runtime.c")
 
 target_include_directories(
   zai_config PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
