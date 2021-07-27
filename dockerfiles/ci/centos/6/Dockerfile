@@ -82,6 +82,8 @@ RUN source scl_source enable devtoolset-7; \
     mkdir build && cd build; \
     cmake .. && make && make install;
 
+RUN echo '#define SECBIT_NO_SETUID_FIXUP (1 << 2)' > '/usr/include/linux/securebits.h'
+
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
 
 ENV PHP_SRC_DIR=/usr/local/src/php

@@ -178,6 +178,7 @@ strict:
 
 clang_find_files_to_lint:
 	@find . \( \
+	-path ./.git -prune -o \
 	-path ./tmp -prune -o \
 	-path ./vendor -prune -o \
 	-path ./tests -prune -o \
