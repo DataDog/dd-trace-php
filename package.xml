@@ -37,23 +37,9 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    ### Added
-    - ZAI env #1250
-    - Add ZAI component for reading headers #1256
-    - (PHP 8) Add proper exception and error reporting #1272
-    - (PHP 8) Register SpanData->exception property and store exception info there instead of internally #1281
-    ### Changed
-    - Refactor internal span objects to be allocated together with their internal data #1254
-    - Enforce metrics to be floats in internal serializer #1258
-    - Allow for global debug mode, add zai testing to Makefile and more minor testing improvements #1265
-    - Move DDTrace\Format to src/api #1271
-    - Moving spans from userland to extension #1262
-    ### Fixed
-    - Fix msgpack serialization of empty arrays #1259
-    - Set SECBIT_NO_SETUID_FIXUP to prevent crashes after setuid() calls #1276
-    - Apply original curl headers when curl_setopt_array() fails #1279
-    - Fix owner of files included in the distributed .tar.gz archive #1280
-    - Fix tests: Pin Symfony 4 tests to laminas/laminas-code &lt; 4.4 #1266
+        ### Fixed
+        - Add linux/securebits.h to CentOS docker container, to have it present in linux build artifacts #1286
+        - Handle an additional case of capabilities being dropped within our background sender #1287
     </notes>
     <contents>
         <dir name="/">
@@ -339,6 +325,7 @@
             <file name="tests/ext/background-sender/agent_headers_container_id_fargate.phpt" role="test" />
             <file name="tests/ext/background-sender/agent_headers_ignore_userland.phpt" role="test" />
             <file name="tests/ext/background-sender/background_sender_survives_setuid.phpt" role="test" />
+            <file name="tests/ext/background-sender/background_sender_restores_capabilities.phpt" role="test" />
             <file name="tests/ext/background-sender/stubs/cgroup.docker" role="test" />
             <file name="tests/ext/background-sender/stubs/cgroup.empty" role="test" />
             <file name="tests/ext/background-sender/stubs/cgroup.fargate.1.4" role="test" />

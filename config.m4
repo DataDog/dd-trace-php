@@ -29,6 +29,7 @@ if test "$PHP_DDTRACE" != "no"; then
   )
 
   AC_CHECK_HEADERS([linux/securebits.h])
+  AC_CHECK_HEADERS([linux/capability.h])
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     EXTRA_LDFLAGS="-fsanitize=address"
