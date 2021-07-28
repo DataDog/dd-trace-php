@@ -21,6 +21,10 @@
 #include <linux/securebits.h>
 #include <sys/prctl.h>
 #endif
+#if HAVE_LINUX_CAPABILITY_H
+#include <linux/capability.h>
+#include <sys/syscall.h>
+#endif
 
 #include "compatibility.h"
 #include "configuration.h"
@@ -852,6 +856,21 @@ static void *_dd_writer_loop(void *_) {
         // prevent setuid from messing with our effective capabilities
         // this is necessary to handle scenarios where setuid is only called after starting our thread
         prctl(PR_SET_SECUREBITS, SECBIT_NO_SETUID_FIXUP);
+    }
+#endif
+
+#if HAVE_LINUX_CAPABILITY_H
+    // restore the permitted capabilities to the effective set
+    // some applications may call setuid(2) with prctl(PR_SET_KEEPCAPS) active, but this will still clear all the
+    // effective capabilities To ensure proper functionality under these circumstances, we need to undo the effective
+    // capability clearing. This is safe.
+    struct __user_cap_header_struct caphdrp = {.version = _LINUX_CAPABILITY_VERSION_3};
+    struct __user_cap_data_struct capdatap[_LINUX_CAPABILITY_U32S_3];
+    if (syscall(SYS_capget, &caphdrp, &capdatap) == 0) {
+        for (int i = 0; i < _LINUX_CAPABILITY_U32S_3; ++i) {
+            capdatap[i].effective = capdatap[i].permitted;
+        }
+        syscall(SYS_capset, &caphdrp, &capdatap);
     }
 #endif
 
