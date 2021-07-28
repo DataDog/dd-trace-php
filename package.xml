@@ -321,6 +321,7 @@
             <file name="tests/ext/background-sender/agent_headers_container_id_fargate.phpt" role="test" />
             <file name="tests/ext/background-sender/agent_headers_ignore_userland.phpt" role="test" />
             <file name="tests/ext/background-sender/background_sender_survives_setuid.phpt" role="test" />
+            <file name="tests/ext/background-sender/background_sender_restores_capabilities.phpt" role="test" />
             <file name="tests/ext/background-sender/stubs/cgroup.docker" role="test" />
             <file name="tests/ext/background-sender/stubs/cgroup.empty" role="test" />
             <file name="tests/ext/background-sender/stubs/cgroup.fargate.1.4" role="test" />
