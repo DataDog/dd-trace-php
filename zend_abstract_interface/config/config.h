@@ -82,12 +82,9 @@ void zai_config_mshutdown(void);
 // Update decoded_value with env/ini value if exists
 void zai_config_first_time_rinit(void);
 
-// Runtime config ctor
-//      ZEND_TLS zval runtime_config[ZAI_CONFIG_ENTRIES_COUNT_MAX];
-//
-// refcount++ of pzvals
+// Runtime config ctor (++rc)
 void zai_config_rinit(void);
-// dtor run-time zvals
+// dtor run-time zvals  (--rc)
 void zai_config_rshutdown(void);
 
 // Directly replace the config value for the current request. Copies the passed argument.
@@ -96,27 +93,13 @@ void zai_config_replace_runtime_config(zai_config_id id, zval *value);
 extern uint8_t memoized_entires_count;
 extern zai_config_memoized_entry memoized_entires[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
-typedef enum {
-    ZAI_CONFIG_SUCCESS,
-    ZAI_CONFIG_ERROR_DECODING,
-    ZAI_CONFIG_ERROR_INVALID_TYPE,
-    /* The function is being called outside of a request context. */
-    ZAI_CONFIG_ERROR_NOT_READY,
-    /* API usage error. */
-    ZAI_CONFIG_ERROR,
-} zai_config_result;
-
 // assertions + error_zal
 // If caller wants to return to userland: Caller must refcount++ & dtor
 zval *zai_config_get_value(zai_config_id id);
-zai_config_result zai_config_set_value(zai_config_id id, zval *value);
 
-// Only really used via userland functions
-//      \DDTrace\get_config(string $name)
-//      \DDTrace\set_config(string $name, mixed $value)
-// Caller is responsible for handling post-access config side effects
 bool zai_config_get_id_by_name(zai_string_view name, zai_config_id *id);
 
+// Adds name to name<->id mapping. Id may be present multiple times.
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);
 
 #endif  // ZAI_CONFIG_H
