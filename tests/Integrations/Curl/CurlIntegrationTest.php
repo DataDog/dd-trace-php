@@ -49,11 +49,11 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     private function cleanUp()
     {
-        putenv('DD_CURL_ANALYTICS_ENABLED');
-        putenv('DD_DISTRIBUTED_TRACING');
-        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
-        putenv('DD_TRACE_MEMORY_LIMIT');
-        putenv('DD_TRACE_SPANS_LIMIT');
+        self::putenv('DD_CURL_ANALYTICS_ENABLED');
+        self::putenv('DD_DISTRIBUTED_TRACING');
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
+        self::putenv('DD_TRACE_MEMORY_LIMIT');
+        self::putenv('DD_TRACE_SPANS_LIMIT');
     }
 
     private static function commonCurlInfoTags()
@@ -414,7 +414,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testAppendHostnameToServiceName()
     {
-        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
 
         $traces = $this->isolateTracer(function () {
             $ch = curl_init(self::URL . '/status/200');

@@ -7,14 +7,13 @@
 
 #include "configuration.h"
 #include "ddtrace.h"
-#include "env_config.h"
 #include "mt19937/mt19937-64.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_seed_prng(void) {
-    if (get_dd_trace_debug_prng_seed() > 0) {
-        init_genrand64((unsigned long long)get_dd_trace_debug_prng_seed());
+    if (get_DD_TRACE_DEBUG_PRNG_SEED() > 0) {
+        init_genrand64((unsigned long long)get_DD_TRACE_DEBUG_PRNG_SEED());
     } else {
         init_genrand64((unsigned long long)GENERATE_SEED());
     }
@@ -50,13 +49,13 @@ static inline uint64_t zval_to_uint64(zval *zid) {
     return (uid && errno == 0) ? uid : 0U;
 }
 
-BOOL_T ddtrace_set_userland_trace_id(zval *zid) {
+bool ddtrace_set_userland_trace_id(zval *zid) {
     uint64_t uid = zval_to_uint64(zid);
     if (uid) {
         DDTRACE_G(trace_id) = uid;
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 uint64_t ddtrace_push_span_id(uint64_t id) {
@@ -78,13 +77,13 @@ uint64_t ddtrace_push_span_id(uint64_t id) {
     return stack->id;
 }
 
-BOOL_T ddtrace_push_userland_span_id(zval *zid) {
+bool ddtrace_push_userland_span_id(zval *zid) {
     uint64_t uid = zval_to_uint64(zid);
     if (uid) {
         ddtrace_push_span_id(uid);
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 uint64_t ddtrace_pop_span_id(void) {

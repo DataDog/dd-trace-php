@@ -27,18 +27,17 @@
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
                           DDTRACE_STRING_LITERAL(callable), options)
 
-#define INTEGRATION(id, int_name) { \
-    .name = DDTRACE_INTEGRATION_##id, \
-    .name_ucase = #id,          \
-    .name_lcase = (int_name),         \
-    .name_len = sizeof(int_name) - 1,         \
-    .is_enabled = get_DD_TRACE_##id##_ENABLED, \
-    .is_sampling_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
-    .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE, \
+#define INTEGRATION(id, int_name)                                      \
+    {                                                                  \
+        .name = DDTRACE_INTEGRATION_##id,                              \
+        .name_ucase = #id,                                             \
+        .name_lcase = (int_name),                                      \
+        .name_len = sizeof(int_name) - 1,                              \
+        .is_enabled = get_DD_TRACE_##id##_ENABLED,                     \
+        .is_analytics_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
+        .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
     },
-ddtrace_integration ddtrace_integrations[] = {
-    DD_INTEGRATIONS
-};
+ddtrace_integration ddtrace_integrations[] = {DD_INTEGRATIONS};
 size_t ddtrace_integrations_len = sizeof ddtrace_integrations / sizeof ddtrace_integrations[0];
 
 // Map of lowercase strings to the ddtrace_integration equivalent
@@ -86,7 +85,7 @@ static void dd_load_test_integrations(void) {
 
 static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, ddtrace_string Class,
                                                  ddtrace_string method, ddtrace_string integration) {
-    if (!ddtrace_config_integration_enabled_ex(name)) {
+    if (!ddtrace_config_integration_enabled(name)) {
         return;
     }
 

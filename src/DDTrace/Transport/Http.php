@@ -72,16 +72,16 @@ final class Http implements Transport
      */
     private function configure($config)
     {
-        $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
-        $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
-        $traceAgentUrl = getenv(self::TRACE_AGENT_URL_ENV) ?: "http://${host}:${port}";
+        $host = ddtrace_config_read_env_or_ini(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
+        $port = ddtrace_config_read_env_or_ini(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
+        $traceAgentUrl = ddtrace_config_read_env_or_ini(self::TRACE_AGENT_URL_ENV) ?: "http://${host}:${port}";
         $path = self::PRIORITY_SAMPLING_TRACE_AGENT_PATH;
         $endpoint = "${traceAgentUrl}${path}";
 
         $this->config = array_merge([
             'endpoint' => $endpoint,
-            'connect_timeout' => getenv(self::AGENT_CONNECT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_CONNECT_TIMEOUT,
-            'timeout' => getenv(self::AGENT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_TIMEOUT,
+            'connect_timeout' => ddtrace_config_read_env_or_ini(self::AGENT_CONNECT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_CONNECT_TIMEOUT,
+            'timeout' => ddtrace_config_read_env_or_ini(self::AGENT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_TIMEOUT,
         ], $config);
     }
 

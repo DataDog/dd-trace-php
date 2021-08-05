@@ -65,7 +65,6 @@ void ddtrace_dispatch_destroy(void);
 
 void ddtrace_class_lookup_release_compat(zval *zv);
 
-#define ddtrace_zval_ptr_dtor(x) zval_ptr_dtor(x)
 #define INIT_ZVAL(x) ZVAL_NULL(&x)
 
 HashTable *ddtrace_new_class_lookup(zval *clazz);

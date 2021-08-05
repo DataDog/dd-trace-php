@@ -9,6 +9,7 @@ extern "C" {
 
 std::atomic<int> ext_first_rinit;
 static ext_zai_config_minit_fn ext_orig_minit;
+void (*ext_zai_config_pre_rinit)();
 
 static PHP_MINIT_FUNCTION(zai_config) {
     atomic_init(&ext_first_rinit, 1);
@@ -27,6 +28,10 @@ static PHP_MSHUTDOWN_FUNCTION(zai_config) {
 
 static PHP_RINIT_FUNCTION(zai_config) {
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    if (ext_zai_config_pre_rinit) {
+        ext_zai_config_pre_rinit();
+    }
 
     int expected_first_rinit = 1;
     if (atomic_compare_exchange_strong(&ext_first_rinit, &expected_first_rinit, 0)) {
@@ -49,6 +54,7 @@ static PHP_RSHUTDOWN_FUNCTION(zai_config) {
 }
 
 void ext_zai_config_ctor(zend_module_entry *module, ext_zai_config_minit_fn orig_minit) {
+    ext_zai_config_pre_rinit = NULL;
     ext_orig_minit = orig_minit;
     module->module_startup_func = PHP_MINIT(zai_config);
     module->module_shutdown_func = PHP_MSHUTDOWN(zai_config);

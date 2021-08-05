@@ -857,7 +857,7 @@ class AuthComponentTest extends CakeTestCase {
 	public function testLoginRedirect() {
 		$_SERVER['HTTP_REFERER'] = false;
 		$_ENV['HTTP_REFERER'] = false;
-		putenv('HTTP_REFERER=');
+		self::putenv('HTTP_REFERER=');
 
 		$this->Auth->Session->write('Auth', array(
 			'AuthUser' => array('id' => '1', 'username' => 'nate')
@@ -879,7 +879,7 @@ class AuthComponentTest extends CakeTestCase {
 		//empty referer no session
 		$_SERVER['HTTP_REFERER'] = false;
 		$_ENV['HTTP_REFERER'] = false;
-		putenv('HTTP_REFERER=');
+		self::putenv('HTTP_REFERER=');
 		$url = '/posts/view/1';
 
 		$this->Auth->Session->write('Auth', array(
@@ -1046,7 +1046,7 @@ class AuthComponentTest extends CakeTestCase {
 	public function testDefaultToLoginRedirect() {
 		$_SERVER['HTTP_REFERER'] = false;
 		$_ENV['HTTP_REFERER'] = false;
-		putenv('HTTP_REFERER=');
+		self::putenv('HTTP_REFERER=');
 
 		$url = '/party/on';
 		$this->Auth->request = $CakeRequest = new CakeRequest($url);

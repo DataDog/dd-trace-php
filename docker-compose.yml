@@ -30,6 +30,8 @@ x-aliases:
         - DD_TRACE_DOCKER_DEBUG
       cap_add:
         - SYS_PTRACE
+      security_opt:
+        - seccomp:unconfined
       # Privileged is requires to run some pcntl tests locally.
       # privileged: true
 

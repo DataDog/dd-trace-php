@@ -343,14 +343,3 @@ TEST("get id: null id", {
     REQUEST_END()
 })
 
-TEST("get id: outside of request context", {
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
-
-    zai_config_id id;
-    bool res = zai_config_get_id_by_name(ZAI_STRL_VIEW("FOO_BOOL"), &id);
-
-    REQUIRE(res == false);
-
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-})

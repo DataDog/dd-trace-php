@@ -17,16 +17,17 @@ final class TracerTest extends BaseTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        \putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
-        \ini_set('datadog.tags', 'global_tag:global,also_in_span:should_not_override');
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+        self::putenv('DD_TAGS=global_tag:global,also_in_span:should_not_override');
+        \dd_trace_internal_fn('ddtrace_reload_config'); // tags are now internal config
     }
 
     protected function ddTearDown()
     {
-        \ini_set('datadog.tags', '');
-        \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
-        \putenv('DD_SERVICE_MAPPING');
-        \putenv('DD_TRACE_GENERATE_ROOT_SPAN');
+        \putenv('DD_TAGS');
+        self::putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
+        self::putenv('DD_SERVICE_MAPPING');
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         parent::ddTearDown();
     }
 
@@ -105,7 +106,7 @@ final class TracerTest extends BaseTestCase
      */
     public function testResourceNormalizationCLILegacyApiImplicitViaRequestToResourceOFF()
     {
-        putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false');
+        self::putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false');
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startRootSpan('custom.operation');
             $scope->close();
@@ -119,7 +120,7 @@ final class TracerTest extends BaseTestCase
      */
     public function testResourceNormalizationCLILegacyApiImplicitViaRequestToResourceON()
     {
-        putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=true');
+        self::putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=true');
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startRootSpan('custom.operation');
             $scope->close();
@@ -261,8 +262,7 @@ final class TracerTest extends BaseTestCase
 
     public function testDDEnvHasPrecedenceOverGlobalTags()
     {
-        $this->putEnvAndReloadConfig(['DD_ENV=from-env']);
-        \ini_set('datadog.tags', 'env:from-tags');
+        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags']);
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startRootSpan('custom.root');
             $scope->close();
@@ -282,8 +282,7 @@ final class TracerTest extends BaseTestCase
             }
         );
 
-        $this->putEnvAndReloadConfig(['DD_ENV=from-env']);
-        \ini_set('datadog.tags', 'env:from-tags,global:foo');
+        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags,global:foo']);
 
         $test = $this;
         $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
@@ -336,8 +335,8 @@ final class TracerTest extends BaseTestCase
 
     public function testDDVersionHasPrecedenceOverGlobalTags()
     {
-        $this->putEnvAndReloadConfig(['DD_VERSION=from-env']);
-        \ini_set('datadog.tags', 'version:from-tags');
+        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags']);
+        \dd_trace_internal_fn('ddtrace_reload_config'); // tags are now internal config
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startRootSpan('custom.root');
             $scope->close();
@@ -356,8 +355,7 @@ final class TracerTest extends BaseTestCase
             }
         );
 
-        $this->putEnvAndReloadConfig(['DD_VERSION=from-env']);
-        \ini_set('datadog.tags', 'version:from-tags,global:foo');
+        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags,global:foo']);
 
         $test = $this;
         $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
@@ -399,7 +397,7 @@ final class TracerTest extends BaseTestCase
 
     public function testServiceMappingRootSpan()
     {
-        putenv('DD_SERVICE_MAPPING=original_service:changed_service');
+        self::putenv('DD_SERVICE_MAPPING=original_service:changed_service');
         \dd_trace_internal_fn('ddtrace_reload_config'); // service mappings are now internal config
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startRootSpan('custom.root');
@@ -412,7 +410,7 @@ final class TracerTest extends BaseTestCase
 
     public function testServiceMappingNestedSpanLegacyApi()
     {
-        putenv('DD_SERVICE_MAPPING=original_service:changed_service');
+        self::putenv('DD_SERVICE_MAPPING=original_service:changed_service');
         \dd_trace_internal_fn('ddtrace_reload_config'); // service mappings are now internal config
 
         $traces = $this->isolateTracer(function (Tracer $tracer) {
@@ -430,7 +428,7 @@ final class TracerTest extends BaseTestCase
 
     public function testServiceMappingInternalApi()
     {
-        putenv('DD_SERVICE_MAPPING=original_service:changed_service');
+        self::putenv('DD_SERVICE_MAPPING=original_service:changed_service');
         \dd_trace_internal_fn('ddtrace_reload_config'); // service mappings are now internal config
 
         \DDTrace\trace_method(

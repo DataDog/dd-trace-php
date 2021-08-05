@@ -38,7 +38,7 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
 
     if (zend_hash_str_find_ptr(lookup, Z_STRVAL_P(func), Z_STRLEN_P(func))) {
         ddtrace_log_debugf("Cannot overwrite existing dispatch for '%s()'", Z_STRVAL_P(func));
-        return FALSE;
+        return false;
     }
 
     dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & IS_ARRAY_PERSISTENT);

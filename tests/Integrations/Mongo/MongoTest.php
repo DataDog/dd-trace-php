@@ -653,7 +653,7 @@ class MongoTest extends IntegrationTestCase
 
     public function testLimitedTracer()
     {
-        putenv('DD_TRACE_SPANS_LIMIT=0');
+        self::putenv('DD_TRACE_SPANS_LIMIT=0');
         dd_trace_internal_fn('ddtrace_reload_config');
 
         $traces = $this->isolateCollection(function (MongoCollection $collection) {
@@ -667,7 +667,7 @@ class MongoTest extends IntegrationTestCase
             $collection->aggregate([], ['explain' => true]);
         });
 
-        putenv('DD_TRACE_SPANS_LIMIT');
+        self::putenv('DD_TRACE_SPANS_LIMIT');
         dd_trace_internal_fn('ddtrace_reload_config');
 
         $this->assertEmpty($traces);

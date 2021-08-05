@@ -21,14 +21,14 @@ final class PDOTest extends IntegrationTestCase
 
     public static function ddSetUpBeforeClass()
     {
-        putenv('DD_PDO_ANALYTICS_ENABLED=true');
+        self::putenv('DD_PDO_ANALYTICS_ENABLED=true');
         parent::ddSetUpBeforeClass();
     }
 
     public static function ddTearDownAfterClass()
     {
         parent::ddTearDownAfterClass();
-        putenv('DD_PDO_ANALYTICS_ENABLED');
+        self::putenv('DD_PDO_ANALYTICS_ENABLED');
     }
 
     protected function ddSetUp()

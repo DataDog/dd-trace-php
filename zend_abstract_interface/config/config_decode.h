@@ -11,6 +11,7 @@ typedef enum {
     ZAI_CONFIG_TYPE_DOUBLE,
     ZAI_CONFIG_TYPE_INT,
     ZAI_CONFIG_TYPE_MAP,
+    ZAI_CONFIG_TYPE_SET,
     ZAI_CONFIG_TYPE_STRING,
 } zai_config_type;
 

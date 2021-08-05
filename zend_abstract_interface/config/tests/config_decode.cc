@@ -146,6 +146,7 @@ TEST_CASE("decode int", "[zai_config_decode]") {
     expected_int successes[] = {
         {ZAI_STRL_VIEW("0"), 0},
         {ZAI_STRL_VIEW("1"), 1},
+        {ZAI_STRL_VIEW("-2"), -2},
         {ZAI_STRL_VIEW("42"), 42},
         {ZAI_STRL_VIEW("    42    "), 42},
         {ZAI_STRL_VIEW("4   2"), 4},  // It's weird, but ¯\_(ツ)_/¯
@@ -239,6 +240,68 @@ TEST_CASE("decode map", "[zai_config_decode]") {
         ZAI_STRL_VIEW(" : "),
         ZAI_STRL_VIEW(", "),
         ZAI_STRL_VIEW("\t\n:"),
+    };
+
+    for (zai_string_view name : errors) {
+        ZVAL_UNDEF(&value);
+        ret = zai_config_decode_value(name, type, &value, false);
+
+        REQUIRE(ret == false);
+        REQUIRE(Z_TYPE(value) <= IS_NULL);
+    }
+
+    // ---
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_spindown();
+}
+
+typedef struct expected_set_s {
+    zai_string_view name;
+    const char *key[3];
+} expected_set;
+
+
+TEST_CASE("decode set", "[zai_config_decode]") {
+    REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+
+    zval value;
+    bool ret;
+    zai_config_type type = ZAI_CONFIG_TYPE_SET;
+
+    // ---
+
+    expected_set successes[] = {
+        {ZAI_STRL_VIEW("key,foo"), { "key", "foo" }},
+        {ZAI_STRL_VIEW("\t\n a \t\n"), { "a" }},
+        {ZAI_STRL_VIEW("a\t\n,\t\nb"), { "a", "b" }},
+        {ZAI_STRL_VIEW("a\t,\t"), { "a" }},
+        {ZAI_STRL_VIEW("\t,,a"), { "a" }},
+    };
+
+    for (expected_set expected : successes) {
+        ZVAL_UNDEF(&value);
+        ret = zai_config_decode_value(expected.name, type, &value, false);
+
+        REQUIRE(ret == true);
+        REQUIRE(Z_TYPE(value) == IS_ARRAY);
+        int count = 0;
+        while (expected.key[count]) {
+            REQUIRE_MAP_KEY(&value, expected.key[count]);
+            ++count;
+        }
+        REQUIRE(zend_hash_num_elements(Z_ARRVAL(value)) == count);
+        zend_hash_destroy(Z_ARRVAL(value));
+        efree(Z_ARRVAL(value));
+    }
+
+    // ---
+
+    zai_string_view errors[] = {
+        ZAI_STRL_VIEW(","),
+        ZAI_STRL_VIEW("\t\n, "),
     };
 
     for (zai_string_view name : errors) {

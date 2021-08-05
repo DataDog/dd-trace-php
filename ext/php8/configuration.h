@@ -4,89 +4,16 @@
 #include <stdbool.h>
 
 #include "compatibility.h"
-#include "ddtrace_config.h"
+#include "config/config.h"
 #include "ddtrace_string.h"
-#include "env_config.h"
 #include "integrations/integrations.h"
-
-// TODO Tie these into the X Macros below
-static inline bool get_dd_trace_debug(void) {
-    return IS_TRUE == Z_TYPE_P(zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_DEBUG));
-}
-
-static inline zend_string *get_dd_service(void) {
-    return Z_STR_P(zai_config_get_value(DDTRACE_CONFIG_DD_SERVICE));
-}
-
-static inline zend_array *get_dd_tags(void) {
-    return Z_ARRVAL_P(zai_config_get_value(DDTRACE_CONFIG_DD_TAGS));
-}
-
-static inline zend_long get_dd_trace_agent_port(void) {
-    return Z_LVAL_P(zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_AGENT_PORT));
-}
-
-static inline double get_dd_trace_sample_rate(void) {
-    return Z_DVAL_P(zai_config_get_value(DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE));
-}
-
-/**
- * Returns true if `subject` matches "true" or "1".
- * Returns false if `subject` matches "false" or "0".
- * Returns `default_value` otherwise.
- * @param subject An already lowercased string
- * @param default_value
- * @return
- */
-bool ddtrace_config_bool(ddtrace_string subject, bool default_value);
-
-/**
- * Fetch the environment variable represented by `env_name` from the SAPI env
- * or regular environment and test if it is a boolean config value.
- * @see ddtrace_config_bool
- * @param env_name Name of the environment variable to fetch.
- * @param default_value
- * @return If the environment variable does not exist or is not bool-ish, return `default_value` instead.
- */
-bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value);
-
-bool ddtrace_config_distributed_tracing_enabled(void);
-bool ddtrace_config_trace_enabled(void);
-
-#define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 9   // DD_TRACE_ FTW!
-#define DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN 22  // "_ANALYTICS_SAMPLE_RATE" FTW!
-#define DDTRACE_LONGEST_INTEGRATION_ENV_LEN                                              \
-    (DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN + DDTRACE_LONGEST_INTEGRATION_NAME_LEN + \
-     DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN)
+#include "span.h"
 
 // note: only call this if ddtrace_config_trace_enabled() returns true
-bool ddtrace_config_integration_enabled(ddtrace_string integration);
-bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_name);
-bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration);
-double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration);
+bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_name);
 
-size_t ddtrace_config_integration_env_name(char *name, const char *prefix, ddtrace_integration *integration,
-                                           const char *suffix);
-
-inline ddtrace_string ddtrace_string_getenv(char *str, size_t len) {
-    return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len));
-}
-
-// Returns an env var value as string. If the env is not defined it uses a fallback env variable name.
-// Used when for backward compatibility we need to support a primary and secondary env variable name.
-inline ddtrace_string ddtrace_string_getenv_multi(char *primary, size_t primary_len, char *secondary,
-                                                  size_t secondary_len) {
-    return ddtrace_string_cstring_ctor(ddtrace_getenv_multi(primary, primary_len, secondary, secondary_len));
-}
-
-struct ddtrace_memoized_configuration_t;
-extern struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration;
-
-void ddtrace_initialize_config(void);
-void ddtrace_reload_config(void);
-void ddtrace_config_shutdown(void);
-
-#include "integrations/integrations.h"
+void ddtrace_config_minit(int module_number);
+void ddtrace_config_first_rinit();
 
 /* From the curl docs on CONNECT_TIMEOUT_MS:
  *     If libcurl is built to use the standard system name resolver, that
@@ -107,69 +34,115 @@ void ddtrace_config_shutdown(void);
 #define DD_TRACE_BGS_TIMEOUT_VAL "5000"
 
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT "false"
+#define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT "1"
+
+#if _BUILD_FROM_PECL_
+#define DD_DEFAULT_RQUEST_INIT_HOOK_PATH "@php_dir@/datadog_trace/bridge/dd_wrap_autoloader.php"
+#else
+#define DD_DEFAULT_RQUEST_INIT_HOOK_PATH ""
+#endif
 
 #define DD_CONFIGURATION_STRINGIZE(str) #str
-#define INTEGRATION(id, ...) \
-    CFG(BOOL, DD_TRACE_##id##_ENABLED, "true") \
-    CFG(BOOL, DD_TRACE_##id##_ANALYTICS_ENABLED, DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT, ((zai_string_view[]){ \
-        ZAI_STRL_VIEW(DD_CONFIGURATION_STRINGIZE(DD_##id##_ANALYTICS_ENABLED)), \
-    })) \
-    CFG(DOUBLE, DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE, DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT, ((zai_string_view[]){ \
-        ZAI_STRL_VIEW(DD_CONFIGURATION_STRINGIZE(DD_##id##_ANALYTICS_SAMPLE_RATE)), \
-    }))
+#define INTEGRATION(id, ...)                                                                            \
+    CONFIG(BOOL, DD_TRACE_##id##_ENABLED, "true")                                                       \
+    CALIAS(BOOL, DD_TRACE_##id##_ANALYTICS_ENABLED, DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT,           \
+           CALIASES(DD_CONFIGURATION_STRINGIZE(DD_##id##_ANALYTICS_ENABLED),                            \
+                    DD_CONFIGURATION_STRINGIZE(DD_TRACE_##id##_ANALYTICS_ENABLED)))                     \
+    CALIAS(DOUBLE, DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE, DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT, \
+           CALIASES(DD_CONFIGURATION_STRINGIZE(DD_##id##_ANALYTICS_SAMPLE_RATE),                        \
+                    DD_CONFIGURATION_STRINGIZE(DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE)))
 
-#define DD_CONFIGURATION                                                                                             \
-    CFG(CHAR, DD_TRACE_AGENT_URL, "")                                                           \
-    CFG(CHAR, DD_AGENT_HOST, "localhost")                                                            \
-    CFG(BOOL, DD_DISTRIBUTED_TRACING, "true")                                                 \
-    CFG(CHAR, DD_DOGSTATSD_PORT, "8125")                                                         \
-    CFG(CHAR, DD_ENV, "")                                                                                   \
-    CFG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                      \
-    CFG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                         \
-    CFG(CHAR, DD_INTEGRATIONS_DISABLED, "")                                               \
-    CFG(BOOL, DD_PRIORITY_SAMPLING, "true")                                                     \
-    CFG(MAP, DD_SERVICE_MAPPING, "")                                                               \
-    CFG(CHAR, DD_SERVICE, "", ((zai_string_view[]){ \
-        ZAI_STRL_VIEW("DD_SERVICE_NAME"), \
-        ZAI_STRL_VIEW("DD_TRACE_APP_NAME"), \
-    }))                                                              \
-    CFG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                        \
-    CFG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                      \
-    CFG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                    \
-    CFG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                   \
-    CFG(BOOL, DD_TRACE_ENABLED, "true")                                                             \
-    CFG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false")                               \
-    CFG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001") \
-    CFG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                    \
-    CFG(CHAR, DD_TRACE_MEMORY_LIMIT, "NULL")                                                   \
-    CFG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                            \
-    CFG(CHAR, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                       \
-    CFG(CHAR, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                   \
-    CFG(CHAR, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                   \
-    CFG(CHAR, DD_TRACE_SAMPLING_RULES, "")                                                 \
-    CFG(CHAR, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                           \
-    CFG(INT, DD_TRACE_AGENT_TIMEOUT, DD_TRACE_AGENT_TIMEOUT_VAL)                                \
-    CFG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL)        \
-    CFG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1")                                                \
-    CFG(BOOL, DD_LOG_BACKTRACE, "false")                                                            \
-    CFG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true")                                       \
-    CFG(BOOL, DD_TRACE_SANDBOX_ENABLED, "true")                                             \
-    CFG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                      \
-    CFG(INT, DD_TRACE_BGS_CONNECT_TIMEOUT, DD_TRACE_BGS_CONNECT_TIMEOUT_VAL)              \
-    CFG(INT, DD_TRACE_BGS_TIMEOUT, DD_TRACE_BGS_TIMEOUT_VAL)                                      \
-    CFG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, "5000")                                    \
-    CFG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "10")                      \
-    CFG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000")                                            \
-    CFG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                   \
-    CFG(BOOL, DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "false")                          \
-    CFG(BOOL, DD_TRACE_DEBUG_CURL_OUTPUT, "false")                                        \
-    CFG(INT, DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "80")            \
-    CFG(BOOL, DD_TRACE_WARN_LEGACY_DD_TRACE, "true")                                   \
-    CFG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false")                      \
-    CFG(CHAR, DD_VERSION, "")                                                                                        \
+#define DD_CONFIGURATION                                                                                            \
+    CALIAS(STRING, DD_TRACE_REQUEST_INIT_HOOK, DD_DEFAULT_RQUEST_INIT_HOOK_PATH,                                    \
+           CALIASES("DDTRACE_REQUEST_INIT_HOOK"), .ini_change = zai_config_system_ini_change)                       \
+    CONFIG(STRING, DD_TRACE_AGENT_URL, "", .ini_change = zai_config_system_ini_change)                              \
+    CONFIG(STRING, DD_AGENT_HOST, "localhost", .ini_change = zai_config_system_ini_change)                          \
+    CONFIG(BOOL, DD_DISTRIBUTED_TRACING, "true")                                                                    \
+    CONFIG(STRING, DD_DOGSTATSD_PORT, "8125")                                                                       \
+    CONFIG(STRING, DD_ENV, "")                                                                                      \
+    CONFIG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                                      \
+    CONFIG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                                                    \
+    CONFIG(SET, DD_INTEGRATIONS_DISABLED, "all")                                                                    \
+    CONFIG(BOOL, DD_PRIORITY_SAMPLING, "true")                                                                      \
+    CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME", "DD_TRACE_APP_NAME"))                                \
+    CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                             \
+    CALIAS(MAP, DD_TAGS, "", CALIASES("DD_TRACE_GLOBAL_TAGS"))                                                      \
+    CONFIG(INT, DD_TRACE_AGENT_PORT, "8126", .ini_change = zai_config_system_ini_change)                            \
+    CONFIG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                                               \
+    CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                                              \
+    CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                                     \
+    CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                             \
+    CONFIG(BOOL, DD_TRACE_DEBUG, "false")                                                                           \
+    CONFIG(BOOL, DD_TRACE_ENABLED, "true")                                                                          \
+    CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)              \
+    CONFIG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001")                                          \
+    CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                                     \
+    CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                       \
+    CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                                 \
+    CONFIG(STRING, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                        \
+    CONFIG(STRING, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                      \
+    CONFIG(STRING, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                      \
+    CONFIG(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                         \
+    CONFIG(STRING, DD_TRACE_SAMPLING_RULES, "")                                                                     \
+    CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                             \
+    CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_TRACE_AGENT_TIMEOUT_VAL, .ini_change = zai_config_system_ini_change)     \
+    CONFIG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL,                                 \
+           .ini_change = zai_config_system_ini_change)                                                              \
+    CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1")                                                                     \
+    CONFIG(BOOL, DD_LOG_BACKTRACE, "false")                                                                         \
+    CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)            \
+    CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                       \
+    CONFIG(INT, DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES, DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES) \
+    CONFIG(INT, DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC, DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC)           \
+    CONFIG(INT, DD_TRACE_BGS_CONNECT_TIMEOUT, DD_TRACE_BGS_CONNECT_TIMEOUT_VAL,                                     \
+           .ini_change = zai_config_system_ini_change)                                                              \
+    CONFIG(INT, DD_TRACE_BGS_TIMEOUT, DD_TRACE_BGS_TIMEOUT_VAL, .ini_change = zai_config_system_ini_change)         \
+    CONFIG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, "5000", .ini_change = zai_config_system_ini_change)                  \
+    CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "10", .ini_change = zai_config_system_ini_change)            \
+    CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                      \
+    CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                     \
+    CONFIG(BOOL, DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "false", .ini_change = zai_config_system_ini_change)            \
+    CONFIG(BOOL, DD_TRACE_DEBUG_CURL_OUTPUT, "false", .ini_change = zai_config_system_ini_change)                   \
+    CONFIG(INT, DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "80", .ini_change = zai_config_system_ini_change)       \
+    CONFIG(BOOL, DD_TRACE_WARN_LEGACY_DD_TRACE, "true")                                                             \
+    CONFIG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false", .ini_change = zai_config_system_ini_change)          \
+    CONFIG(STRING, DD_VERSION, "")                                                                                  \
     DD_INTEGRATIONS
 
-// render all configuration getters and define memoization struct
-#include "configuration_render.h"
+#define CALIAS CONFIG
+
+#define CONFIG(type, name, ...) DDTRACE_CONFIG_##name,
+typedef enum { DD_CONFIGURATION } ddtrace_config_id;
+#undef CONFIG
+
+#define BOOL(id) \
+    static inline bool get_##id(void) { return IS_TRUE == Z_TYPE_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
+    static inline bool get_global_##id(void) { return IS_TRUE == Z_TYPE(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value); }
+#define INT(id) \
+    static inline zend_long get_##id(void) { return Z_LVAL_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
+    static inline zend_long get_global_##id(void) { return Z_LVAL(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value); }
+#define DOUBLE(id) \
+    static inline double get_##id(void) { return Z_DVAL_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
+    static inline double get_global_##id(void) { return Z_DVAL(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value); }
+#define STRING(id) \
+    static inline zend_string *get_##id(void) { return Z_STR_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
+    static inline zend_string *get_global_##id(void) { return Z_STR(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value); }
+#define SET MAP
+#define MAP(id) \
+    static inline zend_array *get_##id(void) { return Z_ARR_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
+    static inline zend_array *get_global_##id(void) { return Z_ARR(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value); }
+
+#define CONFIG(type, name, ...) type(name)
+DD_CONFIGURATION
+#undef CONFIG
+
+#undef STRING
+#undef MAP
+#undef SET
+#undef BOOL
+#undef INT
+#undef DOUBLE
+
+#undef CALIAS
 
 #endif  // DD_CONFIGURATION_H

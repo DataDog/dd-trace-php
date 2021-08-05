@@ -17,6 +17,7 @@ typedef enum {
     EXT_CFG_INI_FOO_INT,
     EXT_CFG_INI_FOO_MAP,
     EXT_CFG_INI_FOO_STRING,
+    EXT_CFG_INI_BAR_ALIASED_INT,
     EXT_CFG_INI_BAR_ALIASED_STRING,
     EXT_CFG_INI_BAZ_MAP_EMPTY,
 } ext_ini_cfg_id;
@@ -27,6 +28,7 @@ static void ext_ini_env_to_ini_name(zai_string_view env_name, zai_config_name *i
 }
 
 static PHP_MINIT_FUNCTION(zai_config_ini) {
+    zai_string_view aliases_int[] = {ZAI_STRL_VIEW("INI_BAR_ALIASED_INT_OLD")};
     zai_string_view aliases_string[] = {ZAI_STRL_VIEW("INI_BAR_ALIASED_STRING_OLD"), ZAI_STRL_VIEW("INI_BAR_ALIASED_STRING_OLDER")};
     zai_config_entry entries[] = {
         EXT_CFG_ENTRY(INI_FOO_BOOL, BOOL, "1"),
@@ -34,6 +36,7 @@ static PHP_MINIT_FUNCTION(zai_config_ini) {
         EXT_CFG_ENTRY(INI_FOO_INT, INT, "42"),
         EXT_CFG_ENTRY(INI_FOO_MAP, MAP, "one:1,two:2"),
         EXT_CFG_ENTRY(INI_FOO_STRING, STRING, "foo string"),
+        EXT_CFG_ALIASED_ENTRY(INI_BAR_ALIASED_INT, INT, "0", aliases_int),
         EXT_CFG_ALIASED_ENTRY(INI_BAR_ALIASED_STRING, STRING, "0", aliases_string),
         EXT_CFG_ENTRY(INI_BAZ_MAP_EMPTY, MAP, ""),
     };
@@ -53,14 +56,14 @@ static PHP_MINIT_FUNCTION(zai_config_ini) {
         zai_sapi_sshutdown(); \
     }
 
-static bool zai_config_set_runtime_ini(const char *name, size_t name_len, const char *value, size_t value_len) {
+static bool zai_config_set_runtime_ini(const char *name, size_t name_len, const char *value, size_t value_len, int stage) {
 #if PHP_VERSION_ID < 70000
     TSRMLS_FETCH();
-    return zend_alter_ini_entry_ex((char *) name, name_len + 1, (char *) value, value_len, PHP_INI_USER, PHP_INI_STAGE_RUNTIME, /* force_change */ 0 TSRMLS_CC) == SUCCESS;
+    return zend_alter_ini_entry_ex((char *) name, name_len + 1, (char *) value, value_len, PHP_INI_USER, stage, /* force_change */ 0 TSRMLS_CC) == SUCCESS;
 #else
     zend_string *zs_name = zend_string_init(name, name_len, /* persistent */ 0);
     zend_string *zs_value = zend_string_init(value, value_len, /* persistent */ 0);
-    bool ret = zend_alter_ini_entry_ex(zs_name, zs_value, PHP_INI_USER, PHP_INI_STAGE_RUNTIME, /* force_change */ 0) == SUCCESS;
+    bool ret = zend_alter_ini_entry_ex(zs_name, zs_value, PHP_INI_USER, stage, /* force_change */ 0) == SUCCESS;
     zend_string_release(zs_name);
     zend_string_release(zs_value);
     return ret;
@@ -84,7 +87,10 @@ static char *zai_config_ini_string(const char *name, size_t name_len) {
     return zend_ini_string((char *) name, name_len, 0);
 }
 
-#define REQUIRE_SET_INI(name, val) REQUIRE(zai_config_set_runtime_ini(ZEND_STRL(name), ZEND_STRL(val)))
+#define REQUIRE_SET_INI_PERDIR(name, val) REQUIRE(zai_config_set_runtime_ini(ZEND_STRL(name), ZEND_STRL(val), PHP_INI_STAGE_ACTIVATE))
+#define REQUIRE_SET_INI_PERDIR_FAILURE(name, val) REQUIRE(!zai_config_set_runtime_ini(ZEND_STRL(name), ZEND_STRL(val), PHP_INI_STAGE_RUNTIME))
+#define REQUIRE_SET_INI(name, val) REQUIRE(zai_config_set_runtime_ini(ZEND_STRL(name), ZEND_STRL(val), PHP_INI_STAGE_RUNTIME))
+#define REQUIRE_SET_INI_FAILURE(name, val) REQUIRE(!zai_config_set_runtime_ini(ZEND_STRL(name), ZEND_STRL(val), PHP_INI_STAGE_RUNTIME))
 
 TEST_INI("bool INI: default value", {}, {
     REQUEST_BEGIN()
@@ -287,6 +293,39 @@ TEST_INI("string INI: user value", {}, {
     REQUEST_END()
 })
 
+TEST_INI("INI: invalid user value", {}, {
+    REQUEST_BEGIN()
+
+    REQUIRE_SET_INI_FAILURE("zai_config.INI_FOO_INT", "user string");
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_INT);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_LONG);
+    REQUIRE(Z_LVAL_P(value) == 42);
+
+    REQUEST_END()
+})
+
+void ini_perdir_set_invalid_int() {
+    REQUIRE_SET_INI_PERDIR_FAILURE("zai_config.INI_FOO_INT", "user string");
+}
+
+TEST_INI("INI: invalid perdir value", {}, {
+    ext_zai_config_pre_rinit = ini_perdir_set_invalid_int;
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_INT);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_LONG);
+    REQUIRE(Z_LVAL_P(value) == 42);
+
+    REQUEST_END()
+})
+
+
 /********************* zai_config_get_value() (ini aliases + env precendence) **********************/
 
 TEST_INI("env overrides system INI", {
@@ -394,6 +433,69 @@ TEST_INI("env followed by ini_restore", { }, {
     REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_STRING")) == '1');
     REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_STRING_OLD")) == '1');
     REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_STRING_OLDER")) == '1');
+
+    REQUEST_END()
+})
+
+void ini_perdir_set_int_alias() {
+    REQUIRE_SET_INI_PERDIR("zai_config.INI_BAR_ALIASED_INT_OLD", "1");
+}
+
+TEST_INI("perdir INI setting reflected in all aliases", {
+    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_INT", "0"));
+}, {
+    ext_zai_config_pre_rinit = ini_perdir_set_int_alias;
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_BAR_ALIASED_INT);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_LVAL_P(value) == 1);
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT")) == '1');
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT_OLD")) == '1');
+
+    REQUIRE_SET_INI("zai_config.INI_BAR_ALIASED_INT_OLD", "2");
+
+    value = zai_config_get_value(EXT_CFG_INI_BAR_ALIASED_INT);
+    REQUIRE(Z_LVAL_P(value) == 2);
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT")) == '2');
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT_OLD")) == '2');
+
+    zai_config_restore_runtime_ini(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT_OLD"));
+
+    value = zai_config_get_value(EXT_CFG_INI_BAR_ALIASED_INT);
+    REQUIRE(Z_LVAL_P(value) == 0);
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT")) == '0');
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT_OLD")) == '0');
+
+    REQUEST_END()
+})
+
+void ini_perdir_set_invalid_int_alias() {
+    REQUIRE_SET_INI_PERDIR_FAILURE("zai_config.INI_BAR_ALIASED_INT_OLD", "abc");
+}
+
+TEST_INI("invalid perdir INI setting ignored", {
+    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_INT", "0"));
+}, {
+    ext_zai_config_pre_rinit = ini_perdir_set_invalid_int_alias;
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_BAR_ALIASED_INT);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_LVAL_P(value) == 0);
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT")) == '0');
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT_OLD")) == '0');
+
+    zai_config_restore_runtime_ini(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT_OLD"));
+
+    value = zai_config_get_value(EXT_CFG_INI_BAR_ALIASED_INT);
+    REQUIRE(Z_LVAL_P(value) == 0);
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT")) == '0');
+    REQUIRE(*zai_config_ini_string(ZEND_STRL("zai_config.INI_BAR_ALIASED_INT_OLD")) == '0');
 
     REQUEST_END()
 })

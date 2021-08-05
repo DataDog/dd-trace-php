@@ -10,7 +10,12 @@ dd_tracer_circuit_breaker_register_success();
 // we should be able to immediately retry when circuit breaker was closed
 echo 'closed CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL;
 
-putenv('DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES=1');
+if (PHP_VERSION_ID >= 80000) {
+    ini_set('datadog.trace.agent_max_consecutive_failures', 1);
+} else {
+    putenv('DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES=1');
+}
+
 dd_tracer_circuit_breaker_register_error();
 // circuit is tripped
 
@@ -18,18 +23,18 @@ dd_tracer_circuit_breaker_register_error();
 echo 'just tripped CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL;
 
 // set the min retry time to something very short
-putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
+if (PHP_VERSION_ID >= 80000) {
+    ini_set('datadog.trace.agent_attempt_retry_time_msec', 0);
+} else {
+    putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
+}
 echo 'min time set CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // should be able to retry
 
-// with garbage retry time
-putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=garbage0');
-echo 'garbage time set CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // 5000msec default gets reinstated
-
-// we can shorten the time again
-putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
-echo 'min time set CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // should be able to retry
-
-putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=300');
+if (PHP_VERSION_ID >= 80000) {
+    ini_set('datadog.trace.agent_attempt_retry_time_msec', 300);
+} else {
+    putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=300');
+}
 echo '0.3 seconds retry set CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // 0.3 seconds not yet passed so no retry for you
 usleep(300000);
 echo '0.3 seconds has passed CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // 0.3 seconds passed lets retry
@@ -42,8 +47,6 @@ echo 'another 0.3 seconds has passed CAN_RETRY ' . (dd_tracer_circuit_breaker_ca
 --EXPECT--
 closed CAN_RETRY true
 just tripped CAN_RETRY false
-min time set CAN_RETRY true
-garbage time set CAN_RETRY false
 min time set CAN_RETRY true
 0.3 seconds retry set CAN_RETRY false
 0.3 seconds has passed CAN_RETRY true

@@ -8,10 +8,9 @@
 #include <strings.h>
 
 static bool zai_config_decode_bool(zai_string_view value, zval *decoded_value) {
-    if ((value.len == 1 && strcmp(value.ptr, "1") == 0)
-    || (value.len == 2 && strcasecmp(value.ptr, "on") == 0)
-    || (value.len == 3 && strcasecmp(value.ptr, "yes") == 0)
-    || (value.len == 4 && strcasecmp(value.ptr, "true") == 0)) {
+    if ((value.len == 1 && strcmp(value.ptr, "1") == 0) || (value.len == 2 && strcasecmp(value.ptr, "on") == 0) ||
+        (value.len == 3 && strcasecmp(value.ptr, "yes") == 0) ||
+        (value.len == 4 && strcasecmp(value.ptr, "true") == 0)) {
         ZVAL_TRUE(decoded_value);
     } else {
         ZVAL_FALSE(decoded_value);
@@ -63,9 +62,15 @@ static bool zai_config_is_valid_int_format(const char *str) {
     if (!*str) {
         return false;
     }
+    while (isspace(*str)) {
+        ++str;
+    }
+    if (*str == '-') {
+        ++str;
+    }
     while (*str) {
         if (!isdigit(*str) && !isspace(*str)) return false;
-        str++;
+        ++str;
     }
     return true;
 }
@@ -88,7 +93,6 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
 #endif
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
 
-    // TODO Extract this
     char *data = (char *)value.ptr;
     if (data && *data) {  // non-empty
         const char *key_start, *key_end, *value_start, *value_end;
@@ -152,6 +156,52 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
     return true;
 }
 
+static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bool persistent) {
+    zval tmp;
+#if PHP_VERSION_ID < 70000
+    INIT_PZVAL(&tmp);
+    Z_ARRVAL(tmp) = pemalloc(sizeof(HashTable), persistent);
+    Z_TYPE(tmp) = IS_ARRAY;
+#else
+    ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
+#endif
+    zend_hash_init(Z_ARRVAL(tmp), 8, NULL, NULL, persistent);
+
+    char *data = (char *)value.ptr;
+    if (data && *data) {  // non-empty
+        const char *key_start, *key_end;
+        do {
+            if (*data != ',' && *data != ' ' && *data != '\t' && *data != '\n') {
+                key_start = key_end = data;
+                while (*++data && *data != ',') {
+                    if (*data != ' ' && *data != '\t' && *data != '\n') {
+                        key_end = data;
+                    }
+                }
+                size_t key_len = key_end - key_start + 1;
+#if PHP_VERSION_ID < 70000
+                char *zero_terminated_key = pestrndup(key_start, key_len, persistent);
+                zend_hash_add_empty_element(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1);
+                pefree(zero_terminated_key, persistent);
+#else
+                zend_hash_str_add_empty_element(Z_ARRVAL(tmp), key_start, key_len);
+#endif
+            } else {
+                ++data;
+            }
+        } while (*data);
+
+        if (zend_hash_num_elements(Z_ARRVAL(tmp)) == 0) {
+            zend_hash_destroy(Z_ARRVAL(tmp));
+            pefree(Z_ARRVAL(tmp), persistent);
+            return false;
+        }
+    }
+
+    ZVAL_COPY_VALUE(decoded_value, &tmp);
+    return true;
+}
+
 static bool zai_config_decode_string(zai_string_view value, zval *decoded_value, bool persistent) {
 #if PHP_VERSION_ID < 70000
     ZVAL_STRINGL(decoded_value, pestrndup(value.ptr, value.len, persistent), value.len, 0);
@@ -172,6 +222,8 @@ bool zai_config_decode_value(zai_string_view value, zai_config_type type, zval *
             return zai_config_decode_int(value, decoded_value);
         case ZAI_CONFIG_TYPE_MAP:
             return zai_config_decode_map(value, decoded_value, persistent);
+        case ZAI_CONFIG_TYPE_SET:
+            return zai_config_decode_set(value, decoded_value, persistent);
         case ZAI_CONFIG_TYPE_STRING:
             return zai_config_decode_string(value, decoded_value, persistent);
         default:

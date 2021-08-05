@@ -10,27 +10,23 @@
 #include "config_decode.h"
 
 typedef struct zai_config_name_s zai_config_name;
+typedef struct zai_config_memoized_entry_s zai_config_memoized_entry;
 
 #include "config_ini.h"
 
-#define ZAI_CONFIG_ENTRIES_COUNT_MAX 20
+#define ZAI_CONFIG_ENTRIES_COUNT_MAX 120
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
-#define ZAI_CONFIG_NAME_BUFSIZ 42  // TODO Valdate this
+#define ZAI_CONFIG_NAME_BUFSIZ 60
 
-#define ZAI_CONFIG_ENTRY(_id, _name, _type, default, ...) \
-    {                                                     \
-        .id = _id,                                        \
-        .name = ZAI_STRL_VIEW(#_name),                    \
-        .type = ZAI_CONFIG_TYPE_##_type,                  \
-        .default_encoded_value = ZAI_STRL_VIEW(default),  \
-        ##__VA_ARGS__                                     \
+#define ZAI_CONFIG_ENTRY(_id, _name, _type, default, ...)                          \
+    {                                                                              \
+        .id = _id, .name = ZAI_STRL_VIEW(#_name), .type = ZAI_CONFIG_TYPE_##_type, \
+        .default_encoded_value = ZAI_STRL_VIEW(default), ##__VA_ARGS__,            \
     }
 
 #define ZAI_CONFIG_ALIASED_ENTRY(id, name, type, default, _aliases, ...) \
-    ZAI_CONFIG_ENTRY(id, name, type, default,                            \
-        .aliases = _aliases,                                             \
-        .aliases_count = sizeof(_aliases) / sizeof(zai_string_view),     \
-        ##__VA_ARGS__)
+    ZAI_CONFIG_ENTRY(id, name, type, default, .aliases = _aliases,       \
+                     .aliases_count = sizeof(_aliases) / sizeof(zai_string_view), ##__VA_ARGS__)
 
 typedef uint16_t zai_config_id;
 
@@ -63,7 +59,7 @@ typedef struct zai_config_memoized_entry_s {
     zai_string_view default_encoded_value;
     // The index of the name that was used to set the value
     //     anything > 0 is deprecated
-    //     -1 == not set from env
+    //     -1 == not set from env or system ini
     int16_t name_index;
     zai_config_apply_ini_change ini_change;
 } zai_config_memoized_entry;
@@ -90,8 +86,8 @@ void zai_config_rshutdown(void);
 // Directly replace the config value for the current request. Copies the passed argument.
 void zai_config_replace_runtime_config(zai_config_id id, zval *value);
 
-extern uint8_t memoized_entires_count;
-extern zai_config_memoized_entry memoized_entires[ZAI_CONFIG_ENTRIES_COUNT_MAX];
+extern uint8_t zai_config_memoized_entries_count;
+extern zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
 // assertions + error_zal
 // If caller wants to return to userland: Caller must refcount++ & dtor
@@ -101,5 +97,6 @@ bool zai_config_get_id_by_name(zai_string_view name, zai_config_id *id);
 
 // Adds name to name<->id mapping. Id may be present multiple times.
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);
+void zai_config_dtor_pzval(zval *pval);
 
 #endif  // ZAI_CONFIG_H

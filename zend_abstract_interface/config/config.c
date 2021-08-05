@@ -9,20 +9,27 @@
 #if PHP_VERSION_ID < 70000
 #undef zval_internal_ptr_dtor
 #define zval_internal_ptr_dtor zval_internal_dtor
-#define ZVAL_UNDEF(z) { INIT_PZVAL(z); ZVAL_NULL(z); }
+#define ZVAL_UNDEF(z)  \
+    {                  \
+        INIT_PZVAL(z); \
+        ZVAL_NULL(z);  \
+    }
 #endif
 
 HashTable zai_config_name_map = {0};
 
-uint8_t memoized_entires_count = 0;
-zai_config_memoized_entry memoized_entires[ZAI_CONFIG_ENTRIES_COUNT_MAX];
+_Static_assert(ZAI_CONFIG_ENTRIES_COUNT_MAX < 256, "zai config entry count is overflowing uint8_t");
+uint8_t zai_config_memoized_entries_count = 0;
+zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
 static bool zai_config_get_env_value(zai_string_view name, zai_env_buffer buf) {
     // TODO Handle other return codes
-    return zai_getenv(name, buf) == ZAI_ENV_SUCCESS;
+    // We want to explicitly allow pre-RINIT access to env vars here. So that callers can have an early view at config.
+    // But in general allmost all configurations shall only be accessed after first RINIT. (the trivial getter will
+    return zai_getenv_ex(name, buf, true) == ZAI_ENV_SUCCESS;
 }
 
-static void zai_config_dtor_pzval(zval *pval) {
+void zai_config_dtor_pzval(zval *pval) {
     if (Z_TYPE_P(pval) == IS_ARRAY) {
         if (Z_DELREF_P(pval) == 0) {
             zend_hash_destroy(Z_ARRVAL_P(pval));
@@ -40,32 +47,38 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized) {
     // TODO Make a more generic zai_string_buffer
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
 
-    bool found = false;
+    zval tmp;
+    ZVAL_UNDEF(&tmp);
+
+    zai_string_view value = {0};
+
     int16_t name_index = 0;
-    for (; !found && name_index < memoized->names_count; name_index++) {
+    for (; name_index < memoized->names_count; name_index++) {
         zai_string_view name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
         if (zai_config_get_env_value(name, buf)) {
-            found = true;
+            zai_string_view env_value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
+            if (!zai_config_decode_value(env_value, memoized->type, &tmp, /* persistent */ true)) {
+                // TODO Log decoding error
+            } else {
+                zai_config_dtor_pzval(&tmp);
+                value = env_value;
+            }
+            break;
         }
     }
 
-    zai_string_view value = {.len = strlen(buf.ptr), .ptr = found ? buf.ptr : NULL};
-    int16_t ini_name_index = zai_config_initialize_ini_value(memoized->names, memoized->names_count, &value, memoized->ini_entries);
-    if (!found && ini_name_index >= 0) {
+    int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value);
+    if (value.ptr != buf.ptr && ini_name_index >= 0) {
         name_index = ini_name_index;
     }
 
     if (value.ptr) {
-        zval tmp;
-        ZVAL_UNDEF(&tmp);
         // TODO If name_index > 0, log deprecation notice
-        if (zai_config_decode_value(value, memoized->type, &tmp, /* persistent */ true)) {
-            zai_config_dtor_pzval(&memoized->decoded_value);
-            ZVAL_COPY_VALUE(&memoized->decoded_value, &tmp);
-            memoized->name_index = name_index;
-            return;
-        }
-        // TODO Log decoding errors
+        zai_config_decode_value(value, memoized->type, &tmp, /* persistent */ true);
+        assert(Z_TYPE(tmp) > IS_NULL);
+        zai_config_dtor_pzval(&memoized->decoded_value);
+        ZVAL_COPY_VALUE(&memoized->decoded_value, &tmp);
+        memoized->name_index = name_index;
     }
 
     // Nothing to do; default value was already decoded at MINIT
@@ -82,7 +95,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
     assert((entry->aliases_count < ZAI_CONFIG_NAMES_COUNT_MAX) &&
            "Number of aliases + name are greater than ZAI_CONFIG_NAMES_COUNT_MAX");
 
-    zai_config_memoized_entry *memoized = &memoized_entires[entry->id];
+    zai_config_memoized_entry *memoized = &zai_config_memoized_entries[entry->id];
 
     zai_config_copy_name(&memoized->names[0], entry->name);
     for (uint8_t i = 0; i < entry->aliases_count; i++) {
@@ -95,7 +108,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
 
     ZVAL_UNDEF(&memoized->decoded_value);
     if (!zai_config_decode_value(entry->default_encoded_value, memoized->type, &memoized->decoded_value,
-                                       /* persistent */ true)) {
+                                 /* persistent */ true)) {
         assert(0 && "Error decoding default value");
     }
     memoized->name_index = -1;
@@ -108,7 +121,7 @@ static void zai_config_entries_init(zai_config_entry entries[], zai_config_id en
     assert((entries_count <= ZAI_CONFIG_ENTRIES_COUNT_MAX) &&
            "Number of config entries are greater than ZAI_CONFIG_ENTRIES_COUNT_MAX");
 
-    memoized_entires_count = entries_count;
+    zai_config_memoized_entries_count = entries_count;
 
     zend_hash_init(&zai_config_name_map, entries_count * 2, NULL, NULL, /* persistent */ 1);
 
@@ -128,8 +141,8 @@ void zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
 }
 
 static void zai_config_dtor_memoized_zvals(void) {
-    for (uint8_t i = 0; i < memoized_entires_count; i++) {
-        zai_config_dtor_pzval(&memoized_entires[i].decoded_value);
+    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+        zai_config_dtor_pzval(&zai_config_memoized_entries[i].decoded_value);
     }
 }
 
@@ -145,13 +158,23 @@ void zai_config_runtime_config_ctor(void);
 void zai_config_runtime_config_dtor(void);
 
 void zai_config_first_time_rinit(void) {
-    for (uint8_t i = 0; i < memoized_entires_count; i++) {
-        zai_config_memoized_entry *memoized = &memoized_entires[i];
+    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         zai_config_find_and_set_value(memoized);
     }
-    zai_config_runtime_config_ctor();
 }
 
-void zai_config_rinit(void) { zai_config_runtime_config_ctor(); }
+void zai_config_rinit(void) {
+    zai_config_runtime_config_ctor();
+#if ZTS
+    zai_config_ini_rinit();
+#endif
+}
 
 void zai_config_rshutdown(void) { zai_config_runtime_config_dtor(); }
+
+bool zai_config_system_ini_change(zval *old_value, zval *new_value) {
+    (void)old_value;
+    (void)new_value;
+    return false;
+}

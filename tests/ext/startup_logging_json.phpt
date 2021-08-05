@@ -47,7 +47,7 @@ measure_compile_time: true
 report_hostname_on_root_span: false
 traced_internal_functions: null
 auto_prepend_file_configured: false
-integrations_disabled: null
+integrations_disabled: "all"
 enabled_from_env: true
 opcache.file_cache: null
 ddtrace.request_init_hook_reachable: false

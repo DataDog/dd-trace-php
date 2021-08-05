@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "env_config.h"
 #include "ext/version.h"
 #include "random.h"
 
@@ -24,7 +23,7 @@ zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span);
 
-BOOL_T ddtrace_tracer_is_limited(void);
+bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
 void dd_prepare_for_new_trace(void);
 
@@ -38,7 +37,6 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *auto_prepend_file;
     zend_bool disable;
     zend_bool disable_in_current_request;
-    char *request_init_hook;
     zend_bool request_init_hook_loaded;
     // When 'drop_all_spans' is set, traces have to be dropped and not sent to the serializer and the sender.
     zend_bool drop_all_spans;

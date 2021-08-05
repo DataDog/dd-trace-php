@@ -15,14 +15,14 @@ final class ConfigurableSamplerTest extends BaseTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        \putenv('DD_TRACE_SAMPLING_RULES');
-        \putenv('DD_TRACE_SAMPLE_RATE');
+        self::putenv('DD_TRACE_SAMPLING_RULES');
+        self::putenv('DD_TRACE_SAMPLE_RATE');
     }
 
     protected function ddTearDown()
     {
-        \putenv('DD_TRACE_SAMPLING_RULES');
-        \putenv('DD_TRACE_SAMPLE_RATE');
+        self::putenv('DD_TRACE_SAMPLING_RULES');
+        self::putenv('DD_TRACE_SAMPLE_RATE');
         parent::ddTearDown();
     }
 
@@ -34,7 +34,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
      */
     public function testSampleNoSamplingRules($samplingRate, $lower, $upper)
     {
-        putenv("DD_TRACE_SAMPLE_RATE=$samplingRate");
+        self::putenv("DD_TRACE_SAMPLE_RATE=$samplingRate");
         $sampler = new ConfigurableSampler();
 
         $output = 0;
@@ -88,8 +88,8 @@ final class ConfigurableSamplerTest extends BaseTestCase
     public function testSampleWithSamplingRules($samplingRules, $expected)
     {
         $delta = 0.05;
-        putenv("DD_TRACE_SAMPLE_RATE=0.3");
-        putenv("DD_TRACE_SAMPLING_RULES=$samplingRules");
+        self::putenv("DD_TRACE_SAMPLE_RATE=0.3");
+        self::putenv("DD_TRACE_SAMPLING_RULES=$samplingRules");
 
         $sampler = new ConfigurableSampler();
 
@@ -144,7 +144,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
     public function testMetricIsAddedToCommunicateSampleRateUsedWhenSamplingRules()
     {
-        putenv('DD_TRACE_SAMPLING_RULES=[{"sample_rate":0.7}]');
+        self::putenv('DD_TRACE_SAMPLING_RULES=[{"sample_rate":0.7}]');
         $sampler = new ConfigurableSampler();
 
         $span = $this->createMySpan();
@@ -157,7 +157,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
     {
         // while we suggest to escape the json object, in some cases the `'` are passed to the string and we have to
         // verify that parsing still works.
-        putenv('DD_TRACE_SAMPLING_RULES=\'[{"sample_rate":0.7}]\'');
+        self::putenv('DD_TRACE_SAMPLING_RULES=\'[{"sample_rate":0.7}]\'');
         $sampler = new ConfigurableSampler();
 
         $span = $this->createMySpan();
@@ -168,7 +168,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
     public function testMetricIsAddedToCommunicateSampleRateUsedWhenSampleRate()
     {
-        putenv('DD_TRACE_SAMPLE_RATE=0.3');
+        self::putenv('DD_TRACE_SAMPLE_RATE=0.3');
         $sampler = new ConfigurableSampler();
 
         $span = $this->createMySpan();

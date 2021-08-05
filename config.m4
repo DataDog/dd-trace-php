@@ -221,15 +221,11 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/compat_string.c \
       ext/php8/coms.c \
       ext/php8/configuration.c \
-      ext/php8/configuration_php_iface.c \
       ext/php8/ddshared.c \
-      ext/php8/ddtrace_config.c \
-      ext/php8/ddtrace_string.c \
       ext/php8/dispatch.c \
       ext/php8/dogstatsd_client.c \
       ext/php8/engine_api.c \
       ext/php8/engine_hooks.c \
-      ext/php8/env_config.c \
       ext/php8/excluded_modules.c \
       ext/php8/handlers_curl.c \
       ext/php8/handlers_exception.c \

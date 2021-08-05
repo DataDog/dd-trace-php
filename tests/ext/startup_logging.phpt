@@ -7,7 +7,7 @@ Startup logging is enabled by default
 --FILE--
 <?php
 include_once 'startup_logging.inc';
-$logs = dd_get_startup_logs(['-dddtrace.request_init_hook='], ['DD_TRACE_DEBUG=1']);
+$logs = dd_get_startup_logs(['-ddatadog.trace.request_init_hook='], ['DD_TRACE_DEBUG=1']);
 
 // Ignore any Agent connection errors for now
 unset($logs['agent_error']);
@@ -50,6 +50,6 @@ measure_compile_time: true
 report_hostname_on_root_span: false
 traced_internal_functions: null
 auto_prepend_file_configured: false
-integrations_disabled: null
+integrations_disabled: "all"
 enabled_from_env: true
 opcache.file_cache: null

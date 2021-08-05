@@ -58,14 +58,14 @@ final class HttpTest extends BaseTestCase
 
     public function testConfigPortFromEnv()
     {
-        putenv('DD_TRACE_AGENT_PORT=8888');
+        self::putenv('DD_TRACE_AGENT_PORT=8888');
         $httpTransport = new Http(new MessagePack());
         $this->assertEquals('http://localhost:8888/v0.4/traces', $httpTransport->getConfig()['endpoint']);
     }
 
     public function testConfigHostFromEnv()
     {
-        putenv('DD_AGENT_HOST=other_host');
+        self::putenv('DD_AGENT_HOST=other_host');
         $httpTransport = new Http(new MessagePack());
         $this->assertEquals('http://other_host:8126/v0.4/traces', $httpTransport->getConfig()['endpoint']);
     }

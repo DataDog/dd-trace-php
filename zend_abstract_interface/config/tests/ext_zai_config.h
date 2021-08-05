@@ -14,6 +14,8 @@ typedef int (*ext_zai_config_minit_fn)(INIT_FUNC_ARGS);
 typedef zend_result (*ext_zai_config_minit_fn)(INIT_FUNC_ARGS);
 #endif
 
+extern void (*ext_zai_config_pre_rinit)();
+
 void ext_zai_config_ctor(zend_module_entry *module, ext_zai_config_minit_fn orig_minit);
 
 #endif  // EXT_ZAI_CONFIG_H

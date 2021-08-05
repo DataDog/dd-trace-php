@@ -28,26 +28,26 @@ EOD;
 
     private function cleanUpEnvs()
     {
-        putenv('DD_DISTRIBUTED_TRACING');
-        putenv('DD_ENV');
-        putenv('DD_INTEGRATIONS_DISABLED');
-        putenv('DD_PRIORITY_SAMPLING');
-        putenv('DD_SAMPLING_RATE');
-        putenv('DD_SERVICE_MAPPING');
-        putenv('DD_SERVICE_NAME');
-        putenv('DD_SERVICE');
-        putenv('DD_TAGS');
-        putenv('DD_TRACE_ANALYTICS_ENABLED');
-        putenv('DD_TRACE_DEBUG');
-        putenv('DD_TRACE_ENABLED');
-        putenv('DD_TRACE_GLOBAL_TAGS');
-        putenv('DD_TRACE_PDO_ENABLED');
-        putenv('DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST');
-        putenv('DD_TRACE_SAMPLE_RATE');
-        putenv('DD_TRACE_SAMPLING_RULES');
-        putenv('DD_TRACE_SLIM_ENABLED');
-        putenv('DD_TRACE_HEADER_TAGS');
-        putenv('DD_VERSION');
+        self::putenv('DD_DISTRIBUTED_TRACING');
+        self::putenv('DD_ENV');
+        self::putenv('DD_INTEGRATIONS_DISABLED');
+        self::putenv('DD_PRIORITY_SAMPLING');
+        self::putenv('DD_SAMPLING_RATE');
+        self::putenv('DD_SERVICE_MAPPING');
+        self::putenv('DD_SERVICE_NAME');
+        self::putenv('DD_SERVICE');
+        self::putenv('DD_TAGS');
+        self::putenv('DD_TRACE_ANALYTICS_ENABLED');
+        self::putenv('DD_TRACE_DEBUG');
+        self::putenv('DD_TRACE_ENABLED');
+        self::putenv('DD_TRACE_GLOBAL_TAGS');
+        self::putenv('DD_TRACE_PDO_ENABLED');
+        self::putenv('DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST');
+        self::putenv('DD_TRACE_SAMPLE_RATE');
+        self::putenv('DD_TRACE_SAMPLING_RULES');
+        self::putenv('DD_TRACE_SLIM_ENABLED');
+        self::putenv('DD_TRACE_HEADER_TAGS');
+        self::putenv('DD_VERSION');
     }
 
     public function testTracerEnabledByDefault()
@@ -147,7 +147,7 @@ EOD;
             self::assertFalse(\ddtrace_config_integration_enabled($lower), $error);
 
             // Reset
-            putenv("DD_TRACE_{$integration}_ENABLED");
+            self::putenv("DD_TRACE_{$integration}_ENABLED");
         }
 
         // Make sure we're not testing the default fallback
@@ -167,7 +167,7 @@ EOD;
             );
 
             // Reset
-            putenv("DD_TRACE_{$integration}_ANALYTICS_ENABLED");
+            self::putenv("DD_TRACE_{$integration}_ANALYTICS_ENABLED");
         }
 
         // Make sure we're not testing the default fallback
@@ -188,7 +188,7 @@ EOD;
             );
 
             // Reset
-            putenv("DD_TRACE_{$integration}_ANALYTICS_SAMPLE_RATE");
+            self::putenv("DD_TRACE_{$integration}_ANALYTICS_SAMPLE_RATE");
         }
 
         // Make sure we're not testing the default fallback

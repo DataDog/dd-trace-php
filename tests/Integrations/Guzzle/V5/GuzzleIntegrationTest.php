@@ -47,9 +47,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     protected function ddTearDown()
     {
         parent::ddTearDown();
-        putenv('DD_DISTRIBUTED_TRACING');
-        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
-        putenv('DD_DISTRIBUTED_TRACING');
+        self::putenv('DD_DISTRIBUTED_TRACING');
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
+        self::putenv('DD_DISTRIBUTED_TRACING');
     }
 
     /**
@@ -160,7 +160,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
-        putenv('DD_DISTRIBUTED_TRACING=false');
+        self::putenv('DD_DISTRIBUTED_TRACING=false');
         $client = new Client();
         $found = [];
 
@@ -286,7 +286,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testAppendHostnameToServiceName()
     {
-        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
 
         $traces = $this->isolateTracer(function () {
             $this->getMockedClient()->get('http://example.com');

@@ -8,7 +8,6 @@
 #include "configuration.h"
 #include "ddtrace.h"
 #include "dispatch.h"
-#include "engine_hooks.h"
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
@@ -43,7 +42,7 @@ void ddtrace_free_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
+static uint64_t _get_nanoseconds(bool monotonic_clock) {
     struct timespec time;
     if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
         return time.tv_sec * 1000000000L + time.tv_nsec;
@@ -80,11 +79,36 @@ ddtrace_span_fci *ddtrace_init_span() {
 
 void ddtrace_push_root_span() { ddtrace_open_span(ddtrace_init_span()); }
 
+bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
+    if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value)) {
+        return true;
+    }
+
+    if (Z_TYPE_P(old_value) == IS_FALSE) {
+        if (DDTRACE_G(open_spans_top) == NULL) {
+            ddtrace_push_root_span();
+            return true;
+        }
+        return false;
+    } else {
+        if (DDTRACE_G(open_spans_top) == NULL) {
+            ddtrace_log_err("Found no root span despite root spans being active");
+            return false;
+        }
+        if (DDTRACE_G(open_spans_top)->next == NULL && DDTRACE_G(closed_spans_top) == NULL) {
+            ddtrace_drop_top_open_span();
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
 void dd_trace_stop_span_time(ddtrace_span_t *span) {
     span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
 }
 
-BOOL_T ddtrace_has_top_internal_span(ddtrace_span_fci *end) {
+bool ddtrace_has_top_internal_span(ddtrace_span_fci *end) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
     while (span_fci) {
         if (span_fci == end) {
@@ -106,7 +130,7 @@ void ddtrace_close_userland_spans_until(ddtrace_span_fci *until) {
             ddtrace_log_err("Found internal span data while closing userland spans");
         }
 
-        if (get_dd_autofinish_spans()) {
+        if (get_DD_AUTOFINISH_SPANS()) {
             dd_trace_stop_span_time(&span_fci->span);
             ddtrace_close_span(span_fci);
         } else {
@@ -138,7 +162,7 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
 
     // A userland span might still be open so we check the span ID stack instead of the internal span stack
     // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
-    if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+    if (DDTRACE_G(span_ids_top) == NULL && get_DD_TRACE_AUTO_FLUSH_ENABLED()) {
         if (ddtrace_flush_tracer() == FAILURE) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
