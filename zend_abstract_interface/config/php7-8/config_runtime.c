@@ -10,7 +10,7 @@
 
 extern HashTable zai_config_name_map;
 
-ZAI_TLS zval runtime_config[ZAI_CONFIG_ENTRIES_COUNT_MAX];
+ZAI_TLS zval *runtime_config;  // dynamically allocated, otherwise TLS alignment limits may be exceeded
 ZAI_TLS bool runtime_config_initialized = false;
 
 void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
@@ -22,6 +22,8 @@ void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
 
 void zai_config_runtime_config_ctor(void) {
     if (runtime_config_initialized == true) return;
+    runtime_config = emalloc(sizeof(zval) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
+
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         ZVAL_COPY(&runtime_config[i], &zai_config_memoized_entries[i].decoded_value);
     }
@@ -33,6 +35,7 @@ void zai_config_runtime_config_dtor(void) {
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zval_ptr_dtor(&runtime_config[i]);
     }
+    efree(runtime_config);
     runtime_config_initialized = false;
 }
 
