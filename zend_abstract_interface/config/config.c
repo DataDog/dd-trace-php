@@ -67,7 +67,8 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized) {
         }
     }
 
-    int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value);
+    int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
+                                                             memoized->default_encoded_value);
     if (value.ptr != buf.ptr && ini_name_index >= 0) {
         name_index = ini_name_index;
     }

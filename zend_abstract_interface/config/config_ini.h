@@ -30,7 +30,8 @@ void zai_config_ini_mshutdown();
  * but these get applied before first time rinit. So we need to find the highest priority ini value
  * and apply these as runtime config to all other values
  */
-int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf);
+int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf,
+                                        zai_string_view default_value);
 
 typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value);
 

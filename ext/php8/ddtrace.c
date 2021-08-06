@@ -388,6 +388,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNREGISTER_INI_ENTRIES();
 
     if (DDTRACE_G(disable)) {
+        zai_config_mshutdown();
         return SUCCESS;
     }
 
@@ -1040,12 +1041,16 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
 typedef zend_long ddtrace_zpplong_t;
 
 static PHP_FUNCTION(ddtrace_config_app_name) {
-    zend_string *app_name = get_DD_SERVICE();
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|S", &app_name) != SUCCESS) {
+    zend_string *default_app_name = NULL, *app_name = get_DD_SERVICE();
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|S", &default_app_name) != SUCCESS) {
         RETURN_NULL();
     }
 
-    RETURN_STR(php_trim(app_name, NULL, 0, 3));
+    if (default_app_name == NULL && ZSTR_LEN(app_name) == 0) {
+        RETURN_NULL();
+    }
+
+    RETURN_STR(php_trim(ZSTR_LEN(app_name) ? app_name : default_app_name, NULL, 0, 3));
 }
 
 static PHP_FUNCTION(ddtrace_config_distributed_tracing_enabled) {
@@ -1063,9 +1068,14 @@ static PHP_FUNCTION(ddtrace_config_integration_enabled) {
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &name.ptr, &name.len) != SUCCESS) {
         RETURN_NULL();
     }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_FALSE;
+    }
+
     ddtrace_integration *integration = ddtrace_get_integration_from_string(name);
     if (integration == NULL) {
-        RETURN_FALSE;
+        RETURN_TRUE;
     }
     RETVAL_BOOL(ddtrace_config_integration_enabled(integration->name));
 }
@@ -1089,7 +1099,7 @@ static PHP_FUNCTION(integration_analytics_sample_rate) {
     }
     ddtrace_integration *integration = ddtrace_get_integration_from_string(name);
     if (integration == NULL) {
-        RETURN_DOUBLE(0);
+        RETURN_DOUBLE(DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT);
     }
     RETVAL_DOUBLE(integration->get_sample_rate());
 }

@@ -133,7 +133,12 @@ EOD;
     public function testIntegrationsDisabledPrecedenceWithDeprecatedEnv()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=true', 'DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
+        if (PHP_VERSION_ID < 80000) {
+            $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
+        } else {
+            // We cannot distinguish not set vs set to default value anymore, hence the behaviour is changed slightly
+            $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
+        }
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
     }
 
@@ -189,12 +194,6 @@ EOD;
 
         $this->putEnvAndReloadConfig(['DD_SERVICE=my_app']);
         Configuration::clear();
-        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
-    }
-
-    public function testServiceNameViaDDServiceWinsOverDDServiceName()
-    {
-        $this->putEnvAndReloadConfig(['DD_SERVICE=my_app', 'DD_SERVICE_NAME=legacy']);
         $this->assertSame('my_app', Configuration::get()->appName('__default__'));
     }
 
@@ -435,7 +434,7 @@ EOD;
     public function testEnvNotSet()
     {
         $this->putEnvAndReloadConfig(['DD_ENV']);
-        $this->assertNull(Configuration::get()->getEnv());
+        $this->assertEmpty(Configuration::get()->getEnv());
     }
 
     public function testVersion()
@@ -447,7 +446,7 @@ EOD;
     public function testVersionNotSet()
     {
         $this->putEnvAndReloadConfig(['DD_VERSION']);
-        $this->assertNull(Configuration::get()->getServiceVersion());
+        $this->assertEmpty(Configuration::get()->getServiceVersion());
     }
 
     public function testUriAsResourceNameEnabledDefault()

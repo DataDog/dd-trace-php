@@ -25,6 +25,12 @@ static bool zai_config_decode_bool(zai_string_view value, zval *decoded_value) {
  */
 static bool zai_config_is_valid_double_format(const char *str) {
     bool seen_decimal = false;
+    while (isspace(*str)) {
+        ++str;
+    }
+    if (*str == '-') {
+        ++str;
+    }
     while (*str) {
         if (!isdigit(*str) && !isspace(*str) && *str != '.') return false;
         if (*str == '.') {
@@ -127,12 +133,12 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
                         INIT_PZVAL(val);
                         ZVAL_STRINGL(val, pestrndup(value_start, value_len, persistent), value_len, 0);
                         char *zero_terminated_key = pestrndup(key_start, key_len, persistent);
-                        zend_hash_add(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1, &val, sizeof(void *), NULL);
+                        zend_hash_update(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1, &val, sizeof(void *), NULL);
                         pefree(zero_terminated_key, persistent);
 #else
                         zval val;
                         ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
-                        zend_hash_str_add(Z_ARRVAL(tmp), key_start, key_len, &val);
+                        zend_hash_str_update(Z_ARRVAL(tmp), key_start, key_len, &val);
 #endif
                         break;
                     }

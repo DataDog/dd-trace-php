@@ -17,7 +17,7 @@
  */
 function _ddtrace_config_string($value, $default)
 {
-    if (false === $value || null === $value) {
+    if (false === $value || null === $value || "" === $value) {
         return $default;
     }
 
@@ -33,7 +33,7 @@ function _ddtrace_config_string($value, $default)
  */
 function _ddtrace_config_bool($value, $default)
 {
-    if (false === $value || null === $value) {
+    if (false === $value || null === $value || "" === $value) {
         return $default;
     }
 
@@ -58,7 +58,7 @@ function _ddtrace_config_bool($value, $default)
  */
 function _ddtrace_config_float($value, $default, $min = null, $max = null)
 {
-    if (false === $value || null === $value) {
+    if (false === $value || null === $value || "" === $value) {
         return $default;
     }
 
@@ -89,7 +89,7 @@ function _ddtrace_config_float($value, $default, $min = null, $max = null)
  */
 function _ddtrace_config_json($value, $default)
 {
-    if (false === $value || null === $value) {
+    if (false === $value || null === $value || "" === $value) {
         return $default;
     }
 
@@ -113,7 +113,7 @@ function _ddtrace_config_json($value, $default)
  */
 function _ddtrace_config_indexed_array($value, $default)
 {
-    if (false === $value || null === $value) {
+    if (false === $value || null === $value || "" === $value) {
         return $default;
     }
 
@@ -136,7 +136,7 @@ function _ddtrace_config_indexed_array($value, $default)
  */
 function _ddtrace_config_associative_array($value, $default)
 {
-    if (false === $value || null === $value) {
+    if (false === $value || null === $value || "" === $value) {
         return $default;
     }
 
@@ -175,23 +175,23 @@ function ddtrace_config_read_env_or_ini($name)
 }
 
 /**
- * Returns the configured environment or null if none is configured.
+ * Returns the configured environment or empty string if none is configured.
  *
  * @return string
  */
 function ddtrace_config_env()
 {
-    return \_ddtrace_config_string(\ddtrace_config_read_env_or_ini('DD_ENV'), null);
+    return \_ddtrace_config_string(\ddtrace_config_read_env_or_ini('DD_ENV'), "");
 }
 
 /**
- * Returns the configured service version or null if none is configured.
+ * Returns the configured service version or empty string if none is configured.
  *
  * @return string
  */
 function ddtrace_config_service_version()
 {
-    return \_ddtrace_config_string(\ddtrace_config_read_env_or_ini('DD_VERSION'), null);
+    return \_ddtrace_config_string(\ddtrace_config_read_env_or_ini('DD_VERSION'), "");
 }
 
 /**
@@ -258,7 +258,10 @@ function ddtrace_config_path_fragment_regex()
  */
 function ddtrace_config_path_mapping_incoming()
 {
-    return \_ddtrace_config_indexed_array(\ddtrace_config_read_env_or_ini('DD_TRACE_RESOURCE_URI_MAPPING_INCOMING'), []);
+    return \_ddtrace_config_indexed_array(
+        \ddtrace_config_read_env_or_ini('DD_TRACE_RESOURCE_URI_MAPPING_INCOMING'),
+        []
+    );
 }
 
 /**
@@ -266,7 +269,10 @@ function ddtrace_config_path_mapping_incoming()
  */
 function ddtrace_config_path_mapping_outgoing()
 {
-    return \_ddtrace_config_indexed_array(\ddtrace_config_read_env_or_ini('DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING'), []);
+    return \_ddtrace_config_indexed_array(
+        \ddtrace_config_read_env_or_ini('DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING'),
+        []
+    );
 }
 
 /**

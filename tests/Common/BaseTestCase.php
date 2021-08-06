@@ -70,7 +70,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
     protected function putEnvAndReloadConfig($putenvs = [])
     {
         foreach ($putenvs as $putenv) {
-            $this->putEnv($putenv);
+            self::putEnv($putenv);
         }
         \dd_trace_internal_fn('ddtrace_reload_config');
     }

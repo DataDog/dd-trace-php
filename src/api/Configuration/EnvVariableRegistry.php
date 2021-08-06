@@ -27,7 +27,7 @@ class EnvVariableRegistry implements Registry
         $this->registry = [];
     }
 
-    private function read_env_or_ini($name)
+    private function readEnvOrIni($name)
     {
         $ini_name = strtolower(strtr($name, [
             "DD_TRACE_" => "datadog.trace.",
@@ -48,7 +48,7 @@ class EnvVariableRegistry implements Registry
      */
     protected function get($key)
     {
-        $value = $this->read_env_or_ini($this->convertKeyToEnvVariableName($key));
+        $value = $this->readEnvOrIni($this->convertKeyToEnvVariableName($key));
         if (false === $value) {
             return null;
         }

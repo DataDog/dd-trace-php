@@ -95,14 +95,6 @@ final class DefaultIntegrationConfigurationTest extends BaseTestCase
         self::assertEquals(0.3, $conf->getTraceAnalyticsSampleRate());
     }
 
-    public function testTraceAnalyticsSampleRateCanBeSetWithDeprecatedPrecedence()
-    {
-        self::putenv('DD_TRACE_PDO_ANALYTICS_SAMPLE_RATE=0.2');
-        self::putenv('DD_PDO_ANALYTICS_SAMPLE_RATE=0.4');
-        $conf = new DefaultIntegrationConfiguration('pdo');
-        self::assertEquals(0.2, $conf->getTraceAnalyticsSampleRate());
-    }
-
     public function testTraceAnalyticsOffIfGlobalAndIntegrationNotSetAndNotRequiresExplicit()
     {
         $conf = new DefaultIntegrationConfiguration('pdo', false);

@@ -92,8 +92,7 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
         return false;
     } else {
         if (DDTRACE_G(open_spans_top) == NULL) {
-            ddtrace_log_err("Found no root span despite root spans being active");
-            return false;
+            return true;  // might be the case after serialization
         }
         if (DDTRACE_G(open_spans_top)->next == NULL && DDTRACE_G(closed_spans_top) == NULL) {
             ddtrace_drop_top_open_span();

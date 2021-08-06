@@ -1,5 +1,6 @@
 #include "../config_ini.h"
 
+#include <SAPI.h>
 #include <assert.h>
 #include <main/php.h>
 #include <stdbool.h>
@@ -7,6 +8,7 @@
 #define UNUSED(x) (void)(x)
 
 static void (*env_to_ini_name)(zai_string_view env_name, zai_config_name *ini_name);
+static bool is_fpm = false;
 
 static bool zai_config_generate_ini_name(zai_string_view name, zai_config_name *ini_name) {
     ini_name->len = 0;
@@ -30,7 +32,8 @@ static void zai_config_lock_ini_copying(THREAD_T thread_id) {
 #endif
 
 // values retrieved here are assumed to be valid
-int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf) {
+int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf,
+                                        zai_string_view default_value) {
     if (!env_to_ini_name) return -1;
 
 #if ZTS
@@ -41,13 +44,26 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
     zend_string *runtime_value = NULL;
     zend_string *parsed_ini_value = NULL;
 
+    if (is_fpm) {
+        for (int16_t i = 0; i < ini_count; ++i) {
+            // Unconditional assignment of inis, bypassing any APIs for random ini values is very much not nice
+            // Try working around ...
+            zend_string *ini_str = entries[i]->modified ? entries[i]->orig_value : entries[i]->value;
+            if (ZSTR_LEN(ini_str) != default_value.len || strcmp(ZSTR_VAL(ini_str), default_value.ptr) != 0) {
+                parsed_ini_value = zend_string_copy(ini_str);
+                name_index = i;
+                break;
+            }
+        }
+    }
+
     for (int16_t i = 0; i < ini_count; ++i) {
         if (entries[i]->modified && !runtime_value) {
             runtime_value = zend_string_copy(entries[i]->value);
         }
         zval *inizv = cfg_get_entry(ZSTR_VAL(entries[i]->name), ZSTR_LEN(entries[i]->name));
         if (inizv != NULL && !parsed_ini_value) {
-            parsed_ini_value = Z_STR_P(inizv);
+            parsed_ini_value = zend_string_copy(Z_STR_P(inizv));
             name_index = i;
         }
     }
@@ -83,6 +99,8 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
             } else {
                 entries[i]->orig_value = entries[i]->value;
                 entries[i]->modified = true;
+                entries[i]->orig_modifiable = entries[i]->modifiable;
+                zend_hash_add_ptr(EG(modified_ini_directives), entries[i]->name, entries[i]);
             }
             entries[i]->value = zend_string_copy(runtime_value);
         }
@@ -95,6 +113,10 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
     } else if (parsed_ini_value && buf->ptr == NULL) {
         buf->ptr = ZSTR_VAL(parsed_ini_value);
         buf->len = ZSTR_LEN(parsed_ini_value);
+    }
+
+    if (parsed_ini_value) {
+        zend_string_release(parsed_ini_value);
     }
 
 #if ZTS
@@ -154,6 +176,8 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
             } else {
                 alias->modified = true;
                 alias->orig_value = alias->value;
+                alias->orig_modifiable = alias->modifiable;
+                zend_hash_add_ptr(EG(modified_ini_directives), alias->name, alias);
             }
             if (is_reset) {
                 alias->value = new_value;
@@ -209,6 +233,8 @@ zai_config_name ini_names[ZAI_CONFIG_ENTRIES_COUNT_MAX * ZAI_CONFIG_NAMES_COUNT_
 
 void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_number) {
     env_to_ini_name = env_to_ini;
+
+    is_fpm = strlen(sapi_module.name) == sizeof("fpm-fcgi") - 1 && !strcmp(sapi_module.name, "fpm-fcgi");
 
     if (!env_to_ini_name) return;
 

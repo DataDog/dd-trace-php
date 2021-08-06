@@ -25,7 +25,7 @@ dd_dump_startup_logs($logs, [
     'DD_SERVICE_NAME',
     'DD_TRACE_GLOBAL_TAGS',
     'agent_url',
-    'ddtrace.request_init_hook',
+    PHP_VERSION_ID < 80000 ? 'ddtrace.request_init_hook' : 'datadog.trace.request_init_hook',
     'open_basedir_configured',
 ]);
 ?>
@@ -36,5 +36,5 @@ open_basedir_container_tagging_allowed: false
 DD_SERVICE_NAME: "'DD_SERVICE_NAME=foo_service' is deprecated, use DD_SERVICE instead."
 DD_TRACE_GLOBAL_TAGS: "'DD_TRACE_GLOBAL_TAGS=foo:tag' is deprecated, use DD_TAGS instead."
 agent_url: "http://invalid_host:8126"
-ddtrace.request_init_hook: "%s/includes/request_init_hook.inc"
+d%s.request_init_hook: "%s/includes/request_init_hook.inc"
 open_basedir_configured: true

@@ -80,7 +80,8 @@ final class Http implements Transport
 
         $this->config = array_merge([
             'endpoint' => $endpoint,
-            'connect_timeout' => ddtrace_config_read_env_or_ini(self::AGENT_CONNECT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_CONNECT_TIMEOUT,
+            'connect_timeout' => ddtrace_config_read_env_or_ini(self::AGENT_CONNECT_TIMEOUT_ENV)
+                ?: self::DEFAULT_AGENT_CONNECT_TIMEOUT,
             'timeout' => ddtrace_config_read_env_or_ini(self::AGENT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_TIMEOUT,
         ], $config);
     }

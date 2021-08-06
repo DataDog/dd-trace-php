@@ -19,7 +19,7 @@ typedef struct ddtrace_string ddtrace_string;
 
 #define DDTRACE_STRING_ZVAL_L(zval_ptr, str) ZVAL_STRINGL(zval_ptr, str.ptr, str.len)
 
-inline ddtrace_string ddtrace_string_cstring_ctor(char *ptr) {
+static inline ddtrace_string ddtrace_string_cstring_ctor(char *ptr) {
     ddtrace_string string = {
         .ptr = ptr,
         .len = ptr ? strlen(ptr) : 0,

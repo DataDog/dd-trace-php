@@ -27,7 +27,7 @@ _Static_assert(NUMBER_OF_CONFIGURATIONS < ZAI_CONFIG_ENTRIES_COUNT_MAX,
 #define CONFIG(type, name, ...)                                                \
     _Static_assert(sizeof(#name) < ZAI_CONFIG_NAME_BUFSIZ - DD_TO_DATADOG_INC, \
                    "The name of " #name                                        \
-                   " is longer than allowed ZAI_CONFIG_NAME_BUFSIZ - " DD_CONFIGURATION_STRINGIZE(DD_TO_DATADOG_INC));
+                   " is longer than allowed ZAI_CONFIG_NAME_BUFSIZ - " DD_CFG_STR(DD_TO_DATADOG_INC));
 DD_CONFIGURATION
 #undef CONFIG
 #undef CALIAS
@@ -40,17 +40,15 @@ DD_CONFIGURATION
 DD_CONFIGURATION
 #undef CALIAS
 #undef CALIASES
-#define CALIAS_CHECK_LENGTH(name)                                   \
-    _Static_assert(                                                 \
-        sizeof(#name) < ZAI_CONFIG_NAME_BUFSIZ - DD_TO_DATADOG_INC, \
-        "The name of " #name                                        \
-        " alias is longer than allowed ZAI_CONFIG_NAME_BUFSIZ - " DD_CONFIGURATION_STRINGIZE(DD_TO_DATADOG_INC));
+#define CALIAS_CHECK_LENGTH(name)                                              \
+    _Static_assert(sizeof(#name) < ZAI_CONFIG_NAME_BUFSIZ - DD_TO_DATADOG_INC, \
+                   "The name of " #name                                        \
+                   " alias is longer than allowed ZAI_CONFIG_NAME_BUFSIZ - " DD_CFG_STR(DD_TO_DATADOG_INC));
 #define CALIASES(...) APPLY_N(CALIAS_CHECK_LENGTH, ##__VA_ARGS__)
 #define CALIAS(type, name, default, aliases, ...) aliases
 DD_CONFIGURATION
 #undef CALIAS
 #undef CALIASES
-#undef REPEAT_MACRO_NAMES
 #undef CONFIG
 
 // Allow for partially defined struct initialization here
@@ -63,6 +61,8 @@ DD_CONFIGURATION
 static zai_config_entry config_entries[] = {DD_CONFIGURATION};
 #undef CALIAS
 #undef CONFIG
+
+bool runtime_config_first_init = false;
 
 static void dd_copy_tolower(char *dst, const char *src) {
     while (*src) {
@@ -129,13 +129,15 @@ void ddtrace_config_first_rinit() {
             ZSTR_VAL(internal_functions_old), ZSTR_VAL(internal_functions_new));
     }
     zend_string_release(internal_functions_old);
+
+    runtime_config_first_init = true;
 }
 
 // note: only call this if get_DD_TRACE_ENABLED() returns true
 bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_name) {
     ddtrace_integration *integration = &ddtrace_integrations[integration_name];
 
-    if (zend_hash_str_find(get_DD_INTEGRATIONS_DISABLED(), ZEND_STRL("all"))) {
+    if (zend_hash_str_find(get_DD_INTEGRATIONS_DISABLED(), ZEND_STRL("default"))) {
         return integration->is_enabled();
     } else {
         // Deprecated as of 0.47.1

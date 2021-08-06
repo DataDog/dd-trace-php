@@ -58,14 +58,11 @@
             <file name="zend_abstract_interface/config/config.h" role="src" />
             <file name="zend_abstract_interface/config/config_decode.c" role="src" />
             <file name="zend_abstract_interface/config/config_decode.h" role="src" />
+            <file name="zend_abstract_interface/config/config_ini.h" role="src" />
             <file name="zend_abstract_interface/config/php5/config_ini.c" role="src" />
-            <file name="zend_abstract_interface/config/php5/config_ini.h" role="src" />
             <file name="zend_abstract_interface/config/php5/config_runtime.c" role="src" />
-            <file name="zend_abstract_interface/config/php5/config_runtime.h" role="src" />
             <file name="zend_abstract_interface/config/php7-8/config_ini.c" role="src" />
-            <file name="zend_abstract_interface/config/php7-8/config_ini.h" role="src" />
             <file name="zend_abstract_interface/config/php7-8/config_runtime.c" role="src" />
-            <file name="zend_abstract_interface/config/php7-8/config_runtime.h" role="src" />
             <file name="zend_abstract_interface/config/tests/config_test_helpers.h" role="src" />
             <file name="zend_abstract_interface/config/tests/ext_zai_config.h" role="src" />
             <file name="zend_abstract_interface/env/env.c" role="src" />

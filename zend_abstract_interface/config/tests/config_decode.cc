@@ -86,6 +86,7 @@ TEST_CASE("decode double", "[zai_config_decode]") {
     expected_double successes[] = {
         {ZAI_STRL_VIEW("0"), 0.0},
         {ZAI_STRL_VIEW("1"), 1.0},
+        {ZAI_STRL_VIEW("-1.5"), -1.5},
         {ZAI_STRL_VIEW("4.2"), 4.2},
         {ZAI_STRL_VIEW("    4.2    "), 4.2},
         {ZAI_STRL_VIEW("4.   2"), 4.0},  // It's weird, but ¯\_(ツ)_/¯

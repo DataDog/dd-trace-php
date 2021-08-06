@@ -15,7 +15,7 @@ unset($logs['agent_error']);
 dd_dump_startup_logs($logs);
 ?>
 --EXPECTF--
-ddtrace.request_init_hook_reachable: false
+datadog.trace.request_init_hook_reachable: false
 date: "%s"
 os_name: "%s"
 os_version: "%s"
@@ -38,7 +38,7 @@ priority_sampling_enabled: true
 dd_version: null
 architecture: "%s"
 sapi: "cgi-fcgi"
-ddtrace.request_init_hook: null
+datadog.trace.request_init_hook: null
 open_basedir_configured: false
 uri_fragment_regex: null
 uri_mapping_incoming: null
