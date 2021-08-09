@@ -298,7 +298,7 @@ void ddtrace_exception_handlers_startup(void) {
         .function_name = zend_string_init_interned(ZEND_STRL("ddtrace_exception_handler"), 1),
         .num_args = 1,
         .required_num_args = 1,
-        .arg_info = (zend_internal_arg_info *)arginfo_ddtrace_exception_or_error_handler,
+        .arg_info = (zend_internal_arg_info *)(arginfo_ddtrace_exception_or_error_handler + 1),
         .handler = &zim_DDTrace_ExceptionOrErrorHandler_execute,
     };
 
