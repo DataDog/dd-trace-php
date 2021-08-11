@@ -268,6 +268,7 @@ cores:
 ########################################################################################################################
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(REQUEST_INIT_HOOK_PATH)
 ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true) DD_TRACE_CLI_ENABLED=true
+TEST_EXTRA_INI ?=
 
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
@@ -601,7 +602,7 @@ TEST_WEB_80 := \
 FILTER := .
 
 define run_tests
-	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 # use this as the first target if you want to use uncompiled files instead of the _generated.php compiled file.

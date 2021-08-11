@@ -383,6 +383,14 @@ jobs:
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
               php run-tests.php -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/<< parameters.xdebug_version_two >>
             fi;
+      - run:
+          name: Run unit tests with xdebug
+          command: |
+            if [[ "<<parameters.xdebug_version_one>>" != "2.7.2" ]]; then
+              TEST_EXTRA_INI='-d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so' make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
+            fi
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
 
   test: &TEST_BASE
     parameters:
@@ -1900,8 +1908,8 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.1_buster"
-          xdebug_version_one: "2.9.2"
-          xdebug_version_two: "2.9.5"
+          xdebug_version_one: "2.9.5"
+          xdebug_version_two: "2.9.2"
       # - unit_tests: # disabled due to posisbly leaking tests
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 70 Unit tests-zts"
@@ -1910,20 +1918,20 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
-          xdebug_version_one: "2.9.2"
-          xdebug_version_two: "2.9.5"
+          xdebug_version_one: "2.9.5"
+          xdebug_version_two: "2.9.2"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
-          xdebug_version_one: "2.9.2"
-          xdebug_version_two: "2.9.5"
+          xdebug_version_one: "2.9.5"
+          xdebug_version_two: "2.9.2"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
-          xdebug_version_one: "2.9.2"
-          xdebug_version_two: "2.9.5"
+          xdebug_version_one: "2.9.5"
+          xdebug_version_two: "2.9.2"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 Xdebug tests"
