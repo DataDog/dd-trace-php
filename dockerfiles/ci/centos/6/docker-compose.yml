@@ -95,3 +95,13 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.8.tar.gz
         phpSha256Hash: 084a1e8020e86fb99b663d195fd9ac98a9f37dfcb9ecb5c159054cdb8f388945
     image: 'datadog/dd-trace-ci:php-8.0_centos-6'
+
+  php-8.1:
+    build:
+      context: .
+      dockerfile: Dockerfile_php8
+      args:
+        phpVersion: 8.1
+        phpTarGzUrl: https://downloads.php.net/~patrickallaert/php-8.1.0RC1.tar.gz
+        phpSha256Hash: 8a4fad22c02909705c740833bf99e3039d7d3971a55deb998206f6d67151c294
+    image: 'datadog/dd-trace-ci:php-8.1_centos-6'

@@ -94,7 +94,9 @@ aliases:
   - &STEP_COMPOSER_UPDATE
     run:
       name: Installing dependencies with composer
-      command: composer update --no-interaction
+      command: |
+        export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
+        composer update --no-interaction
 
   - &STEP_COMPOSER_GENERATE
     run:
@@ -535,6 +537,17 @@ jobs:
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
             mkdir -p /tmp/artifacts/tests
+            # replace all hardcoded object ids in tests by %d as ddtrace creates its own objects
+            php \<<'PHP'
+            <?php
+            foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))) as $f) {
+                $c = file_get_contents($f);
+                $n = preg_replace("/\)#[0-9]+ \(/", ")#%d (", $c);
+                if ($c !== $n) {
+                    file_put_contents($f, str_replace("--EXPECT--", "--EXPECTF--", $n));
+                }
+            }
+            PHP
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
@@ -1121,6 +1134,7 @@ jobs:
             or:
               - equal: [ "7.4", << parameters.php_version >> ]
               - equal: [ "8.0", << parameters.php_version >> ]
+              - equal: [ "8.1", << parameters.php_version >> ]
           steps:
             - run:
                 name: Build and test Zend Abstract Interface (nts, debug, debug-zts-asan)
@@ -1260,7 +1274,7 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
-  compile_extension_ex:
+  compile_extension_centos:
     working_directory: ~/datadog
     parameters:
       docker_image:
@@ -1391,6 +1405,7 @@ workflows:
                 - "7.3"
                 - "7.4"
                 - "8.0"
+                - "8.1"
               cmake_version:
                 - "3.18.3"
                 - "3.20.1"
@@ -1414,63 +1429,70 @@ workflows:
                 - '7.3'
                 - '7.4'
                 - '8.0'
-      - compile_extension_ex:
+                - '8.1'
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 54 nts + zts + debug"
           php_version: "5.4"
           docker_image: "datadog/dd-trace-ci:php-5.4_centos-6"
           so_suffix: "20100412"
           catch_warnings: false
-      - compile_extension_ex:
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 55 nts + zts + debug"
           php_version: "5.5"
           docker_image: "datadog/dd-trace-ci:php-5.5_centos-6"
           so_suffix: "20121113"
           catch_warnings: false
-      - compile_extension_ex:
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 56 nts + zts + debug"
           php_version: "5.6"
           docker_image: "datadog/dd-trace-ci:php-5.6_centos-6"
           so_suffix: "20131106"
-      - compile_extension_ex:
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 70 nts + zts + debug"
           php_version: "7.0"
           docker_image: "datadog/dd-trace-ci:php-7.0_centos-6"
           so_suffix: "20151012"
-      - compile_extension_ex:
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 71 nts + zts + debug"
           php_version: "7.1"
           docker_image: "datadog/dd-trace-ci:php-7.1_centos-6"
           so_suffix: "20160303"
-      - compile_extension_ex:
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 72 nts + zts + debug"
           php_version: "7.2"
           docker_image: "datadog/dd-trace-ci:php-7.2_centos-6"
           so_suffix: "20170718"
-      - compile_extension_ex:
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 73 nts + zts + debug"
           php_version: "7.3"
           docker_image: "datadog/dd-trace-ci:php-7.3_centos-6"
           so_suffix: "20180731"
           catch_warnings: false # On debug builds: unused parameter '__zend_filename'
-      - compile_extension_ex:
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 74 nts + zts + debug"
           php_version: "7.4"
           docker_image: "datadog/dd-trace-ci:php-7.4_centos-6"
           so_suffix: "20190902"
-      - compile_extension_ex:
+      - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 80 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.0_centos-6"
           php_version: "8.0"
           so_suffix: "20200930"
+      - compile_extension_centos:
+          requires: [ 'Prepare Code' ]
+          name: "Compile PHP 81 nts + zts + debug"
+          docker_image: "datadog/dd-trace-ci:php-8.1_centos-6"
+          php_version: "8.1"
+          so_suffix: "20210902"
       - pecl_build:
           requires: [ 'Prepare Code' ]
           name: "Build PECL"
@@ -1486,6 +1508,7 @@ workflows:
             - "Compile PHP 73 nts + zts + debug"
             - "Compile PHP 74 nts + zts + debug"
             - "Compile PHP 80 nts + zts + debug"
+            - "Compile PHP 81 nts + zts + debug"
             - "Build PECL"
       - randomized_tests:
           requires: [ 'package extension' ]
@@ -1613,7 +1636,8 @@ workflows:
                 - php:7.2-fpm-alpine
                 - php:7.3-fpm-alpine
                 - php:7.4-fpm-alpine
-                - php:8.0-rc-fpm-alpine
+                - php:8.0-fpm-alpine
+                - php:8.1-rc-fpm-alpine
       - verify_centos:
           requires: [ "package extension" ]
           matrix:
@@ -1630,6 +1654,7 @@ workflows:
                 - PHP_MAJOR=7 PHP_MINOR=3
                 - PHP_MAJOR=7 PHP_MINOR=4
                 - PHP_MAJOR=8 PHP_MINOR=0
+                - PHP_MAJOR=8 PHP_MINOR=1
       - verify_centos_6:
           requires: [ "package extension" ]
       - verify_debian:
@@ -1649,6 +1674,7 @@ workflows:
                 - PHP_VERSION=7.3
                 - PHP_VERSION=7.4
                 - PHP_VERSION=8.0
+                - PHP_VERSION=8.1
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
@@ -1710,6 +1736,10 @@ workflows:
           requires: [ "Build PECL" ]
           name: "PHP 80 PECL tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 81 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 web tests with nginx + FastCGI"
@@ -1745,6 +1775,13 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 81 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 55 custom autoloaded web tests with nginx + PHP-FPM"
@@ -1799,6 +1836,7 @@ workflows:
                 - "7.3"
                 - "7.4"
                 - "8.0"
+                - "8.1"
               make_target:
                 - test_extension_ci
                 - test_unit
@@ -1813,6 +1851,7 @@ workflows:
               php_major_minor:
                 - '7.4'
                 - '8.0'
+                - '8.1'
               switch_php_version:
                 - debug-zts-asan
               make_target:
@@ -1834,6 +1873,7 @@ workflows:
                 - '7.3'
                 - '7.4'
                 - '8.0'
+                - '8.1'
               make_target:
                 - test_composer
                 - test_integration
@@ -1857,6 +1897,7 @@ workflows:
                 - '7.3'
                 - '7.4'
                 - '8.0'
+                - '8.1'
               make_target:
                 - test_web
 
@@ -1877,6 +1918,7 @@ workflows:
                 - '7.3'
                 - '7.4'
                 - '8.0'
+                - '8.1'
               make_target:
                 - test_distributed_tracing
 
@@ -1892,6 +1934,7 @@ workflows:
             parameters:
               php_major_minor:
                 - '8.0'
+                - '8.1'
               switch_php_version:
                 - nts
               make_target:
@@ -1908,6 +1951,7 @@ workflows:
                 - datadog/dd-trace-ci:php-7.3_buster
                 - datadog/dd-trace-ci:php-7.4_buster
                 - datadog/dd-trace-ci:php-8.0_buster
+                - datadog/dd-trace-ci:php-8.1_buster
 
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
@@ -1947,9 +1991,19 @@ workflows:
           name: "PHP 80 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           xdebug_version_one: "3.0.0"
+      - xdebug_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 81 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          xdebug_version_one: "3.1.0"
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 81 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/8.1.list
+          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 80 language tests"

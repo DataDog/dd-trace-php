@@ -71,8 +71,13 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
 
         if (PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
             char *error = ZSTR_VAL(PG(last_error_message));
+#if PHP_VERSION_ID < 80100
+            char *filename = PG(last_error_file);
+#else
+            char *filename = ZSTR_VAL(PG(last_error_file));
+#endif
             ddtrace_log_errf("Error raised in ddtrace's closure for %s%s%s(): %s in %s on line %d", scope, colon, name,
-                             error, PG(last_error_file), PG(last_error_lineno));
+                             error, filename, PG(last_error_lineno));
         }
 
         if (UNEXPECTED(EG(exception))) {

@@ -48,7 +48,7 @@ bool(true)
 Content-Type: application/msgpack
 Datadog-Meta-Lang: php
 Datadog-Meta-Lang-Interpreter: cli
-Datadog-Meta-Lang-Version: %d.%d.%d
+Datadog-Meta-Lang-Version: %d.%d.%s
 Datadog-Meta-Tracer-Version: %s
 X-Datadog-Trace-Count: 1
 

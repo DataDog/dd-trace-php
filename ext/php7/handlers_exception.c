@@ -236,6 +236,8 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
             }
             zend_catch { has_bailout = true; }
             zend_end_try();
+        } else {
+            ZVAL_FALSE(return_value);
         }
 
         DDTRACE_G(active_error).type = 0;

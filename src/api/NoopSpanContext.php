@@ -20,6 +20,7 @@ final class NoopSpanContext implements SpanContextInterface
     /**
      * {@inheritdoc}
      */
+    #[\ReturnTypeWillChange]
     public function getIterator()
     {
         return new EmptyIterator();

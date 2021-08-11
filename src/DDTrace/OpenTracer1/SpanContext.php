@@ -40,6 +40,7 @@ final class SpanContext implements OTSpanContext
     /**
      * {@inheritdoc}
      */
+    #[\ReturnTypeWillChange]
     public function getIterator()
     {
         return $this->context->getIterator();

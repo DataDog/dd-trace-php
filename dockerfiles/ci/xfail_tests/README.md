@@ -8,12 +8,11 @@ This file explains why we decided to disable specific PHP language tests. Invest
 
 ## Object/resource ID skips
 
-The following tests are marked as skipped due to the test relying on a hard-coded resource or object ID. All of these IDs change when the PHP tracer is enabled due to the objects/resources created in the `ddtrace.request_init_hook`.
+The following tests are marked as skipped due to the test relying on a hard-coded resource ID. All of these IDs change when the PHP tracer is enabled due to the resources created in the `ddtrace.request_init_hook`.
 
 - `ext/sockets/tests/socket_create_pair.phpt`
-- `ext/zip/tests/bug38943.phpt`
-- `ext/zip/tests/bug38943_2.phpt`
-- `Zend/tests/bug80194.phpt`
+- `Zend/tests/type_declarations/scalar_return_basic_64bit.phpt`
+- `Zend/tests/weakrefs/weakmap_basic_map_behaviour.phpt`
 
 ## Random port selection
 
@@ -151,3 +150,7 @@ $ TEST_PHP_EXECUTABLE=$(which php) php run-tests.php --show-out --show-diff ext/
 SKIP Test if socket_create_listen() returns false, when it cannot bind to the port. [ext/sockets/tests/socket_create_listen-nobind.phpt] reason: Test cannot be run in environment that will allow binding to port 80 (azure)
 ...
 ```
+
+## `Zend/fibers/out-of-memory-in*`
+
+ddtrace request init hook consumes more than 2 MB of memory and fails too early instead of testing what it should.

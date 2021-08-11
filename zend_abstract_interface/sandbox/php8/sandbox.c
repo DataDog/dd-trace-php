@@ -18,7 +18,11 @@ void zai_sandbox_error_state_restore(zai_error_state *es) {
             zend_string_release(PG(last_error_message));
         }
         if (PG(last_error_file) != es->file) {
+#if PHP_VERSION_ID < 80100
             free(PG(last_error_file));
+#else
+            zend_string_release(PG(last_error_file));
+#endif
         }
     }
     zend_restore_error_handling(&es->error_handling);

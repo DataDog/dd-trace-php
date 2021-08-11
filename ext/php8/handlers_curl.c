@@ -1,4 +1,5 @@
 #include <php.h>
+#include <pthread.h>
 #include <stdbool.h>
 
 __attribute__((weak)) zend_class_entry *curl_ce = NULL;
@@ -33,6 +34,7 @@ static void (*dd_curl_multi_init_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_multi_remove_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static HashTable *(*dd_curl_multi_get_gc)(zend_object *object, zval **table, int *n) = NULL;
 
 static bool dd_load_curl_integration(void) {
     if (!dd_ext_curl_loaded || DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
@@ -210,6 +212,33 @@ static void dd_multi_inject_headers(zval *mh) {
     }
 }
 
+static HashTable *ddtrace_curl_multi_get_gc(zend_object *object, zval **table, int *n) {
+    HashTable *ret = dd_curl_multi_get_gc(object, table, n);
+
+    HashTable *handles = NULL;
+
+    if (dd_multi_handles_cache_id == object->handle) {
+        handles = dd_multi_handles_cache;
+    } else if (dd_multi_handles) {
+        handles = zend_hash_index_find_ptr(dd_multi_handles, (zend_ulong)object->handle);
+    }
+
+    if (handles) {
+        zend_object *zo_ch;
+        ZEND_HASH_FOREACH_PTR(handles, zo_ch) { zend_get_gc_buffer_add_obj(&EG(get_gc_buffer), zo_ch); }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    return ret;
+}
+
+static pthread_once_t dd_replace_curl_get_gc_once = PTHREAD_ONCE_INIT;
+static zend_object_handlers *dd_curl_object_handlers;
+static void dd_replace_curl_get_gc(void) {
+    dd_curl_multi_get_gc = dd_curl_object_handlers->get_gc;
+    dd_curl_object_handlers->get_gc = ddtrace_curl_multi_get_gc;
+}
+
 ZEND_FUNCTION(ddtrace_curl_close) {
     zval *ch;
 
@@ -295,6 +324,10 @@ ZEND_FUNCTION(ddtrace_curl_multi_init) {
         dd_multi_lazy_init_globals();
         // Reset this multi-handle map in the event the object ID is reused
         dd_multi_reset(return_value);
+
+        // workaround as we have no access to the curl object_handlers, them being declared as static
+        dd_curl_object_handlers = (zend_object_handlers *)Z_OBJ_P(return_value)->handlers;
+        pthread_once(&dd_replace_curl_get_gc_once, dd_replace_curl_get_gc);
     }
 }
 
