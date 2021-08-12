@@ -9,6 +9,7 @@
 #include "../zai_string/string.h"
 #include "config_decode.h"
 
+typedef struct zai_config_entry_s zai_config_entry;
 typedef struct zai_config_name_s zai_config_name;
 typedef struct zai_config_memoized_entry_s zai_config_memoized_entry;
 
@@ -30,7 +31,7 @@ typedef struct zai_config_memoized_entry_s zai_config_memoized_entry;
 
 typedef uint16_t zai_config_id;
 
-typedef struct zai_config_entry_s {
+struct zai_config_entry_s {
     zai_config_id id;
     // Env name
     zai_string_view name;
@@ -43,14 +44,14 @@ typedef struct zai_config_entry_s {
     uint8_t aliases_count;
     // Accept or reject ini changes, potentially apply to the currently running system
     zai_config_apply_ini_change ini_change;
-} zai_config_entry;
+};
 
 struct zai_config_name_s {
     size_t len;
     char ptr[ZAI_CONFIG_NAME_BUFSIZ];
 };
 
-typedef struct zai_config_memoized_entry_s {
+struct zai_config_memoized_entry_s {
     zai_config_name names[ZAI_CONFIG_NAMES_COUNT_MAX];
     zend_ini_entry *ini_entries[ZAI_CONFIG_NAMES_COUNT_MAX];
     uint8_t names_count;
@@ -62,7 +63,7 @@ typedef struct zai_config_memoized_entry_s {
     //     -1 == not set from env or system ini
     int16_t name_index;
     zai_config_apply_ini_change ini_change;
-} zai_config_memoized_entry;
+};
 
 // Memoizes config entries to default values
 // Adds INI defs
