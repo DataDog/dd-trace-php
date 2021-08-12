@@ -1,41 +1,48 @@
 #ifndef DD_INTEGRATIONS_INTEGRATIONS_H
 #define DD_INTEGRATIONS_INTEGRATIONS_H
 #include <php.h>
+#include <stdbool.h>
 
 #include "ext/php7/ddtrace_string.h"
 #include "ext/php7/dispatch.h"
 
 #define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
 
-typedef enum {
-    DDTRACE_INTEGRATION_CAKEPHP,
-    DDTRACE_INTEGRATION_CODEIGNITER,
-    DDTRACE_INTEGRATION_CURL,
-    DDTRACE_INTEGRATION_ELASTICSEARCH,
-    DDTRACE_INTEGRATION_ELOQUENT,
-    DDTRACE_INTEGRATION_GUZZLE,
-    DDTRACE_INTEGRATION_LARAVEL,
-    DDTRACE_INTEGRATION_LUMEN,
-    DDTRACE_INTEGRATION_MEMCACHED,
-    DDTRACE_INTEGRATION_MONGO,
-    DDTRACE_INTEGRATION_MYSQLI,
-    DDTRACE_INTEGRATION_NETTE,
-    DDTRACE_INTEGRATION_PDO,
-    DDTRACE_INTEGRATION_PHPREDIS,
-    DDTRACE_INTEGRATION_PREDIS,
-    DDTRACE_INTEGRATION_SLIM,
-    DDTRACE_INTEGRATION_SYMFONY,
-    DDTRACE_INTEGRATION_WEB,
-    DDTRACE_INTEGRATION_WORDPRESS,
-    DDTRACE_INTEGRATION_YII,
-    DDTRACE_INTEGRATION_ZENDFRAMEWORK,
-} ddtrace_integration_name;
+#define DD_INTEGRATIONS                         \
+    INTEGRATION(CAKEPHP, "cakephp")             \
+    INTEGRATION(CODEIGNITER, "codeigniter")     \
+    INTEGRATION(CURL, "curl")                   \
+    INTEGRATION(ELASTICSEARCH, "elasticsearch") \
+    INTEGRATION(ELOQUENT, "eloquent")           \
+    INTEGRATION(GUZZLE, "guzzle")               \
+    INTEGRATION(LARAVEL, "laravel")             \
+    INTEGRATION(LUMEN, "lumen")                 \
+    INTEGRATION(MEMCACHED, "memcached")         \
+    INTEGRATION(MONGO, "mongo")                 \
+    INTEGRATION(MYSQLI, "mysqli")               \
+    INTEGRATION(NETTE, "nette")                 \
+    INTEGRATION(PDO, "pdo")                     \
+    INTEGRATION(PHPREDIS, "phpredis")           \
+    INTEGRATION(PREDIS, "predis")               \
+    INTEGRATION(SLIM, "slim")                   \
+    INTEGRATION(SYMFONY, "symfony")             \
+    INTEGRATION(WEB, "web")                     \
+    INTEGRATION(WORDPRESS, "wordpress")         \
+    INTEGRATION(YII, "yii")                     \
+    INTEGRATION(ZENDFRAMEWORK, "zendframework")
+
+#define INTEGRATION(id, ...) DDTRACE_INTEGRATION_##id,
+typedef enum { DD_INTEGRATIONS } ddtrace_integration_name;
+#undef INTEGRATION
 
 struct ddtrace_integration {
     ddtrace_integration_name name;
     char *name_ucase;
     char *name_lcase;
     size_t name_len;
+    bool (*is_enabled)();
+    bool (*is_analytics_enabled)();
+    double (*get_sample_rate)();
 };
 typedef struct ddtrace_integration ddtrace_integration;
 

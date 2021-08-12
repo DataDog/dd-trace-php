@@ -434,6 +434,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     if (DDTRACE_G(disable)) {
+        pthread_once(&dd_rinit_once_control, ddtrace_config_first_rinit);
+        zai_config_rinit();
         return SUCCESS;
     }
 
@@ -484,6 +486,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     if (DDTRACE_G(disable)) {
+        zai_config_rshutdown();
         return SUCCESS;
     }
 

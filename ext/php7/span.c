@@ -50,7 +50,7 @@ void ddtrace_free_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
+static uint64_t _get_nanoseconds(bool monotonic_clock) {
     struct timespec time;
     if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
         return time.tv_sec * 1000000000L + time.tv_nsec;
@@ -109,7 +109,7 @@ void ddtrace_close_span(void) {
     }
 
     // A userland span might still be open so we check the span ID stack instead of the internal span stack
-    if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+    if (DDTRACE_G(span_ids_top) == NULL && get_DD_TRACE_AUTO_FLUSH_ENABLED()) {
         if (ddtrace_flush_tracer() == FAILURE) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }

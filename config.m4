@@ -165,14 +165,11 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/compat_string.c \
       ext/php7/coms.c \
       ext/php7/configuration.c \
-      ext/php7/configuration_php_iface.c \
       ext/php7/ddshared.c \
-      ext/php7/ddtrace_string.c \
       ext/php7/dispatch.c \
       ext/php7/dogstatsd_client.c \
       ext/php7/engine_api.c \
       ext/php7/engine_hooks.c \
-      ext/php7/env_config.c \
       ext/php7/excluded_modules.c \
       ext/php7/handlers_curl.c \
       ext/php7/handlers_internal.c \

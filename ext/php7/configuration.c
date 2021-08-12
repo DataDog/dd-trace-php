@@ -1,306 +1,147 @@
 #include "configuration.h"
 
-#include <stdlib.h>
+#include <assert.h>
 
-#include "ddtrace_string.h"
-#include "env_config.h"
-#include "integrations/integrations.h"
+#include "circuit_breaker.h"
+#include "logging.h"
 
-extern inline ddtrace_string ddtrace_string_getenv(char* str, size_t len);
-extern inline ddtrace_string ddtrace_string_getenv_multi(char* primary, size_t primary_len, char* secondary,
-                                                         size_t secondary_len);
+#define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
-struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {
-#define CHAR(...) NULL, FALSE,
-#define BOOL(...) FALSE, FALSE,
-#define INT(...) 0, FALSE,
-#define DOUBLE(...) 0.0, FALSE,
-    DD_CONFIGURATION
-#undef CHAR
-#undef BOOL
-#undef INT
-#undef DOUBLE
-        PTHREAD_MUTEX_INITIALIZER};
+#define APPLY_0(...)
+#define APPLY_1(macro, arg, ...) macro(arg)
+#define APPLY_2(macro, arg, ...) macro(arg) APPLY_1(macro, __VA_ARGS__)
+#define APPLY_3(macro, arg, ...) macro(arg) APPLY_2(macro, __VA_ARGS__)
+#define APPLY_4(macro, arg, ...) macro(arg) APPLY_3(macro, __VA_ARGS__)
+#define APPLY_NAME_EXPAND(count) APPLY_##count
+#define APPLY_NAME(count) APPLY_NAME_EXPAND(count)
+#define APPLY_COUNT(_0, _1, _2, _3, _4, N, ...) N
+#define APPLY_N(macro, ...) APPLY_NAME(APPLY_COUNT(0, ##__VA_ARGS__, 4, 3, 2, 1, 0))(macro, ##__VA_ARGS__)
 
-void ddtrace_reload_config(void) {
-#define CHAR(getter_name, ...)                            \
-    if (ddtrace_memoized_configuration.getter_name) {     \
-        free(ddtrace_memoized_configuration.getter_name); \
-    }                                                     \
-    ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;
-#define BOOL(getter_name, ...) ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;
-#define INT(getter_name, ...) ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;
-#define DOUBLE(getter_name, ...) ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;
-
-    DD_CONFIGURATION
-
-#undef CHAR
-#undef BOOL
-#undef INT
-#undef DOUBLE
-    // repopulate config
-    ddtrace_initialize_config();
-}
-
-void ddtrace_initialize_config(void) {
-    // read all values to memoize them
-
-    // CHAR returns a copy of a value that we need to free
-#define CHAR(getter_name, env_name, default, ...)                                                                 \
-    do {                                                                                                          \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);                                                \
-        ddtrace_memoized_configuration.getter_name = ddtrace_get_c_string_config_with_default(env_name, default); \
-        ddtrace_memoized_configuration.__is_set_##getter_name = TRUE;                                             \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);                                              \
-    } while (0);
-#define BOOL(getter_name, env_name, default, ...)                                                \
-    do {                                                                                         \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);                               \
-        ddtrace_memoized_configuration.getter_name = ddtrace_get_bool_config(env_name, default); \
-        ddtrace_memoized_configuration.__is_set_##getter_name = TRUE;                            \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);                             \
-    } while (0);
-#define INT(getter_name, env_name, default, ...)                                                \
-    do {                                                                                        \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);                              \
-        ddtrace_memoized_configuration.getter_name = ddtrace_get_int_config(env_name, default); \
-        ddtrace_memoized_configuration.__is_set_##getter_name = TRUE;                           \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);                            \
-    } while (0);
-#define DOUBLE(getter_name, env_name, default, ...)                                                \
-    do {                                                                                           \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);                                 \
-        ddtrace_memoized_configuration.getter_name = ddtrace_get_double_config(env_name, default); \
-        ddtrace_memoized_configuration.__is_set_##getter_name = TRUE;                              \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);                               \
-    } while (0);
-
-    DD_CONFIGURATION
-
-#undef CHAR
-#undef BOOL
-#undef INT
-#undef DOUBLE
-}
-
-void ddtrace_config_shutdown(void) {
-    // read all values to memoize them
-
-    // CHAR returns a copy of a value that we need to free
-#define CHAR(getter_name, env_name, default, ...)                      \
-    do {                                                               \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);     \
-        if (ddtrace_memoized_configuration.getter_name) {              \
-            free(ddtrace_memoized_configuration.getter_name);          \
-            ddtrace_memoized_configuration.getter_name = NULL;         \
-        }                                                              \
-        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE; \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);   \
-    } while (0);
-#define BOOL(getter_name, env_name, default, ...)                      \
-    do {                                                               \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);     \
-        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE; \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);   \
-    } while (0);
-#define INT(getter_name, env_name, default, ...)                       \
-    do {                                                               \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);     \
-        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE; \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);   \
-    } while (0);
-#define DOUBLE(getter_name, env_name, default, ...)                    \
-    do {                                                               \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);     \
-        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE; \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);   \
-    } while (0);
-
-    DD_CONFIGURATION
-
-#undef CHAR
-#undef BOOL
-#undef INT
-#undef DOUBLE
-}
-
-// define configuration getters macros
-#define CHAR(getter_name, ...) extern inline char* getter_name(void);
-#define BOOL(getter_name, ...) extern inline bool getter_name(void);
-#define INT(getter_name, ...) extern inline int64_t getter_name(void);
-#define DOUBLE(getter_name, ...) extern inline double getter_name(void);
-
+// static assert name lengths, number of configs and number of aliases
+#define CALIAS CONFIG
+#define CONFIG(...) 1,
+#define NUMBER_OF_CONFIGURATIONS sizeof((uint8_t[]){DD_CONFIGURATION})
+_Static_assert(NUMBER_OF_CONFIGURATIONS < ZAI_CONFIG_ENTRIES_COUNT_MAX,
+               "There are more config entries than ZAI_CONFIG_ENTRIES_COUNT_MAX.");
+#undef CONFIG
+#define CONFIG(type, name, ...)                                                \
+    _Static_assert(sizeof(#name) < ZAI_CONFIG_NAME_BUFSIZ - DD_TO_DATADOG_INC, \
+                   "The name of " #name                                        \
+                   " is longer than allowed ZAI_CONFIG_NAME_BUFSIZ - " DD_CFG_STR(DD_TO_DATADOG_INC));
 DD_CONFIGURATION
+#undef CONFIG
+#undef CALIAS
+#define CONFIG(...)
+#define ELEMENT(arg) 1,
+#define CALIASES(...) APPLY_N(ELEMENT, ##__VA_ARGS__)
+#define CALIAS(type, name, default, aliases, ...)                             \
+    _Static_assert(sizeof((uint8_t[]){aliases}) < ZAI_CONFIG_NAMES_COUNT_MAX, \
+                   #name " has more than the allowed ZAI_CONFIG_NAMES_COUNT_MAX alias names");
+DD_CONFIGURATION
+#undef CALIAS
+#undef CALIASES
+#define CALIAS_CHECK_LENGTH(name)                                              \
+    _Static_assert(sizeof(#name) < ZAI_CONFIG_NAME_BUFSIZ - DD_TO_DATADOG_INC, \
+                   "The name of " #name                                        \
+                   " alias is longer than allowed ZAI_CONFIG_NAME_BUFSIZ - " DD_CFG_STR(DD_TO_DATADOG_INC));
+#define CALIASES(...) APPLY_N(CALIAS_CHECK_LENGTH, ##__VA_ARGS__)
+#define CALIAS(type, name, default, aliases, ...) aliases
+DD_CONFIGURATION
+#undef CALIAS
+#undef CALIASES
+#undef CONFIG
 
-#undef CHAR
-#undef BOOL
-#undef INT
-#undef DOUBLE
+// Allow for partially defined struct initialization here
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 
-bool ddtrace_config_bool(ddtrace_string subject, bool default_value) {
-    if (subject.len == 1) {
-        if (strcmp(subject.ptr, "1") == 0) {
-            return true;
-        } else if (strcmp(subject.ptr, "0") == 0) {
-            return false;
+#define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+#define CALIASES(...) ((zai_string_view[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
+#define CONFIG(type, name, ...) ZAI_CONFIG_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
+#define CALIAS(type, name, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
+static zai_config_entry config_entries[] = {DD_CONFIGURATION};
+#undef CALIAS
+#undef CONFIG
+
+bool runtime_config_first_init = false;
+
+static void dd_copy_tolower(char *dst, const char *src) {
+    while (*src) {
+        *(dst++) = tolower(*(src++));
+    }
+}
+
+static void dd_ini_env_to_ini_name(const zai_string_view env_name, zai_config_name *ini_name) {
+    if (env_name.len + DD_TO_DATADOG_INC >= ZAI_CONFIG_NAME_BUFSIZ) {
+        assert(false && "Expanded env name length is larger than the INI name buffer");
+        return;
+    }
+
+    if (env_name.ptr == strstr(env_name.ptr, "DDTRACE_")) {
+        // legacy names
+        dd_copy_tolower(ini_name->ptr, env_name.ptr);
+        ini_name->len = env_name.len;
+        ini_name->ptr[sizeof("ddtrace") - 1] = '.';
+    } else if (env_name.ptr == strstr(env_name.ptr, "DD_")) {
+        dd_copy_tolower(ini_name->ptr + DD_TO_DATADOG_INC, env_name.ptr);
+        memcpy(ini_name->ptr, "datadog.", sizeof("datadog.") - 1);
+        ini_name->len = env_name.len + DD_TO_DATADOG_INC;
+
+        if (env_name.ptr == strstr(env_name.ptr, "DD_TRACE_")) {
+            ini_name->ptr[sizeof("datadog.trace") - 1] = '.';
         }
-    } else if ((subject.len == 4 && strcasecmp(subject.ptr, "true") == 0)) {
-        return true;
-    } else if ((subject.len == 5 && strcasecmp(subject.ptr, "false") == 0)) {
-        return false;
+    } else {
+        ini_name->len = 0;
+        assert(false && "Unexpected env var name: missing 'DD_' prefix");
     }
-    return default_value;
+
+    ini_name->ptr[ini_name->len] = '\0';
 }
 
-bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value) {
-    ddtrace_string env_val = ddtrace_string_getenv(env_name.ptr, env_name.len);
-    bool result = default_value;
-    if (env_val.len) {
-        result = ddtrace_config_bool(env_val, default_value);
-    }
-    if (env_val.ptr) {
-        efree(env_val.ptr);
-    }
-    return result;
+void ddtrace_config_minit(int module_number) {
+    zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
+                     module_number);
+    // We immediately initialize inis at MINIT, so that we can use a select few values already at minit.
+    // Note that we are not calling zai_config_rinit(), i.e. the get_...() functions will not work.
+    // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the
+    // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
+    zai_config_first_time_rinit();
 }
 
-bool ddtrace_config_distributed_tracing_enabled(void) {
-    ddtrace_string env_name = DDTRACE_STRING_LITERAL("DD_DISTRIBUTED_TRACING");
-    return ddtrace_config_env_bool(env_name, true);
+void ddtrace_config_first_rinit() {
+    zend_ini_entry *internal_functions_ini =
+        zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_TRACED_INTERNAL_FUNCTIONS].ini_entries[0];
+    zend_string *internal_functions_old = zend_string_copy(
+        internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value);
+
+    zai_config_first_time_rinit();
+    zai_config_rinit();
+
+    zend_string *internal_functions_new =
+        internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value;
+
+    if (!zend_string_equals(internal_functions_old, internal_functions_new)) {
+        ddtrace_log_errf(
+            "Received DD_TRACE_TRACED_INTERNAL_FUNCTIONS configuration via environment variable."
+            "This specific value cannot be set via environment variable for this SAPI. This configuration "
+            "needs to be available early in startup. To provide this value, set an ini value with the key "
+            "datadog.trace.traced_internal_functions in your system PHP ini file. System value: %s. "
+            "Environment variable value: %s",
+            ZSTR_VAL(internal_functions_old), ZSTR_VAL(internal_functions_new));
+    }
+    zend_string_release(internal_functions_old);
+
+    runtime_config_first_init = true;
 }
 
-// Get env name for <PREFIX_><INTEGRATION><_SUFFIX> (i.e. <DD_TRACE_><LARAVEL><_ENABLED>)
-size_t ddtrace_config_integration_env_name(char* name, const char* prefix, ddtrace_integration* integration,
-                                           const char* suffix) {
-    ZEND_ASSERT(strlen(prefix) <= DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN);
-    ZEND_ASSERT(strlen(suffix) <= DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN);
-    return (size_t)snprintf(name, DDTRACE_LONGEST_INTEGRATION_ENV_LEN + 1, "%s%s%s", prefix, integration->name_ucase,
-                            suffix);
-}
+// note: only call this if get_DD_TRACE_ENABLED() returns true
+bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_name) {
+    ddtrace_integration *integration = &ddtrace_integrations[integration_name];
 
-// Get env value for <PREFIX_><INTEGRATION><_SUFFIX>
-ddtrace_string _dd_env_integration_value(const char* prefix, ddtrace_integration* integration, const char* suffix) {
-    char name[DDTRACE_LONGEST_INTEGRATION_ENV_LEN + 1];
-    size_t len = ddtrace_config_integration_env_name(name, prefix, integration, suffix);
-    return ddtrace_string_getenv(name, len);
-}
-
-#define DD_INTEGRATION_ENABLED_DEFAULT true
-
-// note: only call this if ddtrace_config_trace_enabled() returns true
-bool ddtrace_config_integration_enabled(ddtrace_string integration_str) {
-    ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
-    if (integration == NULL) {
-        return DD_INTEGRATION_ENABLED_DEFAULT;
+    if (zend_hash_str_find(get_DD_INTEGRATIONS_DISABLED(), ZEND_STRL("default"))) {
+        return integration->is_enabled();
+    } else {
+        // Deprecated as of 0.47.1
+        return zend_hash_str_find(get_DD_INTEGRATIONS_DISABLED(), integration->name_lcase, integration->name_len) ==
+               NULL;
     }
-    return ddtrace_config_integration_enabled_ex(integration->name);
-}
-
-bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_name) {
-    bool result = DD_INTEGRATION_ENABLED_DEFAULT;
-    ddtrace_integration* integration = &ddtrace_integrations[integration_name];
-
-    ddtrace_string env_val = _dd_env_integration_value("DD_TRACE_", integration, "_ENABLED");
-    if (env_val.len) {
-        result = ddtrace_config_bool(env_val, result);
-        efree(env_val.ptr);
-        return result;
-    }
-    if (env_val.ptr) {
-        efree(env_val.ptr);
-    }
-
-    // Deprecated as of 0.47.1
-    env_val = ddtrace_string_getenv(ZEND_STRL("DD_INTEGRATIONS_DISABLED"));
-    if (env_val.len) {
-        ddtrace_string tmp;
-        tmp.ptr = integration->name_lcase;
-        tmp.len = integration->name_len;
-        result = !ddtrace_string_contains_in_csv(env_val, tmp);
-    }
-    if (env_val.ptr) {
-        efree(env_val.ptr);
-    }
-    return result;
-}
-
-#define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
-
-static bool _dd_config_integration_analytics_enabled_ex(ddtrace_integration_name integration_name) {
-    bool result = DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT;
-    ddtrace_integration* integration = &ddtrace_integrations[integration_name];
-    ddtrace_string env_val;
-
-    env_val = _dd_env_integration_value("DD_TRACE_", integration, "_ANALYTICS_ENABLED");
-    if (env_val.len) {
-        result = ddtrace_config_bool(env_val, result);
-        efree(env_val.ptr);
-        return result;
-    }
-    if (env_val.ptr) {
-        efree(env_val.ptr);
-    }
-
-    // Deprecated as of 0.47.1
-    env_val = _dd_env_integration_value("DD_", integration, "_ANALYTICS_ENABLED");
-    if (env_val.len) {
-        result = ddtrace_config_bool(env_val, result);
-        efree(env_val.ptr);
-        return result;
-    }
-    if (env_val.ptr) {
-        efree(env_val.ptr);
-    }
-    return result;
-}
-
-bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration_str) {
-    ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
-    if (integration == NULL) {
-        return DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT;
-    }
-    return _dd_config_integration_analytics_enabled_ex(integration->name);
-}
-
-#define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1.0
-
-static double _dd_config_integration_analytics_sample_rate_ex(ddtrace_integration_name integration_name) {
-    double result = DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT;
-    ddtrace_integration* integration = &ddtrace_integrations[integration_name];
-    ddtrace_string env_val;
-
-    env_val = _dd_env_integration_value("DD_TRACE_", integration, "_ANALYTICS_SAMPLE_RATE");
-    if (env_val.len) {
-        result = ddtrace_char_to_double(env_val.ptr, result);
-        efree(env_val.ptr);
-        return result;
-    }
-    if (env_val.ptr) {
-        efree(env_val.ptr);
-    }
-
-    // Deprecated as of 0.47.1
-    env_val = _dd_env_integration_value("DD_", integration, "_ANALYTICS_SAMPLE_RATE");
-    if (env_val.len) {
-        result = ddtrace_char_to_double(env_val.ptr, result);
-        efree(env_val.ptr);
-        return result;
-    }
-    if (env_val.ptr) {
-        efree(env_val.ptr);
-    }
-    return result;
-}
-
-double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration_str) {
-    ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
-    if (integration == NULL) {
-        return DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT;
-    }
-    return _dd_config_integration_analytics_sample_rate_ex(integration->name);
-}
-
-bool ddtrace_config_trace_enabled(void) {
-    ddtrace_string env_name = DDTRACE_STRING_LITERAL("DD_TRACE_ENABLED");
-    return ddtrace_config_env_bool(env_name, true);
 }

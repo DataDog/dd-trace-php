@@ -57,14 +57,12 @@ static zend_op_array *_dd_compile_file(zend_file_handle *file_handle, int type) 
 }
 
 static void _compile_minit(void) {
-    if (get_dd_trace_measure_compile_time()) {
-        _prev_compile_file = zend_compile_file;
-        zend_compile_file = _dd_compile_file;
-    }
+    _prev_compile_file = zend_compile_file;
+    zend_compile_file = _dd_compile_file;
 }
 
 static void _compile_mshutdown(void) {
-    if (get_dd_trace_measure_compile_time() && zend_compile_file == _dd_compile_file) {
+    if (zend_compile_file == _dd_compile_file) {
         zend_compile_file = _prev_compile_file;
     }
 }

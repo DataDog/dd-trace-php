@@ -2,6 +2,7 @@
 #define DD_SPAN_H
 #include <Zend/zend_types.h>
 #include <php.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
 

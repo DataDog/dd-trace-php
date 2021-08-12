@@ -10,14 +10,13 @@
 #include <unistd.h>
 
 #include "configuration.h"
-#include "env_config.h"
 #include "macros.h"
 
 dd_trace_circuit_breaker_t *dd_trace_circuit_breaker = NULL;
 dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {0};
 
 static void handle_prepare_error(const char *call_name) {
-    if (get_dd_trace_debug()) {
+    if (get_DD_TRACE_DEBUG()) {
         perror(call_name);
     }
 
@@ -69,17 +68,6 @@ static uint64_t current_timestamp_monotonic_usec() {
     return t.tv_sec * 1000 * 1000 + t.tv_nsec / 1000;
 }
 
-static int64_t get_max_consecutive_failures(void) {
-    return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_MAX_CONSECUTIVE_FAILURES,
-                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES);
-}
-
-static int64_t get_retry_time_usec(void) {
-    return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_RETRY_TIME_MSEC,
-                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC) *
-           1000;
-}
-
 uint32_t dd_tracer_circuit_breaker_can_try(void) {
     if (dd_tracer_circuit_breaker_is_closed()) {
         return 1;
@@ -87,7 +75,7 @@ uint32_t dd_tracer_circuit_breaker_can_try(void) {
     uint64_t last_failure_timestamp = atomic_load(&dd_trace_circuit_breaker->last_failure_timestamp);
     uint64_t current_time = current_timestamp_monotonic_usec();
 
-    return (last_failure_timestamp + get_retry_time_usec()) <= current_time;
+    return (last_failure_timestamp + get_DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC() * 1000) <= current_time;
 }
 
 void dd_tracer_circuit_breaker_register_error(void) {
@@ -98,9 +86,10 @@ void dd_tracer_circuit_breaker_register_error(void) {
 
     atomic_store(&dd_trace_circuit_breaker->last_failure_timestamp, current_timestamp_monotonic_usec());
 
-    // if circuit breaker is closed attempt to open it if consecutive failures are higher thatn the threshold
+    // if circuit breaker is closed attempt to open it if consecutive failures are higher than the threshold
     if (dd_tracer_circuit_breaker_is_closed()) {
-        if (atomic_load(&dd_trace_circuit_breaker->consecutive_failures) >= get_max_consecutive_failures()) {
+        if (atomic_load(&dd_trace_circuit_breaker->consecutive_failures) >=
+            get_DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES()) {
             dd_tracer_circuit_breaker_open();
         }
     }

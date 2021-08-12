@@ -6,6 +6,7 @@
 #include <Zend/zend_types.h>
 #include <inttypes.h>
 #include <php.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 // comment to prevent clang from reordering these headers

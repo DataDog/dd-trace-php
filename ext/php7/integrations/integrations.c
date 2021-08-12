@@ -2,6 +2,7 @@
 
 #include "ext/php7/configuration.h"
 #include "ext/php7/ddtrace_string.h"
+#undef INTEGRATION
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
@@ -26,29 +27,17 @@
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
                           DDTRACE_STRING_LITERAL(callable), options)
 
-ddtrace_integration ddtrace_integrations[] = {
-    {DDTRACE_INTEGRATION_CAKEPHP, "CAKEPHP", ZEND_STRL("cakephp")},
-    {DDTRACE_INTEGRATION_CODEIGNITER, "CODEIGNITER", ZEND_STRL("codeigniter")},
-    {DDTRACE_INTEGRATION_CURL, "CURL", ZEND_STRL("curl")},
-    {DDTRACE_INTEGRATION_ELASTICSEARCH, "ELASTICSEARCH", ZEND_STRL("elasticsearch")},
-    {DDTRACE_INTEGRATION_ELOQUENT, "ELOQUENT", ZEND_STRL("eloquent")},
-    {DDTRACE_INTEGRATION_GUZZLE, "GUZZLE", ZEND_STRL("guzzle")},
-    {DDTRACE_INTEGRATION_LARAVEL, "LARAVEL", ZEND_STRL("laravel")},
-    {DDTRACE_INTEGRATION_LUMEN, "LUMEN", ZEND_STRL("lumen")},
-    {DDTRACE_INTEGRATION_MEMCACHED, "MEMCACHED", ZEND_STRL("memcached")},
-    {DDTRACE_INTEGRATION_MONGO, "MONGO", ZEND_STRL("mongo")},
-    {DDTRACE_INTEGRATION_MYSQLI, "MYSQLI", ZEND_STRL("mysqli")},
-    {DDTRACE_INTEGRATION_NETTE, "NETTE", ZEND_STRL("nette")},
-    {DDTRACE_INTEGRATION_PDO, "PDO", ZEND_STRL("pdo")},
-    {DDTRACE_INTEGRATION_PHPREDIS, "PHPREDIS", ZEND_STRL("phpredis")},
-    {DDTRACE_INTEGRATION_PREDIS, "PREDIS", ZEND_STRL("predis")},
-    {DDTRACE_INTEGRATION_SLIM, "SLIM", ZEND_STRL("slim")},
-    {DDTRACE_INTEGRATION_SYMFONY, "SYMFONY", ZEND_STRL("symfony")},
-    {DDTRACE_INTEGRATION_WEB, "WEB", ZEND_STRL("web")},
-    {DDTRACE_INTEGRATION_WORDPRESS, "WORDPRESS", ZEND_STRL("wordpress")},
-    {DDTRACE_INTEGRATION_YII, "YII", ZEND_STRL("yii")},
-    {DDTRACE_INTEGRATION_ZENDFRAMEWORK, "ZENDFRAMEWORK", ZEND_STRL("zendframework")},
-};
+#define INTEGRATION(id, int_name)                                      \
+    {                                                                  \
+        .name = DDTRACE_INTEGRATION_##id,                              \
+        .name_ucase = #id,                                             \
+        .name_lcase = (int_name),                                      \
+        .name_len = sizeof(int_name) - 1,                              \
+        .is_enabled = get_DD_TRACE_##id##_ENABLED,                     \
+        .is_analytics_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
+        .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
+    },
+ddtrace_integration ddtrace_integrations[] = {DD_INTEGRATIONS};
 size_t ddtrace_integrations_len = sizeof ddtrace_integrations / sizeof ddtrace_integrations[0];
 
 // Map of lowercase strings to the ddtrace_integration equivalent
@@ -96,7 +85,7 @@ static void dd_load_test_integrations(void) {
 
 static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, ddtrace_string Class,
                                                  ddtrace_string method, ddtrace_string integration) {
-    if (!ddtrace_config_integration_enabled_ex(name)) {
+    if (!ddtrace_config_integration_enabled(name)) {
         return;
     }
 

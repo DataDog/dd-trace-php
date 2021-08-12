@@ -54,6 +54,10 @@
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval*)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
+#if PHP_VERSION_ID < 70200
+#define zend_strpprintf strpprintf
+#endif
+
 typedef zend_object ddtrace_exception_t;
 
 #endif  // DD_COMPATIBILITY_H

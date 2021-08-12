@@ -202,20 +202,16 @@
             <file name="ext/php7/compatibility.h" role="src" />
             <file name="ext/php7/coms.c" role="src" />
             <file name="ext/php7/coms.h" role="src" />
-            <file name="ext/php7/configuration.h" role="src" />
-            <file name="ext/php7/configuration.c" role="src" />
-            <file name="ext/php7/configuration_php_iface.h" role="src" />
-            <file name="ext/php7/configuration_php_iface.c" role="src" />
-            <file name="ext/php7/configuration_render.h" role="src" />
-            <file name="ext/php7/ddshared.c" role="src" />
-            <file name="ext/php7/ddshared.h" role="src" />
-            <file name="ext/php7/ddtrace_string.c" role="src" />
-            <file name="ext/php7/ddtrace_string.h" role="src" />
-            <file name="ext/php7/ddtrace.c" role="src">
+            <file name="ext/php7/configuration.h" role="src">
                 <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />
                 <tasks:replace from="_BUILD_FROM_PECL_" to="PHP_VERSION_ID" type="php-const" />
             </file>
+            <file name="ext/php7/configuration.c" role="src" />
+            <file name="ext/php7/ddshared.c" role="src" />
+            <file name="ext/php7/ddshared.h" role="src" />
+            <file name="ext/php7/ddtrace.c" role="src" />
             <file name="ext/php7/ddtrace.h" role="src" />
+            <file name="ext/php7/ddtrace_string.h" role="src" />
             <file name="ext/php7/dispatch.c" role="src" />
             <file name="ext/php7/dispatch.h" role="src" />
             <file name="ext/php7/dogstatsd_client.c" role="src" />
@@ -224,8 +220,6 @@
             <file name="ext/php7/engine_api.h" role="src" />
             <file name="ext/php7/engine_hooks.c" role="src" />
             <file name="ext/php7/engine_hooks.h" role="src" />
-            <file name="ext/php7/env_config.c" role="src" />
-            <file name="ext/php7/env_config.h" role="src" />
             <file name="ext/php7/excluded_modules.c" role="src" />
             <file name="ext/php7/excluded_modules.h" role="src" />
             <file name="ext/php7/handlers_curl.c" role="src" />
