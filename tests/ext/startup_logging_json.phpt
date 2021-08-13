@@ -2,6 +2,8 @@
 Startup logging from JSON fetched at runtime
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+--INI--
+datadog.trace.request_init_hook=
 --FILE--
 <?php
 include_once 'startup_logging.inc';
@@ -35,7 +37,7 @@ priority_sampling_enabled: true
 dd_version: null
 architecture: "%s"
 sapi: "cli"
-ddtrace.request_init_hook: null
+datadog.trace.request_init_hook: null
 open_basedir_configured: false
 uri_fragment_regex: null
 uri_mapping_incoming: null
@@ -47,7 +49,7 @@ measure_compile_time: true
 report_hostname_on_root_span: false
 traced_internal_functions: null
 auto_prepend_file_configured: false
-integrations_disabled: null
+integrations_disabled: "default"
 enabled_from_env: true
 opcache.file_cache: null
-ddtrace.request_init_hook_reachable: false
+datadog.trace.request_init_hook_reachable: false

@@ -18,26 +18,8 @@ echo PHP_EOL;
 echo dd_trace_env_config("DD_NON_EXISTING_ENTRY") === NULL ? 'NULL' : 'NOT_NULL' ;
 echo PHP_EOL;
 
-// this format is for compatibility with existing configuration registry
-echo dd_trace_env_config("agent.host");
-echo PHP_EOL;
-echo dd_trace_env_config("trace.agent.port");
-echo PHP_EOL;
-echo dd_trace_env_config("trace.agent.debug.verbose.curl") ? 'TRUE' : 'FALSE';
-echo PHP_EOL;
-echo dd_trace_env_config("trace.debug.curl.output") ? 'TRUE' : 'FALSE';
-echo PHP_EOL;
-echo dd_trace_env_config("trace.memory.limit");
-echo PHP_EOL;
-echo dd_trace_env_config("non.existing.entry") === NULL ? 'NULL' : 'NOT_NULL' ;
 ?>
 --EXPECT--
-some_known_host
-8126
-FALSE
-FALSE
-9999
-NULL
 some_known_host
 8126
 FALSE

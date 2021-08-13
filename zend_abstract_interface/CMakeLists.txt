@@ -85,6 +85,7 @@ add_subdirectory(zai_sapi)
 
 # All tests depend on zai_sapi
 add_subdirectory(env)
+add_subdirectory(config)
 if(PHP_VERSION_DIRECTORY STREQUAL "php8")
   # TODO Support PHP 5 & PHP 7
   add_subdirectory(functions)

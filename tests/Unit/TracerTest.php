@@ -26,18 +26,18 @@ final class TracerTest extends BaseTestCase
 
     protected function ddSetUp()
     {
-        \putenv('DD_AUTOFINISH_SPANS');
-        \putenv('DD_TRACE_REPORT_HOSTNAME');
-        \putenv('DD_TAGS');
+        self::putenv('DD_AUTOFINISH_SPANS');
+        self::putenv('DD_TRACE_REPORT_HOSTNAME');
+        self::putenv('DD_TAGS');
         parent::ddSetUp();
     }
 
     protected function ddTearDown()
     {
         parent::ddTearDown();
-        \putenv('DD_TRACE_REPORT_HOSTNAME');
-        \putenv('DD_AUTOFINISH_SPANS');
-        \putenv('DD_TAGS');
+        self::putenv('DD_TRACE_REPORT_HOSTNAME');
+        self::putenv('DD_AUTOFINISH_SPANS');
+        self::putenv('DD_TAGS');
     }
 
     public function testStartSpanAsNoop()
@@ -226,7 +226,7 @@ final class TracerTest extends BaseTestCase
             return; // obsolete, now interrnal responsibility
         }
 
-        \putenv('DD_AUTOFINISH_SPANS=true');
+        self::putenv('DD_AUTOFINISH_SPANS=true');
 
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
@@ -264,7 +264,7 @@ final class TracerTest extends BaseTestCase
 
     public function testFlushAddsHostnameToRootSpanWhenEnabled()
     {
-        \putenv('DD_TRACE_REPORT_HOSTNAME=true');
+        self::putenv('DD_TRACE_REPORT_HOSTNAME=true');
 
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
@@ -279,7 +279,7 @@ final class TracerTest extends BaseTestCase
 
     public function testHonorGlobalTags()
     {
-        \putenv('DD_TAGS=key1:value1,key2:value2');
+        self::putenv('DD_TAGS=key1:value1,key2:value2');
 
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
@@ -288,12 +288,12 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('value1', $span->getAllTags()['key1']);
         $this->assertSame('value2', $span->getAllTags()['key2']);
 
-        \putenv('DD_TAGS='); // prevent memory leak
+        self::putenv('DD_TAGS='); // prevent memory leak
     }
 
     public function testInternalAndUserlandSpansAreMergedIntoSameTraceOnSerialization()
     {
-        putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
         dd_trace_internal_fn('ddtrace_reload_config');
 
         // Clear existing internal spans
@@ -318,7 +318,7 @@ final class TracerTest extends BaseTestCase
             $this->assertCount(2, $traces);
         }
 
-        putenv('DD_TRACE_GENERATE_ROOT_SPAN');
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');
     }
 }

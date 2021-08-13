@@ -44,6 +44,23 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         return $logger;
     }
 
+    protected static function putEnv($putenv)
+    {
+        if (strpos($putenv, "DD_") === 0 && PHP_VERSION_ID >= 80000) {
+            $val = explode("=", $putenv, 2);
+            $name = strtolower(strtr($val[0], [
+                "DD_TRACE_" => "datadog.trace.",
+                "DD_" => "datadog.",
+            ]));
+            if (count($val) > 1) {
+                \ini_set($name, $val[1]);
+            } else {
+                \ini_restore($name);
+            }
+        }
+        \putenv($putenv);
+    }
+
     /**
      * Reloads configuration setting first the envs in $putenvs
      *
@@ -53,7 +70,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
     protected function putEnvAndReloadConfig($putenvs = [])
     {
         foreach ($putenvs as $putenv) {
-            \putenv($putenv);
+            self::putEnv($putenv);
         }
         \dd_trace_internal_fn('ddtrace_reload_config');
     }

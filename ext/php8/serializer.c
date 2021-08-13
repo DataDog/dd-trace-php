@@ -5,6 +5,7 @@
 #include <Zend/zend_types.h>
 #include <inttypes.h>
 #include <php.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 // comment to prevent clang from reordering these headers
@@ -241,7 +242,7 @@ static zend_result dd_exception_trace_to_error_stack(zend_string *trace, void *c
     return result;
 }
 
-zend_result ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta) {
+static zend_result ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta) {
     zend_object *exception_root = exception;
     zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
 
@@ -351,7 +352,7 @@ static zend_result dd_add_meta_array(void *context, ddtrace_string key, ddtrace_
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     ddtrace_span_t *span = &span_fci->span;
-    BOOL_T top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
+    bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     zval meta_zv, *meta = ddtrace_spandata_property_meta(span);
 
     array_init(&meta_zv);
@@ -384,23 +385,17 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
         add_assoc_str(meta, "system.pid", zend_strpprintf(0, "%ld", (long)getpid()));
     }
 
-    char *version = get_dd_version();
-    if (*version) {  // non-empty
-        add_assoc_string(meta, "version", version);
+    zend_string *version = get_DD_VERSION();
+    if (ZSTR_LEN(version) > 0) {  // non-empty
+        add_assoc_str(meta, "version", zend_string_copy(version));
     }
-    free(version);
 
-    char *env = get_dd_env();
-    if (*env) {  // non-empty
-        add_assoc_string(meta, "env", env);
+    zend_string *env = get_DD_ENV();
+    if (ZSTR_LEN(env) > 0) {  // non-empty
+        add_assoc_str(meta, "env", zend_string_copy(env));
     }
-    free(env);
 
-    zend_array *global_tags = get_dd_tags();
-    if (zend_hash_num_elements(global_tags) == 0) {
-        zend_hash_release(global_tags);
-        global_tags = get_dd_trace_global_tags();
-    }
+    zend_array *global_tags = get_DD_TAGS();
     zend_string *global_key;
     zval *global_val;
     ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
@@ -408,7 +403,6 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
         zend_hash_add(Z_ARR_P(meta), global_key, global_val);
     }
     ZEND_HASH_FOREACH_END();
-    zend_hash_release(global_tags);
 
     zend_string *tag_key;
     zval *tag_value;
@@ -434,7 +428,7 @@ static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value
 
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     ddtrace_span_t *span = &span_fci->span;
-    BOOL_T top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
+    bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     zval *el;
     zval zv;
     el = &zv;
@@ -481,13 +475,12 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
         zval prop_service_as_string;
         ddtrace_convert_to_string(&prop_service_as_string, prop_service);
 
-        zend_array *service_mappings = get_dd_service_mapping();
+        zend_array *service_mappings = get_DD_SERVICE_MAPPING();
         zval *new_name = zend_hash_find(service_mappings, Z_STR(prop_service_as_string));
         if (new_name) {
             zend_string_release(Z_STR(prop_service_as_string));
             ZVAL_COPY(&prop_service_as_string, new_name);
         }
-        zend_hash_release(service_mappings);
 
         add_assoc_zval(el, "service", &prop_service_as_string);
     }
@@ -519,7 +512,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
         metrics = NULL;
     }
 
-    if (top_level_span && get_dd_trace_measure_compile_time()) {
+    if (top_level_span && get_DD_TRACE_MEASURE_COMPILE_TIME()) {
         if (!metrics) {
             zval metrics_array;
             array_init(&metrics_array);

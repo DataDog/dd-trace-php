@@ -14,8 +14,7 @@ $env = [
     'DD_TRACE_DEBUG=1',
     'DD_AGENT_HOST=invalid_host',
     'DD_SERVICE_NAME=foo_service',
-    'DD_TRACE_GLOBAL_TAGS=foo_tag',
-    'DD_TRACE_RESOURCE_URI_MAPPING=/foo',
+    'DD_TRACE_GLOBAL_TAGS=foo:tag',
 ];
 $logs = dd_get_startup_logs($args, $env);
 
@@ -25,9 +24,8 @@ dd_dump_startup_logs($logs, [
     'open_basedir_container_tagging_allowed',
     'DD_SERVICE_NAME',
     'DD_TRACE_GLOBAL_TAGS',
-    'DD_TRACE_RESOURCE_URI_MAPPING',
     'agent_url',
-    'ddtrace.request_init_hook',
+    PHP_VERSION_ID < 80000 ? 'ddtrace.request_init_hook' : 'datadog.trace.request_init_hook',
     'open_basedir_configured',
 ]);
 ?>
@@ -36,8 +34,7 @@ agent_error: "%s"
 open_basedir_init_hook_allowed: false
 open_basedir_container_tagging_allowed: false
 DD_SERVICE_NAME: "'DD_SERVICE_NAME=foo_service' is deprecated, use DD_SERVICE instead."
-DD_TRACE_GLOBAL_TAGS: "'DD_TRACE_GLOBAL_TAGS=foo_tag' is deprecated, use DD_TAGS instead."
-DD_TRACE_RESOURCE_URI_MAPPING: "'DD_TRACE_RESOURCE_URI_MAPPING=/foo' is deprecated, use DD_TRACE_RESOURCE_URI_MAPPING_INCOMING and DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING instead."
+DD_TRACE_GLOBAL_TAGS: "'DD_TRACE_GLOBAL_TAGS=foo:tag' is deprecated, use DD_TAGS instead."
 agent_url: "http://invalid_host:8126"
-ddtrace.request_init_hook: "%s/includes/request_init_hook.inc"
+d%s.request_init_hook: "%s/includes/request_init_hook.inc"
 open_basedir_configured: true

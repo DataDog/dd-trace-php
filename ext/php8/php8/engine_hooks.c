@@ -14,7 +14,6 @@
 #include "ext/php8/ddtrace.h"
 #include "ext/php8/dispatch.h"
 #include "ext/php8/engine_api.h"
-#include "ext/php8/env_config.h"
 #include "ext/php8/logging.h"
 #include "ext/php8/span.h"
 
@@ -66,7 +65,7 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
     ret = zend_call_function(fci, fcc);
 
-    if (get_dd_trace_debug()) {
+    if (get_DD_TRACE_DEBUG()) {
         const char *scope, *colon, *name;
         dd_try_fetch_executing_function_name(call, &scope, &colon, &name);
 
@@ -244,7 +243,7 @@ static bool dd_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     zval *this = dd_call_this(call);
 
     if (!callable || !span_data || !user_args) {
-        if (get_dd_trace_debug()) {
+        if (get_DD_TRACE_DEBUG()) {
             const char *fname = call->func ? ZSTR_VAL(call->func->common.function_name) : "{unknown}";
             ddtrace_log_errf("Tracing closure could not be run for %s() because it is in an invalid state", fname);
         }
@@ -639,7 +638,7 @@ static void dd_observer_end(zend_function *fbc, ddtrace_span_fci *span_fci, zval
         ddtrace_dispatch_t *dispatch = span_fci->dispatch;
         uint16_t offset = DDTRACE_DISPATCH_JUMP_OFFSET(dispatch->options);
         (dd_fcall_end[offset])(span_fci, user_retval);
-    } else if (fbc && get_dd_trace_debug()) {
+    } else if (fbc && get_DD_TRACE_DEBUG()) {
         ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(fbc->common.function_name));
     }
 }
@@ -717,7 +716,7 @@ void ddtrace_close_all_open_spans(void) {
             zval retval;
             ZVAL_NULL(&retval);
             dd_observer_end(NULL, span_fci, &retval);
-        } else if (get_dd_autofinish_spans()) {
+        } else if (get_DD_AUTOFINISH_SPANS()) {
             dd_trace_stop_span_time(&span_fci->span);
             ddtrace_close_span(span_fci);
         } else {

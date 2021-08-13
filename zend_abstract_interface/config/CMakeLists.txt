@@ -1,0 +1,34 @@
+if(PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
+  set(PHP_CONFIG_VERSION_DIRECTORY "php7-8")
+else()
+  set(PHP_CONFIG_VERSION_DIRECTORY "${PHP_VERSION_DIRECTORY}")
+endif()
+
+add_library(zai_config config.c config_decode.c "${PHP_CONFIG_VERSION_DIRECTORY}/config_ini.c" "${PHP_CONFIG_VERSION_DIRECTORY}/config_runtime.c")
+
+target_include_directories(
+  zai_config PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+                    $<INSTALL_INTERFACE:include>)
+
+target_compile_features(zai_config PUBLIC c_std_99)
+
+target_link_libraries(zai_config PUBLIC "${PHP_LIB}" Zai::Env)
+
+set_target_properties(zai_config PROPERTIES EXPORT_NAME Config
+                                            VERSION ${PROJECT_VERSION})
+
+add_library(Zai::Config ALIAS zai_config)
+
+if(${BUILD_ZAI_TESTING})
+  add_subdirectory(tests)
+endif()
+
+install(
+  FILES ${CMAKE_CURRENT_SOURCE_DIR}/config.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/config_decode.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/config_ini.h
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/config/)
+
+target_link_libraries(zai_zend_abstract_interface INTERFACE zai_config)
+
+install(TARGETS zai_config EXPORT ZendAbstractInterfaceTargets)

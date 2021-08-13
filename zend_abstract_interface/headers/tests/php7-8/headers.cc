@@ -20,7 +20,7 @@ extern "C" {
     }
 
 static void define_server_value(zval *arr) {
-    add_assoc_string(arr, "HTTP_MY_HEADER", "Datadog");
+    add_assoc_string(arr, "HTTP_MY_HEADER", (char *) "Datadog");
 }
 
 TEST("reading defined header value", {

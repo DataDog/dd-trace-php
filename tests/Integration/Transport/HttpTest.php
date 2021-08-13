@@ -17,7 +17,7 @@ if (PHP_VERSION_ID < 80000) {
         protected function ddSetUp()
         {
             parent::ddSetUp();
-            putenv('DD_TRACE_BGS_ENABLED=false');
+            self::putenv('DD_TRACE_BGS_ENABLED=false');
             \dd_trace_internal_fn('ddtrace_reload_config');
         }
 
@@ -25,8 +25,8 @@ if (PHP_VERSION_ID < 80000) {
         {
             // reset the circuit breker consecutive failures count and close it
             \dd_tracer_circuit_breaker_register_success();
-            putenv('DD_TRACE_BGS_ENABLED');
-            putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=default');
+            self::putenv('DD_TRACE_BGS_ENABLED');
+            self::putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=default');
 
             parent::ddTearDown();
         }
@@ -72,7 +72,7 @@ if (PHP_VERSION_ID < 80000) {
             \dd_tracer_circuit_breaker_register_success();
 
             // make the circuit breaker fail fast
-            putenv('DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES=1');
+            self::putenv('DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES=1');
 
             $logger = $this->withDebugLogger();
 
@@ -95,7 +95,7 @@ if (PHP_VERSION_ID < 80000) {
             $this->assertFalse(\dd_tracer_circuit_breaker_info()['closed']);
 
             // should close the circuit once retry time has passed
-            putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
+            self::putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
 
             $tracer->startSpan('test', [])->finish();
             $goodHttpTransport->send($tracer);

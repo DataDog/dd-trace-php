@@ -86,8 +86,8 @@ trait TracerTestTrait
     {
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
-        putenv('DD_TRACE_SPANS_LIMIT=0');
-        putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+        self::putenv('DD_TRACE_SPANS_LIMIT=0');
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
         dd_trace_internal_fn('ddtrace_reload_config');
 
         $transport = new DebugTransport();
@@ -98,8 +98,8 @@ trait TracerTestTrait
 
         $traces = $this->flushAndGetTraces($transport);
 
-        putenv('DD_TRACE_SPANS_LIMIT');
-        putenv('DD_TRACE_GENERATE_ROOT_SPAN');
+        self::putenv('DD_TRACE_SPANS_LIMIT');
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');
 
         return $traces;

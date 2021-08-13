@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Configuration;
 use DDTrace\Tests\Common\BaseTestCase;
 
 final class ConfigurationTest extends BaseTestCase
@@ -28,26 +29,26 @@ EOD;
 
     private function cleanUpEnvs()
     {
-        putenv('DD_DISTRIBUTED_TRACING');
-        putenv('DD_ENV');
-        putenv('DD_INTEGRATIONS_DISABLED');
-        putenv('DD_PRIORITY_SAMPLING');
-        putenv('DD_SAMPLING_RATE');
-        putenv('DD_SERVICE_MAPPING');
-        putenv('DD_SERVICE_NAME');
-        putenv('DD_SERVICE');
-        putenv('DD_TAGS');
-        putenv('DD_TRACE_ANALYTICS_ENABLED');
-        putenv('DD_TRACE_DEBUG');
-        putenv('DD_TRACE_ENABLED');
-        putenv('DD_TRACE_GLOBAL_TAGS');
-        putenv('DD_TRACE_PDO_ENABLED');
-        putenv('DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST');
-        putenv('DD_TRACE_SAMPLE_RATE');
-        putenv('DD_TRACE_SAMPLING_RULES');
-        putenv('DD_TRACE_SLIM_ENABLED');
-        putenv('DD_TRACE_HEADER_TAGS');
-        putenv('DD_VERSION');
+        self::putenv('DD_DISTRIBUTED_TRACING');
+        self::putenv('DD_ENV');
+        self::putenv('DD_INTEGRATIONS_DISABLED');
+        self::putenv('DD_PRIORITY_SAMPLING');
+        self::putenv('DD_SAMPLING_RATE');
+        self::putenv('DD_SERVICE_MAPPING');
+        self::putenv('DD_SERVICE_NAME');
+        self::putenv('DD_SERVICE');
+        self::putenv('DD_TAGS');
+        self::putenv('DD_TRACE_ANALYTICS_ENABLED');
+        self::putenv('DD_TRACE_DEBUG');
+        self::putenv('DD_TRACE_ENABLED');
+        self::putenv('DD_TRACE_GLOBAL_TAGS');
+        self::putenv('DD_TRACE_PDO_ENABLED');
+        self::putenv('DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST');
+        self::putenv('DD_TRACE_SAMPLE_RATE');
+        self::putenv('DD_TRACE_SAMPLING_RULES');
+        self::putenv('DD_TRACE_SLIM_ENABLED');
+        self::putenv('DD_TRACE_HEADER_TAGS');
+        self::putenv('DD_VERSION');
     }
 
     public function testTracerEnabledByDefault()
@@ -132,7 +133,12 @@ EOD;
     public function testIntegrationsDisabledPrecedenceWithDeprecatedEnv()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=true', 'DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        $this->assertTrue(\ddtrace_config_integration_enabled('pdo'));
+        if (PHP_VERSION_ID < 80000) {
+            $this->assertTrue(\ddtrace_config_integration_enabled('pdo'));
+        } else {
+            // We cannot distinguish not set vs set to default value anymore, hence the behaviour is changed slightly
+            $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
+        }
         $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
     }
 
@@ -147,7 +153,7 @@ EOD;
             self::assertFalse(\ddtrace_config_integration_enabled($lower), $error);
 
             // Reset
-            putenv("DD_TRACE_{$integration}_ENABLED");
+            self::putenv("DD_TRACE_{$integration}_ENABLED");
         }
 
         // Make sure we're not testing the default fallback
@@ -167,7 +173,7 @@ EOD;
             );
 
             // Reset
-            putenv("DD_TRACE_{$integration}_ANALYTICS_ENABLED");
+            self::putenv("DD_TRACE_{$integration}_ANALYTICS_ENABLED");
         }
 
         // Make sure we're not testing the default fallback
@@ -188,7 +194,7 @@ EOD;
             );
 
             // Reset
-            putenv("DD_TRACE_{$integration}_ANALYTICS_SAMPLE_RATE");
+            self::putenv("DD_TRACE_{$integration}_ANALYTICS_SAMPLE_RATE");
         }
 
         // Make sure we're not testing the default fallback
@@ -229,26 +235,10 @@ EOD;
         $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
     }
 
-    public function testServiceNameViaDDServiceWinsOverDDServiceName()
-    {
-        $this->putEnvAndReloadConfig(['DD_SERVICE=my_app', 'DD_SERVICE_NAME=legacy']);
-        $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
-    }
-
     public function testServiceNameViaDDServiceNameForBackwardCompatibility()
     {
         $this->putEnvAndReloadConfig(['DD_SERVICE_NAME=my_app']);
         $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
-    }
-
-    public function testServiceNameHasPrecedenceOverDeprecatedMethods()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_SERVICE=my_app',
-            'DD_TRACE_APP_NAME=wrong_app',
-            'ddtrace_app_name=wrong_app',
-        ]);
-        $this->assertSame('my_app', \ddtrace_config_app_name('my_app'));
     }
 
     public function testAnalyticsDisabledByDefault()
@@ -422,13 +412,6 @@ EOD;
                 ],
                 0.7,
             ],
-            'DD_TRACE_SAMPLE_RATE wins over deprecated DD_SAMPLING_RATE' => [
-                [
-                    'DD_SAMPLING_RATE=0.3',
-                    'DD_TRACE_SAMPLE_RATE=0.7',
-                ],
-                0.7,
-            ],
         ];
     }
 
@@ -481,7 +464,7 @@ EOD;
     public function testEnvNotSet()
     {
         $this->putEnvAndReloadConfig(['DD_ENV']);
-        $this->assertNull(\ddtrace_config_env());
+        $this->assertEmpty(\ddtrace_config_env());
     }
 
     public function testVersion()
@@ -493,7 +476,7 @@ EOD;
     public function testVersionNotSet()
     {
         $this->putEnvAndReloadConfig(['DD_VERSION']);
-        $this->assertNull(\ddtrace_config_service_version());
+        $this->assertEmpty(\ddtrace_config_service_version());
     }
 
     public function testUriAsResourceNameEnabledDefault()
@@ -516,15 +499,6 @@ EOD;
     public function testGlobalTagsLegacyEnv()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2']);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
-    }
-
-    public function testGlobalTagsNewEnvWinsOverLegacyEnv()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_TRACE_GLOBAL_TAGS=key10:value10,key20:value20',
-            'DD_TAGS=key1:value1,key2:value2',
-        ]);
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
     }
 

@@ -27,6 +27,19 @@ class EnvVariableRegistry implements Registry
         $this->registry = [];
     }
 
+    private function readEnvOrIni($name)
+    {
+        $ini_name = strtolower(strtr($name, [
+            "DD_TRACE_" => "datadog.trace.",
+            "DD_" => "datadog.",
+        ]));
+        $ini = ini_get($ini_name);
+        if ($ini !== false) {
+            return $ini;
+        }
+        return \getenv($name);
+    }
+
     /**
      * Return an env variable that starts with "DD_".
      *
@@ -35,7 +48,7 @@ class EnvVariableRegistry implements Registry
      */
     protected function get($key)
     {
-        $value = getenv($this->convertKeyToEnvVariableName($key));
+        $value = $this->readEnvOrIni($this->convertKeyToEnvVariableName($key));
         if (false === $value) {
             return null;
         }

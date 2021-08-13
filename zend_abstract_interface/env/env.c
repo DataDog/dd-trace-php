@@ -14,7 +14,7 @@
 #define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len TSRMLS_CC)
 #endif
 
-zai_env_result zai_getenv(zai_string_view name, zai_env_buffer buf) {
+zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_rinit) {
 #if PHP_VERSION_ID < 70000
     TSRMLS_FETCH();
 #endif
@@ -30,17 +30,20 @@ zai_env_result zai_getenv(zai_string_view name, zai_env_buffer buf) {
      * until SAPI RINIT. It is for this reason we cannot reliably access
      * environment variables until module RINIT.
      */
-    if (!PG(modules_activated) && !PG(during_request_startup)) return ZAI_ENV_NOT_READY;
+    if (!pre_rinit && !PG(modules_activated) && !PG(during_request_startup)) return ZAI_ENV_NOT_READY;
 
-    /* If 'sapi_module.getenv' is not set, sapi_getenv() will return NULL; but a
-     * NULL return value could also mean that the target environment variable
-     * does not exist. To distinguish these two paths we need to check
-     * 'sapi_module.getenv' here and fall back to getenv() only if the SAPI does
-     * not have special environment variable handling.
+    /* sapi_getenv may or may not include process environment variables.
+     * It will return NULL when it is not found in the possibly synthetic SAPI environment.
+     * Hence we need to do a getenv() in any case.
      */
-    bool use_sapi_env = sapi_module.getenv != NULL;
+    bool use_sapi_env = false;
+    char *value = sapi_getenv_compat(name.ptr, name.len);
+    if (value) {
+        use_sapi_env = true;
+    } else {
+        value = getenv(name.ptr);
+    }
 
-    char *value = use_sapi_env ? sapi_getenv_compat(name.ptr, name.len) : getenv(name.ptr);
     if (!value) return ZAI_ENV_NOT_SET;
 
     zai_env_result res;

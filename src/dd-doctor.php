@@ -16,11 +16,24 @@ function is_flag_enabled($rawValue)
     return in_array(strtolower($rawValue), ['1', 'true']);
 }
 
+function ddtrace_config_read_env_or_ini($name)
+{
+    $ini_name = strtolower(strtr($name, [
+        "DD_TRACE_" => "datadog.trace.",
+        "DD_" => "datadog.",
+    ]));
+    $ini = ini_get($ini_name);
+    if ($ini !== false) {
+        return $ini;
+    }
+    return \getenv($name);
+}
+
 if ('cli' === PHP_SAPI) {
     echo 'WARNING: Script is running from the CLI SAPI.' . PHP_EOL;
     echo '         Please run this script from your web browser.' . PHP_EOL;
     echo PHP_EOL;
-    $cliEnabled = is_flag_enabled(getenv('DD_TRACE_CLI_ENABLED'));
+    $cliEnabled = is_flag_enabled(ddtrace_config_read_env_or_ini('DD_TRACE_CLI_ENABLED'));
     if (!$cliEnabled) {
         echo 'Tracing from the CLI SAPI is not enabled.' . PHP_EOL;
         echo 'To enable, set: DD_TRACE_CLI_ENABLED=1' . PHP_EOL;
@@ -114,7 +127,7 @@ function env($key)
 {
     return function_exists('dd_trace_env_config')
         ? dd_trace_env_config($key)
-        : getenv($key);
+        : ddtrace_config_read_env_or_ini($key);
 }
 
 function check_opcache()
@@ -271,7 +284,7 @@ if ($integrationsLoaderExists) {
 renderSuccessOrFailure('DDTrace\\Tracer class exists', class_exists('\\DDTrace\\Tracer'));
 
 // Checking background sender status
-$isBackgroundSenderEnabled = is_flag_enabled(getenv('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD'));
+$isBackgroundSenderEnabled = is_flag_enabled(ddtrace_config_read_env_or_ini('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD'));
 render("Background sender is enabled?", $isBackgroundSenderEnabled ? 'YES' : 'NO');
 if (!$isBackgroundSenderEnabled) {
     sub_paragraph('You can enable the background sender via DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=true');

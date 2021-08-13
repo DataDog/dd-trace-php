@@ -25,13 +25,13 @@ final class CompileTimeEnabledTest extends WebFrameworkTestCase
         /* The span encoder of this process gets used to convert the trace's spans into an array.
          * For the compile-time metrics specifically, this goofs things up, so let's disable.
          */
-        \putenv('DD_TRACE_MEASURE_COMPILE_TIME=0');
+        self::putenv('DD_TRACE_MEASURE_COMPILE_TIME=0');
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     protected function ddTearDown()
     {
-        \putenv('DD_TRACE_MEASURE_COMPILE_TIME');
+        self::putenv('DD_TRACE_MEASURE_COMPILE_TIME');
         dd_trace_internal_fn('ddtrace_reload_config');
         parent::ddTearDown();
     }

@@ -30,15 +30,15 @@ final class MessagePackTest extends BaseTestCase
         );
         GlobalTracer::set($this->tracer);
 
-        putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
         dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     protected function ddTearDown()
     {
         parent::ddTearDown();
-        putenv('DD_AUTOFINISH_SPANS=');
-        putenv('DD_TRACE_GENERATE_ROOT_SPAN');
+        self::putenv('DD_AUTOFINISH_SPANS=');
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');
     }
 

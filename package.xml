@@ -54,6 +54,17 @@
             <file name="components/string_view/string_view.h" role="src" />
 
             <!-- Zend Abstract Interface -->
+            <file name="zend_abstract_interface/config/config.c" role="src" />
+            <file name="zend_abstract_interface/config/config.h" role="src" />
+            <file name="zend_abstract_interface/config/config_decode.c" role="src" />
+            <file name="zend_abstract_interface/config/config_decode.h" role="src" />
+            <file name="zend_abstract_interface/config/config_ini.h" role="src" />
+            <file name="zend_abstract_interface/config/php5/config_ini.c" role="src" />
+            <file name="zend_abstract_interface/config/php5/config_runtime.c" role="src" />
+            <file name="zend_abstract_interface/config/php7-8/config_ini.c" role="src" />
+            <file name="zend_abstract_interface/config/php7-8/config_runtime.c" role="src" />
+            <file name="zend_abstract_interface/config/tests/config_test_helpers.h" role="src" />
+            <file name="zend_abstract_interface/config/tests/ext_zai_config.h" role="src" />
             <file name="zend_abstract_interface/env/env.c" role="src" />
             <file name="zend_abstract_interface/env/env.h" role="src" />
             <file name="zend_abstract_interface/exceptions/exceptions.h" role="src" />
@@ -260,19 +271,15 @@
             <file name="ext/php8/compatibility.h" role="src" />
             <file name="ext/php8/coms.c" role="src" />
             <file name="ext/php8/coms.h" role="src" />
-            <file name="ext/php8/configuration.h" role="src" />
-            <file name="ext/php8/configuration.c" role="src" />
-            <file name="ext/php8/configuration_php_iface.h" role="src" />
-            <file name="ext/php8/configuration_php_iface.c" role="src" />
-            <file name="ext/php8/configuration_render.h" role="src" />
-            <file name="ext/php8/ddshared.c" role="src" />
-            <file name="ext/php8/ddshared.h" role="src" />
-            <file name="ext/php8/ddtrace_string.c" role="src" />
-            <file name="ext/php8/ddtrace_string.h" role="src" />
-            <file name="ext/php8/ddtrace.c" role="src">
+            <file name="ext/php8/configuration.h" role="src">
                 <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />
                 <tasks:replace from="_BUILD_FROM_PECL_" to="PHP_VERSION_ID" type="php-const" />
             </file>
+            <file name="ext/php8/configuration.c" role="src" />
+            <file name="ext/php8/ddshared.c" role="src" />
+            <file name="ext/php8/ddshared.h" role="src" />
+            <file name="ext/php8/ddtrace_string.h" role="src" />
+            <file name="ext/php8/ddtrace.c" role="src" />
             <file name="ext/php8/ddtrace.h" role="src" />
             <file name="ext/php8/dispatch.c" role="src" />
             <file name="ext/php8/dispatch.h" role="src" />
@@ -282,8 +289,6 @@
             <file name="ext/php8/engine_api.h" role="src" />
             <file name="ext/php8/engine_hooks.c" role="src" />
             <file name="ext/php8/engine_hooks.h" role="src" />
-            <file name="ext/php8/env_config.c" role="src" />
-            <file name="ext/php8/env_config.h" role="src" />
             <file name="ext/php8/excluded_modules.c" role="src" />
             <file name="ext/php8/excluded_modules.h" role="src" />
             <file name="ext/php8/handlers_curl.c" role="src" />

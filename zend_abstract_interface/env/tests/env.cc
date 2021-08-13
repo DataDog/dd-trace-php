@@ -205,14 +205,14 @@ TEST_SAPI_GETENV("get SAPI env: not set", zai_sapi_getenv_null, {
     REQUIRE_BUF_EQ("", buf);
 })
 
-TEST_SAPI_GETENV("get SAPI env: not set (no host env fallback)", zai_sapi_getenv_null, {
+TEST_SAPI_GETENV("get SAPI env: not set (with host env fallback)", zai_sapi_getenv_null, {
     REQUIRE_SETENV("FOO", "bar");
 
     ZAI_ENV_BUFFER_INIT(buf, 64);
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
-    REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE_BUF_EQ("", buf);
+    REQUIRE(res == ZAI_ENV_SUCCESS);
+    REQUIRE_BUF_EQ("bar", buf);
 })
 
 /****************************** Access from RINIT *****************************/

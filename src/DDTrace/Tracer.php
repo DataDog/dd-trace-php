@@ -89,12 +89,12 @@ final class Tracer implements TracerInterface
     private $prioritySampling = Sampling\PrioritySampling::UNKNOWN;
 
     /**
-     * @var string|null The user's service version, e.g. '1.2.3'
+     * @var string The user's service version, e.g. '1.2.3'
      */
     private $serviceVersion;
 
     /**
-     * @var string|null The environment assigned to the current service.
+     * @var string The environment assigned to the current service.
      */
     private $environment;
 
@@ -233,12 +233,12 @@ final class Tracer implements TracerInterface
         // configuring them individually
 
         // Application version
-        if (null !== $this->serviceVersion) {
+        if ("" !== $this->serviceVersion) {
             $tags[Tag::VERSION] = $this->serviceVersion;
         }
 
         // Application environment
-        if (null !== $this->environment) {
+        if ("" !== $this->environment) {
             $tags[Tag::ENV] = $this->environment;
         }
 
