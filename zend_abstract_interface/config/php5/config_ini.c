@@ -33,19 +33,16 @@ static void zai_config_lock_ini_copying(THREAD_T thread_id, void ***tsrm_ls) {
 }
 #endif
 
-static int used_original_ini_values = 0;
-static char *original_ini_values[ZAI_CONFIG_ENTRIES_COUNT_MAX];
+static char *original_ini_values[ZAI_CONFIG_ENTRIES_COUNT_MAX] = {0};
 
 // values retrieved here are assumed to be valid
 int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf,
-                                        zai_string_view default_value) {
+                                        zai_string_view default_value, zai_config_id entry_id) {
     if (!env_to_ini_name) return -1;
 
 #if ZTS
     pthread_rwlock_wrlock(&lock_ini_init_rw);
 #endif
-
-    zai_config_ini_mshutdown();  // reset in the event of a re-init
 
     int16_t name_index = -1;
     char *runtime_value = NULL;
@@ -100,7 +97,8 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
             *target = entries[0]->modified ? entries[0]->orig_value : entries[0]->value;
         } else if (buf->ptr != NULL) {
             *target_len = buf->len;
-            *target = original_ini_values[used_original_ini_values++] = zend_strndup(buf->ptr, buf->len);
+            free(original_ini_values[entry_id]);
+            *target = original_ini_values[entry_id] = zend_strndup(buf->ptr, buf->len);
         } else if (parsed_ini_value != NULL) {
             *target_len = parsed_ini_value_len;
             *target = parsed_ini_value;
@@ -327,8 +325,7 @@ void zai_config_ini_rinit() {
 #endif
 
 void zai_config_ini_mshutdown() {
-    used_original_ini_values = 0;
-    for (int i = 0; i < used_original_ini_values; ++i) {
+    for (int i = 0; i < ZAI_CONFIG_ENTRIES_COUNT_MAX; ++i) {
         free(original_ini_values[i]);
     }
 }

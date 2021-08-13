@@ -31,7 +31,7 @@ void zai_config_ini_mshutdown();
  * and apply these as runtime config to all other values
  */
 int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf,
-                                        zai_string_view default_value);
+                                        zai_string_view default_value, zai_config_id entry_id);
 
 typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value);
 

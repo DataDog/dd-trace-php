@@ -42,7 +42,7 @@ void zai_config_dtor_pzval(zval *pval) {
     ZVAL_UNDEF(pval);
 }
 
-static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized) {
+static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id) {
     // TODO Use less buffer space
     // TODO Make a more generic zai_string_buffer
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
@@ -68,7 +68,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized) {
     }
 
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
-                                                             memoized->default_encoded_value);
+                                                             memoized->default_encoded_value, id);
     if (value.ptr != buf.ptr && ini_name_index >= 0) {
         name_index = ini_name_index;
     }
@@ -161,7 +161,7 @@ void zai_config_runtime_config_dtor(void);
 void zai_config_first_time_rinit(void) {
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        zai_config_find_and_set_value(memoized);
+        zai_config_find_and_set_value(memoized, i);
     }
 }
 

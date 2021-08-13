@@ -50,6 +50,6 @@ measure_compile_time: true
 report_hostname_on_root_span: false
 traced_internal_functions: null
 auto_prepend_file_configured: false
-integrations_disabled: "all"
+integrations_disabled: "default"
 enabled_from_env: true
 opcache.file_cache: null

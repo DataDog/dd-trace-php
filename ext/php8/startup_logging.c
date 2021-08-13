@@ -294,6 +294,17 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
         _dd_add_assoc_zstring(ht, ZEND_STRL("DD_INTEGRATIONS_DISABLED"), message);
     }
 
+    zai_config_memoized_entry *resource_mapping_cfg =
+        &zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_RESOURCE_URI_MAPPING];
+    if (resource_mapping_cfg->name_index >= 0) {
+        zend_string *message = zend_strpprintf(
+            0,
+            "'DD_TRACE_RESOURCE_URI_MAPPING=%s' is deprecated, use DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "
+            "DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING and DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX instead.",
+            ZSTR_VAL(resource_mapping_cfg->ini_entries[0]->value));
+        _dd_add_assoc_zstring(ht, ZEND_STRL("DD_TRACE_RESOURCE_URI_MAPPING"), message);
+    }
+
     if (ddtrace_has_excluded_module == true) {
         zend_module_entry *module;
         ZEND_HASH_FOREACH_PTR(&module_registry, module) { dd_check_for_excluded_module(ht, module); }

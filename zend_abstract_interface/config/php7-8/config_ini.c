@@ -33,7 +33,9 @@ static void zai_config_lock_ini_copying(THREAD_T thread_id) {
 
 // values retrieved here are assumed to be valid
 int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf,
-                                        zai_string_view default_value) {
+                                        zai_string_view default_value, zai_config_id entry_id) {
+    UNUSED(entry_id);
+
     if (!env_to_ini_name) return -1;
 
 #if ZTS

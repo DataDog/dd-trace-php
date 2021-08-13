@@ -13,6 +13,8 @@ typedef struct zai_config_entry_s zai_config_entry;
 typedef struct zai_config_name_s zai_config_name;
 typedef struct zai_config_memoized_entry_s zai_config_memoized_entry;
 
+typedef uint16_t zai_config_id;
+
 #include "config_ini.h"
 
 #define ZAI_CONFIG_ENTRIES_COUNT_MAX 120
@@ -28,8 +30,6 @@ typedef struct zai_config_memoized_entry_s zai_config_memoized_entry;
 #define ZAI_CONFIG_ALIASED_ENTRY(id, name, type, default, _aliases, ...) \
     ZAI_CONFIG_ENTRY(id, name, type, default, .aliases = _aliases,       \
                      .aliases_count = sizeof(_aliases) / sizeof(zai_string_view), ##__VA_ARGS__)
-
-typedef uint16_t zai_config_id;
 
 struct zai_config_entry_s {
     zai_config_id id;

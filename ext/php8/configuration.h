@@ -83,6 +83,7 @@ extern bool runtime_config_first_init;
     CONFIG(STRING, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                  \
     CONFIG(STRING, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                \
     CONFIG(STRING, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                \
+    CONFIG(STRING, DD_TRACE_RESOURCE_URI_MAPPING, "")                                                         \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                   \
     CONFIG(STRING, DD_TRACE_SAMPLING_RULES, "")                                                               \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                       \

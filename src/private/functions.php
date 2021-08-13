@@ -70,6 +70,22 @@ function _util_uri_apply_rules($uriPath, $incoming)
     //   1) At least one among DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX and DD_TRACE_RESOURCE_URI_MAPPING_INCOMING|OUTGOING
     //      is defined.
     //   2) Nothing is defined, then apply *new normalization*.
+    //      is defined. Then ignore legacy DD_TRACE_RESOURCE_URI_MAPPING and apply *new normalization*.
+    //   2) Only DD_TRACE_RESOURCE_URI_MAPPING is defined, then apply *legacy normalization* for backward compatibility.
+    //   3) Nothing is defined, then apply *new normalization*.
+
+    // DEPRECATED: Applying legacy normalization for backward compatibility if preconditions are matched.
+    $legacyMappings = getenv('DD_TRACE_RESOURCE_URI_MAPPING');
+    if (
+        empty($fragmentRegexes)
+        && empty($incomingMappings)
+        && empty($outgoingMappings)
+        && !empty($legacyMappings)
+    ) {
+        $normalizer = new Urls(explode(',', $legacyMappings));
+        return $normalizer->normalize($uriPath);
+    }
+
 
     $result = $uriPath;
 

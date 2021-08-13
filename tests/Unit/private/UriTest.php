@@ -12,6 +12,7 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
+            'DD_TRACE_RESOURCE_URI_MAPPING',
         ]);
         parent::ddSetUp();
     }
@@ -23,7 +24,74 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
+            'DD_TRACE_RESOURCE_URI_MAPPING',
         ]);
+    }
+
+    public function testLegacyIsStillAppliedIfNewSettingsNotDefined()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_MAPPING=/user/*',
+        ]);
+        $this->assertSame(
+            '/user/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/user/123/nested/path')
+        );
+        $this->assertSame(
+            '/user/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/user/123/nested/path')
+        );
+    }
+
+    public function testLegacyIsIgnoredIfAtLeastOneNewSettingIsDefined()
+    {
+        // When DD_TRACE_RESOURCE_URI_MAPPING_INCOMING is also set
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_MAPPING=/user/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nested/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
+        ]);
+        $this->assertSame(
+            '/user/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/user/123/nested/path')
+        );
+        $this->assertSame(
+            '/user/?/nested/path',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/user/123/nested/path')
+        );
+
+        // When DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING is also set
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_MAPPING=/user/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
+        ]);
+        $this->assertSame(
+            '/user/?/nested/path',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/user/123/nested/path')
+        );
+        $this->assertSame(
+            '/user/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/user/123/nested/path')
+        );
+
+        // When DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX is also set
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_MAPPING=/user/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^path$',
+        ]);
+        $this->assertSame(
+            '/user/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/user/123/nested/path')
+        );
+        $this->assertSame(
+            '/user/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/user/123/nested/path')
+        );
     }
 
     public function testIncomingConfigurationDoesNotImpactOutgoing()
