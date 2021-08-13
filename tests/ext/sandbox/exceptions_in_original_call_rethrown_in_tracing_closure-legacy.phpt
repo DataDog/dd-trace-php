@@ -2,7 +2,6 @@
 Exceptions from original call rethrown in tracing closure (PHP 7)
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip PHP 5 tested in separate test'); ?>
-<?php if (PHP_VERSION_ID >= 80000) die('skip: legacy test for old exception handling'); ?>
 --FILE--
 <?php
 

@@ -1,7 +1,7 @@
 --TEST--
 Calling dd_init.php is confined to open_basedir settings
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --INI--

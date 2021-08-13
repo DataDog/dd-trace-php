@@ -11,7 +11,7 @@ use Exception;
 use InvalidArgumentException;
 use Throwable;
 
-if (PHP_VERSION_ID < 80000) {
+if (PHP_VERSION_ID < 70000) {
     final class Span extends DataSpan
     {
         private static $metricNames = [Tag::ANALYTICS_KEY => true];

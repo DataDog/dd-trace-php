@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Integration\ErrorReporting;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-if (PHP_VERSION_ID >= 80000) {
+if (PHP_VERSION_ID >= 70000) {
     final class ErrorReportingTest extends WebFrameworkTestCase
     {
         protected static function getAppIndexScript()

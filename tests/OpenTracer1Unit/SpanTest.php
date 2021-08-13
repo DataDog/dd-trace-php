@@ -146,7 +146,7 @@ final class SpanTest extends BaseTestCase
 
     private function createSpan()
     {
-        if (PHP_VERSION_ID < 80000) {
+        if (PHP_VERSION_ID < 70000) {
             $span = new DDSpan(
                 self::OPERATION_NAME,
                 DDSpanContext::createAsRoot(),

@@ -34,7 +34,7 @@ var_dump(isset($headers['x-datadog-parent-id']));
 
 echo 'Done.' . PHP_EOL;
 
-if (PHP_VERSION_ID < 80000) {
+if (PHP_VERSION_ID < 70000) {
     echo "No finished traces to be sent to the agent", PHP_EOL;
 }
 

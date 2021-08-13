@@ -328,7 +328,7 @@ final class SpanTest extends BaseTestCase
     {
         $context = SpanContext::createAsRoot();
 
-        if (PHP_VERSION_ID < 80000) {
+        if (PHP_VERSION_ID < 70000) {
             $span = new Span(
                 self::OPERATION_NAME,
                 $context,

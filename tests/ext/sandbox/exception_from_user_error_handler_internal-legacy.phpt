@@ -2,7 +2,7 @@
 Exceptions from user error handler are tracked for instrumented internal functions
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
-<?php if (PHP_VERSION_ID >= 80000) die('skip: legacy test for old exception handling'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: legacy test for old exception handling'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=chmod
 --FILE--

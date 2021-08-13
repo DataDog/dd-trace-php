@@ -3,7 +3,7 @@ Auto-flushing will attach an exception during exception cleanup
 --DESCRIPTION--
 @see https://github.com/DataDog/dd-trace-php/issues/879
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=1
 DD_TRACE_DEBUG=1

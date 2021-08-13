@@ -3,7 +3,7 @@ Exceptions are handled in the correct catch frame
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
 <?php if (PHP_VERSION_ID < 70000) die('skip: Unaltered VM dispatch required for handling return value on PHP 5'); ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: requires improved exception handling'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: requires improved exception handling'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

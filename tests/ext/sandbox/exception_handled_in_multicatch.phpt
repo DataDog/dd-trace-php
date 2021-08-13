@@ -5,7 +5,7 @@ Even though multi-catch syntax is equivalent to using multiple catch blocks from
 the VM perspective, this test exists in case that changes in the future.
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70100) die('skip: Multi-catch was added in PHP 7.1'); ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: requires improved exception handling'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: requires improved exception handling'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

@@ -46,7 +46,7 @@ var_dump(dd_trace('foo', 'foo', [
 ]));
 var_dump(dd_trace('foo', 'foo', []));
 
-if (PHP_VERSION_ID < 80000) {
+if (PHP_VERSION_ID < 70000) {
     echo "Successfully triggered flush with trace of size 1", PHP_EOL;
 }
 

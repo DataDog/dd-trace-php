@@ -1,7 +1,7 @@
 --TEST--
 dd_trace() declarative API error cases
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Test does not work with internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_WARN_LEGACY_DD_TRACE=0

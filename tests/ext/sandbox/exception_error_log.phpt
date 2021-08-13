@@ -1,7 +1,7 @@
 --TEST--
 Exception in tracing closure gets logged
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum

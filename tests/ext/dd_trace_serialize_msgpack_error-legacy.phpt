@@ -1,7 +1,7 @@
 --TEST--
 dd_trace_serialize_msgpack() error conditions
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Test does not work with internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--

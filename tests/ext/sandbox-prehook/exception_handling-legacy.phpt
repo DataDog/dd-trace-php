@@ -5,7 +5,6 @@
 zend.exception_ignore_args=Off
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
-<?php if (PHP_VERSION_ID >= 80000) die('skip: legacy test for old exception handling'); ?>
 --FILE--
 <?php
 

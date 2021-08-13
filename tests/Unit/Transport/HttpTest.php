@@ -12,7 +12,7 @@ use DDTrace\Tests\Unit\CleanEnvTrait;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 
-if (PHP_VERSION_ID < 80000) {
+if (PHP_VERSION_ID < 70000) {
     final class FooEncoder implements Encoder
     {
         private $data;

@@ -25,7 +25,7 @@ dd_dump_startup_logs($logs, [
     'DD_SERVICE_NAME',
     'DD_TRACE_GLOBAL_TAGS',
     'agent_url',
-    PHP_VERSION_ID < 80000 ? 'ddtrace.request_init_hook' : 'datadog.trace.request_init_hook',
+    PHP_VERSION_ID < 70000 ? 'ddtrace.request_init_hook' : 'datadog.trace.request_init_hook',
     'open_basedir_configured',
 ]);
 ?>

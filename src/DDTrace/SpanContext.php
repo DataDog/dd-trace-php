@@ -29,7 +29,7 @@ final class SpanContext extends SpanContextData
         // value before generating a new ID
         $activeSpanId = dd_trace_peek_span_id();
 
-        if (PHP_VERSION_ID < 80000) {
+        if (PHP_VERSION_ID < 70000) {
             $instance = new self(
                 $parentContext->getTraceId(),
                 dd_trace_push_span_id(),
@@ -75,7 +75,7 @@ final class SpanContext extends SpanContextData
     {
         // with peek the current span id for the existing root span
 
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             // @phpstan-ignore-next-line
             if (!active_span()) {
                 // @phpstan-ignore-next-line
