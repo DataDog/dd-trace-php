@@ -2,7 +2,6 @@
 [Prehook] API error cases
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--

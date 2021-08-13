@@ -443,7 +443,6 @@
             <file name="tests/ext/sandbox/default_span_properties.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties_method.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_attempt_loading_once.phpt" role="test" />
-            <file name="tests/ext/sandbox/deferred_load_attempt_loading_once-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_missing_load_fn.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_using_function.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_loading_helper.php" role="test" />
@@ -458,21 +457,16 @@
             <file name="tests/ext/sandbox/exception_handled_for_correct_catch_block.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_for_correct_catch_block-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_in_correct_catch_frame.phpt" role="test" />
-            <file name="tests/ext/sandbox/exception_handled_in_correct_catch_frame-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_in_multicatch.phpt" role="test" />
-            <file name="tests/ext/sandbox/exception_handled_in_multicatch-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_with_finally.phpt" role="test" />
-            <file name="tests/ext/sandbox/exception_handled_with_finally-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handling.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handling-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_is_defined.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_and_errors_are_ignored_in_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
-            <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
-            <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
             <file name="tests/ext/sandbox/exit_and_drop_span.phpt" role="test" />
@@ -484,8 +478,7 @@
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_005.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_shutdown-legacy.phpt" role="test" />
-            <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
-            <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure_php7-legacy.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure.phpt" role="test" />
             <file name="tests/ext/sandbox/generator.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_not_supported.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_php5.phpt" role="test" />
@@ -616,19 +609,14 @@
             <file name="tests/ext/sandbox-prehook/closure_arg_exception.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/closure_arg_retval.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/dd_trace_api_error.phpt" role="test" />
-            <file name="tests/ext/sandbox-prehook/dd_trace_api_error-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/dd_trace_function_internal.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/dd_trace_function_userland.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/dd_trace_method.phpt" role="test" />
-            <file name="tests/ext/sandbox-prehook/dd_trace_method-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/dd_trace_method_binds_called_object.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/drop_spans.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exception_error_log.phpt" role="test" />
-            <file name="tests/ext/sandbox-prehook/exception_error_log-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exception_handling.phpt" role="test" />
-            <file name="tests/ext/sandbox-prehook/exception_handling-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
-            <file name="tests/ext/sandbox-prehook/exceptions_and_errors_are_ignored_in_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exit_and_drop_span.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/new_static.phpt" role="test" />
@@ -723,9 +711,7 @@
             <file name="tests/ext/start_span_without_closing_autofinish.phpt" role="test" />
             <file name="tests/ext/startup_logging.inc" role="test" />
             <file name="tests/ext/startup_logging.phpt" role="test" />
-            <file name="tests/ext/startup_logging-legacy.phpt" role="test" />
             <file name="tests/ext/startup_logging_config.phpt" role="test" />
-            <file name="tests/ext/startup_logging_config-legacy.phpt" role="test" />
             <file name="tests/ext/startup_logging_diagnostics.phpt" role="test" />
             <file name="tests/ext/startup_logging_disabled.phpt" role="test" />
             <file name="tests/ext/startup_logging_json.phpt" role="test" />
