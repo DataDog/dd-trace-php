@@ -172,11 +172,11 @@ final class Tracer implements TracerInterface
 
         $reference = $this->findParent($options->getReferences());
 
+        // avoid rounding errors, we only care about microsecond resolution here
+        $roundedStartTime = ($options->getStartTime() + 0.2) / 1000000;
         if ($reference === null) {
-            $context = SpanContext::createAsRoot();
+            $context = SpanContext::createAsRoot([], $roundedStartTime);
         } else {
-            // avoid rounding errors, we only care about microsecond resolution here
-            $roundedStartTime = ($options->getStartTime() + 0.2) / 1000000;
             $context = SpanContext::createAsChild($reference->getContext(), $roundedStartTime);
         }
 
