@@ -50,7 +50,7 @@
 
     ### Fixed
 
-    - Fix arginfo of error&exception handler (#1291)
+    - Fix arginfo of error &amp; exception handler (#1291)
     </notes>
     <contents>
         <dir name="/">
