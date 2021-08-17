@@ -32,6 +32,7 @@ static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
 
 #define MAX_STACK_SIZE 1024
+#define MIN_STACKSZ 16384
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -93,8 +94,9 @@ void ddtrace_signals_first_rinit(void) {
      * stack overflows.
      */
     if (install_handler) {
-        if ((ddtrace_altstack.ss_sp = malloc(SIGSTKSZ))) {
-            ddtrace_altstack.ss_size = SIGSTKSZ;
+        size_t stack_size = SIGSTKSZ < MIN_STACKSZ ? MIN_STACKSZ : SIGSTKSZ;
+        if ((ddtrace_altstack.ss_sp = malloc(stack_size))) {
+            ddtrace_altstack.ss_size = stack_size;
             ddtrace_altstack.ss_flags = 0;
             if (sigaltstack(&ddtrace_altstack, NULL) == 0) {
                 ddtrace_sigaction.sa_flags = SA_ONSTACK;
