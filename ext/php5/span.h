@@ -42,8 +42,8 @@ void ddtrace_free_span_stacks(TSRMLS_D);
 
 void ddtrace_push_span(ddtrace_span_fci *span_fci TSRMLS_DC);
 void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC);
-ddtrace_span_fci *ddtrace_init_span();
-void ddtrace_push_root_span();
+ddtrace_span_fci *ddtrace_init_span(void);
+void ddtrace_push_root_span(void);
 void dd_trace_stop_span_time(ddtrace_span_t *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_fci *end TSRMLS_DC);
 void ddtrace_close_userland_spans_until(ddtrace_span_fci *until TSRMLS_DC);

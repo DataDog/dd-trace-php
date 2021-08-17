@@ -161,9 +161,9 @@ static int dd_exception_to_error_msg(zval *exception, void *context, add_tag_fn_
     zval *file = ZAI_EXCEPTION_PROPERTY(exception, "file");
 
     char *error_text, *status_line;
-    zend_bool uncaught = SG(sapi_headers).http_response_code < 500;
+    zend_bool caught = SG(sapi_headers).http_response_code >= 500;
 
-    if (!uncaught) {
+    if (caught) {
         if (SG(sapi_headers).http_status_line) {
             asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line);
         } else {
@@ -171,12 +171,12 @@ static int dd_exception_to_error_msg(zval *exception, void *context, add_tag_fn_
         }
     }
 
-    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:%ld", uncaught ? "Uncaught" : "Caught",
-                             Z_OBJCE_P(exception)->name, uncaught ? "" : status_line, msg.len > 0 ? ": " : "",
-                             (int)msg.len, msg.ptr, Z_TYPE_P(file) == IS_STRING ? Z_STRVAL_P(file) : "Unknown",
-                             Z_TYPE_P(line) == IS_LONG ? Z_LVAL_P(line) : 0);
+    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:%ld", caught ? "Caught" : "Uncaught",
+            Z_OBJCE_P(exception)->name, caught ? status_line : "", msg.len > 0 ? ": " : "",
+            (int)msg.len, msg.ptr, Z_TYPE_P(file) == IS_STRING ? Z_STRVAL_P(file) : "Unknown",
+            Z_TYPE_P(line) == IS_LONG ? Z_LVAL_P(line) : 0);
 
-    if (!uncaught) {
+    if (caught) {
         free(status_line);
     }
 

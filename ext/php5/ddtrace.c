@@ -67,6 +67,7 @@ static void ddtrace_sort_modules(void *base, size_t count, size_t siz, compare_f
     UNUSED(compare);
     UNUSED(swp);
 
+    // swap ddtrace and opcache for the rest of the modules lifecycle, so that opcache is always executed after ddtrace
     for (Bucket *module = base, *end = module + count, *ddtrace_module = NULL; module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
         if (m->name == ddtrace_module_entry.name) {
@@ -530,7 +531,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
-static void dd_rinit_once() {
+static void dd_rinit_once(void) {
     TSRMLS_FETCH();
 
     ddtrace_config_first_rinit();

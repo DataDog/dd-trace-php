@@ -32,7 +32,7 @@ static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
 
 #define MAX_STACK_SIZE 1024
-#define MIN_STACKSZ 16384
+#define MIN_STACKSZ 16384  // enough to hold void *array[MAX_STACK_SIZE] plus a couple kilobytes
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
