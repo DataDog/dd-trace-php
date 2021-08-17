@@ -167,9 +167,9 @@ static zend_result dd_exception_to_error_msg(zend_object *exception, void *conte
     zend_string *file = zval_get_string(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
 
     char *error_text, *status_line;
-    zend_bool uncaught = SG(sapi_headers).http_response_code < 500;
+    zend_bool caught = SG(sapi_headers).http_response_code >= 500;
 
-    if (!uncaught) {
+    if (caught) {
         if (SG(sapi_headers).http_status_line) {
             asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line);
         } else {
@@ -177,11 +177,11 @@ static zend_result dd_exception_to_error_msg(zend_object *exception, void *conte
         }
     }
 
-    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:" ZEND_LONG_FMT, uncaught ? "Uncaught" : "Caught",
-                             ZSTR_VAL(exception->ce->name), uncaught ? "" : status_line, ZSTR_LEN(msg) > 0 ? ": " : "",
+    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:" ZEND_LONG_FMT, caught ? "Caught" : "Uncaught",
+                             ZSTR_VAL(exception->ce->name), caught ? status_line : "", ZSTR_LEN(msg) > 0 ? ": " : "",
                              (int)ZSTR_LEN(msg), ZSTR_VAL(msg), ZSTR_VAL(file), line);
 
-    if (!uncaught) {
+    if (caught) {
         free(status_line);
     }
 
@@ -539,7 +539,7 @@ static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
     return zend_string_copy(msg);
 }
 
-void ddtrace_save_active_error_to_metadata() {
+void ddtrace_save_active_error_to_metadata(void) {
     if (!DDTRACE_G(active_error).type) {
         return;
     }

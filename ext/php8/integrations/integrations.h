@@ -40,9 +40,9 @@ struct ddtrace_integration {
     char *name_ucase;
     char *name_lcase;
     size_t name_len;
-    bool (*is_enabled)();
-    bool (*is_analytics_enabled)();
-    double (*get_sample_rate)();
+    bool (*is_enabled)(void);
+    bool (*is_analytics_enabled)(void);
+    double (*get_sample_rate)(void);
 };
 typedef struct ddtrace_integration ddtrace_integration;
 

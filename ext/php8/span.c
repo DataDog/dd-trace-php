@@ -70,14 +70,14 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 }
 
-ddtrace_span_fci *ddtrace_init_span() {
+ddtrace_span_fci *ddtrace_init_span(void) {
     zval fci_zv;
     object_init_ex(&fci_zv, ddtrace_ce_span_data);
     ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ(fci_zv);
     return span_fci;
 }
 
-void ddtrace_push_root_span() { ddtrace_open_span(ddtrace_init_span()); }
+void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span()); }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
     if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value)) {

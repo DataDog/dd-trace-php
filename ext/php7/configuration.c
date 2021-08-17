@@ -64,9 +64,11 @@ static zai_config_entry config_entries[] = {DD_CONFIGURATION};
 
 bool runtime_config_first_init = false;
 
-static void dd_copy_tolower(char *dst, const char *src) {
+static char dd_tolower_ascii(char c) { return c >= 'A' && c <= 'Z' ? c - ('A' - 'a') : c; }
+
+static void dd_copy_tolower(char *restrict dst, const char *restrict src) {
     while (*src) {
-        *(dst++) = tolower(*(src++));
+        *(dst++) = dd_tolower_ascii(*(src++));
     }
 }
 

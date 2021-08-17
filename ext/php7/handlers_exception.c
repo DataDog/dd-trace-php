@@ -239,7 +239,7 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
         DDTRACE_G(active_error).type = 0;
     } else {
         ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-        zend_object *exception;
+        zend_object *volatile exception;
         zval *volatile span_exception;
         volatile zval old_exception = {0};
         zval *exception_zv;

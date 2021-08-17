@@ -410,7 +410,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
-static void dd_rinit_once() {
+static void dd_rinit_once(void) {
     ddtrace_config_first_rinit();
 
     /* The env vars are memoized on MINIT before the SAPI env vars are available.

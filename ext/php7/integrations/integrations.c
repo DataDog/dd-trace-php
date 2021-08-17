@@ -27,12 +27,12 @@
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
                           DDTRACE_STRING_LITERAL(callable), options)
 
-#define INTEGRATION(id, int_name)                                      \
+#define INTEGRATION(id, lcname)                                        \
     {                                                                  \
         .name = DDTRACE_INTEGRATION_##id,                              \
         .name_ucase = #id,                                             \
-        .name_lcase = (int_name),                                      \
-        .name_len = sizeof(int_name) - 1,                              \
+        .name_lcase = (lcname),                                        \
+        .name_len = sizeof(lcname) - 1,                                \
         .is_enabled = get_DD_TRACE_##id##_ENABLED,                     \
         .is_analytics_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
         .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \

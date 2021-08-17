@@ -42,7 +42,9 @@ $span = DDTrace\start_span();
 DDTrace\close_span($span->getStartTime() / 1000000000 + 2.0000002); // nobody likes the limits of double precision
 var_dump(round($span->getDuration(), -3));
 
-var_dump(dd_trace_serialize_closed_spans());
+$serialized = dd_trace_serialize_closed_spans();
+$serialized[0]["duration"] += 500; // fix flakiness
+var_dump($serialized);
 
 ?>
 --EXPECTF--
@@ -63,7 +65,7 @@ array(2) {
     ["start"]=>
     int(%d)
     ["duration"]=>
-    int(2000000%d)
+    int(200000%d)
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
