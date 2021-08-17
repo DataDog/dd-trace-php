@@ -42,7 +42,16 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+
+    - ZAI config (#1260)
+    - Use exceptions ZAI for PHP 7 as well (#1283)
+
+    ### Fixed
+
+    - Fix arginfo of error&exception handler (#1291)
+    </notes>
     <contents>
         <dir name="/">
             <!-- components -->
