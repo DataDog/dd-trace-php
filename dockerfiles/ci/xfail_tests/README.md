@@ -74,7 +74,7 @@ Building again the container without `pcntl` enabled AND not even building the t
 
 ## `ext/ftp/tests`
 
-Disabled on versions: `5.4`, `5.5`.
+Disabled on versions less than 8.1, which switches to ephemeral ports.
 
 Links to sample broken executions: [5.4](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/5626/workflows/6f8ee4d1-f2dd-4465-b3a0-44f8fde1a18f/jobs/396668/tests#failed-test-0).
 

@@ -199,6 +199,7 @@ ext/date/tests/date_timestamp_set_nullparam2.phpt
 ext/date/tests/test-parse-from-format.phpt
 ext/dom/tests/bug55700.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
+ext/ftp/tests
 ext/json/tests/bug45791.phpt
 ext/json/tests/bug77843.phpt
 ext/json/tests/json_decode_exceptions.phpt
@@ -448,9 +449,9 @@ ext/standard/tests/serialize/bug72785.phpt
 ext/standard/tests/serialize/overwrite_untyped_ref.phpt
 ext/standard/tests/serialize/serialize_globals_var_refs.phpt
 ext/standard/tests/serialize/sleep_uninitialized_typed_prop.phpt
-ext/standard/tests/serialize/typed_property_refs.phpt
 ext/standard/tests/serialize/typed_property_ref_overwrite.phpt
 ext/standard/tests/serialize/typed_property_ref_overwrite2.phpt
+ext/standard/tests/serialize/typed_property_refs.phpt
 ext/standard/tests/streams/bug78902.phpt
 ext/standard/tests/streams/proc_open_bug69900.phpt
 ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
