@@ -518,7 +518,7 @@ jobs:
               cp "<<parameters.xfail_list>>" /usr/local/src/php/xfail_tests.list
               (
                 cd /usr/local/src/php
-                cat xfail_tests.list | xargs -n 1 rm -f || true
+                cat xfail_tests.list | xargs -n 1 rm -rf || true
               )
             fi
             cd /usr/local/src/php
