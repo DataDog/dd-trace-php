@@ -6,6 +6,8 @@ Calculate metrics using the [sirun](https://github.com/DataDog/sirun) tool.
 
 ### Memory overhead
 
+Values are in kB: see [`ru_maxrss`](https://man7.org/linux/man-pages/man2/getrusage.2.html#:~:text=ru_maxrss,-(since%20).
+
 ```
 # Example: 0.63.0-RC
 export TARGET_URL=https://529832-119990860-gh.circle-artifacts.com/0/datadog-php-tracer-0.63.0.x86_64.tar.gz
