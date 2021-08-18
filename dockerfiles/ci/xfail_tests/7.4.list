@@ -159,6 +159,7 @@ ext/date/tests/date_time_fractions_serialize.phpt
 ext/date/tests/date_timestamp_set_nullparam2.phpt
 ext/date/tests/test-parse-from-format.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
+ext/ftp/tests
 ext/json/tests/bug45791.phpt
 ext/json/tests/bug77843.phpt
 ext/json/tests/json_decode_exceptions.phpt
