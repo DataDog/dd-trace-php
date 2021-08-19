@@ -196,20 +196,22 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
         DDTRACE_G(active_error).type = (int)type;
         DDTRACE_G(active_error).message = message;
 
-        zval params[4];
-        ZVAL_LONG(&params[0], type);
-        ZVAL_STR(&params[1], message);
-        ZVAL_COPY_VALUE(&params[2], error_filename);
-        ZVAL_LONG(&params[3], error_lineno);
+        if (!Z_ISUNDEF_P(handler)) {
+            zval params[4];
+            ZVAL_LONG(&params[0], type);
+            ZVAL_STR(&params[1], message);
+            ZVAL_COPY_VALUE(&params[2], error_filename);
+            ZVAL_LONG(&params[3], error_lineno);
 
-        zend_try {
-            // remove ourselves from the stacktrace
-            EG(current_execute_data) = execute_data->prev_execute_data;
-            // this calls into PHP, but without sandbox, as we do not want to interfere with normal operation
-            call_user_function(CG(function_table), NULL, handler, return_value, 4, params);
+            zend_try {
+                // remove ourselves from the stacktrace
+                EG(current_execute_data) = execute_data->prev_execute_data;
+                // this calls into PHP, but without sandbox, as we do not want to interfere with normal operation
+                call_user_function(CG(function_table), NULL, handler, return_value, 4, params);
+            }
+            zend_catch { has_bailout = true; }
+            zend_end_try();
         }
-        zend_catch { has_bailout = true; }
-        zend_end_try();
 
         DDTRACE_G(active_error).type = 0;
     } else {
