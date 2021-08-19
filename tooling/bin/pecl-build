@@ -2,7 +2,7 @@
 
 set -e
 
-rm -f ./bridge/_generated.php
+rm -f ./bridge/_generated*.php
 composer -dtooling/generation update
 composer -dtooling/generation generate
 composer -dtooling/generation verify

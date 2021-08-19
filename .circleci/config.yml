@@ -74,7 +74,7 @@ aliases:
 
   - &STEP_COMPOSER_DISABLE_TLS
     # Disabling TLS by default on 5.4 and 5.5 due to https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update
-    # Note `_generated.php` is built on 7.x and is not impacted
+    # Note `_generated_*.php` are built on 7.x and are not impacted
     run:
       name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
       command: |
