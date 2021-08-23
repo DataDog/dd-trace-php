@@ -16,8 +16,8 @@
         <severity>0</severity>
     </rule>
     <rule ref="Generic.Files.LineLength.TooLong">
-        <exclude-pattern>tests/Integrations/*</exclude-pattern>
         <exclude-pattern>tests/Integration/ErrorReporting/ErrorReportingTest.php</exclude-pattern>
+        <exclude-pattern>tests/Integrations/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Classes.ClassDeclaration.MissingNamespace">
         <exclude-pattern>tests/Integration/ErrorReporting/*</exclude-pattern>
@@ -29,11 +29,12 @@
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
         <exclude-pattern>bridge/dd_init.php</exclude-pattern>
         <exclude-pattern>examples/long-running/long-running-script.php</exclude-pattern>
-        <exclude-pattern>tests/bootstrap.php</exclude-pattern>
         <exclude-pattern>tests/api/bootstrap.php</exclude-pattern>
+        <exclude-pattern>tests/bootstrap.php</exclude-pattern>
+        <exclude-pattern>tests/Composer/app/preload.ddtrace.php</exclude-pattern>
         <exclude-pattern>tests/Integration/CurrentContextAccess/</exclude-pattern>
-        <exclude-pattern>tests/Integration/LongRunning/long_running_script_manual.php</exclude-pattern>
         <exclude-pattern>tests/Integration/ErrorReporting/scripts/</exclude-pattern>
+        <exclude-pattern>tests/Integration/LongRunning/long_running_script_manual.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V3/*Test.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V4/*Test.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V5/*Test.php</exclude-pattern>
@@ -44,6 +45,9 @@
 
     <!-- PHP compatibility checks -->
     <config name="testVersion" value="5.4-7.3"/>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/tests/stubs/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>bridge/_generated_api.php</exclude-pattern>
     <exclude-pattern>bridge/_generated_internal.php</exclude-pattern>
     <exclude-pattern>bridge/dd_register_optional_deps_autoloader.php</exclude-pattern>
@@ -51,13 +55,10 @@
     <exclude-pattern>playground*.php</exclude-pattern>
     <exclude-pattern>run-tests.php</exclude-pattern>
     <exclude-pattern>src/dd-doctor.php</exclude-pattern>
-    <exclude-pattern>*/vendor/*</exclude-pattern>
-    <exclude-pattern>*/node_modules/*</exclude-pattern>
-    <exclude-pattern>tests/ext/*</exclude-pattern>
-    <exclude-pattern>tests/overhead/*</exclude-pattern>
-    <exclude-pattern>tests/Frameworks/*/Version_*/*</exclude-pattern>
     <exclude-pattern>tests/AutoInstrumentation</exclude-pattern>
+    <exclude-pattern>tests/ext/*</exclude-pattern>
+    <exclude-pattern>tests/Frameworks/*/Version_*/*</exclude-pattern>
     <exclude-pattern>tests/Integrations/PCNTL/scripts/</exclude-pattern>
-    <exclude-pattern>*/tests/stubs/*</exclude-pattern>
+    <exclude-pattern>tests/overhead/*</exclude-pattern>
     <exclude-pattern>tmp</exclude-pattern>
 </ruleset>

@@ -16,14 +16,14 @@ date_default_timezone_set("UTC");
 
 $scenario = getenv('DD_COMPOSER_TEST_CONTEXT');
 
-require __DIR__ . "/vendor/autoload.php";
-
 $touchPreloadFile = __DIR__ . '/touch.preload';
 $preload = \file_exists($touchPreloadFile) ? \trim(\file_get_contents($touchPreloadFile)) : '';
 
 switch ($_SERVER['REQUEST_URI']) {
     case '/':
     case '/manual-tracing':
+        // Do composer autoload here, not at the root level, so we can ALSO test for non-composer scenarios.
+        require __DIR__ . "/vendor/autoload.php";
         /*
         * Manual instrumentation using DD api
         */
@@ -55,6 +55,10 @@ switch ($_SERVER['REQUEST_URI']) {
 
         break;
     case '/no-manual-tracing':
+        // Do composer autoload here, not at the root level, so we can ALSO test for non-composer scenarios.
+        require __DIR__ . "/vendor/autoload.php";
+        break;
+    case '/no-composer':
         break;
     default:
         \header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found', true, 404);
