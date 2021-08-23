@@ -20,15 +20,15 @@ static void _set_dogstatsd_client_globals(dogstatsd_client client, char *host, c
 }
 
 void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
-    bool health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
+    bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
     dogstatsd_client client = dogstatsd_client_default_ctor();
-    char *host = NULL;
-    char *port = NULL;
+    const char *host = NULL;
+    const char *port = NULL;
     char *buffer = NULL;
 
     while (health_metrics_enabled) {
-        host = get_dd_agent_host();
-        port = get_dd_dogstatsd_port();
+        host = get_DD_AGENT_HOST().ptr;
+        port = get_DD_DOGSTATSD_PORT().ptr;
         buffer = malloc(DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE);
         size_t len = DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE;
 
@@ -46,17 +46,20 @@ void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
             break;
         }
 
-        double sample_rate = get_dd_trace_heath_metrics_heartbeat_sample_rate();
+        double sample_rate = get_DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE();
         const char *metric = "datadog.tracer.heartbeat";
         dogstatsd_metric_t type = DOGSTATSD_METRIC_GAUGE;
         dogstatsd_client_status status = dogstatsd_client_metric_send(&client, metric, "1", type, sample_rate, NULL);
-        if (status != DOGSTATSD_CLIENT_OK && get_dd_trace_debug()) {
+        if (status != DOGSTATSD_CLIENT_OK && get_DD_TRACE_DEBUG()) {
             const char *status_str = dogstatsd_client_status_to_str(status) ?: "(unknown dogstatsd_client_status)";
             ddtrace_log_errf("Health metric '%s' failed to send: %s", metric, status_str);
         }
+
+        host = zend_strndup(host, strlen(host));
+        port = zend_strndup(port, strlen(port));
         break;
     }
-    _set_dogstatsd_client_globals(client, host, port, buffer TSRMLS_CC);
+    _set_dogstatsd_client_globals(client, (char *)host, (char *)port, buffer TSRMLS_CC);
 }
 
 void ddtrace_dogstatsd_client_rshutdown(TSRMLS_D) {

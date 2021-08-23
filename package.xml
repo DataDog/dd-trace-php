@@ -144,19 +144,15 @@
             <file name="ext/php5/compatibility.h" role="src" />
             <file name="ext/php5/coms.c" role="src" />
             <file name="ext/php5/coms.h" role="src" />
-            <file name="ext/php5/configuration.h" role="src" />
-            <file name="ext/php5/configuration.c" role="src" />
-            <file name="ext/php5/configuration_php_iface.h" role="src" />
-            <file name="ext/php5/configuration_php_iface.c" role="src" />
-            <file name="ext/php5/configuration_render.h" role="src" />
-            <file name="ext/php5/ddshared.c" role="src" />
-            <file name="ext/php5/ddshared.h" role="src" />
-            <file name="ext/php5/ddtrace_string.c" role="src" />
-            <file name="ext/php5/ddtrace_string.h" role="src" />
-            <file name="ext/php5/ddtrace.c" role="src">
+            <file name="ext/php5/configuration.h" role="src">
                 <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />
                 <tasks:replace from="_BUILD_FROM_PECL_" to="PHP_VERSION_ID" type="php-const" />
             </file>
+            <file name="ext/php5/configuration.c" role="src" />
+            <file name="ext/php5/ddshared.c" role="src" />
+            <file name="ext/php5/ddshared.h" role="src" />
+            <file name="ext/php5/ddtrace_string.h" role="src" />
+            <file name="ext/php5/ddtrace.c" role="src" />
             <file name="ext/php5/ddtrace.h" role="src" />
             <file name="ext/php5/dispatch.c" role="src" />
             <file name="ext/php5/dispatch.h" role="src" />
@@ -166,8 +162,6 @@
             <file name="ext/php5/engine_api.h" role="src" />
             <file name="ext/php5/engine_hooks.c" role="src" />
             <file name="ext/php5/engine_hooks.h" role="src" />
-            <file name="ext/php5/env_config.c" role="src" />
-            <file name="ext/php5/env_config.h" role="src" />
             <file name="ext/php5/excluded_modules.c" role="src" />
             <file name="ext/php5/excluded_modules.h" role="src" />
             <file name="ext/php5/handlers_curl.c" role="src" />

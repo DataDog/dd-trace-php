@@ -4,6 +4,7 @@
 #include <Zend/zend_interfaces.h>
 #include <inttypes.h>
 #include <php.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -149,10 +150,6 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
     } else {
         return 0;
     }
-}
-
-static zval *_read_span_property(zval *span_data, const char *name, size_t name_len TSRMLS_DC) {
-    return zend_read_property(ddtrace_ce_span_data, span_data, name, name_len, 1 TSRMLS_CC);
 }
 
 /* gettraceasstring() macros
@@ -352,27 +349,26 @@ static void dd_serialize_exception(zval *el, zval *meta, ddtrace_exception_t *ex
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
     ddtrace_span_t *span = &span_fci->span;
-    zval *meta, *orig_meta = _read_span_property(span->span_data, ZEND_STRL("meta") TSRMLS_CC);
+    zval *meta, *orig_meta = ddtrace_spandata_property_meta(span);
     ALLOC_INIT_ZVAL(meta);
     array_init(meta);
-    if (orig_meta && Z_TYPE_P(orig_meta) == IS_ARRAY) {
-        int key_type;
-        zval **orig_val;
-        zval *val_as_string;
-        HashPosition pos;
-        char *str_key;
-        uint str_key_len;
-        ulong num_key;
-        zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(orig_meta), &pos);
-        while (zend_hash_get_current_data_ex(Z_ARRVAL_P(orig_meta), (void **)&orig_val, &pos) == SUCCESS) {
-            key_type = zend_hash_get_current_key_ex(Z_ARRVAL_P(orig_meta), &str_key, &str_key_len, &num_key, 0, &pos);
-            if (key_type == HASH_KEY_IS_STRING) {
-                ALLOC_INIT_ZVAL(val_as_string);
-                ddtrace_convert_to_string(val_as_string, *orig_val TSRMLS_CC);
-                add_assoc_zval_ex(meta, str_key, str_key_len, val_as_string);
-            }
-            zend_hash_move_forward_ex(Z_ARRVAL_P(orig_meta), &pos);
+
+    int key_type;
+    zval **orig_val;
+    zval *val_as_string;
+    HashPosition pos;
+    char *str_key;
+    uint str_key_len;
+    ulong num_key;
+    zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(orig_meta), &pos);
+    while (zend_hash_get_current_data_ex(Z_ARRVAL_P(orig_meta), (void **)&orig_val, &pos) == SUCCESS) {
+        key_type = zend_hash_get_current_key_ex(Z_ARRVAL_P(orig_meta), &str_key, &str_key_len, &num_key, 0, &pos);
+        if (key_type == HASH_KEY_IS_STRING) {
+            ALLOC_INIT_ZVAL(val_as_string);
+            ddtrace_convert_to_string(val_as_string, *orig_val TSRMLS_CC);
+            add_assoc_zval_ex(meta, str_key, str_key_len, val_as_string);
         }
+        zend_hash_move_forward_ex(Z_ARRVAL_P(orig_meta), &pos);
     }
 
     dd_serialize_exception(el, meta, span_fci->exception TSRMLS_CC);
@@ -394,17 +390,6 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
         efree(meta);
     }
 }
-
-#define ADD_ELEMENT_IF_NOT_NULL(name)                                                        \
-    do {                                                                                     \
-        zval *prop = _read_span_property(span->span_data, name, sizeof(name) - 1 TSRMLS_CC); \
-        zval *prop_as_string;                                                                \
-        if (Z_TYPE_P(prop) != IS_NULL) {                                                     \
-            ALLOC_INIT_ZVAL(prop_as_string);                                                 \
-            ddtrace_convert_to_string(prop_as_string, prop TSRMLS_CC);                       \
-            add_assoc_zval(el, name, prop_as_string);                                        \
-        }                                                                                    \
-    } while (0);
 
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSRMLS_DC) {
     ddtrace_span_t *span = &span_fci->span;
@@ -429,18 +414,21 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     add_assoc_long(el, "duration", span->duration);
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
-    zval *prop_name = _read_span_property(span->span_data, ZEND_STRL("name") TSRMLS_CC);
+    zval *prop_name = ddtrace_spandata_property_name(span);
     zval *prop_name_as_string = NULL;
-    if (Z_TYPE_P(prop_name) != IS_NULL) {
+    if (prop_name && Z_TYPE_P(prop_name) != IS_NULL) {
         ALLOC_INIT_ZVAL(prop_name_as_string);
         ddtrace_convert_to_string(prop_name_as_string, prop_name TSRMLS_CC);
         add_assoc_zval(el, "name", prop_name_as_string);
     }
 
     // SpanData::$resource defaults to SpanData::$name
-    zval *prop_resource = _read_span_property(span->span_data, ZEND_STRL("resource") TSRMLS_CC);
+    zval *prop_resource = ddtrace_spandata_property_resource(span);
     zval *prop_resource_as_string = NULL;
-    if (Z_TYPE_P(prop_resource) != IS_NULL) {
+    zval resource_is_null;
+    if (prop_resource &&
+        (compare_function(&resource_is_null, &EG(uninitialized_zval), prop_resource TSRMLS_CC) == FAILURE ||
+         Z_LVAL(resource_is_null) != 0)) {
         ALLOC_INIT_ZVAL(prop_resource_as_string);
         ddtrace_convert_to_string(prop_resource_as_string, prop_resource TSRMLS_CC);
         add_assoc_zval(el, "resource", prop_resource_as_string);
@@ -450,15 +438,27 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     }
 
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
-    ADD_ELEMENT_IF_NOT_NULL("service");
+    zval *prop_service = ddtrace_spandata_property_service(span);
+    zval *prop_service_as_string = NULL;
+    if (prop_service && Z_TYPE_P(prop_service) != IS_NULL) {
+        ALLOC_INIT_ZVAL(prop_service_as_string);
+        ddtrace_convert_to_string(prop_service_as_string, prop_service TSRMLS_CC);
+        add_assoc_zval(el, "service", prop_service_as_string);
+    }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
-    ADD_ELEMENT_IF_NOT_NULL("type");
+    zval *prop_type = ddtrace_spandata_property_type(span);
+    zval *prop_type_as_string = NULL;
+    if (prop_type && Z_TYPE_P(prop_type) != IS_NULL) {
+        ALLOC_INIT_ZVAL(prop_type_as_string);
+        ddtrace_convert_to_string(prop_type_as_string, prop_type TSRMLS_CC);
+        add_assoc_zval(el, "type", prop_type_as_string);
+    }
 
     _serialize_meta(el, span_fci TSRMLS_CC);
 
-    zval *metrics = _read_span_property(span->span_data, ZEND_STRL("metrics") TSRMLS_CC);
-    if (Z_TYPE_P(metrics) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(metrics))) {
+    zval *metrics = ddtrace_spandata_property_metrics(span);
+    if (zend_hash_num_elements(Z_ARRVAL_P(metrics))) {
         zval *metrics_zv;
         ALLOC_INIT_ZVAL(metrics_zv);
         array_init(metrics_zv);
@@ -617,26 +617,11 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
 
             ddtrace_span_fci *span;
             for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
-                if (span->exception || !span->span.span_data) {
-                    continue;
-                }
-                zval *meta = _read_span_property(span->span.span_data, ZEND_STRL("meta") TSRMLS_CC);
-                if (!meta) {
+                if (span->exception) {
                     continue;
                 }
 
-                if (Z_TYPE_P(meta) == IS_NULL) {
-                    // Unlike PHP 7, we cannot mutate the SpanData properties outside of the zend_*_property APIs
-                    zval *zmeta;
-                    MAKE_STD_ZVAL(zmeta);
-                    array_init_size(zmeta, ddtrace_num_error_tags);
-                    dd_fatal_error_to_meta(zmeta, error);
-                    zend_update_property(ddtrace_ce_span_data, span->span.span_data, ZEND_STRL("meta"),
-                                         zmeta TSRMLS_CC);
-                    zval_ptr_dtor(&zmeta);
-                } else if (Z_TYPE_P(meta) == IS_ARRAY) {
-                    dd_fatal_error_to_meta(meta, error);
-                }
+                dd_fatal_error_to_meta(ddtrace_spandata_property_meta(&span->span), error);
             }
 
             if (error.type) {

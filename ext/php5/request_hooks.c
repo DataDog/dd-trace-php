@@ -9,7 +9,6 @@
 
 #include "ddtrace.h"
 #include "engine_hooks.h"
-#include "env_config.h"
 #include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -25,7 +24,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     zval *result = NULL;
     int ret;
 
-    BOOL_T rv = FALSE;
+    bool rv = false;
 
     zval **original_return_value = EG(return_value_ptr_ptr);
     zend_op **original_opline_ptr = EG(opline_ptr);
@@ -34,11 +33,11 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     ddtrace_error_handling eh_stream;
     ddtrace_backup_error_handling(&eh_stream, EH_SUPPRESS TSRMLS_CC);
     zend_bool _original_cg_multibyte = CG(multibyte);
-    CG(multibyte) = FALSE;
+    CG(multibyte) = false;
 
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE TSRMLS_CC);
 
-    if (get_dd_trace_debug() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
+    if (get_DD_TRACE_DEBUG() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
         ddtrace_log_errf("Error raised while opening request-init-hook stream: %s in %s on line %d",
                          PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
     }
@@ -71,7 +70,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
 #if PHP_VERSION_ID < 50600
             // Cannot gracefully recover from fatal errors without crashing until PHP 5.6
             zend_catch {
-                if (get_dd_trace_debug() && PG(last_error_message)) {
+                if (get_DD_TRACE_DEBUG() && PG(last_error_message)) {
                     ddtrace_log_errf("Unrecoverable error raised in request init hook: %s in %s on line %d",
                                      PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
                 }
@@ -80,7 +79,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
 #endif
             zend_end_try();
 
-            if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+            if (get_DD_TRACE_DEBUG() && PG(last_error_message) && eh.message != PG(last_error_message)) {
                 ddtrace_log_errf("Error raised in request init hook: %s in %s on line %d", PG(last_error_message),
                                  PG(last_error_file), PG(last_error_lineno));
             }
@@ -94,7 +93,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
                     zval_ptr_dtor(EG(return_value_ptr_ptr));
                 }
             } else {
-                if (get_dd_trace_debug()) {
+                if (get_DD_TRACE_DEBUG()) {
                     zval *ex = EG(exception), *message = NULL;
                     const char *type = Z_OBJCE_P(ex)->name;
                     message = ddtrace_exception_get_entry(ex, ZEND_STRL("message") TSRMLS_CC);
@@ -111,7 +110,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
                     EG(prev_exception) = NULL;
                 }
             }
-            rv = TRUE;
+            rv = true;
         }
     } else {
         ddtrace_log_debugf("Error opening request init hook: %s", filename);
@@ -139,20 +138,20 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file TSRMLS_DC) {
 
 void dd_request_init_hook_rinit(TSRMLS_D) {
     DDTRACE_G(auto_prepend_file) = PG(auto_prepend_file);
-    if (php_check_open_basedir_ex(DDTRACE_G(request_init_hook), 0 TSRMLS_CC) == -1) {
-        ddtrace_log_debugf("open_basedir restriction in effect; cannot open request init hook: '%s'",
-                           DDTRACE_G(request_init_hook));
+    const char *hook_path = get_DD_TRACE_REQUEST_INIT_HOOK().ptr;
+    if (php_check_open_basedir_ex(hook_path, 0 TSRMLS_CC) == -1) {
+        ddtrace_log_debugf("open_basedir restriction in effect; cannot open request init hook: '%s'", hook_path);
         return;
     }
 
     zval exists_flag;
-    php_stat(DDTRACE_G(request_init_hook), strlen(DDTRACE_G(request_init_hook)), FS_EXISTS, &exists_flag TSRMLS_CC);
+    php_stat(hook_path, strlen(hook_path), FS_EXISTS, &exists_flag TSRMLS_CC);
     if (!Z_BVAL(exists_flag)) {
-        ddtrace_log_debugf("Cannot open request init hook; file does not exist: '%s'", DDTRACE_G(request_init_hook));
+        ddtrace_log_debugf("Cannot open request init hook; file does not exist: '%s'", hook_path);
         return;
     }
 
-    PG(auto_prepend_file) = DDTRACE_G(request_init_hook);
+    PG(auto_prepend_file) = (char *)hook_path;
     if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
         ddtrace_log_debugf("Backing up auto_prepend_file '%s'", DDTRACE_G(auto_prepend_file));
     }

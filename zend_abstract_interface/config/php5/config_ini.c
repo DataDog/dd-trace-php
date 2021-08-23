@@ -56,7 +56,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
             // Try working around ...
             char *val = entries[i]->modified ? entries[i]->orig_value : entries[i]->value;
             uint val_len = entries[i]->modified ? entries[i]->orig_value_length : entries[i]->value_length;
-            if (val_len - 1 != default_value.len || !strcmp(val, default_value.ptr)) {
+            if (val_len != default_value.len || strcmp(val, default_value.ptr) != 0) {
                 parsed_ini_value = val;
                 parsed_ini_value_len = (int)val_len;
                 name_index = i;

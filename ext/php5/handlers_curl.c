@@ -43,7 +43,7 @@ static bool dd_load_curl_integration(TSRMLS_D) {
     if (!dd_ext_curl_loaded || DDTRACE_G(disable_in_current_request)) {
         return false;
     }
-    return ddtrace_config_distributed_tracing_enabled(TSRMLS_C);
+    return get_DD_DISTRIBUTED_TRACING();
 }
 
 static void dd_ht_dtor(void *pData) {
