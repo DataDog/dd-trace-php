@@ -7,6 +7,11 @@ use DDTrace\Log\Logger;
 use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
 
+/**
+ * @method void assertFileDoesNotExist(string $file)
+ * @method void assertEmpty(array $arr)
+ * @method void assertNotEmpty(array $arr)
+ */
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {
     public static function ddSetUpBeforeClass()
