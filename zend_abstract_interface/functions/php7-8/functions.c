@@ -30,7 +30,7 @@ bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int a
     zai_assert_is_lower(name, "Function names must be lowercase.");
     assert(*name != '\\' && "Function names must not have a root scope prefix '\\'.");
 
-    zend_function *func = NULL;
+    zend_fcall_info_cache fcc = {0};
     zend_string *zsname = NULL;
     ALLOCA_FLAG(use_heap)
 
@@ -50,21 +50,24 @@ bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int a
      */
     ZSTR_ALLOCA_ALLOC(zsname, name_len, use_heap);
     memcpy(ZSTR_VAL(zsname), name, (name_len + 1));
-    func = zend_fetch_function(zsname);
+#if PHP_VERSION_ID < 70300
+    zval *funczv = zend_hash_find(EG(function_table), zsname);
+    fcc.function_handler = funczv == NULL ? NULL : Z_FUNC_P(funczv);
+    fcc.initialized = 1;
+#else
+    fcc.function_handler = zend_fetch_function(zsname);
+#endif
     ZSTR_ALLOCA_FREE(zsname, use_heap);
 
     /* "function %s() does not exist" */
-    if (!func) return false;
-
-    zend_fcall_info_cache fcc = {0};
-    fcc.function_handler = func;
+    if (!fcc.function_handler) return false;
 
     zend_fcall_info fci = {0};
     fci.size = sizeof(zend_fcall_info);
     fci.retval = retval;
 
     bool should_bail = false;
-    zend_result call_fn_result = FAILURE;
+    ZEND_RESULT_CODE call_fn_result = FAILURE;
 
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);

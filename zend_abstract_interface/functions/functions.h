@@ -4,6 +4,8 @@
 #include <main/php.h>
 #include <stdbool.h>
 
+#include "../zai_compat.h"
+
 /* Work in progress
  *
  * The long-term goal is to provide ZAI data-structure shims so that the
@@ -22,11 +24,16 @@
  * Functions cannot be called outside of a request context so this MUST be
  * called from within a request context (after RINIT and before RSHUTDOWN).
  */
+#if PHP_VERSION_ID < 70000
+bool zai_call_function_ex(const char *name, size_t name_len, zval **retval TSRMLS_DC, int argc, ...);
+#else
 bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int argc, ...);
+#endif
 
 /* A wrapper for zai_call_function_ex() that automatically populates 'argc'. */
-#define zai_call_function(name, name_len, retval, ...) \
-    zai_call_function_ex(name, name_len, retval, ZAI_CALL_FUNCTION_VA_ARG_COUNT(__VA_ARGS__), ##__VA_ARGS__)
+#define zai_call_function(name, name_len, retval, ...)                                                      \
+    zai_call_function_ex(name, name_len, retval ZAI_TSRMLS_CC, ZAI_CALL_FUNCTION_VA_ARG_COUNT(__VA_ARGS__), \
+                         ##__VA_ARGS__)
 
 /* A convenience wrapper to call zai_call_function() using a string literal.
  * This API only works when the function name is a string literal. If the
