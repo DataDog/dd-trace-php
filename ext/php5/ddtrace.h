@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "env_config.h"
 #include "ext/version.h"
 #include "random.h"
 
@@ -14,15 +13,27 @@ extern zend_class_entry *ddtrace_ce_fatal_error;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_fci ddtrace_span_fci;
+typedef struct ddtrace_span_t ddtrace_span_t;
 
-BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
+zval *ddtrace_spandata_property_name(ddtrace_span_t *span);
+zval **ddtrace_spandata_property_name_write(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_resource(ddtrace_span_t *span);
+zval **ddtrace_spandata_property_resource_write(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_service(ddtrace_span_t *span);
+zval **ddtrace_spandata_property_service_write(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_type(ddtrace_span_t *span);
+zval **ddtrace_spandata_property_type_write(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
+void ddtrace_assign_prop_zval(zval **propzv, zval *value);
+
+bool ddtrace_tracer_is_limited(TSRMLS_D);
 
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *auto_prepend_file;
     zend_bool disable;
     zend_bool disable_in_current_request;
-    char *request_init_hook;
     zend_bool request_init_hook_loaded;
     // When 'drop_all_spans' is set, traces have to be dropped and not sent to the serializer and the sender.
     zend_bool drop_all_spans;
@@ -53,7 +64,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
      * A 16-bit call depth would allow us to count to 65,535, which is way more
      * than necessary. An 8-bit depth would be inadequate (255).
      */
-    bool should_warn_call_depth;
+    bool has_warned_call_depth;
     uint16_t call_depth;
 
     uint64_t trace_id;

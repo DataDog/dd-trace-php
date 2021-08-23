@@ -38,11 +38,11 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 static void ddtrace_sigsegv_handler(int sig) {
     TSRMLS_FETCH();
     if (!DDTRACE_G(backtrace_handler_already_run)) {
-        DDTRACE_G(backtrace_handler_already_run) = TRUE;
+        DDTRACE_G(backtrace_handler_already_run) = true;
         ddtrace_log_errf("Segmentation fault");
 
 #if HAVE_SIGACTION
-        bool health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
+        bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
         if (health_metrics_enabled) {
             dogstatsd_client *client = &DDTRACE_G(dogstatsd_client);
             const char *metric = "datadog.tracer.uncaught_exceptions";
@@ -80,14 +80,14 @@ static void ddtrace_sigsegv_handler(int sig) {
     exit(128 + sig);
 }
 
-void ddtrace_signals_minit(TSRMLS_D) {
-    bool install_handler = get_dd_trace_heath_metrics_enabled();
+void ddtrace_signals_first_rinit(TSRMLS_D) {
+    bool install_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
 
 #if DDTRACE_HAVE_BACKTRACE
-    install_handler |= get_dd_log_backtrace();
+    install_handler |= get_DD_LOG_BACKTRACE();
 #endif
 
-    DDTRACE_G(backtrace_handler_already_run) = FALSE;
+    DDTRACE_G(backtrace_handler_already_run) = false;
 
     /* Install a signal handler for SIGSEGV and run it on an alternate stack.
      * Using an alternate stack allows the handler to run even when the main
@@ -110,6 +110,6 @@ void ddtrace_signals_minit(TSRMLS_D) {
 void ddtrace_signals_mshutdown(void) { free(ddtrace_altstack.ss_sp); }
 
 #else
-void ddtrace_signals_minit(void) {}
+void ddtrace_signals_first_rinit(void) {}
 void ddtrace_signals_mshutdown(void) {}
 #endif

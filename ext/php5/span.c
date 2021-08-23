@@ -24,50 +24,33 @@ void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static void _free_span(ddtrace_span_fci *span_fci) {
-    if (!span_fci) {
-        return;
-    }
-    ddtrace_span_t *span = &span_fci->span;
-    if (span->span_data) {
-        zval_ptr_dtor(&span->span_data);
-        span->span_data = NULL;
-    }
-    if (span_fci->exception) {
-        zval_ptr_dtor(&span_fci->exception);
-        span_fci->exception = NULL;
-    }
-
-    efree(span_fci);
-}
-
-void ddtrace_drop_span(ddtrace_span_fci *span_fci) {
+void ddtrace_drop_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     if (span_fci->dispatch) {
         ddtrace_dispatch_release(span_fci->dispatch);
         span_fci->dispatch = NULL;
     }
 
-    _free_span(span_fci);
+    zend_objects_store_del_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
 }
 
-static void _free_span_stack(ddtrace_span_fci *span_fci) {
+static void _free_span_stack(ddtrace_span_fci *span_fci TSRMLS_DC) {
     while (span_fci != NULL) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
-        ddtrace_drop_span(tmp);
+        ddtrace_drop_span(tmp TSRMLS_CC);
     }
 }
 
 void ddtrace_free_span_stacks(TSRMLS_D) {
-    _free_span_stack(DDTRACE_G(open_spans_top));
+    _free_span_stack(DDTRACE_G(open_spans_top) TSRMLS_CC);
     DDTRACE_G(open_spans_top) = NULL;
-    _free_span_stack(DDTRACE_G(closed_spans_top));
+    _free_span_stack(DDTRACE_G(closed_spans_top) TSRMLS_CC);
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
+static uint64_t _get_nanoseconds(bool monotonic_clock) {
     struct timespec time;
     if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
         return time.tv_sec * 1000000000L + time.tv_nsec;
@@ -84,11 +67,6 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     ddtrace_push_span(span_fci TSRMLS_CC);
 
     ddtrace_span_t *span = &span_fci->span;
-
-    /* On PHP 5 object_init_ex does not set refcount to 1, but on PHP 7 it does */
-    MAKE_STD_ZVAL(span->span_data);
-    object_init_ex(span->span_data, ddtrace_ce_span_data);
-
     // Peek at the active span ID before we push a new one onto the stack
     span->parent_id = ddtrace_peek_span_id(TSRMLS_C);
     span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
@@ -99,6 +77,13 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+}
+
+ddtrace_span_fci *ddtrace_init_span(TSRMLS_D) {
+    zval fci_zv;
+    object_init_ex(&fci_zv, ddtrace_ce_span_data);
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)zend_object_store_get_object(&fci_zv TSRMLS_CC);
+    return span_fci;
 }
 
 void dd_trace_stop_span_time(ddtrace_span_t *span) {
@@ -124,7 +109,7 @@ void ddtrace_close_span(TSRMLS_D) {
     }
 
     // A userland span might still be open so we check the span ID stack instead of the internal span stack
-    if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+    if (DDTRACE_G(span_ids_top) == NULL && get_DD_TRACE_AUTO_FLUSH_ENABLED()) {
         if (!ddtrace_flush_tracer(TSRMLS_C)) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
@@ -139,12 +124,12 @@ void ddtrace_drop_top_open_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
-    ddtrace_drop_span(span_fci);
+    ddtrace_drop_span(span_fci TSRMLS_CC);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     // The tracer supports only one trace per request so free any remaining open spans
-    _free_span_stack(DDTRACE_G(open_spans_top));
+    _free_span_stack(DDTRACE_G(open_spans_top) TSRMLS_CC);
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     ddtrace_free_span_id_stack(TSRMLS_C);
@@ -158,7 +143,7 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
         ddtrace_serialize_span_to_array(tmp, serialized TSRMLS_CC);
-        _free_span(tmp);
+        zend_objects_store_del_ref_by_handle(tmp->span.obj_value.handle TSRMLS_CC);
         // Move the stack down one as ddtrace_serialize_span_to_array() might do a long jump
         DDTRACE_G(closed_spans_top) = span_fci;
     }

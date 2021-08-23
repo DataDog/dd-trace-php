@@ -26,8 +26,16 @@ void zai_config_runtime_config_ctor(void) {
     runtime_config = emalloc(sizeof(zval *) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
-        runtime_config[i] = &zai_config_memoized_entries[i].decoded_value;
-        zval_add_ref(&runtime_config[i]);
+        if (Z_TYPE(zai_config_memoized_entries[i].decoded_value) == IS_ARRAY) {
+            // arrays will land in the GC root buffer and must actually be of type struct _zval_gc_info, which also
+            // must not be shared across threads, hence forcing a copy of arrays
+            ALLOC_ZVAL(runtime_config[i]);
+            INIT_PZVAL_COPY(runtime_config[i], &zai_config_memoized_entries[i].decoded_value);
+            zval_copy_ctor(runtime_config[i]);
+        } else {
+            runtime_config[i] = &zai_config_memoized_entries[i].decoded_value;
+            zval_add_ref(&runtime_config[i]);
+        }
     }
     runtime_config_initialized = true;
 }

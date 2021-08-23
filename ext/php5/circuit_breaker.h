@@ -19,9 +19,6 @@ typedef struct dd_trace_circuit_breaker_t {
 #define DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES 3
 #define DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC 5000
 
-#define DD_TRACE_CIRCUIT_BREAKER_ENV_MAX_CONSECUTIVE_FAILURES "DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES"
-#define DD_TRACE_CIRCUIT_BREAKER_ENV_RETRY_TIME_MSEC "DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC"
-
 void dd_tracer_circuit_breaker_register_error();
 void dd_tracer_circuit_breaker_register_success();
 void dd_tracer_circuit_breaker_open();
