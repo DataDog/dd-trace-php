@@ -64,7 +64,10 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testPreloadDDTraceNotUsedNoManualTracing()
     {
-        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+        }
+        $this->$this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
@@ -92,6 +95,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testPreloadDDTraceNotUsedManualTracing()
     {
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+        }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
@@ -126,6 +132,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testPreloadDDTraceUsedNoManualTracing()
     {
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+        }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
@@ -154,6 +163,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testPreloadDDTraceUsedManualTracing()
     {
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+        }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
@@ -240,6 +252,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testNoComposerYesPreload()
     {
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+        }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         //$this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
