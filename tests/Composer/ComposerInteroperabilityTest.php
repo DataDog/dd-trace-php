@@ -64,7 +64,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testPreloadDDTraceNotUsedNoManualTracing()
     {
-        $this->assertFileDoesNotExist($this->getPreloadTouchFilePath());
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
@@ -92,7 +92,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testPreloadDDTraceNotUsedManualTracing()
     {
-        $this->assertFileDoesNotExist($this->getPreloadTouchFilePath());
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
@@ -126,7 +126,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testPreloadDDTraceUsedNoManualTracing()
     {
-        $this->assertFileDoesNotExist($this->getPreloadTouchFilePath());
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
@@ -154,7 +154,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testPreloadDDTraceUsedManualTracing()
     {
-        $this->assertFileDoesNotExist($this->getPreloadTouchFilePath());
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
@@ -188,7 +188,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testNoPreloadNoManualTracing()
     {
-        $this->assertFileDoesNotExist($this->getPreloadTouchFilePath());
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
@@ -214,7 +214,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testNoComposerNoPreload()
     {
-        $this->assertFileDoesNotExist($this->getPreloadTouchFilePath());
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
@@ -240,7 +240,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testNoComposerYesPreload()
     {
-        $this->assertFileDoesNotExist($this->getPreloadTouchFilePath());
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         //$this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {

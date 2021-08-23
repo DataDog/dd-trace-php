@@ -8,7 +8,8 @@ use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
 
 /**
- * @method void assertFileDoesNotExist(string $file)
+ * @method void assertTrue(boolean $value)
+ * @method void assertFalse(boolean $value)
  * @method void assertEmpty(array $arr)
  * @method void assertNotEmpty(array $arr)
  */
