@@ -67,7 +67,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
         if (PHP_VERSION_ID < 70400) {
             $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
         }
-        $this->$this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
