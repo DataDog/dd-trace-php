@@ -62,7 +62,7 @@
             "@static-analyze-ddtrace"
         ],
         "static-analyze-api": "phpstan analyse --configuration=./phpstan.api.neon --level=2 src/api",
-        "static-analyze-api-clear-cache": [
+        "static-analyze-clear-cache": [
             "phpstan clear-result-cache --configuration=./phpstan.api.neon",
             "phpstan clear-result-cache --configuration=./phpstan.ddtrace.neon"
         ],

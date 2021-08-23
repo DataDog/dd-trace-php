@@ -315,6 +315,9 @@ jobs:
             composer scenario:update
             export PATH=$PATH:$(composer --global config home)/vendor/bin
       - run:
+          name: Show path
+          command: echo $PATH
+      - run:
           name: Running phpstan
           command: composer scenario << parameters.scenario >> ; composer static-analyze
 
