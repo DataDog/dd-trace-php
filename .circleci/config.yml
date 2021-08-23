@@ -299,6 +299,9 @@ jobs:
       scenario:
         type: string
         default: ""
+      composer_root:
+        type: string
+        default: "~/.composer"
     working_directory: ~/datadog
     docker:
       - image: << parameters.docker_image >>
@@ -315,7 +318,7 @@ jobs:
             composer scenario:update
       - run:
           name: Running phpstan
-          command: composer scenario << parameters.scenario >> ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+          command: composer scenario << parameters.scenario >> ; PATH=$PATH:<< parameters.composer_root >>/vendor/bin composer static-analyze
 
   "Post-Install Hook":
     working_directory: ~/datadog
@@ -2000,7 +2003,8 @@ workflows:
       - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 80"
-          docker_image: circleci/php:8.0
+          docker_image: cimg/php:8.0
+          composer_root: ~/.config/composer
           scenario: opentracing10
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
