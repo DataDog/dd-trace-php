@@ -1,5 +1,8 @@
 <?php
 
+// The autoloading mechanism is explained in `docs/autoloading.md`. If this file is changed, make sure that
+// documentation is up to date.
+
 $apiLoadedViaComposer = \class_exists('DDTrace\ComposerBootstrap', false);
 
 if ($apiLoadedViaComposer) {
