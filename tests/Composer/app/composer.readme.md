@@ -32,4 +32,4 @@ The reason why we are not just manually declaring entries in `autoload` like in
 }
 ```
 
-is because we have to keep it is easy to have have them out of sync.
+is because it is easy to have have them out of sync and the `repositories` approach is more realistic.

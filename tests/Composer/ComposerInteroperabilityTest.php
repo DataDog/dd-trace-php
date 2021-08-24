@@ -66,6 +66,10 @@ class ComposerInteroperabilityTest extends BaseTestCase
         $this->assertNotEmpty($traces);
     }
 
+    /**
+     * Simulates an autoloading scenario when preloading and composer are used. Manual tracing is not done, but DDTrace
+     * classes are not used in the preloading script.
+     */
     public function testPreloadDDTraceNotUsedNoManualTracing()
     {
         if (PHP_VERSION_ID < 70400) {
@@ -96,6 +100,10 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    /**
+     * Simulates an autoloading scenario when preloading and composer are used. Manual tracing is done, but DDTrace
+     * classes are not used in the preloading script.
+     */
     public function testPreloadDDTraceNotUsedManualTracing()
     {
         if (PHP_VERSION_ID < 70400) {
@@ -132,6 +140,10 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    /**
+     * Simulates an autoloading scenario when preloading and composer are used. Moreover, DDTrace classes are
+     * referenced in the preloading script, but no manual tracing is performed.
+     */
     public function testPreloadDDTraceUsedNoManualTracing()
     {
         if (PHP_VERSION_ID < 70400) {
@@ -162,6 +174,10 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    /**
+     * Simulates an autoloading scenario when preloading and composer are used. Moreover, DDTrace classes are referenced
+     * in the preloading script.
+     */
     public function testPreloadDDTraceUsedManualTracing()
     {
         if (PHP_VERSION_ID < 70400) {
@@ -198,6 +214,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    /**
+     * Simulates the basic scenario when neither preloading nor manual tracing are used.
+     */
     public function testNoPreloadNoManualTracing()
     {
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
@@ -223,6 +242,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    /**
+     * Simulates an autoloading scenario when there is no composer and no preloading is used.
+     */
     public function testNoComposerNoPreload()
     {
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
@@ -248,6 +270,9 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    /**
+     * Simulates an autoloading scenario when there is no composer and preloading is used.
+     */
     public function testNoComposerYesPreload()
     {
         if (PHP_VERSION_ID < 70400) {
@@ -278,6 +303,10 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    /**
+     * Simulates an autoloading scenario when there is preloading but no composer, in addition to a 'terminal'
+     * autoloader, meaning that the autoloader fails if the class is not found.
+     */
     public function testNoComposerYesPreloadAutoloadFailing()
     {
         if (PHP_VERSION_ID < 70400) {
@@ -309,6 +338,10 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    /**
+     * Simulates an autoloading scenario when there is preloading + composer in addition to a 'terminal' autoloader,
+     * meaning that the autoloader fails if the class is not found.
+     */
     public function testYesComposerYesPreloadAutoloadFailing()
     {
         if (PHP_VERSION_ID < 70400) {

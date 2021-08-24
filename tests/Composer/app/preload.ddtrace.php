@@ -9,7 +9,7 @@ require __DIR__ . '/custom_autoloaders.php';
 
 function lazy_loading()
 {
-    // Even if not executed during prelaod, some functions might use GlobalTracer, e.g. when defining services
+    // Even if not executed during preload, some functions might use GlobalTracer, e.g. when defining services
     // for container injection that are lazily evaluated during the request.
     $tracer = GlobalTracer::get();
 }
