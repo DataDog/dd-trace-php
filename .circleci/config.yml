@@ -299,6 +299,9 @@ jobs:
       scenario:
         type: string
         default: ""
+      composer_root:
+        type: string
+        default: "~/.composer"
     working_directory: ~/datadog
     docker:
       - image: << parameters.docker_image >>
