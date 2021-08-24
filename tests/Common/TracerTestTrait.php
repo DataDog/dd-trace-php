@@ -148,11 +148,11 @@ trait TracerTestTrait
     public function inWebServer($fn, $rootPath, $envs = [], $inis = [], &$curlInfo = null)
     {
         $this->resetTracer();
-        $this->resetRequestDumper();
         $webServer = new WebServer($rootPath, '0.0.0.0', 6666);
         $webServer->mergeEnvs($envs);
         $webServer->mergeInis($inis);
         $webServer->start();
+        $this->resetRequestDumper();
 
         $fn(function (RequestSpec $request) use ($webServer, &$curlInfo) {
             if ($request instanceof GetSpec) {
