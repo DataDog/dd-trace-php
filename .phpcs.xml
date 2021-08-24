@@ -20,6 +20,7 @@
         <exclude-pattern>tests/Integrations/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Classes.ClassDeclaration.MissingNamespace">
+        <exclude-pattern>tests/Composer/app/custom_autoloaders.php</exclude-pattern>
         <exclude-pattern>tests/Integration/ErrorReporting/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
