@@ -14,6 +14,12 @@ class ComposerInteroperabilityTest extends BaseTestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
+    public static function ddSetUpBeforeClass()
+    {
+        parent::ddSetUpBeforeClass();
+        self::composerUpdateScenario(__DIR__ . '/app');
+    }
+
     protected function ddSetUp()
     {
         parent::ddSetUp();
@@ -24,7 +30,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testComposerInteroperabilityWhenNoInitHook()
     {
-        $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/'));
@@ -44,7 +49,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testComposerInteroperabilityWhenInitHookWorks()
     {
-        $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/'));
@@ -68,7 +72,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
             $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
-        $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/no-manual-tracing'));
@@ -99,7 +102,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
             $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
-        $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/manual-tracing'));
@@ -136,7 +138,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
             $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
-        $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/no-manual-tracing'));
@@ -167,7 +168,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
             $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
-        $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/manual-tracing'));
@@ -201,7 +201,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testNoPreloadNoManualTracing()
     {
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
-        $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/no-manual-tracing'));
@@ -227,7 +226,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testNoComposerNoPreload()
     {
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
-        $this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/no-composer'));
@@ -256,7 +254,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
             $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
-        //$this->composerUpdateScenario(__DIR__ . '/app');
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/no-composer'));
@@ -281,12 +278,74 @@ class ComposerInteroperabilityTest extends BaseTestCase
         ]);
     }
 
+    public function testNoComposerYesPreloadAutoloadFailing()
+    {
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+        }
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
+
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $output = $execute(GetSpec::create('default', '/no-composer-autoload-fails'));
+                TestCase::assertSame("OK - preload:'DDTrace classes NOT used in preload'", $output);
+            },
+            __DIR__ . "/app/index.php",
+            [],
+            [
+                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'zend_extension' => 'opcache.so',
+                'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
+            ]
+        );
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer-autoload-fails')
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => '/no-composer-autoload-fails',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testYesComposerYesPreloadAutoloadFailing()
+    {
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+        }
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
+
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $output = $execute(GetSpec::create('default', '/composer-autoload-fails'));
+                TestCase::assertSame("OK - preload:'DDTrace classes NOT used in preload'", $output);
+            },
+            __DIR__ . "/app/index.php",
+            [],
+            [
+                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'zend_extension' => 'opcache.so',
+                'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
+            ]
+        );
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /composer-autoload-fails')
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => '/composer-autoload-fails',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
     /**
      * Given a path to a composer working directory, this method runs composer update in it.
      *
      * @param string $workingDir
      */
-    private function composerUpdateScenario($workingDir)
+    private static function composerUpdateScenario($workingDir)
     {
         exec(
             "composer --working-dir='$workingDir' update -q",
@@ -294,7 +353,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             $return
         );
         if (0 !== $return) {
-            $this->fail('Error while preparing the env: ' . implode("", $output));
+            self::fail('Error while preparing the env: ' . implode("", $output));
         }
     }
 

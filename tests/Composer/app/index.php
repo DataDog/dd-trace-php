@@ -2,6 +2,7 @@
 
 namespace User\App;
 
+use AutoloaderThatFails;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Log\ErrorLogLogger;
@@ -55,10 +56,20 @@ switch ($_SERVER['REQUEST_URI']) {
 
         break;
     case '/no-manual-tracing':
-        // Do composer autoload here, not at the root level, so we can ALSO test for non-composer scenarios.
         require __DIR__ . "/vendor/autoload.php";
+        require __DIR__ . '/custom_autoloaders.php';
+        (new AutoloaderThatFails())->register();
         break;
     case '/no-composer':
+        break;
+    case '/no-composer-autoload-fails':
+        require __DIR__ . '/custom_autoloaders.php';
+        (new AutoloaderThatFails())->register();
+        break;
+    case '/composer-autoload-fails':
+        require __DIR__ . "/vendor/autoload.php";
+        require __DIR__ . '/custom_autoloaders.php';
+        (new AutoloaderThatFails())->register();
         break;
     default:
         \header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found', true, 404);

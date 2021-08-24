@@ -4,6 +4,8 @@ use DDTrace\Tag;
 use DDTrace\GlobalTracer;
 
 require_once __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/custom_autoloaders.php';
+(new AutoloaderThatFails())->register();
 
 function lazy_loading()
 {
