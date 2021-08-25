@@ -280,8 +280,7 @@ final class Tracer implements TracerInterface
         }
         if (!$parent = $activeSpan) {
             // Handle the case where the trace root was created outside of userland control
-            // @phpstan-ignore-next-line
-            if (PHP_VERSION_ID >= 80000 && !\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') && active_span()) {
+            if (PHP_VERSION_ID >= 70000 && !\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') && active_span()) {
                 $trace_id = trace_id();
                 $parent = new SpanContext($trace_id, $trace_id);
             }
@@ -567,8 +566,7 @@ final class Tracer implements TracerInterface
         $rootScope = $this->getRootScope();
 
         if (empty($rootScope)) {
-            // @phpstan-ignore-next-line
-            if (PHP_VERSION_ID >= 80000 && $internalRootSpan = root_span()) {
+            if (PHP_VERSION_ID >= 70000 && $internalRootSpan = root_span()) {
                 // This will not set the distributed tracing activation context properly: do with internal migration
                 $traceId = trace_id();
                 // @phpstan-ignore-next-line
