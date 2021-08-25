@@ -1942,11 +1942,11 @@ workflows:
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
-      # - php_language_tests:
-      #     requires: [ 'Language tests' ]
-      #     name: "PHP 80 language tests"
-      #     xfail_list: dockerfiles/ci/xfail_tests/8.0.list
-      #     docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 80 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/8.0.list
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 74 language tests"
