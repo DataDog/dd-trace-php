@@ -273,11 +273,21 @@ final class Tracer implements TracerInterface
         $parentService = null;
 
         if (($activeSpan = $this->getActiveSpan()) !== null) {
-            $options = $options->withParent($activeSpan);
             $tags = $options->getTags();
             if (!array_key_exists(Tag::SERVICE_NAME, $tags)) {
                 $parentService = $activeSpan->getService();
             }
+        }
+        if (!$parent = $activeSpan) {
+            // Handle the case where the trace root was created outside of userland control
+            // @phpstan-ignore-next-line
+            if (PHP_VERSION_ID >= 80000 && !\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') && active_span()) {
+                $trace_id = trace_id();
+                $parent = new SpanContext($trace_id, $trace_id);
+            }
+        }
+        if ($parent) {
+            $options = $options->withParent($parent);
         }
 
         $span = $this->startSpan($operationName, $options);
@@ -339,8 +349,8 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled() && $rootScope = $this->getRootScope()) {
-            $this->addUrlAsResourceNameToSpan($rootScope->getSpan());
+        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled() && $rootSpan = $this->getSafeRootSpan()) {
+            $this->addUrlAsResourceNameToSpan($rootSpan);
         }
 
         if (self::isLogDebugActive()) {
@@ -557,6 +567,13 @@ final class Tracer implements TracerInterface
         $rootScope = $this->getRootScope();
 
         if (empty($rootScope)) {
+            // @phpstan-ignore-next-line
+            if (PHP_VERSION_ID >= 80000 && $internalRootSpan = root_span()) {
+                // This will not set the distributed tracing activation context properly: do with internal migration
+                $traceId = trace_id();
+                // @phpstan-ignore-next-line
+                return new Span($internalRootSpan, new SpanContext($traceId, $traceId));
+            }
             return null;
         }
 
@@ -588,11 +605,7 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        $rootScope = $this->getRootScope();
-        if (null === $rootScope) {
-            return;
-        }
-        $rootSpan = $rootScope->getSpan();
+        $rootSpan = $this->getSafeRootSpan();
         if (null === $rootSpan) {
             return;
         }

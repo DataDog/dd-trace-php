@@ -61,9 +61,9 @@ final class Bootstrap
                         // this also gets set when creating a root span, but may not have the latest up-to-date data
                         if (
                             'cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled()
-                            && $rootScope = $tracer->getRootScope()
+                            && $rootSpan = $tracer->getSafeRootSpan()
                         ) {
-                            $tracer->addUrlAsResourceNameToSpan($rootScope->getSpan());
+                            $tracer->addUrlAsResourceNameToSpan($rootSpan);
                         }
                         /*
                          * Having this priority sampling here is actually a bug (should happen after service name
