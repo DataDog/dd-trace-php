@@ -1,4 +1,4 @@
-add_executable(properties "${PHP_PROPERTIES_VERSION_DIRECTORY}/properties.cc")
+add_executable(properties "properties.cc")
 
 target_link_libraries(properties PUBLIC catch2_main Zai::Sapi Zai::Properties Zai::Functions)
 
