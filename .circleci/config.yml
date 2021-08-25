@@ -505,6 +505,7 @@ jobs:
     executor:
       name: with_agent
       docker_image: << parameters.docker_image >>
+    parallelism: 10
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
@@ -529,10 +530,11 @@ jobs:
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
             mkdir -p /tmp/artifacts/tests
+            export SPLIT_TESTS=$(circleci tests glob **/*.phpt | circleci tests split)
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
+              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php ${SPLIT_TESTS}
       - run:
           command: |
             cd /usr/local/src/php
