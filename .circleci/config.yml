@@ -531,6 +531,7 @@ jobs:
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
             mkdir -p /tmp/artifacts/tests
             export SPLIT_TESTS=$(circleci tests glob '**/tests' | circleci tests split)
+            echo "TESTS: ${SPLIT_TESTS}"
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
