@@ -1355,6 +1355,23 @@ static PHP_FUNCTION(active_span) {
     RETURN_OBJ_COPY(&DDTRACE_G(open_spans_top)->span.std);
 }
 
+/* {{{ proto string DDTrace\root_span() */
+static PHP_FUNCTION(root_span) {
+    UNUSED(execute_data);
+    if (!DDTRACE_G(open_spans_top)) {
+        if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
+            ddtrace_push_root_span();  // ensure root span always exists, especially after serialization for testing
+        } else {
+            RETURN_NULL();
+        }
+    }
+    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
+    while (root_span->next) {
+        root_span = root_span->next;
+    }
+    RETURN_OBJ_COPY(&root_span->span.std);
+}
+
 /* {{{ proto string DDTrace\start_span() */
 static PHP_FUNCTION(start_span) {
     double start_time_seconds = 0;
@@ -1505,6 +1522,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(start_span, arginfo_dd_trace_start_span),
     DDTRACE_NS_FE(close_span, arginfo_dd_trace_close_span),
     DDTRACE_NS_FE(active_span, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(root_span, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
