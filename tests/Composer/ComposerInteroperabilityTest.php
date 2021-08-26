@@ -73,7 +73,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testPreloadDDTraceNotUsedNoManualTracing()
     {
         if (PHP_VERSION_ID < 70400) {
-            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $traces = $this->inWebServer(
@@ -107,7 +107,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testPreloadDDTraceNotUsedManualTracing()
     {
         if (PHP_VERSION_ID < 70400) {
-            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $traces = $this->inWebServer(
@@ -147,7 +147,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testPreloadDDTraceUsedNoManualTracing()
     {
         if (PHP_VERSION_ID < 70400) {
-            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $traces = $this->inWebServer(
@@ -181,7 +181,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testPreloadDDTraceUsedManualTracing()
     {
         if (PHP_VERSION_ID < 70400) {
-            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $traces = $this->inWebServer(
@@ -276,7 +276,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testNoComposerYesPreload()
     {
         if (PHP_VERSION_ID < 70400) {
-            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
         $traces = $this->inWebServer(
@@ -310,7 +310,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testNoComposerYesPreloadAutoloadFailing()
     {
         if (PHP_VERSION_ID < 70400) {
-            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
 
@@ -345,7 +345,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
     public function testYesComposerYesPreloadAutoloadFailing()
     {
         if (PHP_VERSION_ID < 70400) {
-            $this->markTestSkipped('opcache.preload is not available before PHP 7.3');
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
         }
         $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
 
