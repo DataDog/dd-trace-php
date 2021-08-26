@@ -404,16 +404,18 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     zend_string *global_key;
     zval *global_val;
     ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
-        Z_TRY_ADDREF_P(global_val);  // they're actually persistent strings, but doing the check does no harm here
-        zend_hash_add(Z_ARR_P(meta), global_key, global_val);
+        if (zend_hash_add(Z_ARR_P(meta), global_key, global_val)) {
+            Z_TRY_ADDREF_P(global_val);
+        }
     }
     ZEND_HASH_FOREACH_END();
 
     zend_string *tag_key;
     zval *tag_value;
     ZEND_HASH_FOREACH_STR_KEY_VAL(DDTRACE_G(additional_global_tags), tag_key, tag_value) {
-        Z_TRY_ADDREF_P(tag_value);
-        zend_hash_add(Z_ARR_P(meta), tag_key, tag_value);
+        if (zend_hash_add(Z_ARR_P(meta), tag_key, tag_value)) {
+            Z_TRY_ADDREF_P(tag_value);
+        }
     }
     ZEND_HASH_FOREACH_END();
 
