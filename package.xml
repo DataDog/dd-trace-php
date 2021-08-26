@@ -754,7 +754,8 @@
             <!-- PHP files -->
             <!-- Include any files from ./bridge that are not referenced in ./bridge/_files.php -->
             <!-- Make sure to update <filelist> below too -->
-            <file name="bridge/_generated.php" role="php" />
+            <file name="bridge/_generated_api.php" role="php" />
+            <file name="bridge/_generated_internal.php" role="php" />
             <file name="bridge/autoload.php" role="php" />
             <file name="bridge/curl_inject.php" role="php" />
             <file name="bridge/dd_init.php" role="php" />
@@ -779,7 +780,8 @@
     <providesextension>ddtrace</providesextension>
     <extsrcrelease>
         <filelist>
-            <install as="datadog_trace/bridge/_generated.php" name="bridge/_generated.php" />
+            <install as="datadog_trace/bridge/_generated_api.php" name="bridge/_generated_api.php" />
+            <install as="datadog_trace/bridge/_generated_internal.php" name="bridge/_generated_internal.php" />
             <install as="datadog_trace/bridge/autoload.php" name="bridge/autoload.php" />
             <install as="datadog_trace/bridge/curl_inject.php" name="bridge/curl_inject.php" />
             <install as="datadog_trace/bridge/dd_init.php" name="bridge/dd_init.php" />

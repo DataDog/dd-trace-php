@@ -1,7 +1,21 @@
 {
-    "autoload": {
-        "psr-4": {
-            "DDTrace\\": "../../../src/api/"
+    "repositories": [
+        {
+            "type": "path",
+            "url": "/tmp/datadog/dd-trace"
         }
+    ],
+    "require": {
+        "datadog/dd-trace": "@dev"
+    },
+    "scripts": {
+        "copy-dd-sources": [
+            "rm -rf /tmp/datadog/dd-trace",
+            "mkdir -p /tmp/datadog/dd-trace/src/api",
+            "cp ../../../composer.json /tmp/datadog/dd-trace/composer.json",
+            "cp -r ../../../src/api /tmp/datadog/dd-trace/src/"
+        ],
+        "pre-install-cmd": "@copy-dd-sources",
+        "pre-update-cmd": "@copy-dd-sources"
     }
 }

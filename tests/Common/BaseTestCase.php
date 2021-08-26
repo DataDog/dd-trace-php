@@ -7,6 +7,12 @@ use DDTrace\Log\Logger;
 use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
 
+/**
+ * @method void assertTrue(boolean $value)
+ * @method void assertFalse(boolean $value)
+ * @method void assertEmpty(array $arr)
+ * @method void assertNotEmpty(array $arr)
+ */
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {
     public static function ddSetUpBeforeClass()

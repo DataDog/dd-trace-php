@@ -249,7 +249,7 @@ verify_version:
 
 verify_all: verify_pecl_file_definitions verify_version
 
-# Generates the bridge/_generated.php file. Note it only works on PHP < 8.0 because:
+# Generates the bridge/_generated_api and _generate_internal.php files. Note it only works on PHP < 8.0 because:
 #  - we need classpreloader: 1.4.* because otherwise the generated file is not compatible with 5.4
 #  - classpreloader: 1.4.* does not work on PHP 8 (even from a dedicated composer.json file), showing an incompatibility
 #    with nikic/php-parser lexer's.
@@ -606,7 +606,7 @@ define run_tests
 	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
-# use this as the first target if you want to use uncompiled files instead of the _generated.php compiled file.
+# use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
 dev:
 	$(Q) :
 	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
