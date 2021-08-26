@@ -425,7 +425,9 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
           name: Run tests
-          command: make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
+          command: |
+            set -euo pipefail
+            make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total .* memory leaks detected ==="; }
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
