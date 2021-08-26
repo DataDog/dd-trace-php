@@ -13,10 +13,14 @@ PATH="${PATH}:/usr/local/bin"
 
 # We attempt in this order the following binary names:
 #    1. php
-#    2. php7 (some alpine versions install php 7.x from main repo to this binary)
-#    3. php5 (some alpine versions install php 5.x from main repo to this binary)
+#    2. php8 (some alpine versions install php 8.x from main repo to this binary)
+#    3. php7 (some alpine versions install php 7.x from main repo to this binary)
+#    4. php5 (some alpine versions install php 5.x from main repo to this binary)
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
     DD_TRACE_PHP_BIN=$(command -v php || true)
+fi
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(command -v php8 || true)
 fi
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
     DD_TRACE_PHP_BIN=$(command -v php7 || true)
