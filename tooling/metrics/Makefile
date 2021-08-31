@@ -1,6 +1,6 @@
 # Use this Makefile from within  a <MAJOR>.<MINOR>-buster development images.
 
-TMP_FOLDER := .tmp
+TMP_FOLDER := /tmp/sirun
 RESULTS_FILE := $(TMP_FOLDER)/results.txt
 SIRUN_FILE := $(TMP_FOLDER)/sirun.yml
 PHP_EXTENSION_VERSION := $(shell php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $$NF }')
