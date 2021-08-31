@@ -33,8 +33,9 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
         $this->assertExpectedSpans(
             $traces,
             [
-                SpanAssertion::build('zf1.request', 'zf1', 'web', 'simple@index default')
+                SpanAssertion::build('zf1.request', 'zf1', 'web', 'default/simple@index default')
                     ->withExactTags([
+                        'zf1.module' => 'default',
                         'zf1.controller' => 'simple',
                         'zf1.action' => 'index',
                         'zf1.route_name' => 'default',

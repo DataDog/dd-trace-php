@@ -33,8 +33,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return $this->buildDataProvider(
             [
                 'A simple GET request returning a string' => [
-                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'simple@index default')
+                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'default/simple@index default')
                         ->withExactTags([
+                            'zf1.module' => 'default',
                             'zf1.controller' => 'simple',
                             'zf1.action' => 'index',
                             'zf1.route_name' => 'default',
@@ -44,8 +45,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                 ],
                 'A simple GET request with a view' => [
-                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'simple@view my_simple_view_route')
+                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'default/simple@view my_simple_view_route')
                         ->withExactTags([
+                            'zf1.module' => 'default',
                             'zf1.controller' => 'simple',
                             'zf1.action' => 'view',
                             'zf1.route_name' => 'my_simple_view_route',
@@ -55,8 +57,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                 ],
                 'A GET request with an exception' => [
-                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'error@error default')
+                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'default/error@error default')
                         ->withExactTags([
+                            'zf1.module' => 'default',
                             'zf1.controller' => 'error',
                             'zf1.action' => 'error',
                             'zf1.route_name' => 'default',
