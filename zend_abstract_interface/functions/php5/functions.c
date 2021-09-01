@@ -34,10 +34,6 @@ bool zai_call_function_ex(const char *name, size_t name_len, zval **retval TSRML
      *     we can avoid zend_str_tolower_copy().
      *   - We assume the caller will not prefix the function name with a
      *     root-scope prefix, '\'.
-     *
-     * In addition, we look up the function handler from zend_fetch_function()
-     * instead of directly from the EG(function_table) to ensure that the
-     * runtime cache for userland functions will be initialized.
      */
     if (zend_hash_find(EG(function_table), name, name_len + 1, (void **)&fcc.function_handler) != SUCCESS) {
         /* "function %s() does not exist" */
