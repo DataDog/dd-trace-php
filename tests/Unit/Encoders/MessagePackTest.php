@@ -54,7 +54,7 @@ final class MessagePackTest extends BaseTestCase
 
     public function testEncodeWithPrioritySampling()
     {
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             $this->assertTrue(true); // no warning
             return; // priority sampling is no longer set upon encoding, other tests are covering this
         }

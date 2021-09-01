@@ -145,7 +145,7 @@ final class TracerTest extends BaseTestCase
 
     public function testOnlyFinishedTracesAreBeingSent()
     {
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             $this->assertTrue(true); // now extension responsibility, not testable here (
             return;
         }
@@ -204,7 +204,7 @@ final class TracerTest extends BaseTestCase
 
     public function testUnfinishedSpansAreNotSentOnFlush()
     {
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             $this->assertTrue(true);
             return; // obsolete, now interrnal responsibility
         }
@@ -221,7 +221,7 @@ final class TracerTest extends BaseTestCase
 
     public function testUnfinishedSpansCanBeFinishedOnFlush()
     {
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             $this->assertTrue(true);
             return; // obsolete, now interrnal responsibility
         }
@@ -248,7 +248,7 @@ final class TracerTest extends BaseTestCase
 
     public function testFlushDoesntAddHostnameToRootSpanByDefault()
     {
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             $this->assertTrue(true);
             return; // obsolete, now interrnal responsibility
         }
@@ -309,7 +309,7 @@ final class TracerTest extends BaseTestCase
         $tracer->getActiveSpan()->finish();
 
         $this->assertSame(2, dd_trace_closed_spans_count());
-        if (PHP_VERSION_ID < 80000) {
+        if (PHP_VERSION_ID < 70000) {
             $traces = $tracer->getTracesAsArray();
             $this->assertCount(1, $traces);
             $this->assertCount(2, $traces[0]);

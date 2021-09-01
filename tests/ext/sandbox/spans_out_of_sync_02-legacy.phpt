@@ -1,7 +1,7 @@
 --TEST--
 Gracefully handle out-of-sync spans from traced function [internal][default properties]
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Test does not work with internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=dd_trace_serialize_closed_spans

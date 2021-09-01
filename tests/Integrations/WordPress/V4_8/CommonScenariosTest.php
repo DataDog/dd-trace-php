@@ -223,7 +223,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             ? "Uncaught Exception: Oops! in %s:%d"
                             : "Uncaught exception 'Exception' with message 'Oops!' in %s:%d";
                         $assertion
-                            ->setError(PHP_VERSION_ID >= 80000 ? "Exception" : "E_ERROR", $message)
+                            ->setError(PHP_VERSION_ID >= 70000 ? "Exception" : "E_ERROR", $message)
                             ->withExistingTagsNames(['error.stack']);
                     })->withChildren([
                         SpanAssertion::exists('WP.main')

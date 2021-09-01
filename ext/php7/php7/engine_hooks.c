@@ -13,7 +13,6 @@
 #include "ext/php7/ddtrace.h"
 #include "ext/php7/dispatch.h"
 #include "ext/php7/engine_api.h"
-#include "ext/php7/env_config.h"
 #include "ext/php7/logging.h"
 #include "ext/php7/span.h"
 
@@ -89,7 +88,7 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
     ret = zend_call_function(fci, fcc);
 
-    if (get_dd_trace_debug()) {
+    if (get_DD_TRACE_DEBUG()) {
         const char *scope, *colon, *name;
         dd_try_fetch_executing_function_name(call, &scope, &colon, &name);
 
@@ -336,10 +335,11 @@ static void dd_copy_posthook_args(zval *args, zend_execute_data *call) {
     }
 }
 
-void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
-    if (exception && span_fci->exception == NULL) {
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zend_object *exception) {
+    zval *exception_zv = ddtrace_spandata_property_exception(&span_fci->span);
+    if (exception && Z_TYPE_P(exception_zv) <= IS_FALSE) {
         GC_ADDREF(exception);
-        span_fci->exception = exception;
+        ZVAL_OBJ(exception_zv, exception);
     }
 }
 
@@ -357,7 +357,7 @@ static bool dd_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     zval *this = dd_call_this(call);
 
     if (!callable || !span_data || !user_args) {
-        if (get_dd_trace_debug()) {
+        if (get_DD_TRACE_DEBUG()) {
             const char *fname = call->func ? ZSTR_VAL(call->func->common.function_name) : "{unknown}";
             ddtrace_log_errf("Tracing closure could not be run for %s() because it is in an invalid state", fname);
         }
@@ -410,14 +410,14 @@ static bool dd_call_sandboxed_tracing_closure(ddtrace_span_fci *span_fci, zval *
     zend_execute_data *call = span_fci->execute_data;
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
     ddtrace_span_t *span = &span_fci->span;
-    zval user_args;
+    zval user_args, span_zv;
 
+    ZVAL_OBJ(&span_zv, &span->std);
     void (*copy_args)(zval * args, zend_execute_data * call) =
         dispatch->options & DDTRACE_DISPATCH_PREHOOK ? dd_copy_prehook_args : dd_copy_posthook_args;
     copy_args(&user_args, call);
 
-    bool keep_span =
-        dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, EG(exception));
+    bool keep_span = dd_execute_tracing_closure(callable, &span_zv, call, &user_args, user_retval, EG(exception));
 
     zval_dtor(&user_args);
 
@@ -494,7 +494,7 @@ static ZEND_RESULT_CODE dd_do_hook_method_prehook(zend_execute_data *call, ddtra
 }
 
 static ddtrace_span_fci *dd_fcall_begin_tracing_hook(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+    ddtrace_span_fci *span_fci = ddtrace_init_span();
     span_fci->execute_data = call;
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci);
@@ -530,7 +530,7 @@ static ddtrace_span_fci *dd_create_duplicate_span(zend_execute_data *call, ddtra
      * We want any children to be inherited by the currently active span, not
      * this fake one, so we duplicate the span_id.
      */
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
+    ddtrace_span_fci *span_fci = ddtrace_init_span();
     span_fci->execute_data = call;
     span_fci->dispatch = dispatch;
 
@@ -613,21 +613,19 @@ void dd_set_fqn(zval *zv, zend_execute_data *ex) {
 
 static void dd_set_default_properties(void) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
-    if (span_fci == NULL || span_fci->span.span_data == NULL || span_fci->execute_data == NULL) {
+    if (span_fci == NULL || span_fci->execute_data == NULL) {
         return;
     }
 
     ddtrace_span_t *span = &span_fci->span;
     // SpanData::$name defaults to fully qualified called name
     // The other span property defaults are set at serialization time
-    zval *prop_name = ddtrace_spandata_property_name(span->span_data);
-    if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
+    zval *prop_name = ddtrace_spandata_property_name(span);
+    if (prop_name && Z_TYPE_P(prop_name) <= IS_NULL) {
         zval prop_name_default;
         ZVAL_NULL(&prop_name_default);
         dd_set_fqn(&prop_name_default, span_fci->execute_data);
         ZVAL_COPY_VALUE(prop_name, &prop_name_default);
-        zval_copy_ctor(prop_name);
-        zval_dtor(&prop_name_default);
     }
 }
 
@@ -719,9 +717,11 @@ static void dd_fcall_end_tracing_posthook(ddtrace_span_fci *span_fci, zval *user
 
     bool keep_span = dd_call_sandboxed_tracing_closure(span_fci, &dispatch->posthook, user_retval);
 
+    ddtrace_close_userland_spans_until(span_fci);  // because dropping / setting default properties happens on top span
+
     if (keep_span) {
         dd_set_default_properties();
-        ddtrace_close_span();
+        ddtrace_close_span(span_fci);
     } else {
         ddtrace_drop_top_open_span();
     }
@@ -745,8 +745,10 @@ static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_
     UNUSED(user_retval);
     dd_trace_stop_span_time(&span_fci->span);
 
+    ddtrace_close_userland_spans_until(span_fci);  // because setting default properties happens on top span
+
     dd_set_default_properties();
-    ddtrace_close_span();
+    ddtrace_close_span(span_fci);
 }
 
 static void dd_fcall_end_non_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_retval) {
@@ -763,11 +765,11 @@ static void (*dd_fcall_end[])(ddtrace_span_fci *span_fci, zval *user_retval) = {
 };
 
 static void dd_observer_end(zend_function *fbc, ddtrace_span_fci *span_fci, zval *user_retval) {
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci)) {
         ddtrace_dispatch_t *dispatch = span_fci->dispatch;
         uint16_t offset = DDTRACE_DISPATCH_JUMP_OFFSET(dispatch->options);
         (dd_fcall_end[offset])(span_fci, user_retval);
-    } else if (fbc && get_dd_trace_debug()) {
+    } else if (fbc && get_DD_TRACE_DEBUG()) {
         ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(fbc->common.function_name));
     }
 }
@@ -1047,11 +1049,19 @@ static int dd_handle_exception_handler(zend_execute_data *execute_data) {
 
 void ddtrace_close_all_open_spans(void) {
     ddtrace_span_fci *span_fci;
-    while ((span_fci = DDTRACE_G(open_spans_top))) {
-        zval retval;
-        ZVAL_NULL(&retval);
-        dd_observer_end(NULL, span_fci, &retval);
+    while ((span_fci = DDTRACE_G(open_spans_top)) && (span_fci->execute_data != NULL || span_fci->next)) {
+        if (span_fci->execute_data) {
+            zval retval;
+            ZVAL_NULL(&retval);
+            dd_observer_end(NULL, span_fci, &retval);
+        } else if (get_DD_AUTOFINISH_SPANS()) {
+            dd_trace_stop_span_time(&span_fci->span);
+            ddtrace_close_span(span_fci);
+        } else {
+            ddtrace_drop_top_open_span();
+        }
     }
+    DDTRACE_G(open_spans_top) = span_fci;
 }
 
 static int dd_exit_handler(zend_execute_data *execute_data) {
@@ -1120,7 +1130,7 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     ddtrace_dispatch_t *dispatch;
     void (*handler)(INTERNAL_FUNCTION_PARAMETERS) = EX(func)->internal_function.reserved[ddtrace_resource];
 
-    if (!get_dd_trace_sandbox_enabled() || !dd_should_trace_call(execute_data, &dispatch)) {
+    if (!dd_should_trace_call(execute_data, &dispatch)) {
         handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
     }

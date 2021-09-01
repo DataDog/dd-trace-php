@@ -6,7 +6,7 @@ use DDTrace\Time;
 use DDTrace\Data\SpanContext as SpanContextData;
 use DDTrace\Contracts\Span as SpanInterface;
 
-if (PHP_VERSION_ID < 80000) {
+if (PHP_VERSION_ID < 70000) {
     abstract class Span implements SpanInterface
     {
         /**

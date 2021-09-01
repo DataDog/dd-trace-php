@@ -29,7 +29,7 @@ final class Bootstrap
         self::$bootstrapped = true;
 
         $tracer = self::resetTracer();
-        if (PHP_VERSION_ID < 80000) {
+        if (PHP_VERSION_ID < 70000) {
             \DDTrace\hook_method('DDTrace\\Bootstrap', 'flushTracerShutdown', null, function () {
                 $tracer = GlobalTracer::get();
                 $scopeManager = $tracer->getScopeManager();
@@ -40,7 +40,7 @@ final class Bootstrap
             });
         }
 
-        if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') || PHP_VERSION_ID < 80000) {
+        if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') || PHP_VERSION_ID < 70000) {
             if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
                 self::initRootSpan($tracer);
             }
@@ -54,7 +54,7 @@ final class Bootstrap
                 */
                 register_shutdown_function(function () {
                     // We wrap the call in a closure to prevent OPcache from skipping the call.
-                    if (PHP_VERSION_ID < 80000) { // internal handling
+                    if (PHP_VERSION_ID < 70000) { // internal handling
                         Bootstrap::flushTracerShutdown();
                     } else {
                         $tracer = GlobalTracer::get();
@@ -149,7 +149,7 @@ final class Bootstrap
                 $span->setTag($tag, $value);
             }
 
-            if (PHP_VERSION_ID >= 80000) {
+            if (PHP_VERSION_ID >= 70000) {
                 foreach ($httpHeaders as $header => $value) {
                     if (stripos($header, Propagator::DEFAULT_ORIGIN_HEADER) === 0) {
                         add_global_tag(Tag::ORIGIN, $value);

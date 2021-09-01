@@ -111,13 +111,21 @@ final class Span implements OTSpan
      */
     public static function toDDSpan(OTSpan $otSpan)
     {
-        return new DDSpan(
-            $otSpan->getOperationName(),
-            SpanContext::toDDSpanContext($otSpan->getContext()),
-            // Since we don't have access to span tags, we use defaults
-            // for "service" and "resource".
-            PHP_SAPI,
-            $otSpan->getOperationName()
-        );
+        if (PHP_VERSION_ID >= 70000) {
+            $spanData = new SpanData();
+            $spanData->name = $otSpan->getOperationName();
+            $spanData->service = PHP_SAPI;
+            $spanData->resource = $otSpan->getOperationName();
+            return new DDSpan($spanData, SpanContext::toDDSpanContext($otSpan->getContext()));
+        } else {
+            return new DDSpan(
+                $otSpan->getOperationName(),
+                SpanContext::toDDSpanContext($otSpan->getContext()),
+                // Since we don't have access to span tags, we use defaults
+                // for "service" and "resource".
+                PHP_SAPI,
+                $otSpan->getOperationName()
+            );
+        }
     }
 }

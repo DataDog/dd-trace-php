@@ -3,7 +3,6 @@ Startup logging is enabled by default
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: run-tests crashes with shell commands on PHP 5'); ?>
 <?php include 'startup_logging_skipif.inc'; ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
 --FILE--
 <?php
 include_once 'startup_logging.inc';

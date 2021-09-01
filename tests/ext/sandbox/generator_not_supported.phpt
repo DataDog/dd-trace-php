@@ -50,3 +50,4 @@ Cannot instrument generators for PHP versions < 7.1
 2
 Done
 doSomething, Done
+No finished traces to be sent to the agent

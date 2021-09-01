@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "env_config.h"
 #include "ext/version.h"
 #include "random.h"
 
@@ -14,22 +13,30 @@ extern zend_class_entry *ddtrace_ce_fatal_error;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_fci ddtrace_span_fci;
+typedef struct ddtrace_span_t ddtrace_span_t;
 
-zval *ddtrace_spandata_property_name(zval *spandata);
-zval *ddtrace_spandata_property_resource(zval *spandata);
-zval *ddtrace_spandata_property_service(zval *spandata);
-zval *ddtrace_spandata_property_type(zval *spandata);
-zval *ddtrace_spandata_property_meta(zval *spandata);
-zval *ddtrace_spandata_property_metrics(zval *spandata);
+zval *ddtrace_spandata_property_name(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_resource(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_service(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_type(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_exception(ddtrace_span_t *span);
 
-BOOL_T ddtrace_tracer_is_limited(void);
+bool ddtrace_tracer_is_limited(void);
+// prepare the tracer state to start handling a new trace
+void dd_prepare_for_new_trace(void);
+
+typedef struct {
+    int type;
+    zend_string *message;
+} ddtrace_error_data;
 
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *auto_prepend_file;
     zend_bool disable;
     zend_bool disable_in_current_request;
-    char *request_init_hook;
     zend_bool request_init_hook_loaded;
     // When 'drop_all_spans' is set, traces have to be dropped and not sent to the serializer and the sender.
     zend_bool drop_all_spans;
@@ -38,8 +45,10 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *class_lookup;
     HashTable *function_lookup;
     zval additional_trace_meta; // IS_ARRAY
+    zend_array *additional_global_tags;
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
+    ddtrace_error_data active_error;
     dogstatsd_client dogstatsd_client;
     char *dogstatsd_host;
     char *dogstatsd_port;
@@ -52,6 +61,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
     int64_t compile_time_microseconds;
+    uint64_t distributed_parent_trace_id;
 
     char *cgroup_file;
 ZEND_END_MODULE_GLOBALS(ddtrace)

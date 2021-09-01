@@ -10,7 +10,6 @@
 
 #include "ddtrace.h"
 #include "engine_hooks.h"
-#include "env_config.h"
 #include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -24,17 +23,17 @@ int dd_execute_php_file(const char *filename) {
     zend_file_handle file_handle;
     zend_op_array *new_op_array;
     zval result;
-    int ret, rv = FALSE;
+    int ret, rv = false;
 
     ddtrace_error_handling eh_stream;
     // Using an EH_THROW here causes a non-recoverable zend_bailout()
     ddtrace_backup_error_handling(&eh_stream, EH_NORMAL);
     zend_bool _original_cg_multibyte = CG(multibyte);
-    CG(multibyte) = FALSE;
+    CG(multibyte) = false;
 
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
 
-    if (get_dd_trace_debug() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
+    if (get_DD_TRACE_DEBUG() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
         char *error;
         error = PG(last_error_message);
         ddtrace_log_errf("Error raised while opening request-init-hook stream: %s in %s on line %d", error,
@@ -68,7 +67,7 @@ int dd_execute_php_file(const char *filename) {
 
             zend_execute(new_op_array, &result);
 
-            if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+            if (get_DD_TRACE_DEBUG() && PG(last_error_message) && eh.message != PG(last_error_message)) {
                 char *error;
                 error = PG(last_error_message);
                 ddtrace_log_errf("Error raised in request init hook: %s in %s on line %d", error, PG(last_error_file),
@@ -81,7 +80,7 @@ int dd_execute_php_file(const char *filename) {
             efree(new_op_array);
             if (!EG(exception)) {
                 zval_ptr_dtor(&result);
-            } else if (get_dd_trace_debug()) {
+            } else if (get_DD_TRACE_DEBUG()) {
                 zend_object *ex = EG(exception);
 
                 const char *type = ex->ce->name->val;
@@ -89,7 +88,7 @@ int dd_execute_php_file(const char *filename) {
                 ddtrace_log_errf("%s thrown in request init hook: %s", type, ZSTR_VAL(msg));
             }
             ddtrace_maybe_clear_exception();
-            rv = TRUE;
+            rv = true;
         }
     } else {
         ddtrace_maybe_clear_exception();
@@ -115,20 +114,21 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file) {
 
 void dd_request_init_hook_rinit(void) {
     DDTRACE_G(auto_prepend_file) = PG(auto_prepend_file);
-    if (php_check_open_basedir_ex(DDTRACE_G(request_init_hook), 0) == -1) {
+    zend_string *hook_path = get_DD_TRACE_REQUEST_INIT_HOOK();
+    if (php_check_open_basedir_ex(ZSTR_VAL(hook_path), 0) == -1) {
         ddtrace_log_debugf("open_basedir restriction in effect; cannot open request init hook: '%s'",
-                           DDTRACE_G(request_init_hook));
+                           ZSTR_VAL(hook_path));
         return;
     }
 
     zval exists_flag;
-    php_stat(DDTRACE_G(request_init_hook), strlen(DDTRACE_G(request_init_hook)), FS_EXISTS, &exists_flag);
+    php_stat(ZSTR_VAL(hook_path), ZSTR_LEN(hook_path), FS_EXISTS, &exists_flag);
     if (Z_TYPE(exists_flag) == IS_FALSE) {
-        ddtrace_log_debugf("Cannot open request init hook; file does not exist: '%s'", DDTRACE_G(request_init_hook));
+        ddtrace_log_debugf("Cannot open request init hook; file does not exist: '%s'", ZSTR_VAL(hook_path));
         return;
     }
 
-    PG(auto_prepend_file) = DDTRACE_G(request_init_hook);
+    PG(auto_prepend_file) = ZSTR_VAL(hook_path);
     if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
         ddtrace_log_debugf("Backing up auto_prepend_file '%s'", DDTRACE_G(auto_prepend_file));
     }

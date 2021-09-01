@@ -44,55 +44,58 @@ void ddtrace_replace_internal_methods(ddtrace_string Class, size_t methods_len, 
     ddtrace_replace_internal_functions(function_table, methods_len, methods);
 }
 
-void ddtrace_internal_handlers_install(ddtrace_string traced_internal_functions) {
-    while (traced_internal_functions.len) {
-        size_t delimiter = ddtrace_string_find_char(traced_internal_functions, ',');
-        ddtrace_string segment = {
-            .ptr = traced_internal_functions.ptr,
-            .len = delimiter,
-        };
-
-        // let's look for a colon; signifies a method
-        size_t colon = ddtrace_string_find_char(segment, ':');
-        if (colon != delimiter) {
-            // We need at least another colon and one char after the colon for this to be well-formed
-            if (delimiter - colon >= 2 && segment.ptr[colon + 1] == ':') {
-                ddtrace_string Class = {
-                    .ptr = segment.ptr,
-                    .len = colon,
-                };
-                ddtrace_string method = {
-                    .ptr = segment.ptr + colon + 2,
-                    .len = delimiter - colon - 2,
-                };
-                ddtrace_replace_internal_methods(Class, 1, &method);
-            } else {
-                // todo: should we warn?
-            }
-        } else {
-            ddtrace_replace_internal_function(CG(function_table), segment);
-        }
-
-        char *ptr = traced_internal_functions.ptr;
-        // delimiter will either be a position of comma or the end of string; skip the comma
-        delimiter += ((delimiter == traced_internal_functions.len) ? 0 : 1);
-
-        traced_internal_functions.ptr = ptr + delimiter;
-        traced_internal_functions.len -= delimiter;
+void dd_install_handler(dd_zif_handler handler) {
+    zend_function *old_handler;
+    old_handler = zend_hash_str_find_ptr(CG(function_table), handler.name, handler.name_len);
+    if (old_handler != NULL) {
+        *handler.old_handler = old_handler->internal_function.handler;
+        old_handler->internal_function.handler = handler.new_handler;
     }
 }
 
+void ddtrace_internal_handlers_install(zend_array *traced_internal_functions) {
+    zend_string *function;
+    ZEND_HASH_FOREACH_STR_KEY(traced_internal_functions, function) {
+        function = zend_string_dup(function, 1);
+        zend_str_tolower(ZSTR_VAL(function), ZSTR_LEN(function));
+        // let's look for a colon; signifies a method
+        char *colon = strstr(ZSTR_VAL(function), "::");
+        if (colon) {
+            ddtrace_string Class = {
+                .ptr = ZSTR_VAL(function),
+                .len = colon - ZSTR_VAL(function),
+            };
+            ddtrace_string method = {
+                .ptr = colon + 2,
+                .len = ZSTR_LEN(function) - (colon - ZSTR_VAL(function) + 2),
+            };
+            ddtrace_replace_internal_methods(Class, 1, &method);
+        } else {
+            ddtrace_replace_internal_function(CG(function_table), (ddtrace_string){
+                                                                      .ptr = ZSTR_VAL(function),
+                                                                      .len = ZSTR_LEN(function),
+                                                                  });
+        }
+        zend_string_release(function);
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
 void ddtrace_curl_handlers_startup(void);
+void ddtrace_exception_handlers_startup(void);
 void ddtrace_memcached_handlers_startup(void);
 void ddtrace_mysqli_handlers_startup(void);
 void ddtrace_pcntl_handlers_startup(void);
 void ddtrace_pdo_handlers_startup(void);
 void ddtrace_phpredis_handlers_startup(void);
 
+void ddtrace_exception_handlers_shutdown(void);
 void ddtrace_mysqli_handlers_shutdown(void);
 void ddtrace_pdo_handlers_shutdown(void);
 
 void ddtrace_curl_handlers_rinit(void);
+void ddtrace_exception_handlers_rinit(void);
+
 void ddtrace_curl_handlers_rshutdown(void);
 
 // Internal handlers use ddtrace_resource and only implement the sandbox API.
@@ -101,15 +104,12 @@ void ddtrace_internal_handlers_startup(void) {
     ddtrace_curl_handlers_startup();
     // pcntl handlers have to run even if tracing of pcntl extension is not enabled.
     ddtrace_pcntl_handlers_startup();
+    ddtrace_exception_handlers_startup();
 
     // but the rest should be guarded
     if (ddtrace_resource == -1) {
         ddtrace_log_debug(
             "Unable to get a zend_get_resource_handle(); tracing of most internal functions is disabled.");
-        return;
-    }
-
-    if (!get_dd_trace_sandbox_enabled()) {
         return;
     }
 
@@ -119,28 +119,22 @@ void ddtrace_internal_handlers_startup(void) {
     ddtrace_phpredis_handlers_startup();
 
     // set up handlers for user-specified internal functions
-    ddtrace_string traced_internal_functions = ddtrace_string_getenv(ZEND_STRL("DD_TRACE_TRACED_INTERNAL_FUNCTIONS"));
-    if (traced_internal_functions.len) {
-        zend_str_tolower(traced_internal_functions.ptr, traced_internal_functions.len);
-        ddtrace_internal_handlers_install(traced_internal_functions);
-    }
-    if (traced_internal_functions.ptr) {
-        efree(traced_internal_functions.ptr);
-    }
+    // we directly access the backing storage instead of get_DD_INTEGRATIONS_DISABLED, because the latter is not
+    // available during MINIT
+    ddtrace_internal_handlers_install(get_global_DD_TRACE_TRACED_INTERNAL_FUNCTIONS());
 
     // These don't have a better place to go (yet, anyway)
-    ddtrace_string handlers[] = {
-        DDTRACE_STRING_LITERAL("header"),
-        DDTRACE_STRING_LITERAL("http_response_code"),
-    };
-    size_t handlers_len = sizeof handlers / sizeof handlers[0];
-    ddtrace_replace_internal_functions(CG(function_table), handlers_len, handlers);
 }
 
 void ddtrace_internal_handlers_shutdown(void) {
     ddtrace_mysqli_handlers_shutdown();
     ddtrace_pdo_handlers_shutdown();
+    ddtrace_exception_handlers_shutdown();
 }
 
-void ddtrace_internal_handlers_rinit(void) { ddtrace_curl_handlers_rinit(); }
+void ddtrace_internal_handlers_rinit(void) {
+    ddtrace_curl_handlers_rinit();
+    ddtrace_exception_handlers_rinit();
+}
+
 void ddtrace_internal_handlers_rshutdown(void) { ddtrace_curl_handlers_rshutdown(); }

@@ -135,9 +135,9 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                     ])
                     ->setError(
-                        PHP_VERSION_ID >= 80000 ? 'Exception' : 'Internal Server Error',
-                        PHP_VERSION_ID >= 80000 ? 'An exception occurred' : null,
-                        PHP_VERSION_ID >= 80000
+                        PHP_VERSION_ID >= 70000 ? 'Exception' : 'Internal Server Error',
+                        PHP_VERSION_ID >= 70000 ? 'An exception occurred' : null,
+                        PHP_VERSION_ID >= 70000
                     )
                     ->withChildren([
                         SpanAssertion::build(

@@ -1,7 +1,7 @@
 --TEST--
 Errors from userland will be flagged on span
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Test does not work with internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

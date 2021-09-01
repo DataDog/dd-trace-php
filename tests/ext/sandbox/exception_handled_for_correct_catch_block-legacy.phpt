@@ -1,7 +1,7 @@
 --TEST--
 Exceptions are handled for the correct catch block
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: legacy test for old exception handling'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: legacy test for old exception handling'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

@@ -106,7 +106,7 @@ final class Tracer implements TracerInterface
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
         $encoder = new MessagePack();
-        $this->transport = $transport ?: (PHP_VERSION_ID >= 80000 ? new Internal() : new Http($encoder));
+        $this->transport = $transport ?: (PHP_VERSION_ID >= 70000 ? new Internal() : new Http($encoder));
         $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
             Format::TEXT_MAP => $textMapPropagator,
@@ -115,7 +115,7 @@ final class Tracer implements TracerInterface
         ];
         $this->config = array_merge($this->config, $config);
         $this->reset();
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             foreach ($this->config['global_tags'] as $key => $val) {
                 // @phpstan-ignore-next-line
                 add_global_tag($key, $val);
@@ -172,18 +172,18 @@ final class Tracer implements TracerInterface
 
         $reference = $this->findParent($options->getReferences());
 
+        // avoid rounding errors, we only care about microsecond resolution here
+        $roundedStartTime = ($options->getStartTime() + 0.2) / 1000000;
         if ($reference === null) {
-            $context = SpanContext::createAsRoot();
+            $context = SpanContext::createAsRoot([], $roundedStartTime);
         } else {
-            // avoid rounding errors, we only care about microsecond resolution here
-            $roundedStartTime = ($options->getStartTime() + 0.2) / 1000000;
             $context = SpanContext::createAsChild($reference->getContext(), $roundedStartTime);
         }
 
         $resource = array_key_exists('resource', $this->config) ? (string) $this->config['resource'] : null;
         $service = $this->config['service_name'];
 
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             // @phpstan-ignore-next-line
             $internalSpan = active_span();
             $internalSpan->name = (string) $operationName;
@@ -280,8 +280,7 @@ final class Tracer implements TracerInterface
         }
         if (!$parent = $activeSpan) {
             // Handle the case where the trace root was created outside of userland control
-            // @phpstan-ignore-next-line
-            if (PHP_VERSION_ID >= 80000 && !\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') && active_span()) {
+            if (PHP_VERSION_ID >= 70000 && !\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') && active_span()) {
                 $trace_id = trace_id();
                 $parent = new SpanContext($trace_id, $trace_id);
             }
@@ -295,7 +294,7 @@ final class Tracer implements TracerInterface
             $span->setTag(Tag::SERVICE_NAME, $parentService);
         }
 
-        $shouldFinish = $options->shouldFinishSpanOnClose() && (PHP_VERSION_ID < 80000 || $span->getParentId() != 0
+        $shouldFinish = $options->shouldFinishSpanOnClose() && (PHP_VERSION_ID < 70000 || $span->getParentId() != 0
                 || !\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN'));
         return $this->scopeManager->activate($span, $shouldFinish);
     }
@@ -392,7 +391,7 @@ final class Tracer implements TracerInterface
      */
     public function getTracesAsArray()
     {
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             $trace = \dd_trace_serialize_closed_spans();
             return $trace ? [$trace] : $trace;
         }
@@ -567,8 +566,7 @@ final class Tracer implements TracerInterface
         $rootScope = $this->getRootScope();
 
         if (empty($rootScope)) {
-            // @phpstan-ignore-next-line
-            if (PHP_VERSION_ID >= 80000 && $internalRootSpan = root_span()) {
+            if (PHP_VERSION_ID >= 70000 && $internalRootSpan = root_span()) {
                 // This will not set the distributed tracing activation context properly: do with internal migration
                 $traceId = trace_id();
                 // @phpstan-ignore-next-line

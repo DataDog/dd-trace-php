@@ -6,9 +6,11 @@
 #include <Zend/zend_types.h>
 #include <inttypes.h>
 #include <php.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 // comment to prevent clang from reordering these headers
+#include <SAPI.h>
 #include <exceptions/exceptions.h>
 #include <properties/properties.h>
 
@@ -160,11 +162,43 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
 
 typedef ZEND_RESULT_CODE (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_string value);
 
+#if PHP_VERSION_ID < 70100
+#define ZEND_STR_LINE "line"
+#define ZEND_STR_FILE "file"
+#define ZEND_STR_PREVIOUS "previous"
+#endif
+
 static ZEND_RESULT_CODE dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag) {
-    ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
     zend_string *msg = zai_exception_message(exception);
-    ddtrace_string value = {ZSTR_VAL(msg), ZSTR_LEN(msg)};
-    return add_tag(context, key, value);
+    zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
+    zend_string *file = zval_get_string(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
+
+    char *error_text, *status_line;
+    zend_bool caught = SG(sapi_headers).http_response_code >= 500;
+
+    if (caught) {
+        if (SG(sapi_headers).http_status_line) {
+            asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line);
+        } else {
+            asprintf(&status_line, " (%d)", SG(sapi_headers).http_response_code);
+        }
+    }
+
+    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:" ZEND_LONG_FMT, caught ? "Caught" : "Uncaught",
+                             ZSTR_VAL(exception->ce->name), caught ? status_line : "", ZSTR_LEN(msg) > 0 ? ": " : "",
+                             (int)ZSTR_LEN(msg), ZSTR_VAL(msg), ZSTR_VAL(file), line);
+
+    if (caught) {
+        free(status_line);
+    }
+
+    ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
+    ddtrace_string value = {error_text, error_len};
+    ZEND_RESULT_CODE result = add_tag(context, key, value);
+
+    zend_string_release(file);
+    free(error_text);
+    return result;
 }
 
 static int dd_exception_to_error_type(zend_object *exception, void *context,
@@ -208,20 +242,50 @@ static int dd_exception_to_error_type(zend_object *exception, void *context,
     return add_tag(context, key, value);
 }
 
-static ZEND_RESULT_CODE dd_exception_to_error_stack(zend_object *exception, void *context, add_tag_fn_t add_tag) {
-    zend_string *trace_string = zai_get_trace_without_args_from_exception(exception);
+static ZEND_RESULT_CODE dd_exception_trace_to_error_stack(zend_string *trace, void *context, add_tag_fn_t add_tag) {
     ddtrace_string key = DDTRACE_STRING_LITERAL("error.stack");
-    ddtrace_string value = {ZSTR_VAL(trace_string), ZSTR_LEN(trace_string)};
+    ddtrace_string value = {ZSTR_VAL(trace), ZSTR_LEN(trace)};
     ZEND_RESULT_CODE result = add_tag(context, key, value);
-    zend_string_release(trace_string);
+    zend_string_release(trace);
     return result;
 }
 
-int ddtrace_exception_to_meta(zend_object *exception, void *context,
-                              int (*add_meta)(void *context, ddtrace_string key, ddtrace_string value)) {
+ZEND_RESULT_CODE ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta) {
+    zend_object *exception_root = exception;
+    zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
+
+    zval *previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
+           instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
+        zend_string *trace_string = zai_get_trace_without_args_from_exception(Z_OBJ_P(previous));
+
+        zend_string *msg = zai_exception_message(exception);
+        zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
+        zend_string *file = zval_get_string(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
+
+        zend_string *complete_trace =
+            zend_strpprintf(0, "%s\n\nNext %s%s%s in %s:" ZEND_LONG_FMT "\nStack trace:\n%s", ZSTR_VAL(trace_string),
+                            ZSTR_VAL(exception->ce->name), ZSTR_LEN(msg) ? ": " : "", ZSTR_VAL(msg), ZSTR_VAL(file),
+                            line, ZSTR_VAL(full_trace));
+        zend_string_release(trace_string);
+        zend_string_release(full_trace);
+        zend_string_release(file);
+        full_trace = complete_trace;
+
+        Z_PROTECT_RECURSION_P(previous);
+        exception = Z_OBJ_P(previous);
+        previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
+    }
+
+    previous = ZAI_EXCEPTION_PROPERTY(exception_root, ZEND_STR_PREVIOUS);
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous)) {
+        Z_UNPROTECT_RECURSION_P(previous);
+        previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
+    }
+
     bool success = dd_exception_to_error_msg(exception, context, add_meta) == SUCCESS &&
                    dd_exception_to_error_type(exception, context, add_meta) == SUCCESS &&
-                   dd_exception_to_error_stack(exception, context, add_meta) == SUCCESS;
+                   dd_exception_trace_to_error_stack(full_trace, context, add_meta) == SUCCESS;
     return success ? SUCCESS : FAILURE;
 }
 
@@ -263,102 +327,6 @@ static zend_string *dd_fatal_error_stack(void) {
     return error_stack;
 }
 
-static zend_string *dd_vprintf_zstr(size_t len, const char *format, va_list args) {
-    va_list args2;
-
-    zend_string *msg = zend_string_alloc(len, 0);
-    ZSTR_LEN(msg) = len;
-
-    va_copy(args2, args);
-    int written = vsnprintf(ZSTR_VAL(msg), len + 1, format, args2);
-    va_end(args2);
-
-    if (written < 0) {
-        zend_string_release(msg);
-        return NULL;
-    }
-
-    ZSTR_VAL(msg)[len] = '\0';
-    return msg;
-}
-
-// Returns NULL in error conditions
-static zend_string *dd_fatal_error_msg(const char *format, va_list args) {
-    va_list args2;
-
-    /* In PHP 7 an uncaught exception results in a fatal error. The error
-     * message includes the call stack and its arguments, which is a vector for
-     * information disclosure. We need to avoid this.
-     *
-     * We capture the first line of the error which won't include arguments.
-     * The length of the buffer here is hopefully large enough to capture the
-     * first line so we can avoid allocating the full string, as these can be
-     * quite large and we're only interested in the first line.
-     */
-    const char uncaught[] = "Uncaught ";
-    char buffer[256];
-
-    va_copy(args2, args);
-    int prefix = vsnprintf(buffer, sizeof buffer, format, args2);
-    va_end(args2);
-
-    if (prefix < 0) {
-        return NULL;
-    }
-
-    /* The -1 is to avoid the null terminator which is included in literals and
-     * will not be present in the rendered error message at that position.
-     */
-    size_t uncaught_len = sizeof uncaught - 1;
-    if ((unsigned)prefix >= uncaught_len && memcmp(buffer, uncaught, uncaught_len) == 0) {
-        char *newline = memchr(buffer, '\n', sizeof buffer);
-        if (newline) {
-            *newline = '\0';
-            size_t linelen = newline - buffer;
-
-            // +1 for null terminator
-            zend_string *msg = zend_string_alloc(linelen + 1, 0);
-            memcpy(ZSTR_VAL(msg), buffer, linelen + 1);  // copy NULL too
-            ZSTR_LEN(msg) = linelen;
-
-            return msg;
-        } else {
-            // our buffer wasn't big enough; we have to render the full message
-            zend_string *msg = dd_vprintf_zstr(prefix, format, args);
-            if (!msg) {
-                return NULL;
-            }
-
-            newline = memchr(ZSTR_VAL(msg), '\n', sizeof buffer);
-            if (UNEXPECTED(!newline)) {
-                // This is suspect; there is always a newline in these messages
-                zend_string_release(msg);
-                return NULL;
-            }
-
-            size_t linepos = newline - ZSTR_VAL(msg);
-            ZSTR_LEN(msg) = linepos;
-            *newline = '\0';
-            return msg;
-        }
-    }
-
-    zend_string *msg = dd_vprintf_zstr(prefix, format, args);
-    if (!msg) {
-        return NULL;
-    }
-
-    return msg;
-}
-
-static dd_error_info dd_fatal_error(int type, const char *format, va_list args) {
-    return (dd_error_info){
-        .type = dd_error_type(type),
-        .msg = dd_fatal_error_msg(format, args),
-        .stack = dd_fatal_error_stack(),
-    };
-}
-
 static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
     HashTable *ht = Z_ARR_P(meta);
 
@@ -389,9 +357,11 @@ static int dd_add_meta_array(void *context, ddtrace_string key, ddtrace_string v
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     ddtrace_span_t *span = &span_fci->span;
-    zval meta_zv, *meta = ddtrace_spandata_property_meta(span->span_data);
+    bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
+    zval meta_zv, *meta = ddtrace_spandata_property_meta(span);
 
     array_init(&meta_zv);
+    ZVAL_DEREF(meta);
     if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
         zend_string *str_key;
         zval *orig_val, val_as_string;
@@ -405,20 +375,49 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     }
     meta = &meta_zv;
 
-    if (span_fci->exception) {
-        ddtrace_exception_to_meta(span_fci->exception, meta, dd_add_meta_array);
+    zval *exception_zv = ddtrace_spandata_property_exception(&span_fci->span);
+    if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
+        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array);
     }
 
-    zval *error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg"));
+    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg")) ||
+                      ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
     if (error) {
         add_assoc_long(el, "error", 1);
     }
 
-    if (span->parent_id == 0) {
-        char pid[MAX_LENGTH_OF_LONG + 1];
-        snprintf(pid, sizeof(pid), "%ld", (long)span->pid);
-        add_assoc_string(meta, "system.pid", pid);
+    if (top_level_span) {
+        add_assoc_str(meta, "system.pid", zend_strpprintf(0, "%ld", (long)getpid()));
     }
+
+    zend_string *version = get_DD_VERSION();
+    if (ZSTR_LEN(version) > 0) {  // non-empty
+        add_assoc_str(meta, "version", zend_string_copy(version));
+    }
+
+    zend_string *env = get_DD_ENV();
+    if (ZSTR_LEN(env) > 0) {  // non-empty
+        add_assoc_str(meta, "env", zend_string_copy(env));
+    }
+
+    zend_array *global_tags = get_DD_TAGS();
+    zend_string *global_key;
+    zval *global_val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
+        if (zend_hash_add(Z_ARR_P(meta), global_key, global_val)) {
+            Z_TRY_ADDREF_P(global_val);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    zend_string *tag_key;
+    zval *tag_value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(DDTRACE_G(additional_global_tags), tag_key, tag_value) {
+        if (zend_hash_add(Z_ARR_P(meta), tag_key, tag_value)) {
+            Z_TRY_ADDREF_P(tag_value);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);
@@ -436,6 +435,7 @@ static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value
 
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     ddtrace_span_t *span = &span_fci->span;
+    bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     zval *el;
     zval zv;
     el = &zv;
@@ -458,40 +458,50 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     add_assoc_long(el, "duration", span->duration);
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
-    zval *prop_name = ddtrace_spandata_property_name(span->span_data);
-    zval prop_name_as_string;
-    if (Z_TYPE_P(prop_name) != IS_NULL) {
+    zval *prop_name = ddtrace_spandata_property_name(span);
+    ZVAL_DEREF(prop_name);
+    if (Z_TYPE_P(prop_name) > IS_NULL) {
+        zval prop_name_as_string;
         ddtrace_convert_to_string(&prop_name_as_string, prop_name);
-        _add_assoc_zval_copy(el, "name", &prop_name_as_string);
+        prop_name = zend_hash_str_update(Z_ARR_P(el), "name", sizeof("name") - 1, &prop_name_as_string);
     }
 
     // SpanData::$resource defaults to SpanData::$name
-    zval *prop_resource = ddtrace_spandata_property_resource(span->span_data);
-    if (Z_TYPE_P(prop_resource) != IS_NULL) {
+    zval *prop_resource = ddtrace_spandata_property_resource(span);
+    ZVAL_DEREF(prop_resource);
+    if (Z_TYPE_P(prop_resource) > IS_FALSE && (Z_TYPE_P(prop_resource) != IS_STRING || Z_STRLEN_P(prop_resource) > 0)) {
         _dd_add_assoc_zval_as_string(el, "resource", prop_resource);
-    } else {
-        _add_assoc_zval_copy(el, "resource", &prop_name_as_string);
-    }
-
-    if (Z_TYPE_P(prop_name) != IS_NULL) {
-        zval_dtor(&prop_name_as_string);
+    } else if (Z_TYPE_P(prop_name) > IS_NULL) {
+        _add_assoc_zval_copy(el, "resource", prop_name);
     }
 
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
-    zval *prop_service = ddtrace_spandata_property_service(span->span_data);
-    if (Z_TYPE_P(prop_service) != IS_NULL) {
-        _dd_add_assoc_zval_as_string(el, "service", prop_service);
+    zval *prop_service = ddtrace_spandata_property_service(span);
+    ZVAL_DEREF(prop_service);
+    if (Z_TYPE_P(prop_service) > IS_NULL) {
+        zval prop_service_as_string;
+        ddtrace_convert_to_string(&prop_service_as_string, prop_service);
+
+        zend_array *service_mappings = get_DD_SERVICE_MAPPING();
+        zval *new_name = zend_hash_find(service_mappings, Z_STR(prop_service_as_string));
+        if (new_name) {
+            zend_string_release(Z_STR(prop_service_as_string));
+            ZVAL_COPY(&prop_service_as_string, new_name);
+        }
+
+        add_assoc_zval(el, "service", &prop_service_as_string);
     }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
-    zval *prop_type = ddtrace_spandata_property_type(span->span_data);
-    if (Z_TYPE_P(prop_type) != IS_NULL) {
+    zval *prop_type = ddtrace_spandata_property_type(span);
+    ZVAL_DEREF(prop_type);
+    if (Z_TYPE_P(prop_type) > IS_NULL) {
         _dd_add_assoc_zval_as_string(el, "type", prop_type);
     }
 
     _serialize_meta(el, span_fci);
 
-    zval *metrics = ddtrace_spandata_property_metrics(span->span_data);
+    zval *metrics = ddtrace_spandata_property_metrics(span);
     ZVAL_DEREF(metrics);
     if (Z_TYPE_P(metrics) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(metrics))) {
         zval metrics_zv;
@@ -504,13 +514,66 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
             }
         }
         ZEND_HASH_FOREACH_END();
-        add_assoc_zval(el, "metrics", &metrics_zv);
+        metrics = zend_hash_str_add_new(Z_ARR_P(el), "metrics", sizeof("metrics") - 1, &metrics_zv);
+    } else {
+        metrics = NULL;
+    }
+
+    if (top_level_span && get_DD_TRACE_MEASURE_COMPILE_TIME()) {
+        if (!metrics) {
+            zval metrics_array;
+            array_init(&metrics_array);
+            metrics = zend_hash_str_add_new(Z_ARR_P(el), "metrics", sizeof("metrics") - 1, &metrics_array);
+        }
+        add_assoc_double(metrics, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
     }
 
     add_next_index_zval(array, el);
 }
 
+static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
+    const char uncaught[] = "Uncaught ";
+    const char *data = ZSTR_VAL(msg);
+    size_t uncaught_len = sizeof uncaught - 1;  // ignore the null terminator
+    size_t size = ZSTR_LEN(msg);
+    if (size > uncaught_len && memcmp(data, uncaught, uncaught_len) == 0) {
+        char *newline = memchr(data, '\n', size);
+        if (newline) {
+            size_t offset = newline - data;
+            msg = zend_string_truncate(msg, offset, 0);
+            ZSTR_VAL(msg)[offset] = 0;
+        }
+    }
+    return msg;
+}
+
+void ddtrace_save_active_error_to_metadata(void) {
+    if (!DDTRACE_G(active_error).type) {
+        return;
+    }
+
+    dd_error_info error = {
+        .type = dd_error_type(DDTRACE_G(active_error).type),
+        .msg = zend_string_copy(DDTRACE_G(active_error).message),
+        .stack = dd_fatal_error_stack(),
+    };
+    for (ddtrace_span_fci *span = DDTRACE_G(open_spans_top); span; span = span->next) {
+        if (Z_TYPE_P(ddtrace_spandata_property_exception(&span->span)) == IS_OBJECT) {  // exceptions take priority
+            continue;
+        }
+
+        zval *meta = ddtrace_spandata_property_meta(&span->span);
+        if (Z_TYPE_P(meta) != IS_ARRAY) {
+            zval_ptr_dtor(meta);
+            array_init_size(meta, ddtrace_num_error_tags);
+        }
+        dd_fatal_error_to_meta(meta, error);
+    }
+}
+
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
+    UNUSED(error_filename, error_lineno);
+
     /* We need the error handling to place nicely with the sandbox. The best
      * idea so far is to execute fatal error handling code iff the error handling
      * mode is set to EH_NORMAL. If it's something else, such as EH_SUPPRESS or
@@ -524,19 +587,22 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
          * robust way of detecting this, but I'm not sure how yet.
          */
         if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
-            dd_error_info error = dd_fatal_error(type, format, args);
+            va_list arg_copy;
+            va_copy(arg_copy, args);
+            dd_error_info error = {
+                .type = dd_error_type(type),
+                .msg = dd_truncate_uncaught_exception(zend_vstrpprintf(0, format, arg_copy)),
+                .stack = dd_fatal_error_stack(),
+            };
+            va_end(arg_copy);
             dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
             ddtrace_span_fci *span;
             for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
-                if (span->exception || !span->span.span_data) {
+                if (Z_TYPE_P(ddtrace_spandata_property_exception(&span->span)) > IS_FALSE) {
                     continue;
                 }
 
-                zval *meta = ddtrace_spandata_property_meta(span->span.span_data);
-                if (!meta) {
-                    continue;
-                }
-
+                zval *meta = ddtrace_spandata_property_meta(&span->span);
                 if (Z_TYPE_P(meta) != IS_ARRAY) {
                     zval_ptr_dtor(meta);
                     array_init_size(meta, ddtrace_num_error_tags);

@@ -1,7 +1,7 @@
 --TEST--
 Startup logging config from JSON fetched at runtime
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_ENV=my-env
 DD_SERVICE=my-service

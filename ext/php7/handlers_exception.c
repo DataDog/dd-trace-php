@@ -90,6 +90,13 @@ static void dd_check_exception_in_header(int old_response_code) {
                 }
 
                 // Now iterate the individual catch blocks to find which one we are in and extract the CV
+#if PHP_VERSION_ID < 70300
+                while (catch_op->result.num == 0 && catch_op->extended_value < op_num) {
+                    catch_op = &ex->func->op_array.opcodes[catch_op->extended_value];
+                }
+
+                zval *exception = ZEND_CALL_VAR(ex, catch_op->op2.var);
+#else
                 while (!(catch_op->extended_value & ZEND_LAST_CATCH) && catch_op->op2.opline_num < op_num) {
                     catch_op = &ex->func->op_array.opcodes[catch_op->op2.opline_num];
                 }
@@ -99,6 +106,8 @@ static void dd_check_exception_in_header(int old_response_code) {
                 }
 
                 zval *exception = ZEND_CALL_VAR(ex, catch_op->result.var);
+#endif
+
                 ZVAL_DEREF(exception);
                 if (Z_TYPE_P(exception) == IS_OBJECT &&
                     instanceof_function(Z_OBJ_P(exception)->ce, zend_ce_throwable)) {
@@ -124,13 +133,18 @@ static PHP_FUNCTION(ddtrace_http_response_code) {
     dd_check_exception_in_header(old_response_code);
 }
 
+#if PHP_VERSION_ID < 70300
+#define GC_IMMUTABLE (1 << 5)
+#define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
+#endif
+
 // inject ourselves into a set_exception_handler
 static void dd_wrap_exception_or_error_handler(zval *target, zend_bool is_error_handler) {
     zval wrapper;
     object_init_ex(&wrapper, &dd_exception_or_error_handler_ce);
     if (is_error_handler) {
         // this does not participate in GC, so fine to mark it that way, to distinguish from exception handler
-        GC_ADD_FLAGS(Z_OBJ(wrapper), GC_NOT_COLLECTABLE);
+        GC_ADD_FLAGS(Z_OBJ(wrapper), GC_IMMUTABLE);
     }
     Z_OBJ(wrapper)->handlers = &dd_exception_or_error_handler_handlers;
     ZVAL_COPY_VALUE(dd_exception_or_error_handler_handler(Z_OBJ(wrapper)), target);
@@ -175,39 +189,50 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_exception_or_error_handler, 0, 0, 1)
 ZEND_ARG_INFO(0, exception)
 ZEND_END_ARG_INFO()
 
+#if PHP_VERSION_ID < 70100
+#define ZEND_STR_PREVIOUS "previous"
+#endif
+
+#if PHP_VERSION_ID < 70200 && !defined(__clang__)
+// zpp API is not safe by itself, but our code is safe here.
+#pragma GCC diagnostic ignored "-Wclobbered"
+#endif
 static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
     volatile zend_bool has_bailout = false;
-    zend_bool is_error_handler = (GC_FLAGS(Z_OBJ_P(ZEND_THIS)) & GC_NOT_COLLECTABLE) != 0;
-    zval *handler = dd_exception_or_error_handler_handler(Z_OBJ_P(ZEND_THIS));
+    zend_bool is_error_handler = (GC_FLAGS(Z_OBJ_P(getThis())) & GC_IMMUTABLE) != 0;
+    zval *handler = dd_exception_or_error_handler_handler(Z_OBJ_P(getThis()));
 
     if (is_error_handler) {
         zend_long type;
         zend_string *message;
         zval *error_filename;
         zend_long error_lineno;
+        zval *symbol_table;
 
-        ZEND_PARSE_PARAMETERS_START(4, 4)
+        ZEND_PARSE_PARAMETERS_START(5, 5)
         Z_PARAM_LONG(type)
         Z_PARAM_STR(message)
         Z_PARAM_ZVAL(error_filename)  // may be null
         Z_PARAM_LONG(error_lineno)
+        Z_PARAM_ZVAL(symbol_table)  // may be null
         ZEND_PARSE_PARAMETERS_END();
 
         DDTRACE_G(active_error).type = (int)type;
         DDTRACE_G(active_error).message = message;
 
         if (!Z_ISUNDEF_P(handler)) {
-            zval params[4];
+            zval params[5];
             ZVAL_LONG(&params[0], type);
             ZVAL_STR(&params[1], message);
             ZVAL_COPY_VALUE(&params[2], error_filename);
             ZVAL_LONG(&params[3], error_lineno);
+            ZVAL_COPY_VALUE(&params[4], symbol_table);
 
             zend_try {
                 // remove ourselves from the stacktrace
                 EG(current_execute_data) = execute_data->prev_execute_data;
                 // this calls into PHP, but without sandbox, as we do not want to interfere with normal operation
-                call_user_function(CG(function_table), NULL, handler, return_value, 4, params);
+                call_user_function(CG(function_table), NULL, handler, return_value, 5, params);
             }
             zend_catch { has_bailout = true; }
             zend_end_try();
@@ -216,13 +241,16 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
         DDTRACE_G(active_error).type = 0;
     } else {
         ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-        zend_object *exception;
+        zend_object *volatile exception;
         zval *volatile span_exception;
         volatile zval old_exception = {0};
+        zval *exception_zv;
 
         ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_OBJ(exception)
+        Z_PARAM_OBJECT(exception_zv)
         ZEND_PARSE_PARAMETERS_END();
+
+        exception = Z_OBJ_P(exception_zv);
 
         RETVAL_NULL();
 
@@ -230,14 +258,27 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
         if (root_span) {
             span_exception = ddtrace_spandata_property_exception(&root_span->span);
             ZVAL_COPY_VALUE((zval *)&old_exception, span_exception);
-            ZVAL_OBJ_COPY(span_exception, exception);
+            GC_ADDREF(exception);
+            ZVAL_OBJ(span_exception, exception);
         }
 
         // Evaluate whether we shall start some span here to show the exception handler
 
         zend_try {
             if (Z_ISUNDEF_P(handler)) {
-                zend_throw_exception_internal(exception);
+                // Due to a bug in PHP 7 parse and compiler errors thrown in exception handlers are not properly handled
+                // and emit an additional "Fatal error: Exception thrown without a stack frame in Unknown on line 0"
+                // Work around by emitting the error ourselves instead of rethrowing.
+                if (Z_OBJCE_P(exception_zv) == zend_ce_parse_error
+#if PHP_VERSION_ID >= 70300
+                    || Z_OBJCE_P(exception_zv) == zend_ce_compile_error
+#endif
+                ) {
+                    GC_ADDREF(exception);
+                    zend_exception_error(exception, E_ERROR);
+                } else {
+                    zend_throw_exception_internal(exception_zv);
+                }
             } else {
                 zval params[1];
                 ZVAL_OBJ(&params[0], exception);
@@ -265,7 +306,7 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
             }
 
             if (Z_TYPE_P(previous) > IS_FALSE) {
-                // okay, let's not touch this, there's a cycle (or something weird)
+                // okay, let's not touch this, there's a cycle
                 GC_DELREF(exception);
                 ZVAL_COPY_VALUE(span_exception, (zval *)&old_exception);
             } else {
@@ -285,19 +326,18 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
     }
 }
 
-static int dd_exception_handler_get_closure(zend_object *obj, zend_class_entry **ce_ptr, zend_function **fptr_ptr,
-                                            zend_object **obj_ptr, zend_bool check_only) {
-    UNUSED(check_only);
+static int dd_exception_handler_get_closure(zval *obj, zend_class_entry **ce_ptr, zend_function **fptr_ptr,
+                                            zend_object **obj_ptr) {
     *fptr_ptr = (zend_function *)&ddtrace_exception_or_error_handler;
     *ce_ptr = &dd_exception_or_error_handler_ce;
-    *obj_ptr = obj;
+    *obj_ptr = Z_OBJ_P(obj);
     return SUCCESS;
 }
 
 void ddtrace_exception_handlers_startup(void) {
     ddtrace_exception_or_error_handler = (zend_internal_function){
         .type = ZEND_INTERNAL_FUNCTION,
-        .function_name = zend_string_init_interned(ZEND_STRL("ddtrace_exception_handler"), 1),
+        .function_name = zend_new_interned_string(zend_string_init(ZEND_STRL("ddtrace_exception_handler"), 1)),
         .num_args = 1,
         .required_num_args = 1,
         .arg_info = (zend_internal_arg_info *)(arginfo_ddtrace_exception_or_error_handler + 1),

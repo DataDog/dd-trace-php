@@ -106,7 +106,7 @@ trait SpanAssertionTrait
                 foreach ($splitByWildcard as $wildcardFragment) {
                     $this->assertNotSame(
                         false,
-                        \strpos($stackLines[$lineIndex], $wildcardFragment),
+                        $stackLines[$lineIndex] == "" ?: \strpos($stackLines[$lineIndex], $wildcardFragment),
                         \sprintf(
                             'Line "%s" of group %d does not match "%s"',
                             $stackLines[$lineIndex],

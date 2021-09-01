@@ -39,10 +39,6 @@ final class LongRunningScriptTest extends CLITestCase
             return;
         }
 
-        if (PHP_VERSION_ID < 80000) {
-            $this->markTestSkipped('Requires internal spans');
-        }
-
         $this->script = 'long_running_script_with_trace_function.php';
         $traces = $this->getTracesFromCommand('', [
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',

@@ -6,7 +6,7 @@ include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
 if (!extension_loaded('curl')) die('skip: curl extension required');
 ?>
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Test does not work with internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=false
 DD_TRACE_AUTO_FLUSH_ENABLED=true

@@ -41,7 +41,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
         for ($i = 0; $i < self::REPETITIONS; $i++) {
             $context = new SpanContext('', dd_trace_generate_id());
-            $span = PHP_VERSION_ID < 80000 ? new Span('', $context, '', '') : new Span(new SpanData(), $context);
+            $span = PHP_VERSION_ID < 70000 ? new Span('', $context, '', '') : new Span(new SpanData(), $context);
             $output += $sampler->getPrioritySampling($span);
         }
 
@@ -73,7 +73,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
     private function createMySpan()
     {
         $context = new SpanContext('', dd_trace_generate_id());
-        $span = PHP_VERSION_ID < 80000 ? new Span('', $context, '', '') : new Span(new SpanData(), $context);
+        $span = PHP_VERSION_ID < 70000 ? new Span('', $context, '', '') : new Span(new SpanData(), $context);
         $span->operationName = 'my_name';
         $span->service = 'my_service';
         return $span;

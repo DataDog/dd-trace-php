@@ -24,6 +24,19 @@ final class TracerTest extends BaseTestCase
     const ENVIRONMENT = 'my-env';
     const VERSION = '1.2.3';
 
+    protected function ddSetUp()
+    {
+        \dd_trace_serialize_closed_spans();
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+        parent::ddSetUp();
+    }
+
+    protected function ddTearDown()
+    {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
+        parent::ddTearDown();
+    }
+
     public function testCreateSpanWithDefaultTags()
     {
         $tracer = Tracer::make(new NoopTransport());

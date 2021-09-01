@@ -4,7 +4,7 @@ Fatal errors are ignored in shutdown handler
 This is how the tracer sandboxes the flushing functionality in userland
 --SKIPIF--
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --INI--
 memory_limit=2M
 --ENV--

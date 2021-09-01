@@ -25,3 +25,4 @@ echo 'Done.' . PHP_EOL;
 array(0) {
 }
 Done.
+No finished traces to be sent to the agent

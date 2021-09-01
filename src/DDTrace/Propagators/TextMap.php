@@ -123,7 +123,7 @@ final class TextMap implements Propagator
             return '';
         }
 
-        if (PHP_VERSION_ID >= 80000) {
+        if (PHP_VERSION_ID >= 70000) {
             return $spanId;
         }
 

@@ -17,7 +17,7 @@ use DDTrace\Transport\Http;
 use Exception;
 use PHPUnit\Framework\TestCase;
 
-if (PHP_VERSION_ID >= 80000) {
+if (PHP_VERSION_ID >= 70000) {
     class FakeSpan extends Span
     {
         public $startTime;
@@ -259,7 +259,7 @@ trait TracerTestTrait
                 }
 
 
-                if (PHP_VERSION_ID < 80000) {
+                if (PHP_VERSION_ID < 70000) {
                     $span = new Span(
                         $rawSpan['name'],
                         $spanContext,
@@ -357,7 +357,7 @@ trait TracerTestTrait
         }
 
         // We need to handle potential empty flushes (without internal flushing)...
-        return PHP_VERSION_ID >= 80000 ? $tracesAllRequests : array_values(array_filter($tracesAllRequests));
+        return PHP_VERSION_ID >= 70000 ? $tracesAllRequests : array_values(array_filter($tracesAllRequests));
     }
 
     /**
@@ -451,7 +451,7 @@ trait TracerTestTrait
      */
     protected function flushAndGetTraces($transport)
     {
-        if (PHP_VERSION_ID < 80000) {
+        if (PHP_VERSION_ID < 70000) {
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             /** @var DebugTransport $transport */

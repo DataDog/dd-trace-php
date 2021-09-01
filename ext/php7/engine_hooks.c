@@ -10,13 +10,14 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int type);
-void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 
 void ddtrace_execute_internal_minit(void);
 void ddtrace_execute_internal_mshutdown(void);
 
 static void _compile_minit(void);
 static void _compile_mshutdown(void);
+
+void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 
 void ddtrace_opcode_minit(void);
 void ddtrace_opcode_mshutdown(void);
@@ -57,14 +58,12 @@ static zend_op_array *_dd_compile_file(zend_file_handle *file_handle, int type) 
 }
 
 static void _compile_minit(void) {
-    if (get_dd_trace_measure_compile_time()) {
-        _prev_compile_file = zend_compile_file;
-        zend_compile_file = _dd_compile_file;
-    }
+    _prev_compile_file = zend_compile_file;
+    zend_compile_file = _dd_compile_file;
 }
 
 static void _compile_mshutdown(void) {
-    if (get_dd_trace_measure_compile_time() && zend_compile_file == _dd_compile_file) {
+    if (zend_compile_file == _dd_compile_file) {
         zend_compile_file = _prev_compile_file;
     }
 }

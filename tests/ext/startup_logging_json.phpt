@@ -1,7 +1,7 @@
 --TEST--
 Startup logging from JSON fetched at runtime
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --INI--
 datadog.trace.request_init_hook=
 --FILE--

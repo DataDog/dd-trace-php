@@ -124,7 +124,7 @@ static HashTable *_get_lookup_for_target(zval *class_name) {
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options) {
     HashTable *overridable_lookup = _get_lookup_for_target(class_name);
     if (overridable_lookup == NULL) {
-        return FALSE;
+        return false;
     }
 
     ddtrace_dispatch_t dispatch;
@@ -141,10 +141,10 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
     dispatch.options = options;
 
     if (ddtrace_dispatch_store(overridable_lookup, &dispatch)) {
-        return TRUE;
+        return true;
     } else {
         ddtrace_dispatch_dtor(&dispatch);
-        return FALSE;
+        return false;
     }
 }
 
@@ -171,7 +171,7 @@ zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string functi
     } else {
         overridable_lookup = _get_lookup_for_target(NULL);
     }
-    zend_bool dispatch_stored = FALSE;
+    zend_bool dispatch_stored = false;
     if (overridable_lookup) {
         dispatch_stored = ddtrace_dispatch_store(overridable_lookup, &dispatch);
     }

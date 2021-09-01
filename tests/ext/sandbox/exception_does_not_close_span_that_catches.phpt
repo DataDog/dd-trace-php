@@ -50,7 +50,7 @@ echo main() . PHP_EOL;
 list($mainSpan, $handleSpan, $handleExceptionSpan) = dd_trace_serialize_closed_spans();
 
 echo $mainSpan['name'] . $mainSpan['resource'] . PHP_EOL;
-var_dump((PHP_VERSION_ID >= 80000) == isset($mainSpan['parent_id'])); // root span
+var_dump((PHP_VERSION_ID >= 70000) == isset($mainSpan['parent_id'])); // root span
 
 echo $handleSpan['name'] . $handleSpan['resource'] . PHP_EOL;
 var_dump($handleSpan['parent_id'] === $mainSpan['span_id']);

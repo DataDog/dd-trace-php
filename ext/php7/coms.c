@@ -1,21 +1,21 @@
-#include "coms.h"
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include <SAPI.h>
 #include <curl/curl.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+
+// For reasons it doesn't find asprintf() if this isn't included later...
+#include "coms.h"
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #if HAVE_LINUX_SECUREBITS_H
 #include <linux/securebits.h>
@@ -46,7 +46,7 @@ static bool _dd_is_memory_pressure_high(void) {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
     if (stack) {
         int64_t used = (((double)atomic_load(&stack->position) / (double)stack->size) * 100);
-        return used > get_dd_trace_beta_high_memory_pressure_percent();
+        return used > get_global_DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT();
     } else {
         return false;
     }
@@ -669,38 +669,33 @@ void ddtrace_coms_curl_shutdown(void) { dd_agent_headers_free(dd_agent_curl_head
 static long _dd_max_long(long a, long b) { return a >= b ? a : b; }
 
 void ddtrace_curl_set_timeout(CURL *curl) {
-    long timeout = _dd_max_long(get_dd_trace_bgs_timeout(), get_dd_trace_agent_timeout());
+    long timeout = _dd_max_long(get_global_DD_TRACE_BGS_TIMEOUT(), get_global_DD_TRACE_AGENT_TIMEOUT());
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout);
 }
 
 void ddtrace_curl_set_connect_timeout(CURL *curl) {
-    long timeout = _dd_max_long(get_dd_trace_bgs_connect_timeout(), get_dd_trace_agent_connect_timeout());
+    long timeout = _dd_max_long(get_global_DD_TRACE_BGS_CONNECT_TIMEOUT(), get_global_DD_TRACE_AGENT_CONNECT_TIMEOUT());
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 }
 
 char *ddtrace_agent_url(void) {
-    char *url = get_dd_trace_agent_url();
-    if (url && url[0]) {
-        return url;
+    zend_string *url = get_global_DD_TRACE_AGENT_URL();
+    if (ZSTR_LEN(url) > 0) {
+        return zend_strndup(ZSTR_VAL(url), ZSTR_LEN(url));
     }
-    free(url);
-    url = NULL;
 
-    char *hostname = get_dd_agent_host();
-    if (hostname) {
-        size_t agent_url_len =
-            strlen(hostname) + sizeof(HOST_FORMAT_STR) + 10;  // port digit allocation + some headroom
-        url = malloc(agent_url_len);
-        int64_t port = get_dd_trace_agent_port();
+    zend_string *hostname = get_global_DD_AGENT_HOST();
+    if (ZSTR_LEN(hostname) > 0) {
+        int64_t port = get_global_DD_TRACE_AGENT_PORT();
         if (port <= 0 || port > 65535) {
             port = 8126;
         }
-        snprintf(url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t)port);
-    } else {
-        url = ddtrace_strdup("http://localhost:8126");
+        char *formatted_url;
+        asprintf(&formatted_url, HOST_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port);
+        return formatted_url;
     }
-    free(hostname);
-    return url;
+
+    return zend_strndup(ZEND_STRL("http://localhost:8126"));
 }
 
 void ddtrace_curl_set_hostname(CURL *curl) {
@@ -783,13 +778,13 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
 
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
         curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, 10);
-        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, get_dd_trace_agent_debug_verbose_curl());
+        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
 
         res = curl_easy_perform(writer->curl);
 
         if (res != CURLE_OK) {
             ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        } else if (get_dd_trace_debug_curl_output()) {
+        } else if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
             double uploaded;
             curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
             ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
@@ -955,7 +950,7 @@ static void _dd_writer_set_shutdown_state(struct _writer_loop_data_t *writer) {
 
 static void _dd_writer_set_operational_state(struct _writer_loop_data_t *writer) {
     atomic_store(&writer->sending, true);
-    atomic_store(&writer->flush_interval, get_dd_trace_agent_flush_interval());
+    atomic_store(&writer->flush_interval, get_global_DD_TRACE_AGENT_FLUSH_INTERVAL());
     atomic_store(&writer->allocate_new_stacks, true);
     atomic_store(&writer->shutdown_when_idle, false);
 }
@@ -987,7 +982,7 @@ bool ddtrace_coms_init_and_start_writer(void) {
     }
     struct _writer_thread_variables_t *thread = _dd_create_thread_variables();
     writer->thread = thread;
-    writer->set_secbit = get_dd_trace_retain_thread_capabilities();
+    writer->set_secbit = get_global_DD_TRACE_RETAIN_THREAD_CAPABILITIES();
     atomic_store(&writer->starting_up, true);
     if (pthread_create(&thread->self, NULL, &_dd_writer_loop, NULL) == 0) {
         return true;
@@ -1057,7 +1052,7 @@ void ddtrace_coms_rshutdown(void) {
     uint32_t requests_since_last_flush = atomic_fetch_add(&writer->requests_since_last_flush, 1) + 1;
 
     // simple heuristic to flush every n request to improve memory used
-    if (requests_since_last_flush > get_dd_trace_agent_flush_after_n_requests()) {
+    if (requests_since_last_flush > get_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS()) {
         ddtrace_coms_trigger_writer_flush();
     }
 }
@@ -1078,7 +1073,7 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
     bool should_join = false;
     // see _dd_signal_writer_started
     if (atomic_load(&writer->starting_up) || atomic_load(&writer->running)) {
-        struct timespec deadline = _dd_deadline_in_ms(get_dd_trace_shutdown_timeout());
+        struct timespec deadline = _dd_deadline_in_ms(get_global_DD_TRACE_SHUTDOWN_TIMEOUT());
 
         int rv = pthread_cond_timedwait(&writer->thread->writer_shutdown_signal_condition,
                                         &writer->thread->writer_shutdown_signal_mutex, &deadline);

@@ -32,16 +32,17 @@ static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
 
 #define MAX_STACK_SIZE 1024
+#define MIN_STACKSZ 16384  // enough to hold void *array[MAX_STACK_SIZE] plus a couple kilobytes
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static void ddtrace_sigsegv_handler(int sig) {
     if (!DDTRACE_G(backtrace_handler_already_run)) {
-        DDTRACE_G(backtrace_handler_already_run) = TRUE;
+        DDTRACE_G(backtrace_handler_already_run) = true;
         ddtrace_log_errf("Segmentation fault");
 
 #if HAVE_SIGACTION
-        bool health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
+        bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
         if (health_metrics_enabled) {
             dogstatsd_client *client = &DDTRACE_G(dogstatsd_client);
             const char *metric = "datadog.tracer.uncaught_exceptions";
@@ -79,22 +80,23 @@ static void ddtrace_sigsegv_handler(int sig) {
     exit(128 + sig);
 }
 
-void ddtrace_signals_minit(void) {
-    bool install_handler = get_dd_trace_heath_metrics_enabled();
+void ddtrace_signals_first_rinit(void) {
+    bool install_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
 
 #if DDTRACE_HAVE_BACKTRACE
-    install_handler |= get_dd_log_backtrace();
+    install_handler |= get_DD_LOG_BACKTRACE();
 #endif
 
-    DDTRACE_G(backtrace_handler_already_run) = FALSE;
+    DDTRACE_G(backtrace_handler_already_run) = false;
 
     /* Install a signal handler for SIGSEGV and run it on an alternate stack.
      * Using an alternate stack allows the handler to run even when the main
      * stack overflows.
      */
     if (install_handler) {
-        if ((ddtrace_altstack.ss_sp = malloc(SIGSTKSZ))) {
-            ddtrace_altstack.ss_size = SIGSTKSZ;
+        size_t stack_size = SIGSTKSZ < MIN_STACKSZ ? MIN_STACKSZ : SIGSTKSZ;
+        if ((ddtrace_altstack.ss_sp = malloc(stack_size))) {
+            ddtrace_altstack.ss_size = stack_size;
             ddtrace_altstack.ss_flags = 0;
             if (sigaltstack(&ddtrace_altstack, NULL) == 0) {
                 ddtrace_sigaction.sa_flags = SA_ONSTACK;

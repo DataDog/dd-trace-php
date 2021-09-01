@@ -62,7 +62,7 @@ final class StartupLoggingTest extends WebFrameworkTestCase
         self::assertSame('my-env', $config['env']);
         self::assertSame('my-service', $config['service']);
         self::assertSame(0.42, $config['sample_rate']);
-        $tags = PHP_VERSION_ID >= 80000 ? ["key1" => "value1", "key2" => "value2"] : 'key1:value1,key2:value2';
+        $tags = PHP_VERSION_ID >= 70000 ? ["key1" => "value1", "key2" => "value2"] : 'key1:value1,key2:value2';
         self::assertSame($tags, $config['tags']);
         self::assertSame('4.2', $config['dd_version']);
         self::assertSame('^[a-f0-9]{7}$', $config['uri_fragment_regex']);

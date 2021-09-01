@@ -9,7 +9,7 @@ use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 
-if (PHP_VERSION_ID < 80000) {
+if (PHP_VERSION_ID < 70000) {
     final class HttpTest extends BaseTestCase
     {
         use AgentReplayerTrait;
