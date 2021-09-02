@@ -92,13 +92,11 @@ if(PHP_VERSION_DIRECTORY STREQUAL "php5")
   # TODO Support PHP 7 & PHP 8
   add_subdirectory(methods)
 endif()
+add_subdirectory(headers)
 add_subdirectory(properties)
 add_subdirectory(sandbox)
 add_subdirectory(zai_string)
 add_subdirectory(zai_assert)
-if (PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
-  add_subdirectory(headers)
-endif()
 
 install(EXPORT ZendAbstractInterfaceTargets
         FILE ZendAbstractInterfaceTargets.cmake

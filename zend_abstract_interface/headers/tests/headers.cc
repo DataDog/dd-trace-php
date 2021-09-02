@@ -19,14 +19,23 @@ extern "C" {
         zai_sapi_register_custom_server_variables = NULL; \
     }
 
-static void define_server_value(zval *arr) {
+#if PHP_VERSION_ID < 70000
+typedef zai_string_view header_string;
+#define zend_string_equals_literal(a, b) (a.len == sizeof(b) - 1 && strcmp(a.ptr, b) == 0)
+#undef add_assoc_string
+#define add_assoc_string(__arg, __key, __str) add_assoc_string_ex(__arg, __key, strlen(__key)+1, __str, 1)
+#else
+typedef zend_string *header_string;
+#endif
+
+static void define_server_value(zval *arr ZAI_TSRMLS_DC) {
     add_assoc_string(arr, "HTTP_MY_HEADER", (char *) "Datadog");
 }
 
 TEST("reading defined header value", {
     zai_sapi_register_custom_server_variables = define_server_value;
 
-    zend_string *header;
+    header_string header;
     REQUIRE(zai_read_header_literal("MY_HEADER", &header) == ZAI_HEADER_SUCCESS);
     REQUIRE(zend_string_equals_literal(header, "Datadog"));
 })
@@ -35,7 +44,7 @@ TEST("reading defined header value with autoglobals jit off", {
     REQUIRE(zai_sapi_append_system_ini_entry("auto_globals_jit", "0"));
     zai_sapi_register_custom_server_variables = define_server_value;
 
-    zend_string *header;
+    header_string header;
     REQUIRE(zai_read_header_literal("MY_HEADER", &header) == ZAI_HEADER_SUCCESS);
     REQUIRE(zend_string_equals_literal(header, "Datadog"));
 })
@@ -43,21 +52,21 @@ TEST("reading defined header value with autoglobals jit off", {
 TEST("reading undefined header value", {
     zai_sapi_register_custom_server_variables = define_server_value;
 
-    zend_string *header;
+    header_string header;
     REQUIRE(zai_read_header_literal("NOT_MY_HEADER", &header) == ZAI_HEADER_NOT_SET);
 })
 
 TEST("erroneous read_header input", {
-    zend_string *header;
-    REQUIRE(zai_read_header({ 1, nullptr }, &header) == ZAI_HEADER_ERROR);
-    REQUIRE(zai_read_header({ 0, "" }, &header) == ZAI_HEADER_ERROR);
+    header_string header;
+    REQUIRE(zai_read_header({ 1, nullptr }, &header ZAI_TSRMLS_CC) == ZAI_HEADER_ERROR);
+    REQUIRE(zai_read_header({ 0, "" }, &header ZAI_TSRMLS_CC) == ZAI_HEADER_ERROR);
     REQUIRE(zai_read_header_literal("abc", nullptr) == ZAI_HEADER_ERROR);
 })
 
 /****************************** Access from RINIT *****************************/
 
 zai_header_result zai_rinit_last_res;
-static zend_string *zai_rinit_str;
+static header_string zai_rinit_str;
 
 static PHP_RINIT_FUNCTION(zai_env) {
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
@@ -73,7 +82,7 @@ TEST_CASE("get SAPI header (RINIT): defined header", "[zai headers]") {
 
     zai_sapi_register_custom_server_variables = define_server_value;
     zai_rinit_last_res = ZAI_HEADER_ERROR;
-    zai_rinit_str = NULL;
+    zai_rinit_str = {0};
     zai_sapi_extension.request_startup_func = PHP_RINIT(zai_env);
 
     REQUIRE(zai_sapi_minit());
