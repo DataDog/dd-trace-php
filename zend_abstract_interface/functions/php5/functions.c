@@ -1,38 +1,29 @@
 #include "../functions.h"
 
 #include <sandbox/sandbox.h>
+#include <stdint.h>
 #include <zai_assert/zai_assert.h>
 
 #define MAX_ARGS 3
 
-bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int argc, ...) {
+bool zai_call_function_ex(const char *name, size_t name_len, zval **retval TSRMLS_DC, int argc, ...) {
     if (!retval) return false;
-
-    /* For consistency with zend_call_function(), this wrapper also initializes
-     * the retval to IS_UNDEF so that the caller can expect an undefined retval
-     * in the error cases. Past wrappers of zend_call_function() did not mimic
-     * this behavior and that lead to a SIGSEGV.
-     *
-     * https://github.com/php/php-src/blob/PHP-8.0.3/Zend/zend_execute_API.c#L673
-     */
-    ZVAL_UNDEF(retval);
 
     assert(argc <= MAX_ARGS && "Increase MAX_ARGS to support more arguments.");
 
-    if (!name || !name_len || argc < 0 || argc > MAX_ARGS) return false;
+    if (!name || !name_len || argc < 0 || argc > MAX_ARGS) goto error_exit;
 
     /* Functions cannot be called outside of a request context.
      * PG(modules_activated) indicates that all of the module RINITs have been
      * called and we are in a request context.
      */
-    if (!PG(modules_activated)) return false;
+    if (!PG(modules_activated)) goto error_exit;
 
     zai_assert_is_lower(name, "Function names must be lowercase.");
     assert(*name != '\\' && "Function names must not have a root scope prefix '\\'.");
 
-    zend_function *func = NULL;
-    zend_string *zsname = NULL;
-    ALLOCA_FLAG(use_heap)
+    zend_fcall_info_cache fcc = {0};
+    fcc.initialized = 1;
 
     /* We look up the function handler directly from zend_fetch_function()
      * instead of calling zend_is_callable_ex() because:
@@ -43,28 +34,18 @@ bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int a
      *     we can avoid zend_str_tolower_copy().
      *   - We assume the caller will not prefix the function name with a
      *     root-scope prefix, '\'.
-     *
-     * In addition, we look up the function handler from zend_fetch_function()
-     * instead of directly from the EG(function_table) to ensure that the
-     * runtime cache for userland functions will be initialized.
      */
-    ZSTR_ALLOCA_ALLOC(zsname, name_len, use_heap);
-    memcpy(ZSTR_VAL(zsname), name, (name_len + 1));
-    func = zend_fetch_function(zsname);
-    ZSTR_ALLOCA_FREE(zsname, use_heap);
-
-    /* "function %s() does not exist" */
-    if (!func) return false;
-
-    zend_fcall_info_cache fcc = {0};
-    fcc.function_handler = func;
+    if (zend_hash_find(EG(function_table), name, name_len + 1, (void **)&fcc.function_handler) != SUCCESS) {
+        /* "function %s() does not exist" */
+        goto error_exit;
+    }
 
     zend_fcall_info fci = {0};
     fci.size = sizeof(zend_fcall_info);
-    fci.retval = retval;
+    fci.retval_ptr_ptr = retval;
 
-    bool should_bail = false;
-    zend_result call_fn_result = FAILURE;
+    volatile bool should_bail = false;
+    volatile int call_fn_result = FAILURE;
 
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
@@ -79,40 +60,29 @@ bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int a
      *   - We avoid unnecessary calls to zend_fcall_info_args_clear().
      */
     if (argc > 0) {
-        zval params[MAX_ARGS];
+        zval *params[MAX_ARGS];
+        zval **param_ptrs[MAX_ARGS];
         va_list argv;
         va_start(argv, argc);
         for (uint32_t i = 0; i < (uint32_t)argc; ++i) {
             zval *arg = va_arg(argv, zval *);
             if (!arg) {
                 zai_sandbox_close(&sandbox);
-                return false;
+                goto error_exit;
             }
-            /* Although we could copy the zval arg into the params array with
-             * direct assignment:
-             *
-             *   params[i] = *arg;
-             *
-             * This will also copy over any additional metadata stored on the
-             * zval from 'u2'. As @bwoebi pointed out:
-             *
-             *   "The canonical way to assign a zval would be actually
-             *    ZVAL_COPY_VALUE(). This copies the zend_value as two
-             *    individual 32 bit assignments on 32 bit environments and
-             *    notably does not copy u2."
-             */
-            ZVAL_COPY_VALUE(&params[i], arg);
+            params[i] = arg;
+            param_ptrs[i] = &params[i];
         }
         va_end(argv);
 
         fci.param_count = (uint32_t)argc;
-        fci.params = params;
+        fci.params = param_ptrs;
 
-        zend_try { call_fn_result = zend_call_function(&fci, &fcc); }
+        zend_try { call_fn_result = zend_call_function(&fci, &fcc TSRMLS_CC); }
         zend_catch { should_bail = true; }
         zend_end_try();
     } else {
-        zend_try { call_fn_result = zend_call_function(&fci, &fcc); }
+        zend_try { call_fn_result = zend_call_function(&fci, &fcc TSRMLS_CC); }
         zend_catch { should_bail = true; }
         zend_end_try();
     }
@@ -133,7 +103,17 @@ bool zai_call_function_ex(const char *name, size_t name_len, zval *retval, int a
      * active execution context. This is a failed call if an exception was
      * thrown. The sandbox will clean up our mess when it closes.
      */
-    bool ret = (call_fn_result == SUCCESS && !EG(exception));
+    bool no_exception = !EG(exception);
     zai_sandbox_close(&sandbox);
-    return ret;
+    if (call_fn_result == SUCCESS && no_exception) {
+        return true;
+    }
+
+error_exit:
+    /* For additional safety this wrapper sets the retval to IS_NULL so that the caller can expect a valid retval zval
+     * in the error cases. Past wrappers of zend_call_function() did not mimic this behavior and that lead to a SIGSEGV.
+     */
+    ALLOC_INIT_ZVAL(*retval);
+    ZVAL_NULL(*retval);
+    return false;
 }

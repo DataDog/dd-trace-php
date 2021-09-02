@@ -1,4 +1,10 @@
-add_library(zai_functions "${PHP_VERSION_DIRECTORY}/functions.c")
+if(PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
+  set(PHP_FUNCTIONS_VERSION_DIRECTORY "php7-8")
+else()
+  set(PHP_FUNCTIONS_VERSION_DIRECTORY "${PHP_VERSION_DIRECTORY}")
+endif()
+
+add_library(zai_functions "${PHP_FUNCTIONS_VERSION_DIRECTORY}/functions.c")
 
 target_include_directories(zai_functions PUBLIC
                                          $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>

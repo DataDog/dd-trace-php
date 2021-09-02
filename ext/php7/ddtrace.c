@@ -485,7 +485,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_internal_handlers_rinit();
-    ddtrace_engine_hooks_rinit();
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init();
     DDTRACE_G(disable_in_current_request) = 0;
@@ -541,7 +540,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     zend_array_destroy(DDTRACE_G(additional_global_tags));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
 
-    ddtrace_engine_hooks_rshutdown();
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown();
 
