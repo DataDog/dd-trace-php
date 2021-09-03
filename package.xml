@@ -47,7 +47,6 @@
 
     ### Added
     - Bring ZAI config, internal spans, and improved exception handling to PHP 7 #1293
-    - Add properties and exceptions ZAI implementations for PHP 5 #1306
 
     ### Fixed
     - Disable flaky ext/ftp tests on PHP &#60;8.1 #1296
