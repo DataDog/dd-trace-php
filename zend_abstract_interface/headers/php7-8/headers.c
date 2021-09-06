@@ -4,7 +4,7 @@
 #include <zai_assert/zai_assert.h>
 
 zai_header_result zai_read_header(zai_string_view uppercase_header_name, zend_string **header_value) {
-    if (!uppercase_header_name.ptr || !uppercase_header_name.len || !header_value) return ZAI_HEADER_ERROR;
+    if (!zai_string_stuffed(uppercase_header_name) || !header_value) return ZAI_HEADER_ERROR;
 
     zai_assert_is_upper(uppercase_header_name.ptr, "Header names must be uppercase.");
 
@@ -38,9 +38,11 @@ zai_header_result zai_read_header(zai_string_view uppercase_header_name, zend_st
     // headers are present in HTTP_HEADERNAME from in the _SERVER array
     ALLOCA_FLAG(use_heap)
     zend_string *var_name;
-    ZSTR_ALLOCA_ALLOC(var_name, uppercase_header_name.len + sizeof("HTTP_") - 1, use_heap);
+    size_t var_len = uppercase_header_name.len + sizeof("HTTP_") - 1;
+    ZSTR_ALLOCA_ALLOC(var_name, var_len, use_heap);
     memcpy(ZSTR_VAL(var_name), "HTTP_", 5);
-    memcpy(ZSTR_VAL(var_name) + 5, uppercase_header_name.ptr, uppercase_header_name.len + 1);  // incl trailing NULL
+    memcpy(ZSTR_VAL(var_name) + 5, uppercase_header_name.ptr, uppercase_header_name.len);
+    ZSTR_VAL(var_name)[var_len] = 0;
 
     zval *header_zv = zend_hash_find(Z_ARR_P(server_var), var_name);
 
