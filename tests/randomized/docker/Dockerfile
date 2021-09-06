@@ -20,6 +20,7 @@ RUN \
             php-pear \
             php-pecl-redis \
             mod_php \
+    && debuginfo-install --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} -y php-fpm \
     && yum clean all \
     && rm -rf /var/cache/yum
 
