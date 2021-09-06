@@ -855,6 +855,8 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
+          command: ls -al
+      - run:
           name: Install required packages
           command: sudo apt update && sudo apt install -y php git
       - run:
