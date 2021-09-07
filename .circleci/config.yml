@@ -880,6 +880,9 @@ jobs:
       - run:
           name: Fix PHP-FPM logs permissions before storing artifacts
           command: sudo chown -R circleci:circleci tests/randomized/.tmp.scenarios/.results
+      - run:
+          name: Check permissions
+          command: ls -alR tests/randomized/.tmp.scenarios/.results
       - store_artifacts:
           path: 'tests/randomized/.tmp.scenarios/.results'
 
