@@ -96,8 +96,10 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/config/php5/config_ini.c \
       zend_abstract_interface/config/php5/config_runtime.c \
       zend_abstract_interface/env/env.c \
+      zend_abstract_interface/exceptions/php5/exceptions.c \
       zend_abstract_interface/functions/php5/functions.c \
       zend_abstract_interface/methods/php5/methods.c \
+      zend_abstract_interface/properties/php5/properties.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
@@ -147,8 +149,10 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/config/php5/config_ini.c \
       zend_abstract_interface/config/php5/config_runtime.c \
       zend_abstract_interface/env/env.c \
+      zend_abstract_interface/exceptions/php5/exceptions.c \
       zend_abstract_interface/functions/php5/functions.c \
       zend_abstract_interface/methods/php5/methods.c \
+      zend_abstract_interface/properties/php5/properties.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
@@ -297,6 +301,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/env])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/functions])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/functions/php5])
@@ -306,6 +311,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/methods])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/methods/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])

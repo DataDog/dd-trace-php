@@ -86,18 +86,18 @@ add_subdirectory(zai_sapi)
 # All tests depend on zai_sapi
 add_subdirectory(functions)
 add_subdirectory(env)
+add_subdirectory(exceptions)
 add_subdirectory(config)
 if(PHP_VERSION_DIRECTORY STREQUAL "php5")
   # TODO Support PHP 7 & PHP 8
   add_subdirectory(methods)
 endif()
+add_subdirectory(properties)
 add_subdirectory(sandbox)
 add_subdirectory(zai_string)
 add_subdirectory(zai_assert)
 if (PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
-  add_subdirectory(exceptions)
   add_subdirectory(headers)
-  add_subdirectory(properties)
 endif()
 
 install(EXPORT ZendAbstractInterfaceTargets

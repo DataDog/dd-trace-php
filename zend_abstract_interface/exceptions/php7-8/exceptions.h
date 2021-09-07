@@ -6,14 +6,15 @@
 #include <Zend/zend_exceptions.h>
 #include <properties/properties.h>
 
-#include "../exceptions_common.h"
-
 static inline zend_class_entry *zai_get_exception_base(zend_object *object) {
     assert(instanceof_function(object->ce, zend_ce_throwable));
     return instanceof_function(object->ce, zend_ce_exception) ? zend_ce_exception : zend_ce_error;
 }
 
 #if PHP_VERSION_ID < 70100
+#define ZEND_STR_MESSAGE "message"
+#define ZEND_STR_CODE "code"
+
 #define ZAI_EXCEPTION_PROPERTY(object, id) \
     zai_read_property_direct_cstr(zai_get_exception_base(object), object, ZEND_STRL(id))
 #elif PHP_VERSION_ID < 70200

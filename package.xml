@@ -68,7 +68,8 @@
             <file name="zend_abstract_interface/env/env.c" role="src" />
             <file name="zend_abstract_interface/env/env.h" role="src" />
             <file name="zend_abstract_interface/exceptions/exceptions.h" role="src" />
-            <file name="zend_abstract_interface/exceptions/exceptions_common.h" role="src" />
+            <file name="zend_abstract_interface/exceptions/php5/exceptions.c" role="src" />
+            <file name="zend_abstract_interface/exceptions/php5/exceptions.h" role="src" />
             <file name="zend_abstract_interface/exceptions/php7-8/exceptions.c" role="src" />
             <file name="zend_abstract_interface/exceptions/php7-8/exceptions.h" role="src" />
             <file name="zend_abstract_interface/functions/functions.h" role="src" />
@@ -78,6 +79,8 @@
             <file name="zend_abstract_interface/headers/headers.h" role="src" />
             <file name="zend_abstract_interface/methods/methods.h" role="src" />
             <file name="zend_abstract_interface/methods/php5/methods.c" role="src" />
+            <file name="zend_abstract_interface/properties/php5/properties.c" role="src" />
+            <file name="zend_abstract_interface/properties/php5/properties.h" role="src" />
             <file name="zend_abstract_interface/properties/php7-8/properties.c" role="src" />
             <file name="zend_abstract_interface/properties/php7-8/properties.h" role="src" />
             <file name="zend_abstract_interface/properties/properties.h" role="src" />
