@@ -127,6 +127,35 @@ That seed can be used later on to recreate the same request: `curl localhost:80?
 
 Note that the generated scenarios can be run individually. In the directory `.tmp.scenarios` you can see a `Makefile` with a list of targets that can be executed.
 
+### Analyzing a core dump generated in CI
+
+Run a container with the most recent version of the proper docker image for the specific version of PHP. For example, assuming PHP 8.0:
+
+```
+docker pull datadog/dd-trace-ci:php-randomizedtests-centos7-8.0
+docker run --rm -ti datadog/dd-trace-ci:php-randomizedtests-centos7-8.0 bash
+```
+
+Install the specific version of the tracer from `CircleCI` > `build_packages` > `package extension` > `ARTIFACTS`
+
+```
+curl -L -o /tmp/ddtrace-test.tar.gz https://557109-119990860-gh.circle-artifacts.com/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz
+tar -xf /tmp/ddtrace-test.tar.gz -C /
+sh /opt/datadog-php/bin/post-install.sh
+```
+
+Download the generated core dump from `CircleCI` > `build_packages` > `randomized_tests-XX` > `ARTIFACTS` (search in artifact for the scenario that is failing based on the build report, the core dump file is called `core`):
+
+```
+curl -L -o /tmp/core https://557142-119990860-gh.circle-artifacts.com/0/tests/randomized/.tmp.scenarios/.results/randomized-202999263-centos7-8.0/corefiles/core
+```
+
+Then load it in `gdb`:
+
+```
+gdb --core=/tmp/core php-fpm|httpd|php
+```
+
 ## Freezing a known regression
 
 As soon as the radnomized testing framework detects either regressions or issues not yet released, we want to freeze to make sure they never happen again.
