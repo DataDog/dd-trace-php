@@ -15,6 +15,8 @@ const IS_DEBUG = 'Debug Build';
 
 function main()
 {
+    $options = parse_validate_user_options();
+    exit();
     $version = '0.63.0';
     $url = "https://github.com/DataDog/dd-trace-php/releases/download/$version/datadog-php-tracer-$version.x86_64.tar.gz";
 
@@ -70,6 +72,83 @@ function main()
 }
 
 main();
+
+/**
+ * Parses command line options provided by the user.
+ * @return array
+ */
+function parse_validate_user_options()
+{
+    $shortOptions = "h";
+    $longOptions = [
+        'help',
+        'file:',
+        'install-dir:',
+        'php-bin:',
+        'url:',
+        'version:',
+    ];
+    $options = getopt($shortOptions, $longOptions);
+
+    // Help and exit
+    if (key_exists('h', $options) || key_exists('help', $options)) {
+        print_help_and_exit();
+    }
+
+    $normalizedOptions = [];
+
+    // One and only one among --version, --url and --file must be provided
+    $installables = array_intersect(['version', 'url', 'file'], array_keys($options));
+    if (count($installables) === 0 || count($installables) > 1) {
+        print_error_and_exit('One and only one among --version, --url and --file must be provided');
+    }
+    if (isset($options['version'])) {
+        if (is_array($options['version'])) {
+            print_error_and_exit('Only one --version can be provided');
+        }
+        $normalizedOptions['version'] = $options['version'];
+    } else if (isset($options['url'])) {
+        if (is_array($options['url'])) {
+            print_error_and_exit('Only one --url can be provided');
+        }
+        $normalizedOptions['url'] = $options['url'];
+    } else if (isset($options['file'])) {
+        if (is_array($options['file'])) {
+            print_error_and_exit('Only one --file can be provided');
+        }
+        $normalizedOptions['file'] = $options['file'];
+    }
+
+    error_log('Options: ' . var_export($normalizedOptions, true));
+    return $normalizedOptions;
+}
+
+function print_help_and_exit()
+{
+    echo <<<EOD
+
+    Usage:
+        php get-dd-trace.php --php-bin=php ...
+        php get-dd-trace.php --php-bin=php-fpm ...
+        php get-dd-trace.php --php-bin=/usr/local/sbin/php-fpm ...
+        php get-dd-trace.php --php-bin=php --php-bin=/usr/local/sbin/php-fpm ...
+
+    Options:
+        -h, --help              Print this help text and exit
+        --install-dir=<path>    Install to a specific directory. Default: '/opt/datadog'
+        --version=<0.1.2>       Install a specific version. If set --url and --file are ignored.
+        --url=<url>             Install the tracing library from a url. If set --file is ignored.
+        --file=<file>           Install the tracing library from a local file.
+
+    EOD;
+    exit(0);
+}
+
+function print_error_and_exit($message)
+{
+    echo "ERROR: $message\n";
+    exit(1);
+}
 
 function write_file($path, $content, $override = false)
 {
