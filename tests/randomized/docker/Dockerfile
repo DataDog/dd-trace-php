@@ -21,6 +21,7 @@ RUN \
             php-pecl-redis \
             mod_php \
     && debuginfo-install --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} -y php-fpm \
+    && debuginfo-install -y httpd \
     && yum clean all \
     && rm -rf /var/cache/yum
 
