@@ -879,7 +879,7 @@ jobs:
           command: make -C tests/randomized analyze
       - run:
           name: Fix PHP-FPM logs permissions before storing artifacts
-          command: sudo chmod -R a+r tests/randomized/.tmp.scenarios/.results
+          command: sudo chown -R circleci:circleci tests/randomized/.tmp.scenarios/.results
       - store_artifacts:
           path: 'tests/randomized/.tmp.scenarios/.results'
 
