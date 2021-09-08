@@ -43,7 +43,7 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    **WARNING**: Users doing manual instrumentation using the legacy `GlobalTracer::get()->startActiveSpan()` api should update to this version from 0.63.0 and 0.64.0.
+    **WARNING**: Users doing manual instrumentation using the `GlobalTracer::get()->startActiveSpan()` api should update to this version from 0.63.0 and 0.64.0.
 
     ### Fixed
     - Fix span start times of userland spans (#1312)
