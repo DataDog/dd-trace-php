@@ -315,6 +315,13 @@ final class SpanChecker
             }
         }
 
+        if ($exp->getTestTime()) {
+            TestCase::assertGreaterThanOrEqual($_SERVER["REQUEST_TIME_FLOAT"] * 1e9, $span['start']);
+            TestCase::assertLessThan(microtime(true) * 1e9, $span['start']);
+            TestCase::assertLessThan((microtime(true) - $_SERVER["REQUEST_TIME_FLOAT"]) * 1e9, $span['duration']);
+            TestCase::assertGreaterThan(0, $span['duration']);
+        }
+
         if ($exp->isOnlyCheckExistence()) {
             return;
         }

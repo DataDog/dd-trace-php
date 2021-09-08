@@ -258,6 +258,8 @@ trait TracerTestTrait
                     return;
                 }
 
+                $rawSpan["duration"] = (int)($rawSpan["duration"] / 1000);
+                $rawSpan["start"] = (int)($rawSpan["start"] / 1000);
 
                 if (PHP_VERSION_ID < 70000) {
                     $span = new Span(
@@ -289,8 +291,8 @@ trait TracerTestTrait
                     $internalSpan->meta = isset($rawSpan['meta']) ? $rawSpan['meta'] : [];
                     $internalSpan->metrics = isset($rawSpan['metrics']) ? $rawSpan['metrics'] : [];
                     $span = new FakeSpan($internalSpan, $spanContext);
-                    $span->duration = $rawSpan["duration"] / 1000;
-                    $span->startTime = $rawSpan["start"] / 1000;
+                    $span->duration = $rawSpan["duration"];
+                    $span->startTime = $rawSpan["start"];
                 }
                 $this->setRawPropertyFromArray($span, $rawSpan, 'hasError', 'error', function ($value) {
                     return $value == 1 || $value == true;
