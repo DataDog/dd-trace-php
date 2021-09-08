@@ -24,6 +24,7 @@ final class SpanAssertion
     private $resource = SpanAssertion::NOT_TESTED;
     private $onlyCheckExistence = false;
     private $isTraceAnalyticsCandidate = false;
+    private $testTime = true;
     /** @var SpanAssertion[] */
     private $children = [];
 
@@ -332,6 +333,14 @@ final class SpanAssertion
     public function getExactMetrics()
     {
         return $this->exactMetrics;
+    }
+
+    /**
+     * @return bool
+     */
+    public function getTestTime()
+    {
+        return $this->testTime;
     }
 
     public function __toString()

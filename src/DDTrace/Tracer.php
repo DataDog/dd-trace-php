@@ -30,7 +30,7 @@ final class Tracer implements TracerInterface
      * Must begin with a number for Debian packaging requirements
      * Must use single-quotes for packaging script to work
      */
-    const VERSION = '0.64.0';
+    const VERSION = '0.64.1';
 
     /**
      * @var Span[][]
@@ -173,7 +173,8 @@ final class Tracer implements TracerInterface
         $reference = $this->findParent($options->getReferences());
 
         // avoid rounding errors, we only care about microsecond resolution here
-        $roundedStartTime = ($options->getStartTime() + 0.2) / 1000000;
+        // a value of 0 defaults to current time
+        $roundedStartTime = $options->getStartTime() ? ($options->getStartTime() + 0.2) / 1000000 : 0;
         if ($reference === null) {
             $context = SpanContext::createAsRoot([], $roundedStartTime);
         } else {
