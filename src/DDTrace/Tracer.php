@@ -173,7 +173,8 @@ final class Tracer implements TracerInterface
         $reference = $this->findParent($options->getReferences());
 
         // avoid rounding errors, we only care about microsecond resolution here
-        $roundedStartTime = ($options->getStartTime() + 0.2) / 1000000;
+        // a value of 0 defaults to current time
+        $roundedStartTime = $options->getStartTime() ? ($options->getStartTime() + 0.2) / 1000000 : 0;
         if ($reference === null) {
             $context = SpanContext::createAsRoot([], $roundedStartTime);
         } else {
