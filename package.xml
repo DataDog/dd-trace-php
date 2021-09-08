@@ -43,17 +43,10 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    **WARNING**: With this release the file `_generated.php` is not used anymore and files `_generated_api.php` and `_generated_internal.php` are generated instead. This only impacts users having a very custom installation procedure that requires custom builds and manual copy of files.
-
-    ### Added
-    - Bring ZAI config, internal spans, and improved exception handling to PHP 7 #1293
+    **WARNING**: Users doing manual instrumentation using the legacy `GlobalTracer::get()->startActiveSpan()` api should update to this version from 0.63.0 and 0.64.0.
 
     ### Fixed
-    - Disable flaky ext/ftp tests on PHP &#60;8.1 #1296
-    - Compatibility with PHP 7.4+ preloading #1298 (thank you @olsavmic for the investigation and reproduction case)
-    - Check for php8 binary in package/post-install.sh script #1301 (thank you for the contribution @daiwai)
-    - Support userland spans with custom root spans created internally #1303
-    - Fix memory leak of already defined global tags #1304
+    - Fix span start times of userland spans (#1312)
     </notes>
     <contents>
         <dir name="/">
