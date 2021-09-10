@@ -57,7 +57,6 @@
     <exclude-pattern>dockerfiles/*</exclude-pattern>
     <exclude-pattern>playground*.php</exclude-pattern>
     <exclude-pattern>run-tests.php</exclude-pattern>
-    <exclude-pattern>src/dd-doctor.php</exclude-pattern>
     <exclude-pattern>tests/AutoInstrumentation</exclude-pattern>
     <exclude-pattern>tests/ext/*</exclude-pattern>
     <exclude-pattern>tests/Frameworks/*/Version_*/*</exclude-pattern>
