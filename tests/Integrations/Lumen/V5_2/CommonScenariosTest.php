@@ -45,7 +45,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'lumen.request',
                         'lumen_test_app',
                         'web',
-                        'GET App\Http\Controllers\ExampleController@simpleView'
+                        'GET /simple_view'
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         'http.method' => 'GET',
@@ -93,7 +93,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'lumen.request',
                         'lumen_test_app',
                         'web',
-                        'GET App\Http\Controllers\ExampleController@error'
+                        'GET /error'
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         'http.method' => 'GET',
@@ -131,7 +131,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'lumen.request',
                 'lumen_test_app',
                 'web',
-                'GET simple_route'
+                'GET /simple'
             )->withExactTags([
                 'lumen.route.name' => 'simple_route',
                 'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
@@ -156,7 +156,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'lumen.request',
                 'lumen_test_app',
                 'web',
-                'GET App\Http\Controllers\ExampleController@error'
+                'GET /error'
             )->withExactTags([
                 'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                 'http.method' => 'GET',
