@@ -86,8 +86,7 @@ class LumenIntegration extends Integration
                         $rootSpan->setTag('lumen.route.name', $routeInfo[1]['as']);
                         $resourceName = $routeInfo[1]['as'];
                     }
-
-                    if (null !== $resourceName) {
+                    if (null !== $resourceName && !\ddtrace_config_url_resource_name_enabled()) {
                         $rootSpan->setTag(
                             Tag::RESOURCE_NAME,
                             $rootSpan->getTag(Tag::HTTP_METHOD) . ' ' . $resourceName

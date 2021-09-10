@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-class TraceSearchConfigTest extends WebFrameworkTestCase
+class DeprecatedResourceNameTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
@@ -16,8 +16,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_ANALYTICS_ENABLED' => 'true',
-            'DD_LUMEN_ANALYTICS_SAMPLE_RATE' => '0.3',
+            'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'false',
         ]);
     }
 
@@ -27,7 +26,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
     public function testScenario()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $this->call(GetSpec::create('Testing trace analytics config metric', '/simple'));
+            $this->call(GetSpec::create('Testing the legacy way to name resources after the controller', '/simple'));
         });
 
         $this->assertFlameGraph(
@@ -37,7 +36,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'lumen.request',
                     'lumen',
                     'web',
-                    'GET /simple'
+                    'GET simple_route'
                 )
                     ->withExactTags([
                         'lumen.route.name' => 'simple_route',
@@ -45,11 +44,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                    ])
-                    ->withExactMetrics([
-                        '_dd1.sr.eausr' => 0.3,
-                        '_dd.rule_psr' => 1,
-                        '_sampling_priority_v1' => 1,
                     ])
                     ->withChildren([
                         SpanAssertion::build(
