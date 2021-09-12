@@ -445,6 +445,8 @@
             <file name="tests/ext/sandbox/dd_trace_method_binds_called_object.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_push_span_id.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_set_trace_id.phpt" role="test" />
+            <file name="tests/ext/sandbox/default_service_set.phpt" role="test" />
+            <file name="tests/ext/sandbox/default_service_unset.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties_method.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_attempt_loading_once.phpt" role="test" />
