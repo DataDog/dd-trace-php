@@ -507,6 +507,14 @@ static ddtrace_span_fci *dd_fcall_begin_tracing_hook(zend_execute_data *call, dd
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci);
 
+    // default service to env var DD_SERVICE
+    zend_string *service = get_DD_SERVICE();
+    if (service && ZSTR_LEN(service)) {
+        zval *prop_service = ddtrace_spandata_property_service(&span_fci->span);
+        // todo: do we need to copy this?
+        ZVAL_STR_COPY(prop_service, service);
+    }
+
     return span_fci;
 }
 
