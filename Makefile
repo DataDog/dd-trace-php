@@ -85,6 +85,14 @@ test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
+test_c_disabled: export DD_TRACE_CLI_ENABLED=0
+test_c_disabled: export DD_TRACE_DEBUG=1
+test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
+	( \
+	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS) || true; \
+	! grep -E 'Successfully triggered flush with trace of size|=== Total [0-9]+ memory leaks detected ===|Segmentation fault' $$(find $(BUILD_DIR)/$(TESTS) -name "*.out" | grep -v segfault_backtrace_enabled.out); \
+	)
+
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)

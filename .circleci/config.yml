@@ -428,7 +428,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total .* memory leaks detected ==="; }
+            make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
@@ -1142,7 +1142,7 @@ jobs:
                       ~/datadog/zend_abstract_interface
                     make -j all
                     make test
-                    grep -e "=== Total .* memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+                    grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
                   done
 
       # Builds that do not support ASan
@@ -1173,7 +1173,7 @@ jobs:
                       ~/datadog/zend_abstract_interface
                     make -j all
                     make test
-                    grep -e "=== Total .* memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+                    grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
                   done
 
       - run:
@@ -1191,7 +1191,7 @@ jobs:
               ~/datadog/zend_abstract_interface
             make -j all
             make test
-            grep -e "=== Total .* memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+            grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 
       - run:
           command: |
@@ -1802,6 +1802,7 @@ workflows:
                 - test_unit
                 - test_api_unit
                 - test_c2php
+                - test_c_disabled
 
       - asan:
           requires: [ 'Prepare Code' ]

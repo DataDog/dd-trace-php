@@ -854,6 +854,10 @@ static PHP_FUNCTION(add_global_tag) {
         RETURN_NULL();
     }
 
+    if (DDTRACE_G(disable)) {
+        RETURN_NULL();
+    }
+
     zval value_zv;
     ZVAL_STR_COPY(&value_zv, val);
     zend_hash_update(DDTRACE_G(additional_global_tags), key, &value_zv);
@@ -1351,6 +1355,9 @@ static PHP_FUNCTION(dd_trace_peek_span_id) {
 /* {{{ proto string DDTrace\active_span() */
 static PHP_FUNCTION(active_span) {
     UNUSED(execute_data);
+    if (DDTRACE_G(disable)) {
+        RETURN_NULL();
+    }
     if (!DDTRACE_G(open_spans_top)) {
         if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
             ddtrace_push_root_span();  // ensure root span always exists, especially after serialization for testing
@@ -1364,6 +1371,9 @@ static PHP_FUNCTION(active_span) {
 /* {{{ proto string DDTrace\root_span() */
 static PHP_FUNCTION(root_span) {
     UNUSED(execute_data);
+    if (DDTRACE_G(disable)) {
+        RETURN_NULL();
+    }
     if (!DDTRACE_G(open_spans_top)) {
         if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
             ddtrace_push_root_span();  // ensure root span always exists, especially after serialization for testing
@@ -1387,13 +1397,17 @@ static PHP_FUNCTION(start_span) {
     }
 
     ddtrace_span_fci *span_fci = ddtrace_init_span();
-    ddtrace_open_span(span_fci);
+
+    if (!DDTRACE_G(disable)) {
+        GC_ADDREF(&span_fci->span.std);
+        ddtrace_open_span(span_fci);
+    }
 
     if (start_time_seconds > 0) {
         span_fci->span.start = (uint64_t)(start_time_seconds * 1000000000);
     }
 
-    RETURN_OBJ_COPY(&span_fci->span.std);
+    RETURN_OBJ(&span_fci->span.std);
 }
 
 /* {{{ proto string DDTrace\close_span() */
