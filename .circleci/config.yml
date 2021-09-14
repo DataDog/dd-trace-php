@@ -381,6 +381,7 @@ jobs:
           name: Run xdebug tests
           command: |
             export REPORT_EXIT_STATUS=1
+            export DD_TRACE_CLI_ENABLED=1
             cd tmp/build_extension
             php run-tests.php -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so ../../tests/xdebug/<< parameters.xdebug_version_one >>
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
@@ -926,6 +927,7 @@ jobs:
             TERM=dumb \
             HTTPBIN_HOSTNAME=httpbin_integration \
             DATADOG_HAVE_DEV_ENV=1 \
+            DD_TRACE_CLI_ENABLED=1 \
             pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
       - run:
           name: Gather .diff files for artifacts

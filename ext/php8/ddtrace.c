@@ -411,8 +411,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 }
 
 static void dd_rinit_once(void) {
-    ddtrace_config_first_rinit();
-
     /* The env vars are memoized on MINIT before the SAPI env vars are available.
      * We use the first RINIT to bust the env var cache and use the SAPI env vars.
      * TODO Audit/remove config usages before RINIT and move config init to RINIT.
@@ -424,6 +422,7 @@ static void dd_rinit_once(void) {
     ddtrace_coms_init_and_start_writer();
 }
 
+static pthread_once_t dd_rinit_config_once_control = PTHREAD_ONCE_INIT;
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static PHP_RINIT_FUNCTION(ddtrace) {
@@ -433,9 +432,15 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         DDTRACE_G(disable) = 1;
     }
 
+    // ZAI config is always set up
+    pthread_once(&dd_rinit_config_once_control, ddtrace_config_first_rinit);
+    zai_config_rinit();
+
+    if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
+        DDTRACE_G(disable) = 1;
+    }
+
     if (DDTRACE_G(disable)) {
-        pthread_once(&dd_rinit_once_control, ddtrace_config_first_rinit);
-        zai_config_rinit();
         return SUCCESS;
     }
 
@@ -444,8 +449,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     // Things that should only run on the first RINIT
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
-
-    zai_config_rinit();
 
     DDTRACE_G(request_init_hook_loaded) = 0;
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
