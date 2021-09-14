@@ -504,7 +504,7 @@ jobs:
         type: string
         default: none
     working_directory: ~/datadog
-    parallelism: 4
+    parallelism: 3
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
