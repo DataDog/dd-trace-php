@@ -504,6 +504,7 @@ jobs:
         type: string
         default: none
     working_directory: ~/datadog
+    parallelism: 4
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
@@ -533,11 +534,13 @@ jobs:
             export DD_TRACE_WARN_LEGACY_DD_TRACE=0
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
+            export TESTS=$(circleci tests glob **/tests/*.phpt | circleci tests split)
             mkdir -p /tmp/artifacts/tests
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
+              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
+              $TESTS
       - run:
           command: |
             cd /usr/local/src/php
@@ -1945,51 +1948,51 @@ workflows:
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 80 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/8.0.list
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+      # - php_language_tests:
+      #     requires: [ 'Language tests' ]
+      #     name: "PHP 80 language tests"
+      #     xfail_list: dockerfiles/ci/xfail_tests/8.0.list
+      #     docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 74 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.4.list
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 73 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/7.3.list
-          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 72 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/7.2.list
-          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 71 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/7.1.list
-          docker_image: "datadog/dd-trace-ci:php-7.1_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 70 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/7.0.list
-          docker_image: "datadog/dd-trace-ci:php-7.0_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 56 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/5.6.list
-          docker_image: "datadog/dd-trace-ci:php-5.6_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 55 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/5.5.list
-          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 54 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/5.4.list
-          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
+      # - php_language_tests:
+      #     requires: [ 'Language tests' ]
+      #     name: "PHP 73 language tests"
+      #     xfail_list: dockerfiles/ci/xfail_tests/7.3.list
+      #     docker_image: "datadog/dd-trace-ci:php-7.3_buster"
+      # - php_language_tests:
+      #     requires: [ 'Language tests' ]
+      #     name: "PHP 72 language tests"
+      #     xfail_list: dockerfiles/ci/xfail_tests/7.2.list
+      #     docker_image: "datadog/dd-trace-ci:php-7.2_buster"
+      # - php_language_tests:
+      #     requires: [ 'Language tests' ]
+      #     name: "PHP 71 language tests"
+      #     xfail_list: dockerfiles/ci/xfail_tests/7.1.list
+      #     docker_image: "datadog/dd-trace-ci:php-7.1_buster"
+      # - php_language_tests:
+      #     requires: [ 'Language tests' ]
+      #     name: "PHP 70 language tests"
+      #     xfail_list: dockerfiles/ci/xfail_tests/7.0.list
+      #     docker_image: "datadog/dd-trace-ci:php-7.0_buster"
+      # - php_language_tests:
+      #     requires: [ 'Language tests' ]
+      #     name: "PHP 56 language tests"
+      #     xfail_list: dockerfiles/ci/xfail_tests/5.6.list
+      #     docker_image: "datadog/dd-trace-ci:php-5.6_buster"
+      # - php_language_tests:
+      #     requires: [ 'Language tests' ]
+      #     name: "PHP 55 language tests"
+      #     xfail_list: dockerfiles/ci/xfail_tests/5.5.list
+      #     docker_image: "datadog/dd-trace-ci:php-5.5_buster"
+      # - php_language_tests:
+      #     requires: [ 'Language tests' ]
+      #     name: "PHP 54 language tests"
+      #     xfail_list: dockerfiles/ci/xfail_tests/5.4.list
+      #     docker_image: "datadog/dd-trace-ci:php-5.4_buster"
       - internal_integrations:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 curl integration tests a shared lib"
