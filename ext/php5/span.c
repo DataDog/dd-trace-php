@@ -80,11 +80,11 @@ ddtrace_span_fci *ddtrace_init_span(TSRMLS_D) {
 void ddtrace_push_root_span(TSRMLS_D) { ddtrace_open_span(ddtrace_init_span(TSRMLS_C) TSRMLS_CC); }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
-    if (Z_BVAL_P(old_value) == Z_BVAL_P(new_value)) {
+    TSRMLS_FETCH();
+
+    if (Z_BVAL_P(old_value) == Z_BVAL_P(new_value) || DDTRACE_G(disable)) {
         return true;
     }
-
-    TSRMLS_FETCH();
 
     if (Z_BVAL_P(old_value) == 0) {
         if (DDTRACE_G(open_spans_top) == NULL) {
