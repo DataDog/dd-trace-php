@@ -25,7 +25,7 @@ trait AgentReplayerTrait
     public function getLastAgentRequest()
     {
         $allRequests = $this->getAllAgentRequests();
-        if (count($allRequests) === 0) {
+        if (!$allRequests) {
             return [];
         }
         return $allRequests[count($allRequests) - 1];

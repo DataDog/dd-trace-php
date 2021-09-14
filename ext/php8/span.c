@@ -80,7 +80,7 @@ ddtrace_span_fci *ddtrace_init_span(void) {
 void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span()); }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
-    if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value)) {
+    if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value) || DDTRACE_G(disable)) {
         return true;
     }
 
