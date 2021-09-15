@@ -50,9 +50,8 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                             'Laravel\Lumen\Application.handleFoundRoute',
                             'lumen',
                             'web',
-                            'Laravel\Lumen\Application.handleFoundRoute'
+                            'simple_route'
                         )->withExactTags([
-                            'lumen.route.name' => 'simple_route',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                         ]),
                     ]),

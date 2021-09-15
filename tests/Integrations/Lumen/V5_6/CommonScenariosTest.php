@@ -56,9 +56,8 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'Laravel\Lumen\Application.handleFoundRoute',
                             'lumen_test_app',
                             'web',
-                            'Laravel\Lumen\Application.handleFoundRoute'
+                            'simple_route'
                         )->withExactTags([
-                            'lumen.route.name' => 'simple_route',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                         ]),
                     ]),

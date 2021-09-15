@@ -82,13 +82,12 @@ class LumenIntegration extends Integration
                         $action = $routeInfo[1]['uses'];
                         $rootSpan->setTag('lumen.route.action', $action);
                         $span->meta['lumen.route.action'] = $action;
-                        $resourceName = $routeInfo[1]['uses'];
                     }
                     if (isset($routeInfo[1]['as'])) {
                         $routeAlias = $routeInfo[1]['as'];
                         $rootSpan->setTag('lumen.route.name', $routeAlias);
-                        $span->meta['lumen.route.name'] = $routeAlias;
-                        $resourceName = $routeInfo[1]['as'];
+                        $span->resource = $routeAlias;
+                        $resourceName = $routeAlias;
                     }
                     if (null !== $resourceName && !\ddtrace_config_url_resource_name_enabled()) {
                         $rootSpan->setTag(
