@@ -57,7 +57,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->withExactTags([])
+                        )->withExactTags([
+                            'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
+                        ])
                         ->withChildren([
                             SpanAssertion::build(
                                 'laravel.view.render',
@@ -109,7 +111,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->withExistingTagsNames([
+                        )->withExactTags([
+                            'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
+                        ])
+                        ->withExistingTagsNames([
                             'error.stack'
                         ])->setError('Exception', 'Controller error'),
                         SpanAssertion::build(
@@ -144,7 +149,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'lumen_test_app',
                     'web',
                     'Laravel\Lumen\Application.handleFoundRoute'
-                ),
+                )->withExactTags([
+                    'lumen.route.name' => 'simple_route',
+                    'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
+                ]),
             ]),
         ];
     }
@@ -169,7 +177,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'lumen_test_app',
                         '',
                         'Laravel\Lumen\Application.handleFoundRoute'
-                    )->withExistingTagsNames([
+                    )->withExactTags([
+                        'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
+                    ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError('Exception', 'Controller error'),
                 ]),
