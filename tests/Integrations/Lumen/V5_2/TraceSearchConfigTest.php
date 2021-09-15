@@ -37,7 +37,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'lumen.request',
                     'lumen',
                     'web',
-                    'GET simple_route'
+                    'GET /simple'
                 )
                     ->withExactTags([
                         'lumen.route.name' => 'simple_route',
@@ -56,8 +56,10 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                             'Laravel\Lumen\Application.handleFoundRoute',
                             'lumen',
                             'web',
-                            'Laravel\Lumen\Application.handleFoundRoute'
-                        ),
+                            'simple_route'
+                        )->withExactTags([
+                            'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
+                        ]),
                     ])
             ]
         );

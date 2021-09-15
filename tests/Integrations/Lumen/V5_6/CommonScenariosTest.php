@@ -44,7 +44,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'lumen.request',
                         'lumen_test_app',
                         'web',
-                        'GET simple_route'
+                        'GET /simple'
                     )->withExactTags([
                         'lumen.route.name' => 'simple_route',
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
@@ -56,8 +56,10 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'Laravel\Lumen\Application.handleFoundRoute',
                             'lumen_test_app',
                             'web',
-                            'Laravel\Lumen\Application.handleFoundRoute'
-                        )
+                            'simple_route'
+                        )->withExactTags([
+                            'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
+                        ]),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -65,7 +67,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'lumen.request',
                         'lumen_test_app',
                         'web',
-                        'GET App\Http\Controllers\ExampleController@simpleView'
+                        'GET /simple_view'
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         'http.method' => 'GET',
@@ -77,7 +79,9 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->withChildren([
+                        )->withExactTags([
+                            'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
+                        ])->withChildren([
                             SpanAssertion::build(
                                 'laravel.view.render',
                                 'lumen_test_app',
@@ -99,7 +103,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'lumen.request',
                         'lumen_test_app',
                         'web',
-                        'GET App\Http\Controllers\ExampleController@error'
+                        'GET /error'
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         'http.method' => 'GET',
@@ -114,7 +118,9 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->withExistingTagsNames([
+                        )->withExactTags([
+                            'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
+                        ])->withExistingTagsNames([
                             'error.stack',
                         ])->setError('Exception', 'Controller error'),
                         SpanAssertion::build(

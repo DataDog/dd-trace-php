@@ -45,7 +45,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'lumen.request',
                         'lumen_test_app',
                         'web',
-                        'GET App\Http\Controllers\ExampleController@simpleView'
+                        'GET /simple_view'
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         'http.method' => 'GET',
@@ -57,7 +57,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->withExactTags([])
+                        )->withExactTags([
+                            'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
+                        ])
                         ->withChildren([
                             SpanAssertion::build(
                                 'laravel.view.render',
@@ -93,7 +95,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'lumen.request',
                         'lumen_test_app',
                         'web',
-                        'GET App\Http\Controllers\ExampleController@error'
+                        'GET /error'
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         'http.method' => 'GET',
@@ -109,7 +111,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'lumen_test_app',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->withExistingTagsNames([
+                        )->withExactTags([
+                            'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
+                        ])
+                        ->withExistingTagsNames([
                             'error.stack'
                         ])->setError('Exception', 'Controller error'),
                         SpanAssertion::build(
@@ -131,7 +136,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'lumen.request',
                 'lumen_test_app',
                 'web',
-                'GET simple_route'
+                'GET /simple'
             )->withExactTags([
                 'lumen.route.name' => 'simple_route',
                 'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
@@ -143,8 +148,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'Laravel\Lumen\Application.handleFoundRoute',
                     'lumen_test_app',
                     'web',
-                    'Laravel\Lumen\Application.handleFoundRoute'
-                ),
+                    'simple_route'
+                )->withExactTags([
+                    'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
+                ]),
             ]),
         ];
     }
@@ -156,7 +163,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'lumen.request',
                 'lumen_test_app',
                 'web',
-                'GET App\Http\Controllers\ExampleController@error'
+                'GET /error'
             )->withExactTags([
                 'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                 'http.method' => 'GET',
@@ -169,7 +176,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'lumen_test_app',
                         '',
                         'Laravel\Lumen\Application.handleFoundRoute'
-                    )->withExistingTagsNames([
+                    )->withExactTags([
+                        'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
+                    ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError('Exception', 'Controller error'),
                 ]),
