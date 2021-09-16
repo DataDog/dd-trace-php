@@ -42,7 +42,20 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    **WARNING**: Resource names for “Lumen” applications will change by default to `GET /actual/uri/path` from the previous format `GET action_name` or `GET App\Controller@action_method`. You might need to adjust your monitors and filters for the change. In order to go back to the previous behavior, instead, you can temporarily set `DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false`
+
+    ### Added
+    - Add functions ZAI support for PHP 5 and 7 #1300
+    - Add properties and exceptions ZAI implementations for PHP 5 #1306
+
+    ### Changed
+    - Remove src/dd-doctor.php #1316
+    - Honor DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED in Lumen resource naming #1318
+
+    ### Fixed
+    -  Fix CLI processes emitting empty root spans when CLI tracing is not enabled #1320
+    </notes>
     <contents>
         <dir name="/">
             <!-- components -->
