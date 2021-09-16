@@ -96,7 +96,7 @@ void ddtrace_config_shutdown(void);
     CHAR(get_dd_tags, "DD_TAGS", "")                                                                                 \
     INT(get_dd_trace_agent_port, "DD_TRACE_AGENT_PORT", 8126)                                                        \
     BOOL(get_dd_trace_analytics_enabled, "DD_TRACE_ANALYTICS_ENABLED", false)                                        \
-    BOOL(get_dd_trace_auto_flush_enabled, "DD_TRACE_AUTO_FLUSH_ENABLED", false)                                      \
+    BOOL(get_dd_trace_auto_flush_enabled, "DD_TRACE_AUTO_FLUSH_ENABLED", true)                                       \
     BOOL(get_dd_trace_cli_enabled, "DD_TRACE_CLI_ENABLED", false)                                                    \
     BOOL(get_dd_trace_measure_compile_time, "DD_TRACE_MEASURE_COMPILE_TIME", true)                                   \
     BOOL(get_dd_trace_debug, "DD_TRACE_DEBUG", false)                                                                \
