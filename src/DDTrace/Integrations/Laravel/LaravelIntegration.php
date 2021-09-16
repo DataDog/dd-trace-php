@@ -199,6 +199,24 @@ class LaravelIntegration extends Integration
             }
         );
 
+        \DDTrace\trace_method(
+            'Illuminate\Foundation\Http\Kernel',
+            'renderException',
+            function (SpanData $span, $args) use ($rootSpan) {
+                $rootSpan->setError($args[1]);
+                return false;
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Illuminate\Routing\Pipeline',
+            'handleException',
+            function (SpanData $span, $args) use ($rootSpan) {
+                $rootSpan->setError($args[1]);
+                return false;
+            }
+        );
+
         return Integration::LOADED;
     }
 
