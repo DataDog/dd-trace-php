@@ -15,7 +15,7 @@ variables:
 
 build:
   stage: build
-  image: ubuntu:18.04
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
   tags: [ "runner:main", "size:large" ]
   script:
     - echo $LATEST_URL | sed -E 's/.+_(.+)_.+/UPSTREAM_TRACER_VERSION=\1/' >> upstream.env
