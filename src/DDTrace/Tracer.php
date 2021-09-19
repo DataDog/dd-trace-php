@@ -202,7 +202,7 @@ final class Tracer implements TracerInterface
             $span = new Span($operationName, $context, $service, $resource, $options->getStartTime());
         }
 
-        if (PHP_VERSION_ID < 80000) {
+        if (PHP_VERSION_ID < 70000) {
             $tags = $options->getTags() + $this->getGlobalTags();
             if ($context->getParentId() === null) {
                 $tags[Tag::PID] = getmypid();

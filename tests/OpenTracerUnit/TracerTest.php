@@ -105,7 +105,7 @@ final class TracerTest extends BaseTestCase
     {
         $tracer = Tracer::make(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
-        $this->assertSame((string) getmypid(), $span->getTag(Tag::PID));
+        $this->assertEquals(getmypid(), $span->getTag(Tag::PID));
     }
 
     public function testStartActiveSpan()

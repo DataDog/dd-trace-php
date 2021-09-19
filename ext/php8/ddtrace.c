@@ -240,6 +240,7 @@ static void ddtrace_span_data_free_storage(zend_object *object) {
         span_fci->dispatch = NULL;
     }
     zend_object_std_dtor(object);
+    // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP 8.0]
     memset(object->properties_table, 0, sizeof(((ddtrace_span_t *)NULL)->properties_table_placeholder));
 }
 

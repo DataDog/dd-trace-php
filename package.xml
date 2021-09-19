@@ -88,6 +88,9 @@
             <file name="zend_abstract_interface/sandbox/php7/sandbox.c" role="src" />
             <file name="zend_abstract_interface/sandbox/php8/sandbox.c" role="src" />
             <file name="zend_abstract_interface/sandbox/sandbox.h" role="src" />
+            <file name="zend_abstract_interface/uri_normalization/php5/uri_normalization.c" role="src" />
+            <file name="zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c" role="src" />
+            <file name="zend_abstract_interface/uri_normalization/uri_normalization.h" role="src" />
             <file name="zend_abstract_interface/zai_compat.h" role="src" />
             <file name="zend_abstract_interface/zai_assert/zai_assert.h" role="src" />
             <file name="zend_abstract_interface/zai_sapi/php5/zai_sapi.c" role="src" />
@@ -257,6 +260,7 @@
             <file name="ext/php7/span.h" role="src" />
             <file name="ext/php7/startup_logging.c" role="src" />
             <file name="ext/php7/startup_logging.h" role="src" />
+            <file name="ext/php7/uri_normalization.h" role="src" />
             <!-- PHP 8.x -->
             <file name="ext/php8/arrays.c" role="src" />
             <file name="ext/php8/arrays.h" role="src" />
@@ -321,7 +325,6 @@
             <file name="ext/php8/span.h" role="src" />
             <file name="ext/php8/startup_logging.c" role="src" />
             <file name="ext/php8/startup_logging.h" role="src" />
-            <file name="ext/php8/uri_normalization.c" role="src" />
             <file name="ext/php8/uri_normalization.h" role="src" />
             <!-- Shared -->
             <file name="src/dogstatsd/client.c" role="src" />

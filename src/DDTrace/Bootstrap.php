@@ -58,7 +58,7 @@ final class Bootstrap
                         Bootstrap::flushTracerShutdown();
                     } else {
                         $tracer = GlobalTracer::get();
-                        if (PHP_VERSION_ID < 80000) {
+                        if (PHP_VERSION_ID < 70000) {
                             // this also gets set when creating a root span, but may not have the latest up-to-date data
                             if (
                                 'cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled()
@@ -134,7 +134,7 @@ final class Bootstrap
                     $httpHeaders
                 )
             )->getSpan();
-            if (PHP_VERSION_ID < 80000) {
+            if (PHP_VERSION_ID < 70000) {
                 $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
                 if (isset($_SERVER['REQUEST_METHOD'])) {
                     $span->setTag(Tag::HTTP_METHOD, $_SERVER['REQUEST_METHOD']);
@@ -149,12 +149,13 @@ final class Bootstrap
                 foreach (Private_\util_extract_configured_headers_as_tags($httpHeaders, true) as $tag => $value) {
                     $span->setTag($tag, $value);
                 }
+            }
 
-                if (PHP_VERSION_ID >= 70000) {
-                    foreach ($httpHeaders as $header => $value) {
-                        if (stripos($header, Propagator::DEFAULT_ORIGIN_HEADER) === 0) {
-                            add_global_tag(Tag::ORIGIN, $value);
-                        }
+            if (PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 80000) {
+                foreach ($httpHeaders as $header => $value) {
+                    if (stripos($header, Propagator::DEFAULT_ORIGIN_HEADER) === 0) {
+                        add_global_tag(Tag::ORIGIN, $value);
+                        $span->setTag(Tag::ORIGIN, $value);
                     }
                 }
             }
@@ -165,7 +166,7 @@ final class Bootstrap
         // is reset during span init, we need to re-set it again here
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
-        if (PHP_VERSION_ID < 80000) {
+        if (PHP_VERSION_ID < 70000) {
             $rootSpan = $span;
             \DDTrace\hook_function('header', null, function ($args) use ($rootSpan) {
                 if (isset($args[2])) {
