@@ -24,19 +24,45 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (2) {
+object(DDTrace\SpanData)#%d (6) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
   string(3) "abc"
+  ["service"]=>
+  string(14) "span_clone.php"
+  ["type"]=>
+  string(3) "cli"
+  ["meta"]=>
+  array(1) {
+    ["system.pid"]=>
+    int(%d)
+  }
+  ["metrics"]=>
+  array(0) {
+  }
 }
-object(DDTrace\SpanData)#%d (1) {
+object(DDTrace\SpanData)#%d (6) {
+  ["name"]=>
+  string(5) "dummy"
   ["resource"]=>
   string(3) "abc"
+  ["service"]=>
+  string(14) "span_clone.php"
+  ["type"]=>
+  string(3) "cli"
+  ["meta"]=>
+  array(1) {
+    ["system.pid"]=>
+    int(%d)
+  }
+  ["metrics"]=>
+  array(0) {
+  }
 }
 array(1) {
   [0]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -49,6 +75,10 @@ array(1) {
     string(3) "foo"
     ["resource"]=>
     string(3) "abc"
+    ["service"]=>
+    string(14) "span_clone.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>

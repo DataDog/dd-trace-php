@@ -162,7 +162,7 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
     return true;
 }
 
-static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bool persistent, bool lowercase) {
     zval tmp;
 #if PHP_VERSION_ID < 70000
     INIT_PZVAL(&tmp);
@@ -186,11 +186,22 @@ static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bo
                 }
                 size_t key_len = key_end - key_start + 1;
 #if PHP_VERSION_ID < 70000
-                char *zero_terminated_key = pestrndup(key_start, key_len, persistent);
+                char *zero_terminated_key = pemalloc(key_len + 1, persistent);
+                if (lowercase) {
+                    zend_str_tolower_copy(zero_terminated_key, key_start, key_len);
+                } else {
+                    memcpy(zero_terminated_key, key_start, key_len);
+                    zero_terminated_key[key_len] = 0;
+                }
                 zend_hash_add_empty_element(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1);
                 pefree(zero_terminated_key, persistent);
 #else
-                zend_hash_str_add_empty_element(Z_ARRVAL(tmp), key_start, key_len);
+                zend_string *key = zend_string_init(key_start, key_len, persistent);
+                if (lowercase) {
+                    zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key));
+                }
+                zend_hash_add_empty_element(Z_ARRVAL(tmp), key);
+                zend_string_release(key);
 #endif
             } else {
                 ++data;
@@ -229,7 +240,9 @@ bool zai_config_decode_value(zai_string_view value, zai_config_type type, zval *
         case ZAI_CONFIG_TYPE_MAP:
             return zai_config_decode_map(value, decoded_value, persistent);
         case ZAI_CONFIG_TYPE_SET:
-            return zai_config_decode_set(value, decoded_value, persistent);
+            return zai_config_decode_set(value, decoded_value, persistent, false);
+        case ZAI_CONFIG_TYPE_SET_LOWERCASE:
+            return zai_config_decode_set(value, decoded_value, persistent, true);
         case ZAI_CONFIG_TYPE_STRING:
             return zai_config_decode_string(value, decoded_value, persistent);
         default:

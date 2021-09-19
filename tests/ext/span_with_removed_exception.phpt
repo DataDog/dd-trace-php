@@ -45,7 +45,7 @@ try {
 --EXPECTF--
 array(1) {
   [0]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -58,6 +58,10 @@ array(1) {
     string(4) "test"
     ["resource"]=>
     string(4) "test"
+    ["service"]=>
+    string(31) "span_with_removed_exception.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
@@ -72,7 +76,7 @@ array(1) {
 }
 array(1) {
   [0]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -85,6 +89,10 @@ array(1) {
     string(4) "test"
     ["resource"]=>
     string(4) "test"
+    ["service"]=>
+    string(31) "span_with_removed_exception.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
@@ -99,7 +107,7 @@ array(1) {
 }
 array(1) {
   [0]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -112,6 +120,10 @@ array(1) {
     string(4) "test"
     ["resource"]=>
     string(4) "test"
+    ["service"]=>
+    string(31) "span_with_removed_exception.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>

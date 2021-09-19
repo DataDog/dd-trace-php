@@ -24,7 +24,7 @@ function my_app()
     $span->service = 'foo_service';
     $span->resource = 'foo_resource';
     $span->type = 'custom';
-    $span->meta = ['foo' => 'bar'];
+    $span->meta['foo'] = 'bar';
 });
 
 my_app();

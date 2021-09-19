@@ -17,8 +17,8 @@ $span->name = ($_ = "d") . "ata";
 $span->resource = ($_ = "d") . "og";
 $span->service = ($_ = "t") . "est";
 $span->type = ($_ = "r") . "unner";
-$span->meta = [($_ = "a") . "a" => ($_ = "b") . "b"];
-$span->metrics = [($_ = "c") . "c" => ($_ = "d") . "d"];
+$span->meta += [($_ = "a") . "a" => ($_ = "b") . "b"];
+$span->metrics += [($_ = "c") . "c" => ($_ = "d") . "d"];
 
 var_dump($span->getDuration());
 var_dump($start_time = $span->getStartTime());
@@ -57,7 +57,7 @@ bool(true)
 float(2000000000)
 array(2) {
   [0]=>
-  array(6) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -66,6 +66,14 @@ array(2) {
     int(%d)
     ["duration"]=>
     int(200000%d)
+    ["name"]=>
+    string(34) "start_span_with_all_properties.php"
+    ["resource"]=>
+    string(34) "start_span_with_all_properties.php"
+    ["service"]=>
+    string(34) "start_span_with_all_properties.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
@@ -97,10 +105,10 @@ array(2) {
     string(6) "runner"
     ["meta"]=>
     array(2) {
-      ["aa"]=>
-      string(2) "bb"
       ["system.pid"]=>
       string(%d) "%d"
+      ["aa"]=>
+      string(2) "bb"
     }
     ["metrics"]=>
     array(2) {

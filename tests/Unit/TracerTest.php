@@ -78,6 +78,7 @@ final class TracerTest extends BaseTestCase
 
     public function testStartSpanAsRootWithPid()
     {
+        \dd_trace_serialize_closed_spans();
         $tracer = new Tracer(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $this->assertEquals(getmypid(), $span->getTag(Tag::PID));
@@ -268,6 +269,7 @@ final class TracerTest extends BaseTestCase
     {
         self::putenv('DD_TRACE_REPORT_HOSTNAME=true');
 
+        \dd_trace_serialize_closed_spans();
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
         $this->assertEquals(gethostname(), $tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
@@ -283,6 +285,7 @@ final class TracerTest extends BaseTestCase
     {
         self::putenv('DD_TAGS=key1:value1,key2:value2');
 
+        \dd_trace_serialize_closed_spans();
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
         $span = $tracer->startSpan('custom');

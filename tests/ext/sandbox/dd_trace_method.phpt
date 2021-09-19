@@ -49,13 +49,13 @@ var_dump(DDTrace\trace_method(
         $span->resource = 'FooResource';
         $span->service = 'FooService';
         $span->type = 'FooType';
-        $span->meta = [
+        $span->meta += [
             'args.0' => isset($args[0]) ? $args[0] : '',
             'retval.thoughts' => isset($retval['thoughts']) ? $retval['thoughts'] : '',
             'retval.first' => isset($retval['first']) ? $retval['first'] : '',
             'retval.rand' => isset($retval['rand']) ? $retval['rand'] : '',
         ];
-        $span->metrics = [
+        $span->metrics += [
             'foo' => isset($args[1][1]) ? $args[1][1] : '',
             'bar' => isset($args[1][2]) ? $args[1][2] : '',
         ];
@@ -122,6 +122,8 @@ array(3) {
     string(7) "FooType"
     ["meta"]=>
     array(5) {
+      ["system.pid"]=>
+      string(%d) "%d"
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["retval.thoughts"]=>
@@ -129,8 +131,6 @@ array(3) {
       ["retval.first"]=>
       string(5) "first"
       ["retval.rand"]=>
-      string(%d) "%d"
-      ["system.pid"]=>
       string(%d) "%d"
     }
     ["metrics"]=>
@@ -144,7 +144,7 @@ array(3) {
     }
   }
   [1]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -159,6 +159,10 @@ array(3) {
     string(2) "MT"
     ["resource"]=>
     string(2) "MT"
+    ["service"]=>
+    string(19) "dd_trace_method.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(2) {
       ["rand.range"]=>
@@ -168,7 +172,7 @@ array(3) {
     }
   }
   [2]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -181,6 +185,10 @@ array(3) {
     string(7) "TestFoo"
     ["resource"]=>
     string(7) "TestFoo"
+    ["service"]=>
+    string(19) "dd_trace_method.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>

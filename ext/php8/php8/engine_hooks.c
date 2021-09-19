@@ -372,11 +372,31 @@ static ZEND_RESULT_CODE dd_do_hook_method_prehook(zend_execute_data *call, ddtra
     return status;
 }
 
+void dd_set_fqn(zval *zv, zend_execute_data *ex) {
+    if (!ex->func || !ex->func->common.function_name) {
+        return;
+    }
+
+    zval_ptr_dtor(zv);
+
+    zend_class_entry *called_scope = dd_get_called_scope(ex);
+    if (called_scope) {
+        // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
+        ZVAL_STR(zv, strpprintf(0, "%s.%s", ZSTR_VAL(called_scope->name), ZSTR_VAL(ex->func->common.function_name)));
+    } else {
+        ZVAL_STR_COPY(zv, ex->func->common.function_name);
+    }
+}
+
 static ddtrace_span_fci *dd_fcall_begin_tracing_hook(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
     ddtrace_span_fci *span_fci = ddtrace_init_span();
     span_fci->execute_data = call;
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci);
+
+    // SpanData::$name defaults to fully qualified called name
+    zval *prop_name = ddtrace_spandata_property_name(&span_fci->span);
+    dd_set_fqn(prop_name, span_fci->execute_data);
 
     return span_fci;
 }
@@ -461,40 +481,6 @@ static ddtrace_span_fci *dd_observer_begin(zend_execute_data *call, ddtrace_disp
     ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
     ddtrace_span_fci *span_fci = (dd_fcall_begin[offset])(call, dispatch);
     return span_fci;
-}
-
-void dd_set_fqn(zval *zv, zend_execute_data *ex) {
-    if (!ex->func || !ex->func->common.function_name) {
-        return;
-    }
-    zend_class_entry *called_scope = dd_get_called_scope(ex);
-    if (called_scope) {
-        // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
-        zend_string *fqn =
-            strpprintf(0, "%s.%s", ZSTR_VAL(called_scope->name), ZSTR_VAL(ex->func->common.function_name));
-        ZVAL_STR_COPY(zv, fqn);
-        zend_string_release(fqn);
-    } else {
-        ZVAL_STR_COPY(zv, ex->func->common.function_name);
-    }
-}
-
-static void dd_set_default_properties(void) {
-    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
-    if (span_fci == NULL || span_fci->execute_data == NULL) {
-        return;
-    }
-
-    ddtrace_span_t *span = &span_fci->span;
-    // SpanData::$name defaults to fully qualified called name
-    // The other span property defaults are set at serialization time
-    zval *prop_name = ddtrace_spandata_property_name(span);
-    if (prop_name && Z_TYPE_P(prop_name) <= IS_NULL) {
-        zval prop_name_default;
-        ZVAL_NULL(&prop_name_default);
-        dd_set_fqn(&prop_name_default, span_fci->execute_data);
-        ZVAL_COPY_VALUE(prop_name, &prop_name_default);
-    }
 }
 
 static ZEND_RESULT_CODE dd_do_hook_method_posthook(zend_execute_data *call, ddtrace_dispatch_t *dispatch,
@@ -589,7 +575,6 @@ static void dd_fcall_end_tracing_posthook(ddtrace_span_fci *span_fci, zval *user
     ddtrace_close_userland_spans_until(span_fci);  // because dropping / setting default properties happens on top span
 
     if (keep_span) {
-        dd_set_default_properties();
         ddtrace_close_span(span_fci);
     } else {
         ddtrace_drop_top_open_span();
@@ -616,7 +601,6 @@ static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_
 
     ddtrace_close_userland_spans_until(span_fci);  // because setting default properties happens on top span
 
-    dd_set_default_properties();
     ddtrace_close_span(span_fci);
 }
 

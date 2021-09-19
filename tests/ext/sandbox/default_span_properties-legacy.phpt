@@ -1,7 +1,7 @@
 --TEST--
 Span properties defaults to values if not explicitly set (functions)
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,range
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -31,16 +31,17 @@ main(6);
 include 'dd_dumper.inc';
 dd_dump_spans();
 ?>
---EXPECT--
+--EXPECTF--
 21
 28
 spans(\DDTrace\SpanData) (5) {
-  main (default_span_properties.php, main, cli)
+  main (main)
     max => 6
-  array_sum (default_span_properties.php, array_sum, cli)
+    system.pid => %d
+  array_sum (array_sum)
     retval => 28
-  MyRange (default_span_properties.php, MyRange, cli)
-  array_sum (default_span_properties.php, array_sum, cli)
+  MyRange (MyRange)
+  array_sum (array_sum)
     retval => 21
-  MyRange (default_span_properties.php, MyRange, cli)
+  MyRange (MyRange)
 }

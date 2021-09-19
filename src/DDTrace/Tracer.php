@@ -190,34 +190,46 @@ final class Tracer implements TracerInterface
             $internalSpan->name = (string) $operationName;
             $internalSpan->service = $service;
             $internalSpan->resource = $resource;
-            $internalSpan->metrics = [];
-            $internalSpan->meta = [];
+            if (!isset($internalSpan->metrics)) {
+                $internalSpan->metrics = [];
+            }
+            if (!isset($internalSpan->meta)) {
+                $internalSpan->meta = [];
+            }
             // @phpstan-ignore-next-line
             $span = new Span($internalSpan, $context);
         } else {
             $span = new Span($operationName, $context, $service, $resource, $options->getStartTime());
         }
 
-        $tags = $options->getTags() + $this->getGlobalTags();
-        if ($context->getParentId() === null) {
-            $tags[Tag::PID] = getmypid();
-        }
+        if (PHP_VERSION_ID < 80000) {
+            $tags = $options->getTags() + $this->getGlobalTags();
+            if ($context->getParentId() === null) {
+                $tags[Tag::PID] = getmypid();
+            }
 
-        foreach ($tags as $key => $value) {
-            $span->setTag($key, $value);
-        }
+            foreach ($tags as $key => $value) {
+                $span->setTag($key, $value);
+            }
 
-        if ($reference === null) {
-            if (\ddtrace_config_hostname_reporting_enabled()) {
+            if ($reference === null && \ddtrace_config_hostname_reporting_enabled()) {
                 $hostname = gethostname();
                 if ($hostname !== false) {
                     $span->setTag(Tag::HOSTNAME, $hostname);
                 }
             }
-            // Call it here so that the data is there in any case, even when shutdown fatal errors
-            if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled()) {
-                $this->addUrlAsResourceNameToSpan($span);
+        } else {
+            foreach ($options->getTags() as $key => $val) {
+                $span->setTag($key, $val);
             }
+        }
+
+        // Call it here so that the data is there in any case, even when shutdown fatal errors
+        if (
+            ($reference === null || $reference->getContext()->isDistributedTracingActivationContext())
+            && 'cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled()
+        ) {
+            $this->addUrlAsResourceNameToSpan($span);
         }
 
         $this->record($span);

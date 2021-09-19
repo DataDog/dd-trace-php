@@ -5,6 +5,10 @@ DDTrace\add_global_tag() on all sorts of spans
 --FILE--
 <?php
 
+DDTrace\add_global_tag("alone", ($_ = "n") . "o");
+DDTrace\add_global_tag("cubs", ($_ = "n") . "o");
+DDTrace\add_global_tag("cubs", ($_ = "y") . "es"); // overwrites older entries
+
 $span = DDTrace\start_span();
 $span->name = "polar " . ($_ = "bear");
 
@@ -18,10 +22,6 @@ DDTrace\trace_function("test", function($s, $a, $retval) {
 
 test("arg");
 
-DDTrace\add_global_tag("alone", ($_ = "n") . "o");
-DDTrace\add_global_tag("cubs", ($_ = "n") . "o");
-DDTrace\add_global_tag("cubs", ($_ = "y") . "es"); // overwrites older entries
-
 DDTrace\close_span();
 
 var_dump(dd_trace_serialize_closed_spans());
@@ -31,7 +31,7 @@ var_dump(dd_trace_serialize_closed_spans());
 HOOK METHOD arg
 array(2) {
   [0]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -46,6 +46,10 @@ array(2) {
     string(10) "polar bear"
     ["resource"]=>
     string(10) "polar bear"
+    ["service"]=>
+    string(49) "add_global_tag_on_userland_and_internal_spans.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(2) {
       ["alone"]=>
@@ -55,7 +59,7 @@ array(2) {
     }
   }
   [1]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -70,6 +74,10 @@ array(2) {
     string(4) "test"
     ["resource"]=>
     string(4) "test"
+    ["service"]=>
+    string(49) "add_global_tag_on_userland_and_internal_spans.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(2) {
       ["alone"]=>

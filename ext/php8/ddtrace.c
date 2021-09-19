@@ -228,6 +228,8 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
     zend_object_std_init(&span_fci->span.std, class_type);
     span_fci->span.std.handlers = &ddtrace_span_data_handlers;
+    array_init(ddtrace_spandata_property_meta(&span_fci->span));
+    array_init(ddtrace_spandata_property_metrics(&span_fci->span));
     return &span_fci->span.std;
 }
 
@@ -238,6 +240,7 @@ static void ddtrace_span_data_free_storage(zend_object *object) {
         span_fci->dispatch = NULL;
     }
     zend_object_std_dtor(object);
+    memset(object->properties_table, 0, sizeof(((ddtrace_span_t *)NULL)->properties_table_placeholder));
 }
 
 static zend_object *ddtrace_span_data_clone_obj(zend_object *old_obj) {

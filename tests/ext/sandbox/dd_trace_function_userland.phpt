@@ -40,7 +40,7 @@ array (
 ---
 array(1) {
   [0]=>
-  array(7) {
+  array(9) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -55,6 +55,10 @@ array(1) {
     string(15) "filter_to_array"
     ["resource"]=>
     string(15) "filter_to_array"
+    ["service"]=>
+    string(30) "dd_trace_function_userland.php"
+    ["type"]=>
+    string(3) "cli"
   }
 }
 array(0) {

@@ -1,6 +1,6 @@
 #include "span.h"
 
-#include <php.h>
+#include <SAPI.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -11,6 +11,7 @@
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
+#include "uri_normalization.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -68,6 +69,16 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+
+    if (!span_fci->next) {  // root span
+        ddtrace_set_root_span_properties(&span_fci->span);
+    } else {
+        ZVAL_COPY(ddtrace_spandata_property_service(&span_fci->span),
+                  ddtrace_spandata_property_service(&span_fci->next->span));
+        ZVAL_COPY(ddtrace_spandata_property_type(&span_fci->span),
+                  ddtrace_spandata_property_type(&span_fci->next->span));
+    }
+    ddtrace_set_global_span_properties(&span_fci->span);
 }
 
 ddtrace_span_fci *ddtrace_init_span(void) {

@@ -321,6 +321,8 @@
             <file name="ext/php8/span.h" role="src" />
             <file name="ext/php8/startup_logging.c" role="src" />
             <file name="ext/php8/startup_logging.h" role="src" />
+            <file name="ext/php8/uri_normalization.c" role="src" />
+            <file name="ext/php8/uri_normalization.h" role="src" />
             <!-- Shared -->
             <file name="src/dogstatsd/client.c" role="src" />
             <file name="src/dogstatsd/dogstatsd_client/client.h" role="src" />
@@ -437,6 +439,7 @@
             <file name="tests/ext/sandbox/dd_trace_api_error.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_api_error-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_function_alias.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_function_alias-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_function_complex.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_function_complex-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_function_internal.phpt" role="test" />
@@ -446,11 +449,14 @@
             <file name="tests/ext/sandbox/dd_trace_method.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_method-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_method_alias.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_method_alias-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_method_binds_called_object.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_push_span_id.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_set_trace_id.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties.phpt" role="test" />
+            <file name="tests/ext/sandbox/default_span_properties-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties_method.phpt" role="test" />
+            <file name="tests/ext/sandbox/default_span_properties_method-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_attempt_loading_once.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_missing_load_fn.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_using_function.phpt" role="test" />
@@ -591,6 +597,7 @@
             <file name="tests/ext/sandbox/safe_to_string_metadata.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_properties.phpt" role="test" />
+            <file name="tests/ext/sandbox/safe_to_string_properties-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/span_clone.phpt" role="test" />
             <file name="tests/ext/sandbox/span_resource_serialization.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_01.phpt" role="test" />

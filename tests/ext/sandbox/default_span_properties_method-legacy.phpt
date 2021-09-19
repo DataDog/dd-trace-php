@@ -1,7 +1,7 @@
 --TEST--
 Span properties defaults to values if not explicitly set (methods)
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=DateTime::__construct,DateTime::format
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -39,13 +39,14 @@ $foo->main(2020);
 include 'dd_dumper.inc';
 dd_dump_spans();
 ?>
---EXPECT--
+--EXPECTF--
 06
 spans(\DDTrace\SpanData) (3) {
-  Foo.main (default_span_properties_method.php, Foo.main, cli)
+  Foo.main (Foo.main)
     year => 2020
-  MyDateTimeFormat (default_span_properties_method.php, MyDateTimeFormat, cli)
+    system.pid => %d
+  MyDateTimeFormat (MyDateTimeFormat)
     format => m
-  DateTime.__construct (default_span_properties_method.php, DateTime.__construct, cli)
+  DateTime.__construct (DateTime.__construct)
     date => 2020-06-15
 }
