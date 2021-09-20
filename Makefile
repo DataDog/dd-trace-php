@@ -353,6 +353,7 @@ TEST_WEB_56 := \
 	test_web_codeigniter_22 \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
+	test_web_nette_24 \
 	test_web_slim_312 \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
@@ -387,6 +388,7 @@ TEST_WEB_70 := \
 	test_web_codeigniter_22 \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
+	test_web_nette_24 \
 	test_web_slim_312 \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
