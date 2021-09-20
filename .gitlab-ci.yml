@@ -27,6 +27,7 @@ build:
 
 deploy_to_reliability_env:
   stage: deploy
+  when: manual
   trigger:
     project: DataDog/datadog-reliability-env
     branch: $DOWNSTREAM_REL_BRANCH
