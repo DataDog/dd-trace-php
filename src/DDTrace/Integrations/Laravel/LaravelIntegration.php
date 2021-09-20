@@ -76,12 +76,13 @@ class LaravelIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method(
+        \DDTrace\hook_method(
             'Illuminate\Routing\Router',
             'findRoute',
-            function (SpanData $span, $args, $route) use ($rootSpan, $integration) {
-                if (null === $route) {
-                    return false;
+            null,
+            function ($This, $scope, $args, $route) use ($rootSpan, $integration) {
+                if (!isset($route)) {
+                    return;
                 }
 
                 list($request) = $args;
@@ -105,8 +106,6 @@ class LaravelIntegration extends Integration
                 $rootSpan->setTag('laravel.route.action', $route->getActionName());
                 $rootSpan->setTag('http.url', $request->url());
                 $rootSpan->setTag('http.method', $request->method());
-
-                return false;
             }
         );
 
@@ -121,12 +120,11 @@ class LaravelIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method(
+        \DDTrace\hook_method(
             'Symfony\Component\HttpFoundation\Response',
             'setStatusCode',
-            function (SpanData $span, $args) use ($rootSpan) {
+            function ($This, $scope, $args) use ($rootSpan) {
                 $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
-                return false;
             }
         );
 
@@ -177,7 +175,7 @@ class LaravelIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method(
+        \DDTrace\hook_method(
             'Illuminate\Console\Application',
             '__construct',
             function () use ($rootSpan, $integration) {
@@ -186,16 +184,34 @@ class LaravelIntegration extends Integration
                     Tag::RESOURCE_NAME,
                     !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan'
                 );
-                return false;
             }
         );
 
-        \DDTrace\trace_method(
+        \DDTrace\hook_method(
             'Symfony\Component\Console\Application',
             'renderException',
-            function (SpanData $span, $args) use ($rootSpan) {
+            function ($This, $scope, $args) use ($rootSpan) {
                 $rootSpan->setError($args[0]);
-                return false;
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Foundation\Http\Kernel',
+            'renderException',
+            function ($This, $scope, $args) use ($rootSpan) {
+                if (!$rootSpan->hasError()) {
+                    $rootSpan->setError($args[1]);
+                }
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Routing\Pipeline',
+            'handleException',
+            function ($This, $scope, $args) use ($rootSpan) {
+                if (!$rootSpan->hasError()) {
+                    $rootSpan->setError($args[1]);
+                }
             }
         );
 

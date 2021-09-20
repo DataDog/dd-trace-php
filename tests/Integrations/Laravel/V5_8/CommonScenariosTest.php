@@ -110,7 +110,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                    ])->setError()->withChildren([
+                    ])->setError('Exception', 'Controller error', true)->withChildren([
                         SpanAssertion::exists('laravel.action'),
 
                         SpanAssertion::exists('laravel.view.render')
