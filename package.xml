@@ -44,8 +44,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
     ### Fixed
-
-    Prevent flushing traces of requests without actual PHP code #1327
+    - Prevent flushing traces of requests without actual PHP code #1327
     </notes>
     <contents>
         <dir name="/">
