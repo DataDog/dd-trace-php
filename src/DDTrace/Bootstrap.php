@@ -70,9 +70,7 @@ final class Bootstrap
                          * substitutions), but it was this way before the refactor, so let's fix this in a
                          * subsequent release, when we will have ported everything else to the extension.
                          */
-                        if (method_exists($tracer, "enforcePrioritySamplingOnRootSpan")) {
-                            $tracer->enforcePrioritySamplingOnRootSpan();
-                        }
+                        $tracer->setPrioritySampling($tracer->getPrioritySampling());
                     }
                 });
             });

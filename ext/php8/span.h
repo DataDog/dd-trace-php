@@ -47,6 +47,7 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci);
 void ddtrace_close_all_open_spans(void);
 void ddtrace_drop_top_open_span(void);
 void ddtrace_serialize_closed_spans(zval *serialized);
+zend_string *ddtrace_span_id_as_string(uint64_t id);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
 

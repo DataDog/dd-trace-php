@@ -12,7 +12,10 @@ shell: prepare_results_folders
 
 prepare_results_folders:
 	@rm -rf $(RESULTS_DIR)/$(SCENARIO)
-	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)
+	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)/nginx
+	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)/php-fpm
+	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)/apache
+	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)/corefiles
 	@chmod -R a+w $(RESULTS_DIR)/$(SCENARIO)
 
 # keep this line to avoid whitespace errors with generated files

@@ -2,6 +2,7 @@
 
 set -e
 
+bash /scripts/enable-coredump.sh
 bash /scripts/prepare.sh
 
 echo "Starting load"

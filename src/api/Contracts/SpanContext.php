@@ -44,11 +44,15 @@ interface SpanContext extends IteratorAggregate
     public function getAllBaggageItems();
 
     /**
+     * Gets initial priority sampling, upon span creation
+     *
      * @return int
      */
     public function getPropagatedPrioritySampling();
 
     /**
+     * Sets initial priority sampling, to be consumed upon span creation
+     *
      * @param int $propagatedPrioritySampling
      */
     public function setPropagatedPrioritySampling($propagatedPrioritySampling);
