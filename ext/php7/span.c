@@ -249,3 +249,5 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
 }
+
+zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }

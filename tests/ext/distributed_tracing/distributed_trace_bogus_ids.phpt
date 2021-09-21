@@ -6,7 +6,7 @@ HTTP_X_DATADOG_PARENT_ID=bar
 HTTP_X_DATADOG_ORIGIN=datadog
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 80000) die('skip: Test requires internal distributed tracing handling'); ?>
+<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal distributed tracing handling'); ?>
 --FILE--
 <?php
 
