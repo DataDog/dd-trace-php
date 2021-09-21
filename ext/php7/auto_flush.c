@@ -12,6 +12,14 @@ ZEND_RESULT_CODE ddtrace_flush_tracer() {
     zval trace, traces;
     ddtrace_serialize_closed_spans(&trace);
 
+    // Prevent traces from requests not executing any PHP code:
+    // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
+    // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
+    if (PG(during_request_startup)) {
+        zend_array_destroy(Z_ARR(trace));
+        return SUCCESS;
+    }
+
     if (zend_hash_num_elements(Z_ARR(trace)) == 0) {
         zend_array_destroy(Z_ARR(trace));
         ddtrace_log_debug("No finished traces to be sent to the agent");
