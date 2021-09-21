@@ -371,6 +371,10 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span TSRMLS_DC) {
         add_assoc_stringl(meta, "env", (char *)env.ptr, env.len, 1);
     }
 
+    if (DDTRACE_G(dd_origin)) {
+        add_assoc_string(meta, "_dd.origin", DDTRACE_G(dd_origin), 1);
+    }
+
     HashTable *global_tags = get_DD_TAGS();
     char *key;
     uint key_len;

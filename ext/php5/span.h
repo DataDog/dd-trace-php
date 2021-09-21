@@ -50,6 +50,7 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci TSRMLS_DC);
 void ddtrace_close_all_open_spans(TSRMLS_D);
 void ddtrace_drop_top_open_span(TSRMLS_D);
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC);
+char *ddtrace_span_id_as_string(uint64_t id);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
 
