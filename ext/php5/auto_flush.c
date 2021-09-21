@@ -13,6 +13,14 @@ bool ddtrace_flush_tracer(TSRMLS_D) {
     MAKE_STD_ZVAL(trace);
     ddtrace_serialize_closed_spans(trace TSRMLS_CC);
 
+    // Prevent traces from requests not executing any PHP code:
+    // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
+    // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
+    if (PG(during_request_startup)) {
+        zval_ptr_dtor(&trace);
+        return SUCCESS;
+    }
+
     if (zend_hash_num_elements(Z_ARRVAL_P(trace)) == 0) {
         zval_ptr_dtor(&trace);
         ddtrace_log_debug("No finished traces to be sent to the agent");
