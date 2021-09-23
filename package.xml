@@ -75,6 +75,7 @@
             <file name="zend_abstract_interface/functions/functions.h" role="src" />
             <file name="zend_abstract_interface/functions/php5/functions.c" role="src" />
             <file name="zend_abstract_interface/functions/php7-8/functions.c" role="src" />
+            <file name="zend_abstract_interface/headers/php5/headers.c" role="src" />
             <file name="zend_abstract_interface/headers/php7-8/headers.c" role="src" />
             <file name="zend_abstract_interface/headers/headers.h" role="src" />
             <file name="zend_abstract_interface/methods/methods.h" role="src" />
