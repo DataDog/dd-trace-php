@@ -10,8 +10,7 @@ const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
 const PHP_EXTENSION = 'PHP Extension';
 const IS_DEBUG = 'Debug Build';
-
-
+const SUPPORTED_PHP_VERSIONS = ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
 
 function main()
 {
@@ -209,4 +208,28 @@ function is_truthy($value)
 function search_php_binaries(array $phpVersions)
 {
     $results = [];
+
+    // We first search in $PATH
+    foreach (build_known_command_names_matrix($phpVersions) as $command) {
+    }
+}
+
+function build_known_command_names_matrix(array $phpVersions)
+{
+    $results = ['php', 'php-fpm'];
+
+    foreach ($phpVersions as $phpVersion) {
+        list($major, $minor) = explode('.', $phpVersion);
+        $results[] = "php${major}";
+        $results[] = "php${major}${minor}";
+        $results[] = "php${major}.${minor}";
+        $results[] = "php${major}-fpm";
+        $results[] = "php${major}${minor}-fpm";
+        $results[] = "php${major}.${minor}-fpm";
+        $results[] = "php-fpm${major}";
+        $results[] = "php-fpm${major}${minor}";
+        $results[] = "php-fpm${major}.${minor}";
+    }
+
+    return $results;
 }
