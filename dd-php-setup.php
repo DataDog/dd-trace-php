@@ -15,6 +15,10 @@ const IS_DEBUG = 'Debug Build';
 
 function main()
 {
+    if (is_truthy(getenv('DD_TEST_EXECUTION'))) {
+        return;
+    }
+
     $options = parse_validate_user_options();
     exit();
     $version = '0.63.0';
@@ -200,4 +204,9 @@ function is_truthy($value)
 {
     $normalized = trim(strtolower($value));
     return in_array($normalized, ['1', 'true', 'yes', 'enabled']);
+}
+
+function search_php_binaries(array $phpVersions)
+{
+    $results = [];
 }
