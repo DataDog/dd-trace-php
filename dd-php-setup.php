@@ -167,6 +167,8 @@ function execute_or_exit($exitMessage, $command)
         echo "ERROR: " . $exitMessage;
         exit(1);
     }
+
+    return $result;
 }
 
 function download($url, $destination)
@@ -205,13 +207,52 @@ function is_truthy($value)
     return in_array($normalized, ['1', 'true', 'yes', 'enabled']);
 }
 
-function search_php_binaries(array $phpVersions)
+/**
+ *
+ * @param array $phpVersions
+ * @param string $prefix Default ''. Used for testing purposes only.
+ * @return array
+ */
+function search_php_binaries(array $phpVersions, $prefix = '')
 {
     $results = [];
 
-    // We first search in $PATH
+    // First, we search in $PATH, for php, php7, php74, php7.4, php7.4-fpm, etc....
     foreach (build_known_command_names_matrix($phpVersions) as $command) {
+        $path = exec("command -v $command");
+        if (false === $path || empty($path)) {
+            // command is not defined
+            continue;
+        }
+
+        // Resolving symlinks
+        $resolvedPath = exec("readlink -f $path");
+        $results[$command] = $resolvedPath;
     }
+
+    // Then we search in known possible locations for popular installable paths on different systems.
+    $standardPaths = [
+        $prefix . '/usr/bin',
+        $prefix . '/usr/sbin',
+    ];
+    $remiSafePaths = array_map(function ($phpVersion) use ($prefix) {
+        list($major, $minor) = explode('.', $phpVersion);
+        return "${prefix}/opt/remi/php${major}${minor}/root/usr/sbin";
+    }, $phpVersions);
+
+    foreach (($standardPaths + $remiSafePaths) as $knownPath) {
+        $pathsFound = [];
+        exec("find -L $knownPath -type f -executable -regextype sed -regex '.*/php\(-fpm\)\?\([0-9][\.]\?[0-9]\?\)\?\(-fpm\)\?' 2>/dev/null", $pathsFound);
+        foreach ($pathsFound as $path) {
+            $resolved = exec("readlink -f $path");
+            if (in_array($resolved, array_values($results))) {
+                continue;
+            }
+            $results[$resolved] = $resolved;
+        }
+    }
+
+    return $results;
 }
 
 function build_known_command_names_matrix(array $phpVersions)

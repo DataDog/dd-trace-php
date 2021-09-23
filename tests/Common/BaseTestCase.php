@@ -8,10 +8,13 @@ use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
 
 /**
- * @method void assertTrue(boolean $value)
- * @method void assertFalse(boolean $value)
+ * @method void assertArrayHasKey(mixed $key, array $arr)
+ * @method void assertContains(mixed $needle, iterable $haystack)
  * @method void assertEmpty(array $arr)
+ * @method void assertFalse(boolean $value)
  * @method void assertNotEmpty(array $arr)
+ * @method void assertSame(mixed $expected, array $value)
+ * @method void assertTrue(boolean $value)
  */
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {

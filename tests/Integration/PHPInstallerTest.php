@@ -9,6 +9,35 @@ final class PHPInstallerTest extends BaseTestCase
     public static function ddSetUpBeforeClass()
     {
         require_once __DIR__ . '/../../dd-php-setup.php';
+
+        // Setting up a dummy remi repo
+        $rootPath = self::getTmpRootPath();
+        exec("rm -rf ${rootPath}");
+        exec("mkdir -p ${rootPath}/opt/remi/php74/root/usr/sbin");
+
+        // should not be included: not an executable
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php73");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm7.3");
+
+        // should not be included: not a recognized pattern
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch some_bin; chmod a+x some_bin");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php773; chmod a+x php773");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php_7; chmod a+x php_7");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm77.3; chmod a+x php-fpm77.3");
+
+        // should be included
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php; chmod a+x php");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php7; chmod a+x php7");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php74; chmod a+x php74");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php7.4; chmod a+x php7.4");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm; chmod a+x php-fpm");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php56-fpm; chmod a+x php56-fpm");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php5.6-fpm; chmod a+x php5.6-fpm");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm56; chmod a+x php-fpm56");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm5.6; chmod a+x php-fpm5.6");
+        // should be included 'will_be_linked', not php72 as it is a symlink
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch will_be_linked; chmod a+x will_be_linked");
+        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; ln -s ${rootPath}/opt/remi/php74/root/usr/sbin/will_be_linked ${rootPath}/opt/remi/php74/root/usr/sbin/php72");
     }
 
     public function testIsTruthy()
@@ -60,5 +89,50 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertContains('php74', $names);
         $this->assertContains('php80', $names);
         $this->assertContains('php81', $names);
+    }
+
+    /**
+     * This test assumes that is a `php` binary available in the path
+     */
+    public function testSearchPhpBinaries()
+    {
+        $found = \search_php_binaries(\SUPPORTED_PHP_VERSIONS, sys_get_temp_dir() . '/dd-php-setup-tests');
+        $this->assertStringContains('/', $found['php']);
+
+        $shouldBeFound = [
+            'php',
+            'php7',
+            'php74',
+            'php7.4',
+            'php-fpm',
+            'php56-fpm',
+            'php5.6-fpm',
+            'php-fpm56',
+            'php-fpm5.6',
+            'will_be_linked',
+        ];
+
+        $shouldNotBeFound = [
+            'php73',
+            'php-fpm7.3',
+            'some_bin',
+            'php773',
+            'php_7',
+            'php-fpm77.3',
+        ];
+
+        $rootPath = self::getTmpRootPath() . "/opt/remi/php74/root/usr/sbin";
+        foreach ($shouldBeFound as $binary) {
+            $this->assertArrayHasKey("${rootPath}/${binary}", $found);
+            $this->assertSame("${rootPath}/${binary}", $found["${rootPath}/${binary}"]);
+        }
+        foreach ($shouldNotBeFound as $binary) {
+            $this->assertTrue(empty($found["${rootPath}/${binary}"]));
+        }
+    }
+
+    private static function getTmpRootPath()
+    {
+        return sys_get_temp_dir() . '/dd-php-setup-tests';
     }
 }
