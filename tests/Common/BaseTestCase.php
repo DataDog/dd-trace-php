@@ -30,7 +30,9 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
     protected function ddTearDown()
     {
         \Mockery::close();
-        Logger::reset();
+        if (\class_exists('DDTrace\Log\Logger')) {
+            Logger::reset();
+        }
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
