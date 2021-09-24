@@ -171,16 +171,45 @@ function execute_or_exit($exitMessage, $command)
     return $result;
 }
 
+global $progress_counter;
+
 function download($url, $destination)
 {
+    global $progress_counter;
     $fp = fopen($destination, 'w+');
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_TIMEOUT, 50);
     curl_setopt($ch, CURLOPT_FILE, $fp);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'on_download_progress');
+    curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+    $progress_counter = 0;
     curl_exec($ch);
     curl_close($ch);
     fclose($fp);
+}
+
+function on_download_progress($curlHandle, $download_size, $downloaded)
+{
+    global $progress_counter;
+
+    if ($download_size === 0) {
+        return 0;
+    }
+    $ratio = $downloaded / $download_size;
+    if ($ratio == 1) {
+        return 0;
+    }
+
+    // Max 20 dots to show progress
+    if ($ratio >= ($progress_counter + (1 / 20))) {
+        $progress_counter = $ratio;
+        echo ".";
+    }
+
+    ob_flush();
+    flush();
+    return 0;
 }
 
 function ini_values($binary, array $properties)
