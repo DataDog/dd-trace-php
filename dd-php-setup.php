@@ -160,6 +160,35 @@ function write_file($path, $content, $override = false)
     }
 }
 
+function pick_binaries_interactive(array $php_binaries)
+{
+    echo "Multiple PHP binaries detected. Please select the binaries the datadog library will be installed to:\n\n";
+    $commands = array_keys($php_binaries);
+    for ($index = 0; $index < count($commands); $index++) {
+        $command = $commands[$index];
+        $fullPath = $php_binaries[$commands[$index]];
+        echo "  " . str_pad($index + 1, 2, ' ', STR_PAD_LEFT) . ". " . ($command !== $fullPath ? "$command --> " : "") . $fullPath . "\n";
+    }
+    echo "\n";
+    ob_flush();
+    flush();
+
+    $userInput = readline("Select binaries unsing their number. Multiple binaries separated by space (example: 1 3): ");
+    $choices = array_map('intval', array_filter(explode(' ', $userInput)));
+
+    $pickedBinaries = [];
+    foreach ($choices as $choice) {
+        $index = $choice - 1; // we render to the user as 1-indexed
+        if ($index >= count($commands) || $index < 0) {
+            echo "\nERROR: Wrong choice: $choice\n\n";
+            return pick_binaries_interactive($php_binaries);
+        }
+        $pickedBinaries[$commands[$index]] = $php_binaries[$commands[$index]];
+    }
+
+    return $pickedBinaries;
+}
+
 function execute_or_exit($exitMessage, $command)
 {
     $result = exec($command);
