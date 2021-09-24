@@ -10,6 +10,7 @@ const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
 const PHP_EXTENSION = 'PHP Extension';
 const IS_DEBUG = 'Debug Build';
+const RELEVANT_INI_SETTINGS = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG];
 const SUPPORTED_PHP_VERSIONS = ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
 
 function main()
@@ -19,44 +20,72 @@ function main()
     }
 
     $options = parse_validate_user_options();
-    exit();
-    $version = '0.63.0';
-    $url = "https://github.com/DataDog/dd-trace-php/releases/download/$version/datadog-php-tracer-$version.x86_64.tar.gz";
+    install($options);
+}
 
+main();
+
+function install($options)
+{
+    error_log('Options: ' . var_export($options, true));
+
+    // Picking the right binaries to install the library
+    $selectedBinaries = [];
+    if (empty($options['php-bin'])) {
+        $selectedBinaries = pick_binaries_interactive(search_php_binaries(SUPPORTED_PHP_VERSIONS));
+    } else {
+        foreach ($options['php-bin'] as $command) {
+            $selectedBinaries[$command] = exec("readlink -f $command");
+        }
+    }
+
+    // Preparing clean tmp folder to extrac files
     $tmpDir = sys_get_temp_dir() . '/dd-library';
     $tmpDirTarGz = $tmpDir . '/dd-trace-php.tar.gz';
     $tmpSourcesDir = $tmpDir . '/opt/datadog-php/dd-trace-sources';
     $tmpExtensionsDir = $tmpDir . '/opt/datadog-php/extensions';
-
-    $installDir = sys_get_temp_dir() . '/__true__opt/datadog/dd-library/' . $version;
-    $installDirSourcesDir = $installDir . '/dd-trace-sources';
-    $installDirWrapperPath = $installDirSourcesDir . '/bridge/dd_wrap_autoloader.php';
-    $installDirExtensionsDir = $installDir . '/extensions';
-
-    // preparing tmp folders
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p $tmpDir");
     execute_or_exit("Cannot clear '$tmpDir'", "rm -rf $tmpDir/*.*");
 
-    // downloading the specific .tar.gz archive and extract to tmp folder
-    // only relevant files will be copied
-    download($url, $tmpDirTarGz);
+    // Retrieve and extract the archive to a tmp location
+    if ($archive = isset($options['file'])) {
+        execute_or_exit("Cannot copy file from '${archive}' to '${tmpDirTarGz}'", "cp -r ${archive}/* ${tmpDirTarGz}");
+    } else {
+        $url = isset($options['url']) ? $options['url'] : "https://github.com/DataDog/dd-trace-php/releases/download/" .
+            $options['version'] . "/datadog-php-tracer-" .
+            $options['version'] . ".x86_64.tar.gz";
+        download($url, $tmpDirTarGz);
+    }
     execute_or_exit("Cannot extract the archive", "tar -xf $tmpDirTarGz -C $tmpDir");
+
+    $installDir = (empty($options['install-dir']) ? '/opt/datadog' : $options['install-dir']) . '/dd-library';
+    $installDirSourcesDir = $installDir . '/dd-trace-sources';
+    $installDirWrapperPath = $installDirSourcesDir . '/bridge/dd_wrap_autoloader.php';
 
     // copying sources to the final destination
     execute_or_exit("Cannot create directory '$installDirSourcesDir'", "mkdir -p $installDirSourcesDir");
     execute_or_exit("Cannot copy files from '$tmpSourcesDir' to '$installDirSourcesDir'", "cp -r $tmpSourcesDir/* $installDirSourcesDir");
-    execute_or_exit("Cannot create directory '$installDirExtensionsDir'", "mkdir -p $installDirExtensionsDir");
-    execute_or_exit("Cannot copy files from '$tmpExtensionsDir' to '$installDirExtensionsDir'", "cp -r $tmpExtensionsDir/* $installDirExtensionsDir");
 
-    $phpProperties = ini_values();
-    error_log('Ini values: ' . var_export($phpProperties, true));
-    $extensionVersion = $phpProperties[PHP_EXTENSION];
-    $extensionSuffix = is_truthy($phpProperties[IS_DEBUG]) ? '-debug' : (is_truthy(THREAD_SAFETY) ? '-zts' : '');
-    $extensionRealPath = $installDirExtensionsDir . '/ddtrace-' . $extensionVersion . $extensionSuffix . '.so';
-    error_log('AAA: ' . var_export($extensionRealPath, true));
-    $extensionFileName = 'ddtrace' . $extensionSuffix . '.so';
-    $extensionDestination = $phpProperties[EXTENSION_DIR] . '/' . $extensionFileName;
-    copy($extensionRealPath, $extensionDestination);
+    // Actual installation
+    foreach ($selectedBinaries as $command => $fullPath) {
+        $phpProperties = ini_values($fullPath, RELEVANT_INI_SETTINGS);
+        error_log('Ini values: ' . var_export($phpProperties, true));
+        $extensionVersion = $phpProperties[PHP_EXTENSION];
+        $extensionSuffix = is_truthy($phpProperties[IS_DEBUG]) ? '-debug' : (is_truthy(THREAD_SAFETY) ? '-zts' : '');
+        $extensionRealPath = $tmpExtensionsDir . '/ddtrace-' . $extensionVersion . $extensionSuffix . '.so';
+        // error_log('AAA: ' . var_export($extensionRealPath, true));
+        $extensionFileName = 'ddtrace.so';
+        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/' . $extensionFileName;
+        copy($extensionRealPath, $extensionDestination);
+    }
+
+
+
+    // execute_or_exit("Cannot create directory '$installDirExtensionsDir'", "mkdir -p $installDirExtensionsDir");
+    // execute_or_exit("Cannot copy files from '$tmpExtensionsDir' to '$installDirExtensionsDir'", "cp -r $tmpExtensionsDir/* $installDirExtensionsDir");
+
+    exit();
+
 
     // ini
     $installIni = <<<EOD
@@ -74,8 +103,6 @@ function main()
     }
 }
 
-main();
-
 /**
  * Parses command line options provided by the user.
  * @return array
@@ -85,11 +112,11 @@ function parse_validate_user_options()
     $shortOptions = "h";
     $longOptions = [
         'help',
-        'file:',
-        'install-dir:',
         'php-bin:',
+        'file:',
         'url:',
         'version:',
+        'install-dir:',
     ];
     $options = getopt($shortOptions, $longOptions);
 
@@ -122,7 +149,10 @@ function parse_validate_user_options()
         $normalizedOptions['file'] = $options['file'];
     }
 
-    error_log('Options: ' . var_export($normalizedOptions, true));
+    if (isset($options['php-bin'])) {
+        $normalizedOptions['php-bin'] = is_array($options['php-bin']) ? $options['php-bin'] : [$options['php-bin']];
+    }
+
     return $normalizedOptions;
 }
 
@@ -138,10 +168,11 @@ function print_help_and_exit()
 
     Options:
         -h, --help              Print this help text and exit
-        --install-dir=<path>    Install to a specific directory. Default: '/opt/datadog'
+        --php-bin=<0.1.2>       Install the library to the specified binary. Multiple values are allowed.
         --version=<0.1.2>       Install a specific version. If set --url and --file are ignored.
         --url=<url>             Install the tracing library from a url. If set --file is ignored.
         --file=<file>           Install the tracing library from a local file.
+        --install-dir=<path>    Install to a specific directory. Default: '/opt/datadog'
 
     EOD;
     exit(0);
@@ -170,7 +201,6 @@ function pick_binaries_interactive(array $php_binaries)
         echo "  " . str_pad($index + 1, 2, ' ', STR_PAD_LEFT) . ". " . ($command !== $fullPath ? "$command --> " : "") . $fullPath . "\n";
     }
     echo "\n";
-    ob_flush();
     flush();
 
     $userInput = readline("Select binaries unsing their number. Multiple binaries separated by space (example: 1 3): ");
@@ -216,6 +246,7 @@ function download($url, $destination)
     curl_exec($ch);
     curl_close($ch);
     fclose($fp);
+    echo "\nDownload completed\n\n";
 }
 
 function on_download_progress($curlHandle, $download_size, $downloaded)
@@ -236,7 +267,6 @@ function on_download_progress($curlHandle, $download_size, $downloaded)
         echo ".";
     }
 
-    ob_flush();
     flush();
     return 0;
 }
