@@ -131,6 +131,16 @@ final class PHPInstallerTest extends BaseTestCase
         }
     }
 
+    public function testIniValues()
+    {
+        $values = \ini_values(\PHP_BINARY, [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG]);
+        $this->assertNotEmpty($values[INI_CONF]);
+        $this->assertNotEmpty($values[EXTENSION_DIR]);
+        $this->assertNotEmpty($values[THREAD_SAFETY]);
+        $this->assertNotEmpty($values[PHP_EXTENSION]);
+        $this->assertNotEmpty($values[IS_DEBUG]);
+    }
+
     private static function getTmpRootPath()
     {
         return sys_get_temp_dir() . '/dd-php-setup-tests';

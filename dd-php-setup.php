@@ -183,9 +183,9 @@ function download($url, $destination)
     fclose($fp);
 }
 
-function ini_values()
+function ini_values($binary, array $properties)
 {
-    $headers = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG];
+    // $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG];
     $lines = [];
     exec(PHP_BINARY . " -i", $lines);
     $found = [];
@@ -193,7 +193,7 @@ function ini_values()
         $parts = explode('=>', $line);
         if (count($parts) === 2 || count($parts) === 3) {
             $key = trim($parts[0]);
-            if (in_array($key, $headers)) {
+            if (in_array($key, $properties)) {
                 $found[$key] = trim(count($parts) === 2 ? $parts[1] : $parts[2]);
             }
         }
