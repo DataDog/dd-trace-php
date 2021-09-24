@@ -102,6 +102,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/methods/php5/methods.c \
       zend_abstract_interface/properties/php5/properties.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
+      zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
       zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
@@ -156,6 +157,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/methods/php5/methods.c \
       zend_abstract_interface/properties/php5/properties.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
+      zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
       zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
@@ -211,6 +213,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/headers/php7-8/headers.c \
       zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php7/sandbox.c \
+      zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
       zend_abstract_interface/zai_sapi/php7/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
@@ -266,6 +269,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/headers/php7-8/headers.c \
       zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
+      zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
       zend_abstract_interface/zai_sapi/php8/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
@@ -320,6 +324,9 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php8])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/uri_normalization])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/uri_normalization/php5])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/uri_normalization/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_assert])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi/php5])

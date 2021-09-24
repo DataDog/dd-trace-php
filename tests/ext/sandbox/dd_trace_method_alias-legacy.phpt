@@ -1,7 +1,7 @@
 --TEST--
 dd_trace_method() is aliased to DDTrace\trace_method()
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
@@ -30,6 +30,6 @@ dd_dump_spans();
 --EXPECTF--
 Foo::bar(hello)
 spans(\DDTrace\SpanData) (1) {
-  Foo.bar (alias, Foo.bar, cli)
+  Foo.bar (alias, Foo.bar)
     system.pid => %d
 }

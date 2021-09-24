@@ -28,6 +28,20 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\SpanData)#%d (0) {
+object(DDTrace\SpanData)#%d (5) {
+  ["name"]=>
+  string(15) "active_span.php"
+  ["service"]=>
+  string(15) "active_span.php"
+  ["type"]=>
+  string(3) "cli"
+  ["meta"]=>
+  array(1) {
+    ["system.pid"]=>
+    int(%d)
+  }
+  ["metrics"]=>
+  array(0) {
+  }
 }
 bool(true)

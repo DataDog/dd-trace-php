@@ -8,5 +8,7 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array);
 
 void ddtrace_save_active_error_to_metadata(void);
+void ddtrace_set_global_span_properties(ddtrace_span_t *span);
+void ddtrace_set_root_span_properties(ddtrace_span_t *span);
 
 #endif  // DD_SERIALIZER_H

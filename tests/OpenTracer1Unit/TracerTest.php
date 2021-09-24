@@ -24,6 +24,12 @@ final class TracerTest extends BaseTestCase
     const ENVIRONMENT = 'my-env';
     const VERSION = '1.2.3';
 
+    protected function ddSetUp()
+    {
+        \dd_trace_serialize_closed_spans();
+        parent::ddSetUp();
+    }
+
     public function testCreateSpanWithDefaultTags()
     {
         $tracer = Tracer::make(new NoopTransport());
@@ -94,7 +100,7 @@ final class TracerTest extends BaseTestCase
     {
         $tracer = Tracer::make(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
-        $this->assertSame((string) getmypid(), $span->getTag(Tag::PID));
+        $this->assertEquals(getmypid(), $span->getTag(Tag::PID));
     }
 
     public function testStartActiveSpan()

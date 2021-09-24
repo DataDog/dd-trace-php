@@ -154,11 +154,11 @@ static void _dd_get_startup_config(HashTable *ht) {
                           zend_string_copy(get_DD_TRACE_REQUEST_INIT_HOOK()));
     _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_configured"), _dd_ini_is_set(ZEND_STRL("open_basedir")));
     _dd_add_assoc_zstring(ht, ZEND_STRL("uri_fragment_regex"),
-                          zend_string_copy(get_DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX()));
+                          _dd_implode_keys(get_DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX()));
     _dd_add_assoc_zstring(ht, ZEND_STRL("uri_mapping_incoming"),
-                          zend_string_copy(get_DD_TRACE_RESOURCE_URI_MAPPING_INCOMING()));
+                          _dd_implode_keys(get_DD_TRACE_RESOURCE_URI_MAPPING_INCOMING()));
     _dd_add_assoc_zstring(ht, ZEND_STRL("uri_mapping_outgoing"),
-                          zend_string_copy(get_DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING()));
+                          _dd_implode_keys(get_DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING()));
     _dd_add_assoc_bool(ht, ZEND_STRL("auto_flush_enabled"), get_DD_TRACE_AUTO_FLUSH_ENABLED());
     _dd_add_assoc_bool(ht, ZEND_STRL("generate_root_span"), get_DD_TRACE_GENERATE_ROOT_SPAN());
     _dd_add_assoc_bool(ht, ZEND_STRL("http_client_split_by_domain"), get_DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN());
@@ -292,17 +292,6 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
             0, "'DD_INTEGRATIONS_DISABLED=%s' is deprecated, use DD_TRACE_[INTEGRATION]_ENABLED=false instead.",
             ZSTR_VAL(integrations_disabled_cfg->ini_entries[0]->value));
         _dd_add_assoc_zstring(ht, ZEND_STRL("DD_INTEGRATIONS_DISABLED"), message);
-    }
-
-    zai_config_memoized_entry *resource_mapping_cfg =
-        &zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_RESOURCE_URI_MAPPING];
-    if (resource_mapping_cfg->name_index >= 0) {
-        zend_string *message = zend_strpprintf(
-            0,
-            "'DD_TRACE_RESOURCE_URI_MAPPING=%s' is deprecated, use DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "
-            "DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING and DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX instead.",
-            ZSTR_VAL(resource_mapping_cfg->ini_entries[0]->value));
-        _dd_add_assoc_zstring(ht, ZEND_STRL("DD_TRACE_RESOURCE_URI_MAPPING"), message);
     }
 
     if (ddtrace_has_excluded_module == true) {

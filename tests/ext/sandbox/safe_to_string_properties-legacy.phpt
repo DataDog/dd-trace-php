@@ -1,7 +1,7 @@
 --TEST--
 Span properties are safely converted to strings without errors or exceptions
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -107,8 +107,8 @@ string(%d) "object(Closure)#%d"
 string(%d) "object(Closure)#%d"
 
 NULL
-'name' dropped
-'resource' dropped
+string(14) "prop_to_string"
+string(14) "prop_to_string"
 'service' dropped
 'type' dropped
 

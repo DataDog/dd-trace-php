@@ -48,10 +48,10 @@ DDTrace\trace_method(
         $span->resource = 'FooResource';
         $span->service = 'FooService';
         $span->type = 'FooType';
-        $span->meta = [
+        $span->meta += [
             'args.0' => isset($args[0]) ? $args[0] : '',
         ];
-        $span->metrics = [
+        $span->metrics += [
             'foo' => isset($args[1][1]) ? $args[1][1] : '',
             'bar' => isset($args[1][2]) ? $args[1][2] : '',
         ];
@@ -113,10 +113,10 @@ array(3) {
     string(7) "FooType"
     ["meta"]=>
     array(2) {
-      ["args.0"]=>
-      string(18) "tracing is awesome"
       ["system.pid"]=>
       string(%d) "%d"
+      ["args.0"]=>
+      string(18) "tracing is awesome"
     }
     ["metrics"]=>
     array(3) {
@@ -129,7 +129,7 @@ array(3) {
     }
   }
   [1]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -144,6 +144,10 @@ array(3) {
     string(2) "MT"
     ["resource"]=>
     string(2) "MT"
+    ["service"]=>
+    string(10) "FooService"
+    ["type"]=>
+    string(7) "FooType"
     ["meta"]=>
     array(1) {
       ["rand.range"]=>
@@ -151,7 +155,7 @@ array(3) {
     }
   }
   [2]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -164,6 +168,10 @@ array(3) {
     string(7) "TestFoo"
     ["resource"]=>
     string(7) "TestFoo"
+    ["service"]=>
+    string(19) "dd_trace_method.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>

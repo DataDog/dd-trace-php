@@ -60,13 +60,16 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
 #endif
 
-#define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c)
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
 #if PHP_VERSION_ID < 70200
 #define zend_strpprintf strpprintf
 #define zend_vstrpprintf vstrpprintf
+
+static zend_always_inline zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
+    return zend_new_interned_string(zend_string_init(str, len, persistent));
+}
 #endif
 
 #endif  // DD_COMPATIBILITY_H

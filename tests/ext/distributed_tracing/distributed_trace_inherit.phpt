@@ -24,7 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 --EXPECTF--
 array(2) {
   [0]=>
-  array(9) {
+  array(11) {
     ["trace_id"]=>
     string(2) "42"
     ["span_id"]=>
@@ -39,6 +39,10 @@ array(2) {
     string(5) "outer"
     ["resource"]=>
     string(5) "outer"
+    ["service"]=>
+    string(29) "distributed_trace_inherit.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(2) {
       ["system.pid"]=>
@@ -53,7 +57,7 @@ array(2) {
     }
   }
   [1]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(2) "42"
     ["span_id"]=>
@@ -68,6 +72,10 @@ array(2) {
     string(5) "inner"
     ["resource"]=>
     string(5) "inner"
+    ["service"]=>
+    string(29) "distributed_trace_inherit.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["_dd.origin"]=>

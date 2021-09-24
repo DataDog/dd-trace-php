@@ -95,6 +95,7 @@ endif()
 add_subdirectory(headers)
 add_subdirectory(properties)
 add_subdirectory(sandbox)
+add_subdirectory(uri_normalization)
 add_subdirectory(zai_string)
 add_subdirectory(zai_assert)
 

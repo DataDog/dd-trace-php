@@ -28,7 +28,7 @@ var_dump(dd_trace_serialize_closed_spans());
 --EXPECTF--
 array(2) {
   [0]=>
-  array(7) {
+  array(9) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -43,9 +43,13 @@ array(2) {
     string(4) "test"
     ["resource"]=>
     string(4) "test"
+    ["service"]=>
+    string(41) "start_span_without_closing_autofinish.php"
+    ["type"]=>
+    string(3) "cli"
   }
   [1]=>
-  array(7) {
+  array(9) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -60,6 +64,10 @@ array(2) {
     string(16) "my precious span"
     ["resource"]=>
     string(16) "my precious span"
+    ["service"]=>
+    string(41) "start_span_without_closing_autofinish.php"
+    ["type"]=>
+    string(3) "cli"
   }
 }
 There is no user-span on the top of the stack. Cannot close.

@@ -50,13 +50,13 @@ var_dump(DDTrace\trace_function(
         $span->resource = 'BarResource';
         $span->service = 'BarService';
         $span->type = 'BarType';
-        $span->meta = [
+        $span->meta += [
             'args.0' => isset($args[0]) ? $args[0] : '',
             'retval.thoughts' => isset($retval['thoughts']) ? $retval['thoughts'] : '',
             'retval.first' => isset($retval['first']) ? $retval['first'] : '',
             'retval.rand' => isset($retval['rand']) ? $retval['rand'] : '',
         ];
-        $span->metrics = [
+        $span->metrics += [
             'foo' => isset($args[1][1]) ? $args[1][1] : '',
             'bar' => isset($args[1][2]) ? $args[1][2] : '',
         ];
@@ -114,6 +114,8 @@ array(5) {
     string(7) "BarType"
     ["meta"]=>
     array(5) {
+      ["system.pid"]=>
+      string(%d) "%d"
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["retval.thoughts"]=>
@@ -121,8 +123,6 @@ array(5) {
       ["retval.first"]=>
       string(5) "first"
       ["retval.rand"]=>
-      string(%d) "%d"
-      ["system.pid"]=>
       string(%d) "%d"
     }
     ["metrics"]=>
@@ -136,7 +136,7 @@ array(5) {
     }
   }
   [1]=>
-  array(7) {
+  array(9) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -151,9 +151,13 @@ array(5) {
     string(8) "ArraySum"
     ["resource"]=>
     string(8) "ArraySum"
+    ["service"]=>
+    string(29) "dd_trace_function_complex.php"
+    ["type"]=>
+    string(3) "cli"
   }
   [2]=>
-  array(7) {
+  array(9) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -168,9 +172,13 @@ array(5) {
     string(6) "AddOne"
     ["resource"]=>
     string(6) "AddOne"
+    ["service"]=>
+    string(29) "dd_trace_function_complex.php"
+    ["type"]=>
+    string(3) "cli"
   }
   [3]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -183,6 +191,10 @@ array(5) {
     string(6) "AddOne"
     ["resource"]=>
     string(6) "AddOne"
+    ["service"]=>
+    string(29) "dd_trace_function_complex.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
@@ -195,7 +207,7 @@ array(5) {
     }
   }
   [4]=>
-  array(8) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -208,6 +220,10 @@ array(5) {
     string(7) "TestFoo"
     ["resource"]=>
     string(7) "TestFoo"
+    ["service"]=>
+    string(29) "dd_trace_function_complex.php"
+    ["type"]=>
+    string(3) "cli"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
