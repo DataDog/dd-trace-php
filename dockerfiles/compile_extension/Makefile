@@ -7,7 +7,9 @@ publish: \
 	push_alpine_7.1 \
 	push_alpine_7.2 \
 	push_alpine_7.3 \
-	push_alpine_7.4
+	push_alpine_7.4 \
+	push_alpine_8.0 \
+	push_alpine_8.1
 
 build_image_alpine_%:
 	docker-compose build $(*)-alpine

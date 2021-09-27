@@ -67,6 +67,7 @@ class MysqliTest extends IntegrationTestCase
         $this->disableTranslateWarningsIntoErrors();
 
         $traces = $this->isolateTracer(function () {
+            \mysqli_report(MYSQLI_REPORT_OFF); // exceptions are default since PHP 8.1+
             $mysqli = \mysqli_connect(self::$host, 'wrong');
             $this->assertFalse($mysqli);
         });

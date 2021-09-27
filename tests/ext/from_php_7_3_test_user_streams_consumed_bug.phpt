@@ -7,6 +7,7 @@ Testing user filter on streams
 class Intercept extends php_user_filter
 {
     public static $cache = '';
+    #[ReturnTypeWillChange]
     public function filter($in, $out, &$consumed, $closing)
     {
         while ($bucket = stream_bucket_make_writeable($in)) {

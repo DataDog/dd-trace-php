@@ -173,6 +173,9 @@ static zend_internal_function ddtrace_exception_or_error_handler;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_exception_or_error_handler, 0, 0, 1)
 ZEND_ARG_INFO(0, exception)
+ZEND_ARG_INFO(0, message)
+ZEND_ARG_INFO(0, error_filename)
+ZEND_ARG_INFO(0, error_lineno)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
@@ -211,6 +214,8 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
             }
             zend_catch { has_bailout = true; }
             zend_end_try();
+        } else {
+            ZVAL_FALSE(return_value);
         }
 
         DDTRACE_G(active_error).type = 0;
@@ -298,7 +303,7 @@ void ddtrace_exception_handlers_startup(void) {
     ddtrace_exception_or_error_handler = (zend_internal_function){
         .type = ZEND_INTERNAL_FUNCTION,
         .function_name = zend_string_init_interned(ZEND_STRL("ddtrace_exception_handler"), 1),
-        .num_args = 1,
+        .num_args = 4,
         .required_num_args = 1,
         .arg_info = (zend_internal_arg_info *)(arginfo_ddtrace_exception_or_error_handler + 1),
         .handler = &zim_DDTrace_ExceptionOrErrorHandler_execute,

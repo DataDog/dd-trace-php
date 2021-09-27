@@ -67,7 +67,11 @@ void ddtrace_restore_error_handling(ddtrace_error_handling *eh) {
             zend_string_release(PG(last_error_message));
         }
         if (PG(last_error_file) != eh->file) {
+#if PHP_VERSION_ID < 80100
             free(PG(last_error_file));
+#else
+            zend_string_release(PG(last_error_file));
+#endif
         }
     }
     zend_restore_error_handling(&eh->error_handling);

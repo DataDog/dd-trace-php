@@ -82,7 +82,7 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
     if (!fcc.function_handler) {
         // This avoids allocating a zend_string if fn_proxy is used
         zval fname = ddtrace_zval_stringl(name, name_len);
-        zend_bool is_callable = zend_is_callable_ex(&fname, NULL, IS_CALLABLE_CHECK_SILENT, NULL, &fcc, NULL);
+        zend_bool is_callable = zend_is_callable_ex(&fname, NULL, 0, NULL, &fcc, NULL);
         zend_string_release(Z_STR(fname));
 
         /* Given that fname is always a string, this path is only possible if

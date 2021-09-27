@@ -105,7 +105,7 @@ class EnvVariableRegistry implements Registry
     {
         if (!isset($this->registry[$key])) {
             $value = $this->get($key);
-            $value = strtolower($value);
+            $value = $value === null ? "" : strtolower($value);
             if (is_numeric($value)) {
                 $floatValue = (float)$value;
             } else {

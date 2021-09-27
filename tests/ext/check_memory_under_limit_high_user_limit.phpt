@@ -1,7 +1,7 @@
 --TEST--
 Test dd_trace_check_memory_under_limit() returning correct values
 --INI--
-memory_limit=1k
+memory_limit=2M
 --ENV--
 DD_TRACE_MEMORY_LIMIT=100M
 --FILE--

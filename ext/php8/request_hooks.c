@@ -81,7 +81,12 @@ int dd_execute_php_file(const char *filename) {
             if (get_DD_TRACE_DEBUG() && PG(last_error_message) && eh.message != PG(last_error_message)) {
                 char *error;
                 error = ZSTR_VAL(PG(last_error_message));
-                ddtrace_log_errf("Error raised in request init hook: %s in %s on line %d", error, PG(last_error_file),
+#if PHP_VERSION_ID < 80100
+                char *error_filename = PG(last_error_file);
+#else
+                char *error_filename = ZSTR_VAL(PG(last_error_file));
+#endif
+                ddtrace_log_errf("Error raised in request init hook: %s in %s on line %d", error, error_filename,
                                  PG(last_error_lineno));
             }
 
@@ -104,6 +109,9 @@ int dd_execute_php_file(const char *filename) {
     } else {
         ddtrace_maybe_clear_exception();
         ddtrace_log_debugf("Error opening request init hook: %s", filename);
+#if PHP_VERSION_ID >= 80100
+        zend_destroy_file_handle(&file_handle);
+#endif
     }
     CG(multibyte) = _original_cg_multibyte;
 
@@ -115,15 +123,15 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file) {
     // We could technically do this to synthetically adjust the stack
     // zend_execute_data *ex = EG(current_execute_data);
     // EG(current_execute_data) = ex->prev_execute_data;
+#if PHP_VERSION_ID < 80100
     memset(&prepend_file, 0, sizeof(zend_file_handle));
     prepend_file.type = ZEND_HANDLE_FILENAME;
-#if PHP_VERSION_ID < 80100
     prepend_file.filename = auto_prepend_file;
     int ret = zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &prepend_file) == SUCCESS;
 #else
-    prepend_file.filename = zend_string_init(auto_prepend_file, strlen(auto_prepend_file), 0);
+    zend_stream_init_filename(&prepend_file, auto_prepend_file);
     int ret = zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &prepend_file) == SUCCESS;
-    zend_string_release(prepend_file.filename);
+    zend_destroy_file_handle(&prepend_file);
 #endif
     // Exit no longer calls zend_bailout in PHP 8, so we need to "rethrow" the exit
     if (ret == 0) {

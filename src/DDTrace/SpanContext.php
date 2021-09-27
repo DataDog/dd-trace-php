@@ -130,6 +130,7 @@ final class SpanContext extends SpanContextData
     /**
      * {@inheritdoc}
      */
+    #[\ReturnTypeWillChange]
     public function getIterator()
     {
         return new ArrayIterator($this->baggageItems);

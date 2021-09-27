@@ -528,10 +528,10 @@ class PHPRedisClusterTest extends IntegrationTestCase
             ],
             [
                 'hIncrByFloat', // method
-                [ 'h1', 'k3', 1.6 ], // arguments
-                4.6, // expected result
-                [ 'k1' => 'v1', 'k2' => 'v2', 'k3' => '4.6' ], // expected final hash value
-                'hIncrByFloat h1 k3 1.6', // raw command
+                [ 'h1', 'k3', 1.5 ], // arguments
+                4.5, // expected result
+                [ 'k1' => 'v1', 'k2' => 'v2', 'k3' => '4.5' ], // expected final hash value
+                'hIncrByFloat h1 k3 1.5', // raw command
             ],
             [
                 'hKeys', // method

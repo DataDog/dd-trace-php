@@ -59,6 +59,7 @@ services:
   '7.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
   '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
   '8.0-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
+  '8.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
   'php-master-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- CentOS 6 ---
   '5.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_centos-6' }
@@ -70,6 +71,7 @@ services:
   '7.3-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
   '7.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-6' }
   '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
+  '8.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-6' }
 
   mysql_integration:
     image: datadog/dd-trace-ci:php-mysql-dev-5.6

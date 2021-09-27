@@ -6,6 +6,14 @@ ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/${phpVersion}-debug
 ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/${phpVersion}
 ENV PHP_VERSION=${phpVersion}
 
+RUN set -eux; \
+    # Required: libssl >= 1.0.2 (default version is 1.0.1e)
+    CURL_SHA256="b92f9d3d12043c02860e5e602e50a73ed21a69947bcc74d391f41148e9f6aa95"; \
+    /root/download-src.sh openssl https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1k.tar.gz; \
+    (echo "${CURL_SHA256} OpenSSL_1_1_1k.tar.gz" | sha256sum -c -); \
+    cd "${SRC_DIR}/openssl"; \
+    ./config && make && make install;
+
 # Download and extract PHP source
 ARG phpTarGzUrl
 ARG phpSha256Hash

@@ -720,7 +720,7 @@ if (PHP_VERSION_ID < 70000) {
         {
             if (!$this->isFinished()) {
                 // @phpstan-ignore-next-line
-                close_span($finishTime);
+                close_span($finishTime ?: 0);
             }
         }
 
