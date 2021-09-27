@@ -373,6 +373,9 @@ function get_ini_template($requestInitHookPath)
     ; Enables or disables debug mode.  When On logs are printed to the error_log.
     ;datadog.trace.debug = Off
 
+    ; Enables startup logs, including diagnostic checks.
+    ;datadog.trace.startup_logs = On
+
     ; Sets a custom service name for the application.
     ;datadog.service = my_service
 
@@ -382,24 +385,43 @@ function get_ini_template($requestInitHookPath)
     ; Sets a version for the user application, not the datadog php library.
     ;datadog.version = 1.0.0
 
-
-    ; Sets the agent url. When set, 'datadog.trace.agent_url' has priority over 'datadog.agent_host' and
-    ; 'datadog.trace.agent_port'.
-    ;datadog.trace.agent_url =
+    ; Configures the agent host and ports. If you need more flexibility use `datadog.trace.agent_url` instead.
     ;datadog.agent_host = localhost
     ;datadog.trace.agent_port = 8126
     ;datadog.dogstatsd_port = 8125
 
+    ; When set, 'datadog.trace.agent_url' has priority over 'datadog.agent_host' and 'datadog.trace.agent_port'.
+    ;datadog.trace.agent_url = https://some.internal.host:6789
 
+    ; Sets the service name of spans generated for HTTP clients' requests to host-<hostname>.
     ;datadog.trace.http_client_split_by_domain = Off
+
+    ; Configures URL to resource name normalization. For more details see:
+    ; https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#map-resource-names-to-normalized-uri
+    ; NOTE: Colons ',' in `datadog.trace.resource_uri_fragment_regex` are not supported.
+    ;datadog.trace.url_as_resource_names_enabled = On
     ;datadog.trace.resource_uri_fragment_regex =
     ;datadog.trace.resource_uri_mapping_incoming =
     ;datadog.trace.resource_uri_mapping_outgoing =
-    ;datadog.trace.url_as_resource_names_enabled = On
+
+    ; Changes the default name of an APM integration. Rename one or more integrations at a time, for example:
+    ; "pdo:payments-db,mysqli:orders-db"
     ;datadog.service_mapping =
-    ;datadog.trace.global_tags =
+
+    ; Tags to be set on all spans, for example: "key1:value1,key2:value2".
     ;datadog.tags =
+
+    ; The sampling rate for the trace. Valid values are between 0.0 and 1.0.
     ;datadog.trace.sample_rate = 1.0
+
+    ; A JSON encoded string to configure the sampling rate.
+    ; Examples:
+    ;   - Set the sample rate to 20%: '[{"sample_rate": 0.2}]'.
+    ;   - Set the sample rate to 10% for services starting with ‘a’ and span name ‘b’ and set the sample rate to 20%
+    ;     for all other services: '[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]'
+    ; **Note** that the JSON object must be included in single quotes (') to avoid problems with escaping of the
+    ; double quote (") character.
+    ;datadog.trace.sampling_rules =
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; CLI settings
@@ -416,146 +438,104 @@ function get_ini_template($requestInitHookPath)
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; Integrations settings
+    ; For each integration:
+    ;   - *_enabled: whether the integration is enabled.
+    ;   - *_analytics_enabled: whether analytics for the integration is enabled.
+    ;   - *_analytics_sample_rate: sampling rate for analyzed spans. Valid values are between 0.0 and 1.0.
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
     ;datadog.trace.cakephp_enabled = On
     ;datadog.trace.cakephp_analytics_enabled = Off
-    ;datadog.cakephp_analytics_enabled = Off
     ;datadog.trace.cakephp_analytics_sample_rate = 1
-    ;datadog.cakephp_analytics_sample_rate = 1
     ;datadog.trace.codeigniter_enabled = On
     ;datadog.trace.codeigniter_analytics_enabled = Off
-    ;datadog.codeigniter_analytics_enabled = Off
     ;datadog.trace.codeigniter_analytics_sample_rate = 1
-    ;datadog.codeigniter_analytics_sample_rate = 1
     ;datadog.trace.curl_enabled = On
     ;datadog.trace.curl_analytics_enabled = Off
-    ;datadog.curl_analytics_enabled = Off
     ;datadog.trace.curl_analytics_sample_rate = 1
-    ;datadog.curl_analytics_sample_rate = 1
     ;datadog.trace.elasticsearch_enabled = On
     ;datadog.trace.elasticsearch_analytics_enabled = Off
-    ;datadog.elasticsearch_analytics_enabled = Off
     ;datadog.trace.elasticsearch_analytics_sample_rate = 1
-    ;datadog.elasticsearch_analytics_sample_rate = 1
     ;datadog.trace.eloquent_enabled = On
     ;datadog.trace.eloquent_analytics_enabled = Off
-    ;datadog.eloquent_analytics_enabled = Off
     ;datadog.trace.eloquent_analytics_sample_rate = 1
-    ;datadog.eloquent_analytics_sample_rate = 1
     ;datadog.trace.guzzle_enabled = On
     ;datadog.trace.guzzle_analytics_enabled = Off
-    ;datadog.guzzle_analytics_enabled = Off
     ;datadog.trace.guzzle_analytics_sample_rate = 1
-    ;datadog.guzzle_analytics_sample_rate = 1
     ;datadog.trace.laravel_enabled = On
     ;datadog.trace.laravel_analytics_enabled = Off
-    ;datadog.laravel_analytics_enabled = Off
     ;datadog.trace.laravel_analytics_sample_rate = 1
-    ;datadog.laravel_analytics_sample_rate = 1
     ;datadog.trace.lumen_enabled = On
     ;datadog.trace.lumen_analytics_enabled = Off
-    ;datadog.lumen_analytics_enabled = Off
     ;datadog.trace.lumen_analytics_sample_rate = 1
-    ;datadog.lumen_analytics_sample_rate = 1
     ;datadog.trace.memcached_enabled = On
     ;datadog.trace.memcached_analytics_enabled = Off
-    ;datadog.memcached_analytics_enabled = Off
     ;datadog.trace.memcached_analytics_sample_rate = 1
-    ;datadog.memcached_analytics_sample_rate = 1
     ;datadog.trace.mongo_enabled = On
     ;datadog.trace.mongo_analytics_enabled = Off
-    ;datadog.mongo_analytics_enabled = Off
     ;datadog.trace.mongo_analytics_sample_rate = 1
-    ;datadog.mongo_analytics_sample_rate = 1
     ;datadog.trace.mysqli_enabled = On
     ;datadog.trace.mysqli_analytics_enabled = Off
-    ;datadog.mysqli_analytics_enabled = Off
     ;datadog.trace.mysqli_analytics_sample_rate = 1
-    ;datadog.mysqli_analytics_sample_rate = 1
     ;datadog.trace.nette_enabled = On
     ;datadog.trace.nette_analytics_enabled = Off
-    ;datadog.nette_analytics_enabled = Off
     ;datadog.trace.nette_analytics_sample_rate = 1
-    ;datadog.nette_analytics_sample_rate = 1
     ;datadog.trace.pdo_enabled = On
     ;datadog.trace.pdo_analytics_enabled = Off
-    ;datadog.pdo_analytics_enabled = Off
     ;datadog.trace.pdo_analytics_sample_rate = 1
-    ;datadog.pdo_analytics_sample_rate = 1
     ;datadog.trace.phpredis_enabled = On
     ;datadog.trace.phpredis_analytics_enabled = Off
-    ;datadog.phpredis_analytics_enabled = Off
     ;datadog.trace.phpredis_analytics_sample_rate = 1
-    ;datadog.phpredis_analytics_sample_rate = 1
     ;datadog.trace.predis_enabled = On
     ;datadog.trace.predis_analytics_enabled = Off
-    ;datadog.predis_analytics_enabled = Off
     ;datadog.trace.predis_analytics_sample_rate = 1
-    ;datadog.predis_analytics_sample_rate = 1
     ;datadog.trace.slim_enabled = On
     ;datadog.trace.slim_analytics_enabled = Off
-    ;datadog.slim_analytics_enabled = Off
     ;datadog.trace.slim_analytics_sample_rate = 1
-    ;datadog.slim_analytics_sample_rate = 1
     ;datadog.trace.symfony_enabled = On
     ;datadog.trace.symfony_analytics_enabled = Off
-    ;datadog.symfony_analytics_enabled = Off
     ;datadog.trace.symfony_analytics_sample_rate = 1
-    ;datadog.symfony_analytics_sample_rate = 1
     ;datadog.trace.web_enabled = On
     ;datadog.trace.web_analytics_enabled = Off
-    ;datadog.web_analytics_enabled = Off
     ;datadog.trace.web_analytics_sample_rate = 1
-    ;datadog.web_analytics_sample_rate = 1
     ;datadog.trace.wordpress_enabled = On
     ;datadog.trace.wordpress_analytics_enabled = Off
-    ;datadog.wordpress_analytics_enabled = Off
     ;datadog.trace.wordpress_analytics_sample_rate = 1
-    ;datadog.wordpress_analytics_sample_rate = 1
     ;datadog.trace.yii_enabled = On
     ;datadog.trace.yii_analytics_enabled = Off
-    ;datadog.yii_analytics_enabled = Off
     ;datadog.trace.yii_analytics_sample_rate = 1
-    ;datadog.yii_analytics_sample_rate = 1
     ;datadog.trace.zendframework_enabled = On
     ;datadog.trace.zendframework_analytics_enabled = Off
-    ;datadog.zendframework_analytics_enabled = Off
     ;datadog.trace.zendframework_analytics_sample_rate = 1
-    ;datadog.zendframework_analytics_sample_rate = 1
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; Other settings
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ; Enables distributed tracing.
     ;datadog.distributed_tracing = On
-    ;datadog.autofinish_spans = Off
-    ;datadog.integrations_disabled =
-    ;datadog.priority_sampling = On
+
+    ; Global switch for trace analytics.
     ;datadog.trace.analytics_enabled = Off
-    ;datadog.trace.measure_compile_time = On
-    ;datadog.trace.health_metrics_enabled = Off
-    ;datadog.trace.health_metrics_heartbeat_sample_rate = 0.001
-    ;datadog.trace.memory_limit =
-    ;datadog.trace.report_hostname = Off
-    ;datadog.trace.resource_uri_mapping =
-    ;datadog.trace.sampling_rules =
-    ;datadog.trace.traced_internal_functions =
-    ;datadog.trace.agent_timeout = 500
-    ;datadog.trace.agent_connect_timeout = 100
-    ;datadog.trace.debug_prng_seed = -1
-    ;datadog.log_backtrace = Off
-    ;datadog.trace.spans_limit = 1000
-    ;datadog.trace.agent_max_consecutive_failures = 3
-    ;datadog.trace.agent_attempt_retry_time_msec = 5000
+
+    ; Set connection timeout in millisecodns while connecting to the agent.
     ;datadog.trace.bgs_connect_timeout = 2000
+
+    ; Set request timeout in millisecodns while while sending payloads to the agent.
     ;datadog.trace.bgs_timeout = 5000
-    ;datadog.trace.agent_flush_interval = 5000
-    ;datadog.trace.agent_flush_after_n_requests = 10
-    ;datadog.trace.shutdown_timeout = 5000
-    ;datadog.trace.startup_logs = On
-    ;datadog.trace.agent_debug_verbose_curl = Off
-    ;datadog.trace.debug_curl_output = Off
-    ;datadog.trace.beta_high_memory_pressure_percent = 80
-    ;datadog.trace.warn_legacy_dd_trace = On
+
+    ; Set the maximum number of spans generated per trace during a single request.
+    ;datadog.trace.spans_limit = 1000
+
+    ; Only for Linux. Set to `true` to retain capabilities on Datadog background threads when you change the effective
+    ; user ID. This option does not affect most setups, but some modules - to date Datadog is only aware of Apache’s
+    ; mod-ruid2 - may invoke `setuid()` or similar syscalls, leading to crashes or loss of functionality as it loses
+    ; capabilities.
+    ; **Note** Enabling this option may compromise security. This option, standalone, does not pose a security risk.
+    ; However, an attacker being able to exploit a vulnerability in PHP or web server may be able to escalate privileges
+    ; with relative ease, if the web server or PHP were started with full capabilities, as the background threads will
+    ; retain their original capabilities. Datadog recommends restricting the capabilities of the web server with the
+    ; setcap utility.
     ;datadog.trace.retain_thread_capabilities = Off
     EOD;
 }
