@@ -83,8 +83,7 @@ function install($options)
             file_put_contents($customIniFilePath, get_ini_template($installDirWrapperPath));
         } else {
             // replacing ...
-            echo "TODO\n";
-            die();
+            execute_or_exit('aaaa', "sed -i 's/datadog\.trace\.request_init_hook \?= \?\(.*\)/datadog.trace.request_init_hook = $installDirWrapperPath/g'");
         }
     }
 }
