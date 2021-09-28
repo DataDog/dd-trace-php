@@ -18,7 +18,7 @@ if [ "$install_type" = "native_package" ]; then
     apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
 else
     echo "Installing dd-trace-php using the new PHP installer"
-    apk add libexecinfo
+    apk add --no-cache libexecinfo
     php dd-php-setup.php --tracer-file="$(pwd)/build/packages/*.tar.gz" --php-bin=all
 fi
 

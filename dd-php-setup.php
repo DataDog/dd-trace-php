@@ -34,13 +34,13 @@ function install($options)
         }
     }
 
-    // Preparing clean tmp folder to extrac files
+    // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-library';
     $tmpDirTarGz = $tmpDir . '/dd-trace-php.tar.gz';
     $tmpSourcesDir = $tmpDir . '/opt/datadog-php/dd-trace-sources';
     $tmpExtensionsDir = $tmpDir . '/opt/datadog-php/extensions';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p $tmpDir");
-    execute_or_exit("Cannot clear '$tmpDir'", "rm -rf $tmpDir/*.*");
+    execute_or_exit("Cannot clean '$tmpDir'", "rm -rf $tmpDir/*.*");
 
     // Retrieve and extract the archive to a tmp location
     if (isset($options['tracer-file'])) {
