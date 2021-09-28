@@ -10,10 +10,6 @@ const SUPPORTED_PHP_VERSIONS = ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3',
 
 function main()
 {
-    // if (extension_loaded('ddtrace')) {
-    //     print_error_and_exit('The installer cannot be executed if ddtrace extension is installed. Did you forget to run it through the dd-php-setup.sh wrapper?');
-    // }
-
     if (is_truthy(getenv('DD_TEST_EXECUTION'))) {
         return;
     }
@@ -74,7 +70,12 @@ function install($options)
         $extensionRealPath = $tmpExtensionsDir . '/ddtrace-' . $extensionVersion . $extensionSuffix . '.so';
         $extensionFileName = 'ddtrace.so';
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/' . $extensionFileName;
-        copy($extensionRealPath, $extensionDestination);
+
+        // Move - rename() - instead of copy() since copying does a fopen() and copy to stream itself, causing a
+        // segfault.
+        $tmpExtName = tempnam($phpProperties[EXTENSION_DIR], 'ddtrace-');
+        copy($extensionRealPath, $tmpExtName);
+        rename($tmpExtName, $extensionDestination);
 
         // Writing the ini file
         $customIniFilePath = $phpProperties[INI_CONF] . '/98-ddtrace.ini';
