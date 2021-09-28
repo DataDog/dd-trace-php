@@ -739,24 +739,9 @@ jobs:
       - setup_remote_docker
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
-  verify_package:
-    working_directory: ~/datadog
-    parameters:
-      docker_image:
-        type: string
-      package_type:
-        type: string
-      install_type:
-        type: string
-        # Possible values: php_installer, native_package
-        default: php_installer
-    docker: [ image: << parameters.docker_image >> ]
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
-
   verify_alpine:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       docker_image:
         type: string
@@ -788,6 +773,7 @@ jobs:
 
   verify_centos:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       docker_image:
         type: string
@@ -816,6 +802,7 @@ jobs:
 
   verify_centos_6:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       install_type:
         type: string
@@ -834,6 +821,7 @@ jobs:
 
   verify_debian:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       docker_image:
         type: string
@@ -866,6 +854,7 @@ jobs:
 
   verify_tar_gz:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       php_major_minor:
         type: string
