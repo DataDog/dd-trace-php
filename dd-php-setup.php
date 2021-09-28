@@ -41,10 +41,14 @@ function install($options)
     execute_or_exit("Cannot clear '$tmpDir'", "rm -rf $tmpDir/*.*");
 
     // Retrieve and extract the archive to a tmp location
-    if ($archive = isset($options['tracer-file'])) {
-        execute_or_exit("Cannot copy file from '${archive}' to '${tmpDirTarGz}'", "cp -r ${archive}/* ${tmpDirTarGz}");
+    if (isset($options['tracer-file'])) {
+        $archive = $options['tracer-file'];
+        echo "Copying file '${archive}' to '${tmpDirTarGz}'\n";
+        execute_or_exit("Cannot copy file from '${archive}' to '${tmpDirTarGz}'", "cp -r ${archive} ${tmpDirTarGz}");
     } else {
-        $url = isset($options['tracer-url']) ? $options['tracer-url'] : "https://github.com/DataDog/dd-trace-php/releases/download/" .
+        $url = isset($options['tracer-url'])
+            ? $options['tracer-url']
+            : "https://github.com/DataDog/dd-trace-php/releases/download/" .
             $options['tracer-version'] . "/datadog-php-tracer-" .
             $options['tracer-version'] . ".x86_64.tar.gz";
         download($url, $tmpDirTarGz);
@@ -57,7 +61,10 @@ function install($options)
 
     // copying sources to the final destination
     execute_or_exit("Cannot create directory '$installDirSourcesDir'", "mkdir -p $installDirSourcesDir");
-    execute_or_exit("Cannot copy files from '$tmpSourcesDir' to '$installDirSourcesDir'", "cp -r $tmpSourcesDir/* $installDirSourcesDir");
+    execute_or_exit(
+        "Cannot copy files from '$tmpSourcesDir' to '$installDirSourcesDir'",
+        "cp -r $tmpSourcesDir/* $installDirSourcesDir"
+    );
 
     // Actual installation
     foreach ($selectedBinaries as $command => $fullPath) {
@@ -78,12 +85,16 @@ function install($options)
         rename($tmpExtName, $extensionDestination);
 
         // Writing the ini file
-        $customIniFilePath = $phpProperties[INI_CONF] . '/98-ddtrace.ini';
-        if (!file_exists($customIniFilePath)) {
-            file_put_contents($customIniFilePath, get_ini_template($installDirWrapperPath));
+        $iniFilePath = $phpProperties[INI_CONF] . '/98-ddtrace.ini';
+        if (!file_exists($iniFilePath)) {
+            file_put_contents($iniFilePath, get_ini_template($installDirWrapperPath));
         } else {
-            // replacing ...
-            execute_or_exit('aaaa', "sed -i 's/datadog\.trace\.request_init_hook \?= \?\(.*\)/datadog.trace.request_init_hook = $installDirWrapperPath/g'");
+            // phpcs:disable Generic.Files.LineLength.TooLong
+            execute_or_exit(
+                'Impossible to update the INI settings file.',
+                "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = $installDirWrapperPath@g' '$iniFilePath'"
+            );
+            // phpcs:enable Generic.Files.LineLength.TooLong
         }
     }
 }
@@ -122,12 +133,12 @@ function parse_validate_user_options()
             print_error_and_exit('Only one --version can be provided');
         }
         $normalizedOptions['tracer-version'] = $options['tracer-version'];
-    } else if (isset($options['tracer-url'])) {
+    } elseif (isset($options['tracer-url'])) {
         if (is_array($options['tracer-url'])) {
             print_error_and_exit('Only one --url can be provided');
         }
         $normalizedOptions['tracer-url'] = $options['tracer-url'];
-    } else if (isset($options['tracer-file'])) {
+    } elseif (isset($options['tracer-file'])) {
         if (is_array($options['tracer-file'])) {
             print_error_and_exit('Only one --file can be provided');
         }
@@ -183,7 +194,12 @@ function pick_binaries_interactive(array $php_binaries)
     for ($index = 0; $index < count($commands); $index++) {
         $command = $commands[$index];
         $fullPath = $php_binaries[$commands[$index]];
-        echo "  " . str_pad($index + 1, 2, ' ', STR_PAD_LEFT) . ". " . ($command !== $fullPath ? "$command --> " : "") . $fullPath . "\n";
+        echo "  "
+            . str_pad($index + 1, 2, ' ', STR_PAD_LEFT)
+            . ". "
+            . ($command !== $fullPath ? "$command --> " : "")
+            . $fullPath
+            . "\n";
     }
     echo "\n";
     flush();
@@ -206,9 +222,11 @@ function pick_binaries_interactive(array $php_binaries)
 
 function execute_or_exit($exitMessage, $command)
 {
-    $result = exec($command);
-    if (false === $result) {
-        echo "ERROR: " . $exitMessage;
+    $output = null;
+    $returnCode = 0;
+    $result = exec($command, $output, $returnCode);
+    if (false === $result || $returnCode > 0) {
+        echo "ERROR: " . $exitMessage . "\n";
         exit(1);
     }
 
@@ -315,7 +333,12 @@ function search_php_binaries(array $phpVersions, $prefix = '')
 
     foreach (($standardPaths + $remiSafePaths) as $knownPath) {
         $pathsFound = [];
-        exec("find -L $knownPath -type f -executable -regextype sed -regex '.*/php\(-fpm\)\?\([0-9][\.]\?[0-9]\?\)\?\(-fpm\)\?' 2>/dev/null", $pathsFound);
+        // phpcs:disable Generic.Files.LineLength.TooLong
+        exec(
+            "find -L $knownPath -type f -executable -regextype sed -regex '.*/php\(-fpm\)\?\([0-9][\.]\?[0-9]\?\)\?\(-fpm\)\?' 2>/dev/null",
+            $pathsFound
+        );
+        // phpcs:enable Generic.Files.LineLength.TooLong
         foreach ($pathsFound as $path) {
             $resolved = exec("readlink -f $path");
             if (in_array($resolved, array_values($results))) {

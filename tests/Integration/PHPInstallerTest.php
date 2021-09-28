@@ -37,7 +37,9 @@ final class PHPInstallerTest extends BaseTestCase
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm5.6; chmod a+x php-fpm5.6");
         // should be included 'will_be_linked', not php72 as it is a symlink
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch will_be_linked; chmod a+x will_be_linked");
+        // phpcs:disable Generic.Files.LineLength.TooLong
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; ln -s ${rootPath}/opt/remi/php74/root/usr/sbin/will_be_linked ${rootPath}/opt/remi/php74/root/usr/sbin/php72");
+        // phpcs:enable Generic.Files.LineLength.TooLong
     }
 
     public function testIsTruthy()
