@@ -375,6 +375,7 @@ function build_known_command_names_matrix(array $phpVersions)
 
 function get_ini_template($requestInitHookPath)
 {
+    // phpcs:disable Generic.Files.LineLength.TooLong
     return <<<EOD
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; Required settings
@@ -561,4 +562,5 @@ function get_ini_template($requestInitHookPath)
     ; setcap utility.
     ;datadog.trace.retain_thread_capabilities = Off
     EOD;
+    // phpcs:enable Generic.Files.LineLength.TooLong
 }
