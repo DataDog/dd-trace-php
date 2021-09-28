@@ -746,6 +746,10 @@ jobs:
         type: string
       package_type:
         type: string
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
     docker: [ image: << parameters.docker_image >> ]
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
@@ -758,6 +762,10 @@ jobs:
         type: string
       php_package:
         type: string
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
     docker:
       - image: << parameters.docker_image >>
         environment:
@@ -788,6 +796,10 @@ jobs:
       php_package:
         type: string
         default: ""
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
     docker:
       - image: << parameters.docker_image >>
         environment:
@@ -804,6 +816,11 @@ jobs:
 
   verify_centos_6:
     working_directory: ~/datadog
+    parameters:
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
     machine:
       image: circleci/classic:latest
     steps:
@@ -826,6 +843,10 @@ jobs:
         # yes|no
         type: string
         default: "yes"
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
       configuration:
         type: string
     docker:
@@ -1591,6 +1612,9 @@ workflows:
             parameters:
               php_package:
                 - php php-fpm
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - alpine:3.8
                 - alpine:3.9
@@ -1604,6 +1628,9 @@ workflows:
             parameters:
               php_package:
                 - php7 php7-fpm
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - alpine:3.7
                 - alpine:3.8
@@ -1619,6 +1646,9 @@ workflows:
             parameters:
               php_package:
                 - php5 php5-fpm
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - alpine:3.5
                 - alpine:3.6
@@ -1629,6 +1659,9 @@ workflows:
           php_package: ''
           matrix:
             parameters:
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - php:5.6-fpm-alpine
                 - php:7.0-fpm-alpine
@@ -1644,6 +1677,9 @@ workflows:
             parameters:
               docker_image:
                 - centos:7
+              install_type:
+                - php_installer
+                - native_package
               configuration:
                 - PHP_MAJOR=5 PHP_MINOR=4
                 - PHP_MAJOR=5 PHP_MINOR=5
@@ -1657,10 +1693,18 @@ workflows:
                 - PHP_MAJOR=8 PHP_MINOR=1
       - verify_centos_6:
           requires: [ "package extension" ]
+          matrix:
+            parameters:
+              install_type:
+                - php_installer
+                - native_package
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
             parameters:
+              install_type:
+                - php_installer
+                - native_package
               install_mode:
                 - sury
               docker_image:
@@ -1681,6 +1725,9 @@ workflows:
             parameters:
               install_mode:
                 - native
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - debian:jessie
               configuration:

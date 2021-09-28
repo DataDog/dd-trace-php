@@ -12,7 +12,15 @@ if [ ! -z "${PHP_PACKAGE}" ]; then
 fi
 
 # Installing dd-trace-php
-apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
+install_type="${install_type:-php_installer}"
+if [ "$install_type" = "native_package" ]; then
+    echo "Installing dd-trace-php using the OS-specific package installer"
+    apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
+else
+    echo "Installing dd-trace-php using the new PHP installer"
+    apk add libexecinfo
+    php dd-php-setup.php --tracer-file="$(pwd)/build/packages/*.tar.gz" --php-bin=all
+fi
 
 # Preparing NGINX
 # Adding www-data in systems where it does not exists

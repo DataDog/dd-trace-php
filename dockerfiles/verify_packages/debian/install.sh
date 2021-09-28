@@ -46,7 +46,14 @@ echo "PHP-FPM version installed:"
 ${PHP_FPM_BIN} -v
 
 # Installing dd-trace-php
-dpkg -i $(pwd)/build/packages/*.deb
+install_type="${install_type:-php_installer}"
+if [ "$install_type" = "native_package" ]; then
+    echo "Installing dd-trace-php using the OS-specific package installer"
+    dpkg -i $(pwd)/build/packages/*.deb
+else
+    echo "Installing dd-trace-php using the new PHP installer"
+    php dd-php-setup.php --tracer-file="$(pwd)/build/packages/*.tar.gz" --php-bin=all
+fi
 
 # PHP-FPM setup
 # For cases when it defaults to UDS
