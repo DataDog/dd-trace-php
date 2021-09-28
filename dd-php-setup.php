@@ -26,6 +26,8 @@ function install($options)
     $selectedBinaries = [];
     if (empty($options['php-bin'])) {
         $selectedBinaries = pick_binaries_interactive(search_php_binaries(SUPPORTED_PHP_VERSIONS));
+    } elseif (in_array('all', $options['php-bin'])) {
+        $selectedBinaries = search_php_binaries(SUPPORTED_PHP_VERSIONS);
     } else {
         foreach ($options['php-bin'] as $command) {
             $selectedBinaries[$command] = exec("readlink -f $command");
