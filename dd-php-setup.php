@@ -73,7 +73,7 @@ function install($options)
 
         // Move - rename() - instead of copy() since copying does a fopen() and copy to stream itself, causing a
         // segfault.
-        $tmpExtName = tempnam($phpProperties[EXTENSION_DIR], 'ddtrace-');
+        $tmpExtName = $extensionDestination . '.tmp';
         copy($extensionRealPath, $tmpExtName);
         rename($tmpExtName, $extensionDestination);
 
