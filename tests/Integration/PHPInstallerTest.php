@@ -139,7 +139,7 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertNotEmpty($values[INI_CONF]);
         $this->assertNotEmpty($values[EXTENSION_DIR]);
         $this->assertNotEmpty($values[THREAD_SAFETY]);
-        $this->assertNotEmpty($values[PHP_EXTENSION]);
+        $this->assertNotEmpty($values[PHP_API]);
         $this->assertNotEmpty($values[IS_DEBUG]);
     }
 

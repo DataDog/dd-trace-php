@@ -3,9 +3,9 @@
 const INI_CONF = 'Scan this dir for additional .ini files';
 const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
-const PHP_EXTENSION = 'PHP Extension';
+const PHP_API = 'PHP API';
 const IS_DEBUG = 'Debug Build';
-const RELEVANT_INI_SETTINGS = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG];
+const RELEVANT_INI_SETTINGS = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
 const SUPPORTED_PHP_VERSIONS = ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
 
 function main()
@@ -72,7 +72,7 @@ function install($options)
         $phpProperties = ini_values($fullPath, RELEVANT_INI_SETTINGS);
 
         // Copying the extension
-        $extensionVersion = $phpProperties[PHP_EXTENSION];
+        $extensionVersion = $phpProperties[PHP_API];
         $extensionSuffix = is_truthy($phpProperties[IS_DEBUG]) ? '-debug' : (is_truthy(THREAD_SAFETY) ? '-zts' : '');
         $extensionRealPath = $tmpExtensionsDir . '/ddtrace-' . $extensionVersion . $extensionSuffix . '.so';
         $extensionFileName = 'ddtrace.so';
@@ -279,7 +279,7 @@ function ini_values($binary, array $properties)
 {
     // $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG];
     $lines = [];
-    exec(PHP_BINARY . " -i", $lines);
+    exec(PHP_BINARY . " -d date.timezone=UTC -i", $lines);
     $found = [];
     foreach ($lines as $line) {
         $parts = explode('=>', $line);
