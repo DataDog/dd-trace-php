@@ -21,6 +21,7 @@ verify_alpine:
 		-e VERIFY_APACHE=no \
 		-e PHP_PACKAGE="$(PHP_PACKAGE)" \
 		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
 		-e OS_NAME=alpine \
 		alpine \
 		dockerfiles/verify_packages/verify.sh
@@ -33,14 +34,16 @@ verify_debian:
 		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
 		-e VERIFY_APACHE="$(VERIFY_APACHE)" \
 		-e PHP_FPM_BIN="$(PHP_FPM_BIN)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
 		debian \
-		bash dockerfiles/verify_packages/verify.sh
+		dockerfiles/verify_packages/verify.sh
 
 verify_centos:
 	docker-compose run --rm \
 		-e PHP_MAJOR="$(PHP_MAJOR)" \
 		-e PHP_MINOR="$(PHP_MINOR)" \
 		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
 		centos \
 		dockerfiles/verify_packages/verify.sh
 

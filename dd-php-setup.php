@@ -68,7 +68,8 @@ function install($options)
 
     // Actual installation
     foreach ($selectedBinaries as $command => $fullPath) {
-        echo "Installing to binary: $command\n";
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Installing to binary: $binaryForLog\n";
         $phpProperties = ini_values($fullPath, RELEVANT_INI_SETTINGS);
 
         // Copying the extension
@@ -83,12 +84,15 @@ function install($options)
         $tmpExtName = $extensionDestination . '.tmp';
         copy($extensionRealPath, $tmpExtName);
         rename($tmpExtName, $extensionDestination);
+        echo "Copied '$extensionRealPath' '$extensionDestination'\n";
 
         // Writing the ini file
         $iniFilePath = $phpProperties[INI_CONF] . '/98-ddtrace.ini';
         if (!file_exists($iniFilePath)) {
             file_put_contents($iniFilePath, get_ini_template($installDirWrapperPath));
+            echo "Create INI file in '$iniFilePath'\n";
         } else {
+            echo "Updating existing INI file '$iniFilePath'\n";
             // phpcs:disable Generic.Files.LineLength.TooLong
             execute_or_exit(
                 'Impossible to update the INI settings file.',
@@ -96,6 +100,7 @@ function install($options)
             );
             // phpcs:enable Generic.Files.LineLength.TooLong
         }
+        echo "Installation to '$command' was successful\n";
     }
 }
 
@@ -279,7 +284,7 @@ function ini_values($binary, array $properties)
 {
     // $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG];
     $lines = [];
-    exec(PHP_BINARY . " -d date.timezone=UTC -i", $lines);
+    exec($binary . " -d date.timezone=UTC -i", $lines);
     $found = [];
     foreach ($lines as $line) {
         $parts = explode('=>', $line);
@@ -563,6 +568,7 @@ datadog.trace.request_init_hook = $requestInitHookPath
 ; retain their original capabilities. Datadog recommends restricting the capabilities of the web server with the
 ; setcap utility.
 ;datadog.trace.retain_thread_capabilities = Off
+
 EOD;
     // phpcs:enable Generic.Files.LineLength.TooLong
 }

@@ -12,8 +12,8 @@ for phpVer in $(ls ${PHP_INSTALL_DIR}); do
     switch-php $phpVer
 
     # Installing dd-trace-php
-    install_type="${install_type:-php_installer}"
-    if [ "$install_type" = "native_package" ]; then
+    INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
+    if [ "$INSTALL_TYPE" = "native_package" ]; then
         echo "Installing dd-trace-php using the OS-specific package installer"
         rpm -Uvh /build_src/build/packages/*.rpm
         php --ri=ddtrace

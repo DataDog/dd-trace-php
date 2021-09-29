@@ -38,8 +38,8 @@ adduser -M --system -g www-data www-data
 \cp $(pwd)/dockerfiles/verify_packages/nginx.conf /etc/nginx/nginx.conf
 
 # Installing dd-trace-php
-install_type="${install_type:-php_installer}"
-if [ "$install_type" = "native_package" ]; then
+INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
+if [ "$INSTALL_TYPE" = "native_package" ]; then
     echo "Installing dd-trace-php using the OS-specific package installer"
     rpm -ivh $(pwd)/build/packages/*.rpm
 else

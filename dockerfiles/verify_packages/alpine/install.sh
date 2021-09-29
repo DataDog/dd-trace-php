@@ -12,8 +12,8 @@ if [ ! -z "${PHP_PACKAGE}" ]; then
 fi
 
 # Installing dd-trace-php
-install_type="${install_type:-php_installer}"
-if [ "$install_type" = "native_package" ]; then
+INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
+if [ "$INSTALL_TYPE" = "native_package" ]; then
     echo "Installing dd-trace-php using the OS-specific package installer"
     apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
 else
