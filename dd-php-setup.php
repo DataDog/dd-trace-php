@@ -87,20 +87,29 @@ function install($options)
         echo "Copied '$extensionRealPath' '$extensionDestination'\n";
 
         // Writing the ini file
-        $iniFilePath = $phpProperties[INI_CONF] . '/98-ddtrace.ini';
-        if (!file_exists($iniFilePath)) {
-            file_put_contents($iniFilePath, get_ini_template($installDirWrapperPath));
-            echo "Create INI file in '$iniFilePath'\n";
-        } else {
-            echo "Updating existing INI file '$iniFilePath'\n";
-            // phpcs:disable Generic.Files.LineLength.TooLong
-            execute_or_exit(
-                'Impossible to update the INI settings file.',
-                "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = $installDirWrapperPath@g' '$iniFilePath'"
-            );
-            // phpcs:enable Generic.Files.LineLength.TooLong
+        $iniFileName = '98-ddtrace.ini';
+        $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
+        if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
+            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
+            if (\is_dir($apacheConfd)) {
+                array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+            }
         }
-        echo "Installation to '$command' was successful\n";
+        foreach ($iniFilePaths as $iniFilePath) {
+            if (!file_exists($iniFilePath)) {
+                file_put_contents($iniFilePath, get_ini_template($installDirWrapperPath));
+                echo "Created INI file '$iniFilePath'\n";
+            } else {
+                echo "Updating existing INI file '$iniFilePath'\n";
+                // phpcs:disable Generic.Files.LineLength.TooLong
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = $installDirWrapperPath@g' '$iniFilePath'"
+                );
+                // phpcs:enable Generic.Files.LineLength.TooLong
+            }
+            echo "Installation to '$command' was successful\n";
+        }
     }
 }
 
