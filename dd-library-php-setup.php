@@ -20,6 +20,12 @@ function main()
 
 function install($options)
 {
+    // Checking required libraries
+    check_library_prerequisite_or_exit('libcurl');
+    if (is_alpine()) {
+        check_library_prerequisite_or_exit('libexecinfo');
+    }
+
     // Picking the right binaries to install the library
     $selectedBinaries = [];
     if (empty($options['php-bin'])) {
@@ -30,6 +36,11 @@ function install($options)
         foreach ($options['php-bin'] as $command) {
             $selectedBinaries[$command] = exec("readlink -f $command");
         }
+    }
+
+    if (empty($selectedBinaries)) {
+        echo "At least one binary must be specified\n";
+        exit(1);
     }
 
     // Preparing clean tmp folder to extract files
@@ -111,6 +122,30 @@ function install($options)
             echo "Installation to '$command' was successful\n";
         }
     }
+}
+
+function check_library_prerequisite_or_exit($requiredLibrary)
+{
+    $lastLine = execute_or_exit(
+        "Impossible to verify library '$requiredLibrary'",
+        "ldconfig -p | grep $requiredLibrary"
+    );
+
+    if (empty($lastLine)) {
+        echo "Required library '$requiredLibrary' not found.\n";
+        exit(1);
+    }
+}
+
+function is_alpine()
+{
+    $osInfoFile = '/etc/os-release';
+    // if /etc/os-release is not readable, we cannot tell and we assume NO
+    if (!is_readable($osInfoFile)) {
+        return false;
+    }
+
+    return strpos(strtolower(file_get_contents($osInfoFile)), 'alpine') >= 0;
 }
 
 /**
@@ -239,32 +274,83 @@ function execute_or_exit($exitMessage, $command)
 {
     $output = null;
     $returnCode = 0;
-    $result = exec($command, $output, $returnCode);
-    if (false === $result || $returnCode > 0) {
+    $lastLine = exec($command, $output, $returnCode);
+    if (false === $lastLine || $returnCode > 0) {
         echo "ERROR: " . $exitMessage . "\n";
         exit(1);
     }
 
-    return $result;
+    return $lastLine;
 }
 
 global $progress_counter;
 
 function download($url, $destination)
 {
-    global $progress_counter;
-    $fp = fopen($destination, 'w+');
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 50);
-    curl_setopt($ch, CURLOPT_FILE, $fp);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'on_download_progress');
-    curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-    $progress_counter = 0;
-    curl_exec($ch);
-    curl_close($ch);
-    fclose($fp);
-    echo "\nDownload completed\n\n";
+    echo "Downloading installable archive from $url\n.";
+    echo "This operation might take a while.\n";
+
+    $okMessage = "\nDownload completed\n\n";
+
+    // We try the following options:
+    //   1) `ext-curl` (with progress report); if 'ext-curl' is not installed...
+    //   2) `curl` from CLI (it shows progress); if `curl` is not installed...
+    //   3) `file_get_contents()` (no progress report); if `allow_url_fopen=0`...
+    //   4) exit with errror
+
+    // ext-curl
+    if (extension_loaded('curl')) {
+        global $progress_counter;
+        $fp = fopen($destination, 'w+');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 50);
+        curl_setopt($ch, CURLOPT_FILE, $fp);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'on_download_progress');
+        curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+        $progress_counter = 0;
+        curl_exec($ch);
+        curl_close($ch);
+        fclose($fp);
+
+        echo $okMessage;
+        return;
+    }
+
+    // curl
+    $statusCode = 0;
+    $output = [];;
+    if (false !== exec('curl --version', $output, $statusCode) && $statusCode === 0) {
+        $curlInvocationStatusCode = 0;
+        system(
+            'curl -L --output ' . escapeshellarg($destination) . ' ' . escapeshellarg($url),
+            $curlInvocationStatusCode
+        );
+
+        if ($curlInvocationStatusCode > 0) {
+            echo "Error while downloading the installable archive from $url\n";
+            exit(1);
+        }
+
+        echo $okMessage;
+        return;
+    }
+
+    // file_get_contents
+    if (is_truthy(ini_get('allow_url_fopen'))) {
+        file_put_contents($destination, file_get_contents($url));
+
+        echo $okMessage;
+        return;
+    }
+
+    echo "Error: Cannot download the installable archive.\n";
+    echo "  One of the following prerequisites must be satisfied:\n";
+    echo "    - PHP ext-curl extension is installed\n";
+    echo "    - curl CLI command is available\n";
+    echo "    - the INI setting 'allow_url_fopen=1'\n";
+
+    exit(1);
 }
 
 function on_download_progress($curlHandle, $download_size, $downloaded)
