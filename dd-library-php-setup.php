@@ -15,7 +15,11 @@ function main()
     }
 
     $options = parse_validate_user_options();
-    install($options);
+    if ($options['uninstall']) {
+        uninstall($options);
+    } else {
+        install($options);
+    }
 }
 
 function install($options)
@@ -27,21 +31,7 @@ function install($options)
     }
 
     // Picking the right binaries to install the library
-    $selectedBinaries = [];
-    if (empty($options['php-bin'])) {
-        $selectedBinaries = pick_binaries_interactive(search_php_binaries(SUPPORTED_PHP_VERSIONS));
-    } elseif (in_array('all', $options['php-bin'])) {
-        $selectedBinaries = search_php_binaries(SUPPORTED_PHP_VERSIONS);
-    } else {
-        foreach ($options['php-bin'] as $command) {
-            $selectedBinaries[$command] = exec("readlink -f $command");
-        }
-    }
-
-    if (empty($selectedBinaries)) {
-        echo "At least one binary must be specified\n";
-        exit(1);
-    }
+    $selectedBinaries = require_binaries($options);
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-library';
@@ -124,6 +114,70 @@ function install($options)
     }
 }
 
+function uninstall($options)
+{
+    $selectedBinaries = require_binaries($options);
+
+    foreach ($selectedBinaries as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Uninstalling from binary: $binaryForLog\n";
+
+        $phpProperties = ini_values($fullPath, RELEVANT_INI_SETTINGS);
+
+        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
+
+        // Writing the ini file
+        $iniFileName = '98-ddtrace.ini';
+        $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
+        if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
+            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
+            if (\is_dir($apacheConfd)) {
+                array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+            }
+        }
+
+        // Actual uninstall
+        //  1) comment out extension=ddtrace.so
+        //  2) remove ddtrace.so
+        foreach ($iniFilePaths as $iniFilePath) {
+            if (file_exists($iniFilePath)) {
+                execute_or_exit(
+                    "Impossible to disable ddtrace from '$iniFilePath'. Disable it manually.",
+                    "sed -i 's@^extension \?=@;extension =@g' '$iniFilePath'"
+                );
+                echo "Disabled ddtrace in INI file '$iniFilePath'\n";
+            }
+            echo "Installation to '$command' was successful\n";
+        }
+        unlink($extensionDestination);
+    }
+}
+
+/**
+ * @param mixed $options
+ * @return []
+ */
+function require_binaries($options)
+{
+    $selectedBinaries = [];
+    if (empty($options['php-bin'])) {
+        $selectedBinaries = pick_binaries_interactive(search_php_binaries(SUPPORTED_PHP_VERSIONS));
+    } elseif (in_array('all', $options['php-bin'])) {
+        $selectedBinaries = search_php_binaries(SUPPORTED_PHP_VERSIONS);
+    } else {
+        foreach ($options['php-bin'] as $command) {
+            $selectedBinaries[$command] = exec("readlink -f $command");
+        }
+    }
+
+    if (empty($selectedBinaries)) {
+        echo "At least one binary must be specified\n";
+        exit(1);
+    }
+
+    return $selectedBinaries;
+}
+
 function check_library_prerequisite_or_exit($requiredLibrary)
 {
     $lastLine = execute_or_exit(
@@ -162,6 +216,7 @@ function parse_validate_user_options()
         'tracer-url:',
         'tracer-version:',
         'install-dir:',
+        'uninstall',
     ];
     $options = getopt($shortOptions, $longOptions);
 
@@ -198,6 +253,8 @@ function parse_validate_user_options()
         $normalizedOptions['php-bin'] = is_array($options['php-bin']) ? $options['php-bin'] : [$options['php-bin']];
     }
 
+    $normalizedOptions['uninstall'] = isset($options['uninstall']) ? true : false;
+
     return $normalizedOptions;
 }
 
@@ -218,6 +275,7 @@ Options:
     --tracer-url=<url>          Install the tracing library from a url. If set --file is ignored.
     --tracer-file=<file>        Install the tracing library from a local file.
     --install-dir=<path>        Install to a specific directory. Default: '/opt/datadog'
+    --uninstall                 Uninstall the library from the specified binaries
 
 EOD;
     exit(0);
