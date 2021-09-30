@@ -400,6 +400,7 @@
             <file name="tests/ext/request-init-hook/auto_prepend_file_once.phpt" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_original.phpt" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_original_disabled.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file_original_disabled-legacy.phpt" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_original_disabled_ini.phpt" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_original_exit.phpt" role="test" />
             <file name="tests/ext/request-init-hook/dd_init_open_basedir.inc" role="test" />

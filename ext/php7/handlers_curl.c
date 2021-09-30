@@ -40,7 +40,7 @@ static void (*dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
 static bool dd_load_curl_integration(void) {
-    if (!dd_ext_curl_loaded || DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+    if (!dd_ext_curl_loaded || !get_DD_TRACE_ENABLED()) {
         return false;
     }
     return get_DD_DISTRIBUTED_TRACING();

@@ -12,7 +12,7 @@ $ini = [
 $env = [
     'DD_ENV=my-env',
     'DD_SERVICE=my-service',
-    'DD_TRACE_CLI_ENABLED=1',
+    'DD_TRACE_CLI_ENABLED=0',
     'DD_TRACE_DEBUG=1',
     'DD_TRACE_SAMPLE_RATE=0.42',
     'DD_TRACE_SAMPLING_RULES=\'[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]\'',
@@ -31,7 +31,7 @@ $env = [
     'DD_TRACE_REPORT_HOSTNAME=1',
     'DD_TRACE_TRACED_INTERNAL_FUNCTIONS=\'array_sum,mt_rand,DateTime::add\'',
     'DD_INTEGRATIONS_DISABLED=\'curl,mysqli\'',
-    'DD_TRACE_ENABLED=0',
+    'DD_TRACE_ENABLED=1',
 ];
 $logs = dd_get_startup_logs($ini, $env);
 
@@ -65,7 +65,7 @@ dd_dump_startup_logs($logs, [
 --EXPECT--
 env: "my-env"
 service: "my-service"
-enabled_cli: true
+enabled_cli: false
 debug: true
 sample_rate: 0.4200
 sampling_rules: "[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]"
@@ -85,4 +85,4 @@ report_hostname_on_root_span: true
 traced_internal_functions: "array_sum,mt_rand,DateTime::add"
 auto_prepend_file_configured: true
 integrations_disabled: "curl,mysqli"
-enabled_from_env: false
+enabled_from_env: true

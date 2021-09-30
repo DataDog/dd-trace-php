@@ -345,4 +345,9 @@ void ddtrace_exception_handlers_startup(void) {
 
 void ddtrace_exception_handlers_shutdown(void) { zend_hash_destroy(&dd_exception_or_error_handler_ce.properties_info); }
 
-void ddtrace_exception_handlers_rinit(void) { dd_wrap_exception_or_error_handler(&EG(user_exception_handler), false); }
+void ddtrace_exception_handlers_rinit(void) {
+    if (Z_TYPE(EG(user_exception_handler)) != IS_OBJECT ||
+        Z_OBJCE(EG(user_exception_handler)) != &dd_exception_or_error_handler_ce) {
+        dd_wrap_exception_or_error_handler(&EG(user_exception_handler), false);
+    }
+}

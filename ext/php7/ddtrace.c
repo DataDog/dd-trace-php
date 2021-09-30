@@ -461,32 +461,13 @@ static void dd_rinit_once(void) {
 static pthread_once_t dd_rinit_config_once_control = PTHREAD_ONCE_INIT;
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
-static PHP_RINIT_FUNCTION(ddtrace) {
-    UNUSED(module_number, type);
-
-    if (ddtrace_has_excluded_module == true) {
-        DDTRACE_G(disable) = 1;
-    }
-
-    // ZAI config is always set up
-    pthread_once(&dd_rinit_config_once_control, ddtrace_config_first_rinit);
-    zai_config_rinit();
-
-    if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
-        DDTRACE_G(disable) = 1;
-    }
-
-    if (DDTRACE_G(disable)) {
-        return SUCCESS;
-    }
-
+static void dd_initialize_request() {
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
 
     // Things that should only run on the first RINIT
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
-    DDTRACE_G(request_init_hook_loaded) = 0;
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rinit();
     }
@@ -494,8 +475,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_internal_handlers_rinit();
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init();
-    DDTRACE_G(disable_in_current_request) = 0;
-    DDTRACE_G(drop_all_spans) = 0;
 
     // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
     ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
@@ -521,28 +500,39 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
     }
+}
+
+static PHP_RINIT_FUNCTION(ddtrace) {
+    UNUSED(module_number, type);
+
+    if (ddtrace_has_excluded_module == true) {
+        DDTRACE_G(disable) = 1;
+    }
+
+    // ZAI config is always set up
+    pthread_once(&dd_rinit_config_once_control, ddtrace_config_first_rinit);
+    zai_config_rinit();
+
+    if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
+        DDTRACE_G(disable) = 1;
+    }
+
+    if (DDTRACE_G(disable)) {
+        ddtrace_disable_tracing_in_current_request();
+    }
+
+    DDTRACE_G(request_init_hook_loaded) = 0;
+
+    if (!get_DD_TRACE_ENABLED()) {
+        return SUCCESS;
+    }
+
+    dd_initialize_request();
 
     return SUCCESS;
 }
 
-static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
-    UNUSED(module_number, type);
-
-    if (DDTRACE_G(disable)) {
-        zai_config_rshutdown();
-        return SUCCESS;
-    }
-
-    ddtrace_close_all_open_spans();  // All remaining non-internal userland spans
-    if (DDTRACE_G(open_spans_top) && DDTRACE_G(open_spans_top)->execute_data == NULL) {
-        // we have a root span. Close it.
-        dd_trace_stop_span_time(&DDTRACE_G(open_spans_top)->span);
-        ddtrace_close_span(DDTRACE_G(open_spans_top));
-    }
-    if (ddtrace_flush_tracer() == FAILURE) {
-        ddtrace_log_debug("Unable to flush the tracer");
-    }
-
+static void dd_clean_globals() {
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     zend_array_destroy(DDTRACE_G(additional_global_tags));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
@@ -558,10 +548,60 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rshutdown();
     }
+}
 
-    zai_config_rshutdown();
+static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
+    UNUSED(module_number, type);
+
+    if (!get_DD_TRACE_ENABLED()) {
+        return SUCCESS;
+    }
+
+    ddtrace_close_all_open_spans();  // All remaining non-internal userland spans
+    if (DDTRACE_G(open_spans_top) && DDTRACE_G(open_spans_top)->execute_data == NULL) {
+        // we have a root span. Close it.
+        dd_trace_stop_span_time(&DDTRACE_G(open_spans_top)->span);
+        ddtrace_close_span(DDTRACE_G(open_spans_top));
+    }
+    if (ddtrace_flush_tracer() == FAILURE) {
+        ddtrace_log_debug("Unable to flush the tracer");
+    }
+
+    dd_clean_globals();
 
     return SUCCESS;
+}
+
+int ddtrace_post_deactivate(void) {
+    // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
+    zai_config_rshutdown();
+    return SUCCESS;
+}
+
+void ddtrace_disable_tracing_in_current_request(void) {
+    zend_string *zero = zend_string_init("0", 1, 0);
+    zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_ENABLED].ini_entries[0]->name, zero,
+                         ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+    zend_string_release(zero);
+}
+
+bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
+    if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value)) {
+        return true;
+    }
+
+    if (DDTRACE_G(disable)) {
+        return Z_TYPE_P(new_value) == IS_FALSE;  // no changing to enabled allowed if globally disabled
+    }
+
+    if (Z_TYPE_P(old_value) == IS_FALSE) {
+        dd_initialize_request();
+    } else if (!DDTRACE_G(disable)) {  // if this is true, the request has not been initialized at all
+        ddtrace_close_all_open_spans();
+        dd_clean_globals();
+    }
+
+    return true;
 }
 
 static int datadog_info_print(const char *str) { return php_output_write(str, strlen(str)); }
@@ -719,7 +759,7 @@ static PHP_FUNCTION(dd_trace) {
     zval *callable = NULL;
     zval *config_array = NULL;
 
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_BOOL(0);
     }
 
@@ -757,7 +797,7 @@ static PHP_FUNCTION(trace_method) {
     zval *config_array = NULL;
     uint32_t options = 0;
 
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_BOOL(0);
     }
 
@@ -894,7 +934,7 @@ static PHP_FUNCTION(add_global_tag) {
         RETURN_NULL();
     }
 
-    if (DDTRACE_G(disable)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_NULL();
     }
 
@@ -911,7 +951,7 @@ static PHP_FUNCTION(trace_function) {
     zval *config_array = NULL;
     uint32_t options = 0;
 
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_BOOL(0);
     }
 
@@ -971,7 +1011,7 @@ static PHP_FUNCTION(dd_trace_env_config) {
 static PHP_FUNCTION(dd_untrace) {
     UNUSED(execute_data);
 
-    if (DDTRACE_G(disable) && DDTRACE_G(disable_in_current_request)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_BOOL(0);
     }
 
@@ -998,7 +1038,7 @@ static PHP_FUNCTION(dd_untrace) {
 static PHP_FUNCTION(dd_trace_disable_in_request) {
     UNUSED(execute_data);
 
-    DDTRACE_G(disable_in_current_request) = 1;
+    ddtrace_disable_tracing_in_current_request();
 
     RETURN_BOOL(1);
 }
@@ -1018,7 +1058,7 @@ static PHP_FUNCTION(dd_trace_reset) {
 static PHP_FUNCTION(dd_trace_serialize_msgpack) {
     UNUSED(execute_data);
 
-    if (DDTRACE_G(disable)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_BOOL(0);
     }
 
@@ -1038,7 +1078,7 @@ static PHP_FUNCTION(dd_trace_serialize_msgpack) {
 static PHP_FUNCTION(dd_trace_noop) {
     UNUSED(execute_data);
 
-    if (DDTRACE_G(disable)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_BOOL(0);
     }
 
@@ -1246,7 +1286,7 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
 }
 
 static PHP_FUNCTION(dd_trace_buffer_span) {
-    if (DDTRACE_G(disable)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_BOOL(0);
     }
     zval *trace_array = NULL;
@@ -1400,7 +1440,7 @@ static PHP_FUNCTION(dd_trace_peek_span_id) {
 /* {{{ proto string DDTrace\active_span() */
 static PHP_FUNCTION(active_span) {
     UNUSED(execute_data);
-    if (DDTRACE_G(disable)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_NULL();
     }
     if (!DDTRACE_G(open_spans_top)) {
@@ -1418,7 +1458,7 @@ static PHP_FUNCTION(active_span) {
 /* {{{ proto string DDTrace\root_span() */
 static PHP_FUNCTION(root_span) {
     UNUSED(execute_data);
-    if (DDTRACE_G(disable)) {
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_NULL();
     }
     if (!DDTRACE_G(open_spans_top)) {
@@ -1447,7 +1487,7 @@ static PHP_FUNCTION(start_span) {
 
     ddtrace_span_fci *span_fci = ddtrace_init_span();
 
-    if (!DDTRACE_G(disable)) {
+    if (get_DD_TRACE_ENABLED()) {
         GC_ADDREF(&span_fci->span.std);
         ddtrace_open_span(span_fci);
     }
@@ -1630,20 +1670,11 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 
-zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
-                                          PHP_DDTRACE_EXTNAME,
-                                          ddtrace_functions,
-                                          PHP_MINIT(ddtrace),
-                                          PHP_MSHUTDOWN(ddtrace),
-                                          PHP_RINIT(ddtrace),
-                                          PHP_RSHUTDOWN(ddtrace),
-                                          PHP_MINFO(ddtrace),
-                                          PHP_DDTRACE_VERSION,
-                                          PHP_MODULE_GLOBALS(ddtrace),
-                                          PHP_GINIT(ddtrace),
-                                          NULL,
-                                          NULL,
-                                          STANDARD_MODULE_PROPERTIES_EX};
+zend_module_entry ddtrace_module_entry = {
+    STANDARD_MODULE_HEADER,  PHP_DDTRACE_EXTNAME,          ddtrace_functions,      PHP_MINIT(ddtrace),
+    PHP_MSHUTDOWN(ddtrace),  PHP_RINIT(ddtrace),           PHP_RSHUTDOWN(ddtrace), PHP_MINFO(ddtrace),
+    PHP_DDTRACE_VERSION,     PHP_MODULE_GLOBALS(ddtrace),  PHP_GINIT(ddtrace),     NULL,
+    ddtrace_post_deactivate, STANDARD_MODULE_PROPERTIES_EX};
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)
