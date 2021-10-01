@@ -32,6 +32,7 @@ function install($options)
 
     // Picking the right binaries to install the library
     $selectedBinaries = require_binaries($options);
+    $interactive = empty($options['php-bin']);
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-library';
@@ -119,6 +120,22 @@ function install($options)
             }
             echo "Installation to '$command' was successful\n";
         }
+    }
+
+    echo "--------------------------------------------------\n";
+    echo "SUCCESS\n\n";
+    if ($interactive) {
+        echo "Run this script in a non interactive mode adding the following 'php-bin' options:\n";
+        $phpBins = implode(
+            ' ',
+            array_map(
+                function ($el) {
+                    return '--php-bin=' . $el;
+                },
+                array_keys($selectedBinaries)
+            )
+        );
+        echo "  php dd-library-php-setup.php [ ... existing options... ] $phpBins\n";
     }
 }
 
