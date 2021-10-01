@@ -193,10 +193,17 @@ function require_binaries($options)
 
 function check_library_prerequisite_or_exit($requiredLibrary)
 {
-    $lastLine = execute_or_exit(
-        "Cannot find library '$requiredLibrary'",
-        "ldconfig -p | grep $requiredLibrary"
-    );
+    if (is_alpine()) {
+        $lastLine = execute_or_exit(
+            "Error while searching for library '$requiredLibrary'.",
+            "find /usr/local/lib /usr/lib -type f -name '*${requiredLibrary}*.so*'"
+        );
+    } else {
+        $lastLine = execute_or_exit(
+            "Cannot find library '$requiredLibrary'",
+            "ldconfig -p | grep $requiredLibrary"
+        );
+    }
 
     if (empty($lastLine)) {
         echo "Required library '$requiredLibrary' not found.\n";
