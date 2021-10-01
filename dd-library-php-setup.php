@@ -239,35 +239,38 @@ function parse_validate_user_options()
 
     $normalizedOptions = [];
 
-    // One and only one among --tracer-version, --tracer-url and --tracer-file must be provided
-    $installables = array_intersect(['tracer-version', 'tracer-url', 'tracer-file'], array_keys($options));
-    if (count($installables) === 0 || count($installables) > 1) {
-        print_error_and_exit(
-            'One and only one among --tracer-version, --tracer-url and --tracer-file must be provided'
-        );
-    }
-    if (isset($options['tracer-version'])) {
-        if (is_array($options['tracer-version'])) {
-            print_error_and_exit('Only one --tracer-version can be provided');
+    $normalizedOptions['uninstall'] = isset($options['uninstall']) ? true : false;
+
+    if (!$normalizedOptions['uninstall']) {
+        // One and only one among --tracer-version, --tracer-url and --tracer-file must be provided
+        $installables = array_intersect(['tracer-version', 'tracer-url', 'tracer-file'], array_keys($options));
+        if (count($installables) === 0 || count($installables) > 1) {
+            print_error_and_exit(
+                'One and only one among --tracer-version, --tracer-url and --tracer-file must be provided'
+            );
         }
-        $normalizedOptions['tracer-version'] = $options['tracer-version'];
-    } elseif (isset($options['tracer-url'])) {
-        if (is_array($options['tracer-url'])) {
-            print_error_and_exit('Only one --tracer-url can be provided');
+        if (isset($options['tracer-version'])) {
+            if (is_array($options['tracer-version'])) {
+                print_error_and_exit('Only one --tracer-version can be provided');
+            }
+            $normalizedOptions['tracer-version'] = $options['tracer-version'];
+        } elseif (isset($options['tracer-url'])) {
+            if (is_array($options['tracer-url'])) {
+                print_error_and_exit('Only one --tracer-url can be provided');
+            }
+            $normalizedOptions['tracer-url'] = $options['tracer-url'];
+        } elseif (isset($options['tracer-file'])) {
+            if (is_array($options['tracer-file'])) {
+                print_error_and_exit('Only one --tracer-file can be provided');
+            }
+            $normalizedOptions['tracer-file'] = $options['tracer-file'];
         }
-        $normalizedOptions['tracer-url'] = $options['tracer-url'];
-    } elseif (isset($options['tracer-file'])) {
-        if (is_array($options['tracer-file'])) {
-            print_error_and_exit('Only one --tracer-file can be provided');
-        }
-        $normalizedOptions['tracer-file'] = $options['tracer-file'];
     }
 
     if (isset($options['php-bin'])) {
         $normalizedOptions['php-bin'] = is_array($options['php-bin']) ? $options['php-bin'] : [$options['php-bin']];
     }
 
-    $normalizedOptions['uninstall'] = isset($options['uninstall']) ? true : false;
 
     return $normalizedOptions;
 }

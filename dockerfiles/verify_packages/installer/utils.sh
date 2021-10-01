@@ -2,6 +2,16 @@
 
 # Common functions used to test the installation process
 
+assert_file_contains() {
+    output=$(cat ${1})
+    if [ -z "${output##*$2*}" ]; then
+        echo "Ok: file $1 contains text '$2'"
+    else
+        echo "---\nError: file $1 does not contain text '$2'\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
 assert_no_ddtrace() {
     output="$(php -v)"
     if [ -z "${output##*ddtrace*}" ]; then

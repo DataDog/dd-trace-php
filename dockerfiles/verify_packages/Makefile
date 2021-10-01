@@ -61,3 +61,6 @@ test_upgrade_from_legacy.sh:
 
 test_upgrade_from_php_installer.sh:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+
+test_uninstall.sh:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
