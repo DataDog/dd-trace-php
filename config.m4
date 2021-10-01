@@ -103,11 +103,6 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/properties/php5/properties.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
-      zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_io.c \
     "
   elif test $PHP_VERSION_ID -lt 70000; then
     dnl PHP 5.5 + PHP 5.6
@@ -158,11 +153,6 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/properties/php5/properties.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
-      zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_io.c \
     "
   elif test $PHP_VERSION_ID -lt 80000; then
     dnl PHP 7.x
@@ -214,11 +204,6 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php7/sandbox.c \
       zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
-      zend_abstract_interface/zai_sapi/php7/zai_sapi.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_io.c \
     "
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
@@ -270,11 +255,6 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
       zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
-      zend_abstract_interface/zai_sapi/php8/zai_sapi.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_extension.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
-      zend_abstract_interface/zai_sapi/zai_sapi_io.c \
     "
   fi
 
@@ -328,10 +308,6 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/uri_normalization/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/uri_normalization/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_assert])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi/php7])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi/php8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_string])
 
   PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor])
