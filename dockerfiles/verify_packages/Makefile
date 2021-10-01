@@ -67,3 +67,6 @@ test_uninstall.sh:
 
 test_alpine_no_libexecinfo.sh:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
+
+test_alpine_no_libcurl.sh:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
