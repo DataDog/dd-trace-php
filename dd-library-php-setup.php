@@ -108,6 +108,14 @@ function install($options)
                     "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = $installDirWrapperPath@g' '$iniFilePath'"
                 );
                 // phpcs:enable Generic.Files.LineLength.TooLong
+
+                // In order to support upgrading from legacy installation method to new installation method, we replace
+                // "extension=/opt/datadog-php/xyz.so" with "extension=ddtrace.so" honoring trailing `;`, hence not
+                // automatically re-activing the extension if the user had commented it out.
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@extension \?= \?\(.*\)@extension = ddtrace.so@g' '$iniFilePath'"
+                );
             }
             echo "Installation to '$command' was successful\n";
         }
@@ -166,7 +174,12 @@ function require_binaries($options)
         $selectedBinaries = search_php_binaries(SUPPORTED_PHP_VERSIONS);
     } else {
         foreach ($options['php-bin'] as $command) {
-            $selectedBinaries[$command] = exec("readlink -f $command");
+            if ($resolvedPath = resolve_command_full_path($command)) {
+                $selectedBinaries[$command] = $resolvedPath;
+            } else {
+                echo "Provided PHP binary '$command' was not found.\n";
+                exit(1);
+            }
         }
     }
 
@@ -181,7 +194,7 @@ function require_binaries($options)
 function check_library_prerequisite_or_exit($requiredLibrary)
 {
     $lastLine = execute_or_exit(
-        "Impossible to verify library '$requiredLibrary'",
+        "Cannot find library '$requiredLibrary'",
         "ldconfig -p | grep $requiredLibrary"
     );
 
@@ -198,8 +211,7 @@ function is_alpine()
     if (!is_readable($osInfoFile)) {
         return false;
     }
-
-    return strpos(strtolower(file_get_contents($osInfoFile)), 'alpine') >= 0;
+    return false !== strpos(strtolower(file_get_contents($osInfoFile)), 'alpine');
 }
 
 /**
@@ -227,24 +239,26 @@ function parse_validate_user_options()
 
     $normalizedOptions = [];
 
-    // One and only one among --version, --url and --file must be provided
+    // One and only one among --tracer-version, --tracer-url and --tracer-file must be provided
     $installables = array_intersect(['tracer-version', 'tracer-url', 'tracer-file'], array_keys($options));
     if (count($installables) === 0 || count($installables) > 1) {
-        print_error_and_exit('One and only one among --version, --url and --file must be provided');
+        print_error_and_exit(
+            'One and only one among --tracer-version, --tracer-url and --tracer-file must be provided'
+        );
     }
     if (isset($options['tracer-version'])) {
         if (is_array($options['tracer-version'])) {
-            print_error_and_exit('Only one --version can be provided');
+            print_error_and_exit('Only one --tracer-version can be provided');
         }
         $normalizedOptions['tracer-version'] = $options['tracer-version'];
     } elseif (isset($options['tracer-url'])) {
         if (is_array($options['tracer-url'])) {
-            print_error_and_exit('Only one --url can be provided');
+            print_error_and_exit('Only one --tracer-url can be provided');
         }
         $normalizedOptions['tracer-url'] = $options['tracer-url'];
     } elseif (isset($options['tracer-file'])) {
         if (is_array($options['tracer-file'])) {
-            print_error_and_exit('Only one --file can be provided');
+            print_error_and_exit('Only one --tracer-file can be provided');
         }
         $normalizedOptions['tracer-file'] = $options['tracer-file'];
     }
@@ -271,8 +285,8 @@ Usage:
 Options:
     -h, --help                  Print this help text and exit
     --php-bin=<0.1.2>           Install the library to the specified binary. Multiple values are allowed.
-    --tracer-version=<0.1.2>    Install a specific version. If set --url and --file are ignored.
-    --tracer-url=<url>          Install the tracing library from a url. If set --file is ignored.
+    --tracer-version=<0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
+    --tracer-url=<url>          Install the tracing library from a url. If set --tracer-file is ignored.
     --tracer-file=<file>        Install the tracing library from a local file.
     --install-dir=<path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
@@ -378,7 +392,7 @@ function download($url, $destination)
     // curl
     $statusCode = 0;
     $output = [];;
-    if (false !== exec('curl --version', $output, $statusCode) && $statusCode === 0) {
+    if (false !== exec('curl --tracer-version', $output, $statusCode) && $statusCode === 0) {
         $curlInvocationStatusCode = 0;
         system(
             'curl -L --output ' . escapeshellarg($destination) . ' ' . escapeshellarg($url),
@@ -470,14 +484,9 @@ function search_php_binaries(array $phpVersions, $prefix = '')
     // First, we search in $PATH, for php, php7, php74, php7.4, php7.4-fpm, etc....
     foreach (build_known_command_names_matrix($phpVersions) as $command) {
         $path = exec("command -v $command");
-        if (false === $path || empty($path)) {
-            // command is not defined
-            continue;
+        if ($resolvedPath = resolve_command_full_path($command)) {
+            $results[$command] = $resolvedPath;
         }
-
-        // Resolving symlinks
-        $resolvedPath = exec("readlink -f $path");
-        $results[$command] = $resolvedPath;
     }
 
     // Then we search in known possible locations for popular installable paths on different systems.
@@ -508,6 +517,22 @@ function search_php_binaries(array $phpVersions, $prefix = '')
     }
 
     return $results;
+}
+
+/**
+ * @param mixed $command
+ * @return string|false
+ */
+function resolve_command_full_path($command)
+{
+    $path = exec("command -v $command");
+    if (false === $path || empty($path)) {
+        // command is not defined
+        return false;
+    }
+
+    // Resolving symlinks
+    return exec("readlink -f $path");
 }
 
 function build_known_command_names_matrix(array $phpVersions)
