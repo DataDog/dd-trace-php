@@ -775,75 +775,15 @@ datadog.trace.request_init_hook = $requestInitHookPath
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integrations settings
-; For each integration:
+; For each integration (see https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#integration-names):
 ;   - *_enabled: whether the integration is enabled.
 ;   - *_analytics_enabled: whether analytics for the integration is enabled.
 ;   - *_analytics_sample_rate: sampling rate for analyzed spans. Valid values are between 0.0 and 1.0.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;datadog.trace.cakephp_enabled = On
-;datadog.trace.cakephp_analytics_enabled = Off
-;datadog.trace.cakephp_analytics_sample_rate = 1
-;datadog.trace.codeigniter_enabled = On
-;datadog.trace.codeigniter_analytics_enabled = Off
-;datadog.trace.codeigniter_analytics_sample_rate = 1
-;datadog.trace.curl_enabled = On
-;datadog.trace.curl_analytics_enabled = Off
-;datadog.trace.curl_analytics_sample_rate = 1
-;datadog.trace.elasticsearch_enabled = On
-;datadog.trace.elasticsearch_analytics_enabled = Off
-;datadog.trace.elasticsearch_analytics_sample_rate = 1
-;datadog.trace.eloquent_enabled = On
-;datadog.trace.eloquent_analytics_enabled = Off
-;datadog.trace.eloquent_analytics_sample_rate = 1
-;datadog.trace.guzzle_enabled = On
-;datadog.trace.guzzle_analytics_enabled = Off
-;datadog.trace.guzzle_analytics_sample_rate = 1
-;datadog.trace.laravel_enabled = On
-;datadog.trace.laravel_analytics_enabled = Off
-;datadog.trace.laravel_analytics_sample_rate = 1
-;datadog.trace.lumen_enabled = On
-;datadog.trace.lumen_analytics_enabled = Off
-;datadog.trace.lumen_analytics_sample_rate = 1
-;datadog.trace.memcached_enabled = On
-;datadog.trace.memcached_analytics_enabled = Off
-;datadog.trace.memcached_analytics_sample_rate = 1
-;datadog.trace.mongo_enabled = On
-;datadog.trace.mongo_analytics_enabled = Off
-;datadog.trace.mongo_analytics_sample_rate = 1
-;datadog.trace.mysqli_enabled = On
-;datadog.trace.mysqli_analytics_enabled = Off
-;datadog.trace.mysqli_analytics_sample_rate = 1
-;datadog.trace.nette_enabled = On
-;datadog.trace.nette_analytics_enabled = Off
-;datadog.trace.nette_analytics_sample_rate = 1
-;datadog.trace.pdo_enabled = On
-;datadog.trace.pdo_analytics_enabled = Off
-;datadog.trace.pdo_analytics_sample_rate = 1
-;datadog.trace.phpredis_enabled = On
-;datadog.trace.phpredis_analytics_enabled = Off
-;datadog.trace.phpredis_analytics_sample_rate = 1
-;datadog.trace.predis_enabled = On
-;datadog.trace.predis_analytics_enabled = Off
-;datadog.trace.predis_analytics_sample_rate = 1
-;datadog.trace.slim_enabled = On
-;datadog.trace.slim_analytics_enabled = Off
-;datadog.trace.slim_analytics_sample_rate = 1
-;datadog.trace.symfony_enabled = On
-;datadog.trace.symfony_analytics_enabled = Off
-;datadog.trace.symfony_analytics_sample_rate = 1
-;datadog.trace.web_enabled = On
-;datadog.trace.web_analytics_enabled = Off
-;datadog.trace.web_analytics_sample_rate = 1
-;datadog.trace.wordpress_enabled = On
-;datadog.trace.wordpress_analytics_enabled = Off
-;datadog.trace.wordpress_analytics_sample_rate = 1
-;datadog.trace.yii_enabled = On
-;datadog.trace.yii_analytics_enabled = Off
-;datadog.trace.yii_analytics_sample_rate = 1
-;datadog.trace.zendframework_enabled = On
-;datadog.trace.zendframework_analytics_enabled = Off
-;datadog.trace.zendframework_analytics_sample_rate = 1
+;datadog.trace.<integration_name>_enabled = On
+;datadog.trace.<integration_name>_analytics_enabled = Off
+;datadog.trace.<integration_name>_analytics_sample_rate = 1.0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Other settings
