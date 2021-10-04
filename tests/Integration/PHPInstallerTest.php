@@ -64,7 +64,7 @@ final class PHPInstallerTest extends BaseTestCase
 
     public function testBuildCommandNamesMatrix()
     {
-        $names = \build_known_command_names_matrix(SUPPORTED_PHP_VERSIONS);
+        $names = \build_known_command_names_matrix();
 
         $this->assertContains('php', $names);
         $this->assertContains('php-fpm', $names);
@@ -98,7 +98,7 @@ final class PHPInstallerTest extends BaseTestCase
      */
     public function testSearchPhpBinaries()
     {
-        $found = \search_php_binaries(\SUPPORTED_PHP_VERSIONS, sys_get_temp_dir() . '/dd-php-setup-tests');
+        $found = \search_php_binaries(sys_get_temp_dir() . '/dd-php-setup-tests');
         $this->assertStringContains('/', $found['php']);
 
         $shouldBeFound = [
@@ -135,7 +135,7 @@ final class PHPInstallerTest extends BaseTestCase
 
     public function testIniValues()
     {
-        $values = \ini_values(\PHP_BINARY, RELEVANT_INI_SETTINGS);
+        $values = \ini_values(\PHP_BINARY);
         $this->assertNotEmpty($values[INI_CONF]);
         $this->assertNotEmpty($values[EXTENSION_DIR]);
         $this->assertNotEmpty($values[THREAD_SAFETY]);

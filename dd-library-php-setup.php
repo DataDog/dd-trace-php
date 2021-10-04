@@ -5,8 +5,6 @@ const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
 const PHP_API = 'PHP API';
 const IS_DEBUG = 'Debug Build';
-const RELEVANT_INI_SETTINGS = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
-const SUPPORTED_PHP_VERSIONS = ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
 
 // Options
 const OPT_HELP = 'help';
@@ -105,7 +103,7 @@ function install($options)
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Installing to binary: $binaryForLog\n";
-        $phpProperties = ini_values($fullPath, RELEVANT_INI_SETTINGS);
+        $phpProperties = ini_values($fullPath);
 
         // Copying the extension
         $extensionVersion = $phpProperties[PHP_API];
@@ -192,7 +190,7 @@ function uninstall($options)
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Uninstalling from binary: $binaryForLog\n";
 
-        $phpProperties = ini_values($fullPath, RELEVANT_INI_SETTINGS);
+        $phpProperties = ini_values($fullPath);
 
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
 
@@ -238,9 +236,9 @@ function require_binaries($options)
 {
     $selectedBinaries = [];
     if (empty($options[OPT_PHP_BIN])) {
-        $selectedBinaries = pick_binaries_interactive(search_php_binaries(SUPPORTED_PHP_VERSIONS));
+        $selectedBinaries = pick_binaries_interactive(search_php_binaries());
     } elseif (in_array('all', $options[OPT_PHP_BIN])) {
-        $selectedBinaries = search_php_binaries(SUPPORTED_PHP_VERSIONS);
+        $selectedBinaries = search_php_binaries();
     } else {
         foreach ($options[OPT_PHP_BIN] as $command) {
             if ($resolvedPath = resolve_command_full_path($command)) {
@@ -573,12 +571,11 @@ function on_download_progress($curlHandle, $download_size, $downloaded)
  * Extracts and normalizes a set of properties from PHP's ini values.
  *
  * @param string $binary
- * @param array $properties
  * @return array
  */
-function ini_values($binary, array $properties)
+function ini_values($binary)
 {
-    // $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG];
+    $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
     $lines = [];
     exec($binary . " -d date.timezone=UTC -i", $lines);
     $found = [];
@@ -605,12 +602,12 @@ function is_truthy($value)
  * @param string $prefix Default ''. Used for testing purposes only.
  * @return array
  */
-function search_php_binaries(array $phpVersions, $prefix = '')
+function search_php_binaries($prefix = '')
 {
     $results = [];
 
     // First, we search in $PATH, for php, php7, php74, php7.4, php7.4-fpm, etc....
-    foreach (build_known_command_names_matrix($phpVersions) as $command) {
+    foreach (build_known_command_names_matrix() as $command) {
         $path = exec("command -v $command");
         if ($resolvedPath = resolve_command_full_path($command)) {
             $results[$command] = $resolvedPath;
@@ -625,7 +622,7 @@ function search_php_binaries(array $phpVersions, $prefix = '')
     $remiSafePaths = array_map(function ($phpVersion) use ($prefix) {
         list($major, $minor) = explode('.', $phpVersion);
         return "${prefix}/opt/remi/php${major}${minor}/root/usr/sbin";
-    }, $phpVersions);
+    }, get_supported_php_versions());
 
     foreach (($standardPaths + $remiSafePaths) as $knownPath) {
         $pathsFound = [];
@@ -663,11 +660,11 @@ function resolve_command_full_path($command)
     return exec("readlink -f $path");
 }
 
-function build_known_command_names_matrix(array $phpVersions)
+function build_known_command_names_matrix()
 {
     $results = ['php', 'php-fpm'];
 
-    foreach ($phpVersions as $phpVersion) {
+    foreach (get_supported_php_versions() as $phpVersion) {
         list($major, $minor) = explode('.', $phpVersion);
         array_push(
             $results,
@@ -817,6 +814,14 @@ datadog.trace.request_init_hook = $requestInitHookPath
 
 EOD;
     // phpcs:enable Generic.Files.LineLength.TooLong
+}
+
+/**
+ * @return string[]
+ */
+function get_supported_php_versions()
+{
+    return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
 }
 
 main();
