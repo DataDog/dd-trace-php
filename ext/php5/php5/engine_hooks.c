@@ -304,7 +304,7 @@ static int dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
 }
 
 static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zend_function *fbc TSRMLS_DC) {
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
+    if (!get_DD_TRACE_ENABLED() || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
         return false;
     }

@@ -29,7 +29,7 @@ static zend_class_entry *dd_get_called_scope(zend_function *fbc TSRMLS_DC) {
 }
 
 static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zend_function *fbc TSRMLS_DC) {
-    if (DDTRACE_G(disable_in_current_request) || !DDTRACE_G(class_lookup) || !DDTRACE_G(function_lookup) || !fbc) {
+    if (!get_DD_TRACE_ENABLED() || !DDTRACE_G(class_lookup) || !DDTRACE_G(function_lookup) || !fbc) {
         return NULL;
     }
 
