@@ -220,8 +220,11 @@ function uninstall($options)
 }
 
 /**
- * @param mixed $options
- * @return []
+ * Returns a list of php binaries where to install the tracer. If not explicitly provided by the CLI options, then
+ * the list is retrieved using an interactive session.
+ *
+ * @param array $options
+ * @return array
  */
 function require_binaries($options)
 {
@@ -249,6 +252,12 @@ function require_binaries($options)
     return $selectedBinaries;
 }
 
+/**
+ * Checks if a library is available or not in an OS-independent way.
+ *
+ * @param string $requiredLibrary E.g. libcurl
+ * @return void
+ */
 function check_library_prerequisite_or_exit($requiredLibrary)
 {
     if (is_alpine()) {
@@ -269,6 +278,9 @@ function check_library_prerequisite_or_exit($requiredLibrary)
     }
 }
 
+/**
+ * @return bool
+ */
 function is_alpine()
 {
     $osInfoFile = '/etc/os-release';
@@ -280,7 +292,8 @@ function is_alpine()
 }
 
 /**
- * Parses command line options provided by the user.
+ * Parses command line options provided by the user and generate a normalized $options array.
+
  * @return array
  */
 function parse_validate_user_options()
@@ -354,6 +367,14 @@ function print_error_and_exit($message)
     exit(1);
 }
 
+/**
+ * Applies a chain of responsibility to extract the version number of the installed tracer.
+ *
+ * @param array $options
+ * @param mixed string $extractArchiveRoot
+ * @param mixed string $extractedSourcesRoot
+ * @return string
+ */
 function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSourcesRoot)
 {
     // We apply the following decision make algorithm
@@ -388,13 +409,13 @@ function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSo
     return date("Y.m.d-H.s");
 }
 
-function write_file($path, $content, $override = false)
-{
-    if ($override || !file_exists($path)) {
-        file_put_contents($path, $content);
-    }
-}
-
+/**
+ * Given a certain set of available PHP binaries, let users pick in an interactive way the ones where the library
+ * should be installed to.
+ *
+ * @param array $php_binaries
+ * @return array
+ */
 function pick_binaries_interactive(array $php_binaries)
 {
     echo "Multiple PHP binaries detected. Please select the binaries the datadog library will be installed to:\n\n";
@@ -444,6 +465,12 @@ function execute_or_exit($exitMessage, $command)
 
 global $progress_counter;
 
+/**
+ * Downloads the library applying a number of fallback mechanisms if specific libraries/binaries are not available.
+ *
+ * @param string $url
+ * @param string $destination
+ */
 function download($url, $destination)
 {
     echo "Downloading installable archive from $url\n.";
@@ -512,6 +539,11 @@ function download($url, $destination)
     exit(1);
 }
 
+/**
+ * Progress callback as specified by the ext-curl documentation.
+ *
+ * @return int
+ */
 function on_download_progress($curlHandle, $download_size, $downloaded)
 {
     global $progress_counter;
@@ -534,6 +566,13 @@ function on_download_progress($curlHandle, $download_size, $downloaded)
     return 0;
 }
 
+/**
+ * Extracts and normalizes a set of properties from PHP's ini values.
+ *
+ * @param string $binary
+ * @param array $properties
+ * @return array
+ */
 function ini_values($binary, array $properties)
 {
     // $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_EXTENSION, IS_DEBUG];
@@ -559,7 +598,6 @@ function is_truthy($value)
 }
 
 /**
- *
  * @param array $phpVersions
  * @param string $prefix Default ''. Used for testing purposes only.
  * @return array
