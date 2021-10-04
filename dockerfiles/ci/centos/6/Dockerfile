@@ -1,6 +1,9 @@
 FROM centos:6
 
 # Letsencrpypt root certificate was crossigned by DST Root CA X3 which expired on 2021-09-30, we now need our own cert
+#   - details    : https://letsencrypt.org/docs/dst-root-ca-x3-expiration-september-2021/
+#   - x1 root    : https://letsencrypt.org/certs/isrgrootx1.pem
+#   - x3 expired : Copied from old container
 COPY isrgrootx1.pem /etc/pki/ca-trust/source/anchors/
 COPY dst-x3-expired.pem /etc/pki/ca-trust/source/blacklist/
 RUN update-ca-trust && update-ca-trust force-enable
