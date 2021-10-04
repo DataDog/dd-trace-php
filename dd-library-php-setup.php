@@ -8,6 +8,15 @@ const IS_DEBUG = 'Debug Build';
 const RELEVANT_INI_SETTINGS = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
 const SUPPORTED_PHP_VERSIONS = ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
 
+// Options
+const OPT_HELP = 'help';
+const OPT_INSTAL_DIR = 'install-dir';
+const OPT_PHP_BIN = 'php-bin';
+const OPT_TRACER_FILE = 'tracer-file';
+const OPT_TRACER_URL = 'tracer-url';
+const OPT_TRACER_VERSION = 'tracer-version';
+const OPT_UNINSTALL = 'uninstall';
+
 function main()
 {
     if (is_truthy(getenv('DD_TEST_EXECUTION'))) {
@@ -15,11 +24,34 @@ function main()
     }
 
     $options = parse_validate_user_options();
-    if ($options['uninstall']) {
+    if ($options[OPT_UNINSTALL]) {
         uninstall($options);
     } else {
         install($options);
     }
+}
+
+function print_help_and_exit()
+{
+    echo <<<EOD
+
+Usage:
+    php get-dd-trace.php --php-bin=php ...
+    php get-dd-trace.php --php-bin=php-fpm ...
+    php get-dd-trace.php --php-bin=/usr/local/sbin/php-fpm ...
+    php get-dd-trace.php --php-bin=php --php-bin=/usr/local/sbin/php-fpm ...
+
+Options:
+    -h, --help                  Print this help text and exit
+    --php-bin=<0.1.2>           Install the library to the specified binary. Multiple values are allowed.
+    --tracer-version=<0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
+    --tracer-url=<url>          Install the tracing library from a url. If set --tracer-file is ignored.
+    --tracer-file=<file>        Install the tracing library from a local file.
+    --install-dir=<path>        Install to a specific directory. Default: '/opt/datadog'
+    --uninstall                 Uninstall the library from the specified binaries
+
+EOD;
+    exit(0);
 }
 
 function install($options)
@@ -32,7 +64,7 @@ function install($options)
 
     // Picking the right binaries to install the library
     $selectedBinaries = require_binaries($options);
-    $interactive = empty($options['php-bin']);
+    $interactive = empty($options[OPT_PHP_BIN]);
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-library';
@@ -43,21 +75,21 @@ function install($options)
     execute_or_exit("Cannot clean '$tmpDir'", "rm -rf $tmpDir/*.*");
 
     // Retrieve and extract the archive to a tmp location
-    if (isset($options['tracer-file'])) {
-        $archive = $options['tracer-file'];
+    if (isset($options[OPT_TRACER_FILE])) {
+        $archive = $options[OPT_TRACER_FILE];
         echo "Copying file '${archive}' to '${tmpDirTarGz}'\n";
         execute_or_exit("Cannot copy file from '${archive}' to '${tmpDirTarGz}'", "cp -r ${archive} ${tmpDirTarGz}");
     } else {
-        $url = isset($options['tracer-url'])
-            ? $options['tracer-url']
+        $url = isset($options[OPT_TRACER_URL])
+            ? $options[OPT_TRACER_URL]
             : "https://github.com/DataDog/dd-trace-php/releases/download/" .
-            $options['tracer-version'] . "/datadog-php-tracer-" .
-            $options['tracer-version'] . ".x86_64.tar.gz";
+            $options[OPT_TRACER_VERSION] . "/datadog-php-tracer-" .
+            $options[OPT_TRACER_VERSION] . ".x86_64.tar.gz";
         download($url, $tmpDirTarGz);
     }
     execute_or_exit("Cannot extract the archive", "tar -xf $tmpDirTarGz -C $tmpDir");
 
-    $installDir = $options['install-dir'] . '/' . extract_version_subdir_path($options, $tmpDir, $tmpSourcesDir);
+    $installDir = $options[OPT_INSTAL_DIR] . '/' . extract_version_subdir_path($options, $tmpDir, $tmpSourcesDir);
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
     $installDirWrapperPath = $installDirSourcesDir . '/bridge/dd_wrap_autoloader.php';
 
@@ -194,12 +226,12 @@ function uninstall($options)
 function require_binaries($options)
 {
     $selectedBinaries = [];
-    if (empty($options['php-bin'])) {
+    if (empty($options[OPT_PHP_BIN])) {
         $selectedBinaries = pick_binaries_interactive(search_php_binaries(SUPPORTED_PHP_VERSIONS));
-    } elseif (in_array('all', $options['php-bin'])) {
+    } elseif (in_array('all', $options[OPT_PHP_BIN])) {
         $selectedBinaries = search_php_binaries(SUPPORTED_PHP_VERSIONS);
     } else {
-        foreach ($options['php-bin'] as $command) {
+        foreach ($options[OPT_PHP_BIN] as $command) {
             if ($resolvedPath = resolve_command_full_path($command)) {
                 $selectedBinaries[$command] = $resolvedPath;
             } else {
@@ -255,85 +287,65 @@ function parse_validate_user_options()
 {
     $shortOptions = "h";
     $longOptions = [
-        'help',
-        'php-bin:',
-        'tracer-file:',
-        'tracer-url:',
-        'tracer-version:',
-        'install-dir:',
-        'uninstall',
+        OPT_HELP,
+        OPT_PHP_BIN . ':',
+        OPT_TRACER_FILE . ':',
+        OPT_TRACER_URL . ':',
+        OPT_TRACER_VERSION . ':',
+        OPT_INSTAL_DIR . ':',
+        OPT_UNINSTALL,
     ];
     $options = getopt($shortOptions, $longOptions);
 
     // Help and exit
-    if (key_exists('h', $options) || key_exists('help', $options)) {
+    if (key_exists('h', $options) || key_exists(OPT_HELP, $options)) {
         print_help_and_exit();
     }
 
     $normalizedOptions = [];
 
-    $normalizedOptions['uninstall'] = isset($options['uninstall']) ? true : false;
+    $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]) ? true : false;
 
-    if (!$normalizedOptions['uninstall']) {
+    if (!$normalizedOptions[OPT_UNINSTALL]) {
         // One and only one among --tracer-version, --tracer-url and --tracer-file must be provided
-        $installables = array_intersect(['tracer-version', 'tracer-url', 'tracer-file'], array_keys($options));
+        $installables = array_intersect([OPT_TRACER_VERSION, OPT_TRACER_URL, OPT_TRACER_FILE], array_keys($options));
         if (count($installables) === 0 || count($installables) > 1) {
             print_error_and_exit(
                 'One and only one among --tracer-version, --tracer-url and --tracer-file must be provided'
             );
         }
-        if (isset($options['tracer-version'])) {
-            if (is_array($options['tracer-version'])) {
+        if (isset($options[OPT_TRACER_VERSION])) {
+            if (is_array($options[OPT_TRACER_VERSION])) {
                 print_error_and_exit('Only one --tracer-version can be provided');
             }
-            $normalizedOptions['tracer-version'] = $options['tracer-version'];
-        } elseif (isset($options['tracer-url'])) {
-            if (is_array($options['tracer-url'])) {
+            $normalizedOptions[OPT_TRACER_VERSION] = $options[OPT_TRACER_VERSION];
+        } elseif (isset($options[OPT_TRACER_URL])) {
+            if (is_array($options[OPT_TRACER_URL])) {
                 print_error_and_exit('Only one --tracer-url can be provided');
             }
-            $normalizedOptions['tracer-url'] = $options['tracer-url'];
-        } elseif (isset($options['tracer-file'])) {
-            if (is_array($options['tracer-file'])) {
+            $normalizedOptions[OPT_TRACER_URL] = $options[OPT_TRACER_URL];
+        } elseif (isset($options[OPT_TRACER_FILE])) {
+            if (is_array($options[OPT_TRACER_FILE])) {
                 print_error_and_exit('Only one --tracer-file can be provided');
             }
-            $normalizedOptions['tracer-file'] = $options['tracer-file'];
+            $normalizedOptions[OPT_TRACER_FILE] = $options[OPT_TRACER_FILE];
         }
     }
 
-    if (isset($options['php-bin'])) {
-        $normalizedOptions['php-bin'] = is_array($options['php-bin']) ? $options['php-bin'] : [$options['php-bin']];
+    if (isset($options[OPT_PHP_BIN])) {
+        $normalizedOptions[OPT_PHP_BIN] =
+            is_array($options[OPT_PHP_BIN])
+            ? $options[OPT_PHP_BIN]
+            : [$options[OPT_PHP_BIN]];
     }
 
-    $normalizedOptions['install-dir'] =
-        isset($options['install-dir'])
-        ? rtrim($options['install-dir'], '/')
+    $normalizedOptions[OPT_INSTAL_DIR] =
+        isset($options[OPT_INSTAL_DIR])
+        ? rtrim($options[OPT_INSTAL_DIR], '/')
         : '/opt/datadog';
-    $normalizedOptions['install-dir'] =  $normalizedOptions['install-dir'] . '/dd-library';
+    $normalizedOptions[OPT_INSTAL_DIR] =  $normalizedOptions[OPT_INSTAL_DIR] . '/dd-library';
 
     return $normalizedOptions;
-}
-
-function print_help_and_exit()
-{
-    echo <<<EOD
-
-Usage:
-    php get-dd-trace.php --php-bin=php ...
-    php get-dd-trace.php --php-bin=php-fpm ...
-    php get-dd-trace.php --php-bin=/usr/local/sbin/php-fpm ...
-    php get-dd-trace.php --php-bin=php --php-bin=/usr/local/sbin/php-fpm ...
-
-Options:
-    -h, --help                  Print this help text and exit
-    --php-bin=<0.1.2>           Install the library to the specified binary. Multiple values are allowed.
-    --tracer-version=<0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
-    --tracer-url=<url>          Install the tracing library from a url. If set --tracer-file is ignored.
-    --tracer-file=<file>        Install the tracing library from a local file.
-    --install-dir=<path>        Install to a specific directory. Default: '/opt/datadog'
-    --uninstall                 Uninstall the library from the specified binaries
-
-EOD;
-    exit(0);
 }
 
 function print_error_and_exit($message)
@@ -351,8 +363,8 @@ function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSo
     //   4) fallback to YYYY.MM.DD-HH.mm
 
     // 1)
-    if (isset($options['tracer-version'])) {
-        return trim($options['tracer-version']);
+    if (isset($options[OPT_TRACER_VERSION])) {
+        return trim($options[OPT_TRACER_VERSION]);
     }
 
     // 2)
