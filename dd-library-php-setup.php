@@ -76,7 +76,15 @@ function install($options)
 
         // Copying the extension
         $extensionVersion = $phpProperties[PHP_API];
-        $extensionSuffix = is_truthy($phpProperties[IS_DEBUG]) ? '-debug' : (is_truthy(THREAD_SAFETY) ? '-zts' : '');
+        // Suffix (zts/debug/alpine)
+        $extensionSuffix = '';
+        if (is_alpine()) {
+            $extensionSuffix = '-alpine';
+        } elseif (is_truthy($phpProperties[IS_DEBUG])) {
+            $extensionSuffix = '-debug';
+        } elseif (is_truthy(THREAD_SAFETY)) {
+            $extensionSuffix = '-zts';
+        }
         $extensionRealPath = $tmpExtensionsDir . '/ddtrace-' . $extensionVersion . $extensionSuffix . '.so';
         $extensionFileName = 'ddtrace.so';
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/' . $extensionFileName;
