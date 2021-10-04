@@ -31,6 +31,16 @@ assert_ddtrace_version() {
     fi
 }
 
+assert_file_exists() {
+    file="${1}"
+    if [ ! -f "${file}" ]; then
+        echo "Error: File '${file}' does not exist\n"
+        exit 1
+    else
+        echo "Ok: File '${file}' exists\n"
+    fi
+}
+
 install_legacy_ddtrace() {
     version=$1
     curl -L --output "/tmp/legacy-${version}.tar.gz" \

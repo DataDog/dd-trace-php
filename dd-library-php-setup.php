@@ -57,7 +57,7 @@ function install($options)
     }
     execute_or_exit("Cannot extract the archive", "tar -xf $tmpDirTarGz -C $tmpDir");
 
-    $installDir = (empty($options['install-dir']) ? '/opt/datadog' : $options['install-dir']) . '/dd-library';
+    $installDir = $options['install-dir'];
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
     $installDirWrapperPath = $installDirSourcesDir . '/bridge/dd_wrap_autoloader.php';
 
@@ -303,6 +303,11 @@ function parse_validate_user_options()
         $normalizedOptions['php-bin'] = is_array($options['php-bin']) ? $options['php-bin'] : [$options['php-bin']];
     }
 
+    $normalizedOptions['install-dir'] =
+        isset($options['install-dir'])
+        ? rtrim($options['install-dir'], '/')
+        : '/opt/datadog';
+    $normalizedOptions['install-dir'] =  $normalizedOptions['install-dir'] . '/dd-library';
 
     return $normalizedOptions;
 }

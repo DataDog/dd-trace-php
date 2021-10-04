@@ -67,6 +67,12 @@ test_installer_edge_cases: \
 test_first_install.sh:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
+test_install_custom_installation_directory.sh:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+
+test_install_custom_installation_root.sh:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+
 test_upgrade_from_legacy.sh:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
