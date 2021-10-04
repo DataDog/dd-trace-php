@@ -56,6 +56,17 @@ verify_tar_root:
 		tar_gz \
 		bash dockerfiles/verify_packages/verify_tar_gz_root.sh
 
+test_installer_edge_cases: \
+	test_first_install.sh \
+	test_upgrade_from_legacy.sh \
+	test_upgrade_from_php_installer.sh \
+	test_uninstall.sh \
+	test_alpine_no_libexecinfo.sh \
+	test_alpine_no_libcurl.sh
+
+test_first_install.sh:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+
 test_upgrade_from_legacy.sh:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
