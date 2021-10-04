@@ -79,6 +79,7 @@ ext/json/tests/pass003.phpt
 ext/mbstring/tests/zend_multibyte-08.phpt
 ext/openssl/tests/003.phpt
 ext/openssl/tests/bug54992.phpt
+ext/openssl/tests/bug64802.phpt
 ext/pdo/tests/pdo_013.phpt
 ext/pdo/tests/pdo_014.phpt
 ext/pdo/tests/pdo_023.phpt

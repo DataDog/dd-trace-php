@@ -1,5 +1,13 @@
 FROM centos:6
 
+# Letsencrpypt root certificate was crossigned by DST Root CA X3 which expired on 2021-09-30, we now need our own cert
+#   - details    : https://letsencrypt.org/docs/dst-root-ca-x3-expiration-september-2021/
+#   - x1 root    : https://letsencrypt.org/certs/isrgrootx1.pem
+#   - x3 expired : Copied from old container
+COPY isrgrootx1.pem /etc/pki/ca-trust/source/anchors/
+COPY dst-x3-expired.pem /etc/pki/ca-trust/source/blacklist/
+RUN update-ca-trust && update-ca-trust force-enable
+
 COPY CentOS-Base.repo /etc/yum.repos.d/
 
 RUN set -eux; \
@@ -35,6 +43,10 @@ ENV SRC_DIR=/usr/local/src
 
 COPY download-src.sh /root/
 RUN set -eux; \
+# version 1.0.2 of openssl (default version is 1.0.1) required for letsencrypt certificates to continue working
+    /root/download-src.sh openssl https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz; \
+    cd "${SRC_DIR}/openssl"; \
+    CFLAGS=-fPIC ./config shared --prefix=/usr --openssldir=/etc/pki/tls && make && make install; \
 # Latest version of m4 required
     /root/download-src.sh m4 https://ftp.gnu.org/gnu/m4/m4-1.4.18.tar.gz; \
     cd "${SRC_DIR}/m4"; \

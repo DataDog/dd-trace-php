@@ -71,6 +71,10 @@ It was [skipped before](https://github.com/php/php-src/blob/bcd100d812b525c982cf
 
 Building again the container without `pcntl` enabled AND not even building the tracer, the test still fails. Possibly the reason is that we need an ssh server listening internally on [port 64321](https://github.com/php/php-src/blob/bcd100d812b525c982cf75d6c6dabe839f61634a/ext/openssl/tests/bug54992.phpt#L13). Configuring the openssh server to run even this last test is neyond the scope of our language tests.
 
+## `ext/openssl/tests/bug64802.phpt`, `ext/openssl/tests/openssl_error_string_basic.phpt`
+
+Tests do not work on PHP 5 with openssl 1.0.2.
+
 ## `ext/ftp/tests`
 
 Disabled on versions less than 8.1, which switches to ephemeral ports.

@@ -88,6 +88,7 @@ ext/json/tests/pass003.phpt
 ext/json/tests/unsupported_type_error.phpt
 ext/openssl/tests/003.phpt
 ext/openssl/tests/bug54992.phpt
+ext/openssl/tests/bug64802.phpt
 ext/pdo/tests/pdo_014.phpt
 ext/pdo_sqlite/tests/bug50728.phpt
 ext/pdo_sqlite/tests/pdo_013.phpt

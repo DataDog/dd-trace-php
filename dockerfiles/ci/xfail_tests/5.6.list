@@ -92,6 +92,7 @@ ext/openssl/tests/bug48182.phpt
 ext/openssl/tests/bug54992.phpt
 ext/openssl/tests/bug65538_001.phpt
 ext/openssl/tests/bug65538_003.phpt
+ext/openssl/tests/openssl_error_string_basic.phpt
 ext/openssl/tests/capture_peer_cert_001.phpt
 ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
 ext/openssl/tests/openssl_pkcs7_decrypt_error.phpt
