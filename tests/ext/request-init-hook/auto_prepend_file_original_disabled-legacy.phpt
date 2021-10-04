@@ -5,7 +5,7 @@ Note: this should have the same expected output as the auto_prepend_file_origina
 test. Once the enable/disable functionality is refactored, this test should fail with the same
 output as the other test and can be updated.
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
+<?php if (PHP_VERSION_ID >= 70000) die('skip: Test does not work with internal spans'); ?>
 --ENV--
 DD_TRACE_ENABLED=0
 --INI--
@@ -16,5 +16,6 @@ ddtrace.request_init_hook={PWD}/../includes/request_init_hook.inc
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECT--
+Calling ddtrace_init()...
 Original auto_prepend_file
 Done.

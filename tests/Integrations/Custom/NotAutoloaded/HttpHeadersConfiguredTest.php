@@ -17,7 +17,7 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'my-service',
-            'DD_TRACE_HEADER_TAGS' => '  fIrSt-HEADER   ,  SECOND-header  , third-HEADER , FORTH-HEADER',
+            'DD_TRACE_HEADER_TAGS' => '  fIrSt-HEADER   ,  SECOND-header  , third-HEADER , FORTH-HEADER, W$%rd-header',
         ]);
     }
 
@@ -30,6 +30,7 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
                 [
                     'first-Header: some value: with colon',
                     'FORTH-header: 123',
+                    'W$%rd-header: foo',
                 ]
             );
             $this->call($spec);
@@ -49,6 +50,7 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
                     'http.status_code' => 200,
                     'http.request.headers.first-header' => 'some value: with colon',
                     'http.request.headers.forth-header' => '123',
+                    'http.request.headers.w__rd-header' => 'foo',
                     'http.response.headers.third-header' => 'separated: with  : colon',
                 ]),
             ]

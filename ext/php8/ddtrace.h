@@ -28,6 +28,8 @@ bool ddtrace_fetch_prioritySampling_from_root(int *priority);
 bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
 void dd_prepare_for_new_trace(void);
+void ddtrace_disable_tracing_in_current_request(void);
+bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value);
 
 typedef struct {
     int type;
@@ -38,10 +40,7 @@ typedef struct {
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *auto_prepend_file;
     zend_bool disable;
-    zend_bool disable_in_current_request;
     zend_bool request_init_hook_loaded;
-    // When 'drop_all_spans' is set, traces have to be dropped and not sent to the serializer and the sender.
-    zend_bool drop_all_spans;
 
     uint32_t traces_group_id;
     HashTable *class_lookup;

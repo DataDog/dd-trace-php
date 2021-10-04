@@ -357,7 +357,7 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
                                   zend_string *headerval) {
     if (zend_hash_exists(get_DD_TRACE_HEADER_TAGS(), lowerheader)) {
         for (char *ptr = ZSTR_VAL(lowerheader); *ptr; ++ptr) {
-            if (*ptr < 'a' && *ptr > 'z' && *ptr != '-' && *ptr < '0' && *ptr > '9') {
+            if ((*ptr < 'a' || *ptr > 'z') && *ptr != '-' && (*ptr < '0' || *ptr > '9')) {
                 *ptr = '_';
             }
         }
