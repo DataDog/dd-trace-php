@@ -133,6 +133,10 @@ function install($options)
         $iniFileName = '98-ddtrace.ini';
         $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
         if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
+            // debian based distros have INI folders split by SAPI, in a predefined way:
+            //   - <...>/cli/conf.d       <-- we know this from php -i
+            //   - <...>/apache/conf.d    <-- we derive this from relative path
+            //   - <...>/fpm/conf.d       <-- we derive this from relative path
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
             if (\is_dir($apacheConfd)) {
                 array_push($iniFilePaths, "$apacheConfd/$iniFileName");
@@ -196,6 +200,10 @@ function uninstall($options)
         $iniFileName = '98-ddtrace.ini';
         $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
         if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
+            // debian based distros have INI folders split by SAPI, in a predefined way:
+            //   - <...>/cli/conf.d       <-- we know this from php -i
+            //   - <...>/apache/conf.d    <-- we derive this from relative path
+            //   - <...>/fpm/conf.d       <-- we derive this from relative path
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
             if (\is_dir($apacheConfd)) {
                 array_push($iniFilePaths, "$apacheConfd/$iniFileName");
@@ -238,15 +246,13 @@ function require_binaries($options)
             if ($resolvedPath = resolve_command_full_path($command)) {
                 $selectedBinaries[$command] = $resolvedPath;
             } else {
-                echo "Provided PHP binary '$command' was not found.\n";
-                exit(1);
+                print_error_and_exit("Provided PHP binary '$command' was not found.\n");
             }
         }
     }
 
     if (empty($selectedBinaries)) {
-        echo "At least one binary must be specified\n";
-        exit(1);
+        print_error_and_exit("At least one binary must be specified\n");
     }
 
     return $selectedBinaries;
@@ -273,8 +279,7 @@ function check_library_prerequisite_or_exit($requiredLibrary)
     }
 
     if (empty($lastLine)) {
-        echo "Required library '$requiredLibrary' not found.\n";
-        exit(1);
+        print_error_and_exit("Required library '$requiredLibrary' not found.\n");
     }
 }
 
@@ -456,8 +461,7 @@ function execute_or_exit($exitMessage, $command)
     $returnCode = 0;
     $lastLine = exec($command, $output, $returnCode);
     if (false === $lastLine || $returnCode > 0) {
-        echo "ERROR: " . $exitMessage . "\n";
-        exit(1);
+        print_error_and_exit($exitMessage);
     }
 
     return $lastLine;
@@ -514,8 +518,7 @@ function download($url, $destination)
         );
 
         if ($curlInvocationStatusCode > 0) {
-            echo "Error while downloading the installable archive from $url\n";
-            exit(1);
+            print_error_and_exit("Error while downloading the installable archive from $url\n");
         }
 
         echo $okMessage;
