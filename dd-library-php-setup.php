@@ -466,7 +466,7 @@ function download($url, $destination)
 
     // curl
     $statusCode = 0;
-    $output = [];;
+    $output = [];
     if (false !== exec('curl --tracer-version', $output, $statusCode) && $statusCode === 0) {
         $curlInvocationStatusCode = 0;
         system(
