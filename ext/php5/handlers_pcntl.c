@@ -13,12 +13,10 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
         // Until we full support pcntl tracing:
-        //   - disable further tracing on the forked process
-        //   - enter 'drop all pending or new traces' mode
         //   - kill the BGS
-        DDTRACE_G(disable_in_current_request) = 1;
-        DDTRACE_G(drop_all_spans) = 1;
+        //   - disable further tracing on the forked process (also ensures all spans are dropped)
         ddtrace_coms_kill_background_sender();
+        ddtrace_disable_tracing_in_current_request();
     }
 }
 

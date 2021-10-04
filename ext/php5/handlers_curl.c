@@ -39,8 +39,8 @@ static void (*dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static bool dd_load_curl_integration(TSRMLS_D) {
-    if (!dd_ext_curl_loaded || DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+static bool dd_load_curl_integration(void) {
+    if (!dd_ext_curl_loaded || !get_DD_TRACE_ENABLED()) {
         return false;
     }
     return get_DD_DISTRIBUTED_TRACING();
@@ -269,7 +269,7 @@ static void dd_multi_inject_headers(zval *mh TSRMLS_DC) {
 ZEND_FUNCTION(ddtrace_curl_close) {
     zval *ch;
 
-    if (dd_load_curl_integration(TSRMLS_C) &&
+    if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "r", &ch) == SUCCESS) {
         if (dd_is_valid_curl_resource(ch TSRMLS_CC)) {
             dd_ch_delete_headers(ch TSRMLS_CC);
@@ -284,7 +284,7 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
 
     dd_curl_copy_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (dd_load_curl_integration(TSRMLS_C) &&
+    if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "r", &ch1) == SUCCESS &&
         Z_TYPE_P(return_value) == IS_RESOURCE) {
         dd_ch_duplicate_headers(ch1, return_value TSRMLS_CC);
@@ -298,7 +298,7 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
 ZEND_FUNCTION(ddtrace_curl_exec) {
     zval *ch;
 
-    if (dd_load_curl_integration(TSRMLS_C) && ddtrace_peek_span_id(TSRMLS_C) != 0 &&
+    if (dd_load_curl_integration() && ddtrace_peek_span_id(TSRMLS_C) != 0 &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "r", &ch) == SUCCESS) {
         if (dd_is_valid_curl_resource(ch TSRMLS_CC)) {
             dd_inject_distributed_tracing_headers(ch TSRMLS_CC);
@@ -316,7 +316,7 @@ ZEND_FUNCTION(ddtrace_curl_init) {
             zend_list_find(Z_LVAL_P(return_value), &DDTRACE_G(le_curl));
             DDTRACE_G(curl_back_up_headers) = 1;
         }
-        if (dd_load_curl_integration(TSRMLS_C)) {
+        if (dd_load_curl_integration()) {
             // Reset the headers for this ch in the event the resource ID is reused
             dd_ch_delete_headers(return_value TSRMLS_CC);
         }
@@ -327,7 +327,7 @@ ZEND_FUNCTION(ddtrace_curl_multi_add_handle) {
     zval *z_mh;
     zval *z_ch;
 
-    if (dd_load_curl_integration(TSRMLS_C) &&
+    if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "rr", &z_mh, &z_ch) == SUCCESS) {
         dd_multi_add_handle(z_mh, z_ch TSRMLS_CC);
     }
@@ -338,7 +338,7 @@ ZEND_FUNCTION(ddtrace_curl_multi_add_handle) {
 ZEND_FUNCTION(ddtrace_curl_multi_close) {
     zval *z_mh;
 
-    if (dd_load_curl_integration(TSRMLS_C) &&
+    if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "r", &z_mh) == SUCCESS) {
         dd_multi_reset(z_mh TSRMLS_CC);
     }
@@ -350,7 +350,7 @@ ZEND_FUNCTION(ddtrace_curl_multi_exec) {
     zval *z_mh;
     zval *z_still_running;
 
-    if (dd_load_curl_integration(TSRMLS_C) && ddtrace_peek_span_id(TSRMLS_C) != 0 &&
+    if (dd_load_curl_integration() && ddtrace_peek_span_id(TSRMLS_C) != 0 &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "rz", &z_mh, &z_still_running) ==
             SUCCESS) {
         dd_multi_inject_headers(z_mh TSRMLS_CC);
@@ -362,7 +362,7 @@ ZEND_FUNCTION(ddtrace_curl_multi_exec) {
 ZEND_FUNCTION(ddtrace_curl_multi_init) {
     dd_curl_multi_init_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (dd_load_curl_integration(TSRMLS_C) && ZEND_NUM_ARGS() == 0 && Z_TYPE_P(return_value) == IS_RESOURCE) {
+    if (dd_load_curl_integration() && ZEND_NUM_ARGS() == 0 && Z_TYPE_P(return_value) == IS_RESOURCE) {
         dd_multi_lazy_init_globals(TSRMLS_C);
         // Reset this multi-handle map in the event the resource ID is reused
         dd_multi_reset(return_value TSRMLS_CC);
@@ -373,7 +373,7 @@ ZEND_FUNCTION(ddtrace_curl_multi_remove_handle) {
     zval *z_mh;
     zval *z_ch;
 
-    if (dd_load_curl_integration(TSRMLS_C) &&
+    if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "rr", &z_mh, &z_ch) == SUCCESS) {
         dd_multi_remove_handle(z_mh, z_ch TSRMLS_CC);
     }
@@ -387,7 +387,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
 
     dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (dd_load_curl_integration(TSRMLS_C) &&
+    if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "rlZ", &zid, &option, &zvalue) ==
             SUCCESS &&
         DDTRACE_G(curl_back_up_headers) && Z_BVAL_P(return_value) && dd_const_curlopt_httpheader == option) {
@@ -400,7 +400,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
 
     dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (dd_load_curl_integration(TSRMLS_C) &&
+    if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "ra", &zid, &arr) == SUCCESS
         /* We still want to apply the original headers even if the this call
          * returns false. The call will (mostly) only ever fail for reasons
