@@ -58,26 +58,20 @@ verify_tar_root:
 
 test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
-test_first_install.sh:
+test_first_install.sh \
+test_install_custom_installation_directory.sh \
+test_install_custom_installation_root.sh \
+test_install_subdir_from_file.sh \
+test_install_subdir_from_url.sh \
+test_install_subdir_from_version.sh \
+test_uninstall.sh \
+test_upgrade_from_legacy.sh \
+test_upgrade_from_php_installer.sh \
+	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
-
-test_install_custom_installation_directory.sh:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
-
-test_install_custom_installation_root.sh:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
-
-test_upgrade_from_legacy.sh:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
-
-test_upgrade_from_php_installer.sh:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
-
-test_uninstall.sh:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
-
-test_alpine_no_libexecinfo.sh:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_libcurl.sh:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
+
+test_alpine_no_libexecinfo.sh:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)

@@ -869,6 +869,8 @@ jobs:
           name: Validate .tar.gz package
           command: PHP_VERSION=<< parameters.php_major_minor >> bash ./dockerfiles/verify_packages/verify_tar_gz_root.sh
 
+  installer_tests
+
   randomized_tests:
     working_directory: ~/datadog
     machine:

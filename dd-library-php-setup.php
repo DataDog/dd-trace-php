@@ -57,7 +57,7 @@ function install($options)
     }
     execute_or_exit("Cannot extract the archive", "tar -xf $tmpDirTarGz -C $tmpDir");
 
-    $installDir = $options['install-dir'];
+    $installDir = $options['install-dir'] . '/' . extract_version_subdir_path($options, $tmpDir, $tmpSourcesDir);
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
     $installDirWrapperPath = $installDirSourcesDir . '/bridge/dd_wrap_autoloader.php';
 
@@ -67,6 +67,7 @@ function install($options)
         "Cannot copy files from '$tmpSourcesDir' to '$installDirSourcesDir'",
         "cp -r $tmpSourcesDir/* $installDirSourcesDir"
     );
+    echo "Installed required source files to '$installDir'\n";
 
     // Actual installation
     foreach ($selectedBinaries as $command => $fullPath) {
@@ -339,6 +340,40 @@ function print_error_and_exit($message)
 {
     echo "ERROR: $message\n";
     exit(1);
+}
+
+function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSourcesRoot)
+{
+    // We apply the following decision make algorithm
+    //   1) if --tracer-version is provided, we use it
+    //   2) if a VERSION file exists at the archive root, we use it
+    //   3) if a sources are provided, we parse src/DDTrace/Tracer.php
+    //   4) fallback to YYYY.MM.DD-HH.mm
+
+    // 1)
+    if (isset($options['tracer-version'])) {
+        return trim($options['tracer-version']);
+    }
+
+    // 2)
+    $versionFile = $extractArchiveRoot . '/VERSION';
+    if (is_readable($versionFile)) {
+        return trim(file_get_contents($versionFile));
+    }
+
+    // 3)
+    $ddtracerFile = "$extractedSourcesRoot/src/DDTrace/Tracer.php";
+    if (is_readable($ddtracerFile)) {
+        $content = file_get_contents($ddtracerFile);
+        $matches = array();
+        preg_match("/const VERSION = '([^']+)';/", $content, $matches);
+        if (isset($matches[1])) {
+            return trim($matches[1]);
+        }
+    }
+
+    // 4)
+    return date("Y.m.d-H.s");
 }
 
 function write_file($path, $content, $override = false)

@@ -11,4 +11,4 @@ assert_no_ddtrace
 new_version="0.65.1"
 php dd-library-php-setup.php --php-bin=php --tracer-version="${new_version}" --install-dir=/custom/dd
 assert_ddtrace_version "${new_version}"
-assert_file_exists /custom/dd/dd-library/dd-trace-sources/bridge/dd_wrap_autoloader.php
+assert_file_exists /custom/dd/dd-library/${new_version}/dd-trace-sources/bridge/dd_wrap_autoloader.php
