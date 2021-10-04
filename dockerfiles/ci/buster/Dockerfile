@@ -75,6 +75,10 @@ RUN set -eux; \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
     \
+# Disable DST ROOT X3 certificate explicitly to fix conflicts with older openssl versions \
+    sed -ri 's/(mozilla\/DST_Root_CA_X3.crt)/!\1/' /etc/ca-certificates.conf; \
+    update-ca-certificates; \
+    \
 # circleci user + sudo
     groupadd --gid 3434 circleci; \
         useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci; \
@@ -90,7 +94,7 @@ RUN set -eux; \
     (echo "${CMAKE_SHA256} cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz" | sha256sum -c -); \
     mkdir -p /opt/cmake/${CMAKE_VERSION}; \
     tar --strip-components 1 -C /opt/cmake/${CMAKE_VERSION} -xf /tmp/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz; \
-# Currently there's only one version of smake, make it default
+# Currently there's only one version of cmake, make it default
     ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake; \
 # Install Catch2
     CATCH2_VERSION="2.13.5"; \

@@ -6,30 +6,21 @@ ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/debug
 ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/nts
 ENV PHP_VERSION=${phpVersion}
 
-# Curl path workaround (PHP 5 was before pkg-config was used)
 RUN set -eux; \
+# PHP 5 needs openssl 1.0.2 (needs 1.0.X, but due to an openssl bug preventing usage of letsencrypt root on < 1.0.1 ...)
+    curl -LO https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz; \
+    mkdir openssl; \
+    tar xf openssl-1.0.2u.tar.gz -C openssl --strip-components=1; \
+    cd openssl; \
+    CFLAGS=-fPIC ./config shared --prefix=/usr/local --openssldir=/usr/lib/ssl && make && sudo make install; \
+    cd ..; \
+    rm -fr openssl openssl-1.0.2u.tar.gz; \
+    sudo mv /usr/local/bin/openssl /usr/local/bin/openssl_1.0; \
+\
+# Curl path workaround (PHP 5 was before pkg-config was used)
     sudo ln -sf /usr/include/x86_64-linux-gnu/curl /usr/include/curl; \
     sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a; \
-    savedAptMark="$(apt-mark showmanual)"; \
-    sudo apt-mark auto '.*' > /dev/null; \
-    sudo apt-mark manual $savedAptMark > /dev/null; \
-    sudo apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-    sudo apt-get remove -y libssl-dev; \
-    { \
-        echo deb http://httpredir.debian.org/debian jessie main ;\
-        echo deb-src http://httpredir.debian.org/debian jessie main ;\
-        echo ;\
-        echo deb http://security.debian.org/ jessie/updates main ;\
-        echo deb-src http://security.debian.org/ jessie/updates main ;\
-    } | sudo tee /etc/apt/sources.list.d/jessie.list ;\
-    { \
-        echo Package: openssl libssl-dev libssl-doc;\
-        echo Pin: release a=oldoldstable ;\
-        echo Pin-Priority: 600 ;\
-    } | sudo tee /etc/apt/preferences.d/openssl;\
-    sudo apt-get update; \
-    sudo apt-get install -y --no-install-recommends \
-        openssl libssl-dev libssl-doc libcurl4-nss-dev;
+    sudo apt-get install -y libcurl4-nss-dev;
 
 FROM base as build
 ARG phpTarGzUrl
