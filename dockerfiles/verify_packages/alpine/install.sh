@@ -11,6 +11,17 @@ if [ ! -z "${PHP_PACKAGE}" ]; then
     apk add --no-cache ${PHP_PACKAGE}
 fi
 
+# Preparing PHP
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php7 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php5 || true)
+fi
+
 # Installing dd-trace-php
 INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
 if [ "$INSTALL_TYPE" = "native_package" ]; then
@@ -19,7 +30,7 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
 else
     echo "Installing dd-trace-php using the new PHP installer"
     apk add --no-cache libexecinfo
-    php dd-php-setup.php --tracer-file="$(pwd)/build/packages/*.tar.gz" --php-bin=all
+    $PHP_BIN dd-library-php-setup.php --tracer-file="$(pwd)/build/packages/*.tar.gz" --php-bin=all
 fi
 
 # Preparing NGINX
