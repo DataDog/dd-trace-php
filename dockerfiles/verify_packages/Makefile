@@ -56,7 +56,7 @@ verify_tar_root:
 		tar_gz \
 		bash dockerfiles/verify_packages/verify_tar_gz_root.sh
 
-test_installer: $(shell find installer -name 'test*.sh' -exec basename {} \;)
+test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
 test_first_install.sh:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
