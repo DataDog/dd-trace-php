@@ -8,7 +8,14 @@ docker_compose_pull:
 
 $(CENTOS6_PHP_VERSIONS): %.centos6:
 	@echo Verifying Centos 6 - PHP $*
-	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-centos6 sh /build_src/dockerfiles/verify_packages/verify_rpm_centos6.sh
+	@docker-compose \
+		-f $(ROOT_DIR)/docker-compose.yml \
+		run \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
+		-T \
+		--rm \
+		${*}-centos6 \
+		sh /build_src/dockerfiles/verify_packages/verify_rpm_centos6.sh
 
 # The list of validated alpine images are in CI config. In case a package has to be validated locally, you can:
 #  1. copy the .apk|.deb|.rpm into '<root>/build/packages'
