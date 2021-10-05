@@ -34,10 +34,11 @@ function print_help_and_exit()
     echo <<<EOD
 
 Usage:
-    php get-dd-trace.php --php-bin=php ...
-    php get-dd-trace.php --php-bin=php-fpm ...
-    php get-dd-trace.php --php-bin=/usr/local/sbin/php-fpm ...
-    php get-dd-trace.php --php-bin=php --php-bin=/usr/local/sbin/php-fpm ...
+    Interactive
+        php get-dd-trace.php --tracer-version=x.y.z ...
+    Non-Interactive
+        php get-dd-trace.php --tracer-version=x.y.z --php-bin=php ...
+        php get-dd-trace.php --tracer-version=x.y.z --php-bin=php --php-bin=/usr/local/sbin/php-fpm ...
 
 Options:
     -h, --help                  Print this help text and exit
@@ -61,7 +62,7 @@ function install($options)
     }
 
     // Picking the right binaries to install the library
-    $selectedBinaries = require_binaries($options);
+    $selectedBinaries = require_binaries_or_exit($options);
     $interactive = empty($options[OPT_PHP_BIN]);
 
     // Preparing clean tmp folder to extract files
@@ -107,6 +108,7 @@ function install($options)
 
         // Copying the extension
         $extensionVersion = $phpProperties[PHP_API];
+
         // Suffix (zts/debug/alpine)
         $extensionSuffix = '';
         if (is_alpine()) {
@@ -120,8 +122,8 @@ function install($options)
         $extensionFileName = 'ddtrace.so';
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/' . $extensionFileName;
 
-        // Move - rename() - instead of copy() since copying does a fopen() and copy to stream itself, causing a
-        // segfault.
+        // Move - rename() - instead of copy() since copying does a fopen() and copies to the stream itself, causing a
+        // segfault in the PHP process that is running and had loaded the old shared object file.
         $tmpExtName = $extensionDestination . '.tmp';
         copy($extensionRealPath, $tmpExtName);
         rename($tmpExtName, $extensionDestination);
@@ -133,7 +135,7 @@ function install($options)
         if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
             // debian based distros have INI folders split by SAPI, in a predefined way:
             //   - <...>/cli/conf.d       <-- we know this from php -i
-            //   - <...>/apache/conf.d    <-- we derive this from relative path
+            //   - <...>/apache2/conf.d   <-- we derive this from relative path
             //   - <...>/fpm/conf.d       <-- we derive this from relative path
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
             if (\is_dir($apacheConfd)) {
@@ -154,14 +156,14 @@ function install($options)
                 // phpcs:enable Generic.Files.LineLength.TooLong
 
                 // In order to support upgrading from legacy installation method to new installation method, we replace
-                // "extension=/opt/datadog-php/xyz.so" with "extension=ddtrace.so" honoring trailing `;`, hence not
-                // automatically re-activing the extension if the user had commented it out.
+                // "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing `;`, hence not
+                // automatically re-activating the extension if the user had commented it out.
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@extension \?= \?\(.*\)@extension = ddtrace.so@g' '$iniFilePath'"
                 );
             }
-            echo "Installation to '$command' was successful\n";
+            echo "Installation to '$binaryForLog' was successful\n";
         }
     }
 
@@ -184,7 +186,7 @@ function install($options)
 
 function uninstall($options)
 {
-    $selectedBinaries = require_binaries($options);
+    $selectedBinaries = require_binaries_or_exit($options);
 
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
@@ -200,7 +202,7 @@ function uninstall($options)
         if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
             // debian based distros have INI folders split by SAPI, in a predefined way:
             //   - <...>/cli/conf.d       <-- we know this from php -i
-            //   - <...>/apache/conf.d    <-- we derive this from relative path
+            //   - <...>/apache2/conf.d    <-- we derive this from relative path
             //   - <...>/fpm/conf.d       <-- we derive this from relative path
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
             if (\is_dir($apacheConfd)) {
@@ -217,22 +219,23 @@ function uninstall($options)
                     "Impossible to disable ddtrace from '$iniFilePath'. Disable it manually.",
                     "sed -i 's@^extension \?=@;extension =@g' '$iniFilePath'"
                 );
-                echo "Disabled ddtrace in INI file '$iniFilePath'\n";
+                echo "Disabled ddtrace in INI file '$iniFilePath'. "
+                    . "The file has not been removed to preserve custom settings.\n";
             }
-            echo "Installation to '$command' was successful\n";
         }
         unlink($extensionDestination);
+        echo "Uninstall from '$binaryForLog' was successful\n";
     }
 }
 
 /**
- * Returns a list of php binaries where to install the tracer. If not explicitly provided by the CLI options, then
- * the list is retrieved using an interactive session.
+ * Returns a list of php binaries where the tracer will be installed. If not explicitly provided by the CLI options,
+ * then the list is retrieved using an interactive session.
  *
  * @param array $options
  * @return array
  */
-function require_binaries($options)
+function require_binaries_or_exit($options)
 {
     $selectedBinaries = [];
     if (empty($options[OPT_PHP_BIN])) {
@@ -371,7 +374,7 @@ function print_error_and_exit($message)
 }
 
 /**
- * Applies a chain of responsibility to extract the version number of the installed tracer.
+ * Attempts to extract the version number of the installed tracer.
  *
  * @param array $options
  * @param mixed string $extractArchiveRoot
@@ -380,10 +383,10 @@ function print_error_and_exit($message)
  */
 function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSourcesRoot)
 {
-    // We apply the following decision make algorithm
+    // We apply the following decision making algorithm
     //   1) if --tracer-version is provided, we use it
     //   2) if a VERSION file exists at the archive root, we use it
-    //   3) if a sources are provided, we parse src/DDTrace/Tracer.php
+    //   3) if sources are provided, we parse src/DDTrace/Tracer.php
     //   4) fallback to YYYY.MM.DD-HH.mm
 
     // 1)
@@ -480,7 +483,7 @@ function download($url, $destination)
 
     $okMessage = "\nDownload completed\n\n";
 
-    // We try the following options:
+    // We try the following options, mostly to provide progress report, if possible:
     //   1) `ext-curl` (with progress report); if 'ext-curl' is not installed...
     //   2) `curl` from CLI (it shows progress); if `curl` is not installed...
     //   3) `file_get_contents()` (no progress report); if `allow_url_fopen=0`...
@@ -542,6 +545,7 @@ function download($url, $destination)
 
 /**
  * Progress callback as specified by the ext-curl documentation.
+ *   see: https://www.php.net/manual/en/function.curl-setopt.php#:~:text=CURLOPT_PROGRESSFUNCTION
  *
  * @return int
  */
@@ -577,6 +581,8 @@ function ini_values($binary)
 {
     $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
     $lines = [];
+    // Timezone is irrelevant to this script. This is a quick-and-dirty workaround to the PHP 5 warning with missing
+    // timezone
     exec($binary . " -d date.timezone=UTC -i", $lines);
     $found = [];
     foreach ($lines as $line) {
