@@ -261,16 +261,6 @@ static void dd_set_fqn(ddtrace_span_fci *span_fci, zend_function *func TSRMLS_DC
     }
 }
 
-static void dd_set_default_properties(ddtrace_span_fci *span_fci, zend_function *fbc TSRMLS_DC) {
-    if (!span_fci || !fbc) {
-        return;
-    }
-
-    // SpanData::$name defaults to fully qualified called name
-    // The other span property defaults are set at serialization time
-    dd_set_fqn(span_fci, fbc TSRMLS_CC);
-}
-
 static void dd_tracing_posthook_impl(zend_function *fbc, ddtrace_span_fci *span_fci, zval *return_value TSRMLS_DC) {
     bool keep_span = dd_tracing_posthook_impl_impl(fbc, span_fci, return_value TSRMLS_CC);
 
@@ -283,7 +273,6 @@ static void dd_tracing_posthook_impl(zend_function *fbc, ddtrace_span_fci *span_
         span_fci TSRMLS_CC);  // because dropping / setting default properties happens on top span
 
     if (keep_span) {
-        dd_set_default_properties(span_fci, fbc TSRMLS_CC);
         ddtrace_close_span(span_fci TSRMLS_CC);
     } else {
         ddtrace_drop_top_open_span(TSRMLS_C);
@@ -308,7 +297,7 @@ static void dd_execute_tracing_posthook(zend_op_array *op_array TSRMLS_DC) {
 
     ddtrace_dispatch_copy(dispatch);
 
-    ddtrace_span_fci *span_fci = ddtrace_init_span();
+    ddtrace_span_fci *span_fci = ddtrace_init_span(TSRMLS_C);
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci TSRMLS_CC);
     zend_objects_store_add_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
@@ -576,7 +565,7 @@ static void dd_internal_tracing_posthook(zend_execute_data *execute_data, int re
 
     ddtrace_dispatch_copy(dispatch);
 
-    ddtrace_span_fci *span_fci = ddtrace_init_span();
+    ddtrace_span_fci *span_fci = ddtrace_init_span(TSRMLS_C);
     span_fci->execute_data = execute_data;
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci TSRMLS_CC);

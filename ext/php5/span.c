@@ -1,6 +1,6 @@
 #include "span.h"
 
-#include <php.h>
+#include <SAPI.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -68,6 +68,24 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+
+    if (!span_fci->next) {  // root span
+        ddtrace_set_root_span_properties(&span_fci->span TSRMLS_CC);
+    } else {
+        zval *last_service = ddtrace_spandata_property_service(&span_fci->next->span);
+        if (last_service) {
+            zval **service = ddtrace_spandata_property_service_write(&span_fci->span);
+            MAKE_STD_ZVAL(*service);
+            MAKE_COPY_ZVAL(&last_service, *service);
+        }
+        zval *last_type = ddtrace_spandata_property_type(&span_fci->next->span);
+        if (last_type) {
+            zval **type = ddtrace_spandata_property_type_write(&span_fci->span);
+            MAKE_STD_ZVAL(*type);
+            MAKE_COPY_ZVAL(&last_type, *type);
+        }
+    }
+    ddtrace_set_global_span_properties(&span_fci->span TSRMLS_CC);
 }
 
 ddtrace_span_fci *ddtrace_init_span(TSRMLS_D) {
