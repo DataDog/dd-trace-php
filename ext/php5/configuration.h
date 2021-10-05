@@ -80,12 +80,12 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                               \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                 \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                           \
-    CONFIG(STRING, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                  \
-    CONFIG(STRING, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                \
-    CONFIG(STRING, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                \
-    CONFIG(STRING, DD_TRACE_RESOURCE_URI_MAPPING, "")                                                         \
+    CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                     \
+    CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                   \
+    CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                   \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                   \
     CONFIG(STRING, DD_TRACE_SAMPLING_RULES, "")                                                               \
+    CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                           \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                       \
     CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_TIMEOUT_VAL),                            \
            .ini_change = zai_config_system_ini_change)                                                        \
@@ -147,6 +147,7 @@ typedef enum { DD_CONFIGURATION } ddtrace_config_id;
         return (zai_string_view){.len = Z_STRLEN_P(cfg), .ptr = Z_STRVAL_P(cfg)};    \
     }
 #define SET MAP
+#define SET_LOWERCASE MAP
 #define MAP(id)                                                                                               \
     static inline HashTable *get_##id(void) { return Z_ARRVAL_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
     static inline HashTable *get_global_##id(void) {                                                          \
@@ -160,6 +161,7 @@ DD_CONFIGURATION
 #undef STRING
 #undef MAP
 #undef SET
+#undef SET_LOWERCASE
 #undef BOOL
 #undef INT
 #undef DOUBLE

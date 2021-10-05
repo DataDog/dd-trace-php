@@ -198,19 +198,6 @@ void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception
     }
 }
 
-void dd_set_fqn(ddtrace_span_fci *span_fci);
-
-void dd_set_default_properties(TSRMLS_D) {
-    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
-    if (span_fci == NULL || span_fci->execute_data == NULL) {
-        return;
-    }
-
-    // SpanData::$name defaults to fully qualified called name
-    // The other span property defaults are set at serialization time
-    dd_set_fqn(span_fci);
-}
-
 static void ddtrace_fcall_end_non_tracing_posthook(ddtrace_span_fci *span_fci, zval *user_retval TSRMLS_DC) {
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
     ddtrace_execute_data dd_execute_data = span_fci->dd_execute_data;
@@ -302,7 +289,6 @@ static void dd_exit_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
      */
     if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         if (keep_span) {
-            dd_set_default_properties(TSRMLS_C);
             ddtrace_close_span(span_fci TSRMLS_CC);
         } else {
             ddtrace_drop_top_open_span(TSRMLS_C);
@@ -381,7 +367,6 @@ static void dd_execute_end_span(ddtrace_span_fci *span_fci, zval *user_retval TS
      */
     if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         if (keep_span) {
-            dd_set_default_properties(TSRMLS_C);
             ddtrace_close_span(span_fci TSRMLS_CC);
         } else {
             ddtrace_drop_top_open_span(TSRMLS_C);
@@ -481,7 +466,7 @@ static void dd_execute_tracing_posthook(zend_execute_data *execute_data TSRMLS_D
     ddtrace_dispatch_t *dispatch = dd_execute_data.fbc->op_array.reserved[ddtrace_resource];
     ddtrace_dispatch_copy(dispatch);
 
-    ddtrace_span_fci *span_fci = ddtrace_init_span();
+    ddtrace_span_fci *span_fci = ddtrace_init_span(TSRMLS_C);
     span_fci->execute_data = execute_data;
     span_fci->dispatch = dispatch;
     span_fci->dd_execute_data = dd_execute_data;
@@ -536,7 +521,7 @@ static void dd_execute_non_tracing_posthook(zend_execute_data *execute_data TSRM
 
     ddtrace_dispatch_copy(dispatch);
 
-    ddtrace_span_fci *span_fci = ddtrace_init_span();
+    ddtrace_span_fci *span_fci = ddtrace_init_span(TSRMLS_C);
     span_fci->execute_data = execute_data;
     span_fci->dispatch = dispatch;
     span_fci->dd_execute_data = dd_execute_data;
@@ -575,7 +560,7 @@ static void dd_execute_non_tracing_posthook(zend_execute_data *execute_data TSRM
 
     ddtrace_fcall_end_non_tracing_posthook(span_fci, actual_retval TSRMLS_CC);
 
-    if (dd_execute_data.retval && dd_execute_data.retval) {
+    if (dd_execute_data.retval) {
         zval_ptr_dtor(&dd_execute_data.retval);
         EG(return_value_ptr_ptr) = NULL;
     }
@@ -753,7 +738,7 @@ static void dd_execute_internal(zend_execute_data *execute_data, zend_fcall_info
 
     ddtrace_dispatch_copy(dispatch);
 
-    ddtrace_span_fci *span_fci = ddtrace_init_span();
+    ddtrace_span_fci *span_fci = ddtrace_init_span(TSRMLS_C);
     span_fci->execute_data = execute_data;
     span_fci->dispatch = dispatch;
     span_fci->dd_execute_data = dd_execute_data;

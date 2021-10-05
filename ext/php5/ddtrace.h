@@ -25,7 +25,6 @@ zval *ddtrace_spandata_property_type(ddtrace_span_t *span);
 zval **ddtrace_spandata_property_type_write(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
-void ddtrace_assign_prop_zval(zval **propzv, zval *value);
 
 bool ddtrace_tracer_is_limited(TSRMLS_D);
 // prepare the tracer state to start handling a new trace

@@ -380,19 +380,6 @@ zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM
 // SpanData::$metrics
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM_array_init(&span->std, 5); }
 
-// copies RC=1 stack allocated zval
-void ddtrace_assign_prop_zval(zval **propzv, zval *value) {
-    if (PZVAL_IS_REF(*propzv)) {
-        zval_dtor(*propzv);
-        ZVAL_COPY_VALUE(*propzv, value);
-    } else {
-        zval *old = *propzv;
-        ALLOC_ZVAL(*propzv);
-        INIT_PZVAL_COPY(*propzv, value);
-        zval_ptr_dtor(&old);
-    }
-}
-
 static zend_object_handlers ddtrace_fatal_error_handlers;
 /* The goal is to mimic zend_default_exception_new_ex except for adding
  * DEBUG_BACKTRACE_IGNORE_ARGS to zend_fetch_debug_backtrace. We don't want the
@@ -1557,7 +1544,8 @@ static PHP_FUNCTION(root_span) {
     }
     if (!DDTRACE_G(open_spans_top)) {
         if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
-            ddtrace_push_root_span(TSRMLS_C);  // ensure root span always exists, especially after serialization for testing
+            ddtrace_push_root_span(
+                TSRMLS_C);  // ensure root span always exists, especially after serialization for testing
         } else {
             RETURN_NULL();
         }
@@ -1803,6 +1791,7 @@ void dd_read_distributed_tracing_ids(TSRMLS_D) {
         }
     }
 
+    DDTRACE_G(distributed_parent_trace_id) = 0;
     if (success && zai_read_header_literal("X_DATADOG_PARENT_ID", &parent_id_str) == ZAI_HEADER_SUCCESS) {
         zval parent_zv;
         ZVAL_STRINGL(&parent_zv, parent_id_str.ptr, parent_id_str.len, 0);

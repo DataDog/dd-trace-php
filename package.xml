@@ -192,6 +192,7 @@
             <file name="ext/php5/span.h" role="src" />
             <file name="ext/php5/startup_logging.c" role="src" />
             <file name="ext/php5/startup_logging.h" role="src" />
+            <file name="ext/php5/uri_normalization.h" role="src" />
             <!-- PHP 7.x -->
             <file name="ext/php7/arrays.c" role="src" />
             <file name="ext/php7/arrays.h" role="src" />
