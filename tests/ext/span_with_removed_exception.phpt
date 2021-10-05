@@ -1,7 +1,5 @@
 --TEST--
 Unset, nulled and generally invalid data in exception property is ignored
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires improved exception handling'); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

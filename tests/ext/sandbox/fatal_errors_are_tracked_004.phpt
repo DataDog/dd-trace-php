@@ -3,7 +3,7 @@ E_USER_ERROR fatal errors are tracked from userland
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality"); ?>
+<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not run posthooks on autoclose"); ?>
 --FILE--
 <?php
 register_shutdown_function(function () {

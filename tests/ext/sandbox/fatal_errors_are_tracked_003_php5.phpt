@@ -5,7 +5,7 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 max_execution_time=1
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality"); ?>
+<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not run posthooks on autoclose"); ?>
 <?php if (PHP_MAJOR_VERSION !== 5) die("skip: This test is only for PHP 5"); ?>
 --FILE--
 <?php

@@ -34,3 +34,4 @@ array(1) {
   [0]=>
   string(4) "Cats"
 }
+Successfully triggered flush with trace of size 1

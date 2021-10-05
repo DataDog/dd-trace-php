@@ -62,10 +62,6 @@ doMulti($url);
 
 echo 'Done.' . PHP_EOL;
 
-if (PHP_VERSION_ID < 70000) {
-    echo "Successfully triggered flush with trace of size 2", PHP_EOL;
-}
-
 ?>
 --EXPECTF--
 x-datadog-origin: phpt-test
