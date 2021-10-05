@@ -59,10 +59,6 @@ foreach ($responses as $key => $response) {
 
 echo 'Done.' . PHP_EOL;
 
-if (PHP_VERSION_ID < 70000) {
-    echo "Successfully triggered flush with trace of size 5", PHP_EOL;
-}
-
 ?>
 --EXPECTF--
 Response #0

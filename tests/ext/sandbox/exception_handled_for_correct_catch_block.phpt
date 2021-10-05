@@ -1,7 +1,5 @@
 --TEST--
 Exceptions are handled for the correct catch block
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: requires improved exception handling'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

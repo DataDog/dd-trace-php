@@ -1,7 +1,5 @@
 --TEST--
 DDTrace\add_global_tag() on all sorts of spans
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --FILE--
 <?php
 
