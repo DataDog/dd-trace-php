@@ -10,7 +10,7 @@ services:
       - 7777:80
     environment:
       - DD_AGENT_HOST=agent
-      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.46.0/datadog-php-tracer_0.46.0_amd64.deb
+      - TRACER_DOWNLOAD_URL=https://598250-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
       # - DD_TRACE_DEBUG=true
     # volumes:
     #   - ./app:/var/www/html/
