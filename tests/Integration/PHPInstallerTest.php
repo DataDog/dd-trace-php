@@ -15,10 +15,6 @@ final class PHPInstallerTest extends BaseTestCase
         exec("rm -rf ${rootPath}");
         exec("mkdir -p ${rootPath}/opt/remi/php74/root/usr/sbin");
 
-        // should not be included: not an executable
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php73");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm7.3");
-
         // should not be included: not a recognized pattern
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch some_bin; chmod a+x some_bin");
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php773; chmod a+x php773");
@@ -35,7 +31,7 @@ final class PHPInstallerTest extends BaseTestCase
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php5.6-fpm; chmod a+x php5.6-fpm");
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm56; chmod a+x php-fpm56");
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm5.6; chmod a+x php-fpm5.6");
-        // should be included 'will_be_linked', not php72 as it is a symlink
+        // php72 should be included as a symlink to will_be_linked
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch will_be_linked; chmod a+x will_be_linked");
         // phpcs:disable Generic.Files.LineLength.TooLong
         exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; ln -s ${rootPath}/opt/remi/php74/root/usr/sbin/will_be_linked ${rootPath}/opt/remi/php74/root/usr/sbin/php72");
@@ -111,12 +107,10 @@ final class PHPInstallerTest extends BaseTestCase
             'php5.6-fpm',
             'php-fpm56',
             'php-fpm5.6',
-            'will_be_linked',
+            'php72',
         ];
 
         $shouldNotBeFound = [
-            'php73',
-            'php-fpm7.3',
             'some_bin',
             'php773',
             'php_7',
@@ -126,7 +120,7 @@ final class PHPInstallerTest extends BaseTestCase
         $rootPath = self::getTmpRootPath() . "/opt/remi/php74/root/usr/sbin";
         foreach ($shouldBeFound as $binary) {
             $this->assertArrayHasKey("${rootPath}/${binary}", $found);
-            $this->assertSame("${rootPath}/${binary}", $found["${rootPath}/${binary}"]);
+            $this->assertSame(realpath("${rootPath}/${binary}"), $found["${rootPath}/${binary}"]);
         }
         foreach ($shouldNotBeFound as $binary) {
             $this->assertTrue(empty($found["${rootPath}/${binary}"]));
