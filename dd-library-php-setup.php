@@ -8,7 +8,7 @@ const IS_DEBUG = 'Debug Build';
 
 // Options
 const OPT_HELP = 'help';
-const OPT_INSTAL_DIR = 'install-dir';
+const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
 const OPT_TRACER_FILE = 'tracer-file';
 const OPT_TRACER_URL = 'tracer-url';
@@ -42,10 +42,10 @@ Usage:
 
 Options:
     -h, --help                  Print this help text and exit
-    --php-bin=<0.1.2>           Install the library to the specified binary. Multiple values are allowed.
+    --php-bin=all|<path to php> Install the library to the specified binary. The option can be provided multiple times.
     --tracer-version=<0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
     --tracer-url=<url>          Install the tracing library from a url. If set --tracer-file is ignored.
-    --tracer-file=<file>        Install the tracing library from a local file.
+    --tracer-file=<file>        Install the tracing library from a local .tar.gz file.
     --install-dir=<path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
 
@@ -70,14 +70,12 @@ function install($options)
     $tmpDirTarGz = $tmpDir . '/dd-trace-php.tar.gz';
     $tmpSourcesDir = $tmpDir . '/opt/datadog-php/dd-trace-sources';
     $tmpExtensionsDir = $tmpDir . '/opt/datadog-php/extensions';
-    execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p $tmpDir");
-    execute_or_exit("Cannot clean '$tmpDir'", "rm -rf $tmpDir/*.*");
+    execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
+    execute_or_exit("Cannot clean '$tmpDir'", "rm -rf " . escapeshellarg("$tmpDir/*") . " " . escapeshellarg("$tmpDir/.*"));
 
     // Retrieve and extract the archive to a tmp location
     if (isset($options[OPT_TRACER_FILE])) {
-        $archive = $options[OPT_TRACER_FILE];
-        echo "Copying file '${archive}' to '${tmpDirTarGz}'\n";
-        execute_or_exit("Cannot copy file from '${archive}' to '${tmpDirTarGz}'", "cp -r ${archive} ${tmpDirTarGz}");
+        $tmpDirTarGz = $options[OPT_TRACER_FILE];
     } else {
         $url = isset($options[OPT_TRACER_URL])
             ? $options[OPT_TRACER_URL]
@@ -86,17 +84,17 @@ function install($options)
             $options[OPT_TRACER_VERSION] . ".x86_64.tar.gz";
         download($url, $tmpDirTarGz);
     }
-    execute_or_exit("Cannot extract the archive", "tar -xf $tmpDirTarGz -C $tmpDir");
+    execute_or_exit("Cannot extract the archive", "tar -xf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir));
 
-    $installDir = $options[OPT_INSTAL_DIR] . '/' . extract_version_subdir_path($options, $tmpDir, $tmpSourcesDir);
+    $installDir = $options[OPT_INSTALL_DIR] . '/' . extract_version_subdir_path($options, $tmpDir, $tmpSourcesDir);
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
     $installDirWrapperPath = $installDirSourcesDir . '/bridge/dd_wrap_autoloader.php';
 
     // copying sources to the final destination
-    execute_or_exit("Cannot create directory '$installDirSourcesDir'", "mkdir -p $installDirSourcesDir");
+    execute_or_exit("Cannot create directory '$installDirSourcesDir'", "mkdir -p " . escapeshellarg($installDirSourcesDir));
     execute_or_exit(
         "Cannot copy files from '$tmpSourcesDir' to '$installDirSourcesDir'",
-        "cp -r $tmpSourcesDir/* $installDirSourcesDir"
+        "cp -r " . escapeshellarg("$tmpSourcesDir/*") . " " . escapeshellarg($installDirSourcesDir)
     );
     echo "Installed required source files to '$installDir'\n";
 
@@ -132,7 +130,7 @@ function install($options)
         // Writing the ini file
         $iniFileName = '98-ddtrace.ini';
         $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
-        if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
+        if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) !== false) {
             // debian based distros have INI folders split by SAPI, in a predefined way:
             //   - <...>/cli/conf.d       <-- we know this from php -i
             //   - <...>/apache2/conf.d   <-- we derive this from relative path
@@ -151,7 +149,7 @@ function install($options)
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = $installDirWrapperPath@g' '$iniFilePath'"
+                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = " . escapeshellarg($installDirWrapperPath) . "@g' " . escapeshellarg($iniFilePath)
                 );
                 // phpcs:enable Generic.Files.LineLength.TooLong
 
@@ -160,7 +158,7 @@ function install($options)
                 // automatically re-activating the extension if the user had commented it out.
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@extension \?= \?\(.*\)@extension = ddtrace.so@g' '$iniFilePath'"
+                    "sed -i 's@extension \?= \?\(.*\)@extension = ddtrace.so@g' " . escapeshellarg($iniFilePath)
                 );
             }
             echo "Installation to '$binaryForLog' was successful\n";
@@ -217,7 +215,7 @@ function uninstall($options)
             if (file_exists($iniFilePath)) {
                 execute_or_exit(
                     "Impossible to disable ddtrace from '$iniFilePath'. Disable it manually.",
-                    "sed -i 's@^extension \?=@;extension =@g' '$iniFilePath'"
+                    "sed -i 's@^extension \?=@;extension =@g' " . escapeshellarg($iniFilePath)
                 );
                 echo "Disabled ddtrace in INI file '$iniFilePath'. "
                     . "The file has not been removed to preserve custom settings.\n";
@@ -311,7 +309,7 @@ function parse_validate_user_options()
         OPT_TRACER_FILE . ':',
         OPT_TRACER_URL . ':',
         OPT_TRACER_VERSION . ':',
-        OPT_INSTAL_DIR . ':',
+        OPT_INSTALL_DIR . ':',
         OPT_UNINSTALL,
     ];
     $options = getopt($shortOptions, $longOptions);
@@ -358,11 +356,11 @@ function parse_validate_user_options()
             : [$options[OPT_PHP_BIN]];
     }
 
-    $normalizedOptions[OPT_INSTAL_DIR] =
-        isset($options[OPT_INSTAL_DIR])
-        ? rtrim($options[OPT_INSTAL_DIR], '/')
+    $normalizedOptions[OPT_INSTALL_DIR] =
+        isset($options[OPT_INSTALL_DIR])
+        ? rtrim($options[OPT_INSTALL_DIR], '/')
         : '/opt/datadog';
-    $normalizedOptions[OPT_INSTAL_DIR] =  $normalizedOptions[OPT_INSTAL_DIR] . '/dd-library';
+    $normalizedOptions[OPT_INSTALL_DIR] =  $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
 
     return $normalizedOptions;
 }
@@ -459,11 +457,11 @@ function pick_binaries_interactive(array $php_binaries)
 
 function execute_or_exit($exitMessage, $command)
 {
-    $output = null;
+    $output = [];
     $returnCode = 0;
     $lastLine = exec($command, $output, $returnCode);
     if (false === $lastLine || $returnCode > 0) {
-        print_error_and_exit($exitMessage);
+        print_error_and_exit($exitMessage . "\n Failed message: $command\n---- Output ----\n" . implode("\n", $output));
     }
 
     return $lastLine;
@@ -664,7 +662,7 @@ function resolve_command_full_path($command)
     }
 
     // Resolving symlinks
-    return exec("readlink -f $path");
+    return realpath($path);
 }
 
 function build_known_command_names_matrix()
