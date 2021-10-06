@@ -439,7 +439,8 @@ function pick_binaries_interactive(array $php_binaries)
     echo "\n";
     flush();
 
-    $userInput = readline("Select binaries unsing their number. Multiple binaries separated by space (example: 1 3): ");
+    echo "Select binaries unsing their number. Multiple binaries separated by space (example: 1 3): ";
+    $userInput = fgets(STDIN);
     $choices = array_map('intval', array_filter(explode(' ', $userInput)));
 
     $pickedBinaries = [];
@@ -639,7 +640,7 @@ function search_php_binaries($prefix = '')
         );
         // phpcs:enable Generic.Files.LineLength.TooLong
         foreach ($pathsFound as $path) {
-            $resolved = exec("readlink -f $path");
+            $resolved = realpath($path);
             if (in_array($resolved, array_values($results))) {
                 continue;
             }
