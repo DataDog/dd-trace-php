@@ -10,8 +10,6 @@ add-apt-repository -y ppa:ondrej/php
 # Enabling ondrej debug symbols repo
 sed -i 's/deb \(.\+\)/deb \1 main\/debug/g' /etc/apt/sources.list.d/ondrej-ubuntu-php-bionic.list
 
-cat /etc/apt/sources.list.d/ondrej-ubuntu-php-bionic.list
-
 # Installing PHP
 apt update && apt install -y \
     php${PHP_VERSION}-cli \
