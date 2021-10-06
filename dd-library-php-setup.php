@@ -94,7 +94,7 @@ function install($options)
     execute_or_exit("Cannot create directory '$installDirSourcesDir'", "mkdir -p " . escapeshellarg($installDirSourcesDir));
     execute_or_exit(
         "Cannot copy files from '$tmpSourcesDir' to '$installDirSourcesDir'",
-        "cp -r " . escapeshellarg("$tmpSourcesDir/*") . " " . escapeshellarg($installDirSourcesDir)
+        "cp -r " . escapeshellarg("$tmpSourcesDir") . "/* " . escapeshellarg($installDirSourcesDir)
     );
     echo "Installed required source files to '$installDir'\n";
 
@@ -461,7 +461,12 @@ function execute_or_exit($exitMessage, $command)
     $returnCode = 0;
     $lastLine = exec($command, $output, $returnCode);
     if (false === $lastLine || $returnCode > 0) {
-        print_error_and_exit($exitMessage . "\n Failed message: $command\n---- Output ----\n" . implode("\n", $output));
+        print_error_and_exit(
+            $exitMessage .
+                "\nFailed command: $command\n---- Output ----\n" .
+                implode("\n", $output) .
+                "\n---- End of output ----\n"
+        );
     }
 
     return $lastLine;
