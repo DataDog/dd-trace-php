@@ -71,7 +71,10 @@ function install($options)
     $tmpSourcesDir = $tmpDir . '/opt/datadog-php/dd-trace-sources';
     $tmpExtensionsDir = $tmpDir . '/opt/datadog-php/extensions';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
-    execute_or_exit("Cannot clean '$tmpDir'", "rm -rf " . escapeshellarg("$tmpDir/*") . " " . escapeshellarg("$tmpDir/.*"));
+    execute_or_exit(
+        "Cannot clean '$tmpDir'",
+        "rm -rf " . escapeshellarg("$tmpDir/*") . " " . escapeshellarg("$tmpDir/.*")
+    );
 
     // Retrieve and extract the archive to a tmp location
     if (isset($options[OPT_TRACER_FILE])) {
@@ -84,14 +87,20 @@ function install($options)
             $options[OPT_TRACER_VERSION] . ".x86_64.tar.gz";
         download($url, $tmpDirTarGz);
     }
-    execute_or_exit("Cannot extract the archive", "tar -xf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir));
+    execute_or_exit(
+        "Cannot extract the archive",
+        "tar -xf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir)
+    );
 
     $installDir = $options[OPT_INSTALL_DIR] . '/' . extract_version_subdir_path($options, $tmpDir, $tmpSourcesDir);
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
     $installDirWrapperPath = $installDirSourcesDir . '/bridge/dd_wrap_autoloader.php';
 
     // copying sources to the final destination
-    execute_or_exit("Cannot create directory '$installDirSourcesDir'", "mkdir -p " . escapeshellarg($installDirSourcesDir));
+    execute_or_exit(
+        "Cannot create directory '$installDirSourcesDir'",
+        "mkdir -p " . escapeshellarg($installDirSourcesDir)
+    );
     execute_or_exit(
         "Cannot copy files from '$tmpSourcesDir' to '$installDirSourcesDir'",
         "cp -r " . escapeshellarg("$tmpSourcesDir") . "/* " . escapeshellarg($installDirSourcesDir)
@@ -601,7 +610,7 @@ function ini_values($binary)
     $lines = [];
     // Timezone is irrelevant to this script. This is a quick-and-dirty workaround to the PHP 5 warning with missing
     // timezone
-    exec($binary . " -d date.timezone=UTC -i", $lines);
+    exec(escapeshellarg($binary) . " -d date.timezone=UTC -i", $lines);
     $found = [];
     foreach ($lines as $line) {
         $parts = explode('=>', $line);
@@ -628,11 +637,15 @@ function is_truthy($value)
  */
 function search_php_binaries($prefix = '')
 {
+    echo "Searching for available php binaries, this operation might take a while.\n";
+
     $results = [];
 
+    $allPossibleCommands = build_known_command_names_matrix();
+
     // First, we search in $PATH, for php, php7, php74, php7.4, php7.4-fpm, etc....
-    foreach (build_known_command_names_matrix() as $command) {
-        $path = exec("command -v $command");
+    foreach ($allPossibleCommands as $command) {
+        $path = exec("command -v " . escapeshellarg($command));
         if ($resolvedPath = resolve_command_full_path($command)) {
             $results[$command] = $resolvedPath;
         }
@@ -642,27 +655,39 @@ function search_php_binaries($prefix = '')
     $standardPaths = [
         $prefix . '/usr/bin',
         $prefix . '/usr/sbin',
+        $prefix . '/usr/local/bin',
+        $prefix . '/usr/local/sbin',
     ];
     $remiSafePaths = array_map(function ($phpVersion) use ($prefix) {
         list($major, $minor) = explode('.', $phpVersion);
+        // php is installed to /usr/bin/php${major}${minor} so we do not need to do anything special, while php-fpm
+        // is installed to /opt/remi/php${major}${minor}/root/usr/sbin and it needs to be added to the searched
+        // locations.
         return "${prefix}/opt/remi/php${major}${minor}/root/usr/sbin";
     }, get_supported_php_versions());
+    $escapedSearchLocations =  implode(' ', array_map('escapeshellarg', $standardPaths + $remiSafePaths));
+    $escapedCommandNamesForFind = implode(
+        ' -o ',
+        array_map(
+            function ($cmd) {
+                return '-name ' . escapeshellarg($cmd);
+            },
+            $allPossibleCommands
+        )
+    );
 
-    foreach (($standardPaths + $remiSafePaths) as $knownPath) {
-        $pathsFound = [];
-        // phpcs:disable Generic.Files.LineLength.TooLong
-        exec(
-            "find -L $knownPath -type f -executable -regextype sed -regex '.*/php\(-fpm\)\?\([0-9][\.]\?[0-9]\?\)\?\(-fpm\)\?' 2>/dev/null",
-            $pathsFound
-        );
-        // phpcs:enable Generic.Files.LineLength.TooLong
-        foreach ($pathsFound as $path) {
-            $resolved = realpath($path);
-            if (in_array($resolved, array_values($results))) {
-                continue;
-            }
-            $results[$resolved] = $resolved;
+    $pathsFound = [];
+    exec(
+        "find -L $escapedSearchLocations -type f \( $escapedCommandNamesForFind \) 2>/dev/null",
+        $pathsFound
+    );
+
+    foreach ($pathsFound as $path) {
+        $resolved = realpath($path);
+        if (in_array($resolved, array_values($results))) {
+            continue;
         }
+        $results[$path] = $resolved;
     }
 
     return $results;
@@ -674,7 +699,7 @@ function search_php_binaries($prefix = '')
  */
 function resolve_command_full_path($command)
 {
-    $path = exec("command -v $command");
+    $path = exec("command -v " . escapeshellarg($command));
     if (false === $path || empty($path)) {
         // command is not defined
         return false;
