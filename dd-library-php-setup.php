@@ -171,8 +171,8 @@ function install($options)
     echo "SUCCESS\n\n";
     if ($interactive) {
         echo "Run this script in a non interactive mode adding the following 'php-bin' options:\n";
-        $phpBins = implode(
-            ' ',
+        $args = array_merge(
+            $_SERVER["argv"],
             array_map(
                 function ($el) {
                     return '--php-bin=' . $el;
@@ -180,7 +180,7 @@ function install($options)
                 array_keys($selectedBinaries)
             )
         );
-        echo "  php dd-library-php-setup.php [ ... existing options... ] $phpBins\n";
+        echo "  php " . implode(" ", array_map("escapeshellarg", $args)) . "\n";
     }
 }
 
