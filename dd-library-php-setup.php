@@ -142,7 +142,9 @@ function install($options)
         }
         foreach ($iniFilePaths as $iniFilePath) {
             if (!file_exists($iniFilePath)) {
-                file_put_contents($iniFilePath, get_ini_template($installDirWrapperPath));
+                if (false === file_put_contents($iniFilePath, get_ini_template($installDirWrapperPath))) {
+                    print_error_and_exit("Cannot create INI file $iniFilePath");
+                }
                 echo "Created INI file '$iniFilePath'\n";
             } else {
                 echo "Updating existing INI file '$iniFilePath'\n";
@@ -221,8 +223,12 @@ function uninstall($options)
                     . "The file has not been removed to preserve custom settings.\n";
             }
         }
-        unlink($extensionDestination);
-        echo "Uninstall from '$binaryForLog' was successful\n";
+        if (false === unlink($extensionDestination)) {
+            print_warning("Error while removing $extensionDestination. It can be manually removed.");
+            echo "Uninstall from '$binaryForLog' was completed with warnings\n";
+        } else {
+            echo "Uninstall from '$binaryForLog' was successful\n";
+        }
     }
 }
 
@@ -371,6 +377,11 @@ function print_error_and_exit($message)
     exit(1);
 }
 
+function print_warning($message)
+{
+    echo "WARNING: $message\n";
+}
+
 /**
  * Attempts to extract the version number of the installed tracer.
  *
@@ -494,9 +505,8 @@ function download($url, $destination)
     //   4) exit with errror
 
     // ext-curl
-    if (extension_loaded('curl')) {
+    if (extension_loaded('curl') && ($fp = fopen($destination, 'w+')) !== false) {
         global $progress_counter;
-        $fp = fopen($destination, 'w+');
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_TIMEOUT, 50);
         curl_setopt($ch, CURLOPT_FILE, $fp);
@@ -504,12 +514,15 @@ function download($url, $destination)
         curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'on_download_progress');
         curl_setopt($ch, CURLOPT_NOPROGRESS, false);
         $progress_counter = 0;
-        curl_exec($ch);
+        $return = curl_exec($ch);
         curl_close($ch);
         fclose($fp);
 
-        echo $okMessage;
-        return;
+        if (false !== $return) {
+            echo $okMessage;
+            return;
+        }
+        // Otherwise we attempt other methods
     }
 
     // curl
@@ -522,17 +535,18 @@ function download($url, $destination)
             $curlInvocationStatusCode
         );
 
-        if ($curlInvocationStatusCode > 0) {
-            print_error_and_exit("Error while downloading the installable archive from $url\n");
+        if ($curlInvocationStatusCode === 0) {
+            echo $okMessage;
+            return;
         }
-
-        echo $okMessage;
-        return;
+        // Otherwise we attempt other methods
     }
 
     // file_get_contents
     if (is_truthy(ini_get('allow_url_fopen'))) {
-        file_put_contents($destination, file_get_contents($url));
+        if (false === file_put_contents($destination, file_get_contents($url))) {
+            print_error_and_exit("Error while downloading the installable archive from $url\n");
+        }
 
         echo $okMessage;
         return;
