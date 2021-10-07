@@ -30,7 +30,8 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
 else
     echo "Installing dd-trace-php using the new PHP installer"
     apk add --no-cache libexecinfo
-    $PHP_BIN dd-library-php-setup.php --tracer-file="$(pwd)/build/packages/*.tar.gz" --php-bin=all
+    tar_gz_file_name=$(find "$(pwd)/build/packages/" -name *.tar.gz)
+    $PHP_BIN dd-library-php-setup.php --tracer-file="${tar_gz_file_name}" --php-bin=all
 fi
 
 # Preparing NGINX
