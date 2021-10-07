@@ -24,6 +24,7 @@ class MongoDBIntegration extends Integration
         if (!extension_loaded('mongodb')) {
             return Integration::NOT_AVAILABLE;
         }
+        \MongoDB\Driver\Monitoring\addSubscriber(new MongoDBSubscriber());
 
         // See: https://docs.mongodb.com/php-library/current/reference/class/MongoDBCollection/
         $collectionMethodsWithFilter = [
@@ -55,6 +56,7 @@ class MongoDBIntegration extends Integration
             'listIndexes',
             'mapReduce',
         ];
+
         foreach ($collectionMethodsNoFilter as $method) {
             MongoDBIntegration::traceCollectionMethodNoArgs($method);
         }
@@ -72,8 +74,6 @@ class MongoDBIntegration extends Integration
 
             $span->meta[Tag::MONGODB_DATABASE] = $this->getDatabaseName();
             $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
-            // $span->meta[Tag::TARGET_HOST] = $ev->getServer()->getHost();
-            // $span->meta[Tag::TARGET_PORT] = $ev->getServer()->getPort();
             $normalizedQuery = MongoDBIntegration::normalizeQuery($args[0]);
 
             $resourceNameParts = [$method, $this->getDatabaseName(), $this->getCollectionName()];
@@ -96,8 +96,6 @@ class MongoDBIntegration extends Integration
 
             $span->meta[Tag::MONGODB_DATABASE] = $this->getDatabaseName();
             $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
-            // $span->meta[Tag::TARGET_HOST] = $ev->getServer()->getHost();
-            // $span->meta[Tag::TARGET_PORT] = $ev->getServer()->getPort();
 
             $span->resource = $method . ' ' . $this->getDatabaseName() . ' ' . $this->getCollectionName();
         });

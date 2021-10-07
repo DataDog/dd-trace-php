@@ -56,8 +56,8 @@ class MongoDBTest extends IntegrationTestCase
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '{"brand":"?"}',
                     'span.kind' => 'client',
-                    // 'out.host' => self::HOST,
-                    // 'out.port' => self::PORT,
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
                 ]),
         ]);
     }
@@ -85,8 +85,8 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.collection' => 'cars',
                 'mongodb.query' => '[{"$group":{"_id":"?","count":{"$sum":"?"}}},{"$sort":{"count":"?"}},{"$limit":"?"}]',
                 'span.kind' => 'client',
-                // 'out.host' => self::HOST,
-                // 'out.port' => self::PORT,
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
             ]),
         ]);
     }
@@ -107,8 +107,8 @@ class MongoDBTest extends IntegrationTestCase
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '"?"',
                     'span.kind' => 'client',
-                    // 'out.host' => self::HOST,
-                    // 'out.port' => self::PORT,
+                    // host and port are missing as the command is not actually issued to a server when tere is such a
+                    // validation exception
                 ])->setError('MongoDB\Exception\InvalidArgumentException')
                 ->withExistingTagsNames(['error.msg', 'error.stack']),
         ]);
@@ -136,8 +136,8 @@ class MongoDBTest extends IntegrationTestCase
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '{"brand":"?"}',
                     'span.kind' => 'client',
-                    // 'out.host' => self::HOST,
-                    // 'out.port' => self::PORT,
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
                 ]),
         ]);
     }
@@ -185,8 +185,8 @@ class MongoDBTest extends IntegrationTestCase
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
                     'span.kind' => 'client',
-                    // 'out.host' => self::HOST,
-                    // 'out.port' => self::PORT,
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
                 ]),
         ]);
     }
