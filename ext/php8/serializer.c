@@ -446,15 +446,15 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     zval *prop_type = ddtrace_spandata_property_type(span);
     zval *prop_name = ddtrace_spandata_property_name(span);
     if (strcmp(sapi_module.name, "cli") == 0) {
-        ZVAL_STR(prop_type, zend_string_init_interned(ZEND_STRL("cli"), 1));
+        ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
         if (SG(request_info).argc > 0) {
             ZVAL_STR(prop_name, php_basename(SG(request_info).argv[0], strlen(SG(request_info).argv[0]), NULL, 0));
         } else {
-            ZVAL_STR(prop_name, zend_string_init_interned(ZEND_STRL("cli.command"), 1));
+            ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("cli.command"), 0));
         }
     } else {
-        ZVAL_STR(prop_type, zend_string_init_interned(ZEND_STRL("web"), 1));
-        ZVAL_STR(prop_name, zend_string_init_interned(ZEND_STRL("web.request"), 1));
+        ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("web"), 0));
+        ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("web.request"), 0));
     }
     zval *prop_service = ddtrace_spandata_property_service(span);
     ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
@@ -528,7 +528,7 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
             if (SG(sapi_headers).http_response_code >= 500) {
                 zval zv = {0}, *value;
                 if ((value = zend_hash_str_add(Z_ARR_P(meta), ZEND_STRL("error.type"), &zv))) {
-                    ZVAL_STR(value, zend_string_init_interned(ZEND_STRL("Internal Server Error"), 1));
+                    ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
                 }
             }
         }
