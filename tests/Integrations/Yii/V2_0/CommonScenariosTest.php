@@ -128,9 +128,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.route.path' => '/error',
                     ])
                         ->setError(
-                            PHP_VERSION_ID >= 70000 ? 'Exception' : null,
-                            PHP_VERSION_ID >= 70000 ? 'datadog' : null,
-                            PHP_VERSION_ID >= 70000
+                            'Exception',
+                            'datadog',
+                            true
                         )
                         ->withChildren([
                             SpanAssertion::build(

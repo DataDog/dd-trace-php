@@ -333,20 +333,11 @@ final class SpanTest extends BaseTestCase
     {
         $context = SpanContext::createAsRoot();
 
-        if (PHP_VERSION_ID < 70000) {
-            $span = new Span(
-                self::OPERATION_NAME,
-                $context,
-                self::SERVICE,
-                self::RESOURCE
-            );
-        } else {
-            $internalSpan = $realSpan ? \DDTrace\start_span() : new SpanData();
-            $internalSpan->name = self::OPERATION_NAME;
-            $internalSpan->service = self::SERVICE;
-            $internalSpan->resource = self::RESOURCE;
-            $span = new Span($internalSpan, $context);
-        }
+        $internalSpan = $realSpan ? \DDTrace\start_span() : new SpanData();
+        $internalSpan->name = self::OPERATION_NAME;
+        $internalSpan->service = self::SERVICE;
+        $internalSpan->resource = self::RESOURCE;
+        $span = new Span($internalSpan, $context);
 
         return $span;
     }

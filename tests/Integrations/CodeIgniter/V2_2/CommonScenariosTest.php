@@ -100,15 +100,10 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // CodeIgniter's error handler does not adjust the status code
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Error_::index',
-                    ])->ifPhpVersionNotMatch('5.4', function (SpanAssertion $assertion) {
-                        // Automatic error attachment to root span in case of PHP 5.4 is still under development.
-                        $message = PHP_MAJOR_VERSION >= 7
-                            ? "Uncaught Exception: datadog in %s:%d"
-                            : "Uncaught exception 'Exception' with message 'datadog' in %s:%d";
-                        $assertion
-                            ->setError(PHP_VERSION_ID >= 70000 ? "Exception" : "E_ERROR", $message)
-                            ->withExistingTagsNames(['error.stack']);
-                    })->withChildren([
+                    ])
+                    ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
+                    ->withExistingTagsNames(['error.stack'])
+                    ->withChildren([
                         SpanAssertion::build(
                             'Error_.index',
                             'codeigniter_test_app',

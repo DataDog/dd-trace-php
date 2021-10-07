@@ -105,8 +105,7 @@ final class Tracer implements TracerInterface
      */
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
-        $encoder = new MessagePack();
-        $this->transport = $transport ?: (PHP_VERSION_ID >= 70000 ? new Internal() : new Http($encoder));
+        $this->transport = $transport ?: new Internal();
         $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
             Format::TEXT_MAP => $textMapPropagator,
@@ -115,11 +114,9 @@ final class Tracer implements TracerInterface
         ];
         $this->config = array_merge($this->config, $config);
         $this->reset();
-        if (PHP_VERSION_ID >= 70000) {
-            foreach ($this->config['global_tags'] as $key => $val) {
-                // @phpstan-ignore-next-line
-                add_global_tag($key, $val);
-            }
+        foreach ($this->config['global_tags'] as $key => $val) {
+            // @phpstan-ignore-next-line
+            add_global_tag($key, $val);
         }
         $this->config['global_tags'] = array_merge($this->config['global_tags'], \ddtrace_config_global_tags());
         $this->serviceVersion = \ddtrace_config_service_version();
@@ -184,44 +181,22 @@ final class Tracer implements TracerInterface
         $resource = array_key_exists('resource', $this->config) ? (string) $this->config['resource'] : null;
         $service = $this->config['service_name'];
 
-        if (PHP_VERSION_ID >= 70000) {
-            // @phpstan-ignore-next-line
-            $internalSpan = active_span();
-            $internalSpan->name = (string) $operationName;
-            $internalSpan->service = $service;
-            $internalSpan->resource = $resource;
-            if (!isset($internalSpan->metrics)) {
-                $internalSpan->metrics = [];
-            }
-            if (!isset($internalSpan->meta)) {
-                $internalSpan->meta = [];
-            }
-            // @phpstan-ignore-next-line
-            $span = new Span($internalSpan, $context);
-        } else {
-            $span = new Span($operationName, $context, $service, $resource, $options->getStartTime());
+        // @phpstan-ignore-next-line
+        $internalSpan = active_span();
+        $internalSpan->name = (string) $operationName;
+        $internalSpan->service = $service;
+        $internalSpan->resource = $resource;
+        if (!isset($internalSpan->metrics)) {
+            $internalSpan->metrics = [];
         }
+        if (!isset($internalSpan->meta)) {
+            $internalSpan->meta = [];
+        }
+        // @phpstan-ignore-next-line
+        $span = new Span($internalSpan, $context);
 
-        if (PHP_VERSION_ID < 70000) {
-            $tags = $options->getTags() + $this->getGlobalTags();
-            if ($context->getParentId() === null) {
-                $tags[Tag::PID] = getmypid();
-            }
-
-            foreach ($tags as $key => $value) {
-                $span->setTag($key, $value);
-            }
-
-            if ($reference === null && \ddtrace_config_hostname_reporting_enabled()) {
-                $hostname = gethostname();
-                if ($hostname !== false) {
-                    $span->setTag(Tag::HOSTNAME, $hostname);
-                }
-            }
-        } else {
-            foreach ($options->getTags() as $key => $val) {
-                $span->setTag($key, $val);
-            }
+        foreach ($options->getTags() as $key => $val) {
+            $span->setTag($key, $val);
         }
 
         // Call it here so that the data is there in any case, even when shutdown fatal errors
@@ -295,7 +270,7 @@ final class Tracer implements TracerInterface
         }
         if (!$parent = $activeSpan) {
             // Handle the case where the trace root was created outside of userland control
-            if (PHP_VERSION_ID >= 70000 && !\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') && active_span()) {
+            if (!\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN') && active_span()) {
                 $trace_id = trace_id();
                 $parent = new SpanContext($trace_id, $trace_id);
             }
@@ -309,7 +284,7 @@ final class Tracer implements TracerInterface
             $span->setTag(Tag::SERVICE_NAME, $parentService);
         }
 
-        $shouldFinish = $options->shouldFinishSpanOnClose() && (PHP_VERSION_ID < 70000 || $span->getParentId() != 0
+        $shouldFinish = $options->shouldFinishSpanOnClose() && ($span->getParentId() != 0
                 || !\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN'));
         return $this->scopeManager->activate($span, $shouldFinish);
     }
@@ -405,87 +380,8 @@ final class Tracer implements TracerInterface
      */
     public function getTracesAsArray()
     {
-        if (PHP_VERSION_ID >= 70000) {
-            $trace = \dd_trace_serialize_closed_spans();
-            return $trace ? [$trace] : $trace;
-        }
-
-        $tracesToBeSent = [];
-        $autoFinishSpans = \ddtrace_config_autofinish_span_enabled();
-        $serviceMappings = \ddtrace_config_service_mapping();
-
-        $root = $this->getSafeRootSpan();
-        if ($root) {
-            $meta = \DDTrace\additional_trace_meta();
-            foreach ($meta as $tag => $value) {
-                $root->setTag($tag, $value, true);
-            }
-        }
-
-        foreach ($this->traces as $trace) {
-            $traceToBeSent = [];
-            foreach ($trace as $span) {
-                // If resource is empty, we normalize it the the operation name.
-                if ($span->getResource() === null) {
-                    $span->setResource($span->getOperationName());
-                }
-
-                if ($span->duration === null) { // is span not finished
-                    if (!$autoFinishSpans) {
-                        $traceToBeSent = null;
-                        break;
-                    }
-                    $span->duration = (Time::now()) - $span->startTime; // finish span
-                }
-                $encodedSpan = SpanEncoder::encode($span);
-                $traceToBeSent[] = $encodedSpan;
-            }
-
-            if ($traceToBeSent === null) {
-                continue;
-            }
-
-            $tracesToBeSent[] = $traceToBeSent;
-            if (isset($traceToBeSent[0]['trace_id'])) {
-                unset($this->traces[(string) $traceToBeSent[0]['trace_id']]);
-            }
-        }
-
-        $internalSpans = \dd_trace_serialize_closed_spans();
-
-        // Setting global tags on internal spans, if any
-        $globalTags = $this->getGlobalTags();
-        if ($globalTags) {
-            foreach ($internalSpans as &$internalSpan) {
-                // If resource is empty, we normalize it the the operation name.
-                if (empty($internalSpan['resource'])) {
-                    $internalSpan['resource'] = $internalSpan['name'];
-                }
-                foreach ($globalTags as $globalTagName => $globalTagValue) {
-                    if (isset($internalSpan['meta'][$globalTagName])) {
-                        continue;
-                    }
-                    $internalSpan['meta'][$globalTagName] = $globalTagValue;
-                }
-            }
-        }
-
-        if (!empty($internalSpans)) {
-            $tracesToBeSent[0] = isset($tracesToBeSent[0])
-                ? array_merge($tracesToBeSent[0], $internalSpans)
-                : $internalSpans;
-        }
-        if (isset($tracesToBeSent[0])) {
-            foreach ($tracesToBeSent[0] as &$serviceSpan) {
-                // Doing service mapping here to avoid an external call. This will be refactored once
-                // we completely move to internal span API.
-                if (!empty($serviceSpan['service']) && !empty($serviceMappings[$serviceSpan['service']])) {
-                    $serviceSpan['service'] = $serviceMappings[$serviceSpan['service']];
-                }
-            }
-        }
-
-        return $tracesToBeSent;
+        $trace = \dd_trace_serialize_closed_spans();
+        return $trace ? [$trace] : $trace;
     }
 
     public function addUrlAsResourceNameToSpan(Contracts\Span $span)
@@ -585,7 +481,7 @@ final class Tracer implements TracerInterface
         $rootScope = $this->getRootScope();
 
         if (empty($rootScope)) {
-            if (PHP_VERSION_ID >= 70000 && $internalRootSpan = root_span()) {
+            if ($internalRootSpan = root_span()) {
                 // This will not set the distributed tracing activation context properly: do with internal migration
                 $traceId = trace_id();
                 // @phpstan-ignore-next-line

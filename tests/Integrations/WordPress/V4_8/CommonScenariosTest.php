@@ -217,15 +217,10 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error',
                         // WordPress doesn't appear to automatically set the proper error code
                         'http.status_code' => '200',
-                    ])->ifPhpVersionNotMatch('5.4', function (SpanAssertion $assertion) {
-                        // Automatic error attachment to root span in case of PHP 5.4 is still under development.
-                        $message = PHP_MAJOR_VERSION >= 7
-                            ? "Uncaught Exception: Oops! in %s:%d"
-                            : "Uncaught exception 'Exception' with message 'Oops!' in %s:%d";
-                        $assertion
-                            ->setError(PHP_VERSION_ID >= 70000 ? "Exception" : "E_ERROR", $message)
-                            ->withExistingTagsNames(['error.stack']);
-                    })->withChildren([
+                    ])
+                    ->setError("Exception", "Uncaught Exception: Oops! in %s:%d")
+                    ->withExistingTagsNames(['error.stack'])
+                    ->withChildren([
                         SpanAssertion::exists('WP.main')
                             // There's no way to propagate this to the root span in userland yet
                             ->setError('Exception', 'Oops!')
