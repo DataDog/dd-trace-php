@@ -107,8 +107,8 @@ class MongoDBTest extends IntegrationTestCase
                     'mongodb.collection' => 'cars',
                     'mongodb.query' => '"?"',
                     'span.kind' => 'client',
-                    // host and port are missing as the command is not actually issued to a server when tere is such a
-                    // validation exception
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
                 ])->setError('MongoDB\Exception\InvalidArgumentException')
                 ->withExistingTagsNames(['error.msg', 'error.stack']),
         ]);

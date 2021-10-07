@@ -5,6 +5,7 @@ void ddtrace_mongodb_handlers_startup(void) {
     ddtrace_string methods[] = {
         DDTRACE_STRING_LITERAL("__construct"),
         DDTRACE_STRING_LITERAL("executebulkwrite"),
+        DDTRACE_STRING_LITERAL("selectserver"),
     };
     // clang-format on
 

@@ -6,6 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\ObjectKVStore;
 
 class MongoDBIntegration extends Integration
 {
@@ -24,7 +25,16 @@ class MongoDBIntegration extends Integration
         if (!extension_loaded('mongodb')) {
             return Integration::NOT_AVAILABLE;
         }
-        \MongoDB\Driver\Monitoring\addSubscriber(new MongoDBSubscriber());
+
+        \DDTrace\hook_method(
+            'MongoDB\Driver\Manager',
+            'selectServer',
+            null,
+            function ($self, $_2, $_3, $server) {
+                ObjectKVStore::put($self, 'host', $server->getHost());
+                ObjectKVStore::put($self, 'port', $server->getPort());
+            }
+        );
 
         // See: https://docs.mongodb.com/php-library/current/reference/class/MongoDBCollection/
         $collectionMethodsWithFilter = [
@@ -83,6 +93,10 @@ class MongoDBIntegration extends Integration
                 $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
             }
             $span->resource = \implode(' ', $resourceNameParts);
+
+            $manager = $this->getManager();
+            $span->meta[Tag::TARGET_HOST] = ObjectKVStore::get($manager, 'host');
+            $span->meta[Tag::TARGET_PORT] = ObjectKVStore::get($manager, 'port');
         });
     }
 
@@ -98,6 +112,10 @@ class MongoDBIntegration extends Integration
             $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
 
             $span->resource = $method . ' ' . $this->getDatabaseName() . ' ' . $this->getCollectionName();
+
+            $manager = $this->getManager();
+            $span->meta[Tag::TARGET_HOST] = ObjectKVStore::get($manager, 'host');
+            $span->meta[Tag::TARGET_PORT] = ObjectKVStore::get($manager, 'port');
         });
     }
 
