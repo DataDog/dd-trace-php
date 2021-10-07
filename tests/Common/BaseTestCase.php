@@ -52,7 +52,8 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 
     protected static function putEnv($putenv)
     {
-        if (strpos($putenv, "DD_") === 0 && PHP_VERSION_ID >= 70000) {
+        // cleanup: properly replace this function by ini_set() in test code ...
+        if (strpos($putenv, "DD_") === 0) {
             $val = explode("=", $putenv, 2);
             $name = strtolower(strtr($val[0], [
                 "DD_TRACE_" => "datadog.trace.",

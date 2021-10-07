@@ -133,12 +133,7 @@ EOD;
     public function testIntegrationsDisabledPrecedenceWithDeprecatedEnv()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=true', 'DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        if (PHP_VERSION_ID < 70000) {
-            $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
-        } else {
-            // We cannot distinguish not set vs set to default value anymore, hence the behaviour is changed slightly
-            $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        }
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
     }
 

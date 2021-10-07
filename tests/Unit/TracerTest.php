@@ -144,33 +144,6 @@ final class TracerTest extends BaseTestCase
         $this->assertEquals($expectedContext, $actualContext);
     }
 
-    public function testOnlyFinishedTracesAreBeingSent()
-    {
-        if (PHP_VERSION_ID >= 70000) {
-            $this->assertTrue(true); // now extension responsibility, not testable here (
-            return;
-        }
-
-        $transport = $this->prophesize('DDTrace\Transport');
-        $tracer = new Tracer($transport->reveal());
-        $span = $tracer->startSpan(self::OPERATION_NAME);
-        $tracer->startSpan(self::ANOTHER_OPERATION_NAME, [
-            'child_of' => $span,
-        ]);
-        $span->finish();
-
-        $span2 = $tracer->startSpan(self::OPERATION_NAME);
-        $span3 = $tracer->startSpan(self::ANOTHER_OPERATION_NAME, [
-            'child_of' => $span2,
-        ]);
-        $span2->finish();
-        $span3->finish();
-
-        $transport->send($tracer)->shouldBeCalled();
-
-        $tracer->flush();
-    }
-
     public function testPrioritySamplingIsEarlyAssignedAndRefreshedOnInject()
     {
         $tracer = new Tracer(new DebugTransport());
@@ -205,64 +178,11 @@ final class TracerTest extends BaseTestCase
         $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
     }
 
-    public function testUnfinishedSpansAreNotSentOnFlush()
-    {
-        if (PHP_VERSION_ID >= 70000) {
-            $this->assertTrue(true);
-            return; // obsolete, now interrnal responsibility
-        }
-
-        $transport = new DebugTransport();
-        $tracer = new Tracer($transport);
-        $tracer->startActiveSpan('root');
-        $tracer->startActiveSpan('child');
-
-        $tracer->flush();
-
-        $this->assertEmpty($transport->getTraces());
-    }
-
-    public function testUnfinishedSpansCanBeFinishedOnFlush()
-    {
-        if (PHP_VERSION_ID >= 70000) {
-            $this->assertTrue(true);
-            return; // obsolete, now interrnal responsibility
-        }
-
-        self::putenv('DD_AUTOFINISH_SPANS=true');
-
-        $transport = new DebugTransport();
-        $tracer = new Tracer($transport);
-        $tracer->startActiveSpan('root');
-        $tracer->startActiveSpan('child');
-
-        $tracer->flush();
-        $sent = $transport->getTraces();
-        $this->assertSame('root', $sent[0][0]['name']);
-        $this->assertSame('child', $sent[0][1]['name']);
-    }
-
     public function testSpanStartedAtRootCanBeAccessedLater()
     {
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
         $this->assertSame($scope, $tracer->getRootScope());
-    }
-
-    public function testFlushDoesntAddHostnameToRootSpanByDefault()
-    {
-        if (PHP_VERSION_ID >= 70000) {
-            $this->assertTrue(true);
-            return; // obsolete, now interrnal responsibility
-        }
-
-        $tracer = new Tracer(new NoopTransport());
-        $scope = $tracer->startRootSpan(self::OPERATION_NAME);
-        $this->assertNull($tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
-
-        $tracer->flush();
-
-        $this->assertNull($tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
     }
 
     public function testFlushAddsHostnameToRootSpanWhenEnabled()
@@ -314,14 +234,8 @@ final class TracerTest extends BaseTestCase
         $tracer->getActiveSpan()->finish();
 
         $this->assertSame(2, dd_trace_closed_spans_count());
-        if (PHP_VERSION_ID < 70000) {
-            $traces = $tracer->getTracesAsArray();
-            $this->assertCount(1, $traces);
-            $this->assertCount(2, $traces[0]);
-        } else {
-            $traces = \dd_trace_serialize_closed_spans();
-            $this->assertCount(2, $traces);
-        }
+        $traces = \dd_trace_serialize_closed_spans();
+        $this->assertCount(2, $traces);
 
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');
