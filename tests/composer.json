@@ -19,7 +19,7 @@
             "elasticsearch1": {
                 "require": {
                     "elasticsearch/elasticsearch": "1.2.*",
-                    "symfony/event-dispatcher" : "~2.7"
+                    "symfony/event-dispatcher": "~2.7"
                 },
                 "scenario-options": {
                     "create-lockfile": false
@@ -36,6 +36,14 @@
             "guzzle6": {
                 "require": {
                     "guzzlehttp/guzzle": "~6.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "mongodb": {
+                "require": {
+                    "mongodb/mongodb": "1.*"
                 },
                 "scenario-options": {
                     "create-lockfile": false

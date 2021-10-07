@@ -175,6 +175,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/handlers_exception.c \
       ext/php7/handlers_internal.c \
       ext/php7/handlers_memcached.c \
+      ext/php8/handlers_mongodb.c \
       ext/php7/handlers_mysqli.c \
       ext/php7/handlers_pcntl.c \
       ext/php7/handlers_pdo.c \
@@ -226,6 +227,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/handlers_exception.c \
       ext/php8/handlers_internal.c \
       ext/php8/handlers_memcached.c \
+      ext/php8/handlers_mongodb.c \
       ext/php8/handlers_mysqli.c \
       ext/php8/handlers_pcntl.c \
       ext/php8/handlers_pdo.c \

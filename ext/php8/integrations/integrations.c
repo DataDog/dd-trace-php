@@ -102,6 +102,9 @@ void ddtrace_integrations_rinit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Bootstrap\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONGODB, "mongodb\\driver\\manager", "__construct",
+                                         "DDTrace\\Integrations\\MongoDB\\MongoDBIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");
 
