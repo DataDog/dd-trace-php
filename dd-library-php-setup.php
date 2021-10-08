@@ -141,7 +141,7 @@ function install($options)
         // Writing the ini file
         $iniFileName = '98-ddtrace.ini';
         $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
-        if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) !== false) {
+        if (\strpos($phpProperties[INI_CONF], '/cli/conf.d') !== false) {
             /* debian based distros have INI folders split by SAPI, in a predefined way:
              *   - <...>/cli/conf.d       <-- we know this from php -i
              *   - <...>/apache2/conf.d   <-- we derive this from relative path
