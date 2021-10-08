@@ -42,7 +42,8 @@ Usage:
 
 Options:
     -h, --help                  Print this help text and exit
-    --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search paths. The option can be provided multiple times.
+    --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search
+                                paths. The option can be provided multiple times.
     --tracer-version <0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
     --tracer-url <url>          Install the tracing library from a url. If set --tracer-file is ignored.
     --tracer-file <file>        Install the tracing library from a local .tar.gz file.
@@ -506,7 +507,7 @@ function execute_or_exit($exitMessage, $command)
  */
 function download($url, $destination)
 {
-    echo "Downloading installable archive from $url\n.";
+    echo "Downloading installable archive from $url.\n";
     echo "This operation might take a while.\n";
 
     $okMessage = "\nDownload completed\n\n";
@@ -545,7 +546,7 @@ function download($url, $destination)
     // curl
     $statusCode = 0;
     $output = [];
-    if (false !== exec('curl --tracer-version', $output, $statusCode) && $statusCode === 0) {
+    if (false !== exec('curl --version', $output, $statusCode) && $statusCode === 0) {
         $curlInvocationStatusCode = 0;
         system(
             'curl -L --output ' . escapeshellarg($destination) . ' ' . escapeshellarg($url),
