@@ -8,6 +8,33 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 
+/**
+ * Defines and register a subscriber. It is done in a function, rather than in a separate file
+ */
+function define_subscriber()
+{
+    class DatadogSubscriber implements \MongoDB\Driver\Monitoring\CommandSubscriber
+    {
+        public function commandStarted(\MongoDB\Driver\Monitoring\CommandStartedEvent $event)
+        {
+            $span = \DDTrace\active_span();
+            if ($span) {
+                $span->meta['out.host'] = $event->getServer()->getHost();
+                $span->meta['out.port'] = $event->getServer()->getPort();
+            }
+        }
+
+        public function commandSucceeded(\MongoDB\Driver\Monitoring\CommandSucceededEvent $event)
+        {
+        }
+
+        public function commandFailed(\MongoDB\Driver\Monitoring\CommandFailedEvent $event)
+        {
+        }
+    }
+
+    \MongoDB\Driver\Monitoring\addSubscriber(new DatadogSubscriber());
+}
 class MongoDBIntegration extends Integration
 {
     const NAME = 'mongodb';
@@ -25,6 +52,7 @@ class MongoDBIntegration extends Integration
         if (!extension_loaded('mongodb')) {
             return Integration::NOT_AVAILABLE;
         }
+        define_subscriber();
 
         \DDTrace\hook_method(
             'MongoDB\Driver\Manager',
@@ -33,6 +61,29 @@ class MongoDBIntegration extends Integration
             function ($self, $_2, $_3, $server) {
                 ObjectKVStore::put($self, 'host', $server->getHost());
                 ObjectKVStore::put($self, 'port', $server->getPort());
+                error_log('Selecting server: ' . var_export(1, true));
+            }
+        );
+
+        \DDTrace\trace_method(
+            'MongoDB\Driver\Manager',
+            'executeQuery',
+            function ($span, $args) {
+                // error_log('Filter from query is: ' . var_export($args[0], true));
+                // ObjectKVStore::put($self, 'host', $server->getHost());
+                // ObjectKVStore::put($self, 'port', $server->getPort());
+                error_log('Span around excuteQuery with query ' . $args[0] . ' ' . var_export($args[1], 1));
+            }
+        );
+
+        \DDTrace\hook_method(
+            'MongoDB\Driver\Query',
+            '__construct',
+            null,
+            function ($self, $_2, $args, $_4) {
+                error_log('Filter from query is: ' . var_export($args[0], true));
+                // ObjectKVStore::put($self, 'host', $server->getHost());
+                // ObjectKVStore::put($self, 'port', $server->getPort());
             }
         );
 

@@ -25,22 +25,22 @@ class MongoDBTest extends IntegrationTestCase
             $this->markTestAsSkipped('Mongodb Integration only enabled on 7+');
         }
 
-        $this->client()->test_db->cars->insertMany(
-            [
-                [
-                    'brand' => 'ford',
-                ],
-                [
-                    'brand' => 'toyota',
-                ],
-            ]
-        );
+        // $this->client()->test_db->cars->insertMany(
+        //     [
+        //         [
+        //             'brand' => 'ford',
+        //         ],
+        //         [
+        //             'brand' => 'toyota',
+        //         ],
+        //     ]
+        // );
     }
 
     protected function ddTearDown()
     {
         parent::ddTearDown();
-        $this->client()->test_db->cars->drop();
+        // $this->client()->test_db->cars->drop();
     }
 
     public function testFilterNormalizationRegex()
@@ -257,9 +257,29 @@ class MongoDBTest extends IntegrationTestCase
         ];
     }
 
+    public function testManagerExecuteQuery()
+    {
+        $traces = $this->isolateTracer(function () {
+            $query = new \MongoDB\Driver\Query(['brand' => 'ferrari']);
+            $this->manager()->executeQuery('test_db.cars', $query);
+        });
+        error_log('Traces: ' . var_export($traces, true));
+    }
+
     private function client()
     {
         return new Client(
+            'mongodb://' . self::HOST . ':' . self::PORT,
+            [
+                'username' => self::USER,
+                'password' => self::PASSWORD,
+            ]
+        );
+    }
+
+    private function manager()
+    {
+        return new \MongoDB\Driver\Manager(
             'mongodb://' . self::HOST . ':' . self::PORT,
             [
                 'username' => self::USER,
