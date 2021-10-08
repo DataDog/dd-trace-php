@@ -13,7 +13,7 @@ assert_no_ddtrace
 new_version="0.65.1"
 
 set +e
-output=$(php dd-library-php-setup.php --php-bin=php --tracer-version="${new_version}")
+output=$(php dd-library-php-setup.php --php-bin php --tracer-version "${new_version}")
 exit_status=$?
 set -e
 

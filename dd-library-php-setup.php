@@ -35,18 +35,18 @@ function print_help_and_exit()
 
 Usage:
     Interactive
-        php get-dd-trace.php --tracer-version=x.y.z ...
+        php get-dd-trace.php --tracer-version x.y.z ...
     Non-Interactive
-        php get-dd-trace.php --tracer-version=x.y.z --php-bin=php ...
-        php get-dd-trace.php --tracer-version=x.y.z --php-bin=php --php-bin=/usr/local/sbin/php-fpm ...
+        php get-dd-trace.php --tracer-version x.y.z --php-bin php ...
+        php get-dd-trace.php --tracer-version x.y.z --php-bin php --php-bin /usr/local/sbin/php-fpm ...
 
 Options:
     -h, --help                  Print this help text and exit
-    --php-bin=all|<path to php> Install the library to the specified binary or all php binaries in standard search paths. The option can be provided multiple times.
-    --tracer-version=<0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
-    --tracer-url=<url>          Install the tracing library from a url. If set --tracer-file is ignored.
-    --tracer-file=<file>        Install the tracing library from a local .tar.gz file.
-    --install-dir=<path>        Install to a specific directory. Default: '/opt/datadog'
+    --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search paths. The option can be provided multiple times.
+    --tracer-version <0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
+    --tracer-url <url>          Install the tracing library from a url. If set --tracer-file is ignored.
+    --tracer-file <file>        Install the tracing library from a local .tar.gz file.
+    --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
 
 EOD;
@@ -73,7 +73,7 @@ function install($options)
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
     execute_or_exit(
         "Cannot clean '$tmpDir'",
-        "rm -rf " . escapeshellarg($tmpDir) . "/* " . escapeshellarg($tmpDir) . "/.*"
+        "rm -rf " . escapeshellarg($tmpDir) . "/* "
     );
 
     // Retrieve and extract the archive to a tmp location
@@ -497,7 +497,6 @@ function execute_or_exit($exitMessage, $command)
 
     return $lastLine;
 }
-
 
 /**
  * Downloads the library applying a number of fallback mechanisms if specific libraries/binaries are not available.

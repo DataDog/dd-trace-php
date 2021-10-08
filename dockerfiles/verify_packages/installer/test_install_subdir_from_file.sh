@@ -12,10 +12,8 @@ if [ "$CIRCLECI" = "true" ]; then
     exit 0
 fi
 
-tar_gz_file_name=$(find build/packages/ -name *.tar.gz)
-
 # Install using the php installer
-php dd-library-php-setup.php --php-bin=php --tracer-file="${tar_gz_file_name}"
+php dd-library-php-setup.php --php-bin php --tracer-file build/packages/*.tar.gz
 
 # Just check installation, not the version as it is not deterministic.
 if [ -z "$(php -m | grep ddtrace)" ]; then

@@ -12,11 +12,11 @@ ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
 # Install using the php installer
 new_version="0.65.1"
-php dd-library-php-setup.php --php-bin=php --tracer-version="${new_version}"
+php dd-library-php-setup.php --php-bin php --tracer-version "${new_version}"
 assert_ddtrace_version "${new_version}"
 
 # Uninstall
-php dd-library-php-setup.php --php-bin=php --uninstall
+php dd-library-php-setup.php --php-bin php --uninstall
 assert_no_ddtrace
 
 # The .so file should be removed

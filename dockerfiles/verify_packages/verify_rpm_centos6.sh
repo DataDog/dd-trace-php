@@ -23,6 +23,6 @@ for phpVer in $(ls ${PHP_INSTALL_DIR}); do
         rm -f /opt/datadog-php/etc/ddtrace.ini
     else
         echo "Installing dd-trace-php using the new PHP installer"
-        php dd-library-php-setup.php --tracer-file="$(pwd)/build/packages/*.tar.gz" --php-bin=all
+        php dd-library-php-setup.php --tracer-file $(pwd)/build/packages/*.tar.gz --php-bin all
     fi
 done
