@@ -42,7 +42,7 @@ Usage:
 
 Options:
     -h, --help                  Print this help text and exit
-    --php-bin=all|<path to php> Install the library to the specified binary. The option can be provided multiple times.
+    --php-bin=all|<path to php> Install the library to the specified binary or all php binaries in standard search paths. The option can be provided multiple times.
     --tracer-version=<0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
     --tracer-url=<url>          Install the tracing library from a url. If set --tracer-file is ignored.
     --tracer-file=<file>        Install the tracing library from a local .tar.gz file.
@@ -73,7 +73,7 @@ function install($options)
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
     execute_or_exit(
         "Cannot clean '$tmpDir'",
-        "rm -rf " . escapeshellarg("$tmpDir/*") . " " . escapeshellarg("$tmpDir/.*")
+        "rm -rf " . escapeshellarg($tmpDir) . "/* " . escapeshellarg($tmpDir) . "/.*"
     );
 
     // Retrieve and extract the archive to a tmp location
@@ -160,7 +160,7 @@ function install($options)
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = " . escapeshellarg($installDirWrapperPath) . "@g' " . escapeshellarg($iniFilePath)
+                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '" . escapeshellarg($installDirWrapperPath) . "'@g' " . escapeshellarg($iniFilePath)
                 );
                 // phpcs:enable Generic.Files.LineLength.TooLong
 
@@ -232,7 +232,7 @@ function uninstall($options)
                     . "The file has not been removed to preserve custom settings.\n";
             }
         }
-        if (false === unlink($extensionDestination)) {
+        if (file_exists($extensionDestination) && false === unlink($extensionDestination)) {
             print_warning("Error while removing $extensionDestination. It can be manually removed.");
             echo "Uninstall from '$binaryForLog' was completed with warnings\n";
         } else {
@@ -253,11 +253,11 @@ function require_binaries_or_exit($options)
     $selectedBinaries = [];
     if (empty($options[OPT_PHP_BIN])) {
         $selectedBinaries = pick_binaries_interactive(search_php_binaries());
-    } elseif (in_array('all', $options[OPT_PHP_BIN])) {
-        $selectedBinaries = search_php_binaries();
     } else {
         foreach ($options[OPT_PHP_BIN] as $command) {
-            if ($resolvedPath = resolve_command_full_path($command)) {
+            if ($command == "all") {
+                $selectedBinaries += search_php_binaries();
+            } elseif ($resolvedPath = resolve_command_full_path($command)) {
                 $selectedBinaries[$command] = $resolvedPath;
             } else {
                 print_error_and_exit("Provided PHP binary '$command' was not found.\n");
@@ -307,7 +307,7 @@ function is_alpine()
     if (!is_readable($osInfoFile)) {
         return false;
     }
-    return false !== strpos(strtolower(file_get_contents($osInfoFile)), 'alpine');
+    return false !== stripos(file_get_contents($osInfoFile), 'alpine');
 }
 
 /**
@@ -341,7 +341,7 @@ function parse_validate_user_options()
     if (!$normalizedOptions[OPT_UNINSTALL]) {
         // One and only one among --tracer-version, --tracer-url and --tracer-file must be provided
         $installables = array_intersect([OPT_TRACER_VERSION, OPT_TRACER_URL, OPT_TRACER_FILE], array_keys($options));
-        if (count($installables) === 0 || count($installables) > 1) {
+        if (count($installables) !== 1) {
             print_error_and_exit(
                 'One and only one among --tracer-version, --tracer-url and --tracer-file must be provided'
             );
@@ -423,7 +423,7 @@ function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSo
     if (is_readable($ddtracerFile)) {
         $content = file_get_contents($ddtracerFile);
         $matches = array();
-        preg_match("/const VERSION = '([^']+)';/", $content, $matches);
+        preg_match("(const VERSION = '([^']+(?<!-nightly))';)", $content, $matches);
         if (isset($matches[1])) {
             return trim($matches[1]);
         }
@@ -457,18 +457,18 @@ function pick_binaries_interactive(array $php_binaries)
     echo "\n";
     flush();
 
-    echo "Select binaries unsing their number. Multiple binaries separated by space (example: 1 3): ";
+    echo "Select binaries using their number. Multiple binaries separated by space (example: 1 3): ";
     $userInput = fgets(STDIN);
     $choices = array_map('intval', array_filter(explode(' ', $userInput)));
 
     $pickedBinaries = [];
     foreach ($choices as $choice) {
         $index = $choice - 1; // we render to the user as 1-indexed
-        $command = $commands[$index];
-        if ($index >= count($commands) || $index < 0) {
+        if (!isset($commands[$index])) {
             echo "\nERROR: Wrong choice: $choice\n\n";
             return pick_binaries_interactive($php_binaries);
         }
+        $command = $commands[$index];
         $pickedBinaries[$command] = $php_binaries[$command];
     }
 
@@ -492,7 +492,6 @@ function execute_or_exit($exitMessage, $command)
     return $lastLine;
 }
 
-global $progress_counter;
 
 /**
  * Downloads the library applying a number of fallback mechanisms if specific libraries/binaries are not available.
@@ -514,7 +513,10 @@ function download($url, $destination)
     //   4) exit with errror
 
     // ext-curl
-    if (extension_loaded('curl') && ($fp = fopen($destination, 'w+')) !== false) {
+    if (extension_loaded('curl')) {
+        if (false === $fp = fopen($destination, 'w+')) {
+            print_error_and_exit("Error while opening target file '$destination' for writing\n");
+        }
         global $progress_counter;
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_TIMEOUT, 50);
@@ -729,7 +731,7 @@ function build_known_command_names_matrix()
         );
     }
 
-    return $results;
+    return array_unique($results);
 }
 
 function get_ini_template($requestInitHookPath)
@@ -774,7 +776,7 @@ datadog.trace.request_init_hook = $requestInitHookPath
 ;datadog.dogstatsd_port = 8125
 
 ; When set, 'datadog.trace.agent_url' has priority over 'datadog.agent_host' and 'datadog.trace.agent_port'.
-;datadog.trace.agent_url = https://some.internal.host:6789
+;datadog.trace.agent_url = http://some.internal.host:6789
 
 ; Sets the service name of spans generated for HTTP clients' requests to host-<hostname>.
 ;datadog.trace.http_client_split_by_domain = Off
