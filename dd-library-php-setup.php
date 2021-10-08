@@ -430,7 +430,7 @@ function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSo
     }
 
     // 4)
-    return date("Y.m.d-H.s");
+    return date("Y.m.d-H.i");
 }
 
 /**
