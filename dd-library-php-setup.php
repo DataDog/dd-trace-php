@@ -129,8 +129,9 @@ function install($options)
         $extensionFileName = 'ddtrace.so';
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/' . $extensionFileName;
 
-        // Move - rename() - instead of copy() since copying does a fopen() and copies to the stream itself, causing a
-        // segfault in the PHP process that is running and had loaded the old shared object file.
+        /* Move - rename() - instead of copy() since copying does a fopen() and copies to the stream itself, causing a
+         * segfault in the PHP process that is running and had loaded the old shared object file.
+         */
         $tmpExtName = $extensionDestination . '.tmp';
         copy($extensionRealPath, $tmpExtName);
         rename($tmpExtName, $extensionDestination);
@@ -140,10 +141,11 @@ function install($options)
         $iniFileName = '98-ddtrace.ini';
         $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
         if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) !== false) {
-            // debian based distros have INI folders split by SAPI, in a predefined way:
-            //   - <...>/cli/conf.d       <-- we know this from php -i
-            //   - <...>/apache2/conf.d   <-- we derive this from relative path
-            //   - <...>/fpm/conf.d       <-- we derive this from relative path
+            /* debian based distros have INI folders split by SAPI, in a predefined way:
+             *   - <...>/cli/conf.d       <-- we know this from php -i
+             *   - <...>/apache2/conf.d   <-- we derive this from relative path
+             *   - <...>/fpm/conf.d       <-- we derive this from relative path
+             */
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
             if (\is_dir($apacheConfd)) {
                 array_push($iniFilePaths, "$apacheConfd/$iniFileName");
@@ -164,9 +166,10 @@ function install($options)
                 );
                 // phpcs:enable Generic.Files.LineLength.TooLong
 
-                // In order to support upgrading from legacy installation method to new installation method, we replace
-                // "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing `;`, hence not
-                // automatically re-activating the extension if the user had commented it out.
+                /* In order to support upgrading from legacy installation method to new installation method, we replace
+                 * "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing `;`, hence not
+                 * automatically re-activating the extension if the user had commented it out.
+                 */
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@extension \?= \?\(.*\)@extension = ddtrace.so@g' " . escapeshellarg($iniFilePath)
@@ -209,19 +212,21 @@ function uninstall($options)
         $iniFileName = '98-ddtrace.ini';
         $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
         if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
-            // debian based distros have INI folders split by SAPI, in a predefined way:
-            //   - <...>/cli/conf.d       <-- we know this from php -i
-            //   - <...>/apache2/conf.d    <-- we derive this from relative path
-            //   - <...>/fpm/conf.d       <-- we derive this from relative path
+            /* debian based distros have INI folders split by SAPI, in a predefined way:
+             *   - <...>/cli/conf.d       <-- we know this from php -i
+             *   - <...>/apache2/conf.d    <-- we derive this from relative path
+             *   - <...>/fpm/conf.d       <-- we derive this from relative path
+             */
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
             if (\is_dir($apacheConfd)) {
                 array_push($iniFilePaths, "$apacheConfd/$iniFileName");
             }
         }
 
-        // Actual uninstall
-        //  1) comment out extension=ddtrace.so
-        //  2) remove ddtrace.so
+        /* Actual uninstall
+         *  1) comment out extension=ddtrace.so
+         *  2) remove ddtrace.so
+         */
         foreach ($iniFilePaths as $iniFilePath) {
             if (file_exists($iniFilePath)) {
                 execute_or_exit(
@@ -401,11 +406,12 @@ function print_warning($message)
  */
 function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSourcesRoot)
 {
-    // We apply the following decision making algorithm
-    //   1) if --tracer-version is provided, we use it
-    //   2) if a VERSION file exists at the archive root, we use it
-    //   3) if sources are provided, we parse src/DDTrace/Tracer.php
-    //   4) fallback to YYYY.MM.DD-HH.mm
+    /* We apply the following decision making algorithm
+     *   1) if --tracer-version is provided, we use it
+     *   2) if a VERSION file exists at the archive root, we use it
+     *   3) if sources are provided, we parse src/DDTrace/Tracer.php
+     *   4) fallback to YYYY.MM.DD-HH.mm
+     */
 
     // 1)
     if (isset($options[OPT_TRACER_VERSION])) {
@@ -506,11 +512,12 @@ function download($url, $destination)
 
     $okMessage = "\nDownload completed\n\n";
 
-    // We try the following options, mostly to provide progress report, if possible:
-    //   1) `ext-curl` (with progress report); if 'ext-curl' is not installed...
-    //   2) `curl` from CLI (it shows progress); if `curl` is not installed...
-    //   3) `file_get_contents()` (no progress report); if `allow_url_fopen=0`...
-    //   4) exit with errror
+    /* We try the following options, mostly to provide progress report, if possible:
+     *   1) `ext-curl` (with progress report); if 'ext-curl' is not installed...
+     *   2) `curl` from CLI (it shows progress); if `curl` is not installed...
+     *   3) `file_get_contents()` (no progress report); if `allow_url_fopen=0`...
+     *   4) exit with errror
+     */
 
     // ext-curl
     if (extension_loaded('curl')) {
@@ -610,8 +617,7 @@ function ini_values($binary)
 {
     $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
     $lines = [];
-    // Timezone is irrelevant to this script. This is a quick-and-dirty workaround to the PHP 5 warning with missing
-    // timezone
+    // Timezone is irrelevant to this script. Quick-and-dirty workaround to the PHP 5 warning with missing timezone
     exec(escapeshellarg($binary) . " -d date.timezone=UTC -i", $lines);
     $found = [];
     foreach ($lines as $line) {
@@ -662,9 +668,10 @@ function search_php_binaries($prefix = '')
     ];
     $remiSafePaths = array_map(function ($phpVersion) use ($prefix) {
         list($major, $minor) = explode('.', $phpVersion);
-        // php is installed to /usr/bin/php${major}${minor} so we do not need to do anything special, while php-fpm
-        // is installed to /opt/remi/php${major}${minor}/root/usr/sbin and it needs to be added to the searched
-        // locations.
+        /* php is installed to /usr/bin/php${major}${minor} so we do not need to do anything special, while php-fpm
+         * is installed to /opt/remi/php${major}${minor}/root/usr/sbin and it needs to be added to the searched
+         * locations.
+         */
         return "${prefix}/opt/remi/php${major}${minor}/root/usr/sbin";
     }, get_supported_php_versions());
     $escapedSearchLocations =  implode(' ', array_map('escapeshellarg', $standardPaths + $remiSafePaths));
