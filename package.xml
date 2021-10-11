@@ -51,6 +51,7 @@
 
     - Migrate _dd.origin and distributed header sending to internal (#1267)
     - Add headers ZAI implementation for PHP 5 (#1308)
+    - Add support for PHP 8.1 (#1297)
 
     ### Changed
     - Internal (root) span initialization (#1329)
