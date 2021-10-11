@@ -263,7 +263,44 @@ class MongoDBTest extends IntegrationTestCase
             $query = new \MongoDB\Driver\Query(['brand' => 'ferrari']);
             $this->manager()->executeQuery('test_db.cars', $query);
         });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db.cars {"brand":"?"}')
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'cars',
+                    'mongodb.query' => '{"brand":"?"}',
+                    'span.kind' => 'client',
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
+                ]),
+        ]);
+    }
+
+    public function testManagerExecuteCommand()
+    {
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command(
+                [
+                    'create' => 'my_collection',
+                ]
+            );
+            error_log('Created the command');
+            $this->manager()->executeCommand('test_db', $command);
+        });
         error_log('Traces: ' . var_export($traces, true));
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db.cars {"brand":"?"}')
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'cars',
+                    'mongodb.query' => '{"brand":"?"}',
+                    'span.kind' => 'client',
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
+                ]),
+        ]);
     }
 
     private function client()

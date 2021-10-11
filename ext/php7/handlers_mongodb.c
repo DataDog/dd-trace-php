@@ -7,6 +7,7 @@ void ddtrace_mongodb_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("executebulkwrite"),
         DDTRACE_STRING_LITERAL("selectserver"),
         DDTRACE_STRING_LITERAL("executequery"),
+        DDTRACE_STRING_LITERAL("executecommand"),
     };
     // clang-format on
 
