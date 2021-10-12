@@ -453,6 +453,36 @@ class MongoDBTest extends IntegrationTestCase
         ]);
     }
 
+    public function testManagerFailure()
+    {
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command(
+                [
+                    'insert' => [], // this should be a collection instead
+                ]
+            );
+            try {
+                $this->manager()->executeWriteCommand('test_db', $command);
+            } catch (\MongoDB\Driver\Exception\CommandException $e) {
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'mongodb.driver.cmd',
+                'mongodb',
+                'mongodb',
+                'executeWriteCommand test_db insert'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+            ])->setError()
+                ->withExistingTagsNames(['error.msg', 'error.stack']),
+        ]);
+    }
+
     private function client()
     {
         return new Client(

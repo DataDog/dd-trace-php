@@ -281,7 +281,9 @@ class MongoDBIntegration extends Integration
                         }
                     }
                 }
-                $span->meta[Tag::MONGODB_COLLECTION] = $collection;
+                if ($collection) {
+                    $span->meta[Tag::MONGODB_COLLECTION] = $collection;
+                }
 
                 $resourceParts = [$method, $dbName];
                 if ($collection) {
