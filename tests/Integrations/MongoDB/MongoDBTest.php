@@ -143,7 +143,7 @@ class MongoDBTest extends IntegrationTestCase
     public function testCollectionBulkWrite()
     {
         $traces = $this->isolateTracer(function () {
-            // These are actually expected to be arrai, stdClass and objects are not supported.
+            // These are actually expected to be array, stdClass and objects are not supported.
             $this->client()->test_db->cars->bulkWrite([
                 ['deleteMany' => [['brand' => 'ferrari'], []]],
                 ['insertOne'  => [['brand' => 'maserati']]],
@@ -469,12 +469,7 @@ class MongoDBTest extends IntegrationTestCase
 
     public function testManagerExecuteQuery()
     {
-        $traces = $this->isolateTracer(function () {
-            $query = new \MongoDB\Driver\Query(['brand' => 'ferrari']);
-            $this->manager()->executeQuery('test_db.cars', $query);
-        });
-
-        $this->assertFlameGraph($traces, [
+        $expected = [
             SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db.cars {"brand":"?"}')
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
@@ -484,22 +479,35 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                 ]),
-        ]);
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(function () {
+            $query = new \MongoDB\Driver\Query(['brand' => 'ferrari']);
+            $this->manager()->executeQuery('test_db.cars', $query);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As stdClass
+        $traces = $this->isolateTracer(function () {
+            $query = new \MongoDB\Driver\Query($this->arrayToStdClass(['brand' => 'ferrari']));
+            $this->manager()->executeQuery('test_db.cars', $query);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(function () {
+            $query = new \MongoDB\Driver\Query($this->arrayToObject(['brand' => 'ferrari']));
+            $this->manager()->executeQuery('test_db.cars', $query);
+        });
+        $this->assertFlameGraph($traces, $expected);
     }
 
     public function testManagerExecuteCommand()
     {
         $collectionName = 'my_collection_' . \rand(1, 10000);
-        $traces = $this->isolateTracer(function () use ($collectionName) {
-            $command = new \MongoDB\Driver\Command(
-                [
-                    'create' => $collectionName,
-                ]
-            );
-            $this->manager()->executeCommand('test_db', $command);
-        });
 
-        $this->assertFlameGraph($traces, [
+        $expected = [
             SpanAssertion::build(
                 'mongodb.driver.cmd',
                 'mongodb',
@@ -512,22 +520,36 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
             ]),
-        ]);
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(function () use ($collectionName) {
+            $command = new \MongoDB\Driver\Command(['create' => $collectionName]);
+            $this->manager()->executeCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+        $this->client()->test_db->$collectionName->drop();
+
+        // As stdClass
+        $traces = $this->isolateTracer(function () use ($collectionName) {
+            $command = new \MongoDB\Driver\Command($this->arrayToStdClass(['create' => $collectionName]));
+            $this->manager()->executeCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+        $this->client()->test_db->$collectionName->drop();
+
+        // As object
+        $traces = $this->isolateTracer(function () use ($collectionName) {
+            $command = new \MongoDB\Driver\Command($this->arrayToObject(['create' => $collectionName]));
+            $this->manager()->executeCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+        $this->client()->test_db->$collectionName->drop();
     }
 
     public function testManagerExecuteReadCommand()
     {
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command(
-                [
-                    'find' => 'cars',
-                    'filter' => ['brand' => 'ferrari'],
-                ]
-            );
-            $this->manager()->executeReadCommand('test_db', $command);
-        });
-
-        $this->assertFlameGraph($traces, [
+        $expected = [
             SpanAssertion::build(
                 'mongodb.driver.cmd',
                 'mongodb',
@@ -540,22 +562,48 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
             ]),
-        ]);
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command(
+                [
+                    'find' => 'cars',
+                    'filter' => ['brand' => 'ferrari'],
+                ]
+            );
+            $this->manager()->executeReadCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As stdClass
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command($this->arrayToStdClass(
+                [
+                    'find' => 'cars',
+                    'filter' => $this->arrayToStdClass(['brand' => 'ferrari']),
+                ]
+            ));
+            $this->manager()->executeReadCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command($this->arrayToObject(
+                [
+                    'find' => 'cars',
+                    'filter' => $this->arrayToObject(['brand' => 'ferrari']),
+                ]
+            ));
+            $this->manager()->executeReadCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
     }
 
     public function testManagerExecuteWriteCommand()
     {
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command(
-                [
-                    'insert' => 'cars',
-                    'documents' => [['brand' => 'ferrari']],
-                ]
-            );
-            $this->manager()->executeWriteCommand('test_db', $command);
-        });
-
-        $this->assertFlameGraph($traces, [
+        $expected = [
             SpanAssertion::build(
                 'mongodb.driver.cmd',
                 'mongodb',
@@ -568,11 +616,9 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
             ]),
-        ]);
-    }
+        ];
 
-    public function testManagerExecuteReadWriteCommand()
-    {
+        // As array
         $traces = $this->isolateTracer(function () {
             $command = new \MongoDB\Driver\Command(
                 [
@@ -580,10 +626,38 @@ class MongoDBTest extends IntegrationTestCase
                     'documents' => [['brand' => 'ferrari']],
                 ]
             );
-            $this->manager()->executeReadWriteCommand('test_db', $command);
+            $this->manager()->executeWriteCommand('test_db', $command);
         });
+        $this->assertFlameGraph($traces, $expected);
 
-        $this->assertFlameGraph($traces, [
+        // As stdClass
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command($this->arrayToStdClass(
+                [
+                    'insert' => 'cars',
+                    'documents' => [['brand' => 'ferrari']],
+                ]
+            ));
+            $this->manager()->executeWriteCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command($this->arrayToObject(
+                [
+                    'insert' => 'cars',
+                    'documents' => [['brand' => 'ferrari']],
+                ]
+            ));
+            $this->manager()->executeWriteCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+    }
+
+    public function testManagerExecuteReadWriteCommand()
+    {
+        $expected = [
             SpanAssertion::build(
                 'mongodb.driver.cmd',
                 'mongodb',
@@ -595,13 +669,50 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
-            ]),
-        ]);
+            ])
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command(
+                [
+                    'insert' => 'cars',
+                    'documents' => [['brand' => 'ferrari']],
+                ]
+            );
+            $this->manager()->executeReadWriteCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As stdClass
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command($this->arrayToStdClass(
+                [
+                    'insert' => 'cars',
+                    'documents' => [['brand' => 'ferrari']],
+                ]
+            ));
+            $this->manager()->executeReadWriteCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command($this->arrayToObject(
+                [
+                    'insert' => 'cars',
+                    'documents' => [['brand' => 'ferrari']],
+                ]
+            ));
+            $this->manager()->executeReadWriteCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
     }
 
     public function testManagerExecuteBulkWrite()
     {
         $traces = $this->isolateTracer(function () {
+            // These are actually expected to be array, stdClass and objects are not supported.
             $bulkWrite = new \MongoDB\Driver\BulkWrite();
             $bulkWrite->delete(['brand' => 'ferrari']);
             $bulkWrite->delete(['brand' => 'chevy']);
