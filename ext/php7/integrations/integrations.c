@@ -108,6 +108,8 @@ void ddtrace_integrations_rinit(void) {
                                          "DDTrace\\Integrations\\MongoDB\\MongoDBIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONGODB, "mongodb\\driver\\command", "__construct",
                                          "DDTrace\\Integrations\\MongoDB\\MongoDBIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONGODB, "mongodb\\driver\\bulkwrite", "__construct",
+                                         "DDTrace\\Integrations\\MongoDB\\MongoDBIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");

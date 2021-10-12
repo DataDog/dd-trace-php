@@ -25,22 +25,19 @@ class MongoDBTest extends IntegrationTestCase
             $this->markTestAsSkipped('Mongodb Integration only enabled on 7+');
         }
 
-        // $this->client()->test_db->cars->insertMany(
-        //     [
-        //         [
-        //             'brand' => 'ford',
-        //         ],
-        //         [
-        //             'brand' => 'toyota',
-        //         ],
-        //     ]
-        // );
-    }
+        $this->client()->test_db->cars->drop();
+        $this->client()->test_db->my_collection->drop();
 
-    protected function ddTearDown()
-    {
-        parent::ddTearDown();
-        // $this->client()->test_db->cars->drop();
+        $this->client()->test_db->cars->insertMany(
+            [
+                [
+                    'brand' => 'ford',
+                ],
+                [
+                    'brand' => 'toyota',
+                ],
+            ]
+        );
     }
 
     public function testFilterNormalizationRegex()
@@ -58,6 +55,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
+                ])->withChildren([
+                    SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
         ]);
     }
@@ -87,6 +86,35 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
+            ])->withChildren([
+                SpanAssertion::exists('mongodb.driver.cmd')
+            ]),
+        ]);
+    }
+
+    public function testCollectionBulkWrite()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->client()->test_db->cars->bulkWrite([
+                ['deleteMany' => [['brand' => 'ferrari'], []]],
+                ['insertOne'  => [['brand' => 'maserati']]],
+            ]);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'mongodb.cmd',
+                'mongodb',
+                'mongodb',
+                'bulkWrite test_db cars'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'mongodb.collection' => 'cars',
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+            ])->withChildren([
+                SpanAssertion::exists('mongodb.driver.cmd')
             ]),
         ]);
     }
@@ -138,6 +166,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
+                ])->withChildren([
+                    SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
         ]);
     }
@@ -187,6 +217,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
+                ])->withChildren([
+                    SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
         ]);
     }
@@ -279,27 +311,145 @@ class MongoDBTest extends IntegrationTestCase
 
     public function testManagerExecuteCommand()
     {
+        $collectionName = 'my_collection_' . \rand(1, 10000);
+        $traces = $this->isolateTracer(function () use ($collectionName) {
+            $command = new \MongoDB\Driver\Command(
+                [
+                    'create' => $collectionName,
+                ]
+            );
+            $this->manager()->executeCommand('test_db', $command);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'mongodb.driver.cmd',
+                'mongodb',
+                'mongodb',
+                'executeCommand test_db ' . $collectionName . ' create'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'mongodb.collection' => $collectionName,
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+            ]),
+        ]);
+    }
+
+    public function testManagerExecuteReadCommand()
+    {
         $traces = $this->isolateTracer(function () {
             $command = new \MongoDB\Driver\Command(
                 [
-                    'create' => 'my_collection',
+                    'find' => 'cars',
+                    'filter' => ['brand' => 'ferrari'],
                 ]
             );
-            error_log('Created the command');
-            $this->manager()->executeCommand('test_db', $command);
+            $this->manager()->executeReadCommand('test_db', $command);
         });
-        error_log('Traces: ' . var_export($traces, true));
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db.cars {"brand":"?"}')
-                ->withExactTags([
-                    'mongodb.db' => self::DATABASE,
-                    'mongodb.collection' => 'cars',
-                    'mongodb.query' => '{"brand":"?"}',
-                    'span.kind' => 'client',
-                    'out.host' => self::HOST,
-                    'out.port' => self::PORT,
-                ]),
+            SpanAssertion::build(
+                'mongodb.driver.cmd',
+                'mongodb',
+                'mongodb',
+                'executeReadCommand test_db cars find'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'mongodb.collection' => 'cars',
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+            ]),
+        ]);
+    }
+
+    public function testManagerExecuteWriteCommand()
+    {
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command(
+                [
+                    'insert' => 'cars',
+                    'documents' => [['brand' => 'ferrari']],
+                ]
+            );
+            $this->manager()->executeWriteCommand('test_db', $command);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'mongodb.driver.cmd',
+                'mongodb',
+                'mongodb',
+                'executeWriteCommand test_db cars insert'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'mongodb.collection' => 'cars',
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+            ]),
+        ]);
+    }
+
+    public function testManagerExecuteReadWriteCommand()
+    {
+        $traces = $this->isolateTracer(function () {
+            $command = new \MongoDB\Driver\Command(
+                [
+                    'insert' => 'cars',
+                    'documents' => [['brand' => 'ferrari']],
+                ]
+            );
+            $this->manager()->executeReadWriteCommand('test_db', $command);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'mongodb.driver.cmd',
+                'mongodb',
+                'mongodb',
+                'executeReadWriteCommand test_db cars insert'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'mongodb.collection' => 'cars',
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+            ]),
+        ]);
+    }
+
+    public function testManagerExecuteBulkWrite()
+    {
+        $traces = $this->isolateTracer(function () {
+            $bulkWrite = new \MongoDB\Driver\BulkWrite();
+            $bulkWrite->delete(['brand' => 'ferrari']);
+            $bulkWrite->delete(['brand' => 'chevy']);
+            $bulkWrite->insert(['brand' => 'ford']);
+            $bulkWrite->insert(['brand' => 'maserati']);
+            $bulkWrite->update(['brand' => 'jaguar'], ['brand' => 'gm']);
+            $this->manager()->executeBulkWrite('test_db.cars', $bulkWrite);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'mongodb.driver.cmd',
+                'mongodb',
+                'mongodb',
+                'executeBulkWrite test_db.cars'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'mongodb.collection' => 'cars',
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+                'mongodb.deletes.0.filter' => '{"brand":"?"}',
+                'mongodb.deletes.1.filter' => '{"brand":"?"}',
+                'mongodb.updates.0.filter' => '{"brand":"?"}',
+                'mongodb.insertsCount' => 2,
+            ]),
         ]);
     }
 

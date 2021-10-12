@@ -19,8 +19,6 @@ function register_subscriber()
         {
             $span = \DDTrace\active_span();
             if ($span) {
-                // error_log('Command: ' . var_export(get_class_methods($event), true));
-                // $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
                 $span->meta['out.host'] = $event->getServer()->getHost();
                 $span->meta['out.port'] = $event->getServer()->getPort();
             }
@@ -66,6 +64,159 @@ class MongoDBIntegration extends Integration
 
         register_subscriber();
 
+        // see: https://docs.mongodb.com/manual/reference/command/
+        $knownCommands = [
+            '_isSelf',
+            'abortReshardCollection',
+            'abortTransaction',
+            'addShard',
+            'addShardToZone',
+            'aggregate',
+            'applyOps',
+            'authenticate',
+            'availableQueryOptions',
+            'balancerCollectionStatus',
+            'balancerStart',
+            'balancerStatus',
+            'balancerStop',
+            'buildInfo',
+            'checkShardingIndex',
+            'cleanupOrphaned',
+            'cleanupReshardCollection',
+            'clearJumboFlag',
+            'cloneCollectionAsCapped',
+            'collMod',
+            'collStats',
+            'commitReshardCollection',
+            'commitTransaction',
+            'compact',
+            'connectionStatus',
+            'connPoolStats',
+            'connPoolSync',
+            'convertToCapped',
+            'count',
+            'create',
+            'createIndexes',
+            'createRole',
+            'createUser',
+            'currentOp',
+            'cursorInfo',
+            'dataSize',
+            'dbHash',
+            'dbStats',
+            'delete',
+            'distinct',
+            'driverOIDTest',
+            'drop',
+            'dropAllRolesFromDatabase',
+            'dropAllUsersFromDatabase',
+            'dropConnections',
+            'dropDatabase',
+            'dropIndexes',
+            'dropRole',
+            'dropUser',
+            'enableSharding',
+            'endSessions',
+            'explain',
+            'features',
+            'filemdfsync',
+            'find',
+            'findAndModify',
+            'flushRouterConfig',
+            'fsyncUnlock',
+            'geoSearch',
+            'getCmdLineOpts',
+            'getDefaultRWConcern',
+            'getLastError',
+            'getLog',
+            'getMore',
+            'getnonce',
+            'getParameter',
+            'getShardMap',
+            'getShardVersion',
+            'grantPrivilegesToRole',
+            'grantRolesToRole',
+            'grantRolesToUser',
+            'hello',
+            'hostInfo',
+            'insert',
+            'invalidateUserCache',
+            'isdbgrid',
+            'killAllSessions',
+            'killAllSessionsByPattern',
+            'killCursors',
+            'killOp',
+            'killSessions',
+            'listCollections',
+            'listCommands',
+            'listDatabases',
+            'listIndexes',
+            'listShards',
+            'lockInfo',
+            'logApplicationMessage',
+            'logout',
+            'logRotate',
+            'mapReduce',
+            'medianKey',
+            'mergeChunks',
+            'moveChunk',
+            'movePrimary',
+            'netstat',
+            'ping',
+            'planCacheClear',
+            'planCacheClearFilters',
+            'planCacheListFilters',
+            'planCacheSetFilter',
+            'profile',
+            'refineCollectionShardKey',
+            'refreshSessions',
+            'reIndex',
+            'removeShard',
+            'removeShardFromZone',
+            'renameCollection',
+            'replSetAbortPrimaryCatchUp',
+            'replSetFreeze',
+            'replSetGetConfig',
+            'replSetGetStatus',
+            'replSetInitiate',
+            'replSetMaintenance',
+            'replSetReconfig',
+            'replSetResizeOplog',
+            'replSetStepDown',
+            'replSetSyncFrom',
+            'resetError',
+            'reshardCollection',
+            'revokePrivilegesFromRole',
+            'revokeRolesFromRole',
+            'revokeRolesFromUser',
+            'rolesInfo',
+            'rotateCertificates',
+            'serverStatus',
+            'setDefaultRWConcern',
+            'setFeatureCompatibilityVersion',
+            'setFreeMonitoring',
+            'setIndexCommitQuorum',
+            'setParameter',
+            'setShardVersion',
+            'shardCollection',
+            'shardConnPoolStats',
+            'shardingState',
+            'shutdown',
+            'split',
+            'splitChunk',
+            'splitVector',
+            'startSession',
+            'top',
+            'unsetSharding',
+            'update',
+            'updateRole',
+            'updateUser',
+            'updateZoneKeyRange',
+            'usersInfo',
+            'validate',
+            'whatsmyuri',
+        ];
+
         \DDTrace\hook_method(
             'MongoDB\Driver\Manager',
             'selectServer',
@@ -76,241 +227,120 @@ class MongoDBIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method(
-            'MongoDB\Driver\Manager',
-            'executeQuery',
-            function ($span, $args) {
-                $namespace = $args[0];
-                $resourceParts = ['executeQuery', $namespace];
-                if ($filter = ObjectKVStore::get($args[1], 'filter')) {
-                    $serializedQuery = MongoDBIntegration::serializeQuery($filter);
-                    \array_push($resourceParts, $serializedQuery);
-                }
+        $executeQueryCallback = function ($span, $args) {
+            $namespace = $args[0];
+            $resourceParts = ['executeQuery', $namespace];
+            if ($filter = ObjectKVStore::get($args[1], 'filter')) {
+                $serializedQuery = MongoDBIntegration::serializeQuery($filter);
+                \array_push($resourceParts, $serializedQuery);
+            }
 
+            $span->name = 'mongodb.driver.cmd';
+            $span->service = 'mongodb';
+            $span->type = Type::MONGO;
+            $span->resource = \implode(' ', $resourceParts);
+            $span->meta[Tag::SPAN_KIND] = 'client';
+
+            list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
+            $span->meta[Tag::MONGODB_DATABASE] = $database;
+            $span->meta[Tag::MONGODB_COLLECTION] = $collection;
+            if (!empty($serializedQuery)) {
+                $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
+            }
+        };
+
+        \DDTrace\trace_method('MongoDB\Driver\Manager', 'executeQuery', $executeQueryCallback);
+        \DDTrace\trace_method('MongoDB\Driver\Server', 'executeQuery', $executeQueryCallback);
+
+        function traceCommandCallback($class, $method, $knownCommands)
+        {
+            \DDTrace\trace_method($class, $method, function ($span, $args) use ($method, $knownCommands) {
                 $span->name = 'mongodb.driver.cmd';
                 $span->service = 'mongodb';
                 $span->type = Type::MONGO;
-                $span->resource = \implode(' ', $resourceParts);
                 $span->meta[Tag::SPAN_KIND] = 'client';
 
-                list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
-                $span->meta[Tag::MONGODB_DATABASE] = $database;
-                $span->meta[Tag::MONGODB_COLLECTION] = $collection;
-                if (!empty($serializedQuery)) {
-                    $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
+                // DB name
+                $dbName = 'unknown_db';
+                if (isset($args[0]) && \is_string($args[0])) {
+                    $dbName = $args[0];
                 }
+                $span->meta[Tag::MONGODB_DATABASE] = $dbName;
+
+                // Collection name
+                $collection = null;
+                $commandName = 'unknown_command';
+                if (isset($args[1]) && ($command = ObjectKVStore::get($args[1], 'cmd')) && \is_array($command)) {
+                    $cmdKeys = \array_keys($command);
+                    $realCmd = \array_intersect($cmdKeys, $knownCommands);
+                    if (\count($realCmd) === 1) {
+                        $commandName = $realCmd[0];
+                        $collectionCandidate = $command[$realCmd[0]];
+                        if (\is_string($collectionCandidate)) {
+                            $collection = $collectionCandidate;
+                        }
+                    }
+                }
+                $span->meta[Tag::MONGODB_COLLECTION] = $collection;
+
+                $resourceParts = [$method, $dbName];
+                if ($collection) {
+                    array_push($resourceParts, $collection);
+                }
+                \array_push($resourceParts, $commandName);
+                $span->resource = \implode(' ', $resourceParts);
+            });
+        }
+
+        traceCommandCallback('MongoDB\Driver\Manager', 'executeCommand', $knownCommands);
+        traceCommandCallback('MongoDB\Driver\Server', 'executeCommand', $knownCommands);
+        traceCommandCallback('MongoDB\Driver\Manager', 'executeWriteCommand', $knownCommands);
+        traceCommandCallback('MongoDB\Driver\Server', 'executeWriteCommand', $knownCommands);
+        traceCommandCallback('MongoDB\Driver\Manager', 'executeReadCommand', $knownCommands);
+        traceCommandCallback('MongoDB\Driver\Server', 'executeReadCommand', $knownCommands);
+        traceCommandCallback('MongoDB\Driver\Manager', 'executeReadWriteCommand', $knownCommands);
+        traceCommandCallback('MongoDB\Driver\Server', 'executeReadWriteCommand', $knownCommands);
+
+        $executeBulkWriteCallback = function ($span, $args) {
+            $namespace = $args[0];
+            $resourceParts = ['executeBulkWrite', $namespace];
+
+            $deletes = ObjectKVStore::get($args[1], 'deletes', []);
+            for ($index = 0; $index < \count($deletes); $index++) {
+                $span->meta['mongodb.deletes.' . $index . '.filter'] = $deletes[$index];
             }
-        );
 
-        \DDTrace\trace_method(
-            'MongoDB\Driver\Manager',
-            'executeCommand',
-            function ($span, $args) {
-                error_log('executeCommand');
-                // error_log('DB  : ' . var_export($args[0], true));
-                // error_log('Cmd : ' . var_export($args[1], true));
-                // error_log('Mtds: ' . var_export(get_class_methods($args[1]), true));
-
-                // $knownCommands = [
-                //     'aggregate',
-                //     'count',
-                //     'distinct',
-                //     'mapReduce',
-                //     'geoSearch',
-                //     'delete',
-                //     'find',
-                //     'findAndModify',
-                //     'getLastError',
-                //     'getMore',
-                //     'insert',
-                //     'resetError',
-                //     'update',
-                //     'planCacheClear',
-                //     'planCacheClearFilters',
-                //     'planCacheListFilters',
-                //     'planCacheSetFilter',
-                //     'authenticate',
-                //     'getnonce',
-                //     'logout',
-                //     'createUser',
-                //     'dropAllUsersFromDatabase',
-                //     'dropUser',
-                //     'grantRolesToUser',
-                //     'revokeRolesFromUser',
-                //     'updateUser',
-                //     'usersInfo',
-                //     'createRole',
-                //     'dropRole',
-                //     'dropAllRolesFromDatabase',
-                //     'grantPrivilegesToRole',
-                //     'grantRolesToRole',
-                //     'invalidateUserCache',
-                //     'revokePrivilegesFromRole',
-                //     'revokeRolesFromRole',
-                //     'rolesInfo',
-                //     'updateRole',
-                //     'applyOps',
-                //     'hello',
-                //     'replSetAbortPrimaryCatchUp',
-                //     'replSetFreeze',
-                //     'replSetGetConfig',
-                //     'replSetGetStatus',
-                //     'replSetInitiate',
-                //     'replSetMaintenance',
-                //     'RECOVERING',
-                //     'replSetReconfig',
-                //     'replSetResizeOplog',
-                //     'replSetStepDown',
-                //     'replSetSyncFrom',
-                //     'abortReshardCollection',
-                //     'addShard',
-                //     'addShardToZone',
-                //     'balancerCollectionStatus',
-                //     'balancerStart',
-                //     'balancerStatus',
-                //     'balancerStop',
-                //     'checkShardingIndex',
-                //     'clearJumboFlag',
-                //     'jumbo',
-                //     'cleanupOrphaned',
-                //     'cleanupReshardCollection',
-                //     'commitReshardCollection',
-                //     'enableSharding',
-                //     'flushRouterConfig',
-                //     'mongod',
-                //     'mongos',
-                //     'getShardMap',
-                //     'getShardVersion',
-                //     'isdbgrid',
-                //     'mongos',
-                //     'listShards',
-                //     'medianKey',
-                //     'splitVector',
-                //     'moveChunk',
-                //     'movePrimary',
-                //     'mergeChunks',
-                //     'refineCollectionShardKey',
-                //     'removeShard',
-                //     'removeShardFromZone',
-                //     'reshardCollection',
-                //     'setShardVersion',
-                //     'shardCollection',
-                //     'shardingState',
-                //     'mongod',
-                //     'split',
-                //     'splitChunk',
-                //     'sh.splitFind()',
-                //     'sh.splitAt()',
-                //     'splitVector',
-                //     'unsetSharding',
-                //     'updateZoneKeyRange',
-                //     'abortTransaction',
-                //     'commitTransaction',
-                //     'endSessions',
-                //     'killAllSessions',
-                //     'killAllSessionsByPattern',
-                //     'killSessions',
-                //     'refreshSessions',
-                //     'startSession',
-                //     'cloneCollectionAsCapped',
-                //     'collMod',
-                //     'compact',
-                //     'connPoolSync',
-                //     'convertToCapped',
-                //     'create',
-                //     'createIndexes',
-                //     'currentOp',
-                //     'drop',
-                //     'dropDatabase',
-                //     'dropConnections',
-                //     'dropIndexes',
-                //     'filemdfsync',
-                //     'fsyncUnlock',
-                //     'getDefaultRWConcern',
-                //     'getParameter',
-                //     'killCursors',
-                //     'killOp',
-                //     'listCollections',
-                //     'listDatabases',
-                //     'listIndexes',
-                //     'logRotate',
-                //     'reIndex',
-                //     'renameCollection',
-                //     'rotateCertificates',
-                //     'setFeatureCompatibilityVersion',
-                //     'setIndexCommitQuorum',
-                //     'setParameter',
-                //     'setDefaultRWConcern',
-                //     'shutdown',
-                //     'mongod',
-                //     'mongos',
-                //     'availableQueryOptions',
-                //     'buildInfo',
-                //     'collStats',
-                //     'connPoolStats',
-                //     'connectionStatus',
-                //     'cursorInfo',
-                //     'metrics.cursor',
-                //     'dataSize',
-                //     'dbHash',
-                //     'dbStats',
-                //     'driverOIDTest',
-                //     'explain',
-                //     'features',
-                //     'getCmdLineOpts',
-                //     'getLog',
-                //     'hostInfo',
-                //     'lockInfo',
-                //     'mongod',
-                //     'netstat',
-                //     'mongos',
-                //     'ping',
-                //     'profile',
-                //     'serverStatus',
-                //     'shardConnPoolStats',
-                //     'connPoolStats',
-                //     'top',
-                //     'mongod',
-                //     'validate',
-                //     'whatsmyuri',
-                //     'setFreeMonitoring',
-                //     'logApplicationMessage',
-                // ];
-
-                // if ($command = ObjectKVStore::get($args[0], 'cmd')) {
-                //     $cmdKeys = \array_keys($command);
-                //     $realCmd = \array_intersect($cmdKeys, $knownCommands);
-                //     if (\count($realCmd) === 1) {
-                //         error_log('HHHHHHHHHHHHHHHHHHHH: ' . var_export($realCmd[0], true));
-                //     }
-                // }
-
-
-
-                // // $resourceParts = ['executeQuery', $namespace];
-                // $span->name = 'mongodb.driver.cmd';
-                // $span->service = 'mongodb';
-                // $span->type = Type::MONGO;
-                // $span->resource = \implode(' ', $resourceParts);
-                // $span->meta[Tag::SPAN_KIND] = 'client';
-
-                // // list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
-                // $span->meta[Tag::MONGODB_DATABASE] = $database;
-                // $span->meta[Tag::MONGODB_COLLECTION] = $collection;
-                // if (!empty($serializedQuery)) {
-                //     $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
-                // }
+            $updates = ObjectKVStore::get($args[1], 'updates', []);
+            for ($index = 0; $index < \count($updates); $index++) {
+                $span->meta['mongodb.updates.' . $index . '.filter'] = $updates[$index];
             }
-        );
+
+            $insertsCount = ObjectKVStore::get($args[1], 'insertsCount', 0);
+            $span->meta['mongodb.insertsCount'] = $insertsCount;
+
+            $span->name = 'mongodb.driver.cmd';
+            $span->service = 'mongodb';
+            $span->type = Type::MONGO;
+            $span->resource = \implode(' ', $resourceParts);
+            $span->meta[Tag::SPAN_KIND] = 'client';
+
+            list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
+            $span->meta[Tag::MONGODB_DATABASE] = $database;
+            $span->meta[Tag::MONGODB_COLLECTION] = $collection;
+            if (!empty($serializedQuery)) {
+                $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
+            }
+        };
+
+        \DDTrace\trace_method('MongoDB\Driver\Manager', 'executeBulkWrite', $executeBulkWriteCallback);
+        \DDTrace\trace_method('MongoDB\Driver\Server', 'executeBulkWrite', $executeBulkWriteCallback);
+
 
         \DDTrace\hook_method(
             'MongoDB\Driver\Query',
             '__construct',
             null,
             function ($self, $_2, $args, $_4) {
-                // \error_log('kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk');
-                // error_log('Filter from query is: ' . var_export($args[0], true));
-                // // ObjectKVStore::put($self, 'port', $server->getPort());
                 if (isset($args[0]) and \is_array($args[0])) {
                     ObjectKVStore::put($self, 'filter', $args[0]);
                 }
@@ -322,20 +352,47 @@ class MongoDBIntegration extends Integration
             '__construct',
             null,
             function ($self, $_2, $args, $_4) {
-                \error_log('kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk');
-                // error_log('Filter from query is: ' . var_export($args[0], true));
-                // // ObjectKVStore::put($self, 'port', $server->getPort());
-                // if (isset($args[0]) and \is_array($args[0])) {
-                //     ObjectKVStore::put($self, 'cmd', $args[0]);
-                // }
+                if (isset($args[0]) and \is_array($args[0])) {
+                    ObjectKVStore::put($self, 'cmd', $args[0]);
+                }
             }
         );
-        error_log('loading....');
-        \DDTrace\hook_method('MongoDB\Driver\Query', '__construct', null, function ($self, $_1, $args) {
-            error_log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>');
-            error_log('$1: ' . var_export($_1, true));
-            error_log('Args: ' . var_export($args, true));
-        });
+
+        \DDTrace\hook_method(
+            'MongoDB\Driver\BulkWrite',
+            'delete',
+            null,
+            function ($self, $_2, $args, $_4) {
+                if (isset($args[0]) && \is_array($args[0])) {
+                    $existingDeletes = ObjectKVStore::get($self, 'deletes', []);
+                    \array_push($existingDeletes, MongoDBIntegration::serializeQuery($args[0]));
+                    ObjectKVStore::put($self, 'deletes', $existingDeletes);
+                }
+            }
+        );
+
+        \DDTrace\hook_method(
+            'MongoDB\Driver\BulkWrite',
+            'update',
+            null,
+            function ($self, $_2, $args, $_4) {
+                if (isset($args[0]) && \is_array($args[0])) {
+                    $existingUpdates = ObjectKVStore::get($self, 'updates', []);
+                    \array_push($existingUpdates, MongoDBIntegration::serializeQuery($args[0]));
+                    ObjectKVStore::put($self, 'updates', $existingUpdates);
+                }
+            }
+        );
+
+        \DDTrace\hook_method(
+            'MongoDB\Driver\BulkWrite',
+            'insert',
+            null,
+            function ($self, $_2, $args, $_4) {
+                $existingInsertCount = ObjectKVStore::get($self, 'insertsCount', 0);
+                ObjectKVStore::put($self, 'insertsCount', $existingInsertCount + 1);
+            }
+        );
 
         // See: https://docs.mongodb.com/php-library/current/reference/class/MongoDBCollection/
         $collectionMethodsWithFilter = [
@@ -359,6 +416,7 @@ class MongoDBIntegration extends Integration
         }
 
         $collectionMethodsNoFilter = [
+            'bulkWrite',
             'drop',
             'dropIndexes',
             'estimatedDocumentCount',
@@ -466,7 +524,7 @@ class MongoDBIntegration extends Integration
      */
     public static function parseNamespace($namespace)
     {
-        /* I could not find any restrictions in db and collection names in official docs
+        /* I could not find any restrictions for db and collection names in official docs
          * (https://docs.mongodb.com/manual/core/databases-and-collections/#databases-and-collections)
          * Empirically - using mongosh - I can say
          *   - db names cannot contain dots (MongoshInvalidInputError: [COMMON-10001] Invalid database name: db.dots)
