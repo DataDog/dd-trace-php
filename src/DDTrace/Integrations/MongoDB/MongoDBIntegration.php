@@ -270,7 +270,12 @@ class MongoDBIntegration extends Integration
                 // Collection name
                 $collection = null;
                 $commandName = 'unknown_command';
-                if (isset($args[1]) && ($command = ObjectKVStore::get($args[1], 'cmd')) && \is_array($command)) {
+                if (
+                    isset($args[1])
+                    && ($command = ObjectKVStore::get($args[1], 'cmd'))
+                    && (\is_array($command) || \is_object($command))
+                ) {
+                    $command = (array)$command;
                     $cmdKeys = \array_keys($command);
                     $realCmd = \array_intersect($cmdKeys, $knownCommands);
                     if (\count($realCmd) === 1) {
@@ -343,7 +348,7 @@ class MongoDBIntegration extends Integration
             '__construct',
             null,
             function ($self, $_2, $args, $_4) {
-                if (isset($args[0]) and \is_array($args[0])) {
+                if (isset($args[0])) {
                     ObjectKVStore::put($self, 'filter', $args[0]);
                 }
             }
@@ -354,7 +359,7 @@ class MongoDBIntegration extends Integration
             '__construct',
             null,
             function ($self, $_2, $args, $_4) {
-                if (isset($args[0]) and \is_array($args[0])) {
+                if (isset($args[0])) {
                     ObjectKVStore::put($self, 'cmd', $args[0]);
                 }
             }
@@ -365,7 +370,7 @@ class MongoDBIntegration extends Integration
             'delete',
             null,
             function ($self, $_2, $args, $_4) {
-                if (isset($args[0]) && \is_array($args[0])) {
+                if (isset($args[0])) {
                     $existingDeletes = ObjectKVStore::get($self, 'deletes', []);
                     \array_push($existingDeletes, MongoDBIntegration::serializeQuery($args[0]));
                     ObjectKVStore::put($self, 'deletes', $existingDeletes);
@@ -378,7 +383,7 @@ class MongoDBIntegration extends Integration
             'update',
             null,
             function ($self, $_2, $args, $_4) {
-                if (isset($args[0]) && \is_array($args[0])) {
+                if (isset($args[0])) {
                     $existingUpdates = ObjectKVStore::get($self, 'updates', []);
                     \array_push($existingUpdates, MongoDBIntegration::serializeQuery($args[0]));
                     ObjectKVStore::put($self, 'updates', $existingUpdates);
@@ -445,11 +450,10 @@ class MongoDBIntegration extends Integration
 
             $span->meta[Tag::MONGODB_DATABASE] = $this->getDatabaseName();
             $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
-            $normalizedQuery = MongoDBIntegration::normalizeQuery($args[0]);
+            $serializedQuery = MongoDBIntegration::serializeQuery($args[0]);
 
             $resourceNameParts = [$method, $this->getDatabaseName(), $this->getCollectionName()];
-            if ($normalizedQuery) {
-                $serializedQuery = (null === $normalizedQuery) ? '{}' : \json_encode($normalizedQuery);
+            if ($serializedQuery) {
                 \array_push($resourceNameParts, $serializedQuery);
                 $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
             }
@@ -488,7 +492,6 @@ class MongoDBIntegration extends Integration
 
     public static function normalizeQuery($rawQuery)
     {
-
         if (null === $rawQuery) {
             return null;
         }
@@ -496,7 +499,14 @@ class MongoDBIntegration extends Integration
         $queryAsArray = null;
 
         if (\is_a($rawQuery, 'stdClass')) {
-            $queryAsArray = get_object_vars($rawQuery);
+            $queryAsArray = (array)$rawQuery;
+        } elseif (\is_object($rawQuery)) {
+            // We ignore `MongoDB namespace`
+            if (\strpos(\get_class($rawQuery), 'MongoDB') === 0) {
+                return '?';
+            }
+
+            $queryAsArray = (array)$rawQuery;
         } elseif (\is_array($rawQuery)) {
             $queryAsArray = $rawQuery;
         } else {

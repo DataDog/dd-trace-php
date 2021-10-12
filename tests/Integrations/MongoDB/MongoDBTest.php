@@ -2,12 +2,25 @@
 
 namespace DDTrace\Tests\Integrations\Mongo;
 
-use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Integrations\MongoDB\MongoDBSubscriber;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
 use MongoDB\Client;
+use stdClass;
+
+class AQuery
+{
+    public $brand;
+
+    public function __construct($brand = 'ferrari')
+    {
+        $this->brand = $brand;
+    }
+}
+
+class AnObject
+{
+}
 
 class MongoDBTest extends IntegrationTestCase
 {
@@ -42,11 +55,7 @@ class MongoDBTest extends IntegrationTestCase
 
     public function testFilterNormalizationRegex()
     {
-        $traces = $this->isolateTracer(function () {
-            $this->client()->test_db->cars->find(['brand' => new \MongoDB\BSON\Regex('^for.*', 'i')]);
-        });
-
-        $this->assertFlameGraph($traces, [
+        $expected = [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test_db cars {"brand":"?"}')
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
@@ -58,22 +67,33 @@ class MongoDBTest extends IntegrationTestCase
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
-        ]);
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(function () {
+            $this->client()->test_db->cars->find(['brand' => new \MongoDB\BSON\Regex('^ford$', 'i')]);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As stdClass
+        $traces = $this->isolateTracer(function () {
+            $query = new \stdClass();
+            $query->brand = new \MongoDB\BSON\Regex('^ford$', 'i');
+            $this->client()->test_db->cars->find($query);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(function () {
+            $query = new AQuery(new \MongoDB\BSON\Regex('^ford$', 'i'));
+            $this->client()->test_db->cars->find($query);
+        });
+        $this->assertFlameGraph($traces, $expected);
     }
 
     public function testFilterAggregation()
     {
-        $traces = $this->isolateTracer(function () {
-            $this->client()->test_db->cars->aggregate(
-                [
-                    ['$group' => ['_id' => '$brand', 'count' => ['$sum' => 1]]],
-                    ['$sort' => ['count' => -1]],
-                    ['$limit' => 5],
-                ]
-            );
-        });
-
-        $this->assertFlameGraph($traces, [
+        $expected = [
             SpanAssertion::build(
                 'mongodb.cmd',
                 'mongodb',
@@ -89,12 +109,41 @@ class MongoDBTest extends IntegrationTestCase
             ])->withChildren([
                 SpanAssertion::exists('mongodb.driver.cmd')
             ]),
-        ]);
+        ];
+
+        $pipeline = [
+            ['$group' => ['_id' => '$brand', 'count' => ['$sum' => 1]]],
+            ['$sort' => ['count' => -1]],
+            ['$limit' => 5],
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(function () use ($pipeline) {
+            $this->client()->test_db->cars->aggregate($pipeline);
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As stdClass
+        $traces = $this->isolateTracer(function () use ($pipeline) {
+            $this->client()->test_db->cars->aggregate(
+                \array_map('\DDTrace\Tests\Integrations\Mongo\MongoDBTest::arrayToStdClass', $pipeline)
+            );
+        });
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(function () use ($pipeline) {
+            $this->client()->test_db->cars->aggregate(
+                \array_map('\DDTrace\Tests\Integrations\Mongo\MongoDBTest::arrayToObject', $pipeline)
+            );
+        });
+        $this->assertFlameGraph($traces, $expected);
     }
 
     public function testCollectionBulkWrite()
     {
         $traces = $this->isolateTracer(function () {
+            // These are actually expected to be arrai, stdClass and objects are not supported.
             $this->client()->test_db->cars->bulkWrite([
                 ['deleteMany' => [['brand' => 'ferrari'], []]],
                 ['insertOne'  => [['brand' => 'maserati']]],
@@ -147,17 +196,7 @@ class MongoDBTest extends IntegrationTestCase
      */
     public function testMethodsWithFilter($method, $args)
     {
-        $traces = $this->isolateTracer(
-            function () use ($method, $args) {
-                if (\count($args) === 1) {
-                    $this->client()->test_db->cars->$method(['brand' => 'ferrari'], $args[0]);
-                } else {
-                    $this->client()->test_db->cars->$method(['brand' => 'ferrari']);
-                }
-            }
-        );
-
-        $this->assertFlameGraph($traces, [
+        $expected = [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test_db cars {\"brand\":\"?\"}")
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
@@ -169,7 +208,49 @@ class MongoDBTest extends IntegrationTestCase
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
-        ]);
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(
+            function () use ($method, $args) {
+                if (\count($args) === 1) {
+                    $this->client()->test_db->cars->$method(['brand' => 'ferrari'], $args[0]);
+                } else {
+                    $this->client()->test_db->cars->$method(['brand' => 'ferrari']);
+                }
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
+
+        // As stdClass
+        $traces = $this->isolateTracer(
+            function () use ($method, $args) {
+                if (\count($args) === 1) {
+                    $this->client()->test_db->cars->$method(
+                        $this->arrayToStdClass(['brand' => 'ferrari']),
+                        $this->arrayToStdClass($args[0])
+                    );
+                } else {
+                    $this->client()->test_db->cars->$method($this->arrayToStdClass(['brand' => 'ferrari']));
+                }
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(
+            function () use ($method, $args) {
+                if (\count($args) === 1) {
+                    $this->client()->test_db->cars->$method(
+                        $this->arrayToObject(['brand' => 'ferrari']),
+                        $this->arrayToObject($args[0])
+                    );
+                } else {
+                    $this->client()->test_db->cars->$method($this->arrayToObject(['brand' => 'ferrari']));
+                }
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
     }
 
     public function dataProviderMethodsWithFilter()
@@ -195,6 +276,20 @@ class MongoDBTest extends IntegrationTestCase
      */
     public function testMethodsNoArgs($method, $args)
     {
+        $expected = [
+            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test_db cars")
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'cars',
+                    'span.kind' => 'client',
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
+                ])->withChildren([
+                    SpanAssertion::exists('mongodb.driver.cmd')
+                ]),
+        ];
+
+        // As array
         $traces = $this->isolateTracer(
             function () use ($method, $args) {
                 if (\count($args) === 1) {
@@ -208,19 +303,53 @@ class MongoDBTest extends IntegrationTestCase
                 }
             }
         );
+        $this->assertFlameGraph($traces, $expected);
 
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test_db cars")
-                ->withExactTags([
-                    'mongodb.db' => self::DATABASE,
-                    'mongodb.collection' => 'cars',
-                    'span.kind' => 'client',
-                    'out.host' => self::HOST,
-                    'out.port' => self::PORT,
-                ])->withChildren([
-                    SpanAssertion::exists('mongodb.driver.cmd')
-                ]),
-        ]);
+        // As stdClass
+        $traces = $this->isolateTracer(
+            function () use ($method, $args) {
+                if (\count($args) === 1) {
+                    $this->client()->test_db->cars->$method($this->arrayToStdClass($args[0]));
+                } elseif (\count($args) === 2) {
+                    $this->client()->test_db->cars->$method(
+                        $this->arrayToStdClass($args[0]),
+                        $this->arrayToStdClass($args[1])
+                    );
+                } elseif (\count($args) === 3) {
+                    $this->client()->test_db->cars->$method(
+                        $this->arrayToStdClass($args[0]),
+                        $this->arrayToStdClass($args[1]),
+                        $this->arrayToStdClass($args[2])
+                    );
+                } else {
+                    $this->client()->test_db->cars->$method();
+                }
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(
+            function () use ($method, $args) {
+                if (\count($args) === 1) {
+                    $this->client()->test_db->cars->$method($this->arrayToObject($args[0]));
+                } elseif (\count($args) === 2) {
+                    $this->client()->test_db->cars->$method(
+                        $this->arrayToObject($args[0]),
+                        $this->arrayToObject($args[1])
+                    );
+                } elseif (\count($args) === 3) {
+                    $this->client()->test_db->cars->$method(
+                        $this->arrayToObject($args[0]),
+                        $this->arrayToObject($args[1]),
+                        $this->arrayToObject($args[2])
+                    );
+                } else {
+                    $this->client()->test_db->cars->$method();
+                }
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
     }
 
     public function dataProviderMethodsNoArgs()
@@ -232,17 +361,59 @@ class MongoDBTest extends IntegrationTestCase
             ['insertMany', [[['brand' => 'chevy'], ['brand' => 'ferrari']]]],
             ['insertOne', [['brand' => 'chevy']]],
             ['listIndexes', []],
-            [
-                'mapReduce', [
-                    /* map */
-                    new \MongoDB\BSON\Javascript('function() { emit(this.state, this.pop); }'),
-                    /* reduce */
-                    new \MongoDB\BSON\Javascript('function(key, values) { return Array.sum(values) }'),
-                    /* out */
-                    ['inline' => 1],
-                ]
-            ],
         ];
+    }
+
+    public function testMapReduce()
+    {
+        $expected = [
+            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "mapReduce test_db cars")
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'cars',
+                    'span.kind' => 'client',
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
+                ])->withChildren([
+                    SpanAssertion::exists('mongodb.driver.cmd')
+                ]),
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(
+            function () {
+                $this->client()->test_db->cars->mapReduce(
+                    new \MongoDB\BSON\Javascript('function() { emit(this.state, this.pop); }'),
+                    new \MongoDB\BSON\Javascript('function(key, values) { return Array.sum(values) }'),
+                    ['inline' => 1]
+                );
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
+
+        // As stdClass
+        $traces = $this->isolateTracer(
+            function () {
+                $this->client()->test_db->cars->mapReduce(
+                    new \MongoDB\BSON\Javascript('function() { emit(this.state, this.pop); }'),
+                    new \MongoDB\BSON\Javascript('function(key, values) { return Array.sum(values) }'),
+                    $this->arrayToStdClass(['inline' => 1])
+                );
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
+
+        // As object
+        $traces = $this->isolateTracer(
+            function () {
+                $this->client()->test_db->cars->mapReduce(
+                    new \MongoDB\BSON\Javascript('function() { emit(this.state, this.pop); }'),
+                    new \MongoDB\BSON\Javascript('function(key, values) { return Array.sum(values) }'),
+                    $this->arrayToObject(['inline' => 1])
+                );
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
     }
 
     /**
@@ -263,6 +434,11 @@ class MongoDBTest extends IntegrationTestCase
 
     public function dataProviderQueryNormalization()
     {
+        $stdQuery = new stdClass();
+        $stdQuery->field = 'some_value';
+
+        $objQuery = new AQuery('ford');
+
         // Scenarios inspired by https://github.com/DataDog/dd-trace-py/blob/30ab370c06e957e0c5094687152f3040f07e9e4e/tests/contrib/pymongo/test.py#L26-L62
         return [
             [['team' => 'leafs'], '{"team":"?"}'],
@@ -285,7 +461,9 @@ class MongoDBTest extends IntegrationTestCase
                     ['server' => 'apache'],
                 ],
                 '[{"team":"?"},{"server":"?"}]',
-            ]
+            ],
+            [$stdQuery, '{"field":"?"}'],
+            [$objQuery, '{"brand":"?"}'],
         ];
     }
 
@@ -503,5 +681,31 @@ class MongoDBTest extends IntegrationTestCase
                 'password' => self::PASSWORD,
             ]
         );
+    }
+
+    private function arrayToStdClass(array $array)
+    {
+        $obj = new stdClass();
+        if (!self::isAssociativeArray($array)) {
+            return \array_map('\DDTrace\Tests\Integrations\Mongo\MongoDBTest::' . __FUNCTION__, $array);
+        }
+
+        foreach ($array as $name => $value) {
+            $obj->$name = $value;
+        }
+        return $obj;
+    }
+
+    private function arrayToObject(array $array)
+    {
+        $obj = new AnObject();
+        if (!self::isAssociativeArray($array)) {
+            return \array_map('\DDTrace\Tests\Integrations\Mongo\MongoDBTest::' . __FUNCTION__, $array);
+        }
+
+        foreach ($array as $name => $value) {
+            $obj->$name = $value;
+        }
+        return $obj;
     }
 }

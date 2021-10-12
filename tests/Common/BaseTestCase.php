@@ -107,4 +107,20 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
             parent::setExpectedException($class, $exceptionMessage, $exceptionCode);
         }
     }
+
+    /**
+     * Tells whether or not an array is associative.
+     *
+     * @param array $input
+     * @return bool
+     */
+    protected static function isAssociativeArray(array $input)
+    {
+        // credits: Mark Amery https://stackoverflow.com/a/173479
+        if (array() === $input) {
+            return false;
+        }
+
+        return array_keys($input) !== range(0, count($input) - 1);
+    }
 }
