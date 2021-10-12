@@ -234,12 +234,9 @@ class MongoDBIntegration extends Integration
                 $serializedQuery = MongoDBIntegration::serializeQuery($filter);
                 \array_push($resourceParts, $serializedQuery);
             }
-
-            $span->name = 'mongodb.driver.cmd';
-            $span->service = 'mongodb';
-            $span->type = Type::MONGO;
             $span->resource = \implode(' ', $resourceParts);
-            $span->meta[Tag::SPAN_KIND] = 'client';
+
+            MongoDBIntegration::setCommandTags($span, 'mongodb.driver.cmd');
 
             list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
             $span->meta[Tag::MONGODB_DATABASE] = $database;
@@ -255,10 +252,7 @@ class MongoDBIntegration extends Integration
         function traceCommandCallback($class, $method, $knownCommands)
         {
             \DDTrace\trace_method($class, $method, function ($span, $args) use ($method, $knownCommands) {
-                $span->name = 'mongodb.driver.cmd';
-                $span->service = 'mongodb';
-                $span->type = Type::MONGO;
-                $span->meta[Tag::SPAN_KIND] = 'client';
+                MongoDBIntegration::setCommandTags($span, 'mongodb.driver.cmd');
 
                 // DB name
                 $dbName = 'unknown_db';
@@ -325,11 +319,8 @@ class MongoDBIntegration extends Integration
             $insertsCount = ObjectKVStore::get($args[1], 'insertsCount', 0);
             $span->meta['mongodb.insertsCount'] = $insertsCount;
 
-            $span->name = 'mongodb.driver.cmd';
-            $span->service = 'mongodb';
-            $span->type = Type::MONGO;
-            $span->resource = \implode(' ', $resourceParts);
-            $span->meta[Tag::SPAN_KIND] = 'client';
+            MongoDBIntegration::setCommandTags($span, 'mongodb.driver.cmd');
+            $span->resource = \implode(' ', \array_filter($resourceParts));
 
             list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
             $span->meta[Tag::MONGODB_DATABASE] = $database;
@@ -443,10 +434,7 @@ class MongoDBIntegration extends Integration
     public static function traceCollectionMethodWithFilter($method)
     {
         \DDTrace\trace_method('MongoDB\Collection', $method, function (SpanData $span, $args) use ($method) {
-            $span->name = 'mongodb.cmd';
-            $span->service = 'mongodb';
-            $span->type = Type::MONGO;
-            $span->meta[Tag::SPAN_KIND] = 'client';
+            MongoDBIntegration::setCommandTags($span, 'mongodb.cmd');
 
             $span->meta[Tag::MONGODB_DATABASE] = $this->getDatabaseName();
             $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
@@ -468,10 +456,7 @@ class MongoDBIntegration extends Integration
     public static function traceCollectionMethodNoArgs($method)
     {
         \DDTrace\trace_method('MongoDB\Collection', $method, function (SpanData $span, $args) use ($method) {
-            $span->name = 'mongodb.cmd';
-            $span->service = 'mongodb';
-            $span->type = Type::MONGO;
-            $span->meta[Tag::SPAN_KIND] = 'client';
+            MongoDBIntegration::setCommandTags($span, 'mongodb.cmd');
 
             $span->meta[Tag::MONGODB_DATABASE] = $this->getDatabaseName();
             $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
@@ -555,5 +540,13 @@ class MongoDBIntegration extends Integration
         }
 
         return [$parts[0], \implode('.', \array_slice($parts, 1))];
+    }
+
+    public static function setCommandTags(SpanData $span, $name)
+    {
+        $span->name = $name;
+        $span->service = 'mongodb';
+        $span->type = Type::MONGO;
+        $span->meta[Tag::SPAN_KIND] = 'client';
     }
 }
