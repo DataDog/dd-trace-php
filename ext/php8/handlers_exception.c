@@ -76,16 +76,16 @@ static void dd_check_exception_in_header(int old_response_code) {
                 // Every series of catch blocks is preceded by a single jump to the end of the catch blocks
                 // i.e. the first opcode outside try/catch or the first opcode of finally
                 // We need that information to distinguish whether we are in a catch block
+                // However, opcache may eliminate this jump via its unreachable basic block elimination.
+                // This mostly happens when a try block ends via a jump (goto, break, continue), return, exit or throw.
+                // Given that we do not want to construct a CFG ourselves here (and in fact, even then, code which is
+                // exclusively reachable after execution of the catch block is indistinguishable from code within the
+                // catch block), we just assume that the nearest try/catch block with its final jump in the try block
+                // eliminated is a valid candidate. Ultimately, we still check for the catch-variable holding an
+                // exception.
                 zend_op *pass_over_catchers_jump = catch_op - 1;
-                if (pass_over_catchers_jump->opcode != ZEND_JMP) {
-                    ddtrace_log_errf(
-                        "Our exception handling code is buggy, found unexpected opcode %d instead of a ZEND_JMP before "
-                        "expected ZEND_CATCH (opcode %d)",
-                        pass_over_catchers_jump->opcode, catch_op->opcode);
-                    return;
-                }
-
-                if (OP_JMP_ADDR(pass_over_catchers_jump, pass_over_catchers_jump->op1) < ex->opline) {
+                if (pass_over_catchers_jump->opcode == ZEND_JMP &&
+                    OP_JMP_ADDR(pass_over_catchers_jump, pass_over_catchers_jump->op1) < ex->opline) {
                     continue;
                 }
 
@@ -105,7 +105,11 @@ static void dd_check_exception_in_header(int old_response_code) {
                     ZVAL_COPY(ddtrace_spandata_property_exception(&root_span->span), exception);
                 }
 
-                break;
+                // The final jump was eliminated from the current try  block, but possibly we are in a nested try/catch,
+                // so continue searching here.
+                if (pass_over_catchers_jump->opcode == ZEND_JMP) {
+                    break;
+                }
             }
         }
         ex = ex->prev_execute_data;
