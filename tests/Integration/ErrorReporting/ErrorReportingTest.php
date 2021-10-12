@@ -263,6 +263,14 @@ if (PHP_VERSION_ID >= 70000) {
             $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'nestedDispatchWithException', '{main}']]);
         }
 
+        public function testImmediatelyCaughtException()
+        {
+            $traces = $this->tracesFromWebRequest(function () {
+                $this->call(GetSpec::create('', '/immediately-caught-exception'));
+            });
+            $this->assertError($traces[0][0], "Caught Exception (501): top-level exception", [['{main}']]);
+        }
+
         public function testInternalExceptionThatShouldNotResultInError()
         {
             $traces = $this->tracesFromWebRequest(function () {
