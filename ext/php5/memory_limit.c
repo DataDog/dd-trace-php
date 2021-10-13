@@ -31,7 +31,7 @@ int64_t ddtrace_get_memory_limit(TSRMLS_D) {
     return limit;
 }
 
-bool ddtrace_check_memory_under_limit(TSRMLS_D) {
+bool ddtrace_is_memory_under_limit(TSRMLS_D) {
     static int64_t limit = -1;
     static zend_bool fetched_limit = 0;
     if (!fetched_limit) {  // cache get_memory_limit() result to make this function blazing fast

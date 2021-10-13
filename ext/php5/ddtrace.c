@@ -61,28 +61,6 @@ STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, On
                   zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
-#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
-static void ddtrace_sort_modules(void *base, size_t count, size_t siz, compare_func_t compare, swap_func_t swp) {
-    UNUSED(siz);
-    UNUSED(compare);
-    UNUSED(swp);
-
-    // swap ddtrace and opcache for the rest of the modules lifecycle, so that opcache is always executed after ddtrace
-    for (Bucket *module = base, *end = module + count, *ddtrace_module = NULL; module < end; ++module) {
-        zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
-        if (m->name == ddtrace_module_entry.name) {
-            ddtrace_module = module;
-        }
-        if (ddtrace_module && strcmp(m->name, "Zend OPcache") == 0) {
-            Bucket tmp = *ddtrace_module;
-            *ddtrace_module = *module;
-            *module = tmp;
-            break;
-        }
-    }
-}
-#endif
-
 static int ddtrace_startup(struct _zend_extension *extension) {
     TSRMLS_FETCH();
 
@@ -1031,7 +1009,8 @@ static PHP_FUNCTION(add_global_tag) {
 
     char *key, *val;
     int key_len, val_len;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &key, &key_len, &val, &val_len) == FAILURE) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "ss", &key, &key_len, &val,
+                                 &val_len) == FAILURE) {
         ddtrace_log_debug(
             "Unable to parse parameters for DDTrace\\add_global_tag; expected (string $key, string $value)");
         RETURN_NULL();
@@ -1203,7 +1182,7 @@ static PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
 /* {{{ proto bool dd_trace_check_memory_under_limit() */
 static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    RETURN_BOOL(ddtrace_check_memory_under_limit(TSRMLS_C) == true ? 1 : 0);
+    RETURN_BOOL(ddtrace_is_memory_under_limit(TSRMLS_C));
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
@@ -1607,7 +1586,8 @@ static PHP_FUNCTION(root_span) {
 static PHP_FUNCTION(start_span) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     double start_time_seconds = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &start_time_seconds) != SUCCESS) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|d", &start_time_seconds) !=
+        SUCCESS) {
         ddtrace_log_debug("unexpected parameter. expecting double for start time");
         RETURN_FALSE;
     }
@@ -1630,7 +1610,8 @@ static PHP_FUNCTION(start_span) {
 static PHP_FUNCTION(close_span) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     double finish_time_seconds = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &finish_time_seconds) != SUCCESS) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|d", &finish_time_seconds) !=
+        SUCCESS) {
         ddtrace_log_debug("unexpected parameter. expecting double for finish time");
         RETURN_FALSE;
     }
@@ -1717,7 +1698,7 @@ bool ddtrace_tracer_is_limited(TSRMLS_D) {
             return true;
         }
     }
-    return ddtrace_check_memory_under_limit(TSRMLS_C) == true ? false : true;
+    return !ddtrace_is_memory_under_limit(TSRMLS_C);
 }
 
 /* {{{ proto string dd_trace_tracer_is_limited() */
