@@ -526,7 +526,7 @@ class MongoDBTest extends IntegrationTestCase
         }
 
         $expected = [
-            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db.cars')
+            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db cars')
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
