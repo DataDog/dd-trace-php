@@ -162,6 +162,10 @@ function install($options)
                 echo "Updating existing INI file '$iniFilePath'\n";
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
+                    'Impossible to replace the deprecated ddtrace.request_init_hook parameter with the new name.',
+                    "sed -i 's|ddtrace.request_init_hook|datadog.trace.request_init_hook|g' " . escapeshellarg($iniFilePath)
+                );
+                execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '" . escapeshellarg($installDirWrapperPath) . "'@g' " . escapeshellarg($iniFilePath)
                 );

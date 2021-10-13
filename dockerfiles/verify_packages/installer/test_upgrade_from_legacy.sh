@@ -16,3 +16,11 @@ assert_ddtrace_version "${old_version}"
 new_version="0.65.1"
 php dd-library-php-setup.php --php-bin php --tracer-version "${new_version}"
 assert_ddtrace_version "${new_version}"
+
+# Assert that there are no deprecation warnings from old ddtrace.request_init_hook
+if [ -z "$(php --ri ddtrace | grep 'use DD_TRACE_REQUEST_INIT_HOOK instead')" ]; then
+    echo "\nOk: request init hook param has been updated\n"
+else
+    echo "\nError: request init hook param has not been updated\n---\n$(php --ri ddtrace)\n---\n"
+    exit 1
+fi
