@@ -10,7 +10,7 @@ use DDTrace\Util\ObjectKVStore;
 
 /**
  * Defines and register a subscriber. It is done in a function, rather than at a root of any PHP file, so the interface
- * \MongoDB\Driver\Monitoring\CommandSubscriber is only required to exists if this integration is loaded.
+ * \MongoDB\Driver\Monitoring\CommandSubscriber is only required to exist if this integration is loaded.
  */
 function register_subscriber()
 {
