@@ -618,12 +618,12 @@ TEST_WEB_80 := \
 TEST_INTEGRATIONS_81 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
-	test_integrations_mongodb \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_pcntl \
 	test_integrations_predis1 \
 	test_opentracing_10
+#	test_integrations_mongodb \
 
 TEST_WEB_81 := \
 	test_metrics \
