@@ -1095,7 +1095,7 @@ static PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
 /* {{{ proto bool dd_trace_check_memory_under_limit() */
 static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     UNUSED(execute_data);
-    RETURN_BOOL(ddtrace_check_memory_under_limit() == true ? 1 : 0);
+    RETURN_BOOL(ddtrace_is_memory_under_limit());
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
@@ -1591,7 +1591,7 @@ bool ddtrace_tracer_is_limited(void) {
             return true;
         }
     }
-    return ddtrace_check_memory_under_limit() == true ? false : true;
+    return !ddtrace_is_memory_under_limit();
 }
 
 /* {{{ proto string dd_trace_tracer_is_limited() */
