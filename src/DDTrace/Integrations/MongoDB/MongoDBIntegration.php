@@ -217,122 +217,56 @@ class MongoDBIntegration extends Integration
             'whatsmyuri',
         ];
 
-        \DDTrace\hook_method(
-            'MongoDB\Driver\Manager',
-            'selectServer',
-            null,
-            function ($self, $_2, $_3, $server) {
-                ObjectKVStore::put($self, 'host', $server->getHost());
-                ObjectKVStore::put($self, 'port', $server->getPort());
-            }
-        );
+        $this->traceExecuteQuery('MongoDB\Driver\Manager', 'executeQuery');
+        $this->traceExecuteQuery('MongoDB\Driver\Server', 'executeQuery');
 
-        $executeQueryCallback = function ($span, $args) {
-            $namespace = $args[0];
-            $resourceParts = ['executeQuery', $namespace];
-            if ($filter = ObjectKVStore::get($args[1], 'filter')) {
-                $serializedQuery = MongoDBIntegration::serializeQuery($filter);
-                \array_push($resourceParts, $serializedQuery);
-            }
-            $span->resource = \implode(' ', $resourceParts);
+        $this->traceExecuteBulkWrite('MongoDB\Driver\Manager', 'executeBulkWrite');
+        $this->traceExecuteBulkWrite('MongoDB\Driver\Server', 'executeBulkWrite');
 
-            MongoDBIntegration::setCommandTags($span, 'mongodb.driver.cmd');
+        $this->traceExecuteCommand('MongoDB\Driver\Manager', 'executeCommand', $knownCommands);
+        $this->traceExecuteCommand('MongoDB\Driver\Server', 'executeCommand', $knownCommands);
+        $this->traceExecuteCommand('MongoDB\Driver\Manager', 'executeWriteCommand', $knownCommands);
+        $this->traceExecuteCommand('MongoDB\Driver\Server', 'executeWriteCommand', $knownCommands);
+        $this->traceExecuteCommand('MongoDB\Driver\Manager', 'executeReadCommand', $knownCommands);
+        $this->traceExecuteCommand('MongoDB\Driver\Server', 'executeReadCommand', $knownCommands);
+        $this->traceExecuteCommand('MongoDB\Driver\Manager', 'executeReadWriteCommand', $knownCommands);
+        $this->traceExecuteCommand('MongoDB\Driver\Server', 'executeReadWriteCommand', $knownCommands);
 
-            list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
-            $span->meta[Tag::MONGODB_DATABASE] = $database;
-            $span->meta[Tag::MONGODB_COLLECTION] = $collection;
-            if (!empty($serializedQuery)) {
-                $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
-            }
-        };
+        // See: https://docs.mongodb.com/php-library/current/reference/class/MongoDBCollection/
+        $collectionMethodsWithFilter = [
+            'aggregate',
+            'count',
+            'countDocuments',
+            'deleteMany',
+            'deleteOne',
+            'find',
+            'findOne',
+            'findOneAndDelete',
+            'findOneAndReplace',
+            'findOneAndUpdate',
+            'replaceOne',
+            'updateMany',
+            'updateOne',
+        ];
 
-        \DDTrace\trace_method('MongoDB\Driver\Manager', 'executeQuery', $executeQueryCallback);
-        \DDTrace\trace_method('MongoDB\Driver\Server', 'executeQuery', $executeQueryCallback);
-
-        function traceCommandCallback($class, $method, $knownCommands)
-        {
-            \DDTrace\trace_method($class, $method, function ($span, $args) use ($method, $knownCommands) {
-                MongoDBIntegration::setCommandTags($span, 'mongodb.driver.cmd');
-
-                // DB name
-                $dbName = 'unknown_db';
-                if (isset($args[0]) && \is_string($args[0])) {
-                    $dbName = $args[0];
-                }
-                $span->meta[Tag::MONGODB_DATABASE] = $dbName;
-
-                // Collection name
-                $collection = null;
-                $commandName = 'unknown_command';
-                if (
-                    isset($args[1])
-                    && ($command = ObjectKVStore::get($args[1], 'cmd'))
-                    && (\is_array($command) || \is_object($command))
-                ) {
-                    $command = (array)$command;
-                    $cmdKeys = \array_keys($command);
-                    $realCmd = \array_intersect($cmdKeys, $knownCommands);
-                    if (\count($realCmd) === 1) {
-                        $commandName = $realCmd[0];
-                        $collectionCandidate = $command[$realCmd[0]];
-                        if (\is_string($collectionCandidate)) {
-                            $collection = $collectionCandidate;
-                        }
-                    }
-                }
-                if ($collection) {
-                    $span->meta[Tag::MONGODB_COLLECTION] = $collection;
-                }
-
-                $resourceParts = [$method, $dbName];
-                if ($collection) {
-                    array_push($resourceParts, $collection);
-                }
-                \array_push($resourceParts, $commandName);
-                $span->resource = \implode(' ', $resourceParts);
-            });
+        foreach ($collectionMethodsWithFilter as $method) {
+            $this->traceCollectionMethodWithFilter($method);
         }
 
-        traceCommandCallback('MongoDB\Driver\Manager', 'executeCommand', $knownCommands);
-        traceCommandCallback('MongoDB\Driver\Server', 'executeCommand', $knownCommands);
-        traceCommandCallback('MongoDB\Driver\Manager', 'executeWriteCommand', $knownCommands);
-        traceCommandCallback('MongoDB\Driver\Server', 'executeWriteCommand', $knownCommands);
-        traceCommandCallback('MongoDB\Driver\Manager', 'executeReadCommand', $knownCommands);
-        traceCommandCallback('MongoDB\Driver\Server', 'executeReadCommand', $knownCommands);
-        traceCommandCallback('MongoDB\Driver\Manager', 'executeReadWriteCommand', $knownCommands);
-        traceCommandCallback('MongoDB\Driver\Server', 'executeReadWriteCommand', $knownCommands);
+        $collectionMethodsNoFilter = [
+            'bulkWrite',
+            'drop',
+            'dropIndexes',
+            'estimatedDocumentCount',
+            'insertMany',
+            'insertOne',
+            'listIndexes',
+            'mapReduce',
+        ];
 
-        $executeBulkWriteCallback = function ($span, $args) {
-            $namespace = $args[0];
-            $resourceParts = ['executeBulkWrite', $namespace];
-
-            $deletes = ObjectKVStore::get($args[1], 'deletes', []);
-            for ($index = 0; $index < \count($deletes); $index++) {
-                $span->meta['mongodb.deletes.' . $index . '.filter'] = $deletes[$index];
-            }
-
-            $updates = ObjectKVStore::get($args[1], 'updates', []);
-            for ($index = 0; $index < \count($updates); $index++) {
-                $span->meta['mongodb.updates.' . $index . '.filter'] = $updates[$index];
-            }
-
-            $insertsCount = ObjectKVStore::get($args[1], 'insertsCount', 0);
-            $span->meta['mongodb.insertsCount'] = $insertsCount;
-
-            MongoDBIntegration::setCommandTags($span, 'mongodb.driver.cmd');
-            $span->resource = \implode(' ', \array_filter($resourceParts));
-
-            list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
-            $span->meta[Tag::MONGODB_DATABASE] = $database;
-            $span->meta[Tag::MONGODB_COLLECTION] = $collection;
-            if (!empty($serializedQuery)) {
-                $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
-            }
-        };
-
-        \DDTrace\trace_method('MongoDB\Driver\Manager', 'executeBulkWrite', $executeBulkWriteCallback);
-        \DDTrace\trace_method('MongoDB\Driver\Server', 'executeBulkWrite', $executeBulkWriteCallback);
-
+        foreach ($collectionMethodsNoFilter as $method) {
+            $this->traceCollectionMethodNoArgs($method);
+        }
 
         \DDTrace\hook_method(
             'MongoDB\Driver\Query',
@@ -392,85 +326,208 @@ class MongoDBIntegration extends Integration
             }
         );
 
-        // See: https://docs.mongodb.com/php-library/current/reference/class/MongoDBCollection/
-        $collectionMethodsWithFilter = [
-            'aggregate',
-            'count',
-            'countDocuments',
-            'deleteMany',
-            'deleteOne',
-            'find',
-            'findOne',
-            'findOneAndDelete',
-            'findOneAndReplace',
-            'findOneAndUpdate',
-            'replaceOne',
-            'updateMany',
-            'updateOne',
-        ];
-
-        foreach ($collectionMethodsWithFilter as $method) {
-            MongoDBIntegration::traceCollectionMethodWithFilter($method);
-        }
-
-        $collectionMethodsNoFilter = [
-            'bulkWrite',
-            'drop',
-            'dropIndexes',
-            'estimatedDocumentCount',
-            'insertMany',
-            'insertOne',
-            'listIndexes',
-            'mapReduce',
-        ];
-
-        foreach ($collectionMethodsNoFilter as $method) {
-            MongoDBIntegration::traceCollectionMethodNoArgs($method);
-        }
+        \DDTrace\hook_method(
+            'MongoDB\Driver\Manager',
+            'selectServer',
+            null,
+            function ($self, $_2, $_3, $server) {
+                ObjectKVStore::put($self, 'host', $server->getHost());
+                ObjectKVStore::put($self, 'port', $server->getPort());
+            }
+        );
 
         return Integration::LOADED;
     }
 
-    public static function traceCollectionMethodWithFilter($method)
+    /**
+     * Traces a collection method with is supposed to have a filter as the first argument. It is resilient to calls
+     * without an argument, in that case is attaches no query.
+     *
+     * @param string $method
+     * @return void
+     */
+    public function traceCollectionMethodWithFilter($method)
     {
-        \DDTrace\trace_method('MongoDB\Collection', $method, function (SpanData $span, $args) use ($method) {
-            MongoDBIntegration::setCommandTags($span, 'mongodb.cmd');
-
-            $span->meta[Tag::MONGODB_DATABASE] = $this->getDatabaseName();
-            $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
-            $serializedQuery = MongoDBIntegration::serializeQuery($args[0]);
-
-            $resourceNameParts = [$method, $this->getDatabaseName(), $this->getCollectionName()];
-            if ($serializedQuery) {
-                \array_push($resourceNameParts, $serializedQuery);
-                $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
+        $integration = $this;
+        \DDTrace\trace_method(
+            'MongoDB\Collection',
+            $method,
+            function (SpanData $span, $args) use ($method, $integration) {
+                $integration->setMetadata(
+                    $span,
+                    'mongodb.cmd',
+                    $method,
+                    $this->getDatabaseName(),
+                    $this->getCollectionName(),
+                    ObjectKVStore::get($this->getManager(), 'host'),
+                    ObjectKVStore::get($this->getManager(), 'port'),
+                    null,
+                    empty($args[0]) ? null : $args[0]
+                );
             }
-            $span->resource = \implode(' ', $resourceNameParts);
-
-            $manager = $this->getManager();
-            $span->meta[Tag::TARGET_HOST] = ObjectKVStore::get($manager, 'host');
-            $span->meta[Tag::TARGET_PORT] = ObjectKVStore::get($manager, 'port');
-        });
+        );
     }
 
-    public static function traceCollectionMethodNoArgs($method)
+    /**
+     * Traces a collection method without storing any information about its arguments.
+     *
+     * @param string $method
+     * @return void
+     */
+    public function traceCollectionMethodNoArgs($method)
     {
-        \DDTrace\trace_method('MongoDB\Collection', $method, function (SpanData $span, $args) use ($method) {
-            MongoDBIntegration::setCommandTags($span, 'mongodb.cmd');
+        $integration = $this;
+        \DDTrace\trace_method(
+            'MongoDB\Collection',
+            $method,
+            function (SpanData $span, $args) use ($method, $integration) {
+                $integration->setMetadata(
+                    $span,
+                    'mongodb.cmd',
+                    $method,
+                    $this->getDatabaseName(),
+                    $this->getCollectionName(),
+                    ObjectKVStore::get($this->getManager(), 'host'),
+                    ObjectKVStore::get($this->getManager(), 'port'),
+                    null,
+                    null
+                );
+            }
+        );
+    }
 
-            $span->meta[Tag::MONGODB_DATABASE] = $this->getDatabaseName();
-            $span->meta[Tag::MONGODB_COLLECTION] = $this->getCollectionName();
+    /**
+     * Traces Manager/Server::executeQuery
+     *
+     * @param string $class
+     * @param string $method
+     * @return void
+     */
+    public function traceExecuteQuery($class, $method)
+    {
+        $integration = $this;
+        \DDTrace\trace_method($class, $method, function ($span, $args) use ($integration) {
+            $namespace = $args[0];
+            list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
 
-            $span->resource = $method . ' ' . $this->getDatabaseName() . ' ' . $this->getCollectionName();
-
-            $manager = $this->getManager();
-            $span->meta[Tag::TARGET_HOST] = ObjectKVStore::get($manager, 'host');
-            $span->meta[Tag::TARGET_PORT] = ObjectKVStore::get($manager, 'port');
+            $integration->setMetadata(
+                $span,
+                'mongodb.driver.cmd',
+                'executeQuery',
+                $database,
+                $collection,
+                null,
+                null,
+                null,
+                ObjectKVStore::get($args[1], 'filter', null)
+            );
         });
     }
 
+    /**
+     * Traces Manager/Server::executeBulkWrite
+     *
+     * @param string $class
+     * @param string $method
+     * @return void
+     */
+    public function traceExecuteBulkWrite($class, $method)
+    {
+        $integration = $this;
+        \DDTrace\trace_method($class, $method, function ($span, $args) use ($integration) {
+            list($database, $collection) = MongoDBIntegration::parseNamespace(isset($args[0]) ? $args[0] : null);
+
+            $integration->setMetadata(
+                $span,
+                'mongodb.driver.cmd',
+                'executeBulkWrite',
+                $database,
+                $collection,
+                null,
+                null,
+                null,
+                null
+            );
+
+            if (isset($args[1])) {
+                $deletes = ObjectKVStore::get($args[1], 'deletes', []);
+                for ($index = 0; $index < \count($deletes); $index++) {
+                    $span->meta['mongodb.deletes.' . $index . '.filter'] = $deletes[$index];
+                }
+
+                $updates = ObjectKVStore::get($args[1], 'updates', []);
+                for ($index = 0; $index < \count($updates); $index++) {
+                    $span->meta['mongodb.updates.' . $index . '.filter'] = $updates[$index];
+                }
+
+                $insertsCount = ObjectKVStore::get($args[1], 'insertsCount', 0);
+                $span->meta['mongodb.insertsCount'] = $insertsCount;
+            }
+        });
+    }
+
+    /**
+     * Traces Manager/Server::executeCommand
+     *
+     * @param string $class
+     * @param string $method
+     * @return void
+     */
+    public function traceExecuteCommand($class, $method, $knownCommands)
+    {
+        $integration = $this;
+        \DDTrace\trace_method($class, $method, function ($span, $args) use ($method, $knownCommands, $integration) {
+            // DB name
+            $dbName = 'unknown_db';
+            if (isset($args[0]) && \is_string($args[0])) {
+                $dbName = $args[0];
+            }
+
+            // Collection name
+            $collection = null;
+            $commandName = 'unknown_command';
+            if (
+                isset($args[1])
+                && ($command = ObjectKVStore::get($args[1], 'cmd'))
+                && (\is_array($command) || \is_object($command))
+            ) {
+                $command = (array)$command;
+                $cmdKeys = \array_keys($command);
+                $realCmd = \array_intersect($cmdKeys, $knownCommands);
+                if (\count($realCmd) === 1) {
+                    $commandName = $realCmd[0];
+                    $collectionCandidate = $command[$realCmd[0]];
+                    if (\is_string($collectionCandidate)) {
+                        $collection = $collectionCandidate;
+                    }
+                }
+            }
+
+            $integration->setMetadata(
+                $span,
+                'mongodb.driver.cmd',
+                $method,
+                $dbName,
+                $collection,
+                null,
+                null,
+                $commandName,
+                null
+            );
+        });
+    }
+
+    /**
+     * Attempts at serializing a query/filter as a best effort, avoiding generating errors.
+     *
+     * @param mixed $anythingQueryLike
+     * @return null|string
+     */
     public static function serializeQuery($anythingQueryLike)
     {
+        if (empty($anythingQueryLike)) {
+            return null;
+        }
         $normalizedQuery = MongoDBIntegration::normalizeQuery($anythingQueryLike);
         return (null === $normalizedQuery) ? '?' : \json_encode($normalizedQuery);
     }
@@ -521,6 +578,9 @@ class MongoDBIntegration extends Integration
      */
     public static function parseNamespace($namespace)
     {
+        if (empty($namespace)) {
+            return ['unknown_database', 'unknown_collection'];
+        }
         /* I could not find any restrictions for db and collection names in official docs
          * (https://docs.mongodb.com/manual/core/databases-and-collections/#databases-and-collections)
          * Empirically - using mongosh - I can say
@@ -542,11 +602,52 @@ class MongoDBIntegration extends Integration
         return [$parts[0], \implode('.', \array_slice($parts, 1))];
     }
 
-    public static function setCommandTags(SpanData $span, $name)
-    {
+    /**
+     * Sets all relevant metadata in a consistent way
+     *
+     * @param DDTrace\SpanData $span
+     * @param string $name
+     * @param string $method
+     * @param string|null $database If null the corresponding metadata will  not be set.
+     * @param string|null $collection If null the corresponding metadata will  not be set.
+     * @param string|null $host If null the corresponding metadata will  not be set.
+     * @param int|string|null $port If null the corresponding metadata will  not be set.
+     * @param string|null $command If null the corresponding metadata will  not be set.
+     * @param mixed|null $rawQuery If null the corresponding metadata will  not be set.
+     * @return void
+     */
+    public function setMetadata(
+        SpanData $span,
+        $name,
+        $method,
+        $database,
+        $collection,
+        $host,
+        $port,
+        $command,
+        $rawQuery
+    ) {
         $span->name = $name;
         $span->service = 'mongodb';
         $span->type = Type::MONGO;
         $span->meta[Tag::SPAN_KIND] = 'client';
+        $serializedQuery = empty($rawQuery) ? null : MongoDBIntegration::serializeQuery($rawQuery);
+        $span->resource = \implode(' ', array_filter([$method, $database, $collection, $command, $serializedQuery]));
+        if ($database) {
+            $span->meta[Tag::MONGODB_DATABASE] = $database;
+        }
+        if ($collection) {
+            $span->meta[Tag::MONGODB_COLLECTION] = $collection;
+        }
+        if ($host) {
+            $span->meta[Tag::TARGET_HOST] = $host;
+        }
+        if ($port) {
+            $span->meta[Tag::TARGET_PORT] = $port;
+        }
+        if ($serializedQuery) {
+            $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
+        }
+        $this->addTraceAnalyticsIfEnabled($span);
     }
 }
