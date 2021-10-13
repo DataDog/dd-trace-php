@@ -9,7 +9,8 @@ use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 
 /**
- * Defines and register a subscriber. It is done in a function, rather than in a separate file
+ * Defines and register a subscriber. It is done in a function, rather than at a root of any PHP file, so the interface
+ * \MongoDB\Driver\Monitoring\CommandSubscriber is only required to exists if this integration is loaded.
  */
 function register_subscriber()
 {
@@ -35,6 +36,7 @@ function register_subscriber()
 
     \MongoDB\Driver\Monitoring\addSubscriber(new DatadogSubscriber());
 }
+
 class MongoDBIntegration extends Integration
 {
     const NAME = 'mongodb';
@@ -51,7 +53,7 @@ class MongoDBIntegration extends Integration
 
     public function init()
     {
-        // We have two methods that trigger the integrations to be loaded.
+        // We have multiple methods that cause this integration to be loaded.
         // Integration loading should be cached, for now we keep track of the initialization execution.
         if (self::$loaded) {
             return;
@@ -340,8 +342,8 @@ class MongoDBIntegration extends Integration
     }
 
     /**
-     * Traces a collection method with is supposed to have a filter as the first argument. It is resilient to calls
-     * without an argument, in that case is attaches no query.
+     * Traces a collection method which is supposed to have a filter as the first argument. It is resilient to calls
+     * without an argument, in that case no query is attached.
      *
      * @param string $method
      * @return void
@@ -407,8 +409,7 @@ class MongoDBIntegration extends Integration
     {
         $integration = $this;
         \DDTrace\trace_method($class, $method, function ($span, $args) use ($integration) {
-            $namespace = $args[0];
-            list($database, $collection) = MongoDBIntegration::parseNamespace($namespace);
+            list($database, $collection) = MongoDBIntegration::parseNamespace(isset($args[0]) ? $args[0] : null);
 
             $integration->setMetadata(
                 $span,
@@ -571,7 +572,7 @@ class MongoDBIntegration extends Integration
     }
 
     /**
-     * Given a namespace string (db.collection),parses the database name and the collection name.
+     * Given a namespace string 'db.collection', it parses the database name and the collection name.
      *
      * @param string $namespace
      * @return [$db, $collection]
@@ -581,6 +582,7 @@ class MongoDBIntegration extends Integration
         if (empty($namespace)) {
             return ['unknown_database', 'unknown_collection'];
         }
+
         /* I could not find any restrictions for db and collection names in official docs
          * (https://docs.mongodb.com/manual/core/databases-and-collections/#databases-and-collections)
          * Empirically - using mongosh - I can say
@@ -599,7 +601,8 @@ class MongoDBIntegration extends Integration
             return [$parts[0]];
         }
 
-        return [$parts[0], \implode('.', \array_slice($parts, 1))];
+        $remainings = \array_slice($parts, 1);
+        return [$parts[0], empty($remainings) ? 'unknown_collection' : \implode(' ', $remainings)];
     }
 
     /**

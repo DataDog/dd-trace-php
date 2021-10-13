@@ -521,7 +521,7 @@ class MongoDBTest extends IntegrationTestCase
              */
             $this->markTestSkipped(
                 'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip anymore test: ' .  __FUNCTION__ . '.'
+                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
             );
         }
 
@@ -620,7 +620,7 @@ class MongoDBTest extends IntegrationTestCase
              */
             $this->markTestSkipped(
                 'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip anymore test: ' .  __FUNCTION__ . '.'
+                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
             );
         }
 
@@ -737,7 +737,7 @@ class MongoDBTest extends IntegrationTestCase
              */
             $this->markTestSkipped(
                 'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip anymore test: ' .  __FUNCTION__ . '.'
+                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
             );
         }
 
@@ -864,7 +864,7 @@ class MongoDBTest extends IntegrationTestCase
              */
             $this->markTestSkipped(
                 'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip anymore test: ' .  __FUNCTION__ . '.'
+                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
             );
         }
 
@@ -991,7 +991,7 @@ class MongoDBTest extends IntegrationTestCase
              */
             $this->markTestSkipped(
                 'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip anymore test: ' .  __FUNCTION__ . '.'
+                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
             );
         }
 
@@ -1127,7 +1127,7 @@ class MongoDBTest extends IntegrationTestCase
              */
             $this->markTestSkipped(
                 'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip anymore test: ' .  __FUNCTION__ . '.'
+                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
             );
         }
 
