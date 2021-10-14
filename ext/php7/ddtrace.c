@@ -235,6 +235,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_root_span_add_tag, 0, 0, 2)
+ZEND_ARG_INFO(0, tag)
+ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
 /* Legacy API */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace, 0, 0, 2)
 ZEND_ARG_INFO(0, class_or_function_name)
@@ -1614,6 +1619,22 @@ static PHP_FUNCTION(startup_logs) {
     ZVAL_NEW_STR(return_value, buf.s);
 }
 
+static PHP_FUNCTION(root_span_add_tag) {
+    zval *tag = NULL;
+    zval *value = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &tag, &value) != SUCCESS) {
+        RETURN_BOOL(0);
+    }
+
+    if (!tag || !value || Z_TYPE_P(tag) != IS_STRING || Z_TYPE_P(value) != IS_STRING) {
+        RETURN_BOOL(0);
+    }
+
+    bool result = ddtrace_root_span_add_tag(Z_STR_P(tag), value);
+
+    RETURN_BOOL(result);
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace, arginfo_dd_trace),  // Noop legacy API
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
@@ -1668,6 +1689,7 @@ static const zend_function_entry ddtrace_functions[] = {
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
     DDTRACE_SUB_NS_FE("System\\", container_id, arginfo_ddtrace_void),
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
+    DDTRACE_SUB_NS_FE("Testing\\", root_span_add_tag, arginfo_root_span_add_tag),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {
