@@ -742,6 +742,7 @@
             <file name="tests/ext/startup_logging_skipif.inc" role="test" />
             <file name="tests/ext/traced_internal_functions_override_01.phpt" role="test" />
             <file name="tests/ext/traced_internal_functions_override_02.phpt" role="test" />
+            <file name="tests/ext/root_span_add_tag.phpt" role="test" />
 
             <!-- Docs -->
             <file name="CHANGELOG.md" role="doc" />
