@@ -40,6 +40,7 @@ void ddtrace_push_span(ddtrace_span_fci *span_fci);
 void ddtrace_open_span(ddtrace_span_fci *span_fci);
 ddtrace_span_fci *ddtrace_init_span(void);
 void ddtrace_push_root_span(void);
+// Note that this function is used externally by the appsec extension.
 bool ddtrace_root_span_add_tag(zend_string *tag, zval *value);
 void dd_trace_stop_span_time(ddtrace_span_t *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_fci *end);
