@@ -6,11 +6,11 @@ Test ddtrace_root_span_add_tag
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-// Fail when root span not available
+// Fail if root span not available
 var_dump(\dd_trace_internal_fn("root_span_add_tag", "before", "root_span"));
 DDTrace\start_span();
 var_dump(\dd_trace_internal_fn("root_span_add_tag", "after", "root_span"));
-// Fail if we attempt to add an existint tag
+// Fail if we attempt to add an existing tag
 var_dump(\dd_trace_internal_fn("root_span_add_tag","after", "duplicate"));
 DDTrace\close_span(0);
 var_dump(dd_trace_serialize_closed_spans());
