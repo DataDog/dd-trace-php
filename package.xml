@@ -43,25 +43,9 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    ### Breaking changes
-    * Global tags are now assigned early. This means that users have to make sure to not overwrite `meta`, but only add to it instead, if they don't want to lose global tags. Wrong: `$span->meta = [ 'some' => 'tag' ]`. Correct `$span->meta['some'] = 'tag'`.
-    * Support for legacy param `DD_TRACE_RESOURCE_URI_MAPPING` has been dropped with the migration to C code, after more than a year of deprecation. Use `DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX`, `DD_TRACE_RESOURCE_URI_MAPPING_INCOMING`, and `DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING ` instead. See [resource mapping](https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#map-resource-names-to-normalized-uri) for more details.
-
-    ### Added
-
-    - (PHP 8) Migrate _dd.origin and distributed header sending to internal (#1267)
-    - (PHP 5) Add headers ZAI implementation (#1308)
-    - Add support for PHP 8.1 (#1297)
-
-    ### Changed
-    - (PHP 7, 8) Internal (root) span initialization (#1329)
-
     ### Fixed
 
-    - (PHP 5, 7, 8) Remove all lines containing zai_sapi from config.m4 (#1333)
-    - (PHP 7, 8) Fix unnamed service spans caused by improper handling of `DD_TRACE_ENABLED` (#1332)
-
-
+    - (PHP 7, 8) Fix exception handling with opcache cfg optimization enabled #1344
     </notes>
     <contents>
         <dir name="/">
