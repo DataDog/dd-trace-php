@@ -737,6 +737,11 @@ void ddtrace_save_active_error_to_metadata(void) {
         }
         dd_fatal_error_to_meta(meta, error);
     }
+    zend_string_release(error.type);
+    zend_string_release(error.msg);
+    if (error.stack) {
+        zend_string_release(error.stack);
+    }
 }
 
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
@@ -777,12 +782,8 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
                 }
                 dd_fatal_error_to_meta(meta, error);
             }
-            if (error.type) {
-                zend_string_release(error.type);
-            }
-            if (error.msg) {
-                zend_string_release(error.msg);
-            }
+            zend_string_release(error.type);
+            zend_string_release(error.msg);
             if (error.stack) {
                 zend_string_release(error.stack);
             }
