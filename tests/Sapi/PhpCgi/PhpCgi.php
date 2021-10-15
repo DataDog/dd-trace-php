@@ -79,4 +79,18 @@ final class PhpCgi implements Sapi
     {
         return true;
     }
+
+    public function checkErrors()
+    {
+        $newLogs = $this->process->getIncrementalErrorOutput();
+        if (preg_match("(=== Total [0-9]+ memory leaks detected ===)", $newLogs)) {
+            return $newLogs;
+        }
+
+        if (!$this->process->isRunning()) {
+            return "$newLogs\n<Process terminated unexpectedly>";
+        }
+
+        return null;
+    }
 }

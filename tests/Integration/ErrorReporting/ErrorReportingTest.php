@@ -12,6 +12,15 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         return __DIR__ . '/scripts/index.php';
     }
 
+    protected function ddSetup()
+    {
+        parent::ddSetUp();
+        if (PHP_VERSION_ID >= 70100 && PHP_VERSION_ID < 70200) {
+            // timezone data is not properly cleared in CLI server if there are errors
+            $this->checkWebserverErrors = false;
+        }
+    }
+
     public function testUnhandledUserErrorIndex()
     {
         $traces = $this->tracesFromWebRequest(function () {
