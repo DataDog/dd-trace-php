@@ -530,7 +530,11 @@ class MongoDBIntegration extends Integration
             return null;
         }
         $normalizedQuery = MongoDBIntegration::normalizeQuery($anythingQueryLike);
-        return (null === $normalizedQuery) ? '?' : \json_encode($normalizedQuery);
+        $jsonFlags = JSON_UNESCAPED_UNICODE;
+        if (\PHP_VERSION_ID >= 70200) {
+            $jsonFlags = $jsonFlags | JSON_INVALID_UTF8_SUBSTITUTE;
+        }
+        return (null === $normalizedQuery) ? '?' : \json_encode($normalizedQuery, $jsonFlags);
     }
 
     public static function normalizeQuery($rawQuery)
