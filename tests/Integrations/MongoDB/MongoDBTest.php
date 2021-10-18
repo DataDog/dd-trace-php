@@ -1184,7 +1184,7 @@ class MongoDBTest extends IntegrationTestCase
     private function arrayToStdClass(array $array)
     {
         $obj = new stdClass();
-        if (!self::isAssociativeArray($array)) {
+        if (self::isListArray($array)) {
             return \array_map('\DDTrace\Tests\Integrations\Mongo\MongoDBTest::' . __FUNCTION__, $array);
         }
 
@@ -1197,7 +1197,7 @@ class MongoDBTest extends IntegrationTestCase
     private function arrayToObject(array $array)
     {
         $obj = new AnObject();
-        if (!self::isAssociativeArray($array)) {
+        if (self::isListArray($array)) {
             return \array_map('\DDTrace\Tests\Integrations\Mongo\MongoDBTest::' . __FUNCTION__, $array);
         }
 

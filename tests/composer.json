@@ -41,17 +41,9 @@
                     "create-lockfile": false
                 }
             },
-            "mongodb_1_10": {
+            "mongodb1": {
                 "require": {
-                    "mongodb/mongodb": "1.10.*"
-                },
-                "scenario-options": {
-                    "create-lockfile": false
-                }
-            },
-            "mongodb_1_11": {
-                "require": {
-                    "mongodb/mongodb": "1.11.*"
+                    "mongodb/mongodb": "1.*"
                 },
                 "scenario-options": {
                     "create-lockfile": false
