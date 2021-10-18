@@ -526,7 +526,7 @@ class MongoDBIntegration extends Integration
      */
     public static function serializeQuery($anythingQueryLike)
     {
-        if (empty($anythingQueryLike)) {
+        if (!$anythingQueryLike) {
             return null;
         }
         $normalizedQuery = MongoDBIntegration::normalizeQuery($anythingQueryLike);
@@ -572,7 +572,7 @@ class MongoDBIntegration extends Integration
             }
         }
 
-        return empty($normalized) ? null : $normalized;
+        return $normalized ?: null;
     }
 
     /**
@@ -583,7 +583,7 @@ class MongoDBIntegration extends Integration
      */
     public static function parseNamespace($namespace)
     {
-        if (empty($namespace)) {
+        if (!$namespace) {
             return ['unknown_database', 'unknown_collection'];
         }
 
@@ -601,7 +601,7 @@ class MongoDBIntegration extends Integration
         $parts = \explode('.', $namespace);
 
         $remainings = \array_slice($parts, 1);
-        return [$parts[0], empty($remainings) ? 'unknown_collection' : \implode(' ', $remainings)];
+        return [$parts[0], $remainings ? \implode(' ', $remainings) : 'unknown_collection'];
     }
 
     /**
@@ -633,7 +633,7 @@ class MongoDBIntegration extends Integration
         $span->service = 'mongodb';
         $span->type = Type::MONGO;
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $serializedQuery = empty($rawQuery) ? null : MongoDBIntegration::serializeQuery($rawQuery);
+        $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;
         $span->resource = \implode(' ', array_filter([$method, $database, $collection, $command, $serializedQuery]));
         if ($database) {
             $span->meta[Tag::MONGODB_DATABASE] = $database;
