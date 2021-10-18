@@ -1,6 +1,7 @@
 #include "span.h"
 
 #include <SAPI.h>
+#include <inttypes.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -266,4 +267,10 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     }
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
+}
+
+char *ddtrace_span_id_as_string(uint64_t id) {
+    char *ret;
+    spprintf(&ret, 0, "%" PRIu64, id);
+    return ret;
 }

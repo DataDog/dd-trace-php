@@ -100,15 +100,6 @@ final class Bootstrap
                     $httpHeaders
                 )
             )->getSpan();
-
-            if (PHP_VERSION_ID < 80000) {
-                foreach ($httpHeaders as $header => $value) {
-                    if (stripos($header, Propagator::DEFAULT_ORIGIN_HEADER) === 0) {
-                        add_global_tag(Tag::ORIGIN, $value);
-                        $span->setTag(Tag::ORIGIN, $value);
-                    }
-                }
-            }
         }
         $integration = WebIntegration::getInstance();
         $integration->addTraceAnalyticsIfEnabledLegacy($span);

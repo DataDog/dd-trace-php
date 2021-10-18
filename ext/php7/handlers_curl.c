@@ -18,9 +18,6 @@ zend_long dd_const_curlopt_httpheader = 0;
 ZEND_TLS int le_curl = 0;
 
 ZEND_TLS HashTable *dd_headers = NULL;
-ZEND_TLS bool dd_should_save_headers = true;
-ZEND_TLS zend_function *dd_curl_inject_fn_proxy = NULL;
-ZEND_TLS zend_string *dd_inject_func = NULL;
 
 // Multi-handle API: curl_multi_*()
 ZEND_TLS HashTable *dd_multi_handles = NULL;
@@ -81,54 +78,53 @@ static void dd_ch_duplicate_headers(zval *ch_orig, zval *ch_new) {
     }
 }
 
-static void dd_init_headers_arg(zval *arg, zval *ch) {
-    HashTable *retval;
-    ALLOC_HASHTABLE(retval);
-    HashTable *headers = NULL;
-
-    if (dd_headers) {
-        headers = zend_hash_index_find_ptr(dd_headers, Z_RES_HANDLE_P(ch));
-        if (headers) {
-            size_t headers_count = zend_hash_num_elements(headers);
-            zend_hash_init(retval, headers_count, NULL, ZVAL_PTR_DTOR, 0);
-            zend_hash_copy(retval, headers, (copy_ctor_func_t)zval_add_ref);
-        }
-    }
-
-    if (!headers) {
-        zend_hash_init(retval, 0, NULL, ZVAL_PTR_DTOR, 0);
-    }
-    ZVAL_ARR(arg, retval);
-}
-
-static void dd_free_headers_arg(zval *arg) { zend_array_destroy(Z_ARRVAL_P(arg)); }
-
 static int dd_inject_distributed_tracing_headers(zval *ch) {
-    if (dd_inject_func == NULL) {
-        dd_inject_func = zend_string_init(ZEND_STRL("ddtrace\\bridge\\curl_inject_distributed_headers"), 0);
+    zval headers;
+    zend_array *dd_header_array;
+    if (dd_headers && (dd_header_array = zend_hash_index_find_ptr(dd_headers, Z_RES_HANDLE_P(ch)))) {
+        ZVAL_ARR(&headers, zend_array_dup(dd_header_array));
+    } else {
+        array_init(&headers);
     }
-    if (zend_hash_exists(EG(function_table), dd_inject_func)) {
-        zend_function **fn_proxy = &dd_curl_inject_fn_proxy;
-        zval retval = ddtrace_zval_undef();
 
-        zval headers;
-        dd_init_headers_arg(&headers, ch);
-
-        ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
-        dd_should_save_headers = false;  // Don't save our own HTTP headers
-        // Arg 0: CurlHandle $ch
-        // Arg 1: mixed $value (array of headers)
-        if (ddtrace_call_function(fn_proxy, ZSTR_VAL(dd_inject_func), ZSTR_LEN(dd_inject_func), &retval, 2, ch,
-                                  &headers) == SUCCESS) {
-            zval_ptr_dtor(&retval);
-        } else {
-            ddtrace_log_debug("Could not inject distributed tracing headers");
+    int sampling_priority;
+    if (ddtrace_fetch_prioritySampling_from_root(&sampling_priority)) {
+        add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-sampling-priority: %d", sampling_priority));
+    }
+    if (DDTRACE_G(trace_id)) {
+        add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-trace-id: %" PRIu64, (DDTRACE_G(trace_id))));
+        if (DDTRACE_G(span_ids_top)) {
+            add_next_index_str(&headers,
+                               zend_strpprintf(0, "x-datadog-parent-id: %" PRIu64, (DDTRACE_G(span_ids_top)->id)));
         }
-        dd_should_save_headers = true;
-        ddtrace_sandbox_end(&backup);
-
-        dd_free_headers_arg(&headers);
+    } else if (DDTRACE_G(span_ids_top)) {
+        ddtrace_log_err("Found span_id without active trace id, skipping sending of x-datadog-parent-id");
     }
+    if (DDTRACE_G(dd_origin)) {
+        add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-origin: %s", ZSTR_VAL(DDTRACE_G(dd_origin))));
+    }
+
+    zend_function *setopt_fn = zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("curl_setopt"));
+
+    // avoiding going through our own function, directly calling curl_setopt
+#if PHP_VERSION_ID < 70400
+    zend_execute_data *call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION, setopt_fn, 3, NULL, NULL);
+#else
+    zend_execute_data *call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION, setopt_fn, 3, NULL);
+#endif
+    ZVAL_COPY(ZEND_CALL_ARG(call, 1), ch);
+    ZVAL_LONG(ZEND_CALL_ARG(call, 2), dd_const_curlopt_httpheader);
+    ZVAL_COPY_VALUE(ZEND_CALL_ARG(call, 3), &headers);
+
+    zend_execute_data *ex = EG(current_execute_data);
+    EG(current_execute_data) = call;
+    zval ret;
+    dd_curl_setopt_handler(call, &ret);
+    EG(current_execute_data) = ex;
+
+    zend_vm_stack_free_args(call);
+    zend_vm_stack_free_call_frame(call);
+
     return ZEND_HASH_APPLY_REMOVE;
 }
 
@@ -336,8 +332,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
 
     if (dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "rlz", &ch, &option, &zvalue) == SUCCESS &&
-        dd_should_save_headers && Z_TYPE_P(return_value) == IS_TRUE && dd_const_curlopt_httpheader == option &&
-        Z_TYPE_P(zvalue) == IS_ARRAY) {
+        Z_TYPE_P(return_value) == IS_TRUE && dd_const_curlopt_httpheader == option && Z_TYPE_P(zvalue) == IS_ARRAY) {
         dd_ch_store_headers(ch, Z_ARRVAL_P(zvalue));
     }
 }
@@ -444,9 +439,6 @@ void ddtrace_curl_handlers_startup(void) {
 void ddtrace_curl_handlers_rinit(void) {
     le_curl = 0;
     dd_headers = NULL;
-    dd_should_save_headers = true;
-    dd_curl_inject_fn_proxy = NULL;
-    dd_inject_func = NULL;
 
     dd_multi_handles = NULL;
     dd_multi_handles_cache = NULL;
@@ -459,11 +451,6 @@ void ddtrace_curl_handlers_rshutdown(void) {
         zend_hash_destroy(dd_headers);
         FREE_HASHTABLE(dd_headers);
         dd_headers = NULL;
-    }
-    dd_curl_inject_fn_proxy = NULL;
-    if (dd_inject_func) {
-        zend_string_release(dd_inject_func);
-        dd_inject_func = NULL;
     }
 
     if (dd_multi_handles) {

@@ -391,6 +391,31 @@ static zend_object_value ddtrace_fatal_error_new(zend_class_entry *class_type TS
     return Z_OBJVAL(obj);
 }
 
+bool ddtrace_fetch_prioritySampling_from_root(int *priority TSRMLS_DC) {
+    zval **priority_zv;
+    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
+
+    if (!root_span) {
+        return false;
+    }
+
+    while (root_span->next) {
+        root_span = root_span->next;
+    }
+
+    zval *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
+    if (zend_hash_find(Z_ARRVAL_P(root_metrics), "_sampling_priority_v1", sizeof("_sampling_priority_v1"),
+                       (void **)&priority_zv) == FAILURE) {
+        return false;
+    }
+
+    zval zv;
+    MAKE_COPY_ZVAL(priority_zv, &zv);
+    convert_to_long(&zv);
+    *priority = (int)Z_LVAL(zv);
+    return true;
+}
+
 /* DDTrace\FatalError */
 zend_class_entry *ddtrace_ce_fatal_error;
 
@@ -590,6 +615,10 @@ static void dd_clean_globals(TSRMLS_D) {
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     zend_hash_destroy(&DDTRACE_G(additional_global_tags));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
+
+    if (DDTRACE_G(dd_origin)) {
+        str_efree(DDTRACE_G(dd_origin));
+    }
 
     ddtrace_engine_hooks_rshutdown(TSRMLS_C);
     ddtrace_internal_handlers_rshutdown(TSRMLS_C);
@@ -1498,12 +1527,6 @@ static PHP_FUNCTION(dd_trace_set_trace_id) {
     RETURN_BOOL(0);
 }
 
-static inline void return_span_id(zval *return_value, uint64_t id) {
-    char buf[DD_TRACE_MAX_ID_LEN + 1];
-    snprintf(buf, sizeof(buf), "%" PRIu64, id);
-    RETURN_STRING(buf, 1);
-}
-
 /* {{{ proto string dd_trace_push_span_id() */
 static PHP_FUNCTION(dd_trace_push_span_id) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
@@ -1511,12 +1534,11 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
     zval *existing_id = NULL;
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &existing_id) == SUCCESS) {
         if (ddtrace_push_userland_span_id(existing_id TSRMLS_CC) == true) {
-            return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
-            return;
+            RETURN_STRING(ddtrace_span_id_as_string(ddtrace_peek_span_id(TSRMLS_C)), 0);
         }
     }
 
-    return_span_id(return_value, ddtrace_push_span_id(0 TSRMLS_CC));
+    RETURN_STRING(ddtrace_span_id_as_string(ddtrace_push_span_id(0 TSRMLS_CC)), 0);
 }
 
 /* {{{ proto string dd_trace_pop_span_id() */
@@ -1530,13 +1552,13 @@ static PHP_FUNCTION(dd_trace_pop_span_id) {
         }
     }
 
-    return_span_id(return_value, id);
+    RETURN_STRING(ddtrace_span_id_as_string(id), 0);
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */
 static PHP_FUNCTION(dd_trace_peek_span_id) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
-    return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
+    RETURN_STRING(ddtrace_span_id_as_string(ddtrace_peek_span_id(TSRMLS_C)), 0);
 }
 
 /* {{{ proto string DDTrace\active_span() */
@@ -1645,13 +1667,13 @@ static PHP_FUNCTION(flush) {
 
 /* {{{ proto string \DDTrace\trace_id() */
 static PHP_FUNCTION(trace_id) {
-    UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
-    return_span_id(return_value, DDTRACE_G(trace_id));
+    UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    RETURN_STRING(ddtrace_span_id_as_string(DDTRACE_G(trace_id)), 0);
 }
 
 /* {{{ proto array \DDTrace\current_context() */
 static PHP_FUNCTION(current_context) {
-    UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
 
     size_t length;
     char buf[DD_TRACE_MAX_ID_LEN + 1];
@@ -1796,7 +1818,7 @@ ZEND_TSRMLS_CACHE_DEFINE();
 void dd_prepare_for_new_trace(TSRMLS_D) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
 
 void dd_read_distributed_tracing_ids(TSRMLS_D) {
-    zai_string_view trace_id_str, parent_id_str;
+    zai_string_view trace_id_str, parent_id_str, dd_origin_str;
     bool success = true;
 
     if (zai_read_header_literal("X_DATADOG_TRACE_ID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
@@ -1818,5 +1840,10 @@ void dd_read_distributed_tracing_ids(TSRMLS_D) {
                 DDTRACE_G(trace_id) = 0;
             }
         }
+    }
+
+    DDTRACE_G(dd_origin) = NULL;
+    if (zai_read_header_literal("X_DATADOG_ORIGIN", &dd_origin_str) == ZAI_HEADER_SUCCESS) {
+        DDTRACE_G(dd_origin) = estrdup(dd_origin_str.ptr);
     }
 }

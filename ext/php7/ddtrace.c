@@ -344,6 +344,32 @@ zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
 #pragma GCC diagnostic pop
 
+bool ddtrace_fetch_prioritySampling_from_root(int *priority) {
+    zval *priority_zv;
+    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
+
+    if (!root_span) {
+        return false;
+    }
+
+    while (root_span->next) {
+        root_span = root_span->next;
+    }
+
+    zval *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
+    ZVAL_DEREF(root_metrics);
+    if (Z_TYPE_P(root_metrics) != IS_ARRAY) {
+        return false;
+    }
+
+    if (!(priority_zv = zend_hash_str_find(Z_ARR_P(root_metrics), ZEND_STRL("_sampling_priority_v1")))) {
+        return false;
+    }
+
+    *priority = (int)zval_get_long(priority_zv);
+    return true;
+}
+
 /* DDTrace\FatalError */
 zend_class_entry *ddtrace_ce_fatal_error;
 
@@ -536,6 +562,10 @@ static void dd_clean_globals() {
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     zend_array_destroy(DDTRACE_G(additional_global_tags));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
+
+    if (DDTRACE_G(dd_origin)) {
+        zend_string_release(DDTRACE_G(dd_origin));
+    }
 
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown();
@@ -1402,12 +1432,6 @@ static PHP_FUNCTION(dd_trace_set_trace_id) {
     RETURN_BOOL(0);
 }
 
-static inline void return_span_id(zval *return_value, uint64_t id) {
-    char buf[DD_TRACE_MAX_ID_LEN + 1];
-    snprintf(buf, sizeof(buf), "%" PRIu64, id);
-    RETURN_STRING(buf);
-}
-
 /* {{{ proto string dd_trace_push_span_id() */
 static PHP_FUNCTION(dd_trace_push_span_id) {
     UNUSED(execute_data);
@@ -1415,12 +1439,11 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
     zval *existing_id = NULL;
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "|z!", &existing_id) == SUCCESS) {
         if (ddtrace_push_userland_span_id(existing_id) == true) {
-            return_span_id(return_value, ddtrace_peek_span_id());
-            return;
+            RETURN_STR(ddtrace_span_id_as_string(ddtrace_peek_span_id()));
         }
     }
 
-    return_span_id(return_value, ddtrace_push_span_id(0));
+    RETURN_STR(ddtrace_span_id_as_string(ddtrace_push_span_id(0)));
 }
 
 /* {{{ proto string dd_trace_pop_span_id() */
@@ -1434,13 +1457,13 @@ static PHP_FUNCTION(dd_trace_pop_span_id) {
         }
     }
 
-    return_span_id(return_value, id);
+    RETURN_STR(ddtrace_span_id_as_string(id));
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */
 static PHP_FUNCTION(dd_trace_peek_span_id) {
     UNUSED(execute_data);
-    return_span_id(return_value, ddtrace_peek_span_id());
+    RETURN_STR(ddtrace_span_id_as_string(ddtrace_peek_span_id()));
 }
 
 /* {{{ proto string DDTrace\active_span() */
@@ -1543,7 +1566,7 @@ static PHP_FUNCTION(flush) {
 /* {{{ proto string \DDTrace\trace_id() */
 static PHP_FUNCTION(trace_id) {
     UNUSED(execute_data);
-    return_span_id(return_value, DDTRACE_G(trace_id));
+    RETURN_STR(ddtrace_span_id_as_string(DDTRACE_G(trace_id)));
 }
 
 /* {{{ proto array \DDTrace\current_context() */
@@ -1716,5 +1739,10 @@ void dd_read_distributed_tracing_ids(void) {
                 DDTRACE_G(trace_id) = 0;
             }
         }
+    }
+
+    DDTRACE_G(dd_origin) = NULL;
+    if (zai_read_header_literal("X_DATADOG_ORIGIN", &DDTRACE_G(dd_origin)) == ZAI_HEADER_SUCCESS) {
+        GC_ADDREF(DDTRACE_G(dd_origin));
     }
 }

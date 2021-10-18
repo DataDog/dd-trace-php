@@ -28,6 +28,8 @@ zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span);
 zval **ddtrace_spandata_property_exception_write(ddtrace_span_t *span);
 
+bool ddtrace_fetch_prioritySampling_from_root(int *priority TSRMLS_DC);
+
 bool ddtrace_tracer_is_limited(TSRMLS_D);
 // prepare the tracer state to start handling a new trace
 void dd_prepare_for_new_trace(TSRMLS_D);
@@ -84,6 +86,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t closed_spans_count;
     int64_t compile_time_microseconds;
     uint64_t distributed_parent_trace_id;
+    char *dd_origin;
 
     char *cgroup_file;
 ZEND_END_MODULE_GLOBALS(ddtrace)

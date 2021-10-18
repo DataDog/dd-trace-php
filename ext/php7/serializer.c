@@ -389,6 +389,10 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span) {
         add_assoc_str(meta, "env", zend_string_copy(env));
     }
 
+    if (DDTRACE_G(dd_origin)) {
+        add_assoc_str(meta, "_dd.origin", zend_string_copy(DDTRACE_G(dd_origin)));
+    }
+
     zend_array *global_tags = get_DD_TAGS();
     zend_string *global_key;
     zval *global_val;
