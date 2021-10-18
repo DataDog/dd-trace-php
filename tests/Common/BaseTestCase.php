@@ -114,13 +114,8 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
      * @param array $input
      * @return bool
      */
-    protected static function isAssociativeArray(array $input)
+    protected static function isListArray(array $input)
     {
-        // credits: Mark Amery https://stackoverflow.com/a/173479
-        if (array() === $input) {
-            return false;
-        }
-
-        return array_keys($input) !== range(0, count($input) - 1);
+        return $input === array_values($input);
     }
 }

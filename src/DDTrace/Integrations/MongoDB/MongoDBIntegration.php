@@ -541,7 +541,7 @@ class MongoDBIntegration extends Integration
 
         $queryAsArray = null;
 
-        if (\is_a($rawQuery, 'stdClass')) {
+        if ($rawQuery instanceof \stdClass) {
             $queryAsArray = (array)$rawQuery;
         } elseif (\is_object($rawQuery)) {
             // We ignore `MongoDB namespace`
@@ -595,11 +595,6 @@ class MongoDBIntegration extends Integration
          * 'collection name'.
          */
         $parts = \explode('.', $namespace);
-
-        // Only the namespace
-        if (\count($parts) === 1) {
-            return [$parts[0]];
-        }
 
         $remainings = \array_slice($parts, 1);
         return [$parts[0], empty($remainings) ? 'unknown_collection' : \implode(' ', $remainings)];
