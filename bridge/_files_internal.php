@@ -45,6 +45,7 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/Mysqli/MysqliCommon.php',
     __DIR__ . '/../src/DDTrace/Integrations/Mysqli/MysqliIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoIntegration.php',
+    __DIR__ . '/../src/DDTrace/Integrations/MongoDB/MongoDBIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Slim/SlimIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonyIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchCommon.php',

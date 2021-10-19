@@ -83,6 +83,7 @@ void ddtrace_internal_handlers_install(zend_array *traced_internal_functions) {
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_memcached_handlers_startup(void);
+void ddtrace_mongodb_handlers_startup(void);
 void ddtrace_mysqli_handlers_startup(void);
 void ddtrace_pcntl_handlers_startup(void);
 void ddtrace_pdo_handlers_startup(void);
@@ -114,6 +115,7 @@ void ddtrace_internal_handlers_startup(void) {
     }
 
     ddtrace_memcached_handlers_startup();
+    ddtrace_mongodb_handlers_startup();
     ddtrace_mysqli_handlers_startup();
     ddtrace_pdo_handlers_startup();
     ddtrace_phpredis_handlers_startup();

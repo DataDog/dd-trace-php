@@ -370,6 +370,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
+	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -405,6 +406,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
+	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -449,6 +451,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
+	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -497,6 +500,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
+	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_guzzle5 \
@@ -540,6 +544,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
+	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_guzzle5 \
@@ -587,6 +592,7 @@ TEST_WEB_74 := \
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_guzzle5 \
@@ -610,11 +616,12 @@ TEST_WEB_80 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_81 := \
-	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_mongodb1 \
 	test_integrations_mysqli \
-	test_integrations_pdo \
 	test_integrations_pcntl \
+	test_integrations_pdo \
 	test_integrations_predis1 \
 	test_opentracing_10
 
@@ -729,6 +736,9 @@ test_integrations_mysqli: global_test_run_dependencies
 test_integrations_mongo: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Mongo)
+test_integrations_mongodb1:
+	$(MAKE) test_scenario_mongodb1
+	$(call run_tests,tests/Integrations/MongoDB)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies

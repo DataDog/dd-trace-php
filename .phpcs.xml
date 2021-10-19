@@ -24,8 +24,9 @@
         <exclude-pattern>tests/Integration/ErrorReporting/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
-        <exclude-pattern>tests/*</exclude-pattern>
         <exclude-pattern>*/Span.php</exclude-pattern>
+        <exclude-pattern>src/DDTrace/Integrations/MongoDB/MongoDBIntegration.php</exclude-pattern>
+        <exclude-pattern>tests/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
         <exclude-pattern>bridge/dd_init.php</exclude-pattern>
