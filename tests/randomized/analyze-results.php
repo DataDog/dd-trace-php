@@ -2,7 +2,7 @@
 
 const MINIMUM_ACCEPTABLE_REQUESTS = 1000;
 
-function analyze($tmpScenariosFolder)
+function analyze_web($tmpScenariosFolder)
 {
     $resultsFolder = $tmpScenariosFolder . DIRECTORY_SEPARATOR . '.results';
     $analyzed = [];
@@ -25,7 +25,7 @@ function analyze($tmpScenariosFolder)
         // Note: not all the 5** can be set in PHP/Apache via http_response_code()
         // See: https://www.php.net/manual/en/function.http-response-code.php#114996
         $receivedStatusCodes = $jsonResult['status_codes'];
-        if (array_keys($receivedStatusCodes) !== [ 200, 510, 511 ]) {
+        if (array_keys($receivedStatusCodes) !== [200, 510, 511]) {
             $unexpectedCodes[$identifier] = $receivedStatusCodes;
         }
         if (($requestCount = array_sum($receivedStatusCodes)) < MINIMUM_ACCEPTABLE_REQUESTS) {
@@ -55,7 +55,7 @@ function analyze($tmpScenariosFolder)
     foreach (scandir($tmpScenariosFolder) as $identifier) {
         if (
             substr($identifier, 0, strlen('randomized-')) !== 'randomized-'
-                && substr($identifier, 0, strlen('regression-')) !== 'regression-'
+            && substr($identifier, 0, strlen('regression-')) !== 'regression-'
         ) {
             continue;
         }
@@ -71,10 +71,55 @@ function analyze($tmpScenariosFolder)
             count($foundScenarios),
             count($analyzed)
         );
-        exit(1);
+        return false;
     }
 
     echo "Success\n";
+    return true;
 }
 
-analyze(__DIR__ . '/.tmp.scenarios');
+function analyze_cli($tmpScenariosFolder)
+{
+    $resultsFolder = $tmpScenariosFolder . DIRECTORY_SEPARATOR . '.results';
+    $analyzed = [];
+    $unexpectedResults = [];
+
+    foreach (scandir($resultsFolder) as $identifier) {
+        if (in_array($identifier, ['.', '..'])) {
+            continue;
+        }
+
+        $analyzed[] = $identifier;
+
+        $absFilePath = $resultsFolder . DIRECTORY_SEPARATOR . $identifier . DIRECTORY_SEPARATOR . 'memory.out';
+        $values = array_map('intval', explode("\n", file_get_contents($absFilePath)));
+
+        // removing first and last 5% of samples
+        $count = count($values);
+        $selectedValues = array_slice($values, $count * 0.05, $count * 0.9);
+
+        // we start being strict, we can be more lenient in the future if that makes sense and to reduce flakiness
+        if (min($selectedValues) !== max($selectedValues)) {
+            $unexpectedResults[] = $identifier;
+        }
+    }
+
+    // Reporting errors
+    echo "Analyzed " . count($analyzed) . " CLI scenarios.\n";
+    if (count($unexpectedResults) > 0) {
+        echo "The following scenarios might have memory leaks in CLI. Check out their respective memory.out file:\n ";
+        foreach ($unexpectedResults as $unexpectedResult) {
+            echo "    $unexpectedResult\n";
+        }
+        return false;
+    }
+
+    return true;
+}
+
+$webResult = true; //analyze_web(__DIR__ . '/.tmp.scenarios');
+$cliResult = analyze_cli(__DIR__ . '/.tmp.scenarios');
+
+if (!$webResult || !$cliResult) {
+    exit(1);
+}
