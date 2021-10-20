@@ -74,7 +74,6 @@ function analyze_web($tmpScenariosFolder)
         return false;
     }
 
-    echo "Success\n";
     return true;
 }
 
@@ -117,9 +116,11 @@ function analyze_cli($tmpScenariosFolder)
     return true;
 }
 
-$webResult = true; //analyze_web(__DIR__ . '/.tmp.scenarios');
+$webResult = analyze_web(__DIR__ . '/.tmp.scenarios');
 $cliResult = analyze_cli(__DIR__ . '/.tmp.scenarios');
 
 if (!$webResult || !$cliResult) {
     exit(1);
 }
+
+echo "Success\n";

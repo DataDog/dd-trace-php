@@ -33,12 +33,6 @@ $randomizerConfiguration = new RandomExecutionPathConfiguration(
 
 $this->logMethodExecution = isset($queries['execution_path']);
 
-if (isset($queries['seed'])) {
-    $seed = intval($queries['seed']);
-} else {
-    $seed = rand();
-}
-
 $randomizer = new RandomExecutionPath($randomizerConfiguration);
 set_error_handler([$randomizer, 'handleError']);
 set_exception_handler([$randomizer, 'handleException']);
