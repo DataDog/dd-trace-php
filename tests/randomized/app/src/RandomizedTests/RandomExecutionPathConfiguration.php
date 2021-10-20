@@ -24,7 +24,7 @@ class RandomExecutionPathConfiguration
         $seed = null,
         $allowFatalAndUncaught = true,
         $exitOnHandledException = true,
-        $logMethodExecution = false,
+        $logMethodExecution = false
     ) {
         $this->sed = $seed ?: \rand();
         $this->allowFatalAndUncaught = $allowFatalAndUncaught;
