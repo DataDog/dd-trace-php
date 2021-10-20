@@ -16,15 +16,20 @@ class RandomExecutionPathConfiguration
     /** @var bool */
     public $logMethodExecution = false;
 
+    /** @var bool */
+    public $exitOnHandledException = true;
+
     public function __construct(
         $snippetsConfiguration,
         $seed = null,
         $allowFatalAndUncaught = true,
-        $logMethodExecution = false
+        $exitOnHandledException = true,
+        $logMethodExecution = false,
     ) {
         $this->sed = $seed ?: \rand();
         $this->allowFatalAndUncaught = $allowFatalAndUncaught;
         $this->snippetsConfiguration = $snippetsConfiguration;
         $this->logMethodExecution = $logMethodExecution;
+        $this->exitOnHandledException = $exitOnHandledException;
     }
 }

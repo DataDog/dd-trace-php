@@ -120,6 +120,7 @@ $randomizerConfiguration = new RandomExecutionPathConfiguration(
     $snippetsConfiguration,
     isset($queries['seed']) ? intval($queries['seed']) : null,
     true,
+    false,
     isset($queries['execution_path'])
 );
 $randomizer = new RandomExecutionPath($randomizerConfiguration);
