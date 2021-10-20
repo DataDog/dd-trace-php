@@ -7,7 +7,13 @@ use GuzzleHttp\Client as GuzzleClient;
 
 class Snippets
 {
-    const CURL_MULTI_URL = 'httpbin/get?client=curl';
+    /** @var SnippetsConfiguration */
+    private $config;
+
+    public function __construct(SnippetsConfiguration $configuration)
+    {
+        $this->config = $configuration ?: new SnippetsConfiguration();
+    }
 
     public function availableIntegrations()
     {
@@ -16,7 +22,7 @@ class Snippets
             'guzzle' => 1,
             'memcached' => 1,
             'mysqli' => 1,
-            'curl' => 7,
+            'curl' => 8,
             'pdo' => 1,
             'phpredis' => 1,
         ];
@@ -30,14 +36,29 @@ class Snippets
 
     public function mysqliVariant1()
     {
-        $mysqli = \mysqli_connect('mysql', 'test', 'test', 'test');
+        $mysqli = \mysqli_connect(
+            $this->config->mysqlHost,
+            $this->config->mysqlUser,
+            $this->config->mysqlPassword,
+            $this->config->mysqlDb,
+            $this->config->mysqlPort
+        );
         $mysqli->query('SELECT 1');
         $mysqli->close();
     }
 
     public function pdoVariant1()
     {
-        $pdo = new \PDO('mysql:host=mysql;dbname=test', 'test', 'test');
+        $pdo = new \PDO(
+            \sprintf(
+                'mysql:host=%s;dbname=%s;port=%s',
+                $this->config->mysqlHost,
+                $this->config->mysqlDb,
+                $this->config->mysqlPort
+            ),
+            $this->config->mysqlUser,
+            $this->config->mysqlPassword
+        );
         $stm = $pdo->query("SELECT VERSION()");
         $version = $stm->fetch();
         $pdo = null;
@@ -46,7 +67,7 @@ class Snippets
     public function memcachedVariant1()
     {
         $client = new \Memcached();
-        $client->addServer('memcached', '11211');
+        $client->addServer($this->config->memcachedHost, $this->config->memcachedPort);
         $client->add('key', 'value');
         $client->get('key');
     }
@@ -54,7 +75,7 @@ class Snippets
     public function curlVariant1()
     {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'httpbin/get?client=curl');
+        curl_setopt($ch, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $output = curl_exec($ch);
         curl_close($ch);
@@ -63,15 +84,15 @@ class Snippets
     public function curlVariant2()
     {
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
 
         $ch3 = curl_init();
-        curl_setopt($ch3, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch3, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch3, CURLOPT_RETURNTRANSFER, 1);
 
         $mh = curl_multi_init();
@@ -96,11 +117,11 @@ class Snippets
         $mh = curl_multi_init();
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 
         curl_multi_add_handle($mh, $ch1);
@@ -122,11 +143,11 @@ class Snippets
         $mh = curl_multi_init();
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 
         curl_multi_add_handle($mh, $ch1);
@@ -147,11 +168,11 @@ class Snippets
         $mh = curl_multi_init();
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 
         curl_multi_add_handle($mh, $ch1);
@@ -197,11 +218,11 @@ class Snippets
         curl_multi_setopt($mh, CURLMOPT_PUSHFUNCTION, $callback);
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
 
         curl_multi_add_handle($mh, $ch1);
@@ -223,7 +244,7 @@ class Snippets
         $mh = curl_multi_init();
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
 
         # Set a CURLOPT_WRITEFUNCTION callback
@@ -232,7 +253,7 @@ class Snippets
         });
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, self::CURL_MULTI_URL);
+        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
 
         # Set a CURLOPT_HEADERFUNCTION callback
@@ -254,10 +275,20 @@ class Snippets
         curl_multi_close($mh);
     }
 
+    public function curlVariant8()
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $output = curl_exec($ch);
+
+        # Do not call curl_close()
+    }
+
     public function elasticsearchVariant1()
     {
         $clientBuilder = ClientBuilder::create();
-        $clientBuilder->setHosts(['elasticsearch']);
+        $clientBuilder->setHosts([$this->config->elasticSearchHost]);
         $client = $clientBuilder->build();
 
         $params = [
@@ -275,13 +306,13 @@ class Snippets
     public function guzzleVariant1()
     {
         $client = new GuzzleClient();
-        $client->get('httpbin/get?client=guzzle');
+        $client->get($this->config->httpBinHost . '/get?client=guzzle');
     }
 
     public function phpredisVariant1()
     {
         $redis = new \Redis();
-        $redis->connect('redis', 6379);
+        $redis->connect($this->config->redisHost, $this->config->redisPort);
         $redis->flushAll();
         $redis->set('k1', 'v1');
         $redis->get('k1');
