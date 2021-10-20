@@ -31,8 +31,6 @@ $randomizerConfiguration = new RandomExecutionPathConfiguration(
     isset($queries['execution_path'])
 );
 
-$this->logMethodExecution = isset($queries['execution_path']);
-
 $randomizer = new RandomExecutionPath($randomizerConfiguration);
 set_error_handler([$randomizer, 'handleError']);
 set_exception_handler([$randomizer, 'handleException']);
