@@ -6,18 +6,27 @@ class RandomExecutionPath
 {
     /** @var boolean */
     private $logMethodExecution;
+
+    /** @var int */
     private $currentExecutionPathDepth = 0;
 
+    /** @var Snippets */
     private $snippets;
 
+    /** @var boolean */
     private $allowFatalAndUncaught = false;
 
+    /** @var GeneratorSnippets */
     private $generatorSnippets;
+
+    /** @var boolean */
+    private $exitOnHandledException;
 
     public function __construct(RandomExecutionPathConfiguration $config)
     {
         $this->allowFatalAndUncaught = $config->allowFatalAndUncaught;
         $this->logMethodExecution = $config->logMethodExecution;
+        $this->exitOnHandledException = $config->exitOnHandledException;
 
         \srand($config->seed);
 
@@ -284,7 +293,10 @@ class RandomExecutionPath
             http_response_code(500);
         }
         $this->logLeave(__FUNCTION__);
-        exit(1);
+
+        if ($this->exitOnHandledException) {
+            exit(1);
+        }
     }
 
     public function handleError($errno, $errstr)
@@ -307,7 +319,10 @@ class RandomExecutionPath
             // accept (200, 510 - expected exceptions, 511 - expected user errors)
             http_response_code(511);
             $this->logLeave(__FUNCTION__);
-            // exit(1);
+
+            if ($this->exitOnHandledException) {
+                exit(1);
+            }
         }
         $this->logLeave(__FUNCTION__);
     }
