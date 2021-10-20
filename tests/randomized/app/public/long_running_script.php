@@ -118,10 +118,10 @@ $snippetsConfiguration = (new SnippetsConfiguration())
     ->withMemcachedHost('memcached');
 $randomizerConfiguration = new RandomExecutionPathConfiguration(
     $snippetsConfiguration,
-    isset($queries['seed']) ? intval($queries['seed']) : null,
+    $seed,
     true,
     false,
-    isset($queries['execution_path'])
+    false
 );
 $randomizer = new RandomExecutionPath($randomizerConfiguration);
 set_error_handler([$randomizer, 'handleError']);
