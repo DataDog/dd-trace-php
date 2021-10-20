@@ -5,7 +5,7 @@ namespace RandomizedTests;
 class RandomExecutionPath
 {
     /** @var boolean */
-    private $traceMethodExecution;
+    private $logMethodExecution;
     private $currentExecutionPathDepth = 0;
 
     private $snippets;
@@ -14,25 +14,14 @@ class RandomExecutionPath
 
     private $generatorSnippets;
 
-    public function __construct($allowFatalAndUncaught = true)
+    public function __construct(RandomExecutionPathConfiguration $config)
     {
-        // Seeding to allow reproducible requests via <url>/?seed=123
-        $queries = array();
-        if (isset($_SERVER['QUERY_STRING'])) {
-            parse_str($_SERVER['QUERY_STRING'], $queries);
-        }
-        $this->traceMethodExecution = isset($queries['execution_path']);
+        $this->allowFatalAndUncaught = $config->allowFatalAndUncaught;
+        $this->logMethodExecution = $config->logMethodExecution;
 
-        if (isset($queries['seed'])) {
-            $seed = intval($queries['seed']);
-        } else {
-            $seed = rand();
-        }
-        error_log(sprintf('Current PID: %d. Current seed %d', getmypid(), $seed));
-        srand($seed);
+        \srand($config->seed);
 
-        $this->snippets = new Snippets();
-        $this->allowFatalAndUncaught = $allowFatalAndUncaught;
+        $this->snippets = new Snippets($config->snippetsConfiguration);
 
         if (!Utils::isPhpVersion(5, 4)) {
             $this->generatorSnippets = new GeneratorSnippets($this);
@@ -318,14 +307,14 @@ class RandomExecutionPath
             // accept (200, 510 - expected exceptions, 511 - expected user errors)
             http_response_code(511);
             $this->logLeave(__FUNCTION__);
-            exit(1);
+            // exit(1);
         }
         $this->logLeave(__FUNCTION__);
     }
 
     public function logEnter($subject)
     {
-        if ($this->traceMethodExecution) {
+        if ($this->logMethodExecution) {
             error_log(\sprintf("%s↘ %s", \str_repeat(' ', $this->currentExecutionPathDepth), $subject));
             $this->currentExecutionPathDepth += 2;
         }
@@ -333,7 +322,7 @@ class RandomExecutionPath
 
     public function logLeave($subject)
     {
-        if ($this->traceMethodExecution) {
+        if ($this->logMethodExecution) {
             $this->currentExecutionPathDepth -= 2;
             error_log(\sprintf("%s↙ %s", \str_repeat(' ', $this->currentExecutionPathDepth), $subject));
         }
