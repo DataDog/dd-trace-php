@@ -1,6 +1,7 @@
 <?php
 
 use RandomizedTests\Tooling\ApacheConfigGenerator;
+use RandomizedTests\Tooling\CLIRunnerGenerator;
 use RandomizedTests\Tooling\DockerComposeFileGenerator;
 use RandomizedTests\Tooling\EnvFileGenerator;
 use RandomizedTests\Tooling\MakefileGenerator;
@@ -12,6 +13,7 @@ include __DIR__ . '/config/envs.php';
 include __DIR__ . '/config/inis.php';
 include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/lib/ApacheConfigGenerator.php';
+include __DIR__ . '/lib/CLIRunnerGenerator.php';
 include __DIR__ . '/lib/DockerComposeFileGenerator.php';
 include __DIR__ . '/lib/EnvFileGenerator.php';
 include __DIR__ . '/lib/MakefileGenerator.php';
@@ -121,6 +123,17 @@ function generateOne($scenarioSeed)
             'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion",
             'installation_method' => $selectedInstallationMethod,
         ]
+    );
+
+    // For long running scripts we force no root span + autoflush
+    $longRunningModifications = $envModifications;
+    $longRunningModifications['DD_TRACE_AUTO_FLUSH_ENABLED'] = 'true';
+    $longRunningModifications['DD_TRACE_GENERATE_ROOT_SPAN'] = 'false';
+    (new CLIRunnerGenerator())->generate(
+        "$scenarioFolder/cli-runner.sh",
+        $scenarioSeed,
+        $longRunningModifications,
+        $iniModifications
     );
 
     return $identifier;

@@ -4,14 +4,18 @@
 // the ENVS array.
 const DEFAULT_ENVS = [
     'DD_AGENT_HOST' => 'agent',
+    'DD_ENV' => 'some_env',
+    'DD_SERVICE' => 'my_custom_service',
+    'DD_TRACE_CLI_ENABLED' => 'true',
 ];
 
 // Values from this array might be selected and set. When an environment variable from this list is selected,
 // then there is an equal probability that any of the assigned values from this array can be set.
 const ENVS = [
-    'DD_ENV' => ['some_env'],
-    'DD_SERVICE' => ['my_custom_service'],
+    'DD_ENV' => [null],
+    'DD_SERVICE' => [null],
     'DD_TRACE_ENABLED' => ['false'],
+    'DD_TRACE_CLI_ENABLED' => ['false'],
     'DD_TRACE_DEBUG' => ['true'],
     'DD_AGENT_HOST' => [null, 'wrong_host'],
     'DD_TRACE_AGENT_PORT' => ['9999'],

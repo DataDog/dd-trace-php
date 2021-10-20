@@ -44,6 +44,7 @@ services:
       - ./www.php-fpm.conf:/etc/php-fpm.d/www.conf
       - ./www.apache.conf:/etc/httpd/conf.d/www.conf
       - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
+      - ./cli-runner.sh:/cli-runner.sh
       - ../.tracer-versions:/tmp/tracer-versions
       - ../.results/{{identifier}}/:/results/
       - ../.results/{{identifier}}/nginx:/var/log/nginx
