@@ -304,7 +304,6 @@ class Span extends DataSpan
     public function finish($finishTime = null)
     {
         if (!$this->isFinished()) {
-            // @phpstan-ignore-next-line
             close_span($finishTime ?: 0);
         }
     }

@@ -41,11 +41,9 @@ abstract class Span implements SpanInterface
         } elseif ($name == "tags") {
             $name = "meta";
         } elseif ($name == "duration") {
-            // @phpstan-ignore-next-line
             $duration = $this->internalSpan->getDuration();
             return $duration;
         } elseif ($name == "startTime") {
-            // @phpstan-ignore-next-line
             $startTime = $this->internalSpan->getStartTime();
             return $startTime;
         }

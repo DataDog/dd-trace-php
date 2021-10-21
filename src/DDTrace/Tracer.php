@@ -115,7 +115,6 @@ final class Tracer implements TracerInterface
         $this->config = array_merge($this->config, $config);
         $this->reset();
         foreach ($this->config['global_tags'] as $key => $val) {
-            // @phpstan-ignore-next-line
             add_global_tag($key, $val);
         }
         $this->config['global_tags'] = array_merge($this->config['global_tags'], \ddtrace_config_global_tags());
@@ -181,7 +180,6 @@ final class Tracer implements TracerInterface
         $resource = array_key_exists('resource', $this->config) ? (string) $this->config['resource'] : null;
         $service = $this->config['service_name'];
 
-        // @phpstan-ignore-next-line
         $internalSpan = active_span();
         $internalSpan->name = (string) $operationName;
         $internalSpan->service = $service;
@@ -192,7 +190,6 @@ final class Tracer implements TracerInterface
         if (!isset($internalSpan->meta)) {
             $internalSpan->meta = [];
         }
-        // @phpstan-ignore-next-line
         $span = new Span($internalSpan, $context);
 
         foreach ($options->getTags() as $key => $val) {
@@ -484,7 +481,6 @@ final class Tracer implements TracerInterface
             if ($internalRootSpan = root_span()) {
                 // This will not set the distributed tracing activation context properly: do with internal migration
                 $traceId = trace_id();
-                // @phpstan-ignore-next-line
                 return new Span($internalRootSpan, new SpanContext($traceId, $traceId));
             }
             return null;
