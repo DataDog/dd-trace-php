@@ -325,6 +325,7 @@
             <file name="ext/php8/startup_logging.c" role="src" />
             <file name="ext/php8/startup_logging.h" role="src" />
             <file name="ext/php8/uri_normalization.h" role="src" />
+            <file name="ext/php8/weakrefs.c" role="src" />
             <!-- Shared -->
             <file name="src/dogstatsd/client.c" role="src" />
             <file name="src/dogstatsd/dogstatsd_client/client.h" role="src" />

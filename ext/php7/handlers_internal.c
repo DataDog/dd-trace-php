@@ -81,6 +81,18 @@ void ddtrace_internal_handlers_install(zend_array *traced_internal_functions) {
     ZEND_HASH_FOREACH_END();
 }
 
+void ddtrace_free_unregistered_class(zend_class_entry *ce) {
+    zend_hash_destroy(&ce->properties_info);
+    if (ce->default_properties_table) {
+        free(ce->default_properties_table);
+    }
+#if PHP_VERSION_ID >= 70400
+    if (ce->properties_info_table) {
+        free(ce->properties_info_table);
+    }
+#endif
+}
+
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_memcached_handlers_startup(void);
@@ -90,6 +102,7 @@ void ddtrace_pcntl_handlers_startup(void);
 void ddtrace_pdo_handlers_startup(void);
 void ddtrace_phpredis_handlers_startup(void);
 
+void ddtrace_curl_handlers_shutdown(void);
 void ddtrace_exception_handlers_shutdown(void);
 void ddtrace_mysqli_handlers_shutdown(void);
 void ddtrace_pdo_handlers_shutdown(void);
@@ -132,6 +145,7 @@ void ddtrace_internal_handlers_shutdown(void) {
     ddtrace_mysqli_handlers_shutdown();
     ddtrace_pdo_handlers_shutdown();
     ddtrace_exception_handlers_shutdown();
+    ddtrace_curl_handlers_shutdown();
 }
 
 void ddtrace_internal_handlers_rinit(void) {

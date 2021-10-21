@@ -80,6 +80,27 @@ void ddtrace_internal_handlers_install(zend_array *traced_internal_functions) {
     ZEND_HASH_FOREACH_END();
 }
 
+void ddtrace_free_unregistered_class(zend_class_entry *ce) {
+#if PHP_VERSION_ID >= 80100
+    zend_property_info *prop_info;
+    ZEND_HASH_FOREACH_PTR(&ce->properties_info, prop_info) {
+        if (prop_info->ce == ce) {
+            zend_string_release(prop_info->name);
+            zend_type_release(prop_info->type, /* persistent */ 1);
+            free(prop_info);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+#endif
+    zend_hash_destroy(&ce->properties_info);
+    if (ce->default_properties_table) {
+        free(ce->default_properties_table);
+    }
+    if (ce->properties_info_table) {
+        free(ce->properties_info_table);
+    }
+}
+
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_memcached_handlers_startup(void);
