@@ -228,9 +228,7 @@ static int dd_exception_to_error_type(zval *exception, void *context, add_tag_fn
 static int dd_exception_to_error_stack(char *trace, size_t trace_len, void *context, add_tag_fn_t add_tag) {
     zai_string_view key = ZAI_STRL_VIEW("error.stack");
     zai_string_view value = {.ptr = trace, .len = trace_len};
-    int result = add_tag(context, key, value);
-    efree(trace);
-    return result;
+    return add_tag(context, key, value);
 }
 
 /* "int" return types are SUCCESS=0, anything else is a failure
@@ -273,6 +271,9 @@ static int ddtrace_exception_to_meta(zval *exception, void *context, add_tag_fn_
     bool success = dd_exception_to_error_msg(exception, context, add_meta TSRMLS_CC) == SUCCESS &&
                    dd_exception_to_error_type(exception, context, add_meta TSRMLS_CC) == SUCCESS &&
                    dd_exception_to_error_stack(full_trace, full_trace_len, context, add_meta) == SUCCESS;
+
+    efree(full_trace);
+
     return success ? SUCCESS : FAILURE;
 }
 
