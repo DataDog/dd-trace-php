@@ -4,8 +4,6 @@ The original auto_prepend_file will be included even when ddtrace is disabled fr
 Note: this should have the same expected output as the auto_prepend_file_original_disabled_ini.phpt
 test. Once the enable/disable functionality is refactored, this test should fail with the same
 output as the other test and can be updated.
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_ENABLED=0
 --INI--

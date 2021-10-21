@@ -7,8 +7,6 @@ obvious when a closure is automatically static.
 In this one, we're making sure that a tracing closure still works when:
   - It is defined inside another closure that does have a scope.
   - It is targeting a method.
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--

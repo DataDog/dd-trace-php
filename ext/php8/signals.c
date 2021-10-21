@@ -111,6 +111,6 @@ void ddtrace_signals_first_rinit(void) {
 void ddtrace_signals_mshutdown(void) { free(ddtrace_altstack.ss_sp); }
 
 #else
-void ddtrace_signals_minit(void) {}
+void ddtrace_signals_first_rinit(void) {}
 void ddtrace_signals_mshutdown(void) {}
 #endif

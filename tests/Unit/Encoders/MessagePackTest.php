@@ -52,21 +52,6 @@ final class MessagePackTest extends BaseTestCase
         $this->assertStringNotContains('_sampling_priority_v1', $encoder->encodeTraces($this->tracer));
     }
 
-    public function testEncodeWithPrioritySampling()
-    {
-        if (PHP_VERSION_ID >= 70000) {
-            $this->assertTrue(true); // no warning
-            return; // priority sampling is no longer set upon encoding, other tests are covering this
-        }
-
-        $span = $this->tracer->startRootSpan('test_name')->getSpan();
-        $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
-        $span->finish();
-
-        $encoder = new MessagePack();
-        $this->assertStringContains("\xb5_sampling_priority_v1\x02", $encoder->encodeTraces($this->tracer));
-    }
-
     public function testEncodeMetricsWhenPresent()
     {
         $span = $this->tracer->startRootSpan('test_name')->getSpan();

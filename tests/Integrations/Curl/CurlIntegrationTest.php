@@ -386,36 +386,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
     }
 
-    public function testTracerRunningAtLimitedCapacityCurlWorksWithoutARootSpan()
-    {
-        if (PHP_VERSION_ID >= 80000) {
-            $this->markTestSkipped("This test is obsolete with curl headers looking at internal root spans");
-        }
-
-        $found = [];
-        $traces = $this->inWebServer(
-            function ($execute) use (&$found) {
-                $found = json_decode($execute(GetSpec::create(
-                    __FUNCTION__,
-                    '/curl_request_headers_with_copied_handle.php'
-                )), 1);
-            },
-            __DIR__ . '/curl_request_headers_with_copied_handle.php',
-            [
-                'DD_TRACE_GENERATE_ROOT_SPAN' => '0'
-            ]
-        );
-
-        // existing headers are honored
-        $this->assertSame('preserved_value', $found['headers']['Honored']);
-
-        $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
-        $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
-        $this->assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);
-
-        $this->assertSame('curl_exec', $traces[0][0]['name']);
-    }
-
     public function testAppendHostnameToServiceName()
     {
         self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');

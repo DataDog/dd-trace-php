@@ -2,6 +2,7 @@
 
 #include "coms.h"
 #include "ddtrace.h"
+#include "handlers_internal.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -12,29 +13,10 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
         // Until we full support pcntl tracing:
-        //   - disable further tracing on the forked process
-        //   - enter 'drop all pending or new traces' mode
         //   - kill the BGS
-        DDTRACE_G(disable_in_current_request) = 1;
-        DDTRACE_G(drop_all_spans) = 1;
+        //   - disable further tracing on the forked process (also ensures all spans are dropped)
         ddtrace_coms_kill_background_sender();
-    }
-}
-
-struct dd_pcntl_handler {
-    const char *name;
-    size_t name_len;
-    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
-    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
-};
-typedef struct dd_pcntl_handler dd_pcntl_handler;
-
-static void dd_install_handler(dd_pcntl_handler handler TSRMLS_DC) {
-    zend_function *old_handler;
-    if (zend_hash_find(CG(function_table), handler.name, handler.name_len, (void **)&old_handler) == SUCCESS &&
-        old_handler != NULL) {
-        *handler.old_handler = old_handler->internal_function.handler;
-        old_handler->internal_function.handler = handler.new_handler;
+        ddtrace_disable_tracing_in_current_request();
     }
 }
 
@@ -45,8 +27,8 @@ void ddtrace_pcntl_handlers_startup(void) {
         return;
     }
 
-    dd_pcntl_handler handlers[] = {
-        {"pcntl_fork", sizeof("pcntl_fork"), &dd_pcntl_fork_handler, ZEND_FN(ddtrace_pcntl_fork)},
+    dd_zif_handler handlers[] = {
+        {ZEND_STRL("pcntl_fork"), &dd_pcntl_fork_handler, ZEND_FN(ddtrace_pcntl_fork)},
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {

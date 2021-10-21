@@ -17,12 +17,10 @@ use DDTrace\Transport\Http;
 use Exception;
 use PHPUnit\Framework\TestCase;
 
-if (PHP_VERSION_ID >= 70000) {
-    class FakeSpan extends Span
-    {
-        public $startTime;
-        public $duration;
-    }
+class FakeSpan extends Span
+{
+    public $startTime;
+    public $duration;
 }
 
 trait TracerTestTrait
@@ -36,7 +34,6 @@ trait TracerTestTrait
         $transport = new DebugTransport();
         $tracer = $tracer ?: new Tracer($transport, null, $config);
         GlobalTracer::set($tracer);
-        return $transport;
     }
 
     /**
@@ -46,7 +43,7 @@ trait TracerTestTrait
      */
     public function isolateTracer($fn, $tracer = null, $config = [])
     {
-        $transport = $this->resetTracer($tracer, $config);
+        $this->resetTracer($tracer, $config);
 
         $tracer = GlobalTracer::get();
         if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
@@ -54,7 +51,7 @@ trait TracerTestTrait
         }
         $fn($tracer);
 
-        return $this->flushAndGetTraces($transport);
+        return $this->flushAndGetTraces();
     }
 
     /**
@@ -74,7 +71,7 @@ trait TracerTestTrait
         $fn($tracer);
         $scope->close();
 
-        return $this->flushAndGetTraces($transport);
+        return $this->flushAndGetTraces();
     }
 
     /**
@@ -96,7 +93,7 @@ trait TracerTestTrait
 
         $fn($tracer);
 
-        $traces = $this->flushAndGetTraces($transport);
+        $traces = $this->flushAndGetTraces();
 
         self::putenv('DD_TRACE_SPANS_LIMIT');
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
@@ -266,39 +263,18 @@ trait TracerTestTrait
                 $rawSpan["duration"] = (int)($rawSpan["duration"] / 1000);
                 $rawSpan["start"] = (int)($rawSpan["start"] / 1000);
 
-                if (PHP_VERSION_ID < 70000) {
-                    $span = new Span(
-                        $rawSpan['name'],
-                        $spanContext,
-                        isset($rawSpan['service']) ? $rawSpan['service'] : null,
-                        $rawSpan['resource'],
-                        $rawSpan['start']
-                    );
-
-                    // We want to use reflection to set properties so that we do not fire
-                    // potentials changes in setters.
-                    $this->setRawPropertyFromArray($span, $rawSpan, 'operationName', 'name');
-                    $this->setRawPropertyFromArray($span, $rawSpan, 'service');
-                    $this->setRawPropertyFromArray($span, $rawSpan, 'resource');
-                    $this->setRawPropertyFromArray($span, $rawSpan, 'startTime', 'start');
-                    $this->setRawPropertyFromArray($span, $rawSpan, 'type');
-                    $this->setRawPropertyFromArray($span, $rawSpan, 'duration');
-                    $this->setRawPropertyFromArray($span, $rawSpan, 'tags', 'meta');
-                    $this->setRawPropertyFromArray($span, $rawSpan, 'metrics', 'metrics');
-                } else {
-                    $internalSpan = new SpanData();
-                    $internalSpan->name = $rawSpan["name"];
-                    $internalSpan->service = isset($rawSpan['service']) ? $rawSpan['service'] : null;
-                    $internalSpan->resource = $rawSpan['resource'];
-                    if (isset($rawSpan['type'])) {
-                        $internalSpan->type = $rawSpan['type'];
-                    }
-                    $internalSpan->meta = isset($rawSpan['meta']) ? $rawSpan['meta'] : [];
-                    $internalSpan->metrics = isset($rawSpan['metrics']) ? $rawSpan['metrics'] : [];
-                    $span = new FakeSpan($internalSpan, $spanContext);
-                    $span->duration = $rawSpan["duration"];
-                    $span->startTime = $rawSpan["start"];
+                $internalSpan = new SpanData();
+                $internalSpan->name = $rawSpan["name"];
+                $internalSpan->service = isset($rawSpan['service']) ? $rawSpan['service'] : null;
+                $internalSpan->resource = $rawSpan['resource'];
+                if (isset($rawSpan['type'])) {
+                    $internalSpan->type = $rawSpan['type'];
                 }
+                $internalSpan->meta = isset($rawSpan['meta']) ? $rawSpan['meta'] : [];
+                $internalSpan->metrics = isset($rawSpan['metrics']) ? $rawSpan['metrics'] : [];
+                $span = new FakeSpan($internalSpan, $spanContext);
+                $span->duration = $rawSpan["duration"];
+                $span->startTime = $rawSpan["start"];
                 $this->setRawPropertyFromArray($span, $rawSpan, 'hasError', 'error', function ($value) {
                     return $value == 1 || $value == true;
                 });
@@ -363,8 +339,7 @@ trait TracerTestTrait
             $tracesAllRequests[] = $this->parseRawDumpedTraces($rawTraces);
         }
 
-        // We need to handle potential empty flushes (without internal flushing)...
-        return PHP_VERSION_ID >= 70000 ? $tracesAllRequests : array_values(array_filter($tracesAllRequests));
+        return $tracesAllRequests;
     }
 
     /**
@@ -433,13 +408,6 @@ trait TracerTestTrait
     public function simulateWebRequestTracer($fn)
     {
         $tracer = GlobalTracer::get();
-        $transport = new DebugTransport();
-
-        // Replacing the transport in the current tracer
-        $tracerReflection = new \ReflectionObject($tracer);
-        $tracerTransport = $tracerReflection->getProperty('transport');
-        $tracerTransport->setAccessible(true);
-        $tracerTransport->setValue($tracer, $transport);
 
         $fn($tracer);
 
@@ -449,22 +417,14 @@ trait TracerTestTrait
         // and that do not magically disappear. Here we are faking things.
         $tracer->getActiveSpan()->finish();
 
-        return $this->flushAndGetTraces($transport);
+        return $this->flushAndGetTraces();
     }
 
     /**
-     * @param DebugTransport $transport
      * @return array[]
      */
-    protected function flushAndGetTraces($transport)
+    protected function flushAndGetTraces()
     {
-        if (PHP_VERSION_ID < 70000) {
-            /** @var Tracer $tracer */
-            $tracer = GlobalTracer::get();
-            /** @var DebugTransport $transport */
-            $tracer->flush();
-            return $transport->getTraces();
-        }
         $traces = \dd_trace_serialize_closed_spans();
         return $traces ? [$traces] : [];
     }

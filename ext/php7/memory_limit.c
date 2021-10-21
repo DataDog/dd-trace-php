@@ -33,7 +33,7 @@ int64_t ddtrace_get_memory_limit(void) {
     return limit;
 }
 
-bool ddtrace_check_memory_under_limit(void) {
+bool ddtrace_is_memory_under_limit(void) {
     static int64_t limit = -1;
     static zend_bool fetched_limit = 0;
     if (!fetched_limit) {  // cache get_memory_limit() result to make this function blazing fast

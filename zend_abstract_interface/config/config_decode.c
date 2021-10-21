@@ -166,12 +166,13 @@ static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bo
     zval tmp;
 #if PHP_VERSION_ID < 70000
     INIT_PZVAL(&tmp);
+    zval *nullval = NULL;
     Z_ARRVAL(tmp) = pemalloc(sizeof(HashTable), persistent);
     Z_TYPE(tmp) = IS_ARRAY;
 #else
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
 #endif
-    zend_hash_init(Z_ARRVAL(tmp), 8, NULL, NULL, persistent);
+    zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
 
     char *data = (char *)value.ptr;
     if (data && *data) {  // non-empty
@@ -193,7 +194,18 @@ static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bo
                     memcpy(zero_terminated_key, key_start, key_len);
                     zero_terminated_key[key_len] = 0;
                 }
-                zend_hash_add_empty_element(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1);
+                if (nullval) {
+                    zval_addref_p(nullval);
+                } else {
+                    if (persistent) {
+                        ALLOC_PERMANENT_ZVAL(nullval);
+                    } else {
+                        ALLOC_ZVAL(nullval);
+                    }
+                    INIT_PZVAL(nullval);
+                    ZVAL_NULL(nullval);
+                }
+                zend_hash_update(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1, &nullval, sizeof(zval *), NULL);
                 pefree(zero_terminated_key, persistent);
 #else
                 zend_string *key = zend_string_init(key_start, key_len, persistent);

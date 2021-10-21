@@ -1,7 +1,5 @@
 --TEST--
 DDTrace\hook_function posthook error is sandboxed (debug)
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --INI--

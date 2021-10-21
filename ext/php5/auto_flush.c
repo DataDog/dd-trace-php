@@ -1,46 +1,59 @@
 #include "auto_flush.h"
 
-#include <methods/methods.h>
-
-#include "ddtrace.h"
-
-ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
-
-static bool dd_call_method_ignore_retval(zval *obj, const char *method, size_t method_len TSRMLS_DC) {
-    zval *retval = NULL;
-    bool result = zai_call_method_without_args(obj, method, method_len, &retval);
-    if (retval) {
-        zval_ptr_dtor(&retval);
-        retval = NULL;
-    }
-    return result;
-}
+#include "comms_php.h"
+#include "ddtrace_string.h"
+#include "logging.h"
+#include "serializer.h"
+#include "span.h"
 
 bool ddtrace_flush_tracer(TSRMLS_D) {
-    zend_class_entry *ce = zai_class_lookup(ZEND_STRL("ddtrace\\globaltracer"));
-    if (!ce) return false;
+    bool success = true;
 
-    zval *tracer = NULL;
-    // $tracer = \DDTrace\GlobalTracer::get();
-    bool result = zai_call_static_method_without_args(ce, ZEND_STRL("get"), &tracer);
-    if (!result) return false;
+    zval *trace, traces;
+    MAKE_STD_ZVAL(trace);
+    ddtrace_serialize_closed_spans(trace TSRMLS_CC);
 
-    if (tracer && Z_TYPE_P(tracer) == IS_OBJECT) {
-        zend_bool orig_disable = DDTRACE_G(disable_in_current_request);
-        DDTRACE_G(disable_in_current_request) = 1;
-
-        // $tracer->flush();
-        // $tracer->reset();
-        result = dd_call_method_ignore_retval(tracer, ZEND_STRL("flush") TSRMLS_CC) &&
-                 dd_call_method_ignore_retval(tracer, ZEND_STRL("reset") TSRMLS_CC);
-
-        DDTRACE_G(disable_in_current_request) = orig_disable;
+    // Prevent traces from requests not executing any PHP code:
+    // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
+    // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
+    if (PG(during_request_startup)) {
+        zval_ptr_dtor(&trace);
+        return SUCCESS;
     }
 
-    if (tracer) {
-        zval_ptr_dtor(&tracer);
-        tracer = NULL;
+    if (zend_hash_num_elements(Z_ARRVAL_P(trace)) == 0) {
+        zval_ptr_dtor(&trace);
+        ddtrace_log_debug("No finished traces to be sent to the agent");
+        return true;
     }
 
-    return result;
+    // background sender only wants a singular trace
+    array_init(&traces);
+    zend_hash_index_update(Z_ARRVAL(traces), 0, &trace, sizeof(zval *), NULL);
+
+    char *payload;
+    size_t size;
+    if (ddtrace_serialize_simple_array_into_c_string(&traces, &payload, &size TSRMLS_CC)) {
+        // The 10MB payload cap is inclusive, thus we use >, not >=
+        // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/limited_reader.go#L37
+        if (size > AGENT_REQUEST_BODY_LIMIT) {
+            ddtrace_log_errf("Agent request payload of %zu bytes exceeds 10MB limit; dropping request", size);
+            success = false;
+        } else {
+            success = ddtrace_send_traces_via_thread(1, payload, size TSRMLS_CC);
+            if (success) {
+                ddtrace_log_debugf("Successfully triggered flush with trace of size %d",
+                                   zend_hash_num_elements(Z_ARRVAL_P(trace)));
+            }
+            dd_prepare_for_new_trace(TSRMLS_C);
+        }
+
+        free(payload);
+    } else {
+        success = false;
+    }
+
+    zval_dtor(&traces);
+
+    return success;
 }

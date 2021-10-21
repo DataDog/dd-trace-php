@@ -243,15 +243,13 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // On php 5 WordPress returns 500 on error, as expected, while on 7.x it returns 200
                         // regardless of the extension being installed.
                         'http.status_code' => $this->matchesPhpVersion('5') ? '500' : '200',
-                    ])->ifPhpVersionNotMatch('5.4', function (SpanAssertion $assertion) {
-                        // Automatic error attachment to root span in case of PHP 5.4 is still under development.
-                        $message = PHP_MAJOR_VERSION >= 7
-                            ? "Uncaught Exception: Oops! in %s:%d"
-                            : "Uncaught exception 'Exception' with message 'Oops!' in %s:%d";
-                        $assertion
-                            ->setError(PHP_VERSION_ID >= 70000 ? "Exception" : "E_ERROR", $message)
-                            ->withExistingTagsNames(['error.stack']);
-                    })->withChildren([
+                    ])->setError(
+                        "Exception",
+                        ($this->matchesPhpVersion('5') ? "Caught Exception (500)" : "Uncaught Exception")
+                        . ": Oops! in %s:%d"
+                    )
+                    ->withExistingTagsNames(['error.stack'])
+                    ->withChildren([
                         SpanAssertion::exists('WP.main')
                             // There's no way to propagate this to the root span in userland yet
                             ->setError('Exception', 'Oops!')
