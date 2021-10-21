@@ -112,7 +112,6 @@ static void dd_check_exception_in_header(int old_response_code TSRMLS_DC) {
                 zval *exception = **EX_CV_NUM(ex, catch_op->op2.var);
                 if (Z_TYPE_P(exception) == IS_OBJECT &&
                     instanceof_function(Z_OBJCE_P(exception), zend_exception_get_default(TSRMLS_C) TSRMLS_CC)) {
-                    Z_ADDREF_P(exception);
                     zval **prop = ddtrace_spandata_property_exception_write(&root_span->span);
                     if (*prop) {
                         zval_ptr_dtor(prop);
