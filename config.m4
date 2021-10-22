@@ -65,16 +65,14 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/compat_string.c \
       ext/php5/coms.c \
       ext/php5/configuration.c \
-      ext/php5/configuration_php_iface.c \
       ext/php5/ddshared.c \
-      ext/php5/ddtrace_string.c \
       ext/php5/dispatch.c \
       ext/php5/dogstatsd_client.c \
       ext/php5/engine_api.c \
       ext/php5/engine_hooks.c \
-      ext/php5/env_config.c \
       ext/php5/excluded_modules.c \
       ext/php5/handlers_curl.c \
+      ext/php5/handlers_exception.c \
       ext/php5/handlers_internal.c \
       ext/php5/handlers_pcntl.c \
       ext/php5/integrations/integrations.c \
@@ -115,16 +113,14 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/compat_string.c \
       ext/php5/coms.c \
       ext/php5/configuration.c \
-      ext/php5/configuration_php_iface.c \
       ext/php5/ddshared.c \
-      ext/php5/ddtrace_string.c \
       ext/php5/dispatch.c \
       ext/php5/dogstatsd_client.c \
       ext/php5/engine_api.c \
       ext/php5/engine_hooks.c \
-      ext/php5/env_config.c \
       ext/php5/excluded_modules.c \
       ext/php5/handlers_curl.c \
+      ext/php5/handlers_exception.c \
       ext/php5/handlers_internal.c \
       ext/php5/handlers_pcntl.c \
       ext/php5/integrations/integrations.c \
@@ -175,6 +171,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/handlers_exception.c \
       ext/php7/handlers_internal.c \
       ext/php7/handlers_memcached.c \
+      ext/php7/handlers_mongodb.c \
       ext/php7/handlers_mysqli.c \
       ext/php7/handlers_pcntl.c \
       ext/php7/handlers_pdo.c \
@@ -226,6 +223,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/handlers_exception.c \
       ext/php8/handlers_internal.c \
       ext/php8/handlers_memcached.c \
+      ext/php8/handlers_mongodb.c \
       ext/php8/handlers_mysqli.c \
       ext/php8/handlers_pcntl.c \
       ext/php8/handlers_pdo.c \

@@ -152,6 +152,14 @@ switch ($_SERVER['REQUEST_URI']) {
         (new MyApp\MyBundle\Dispatcher())->dispatchWithPreviousException();
         break;
 
+    case "/immediately-caught-exception":
+        try {
+            throw new \Exception('top-level exception');
+        } catch (\Exception $e) {
+            http_response_code(501);
+        }
+        break;
+
     case "/caught-exception-with-500-followed-by-uncaught-exception":
         require __DIR__ . '/dispatcher.php';
         (new MyApp\MyBundle\Dispatcher())->nestedDispatchWithException();

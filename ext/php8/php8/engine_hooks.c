@@ -716,7 +716,7 @@ void ddtrace_close_all_open_spans(void) {
 }
 
 static void dd_observer_begin_handler(zend_execute_data *execute_data) {
-    if (DDTRACE_G(disable_in_current_request)) {
+    if (!get_DD_TRACE_ENABLED()) {
         return;
     }
     ddtrace_dispatch_t *cached_dispatch = DDTRACE_OP_ARRAY_EXTENSION(&execute_data->func->op_array);
@@ -738,8 +738,7 @@ static void dd_observer_end_handler(zend_execute_data *execute_data, zval *retva
 
 zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *execute_data) {
     zend_function *fbc = EX(func);
-    if (DDTRACE_G(disable_in_current_request) || ddtrace_op_array_extension == 0 ||
-        fbc->common.type != ZEND_USER_FUNCTION) {
+    if (!get_DD_TRACE_ENABLED() || ddtrace_op_array_extension == 0 || fbc->common.type != ZEND_USER_FUNCTION) {
         return (zend_observer_fcall_handlers){NULL, NULL};
     }
 
@@ -756,7 +755,7 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     zend_function *fbc = EX(func);
     void (*handler)(INTERNAL_FUNCTION_PARAMETERS) = fbc->internal_function.reserved[ddtrace_resource];
 
-    if (DDTRACE_G(disable_in_current_request)) {
+    if (!get_DD_TRACE_ENABLED()) {
         handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
     }

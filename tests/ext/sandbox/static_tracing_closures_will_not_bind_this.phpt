@@ -1,7 +1,5 @@
 --TEST--
 Static tracing closures will not bind $this
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=true
 --FILE--

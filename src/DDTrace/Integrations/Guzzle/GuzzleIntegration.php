@@ -35,34 +35,6 @@ class GuzzleIntegration extends Integration
 
         $integration = $this;
 
-        if (\PHP_VERSION_ID < 50500) {
-            \DDTrace\hook_method(
-                'GuzzleHttp\\Client',
-                '__construct',
-                null,
-                function (GuzzleHttp\Client $client, $s, $a) {
-                    if (!\method_exists($client, 'getEmitter')) {
-                        // must not be Guzzle 5
-                        return;
-                    }
-                    $emitter = $client->getEmitter();
-                    $emitter->once('before', function (GuzzleHttp\Event\EventInterface $event) {
-                        if (!$event instanceof GuzzleHttp\Event\AbstractRequestEvent) {
-                            return;
-                        }
-                        if (!\ddtrace_config_distributed_tracing_enabled()) {
-                            return;
-                        }
-                        /** @var GuzzleHttp\Event\AbstractRequestEvent $event */
-                        $request = $event->getRequest();
-                        $headers = [];
-                        \DDTrace\Bridge\inject_distributed_tracing_headers(Format::TEXT_MAP, $headers);
-                        $request->addHeaders($headers);
-                    });
-                }
-            );
-        }
-
         /* Until we support both pre- and post- hooks on the same function, do
          * not send distributed tracing headers; curl will almost guaranteed do
          * it for us anyway. Just do a post-hook to get the response.

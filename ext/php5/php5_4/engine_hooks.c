@@ -5,8 +5,6 @@
 #include <Zend/zend_interfaces.h>
 #include <php.h>
 
-#include <ext/spl/spl_exceptions.h>
-
 #include "ext/php5/compatibility.h"
 #include "ext/php5/ddtrace.h"
 #include "ext/php5/dispatch.h"
@@ -31,7 +29,7 @@ static zend_class_entry *dd_get_called_scope(zend_function *fbc TSRMLS_DC) {
 }
 
 static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zend_function *fbc TSRMLS_DC) {
-    if (DDTRACE_G(disable_in_current_request) || !DDTRACE_G(class_lookup) || !DDTRACE_G(function_lookup) || !fbc) {
+    if (!get_DD_TRACE_ENABLED() || !DDTRACE_G(class_lookup) || !DDTRACE_G(function_lookup) || !fbc) {
         return NULL;
     }
 
@@ -112,7 +110,7 @@ static int dd_sandbox_fci_call(zend_function *fbc, zend_fcall_info *fci, zend_fc
         ddtrace_log_debug("Could not execute ddtrace's closure");
     }
 
-    if (get_dd_trace_debug()) {
+    if (get_DD_TRACE_DEBUG()) {
         const char *scope, *colon, *name;
         dd_try_fetch_executing_function_name(fbc, &scope, &colon, &name);
 
@@ -142,26 +140,32 @@ typedef void (*dd_execute_hook)(zend_op_array *op_array TSRMLS_DC);
 
 static void (*dd_prev_execute)(zend_op_array *op_array TSRMLS_DC);
 
-void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
-    if (exception && !span_fci->exception) {
-        MAKE_STD_ZVAL(span_fci->exception);
-        ZVAL_COPY_VALUE(span_fci->exception, exception);
-        zval_copy_ctor(span_fci->exception);
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zval *exception) {
+    if (!exception) {
+        return;
     }
+
+    zval **prop_exception = ddtrace_spandata_property_exception_write(&span_fci->span);
+    if (*prop_exception != NULL && Z_TYPE_PP(prop_exception) != IS_NULL &&
+        (Z_TYPE_PP(prop_exception) != IS_BOOL || Z_BVAL_PP(prop_exception) != 0)) {
+        return;
+    }
+
+    *prop_exception = exception;
+    SEPARATE_ARG_IF_REF(*prop_exception);
 }
 
 // It's impls all the way down
 static bool dd_tracing_posthook_impl_impl(zend_function *fbc, ddtrace_span_fci *span_fci,
                                           zval *return_value TSRMLS_DC) {
     ddtrace_span_t *span = &span_fci->span;
-    zval *span_data = span_fci->span.span_data;
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
 
     dd_trace_stop_span_time(span);
     ddtrace_span_attach_exception(span_fci, EG(exception));
 
-    if (UNEXPECTED(!span_data || !return_value)) {
-        if (get_dd_trace_debug()) {
+    if (UNEXPECTED(!return_value)) {
+        if (get_DD_TRACE_DEBUG()) {
             const char *fname = Z_STRVAL(dispatch->function_name);
             ddtrace_log_errf("Tracing closure could not be run for %s() because it is in an invalid state", fname);
         }
@@ -193,6 +197,12 @@ static bool dd_tracing_posthook_impl_impl(zend_function *fbc, ddtrace_span_fci *
     // the retval of the tracing posthook tells us whether to keep the span: drop if IS_FALSE; keep otherwise
     zval *keep_span_zv = NULL;
     fci.retval_ptr_ptr = &keep_span_zv;
+
+    zval *span_data;
+    MAKE_STD_ZVAL(span_data);
+    Z_TYPE_P(span_data) = IS_OBJECT;
+    Z_OBJVAL_P(span_data) = span_fci->span.obj_value;
+    zend_objects_store_add_ref(span_data TSRMLS_CC);
 
     zval *args;
     MAKE_STD_ZVAL(args);
@@ -231,68 +241,46 @@ static bool dd_tracing_posthook_impl_impl(zend_function *fbc, ddtrace_span_fci *
         zval_ptr_dtor(&called_scope);
     }
     zval_ptr_dtor(&args);
+    zval_ptr_dtor(&span_data);
 
     return keep_span;
 }
 
-// returns an emalloc'd string or NULL
-static char *dd_generate_default_span_name(zend_function *fbc TSRMLS_DC) {
-    if (!fbc || !fbc->common.function_name) {
-        return NULL;
-    }
-
-    zend_class_entry *scope = dd_get_called_scope(fbc TSRMLS_CC);
-    const char *classname = scope ? scope->name : "";
-    const char *separator = scope ? "." : "";
-    const char *fname = fbc->common.function_name;
-    int buffer_size = snprintf(NULL, 0, "%s%s%s", classname, separator, fname);
-    char *name = emalloc(buffer_size + 1);
-    int written = snprintf(name, buffer_size + 1, "%s%s%s", classname, separator, fname);
-    if (UNEXPECTED(written < 0 || written > buffer_size)) {
-        ddtrace_log_errf("Failed snprintf when generating default span name");
-        efree(name);
-        return NULL;
-    }
-    return name;
-}
-
-static void dd_set_default_properties(ddtrace_span_fci *span_fci, zend_function *fbc TSRMLS_DC) {
-    if (!span_fci || !span_fci->span.span_data || !fbc) {
+static void dd_set_fqn(ddtrace_span_fci *span_fci, zend_function *func TSRMLS_DC) {
+    if (!func || !func->common.function_name) {
         return;
     }
 
-    ddtrace_span_t *span = &span_fci->span;
+    zval **prop_name = ddtrace_spandata_property_name_write(&span_fci->span);
+    if (*prop_name) {
+        zval_ptr_dtor(prop_name);
+    }
+    MAKE_STD_ZVAL(*prop_name);
 
-    // SpanData::$name defaults to fully qualified called name
-    // The other span property defaults are set at serialization time
-    zval *prop_name = zend_read_property(ddtrace_ce_span_data, span->span_data, ZEND_STRL("name"), 1 TSRMLS_CC);
-    if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
-        zval *prop_name_default;
-        MAKE_STD_ZVAL(prop_name_default);
-        ZVAL_NULL(prop_name_default);
-
-        char *name = dd_generate_default_span_name(fbc TSRMLS_CC);
-        if (name) {
-            // dd_generate_default_span_name malloc'd the name already
-            ZVAL_STRING(prop_name_default, name, 0);
-        }
-
-        zend_update_property(ddtrace_ce_span_data, span->span_data, ZEND_STRL("name"), prop_name_default TSRMLS_CC);
-        zval_ptr_dtor(&prop_name_default);
+    zend_class_entry *called_scope = dd_get_called_scope(func TSRMLS_CC);
+    if (called_scope) {
+        // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
+        char *fqn;
+        size_t fqn_len = spprintf(&fqn, 0, "%s.%s", called_scope->name, func->common.function_name);
+        ZVAL_STRINGL(*prop_name, fqn, fqn_len, 0);
+    } else {
+        ZVAL_STRING(*prop_name, func->common.function_name, 1);
     }
 }
 
 static void dd_tracing_posthook_impl(zend_function *fbc, ddtrace_span_fci *span_fci, zval *return_value TSRMLS_DC) {
     bool keep_span = dd_tracing_posthook_impl_impl(fbc, span_fci, return_value TSRMLS_CC);
 
-    if (span_fci != DDTRACE_G(open_spans_top)) {
+    if (!ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         // This can happen if the tracer flushes while an internal span is active
         return;
     }
 
+    ddtrace_close_userland_spans_until(
+        span_fci TSRMLS_CC);  // because dropping / setting default properties happens on top span
+
     if (keep_span) {
-        dd_set_default_properties(span_fci, fbc TSRMLS_CC);
-        ddtrace_close_span(TSRMLS_C);
+        ddtrace_close_span(span_fci TSRMLS_CC);
     } else {
         ddtrace_drop_top_open_span(TSRMLS_C);
     }
@@ -316,9 +304,13 @@ static void dd_execute_tracing_posthook(zend_op_array *op_array TSRMLS_DC) {
 
     ddtrace_dispatch_copy(dispatch);
 
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(ddtrace_span_fci));
+    ddtrace_span_fci *span_fci = ddtrace_init_span(TSRMLS_C);
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci TSRMLS_CC);
+    zend_objects_store_add_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
+
+    // SpanData::$name defaults to fully qualified called name
+    dd_set_fqn(span_fci, fbc TSRMLS_CC);
 
     dd_prev_execute(op_array TSRMLS_CC);
 
@@ -329,20 +321,20 @@ static void dd_execute_tracing_posthook(zend_op_array *op_array TSRMLS_DC) {
     zval *actual_retval =
         (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) ? *EG(return_value_ptr_ptr) : &zval_used_for_init;
 
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         dd_tracing_posthook_impl(fbc, span_fci, actual_retval TSRMLS_CC);
-    } else {
-        if (get_dd_trace_debug()) {
-            // todo: update to Classname::Methodname format
-            const char *fname = Z_STRVAL(dispatch->function_name);
-            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
-        }
+    } else if (get_DD_TRACE_DEBUG() && !span_fci->span.duration) {
+        // todo: update to Classname::Methodname format
+        const char *fname = Z_STRVAL(dispatch->function_name);
+        ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
     }
 
     if (free_retval && *EG(return_value_ptr_ptr)) {
         zval_ptr_dtor(EG(return_value_ptr_ptr));
         EG(return_value_ptr_ptr) = NULL;
     }
+
+    zend_objects_store_del_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
 }
 
 // copy dispatch on outside!
@@ -536,8 +528,8 @@ static void ddtrace_execute(zend_op_array *op_array TSRMLS_DC) {
                                        ? execute_hooks[DDTRACE_DISPATCH_JUMP_OFFSET(dispatch->options)]
                                        : dd_prev_execute;
 
-    if (++DDTRACE_G(call_depth) >= 512 && DDTRACE_G(should_warn_call_depth)) {
-        DDTRACE_G(should_warn_call_depth) = false;
+    if (++DDTRACE_G(call_depth) >= 512 && get_DD_TRACE_WARN_CALL_STACK_DEPTH() && !DDTRACE_G(has_warned_call_depth)) {
+        DDTRACE_G(has_warned_call_depth) = true;
         php_log_err(
             "ddtrace has detected a call stack depth of 512. If the call stack depth continues to grow the application "
             "may encounter a segmentation fault; see "
@@ -580,22 +572,26 @@ static void dd_internal_tracing_posthook(zend_execute_data *execute_data, int re
 
     ddtrace_dispatch_copy(dispatch);
 
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(ddtrace_span_fci));
+    ddtrace_span_fci *span_fci = ddtrace_init_span(TSRMLS_C);
     span_fci->execute_data = execute_data;
     span_fci->dispatch = dispatch;
     ddtrace_open_span(span_fci TSRMLS_CC);
+    zend_objects_store_add_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
+
+    // SpanData::$name defaults to fully qualified called name
+    dd_set_fqn(span_fci, fbc TSRMLS_CC);
 
     dd_prev_execute_internal(execute_data, return_value_used TSRMLS_CC);
 
-    if (span_fci == DDTRACE_G(open_spans_top)) {
+    if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         dd_tracing_posthook_impl(fbc, span_fci, return_value TSRMLS_CC);
-    } else {
-        if (get_dd_trace_debug()) {
-            // todo: update to Classname::Methodname format
-            const char *fname = Z_STRVAL(dispatch->function_name);
-            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
-        }
+    } else if (get_DD_TRACE_DEBUG() && !span_fci->span.duration) {
+        // todo: update to Classname::Methodname format
+        const char *fname = Z_STRVAL(dispatch->function_name);
+        ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
     }
+
+    zend_objects_store_del_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
 }
 
 static void dd_internal_non_tracing_posthook(zend_execute_data *execute_data, int return_value_used TSRMLS_DC,
@@ -682,8 +678,16 @@ zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
 }
 
 void ddtrace_close_all_open_spans(TSRMLS_D) {
-#if ZTS
-    UNUSED(TSRMLS_C);
-#endif
-    ddtrace_log_debug("Request to close all open spans ignored; not supported on PHP 5.4 (yet, anyway)");
+    ddtrace_span_fci *span_fci;
+    while ((span_fci = DDTRACE_G(open_spans_top)) &&
+           (span_fci->execute_data != NULL || span_fci->dispatch != NULL || span_fci->next)) {
+        // limited closing support, we do not allow posttracing handlers to be invoked on PHP 5.4 in autoclose
+        if (get_DD_AUTOFINISH_SPANS() || span_fci->execute_data != NULL || span_fci->dispatch != NULL) {
+            dd_trace_stop_span_time(&span_fci->span);
+            ddtrace_close_span(span_fci TSRMLS_CC);
+        } else {
+            ddtrace_drop_top_open_span(TSRMLS_C);
+        }
+    }
+    DDTRACE_G(open_spans_top) = span_fci;
 }

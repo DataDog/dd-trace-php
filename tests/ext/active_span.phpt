@@ -1,7 +1,5 @@
 --TEST--
 DDTrace\active_span basic functionality
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --FILE--
 <?php
 

@@ -14,6 +14,5 @@ ddtrace.request_init_hook={PWD}/../includes/request_init_hook.inc
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECT--
-Calling ddtrace_init()...
 Original auto_prepend_file
 Done.

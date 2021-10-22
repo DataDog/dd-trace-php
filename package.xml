@@ -144,19 +144,15 @@
             <file name="ext/php5/compatibility.h" role="src" />
             <file name="ext/php5/coms.c" role="src" />
             <file name="ext/php5/coms.h" role="src" />
-            <file name="ext/php5/configuration.h" role="src" />
-            <file name="ext/php5/configuration.c" role="src" />
-            <file name="ext/php5/configuration_php_iface.h" role="src" />
-            <file name="ext/php5/configuration_php_iface.c" role="src" />
-            <file name="ext/php5/configuration_render.h" role="src" />
-            <file name="ext/php5/ddshared.c" role="src" />
-            <file name="ext/php5/ddshared.h" role="src" />
-            <file name="ext/php5/ddtrace_string.c" role="src" />
-            <file name="ext/php5/ddtrace_string.h" role="src" />
-            <file name="ext/php5/ddtrace.c" role="src">
+            <file name="ext/php5/configuration.h" role="src">
                 <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />
                 <tasks:replace from="_BUILD_FROM_PECL_" to="PHP_VERSION_ID" type="php-const" />
             </file>
+            <file name="ext/php5/configuration.c" role="src" />
+            <file name="ext/php5/ddshared.c" role="src" />
+            <file name="ext/php5/ddshared.h" role="src" />
+            <file name="ext/php5/ddtrace_string.h" role="src" />
+            <file name="ext/php5/ddtrace.c" role="src" />
             <file name="ext/php5/ddtrace.h" role="src" />
             <file name="ext/php5/dispatch.c" role="src" />
             <file name="ext/php5/dispatch.h" role="src" />
@@ -166,11 +162,10 @@
             <file name="ext/php5/engine_api.h" role="src" />
             <file name="ext/php5/engine_hooks.c" role="src" />
             <file name="ext/php5/engine_hooks.h" role="src" />
-            <file name="ext/php5/env_config.c" role="src" />
-            <file name="ext/php5/env_config.h" role="src" />
             <file name="ext/php5/excluded_modules.c" role="src" />
             <file name="ext/php5/excluded_modules.h" role="src" />
             <file name="ext/php5/handlers_curl.c" role="src" />
+            <file name="ext/php5/handlers_exception.c" role="src" />
             <file name="ext/php5/handlers_internal.c" role="src" />
             <file name="ext/php5/handlers_internal.h" role="src" />
             <file name="ext/php5/handlers_pcntl.c" role="src" />
@@ -197,6 +192,7 @@
             <file name="ext/php5/span.h" role="src" />
             <file name="ext/php5/startup_logging.c" role="src" />
             <file name="ext/php5/startup_logging.h" role="src" />
+            <file name="ext/php5/uri_normalization.h" role="src" />
             <!-- PHP 7.x -->
             <file name="ext/php7/arrays.c" role="src" />
             <file name="ext/php7/arrays.h" role="src" />
@@ -236,6 +232,7 @@
             <file name="ext/php7/handlers_internal.c" role="src" />
             <file name="ext/php7/handlers_internal.h" role="src" />
             <file name="ext/php7/handlers_memcached.c" role="src" />
+            <file name="ext/php7/handlers_mongodb.c" role="src" />
             <file name="ext/php7/handlers_mysqli.c" role="src" />
             <file name="ext/php7/handlers_pcntl.c" role="src" />
             <file name="ext/php7/handlers_pdo.c" role="src" />
@@ -301,6 +298,7 @@
             <file name="ext/php8/handlers_internal.c" role="src" />
             <file name="ext/php8/handlers_internal.h" role="src" />
             <file name="ext/php8/handlers_memcached.c" role="src" />
+            <file name="ext/php8/handlers_mongodb.c" role="src" />
             <file name="ext/php8/handlers_mysqli.c" role="src" />
             <file name="ext/php8/handlers_pcntl.c" role="src" />
             <file name="ext/php8/handlers_pdo.c" role="src" />
@@ -371,7 +369,6 @@
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_003.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_inject.inc" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_inject_exception.inc" role="test" />
-            <file name="tests/ext/integrations/curl/distributed_tracing_curl_missing_fn.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_001.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_002.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_copy_handle.phpt" role="test" />
@@ -380,11 +377,9 @@
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_001.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_002.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_sampling_priority.phpt" role="test" />
-            <file name="tests/ext/integrations/curl/distributed_tracing_curl_sandboxed.phpt" role="test" />
 
             <file name="tests/ext/pcntl/functions.inc" role="test" />
             <file name="tests/ext/pcntl/pcntl_fork_long_running_autoflush.phpt" role="test" />
-            <file name="tests/ext/pcntl/pcntl_fork_long_running_autoflush-legacy.phpt" role="test" />
             <file name="tests/ext/pcntl/pcntl_fork_long_running_manual.phpt" role="test" />
             <file name="tests/ext/pcntl/pcntl_fork_short_running_multiple.phpt" role="test" />
             <file name="tests/ext/pcntl/pcntl_fork_short_running_nested.phpt" role="test" />
@@ -404,36 +399,25 @@
             <file name="tests/ext/request-init-hook/auto_prepend_file_original_exit.phpt" role="test" />
             <file name="tests/ext/request-init-hook/dd_init_open_basedir.inc" role="test" />
             <file name="tests/ext/request-init-hook/dd_init_open_basedir.phpt" role="test" />
-            <file name="tests/ext/request-init-hook/dd_init_open_basedir-legacy.phpt" role="test" />
             <file name="tests/ext/request-init-hook/error_get_last_is_unaffected.phpt" role="test" />
-            <file name="tests/ext/request-init-hook/error_get_last_is_unaffected-legacy.phpt" role="test" />
             <file name="tests/ext/request-init-hook/raises_e_notice.php" role="test" />
             <file name="tests/ext/request-init-hook/contains_binary_character.php" role="test" />
             <file name="tests/ext/request-init-hook/request_init_hook_contains_non_printable_character.phpt" role="test" />
             <file name="tests/ext/request-init-hook/raises_fatal_error.php" role="test" />
             <file name="tests/ext/request-init-hook/request_init_hook_confined_to_open_basedir.phpt" role="test" />
-            <file name="tests/ext/request-init-hook/request_init_hook_confined_to_open_basedir-legacy.phpt" role="test" />
             <file name="tests/ext/request-init-hook/request_init_hook_file_not_found.phpt" role="test" />
-            <file name="tests/ext/request-init-hook/request_init_hook_file_not_found-legacy.phpt" role="test" />
             <file name="tests/ext/request-init-hook/request_init_hook_ignores_exceptions.phpt" role="test" />
-            <file name="tests/ext/request-init-hook/request_init_hook_ignores_exceptions-legacy.phpt" role="test" />
             <file name="tests/ext/request-init-hook/request_init_hook_ignores_fatal_errors.phpt" role="test" />
-            <file name="tests/ext/request-init-hook/request_init_hook_ignores_fatal_errors-legacy.phpt" role="test" />
             <file name="tests/ext/request-init-hook/request_init_hook_ignores_fatal_errors_php_54.phpt" role="test" />
             <file name="tests/ext/request-init-hook/run_file_before_request_handling.phpt" role="test" />
             <file name="tests/ext/request-init-hook/shebang.phpt" role="test" />
             <file name="tests/ext/request-init-hook/throws_exception.php" role="test" />
 
             <file name="tests/ext/sandbox/auto_flush.phpt" role="test" />
-            <file name="tests/ext/sandbox/auto_flush-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/auto_flush_attach_exception.phpt" role="test" />
-            <file name="tests/ext/sandbox/auto_flush_attach_exception-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/auto_flush_disables_tracing.phpt" role="test" />
-            <file name="tests/ext/sandbox/auto_flush_disables_tracing-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/auto_flush_sandbox_exception.phpt" role="test" />
-            <file name="tests/ext/sandbox/auto_flush_sandbox_exception-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/auto_flush_userland_root_span.phpt" role="test" />
-            <file name="tests/ext/sandbox/auto_flush_userland_root_span-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/cake_01.phpt" role="test" />
             <file name="tests/ext/sandbox/cake_02.phpt" role="test" />
             <file name="tests/ext/sandbox/close-on-exit.phpt" role="test" />
@@ -441,48 +425,33 @@
             <file name="tests/ext/sandbox/dd_dumper.inc" role="test" />
             <file name="tests/ext/sandbox/dd_trace_closed_spans_count.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_api_error.phpt" role="test" />
-            <file name="tests/ext/sandbox/dd_trace_api_error-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_function_alias.phpt" role="test" />
-            <file name="tests/ext/sandbox/dd_trace_function_alias-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_function_complex.phpt" role="test" />
-            <file name="tests/ext/sandbox/dd_trace_function_complex-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_function_internal.phpt" role="test" />
-            <file name="tests/ext/sandbox/dd_trace_function_internal-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_function_userland.phpt" role="test" />
-            <file name="tests/ext/sandbox/dd_trace_function_userland-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_method.phpt" role="test" />
-            <file name="tests/ext/sandbox/dd_trace_method-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_method_alias.phpt" role="test" />
-            <file name="tests/ext/sandbox/dd_trace_method_alias-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_method_binds_called_object.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_push_span_id.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_set_trace_id.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties.phpt" role="test" />
-            <file name="tests/ext/sandbox/default_span_properties-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties_method.phpt" role="test" />
-            <file name="tests/ext/sandbox/default_span_properties_method-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_attempt_loading_once.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_missing_load_fn.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_using_function.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_loading_helper.php" role="test" />
             <file name="tests/ext/sandbox/drop_spans.phpt" role="test" />
             <file name="tests/ext/sandbox/errors_are_flagged_from_userland.phpt" role="test" />
-            <file name="tests/ext/sandbox/errors_are_flagged_from_userland-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_does_not_close_span_that_catches.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_error_log.phpt" role="test" />
-            <file name="tests/ext/sandbox/exception_error_log-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_from_user_error_handler_internal.phpt" role="test" />
-            <file name="tests/ext/sandbox/exception_from_user_error_handler_internal-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_for_correct_catch_block.phpt" role="test" />
-            <file name="tests/ext/sandbox/exception_handled_for_correct_catch_block-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_in_correct_catch_frame.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_in_multicatch.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handled_with_finally.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_handling.phpt" role="test" />
-            <file name="tests/ext/sandbox/exception_handling-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_is_defined.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
-            <file name="tests/ext/sandbox/exceptions_and_errors_are_ignored_in_tracing_closure-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
@@ -496,7 +465,6 @@
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_004.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_005.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt" role="test" />
-            <file name="tests/ext/sandbox/fatal_errors_ignored_in_shutdown-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure.phpt" role="test" />
             <file name="tests/ext/sandbox/generator.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_not_supported.phpt" role="test" />
@@ -512,19 +480,16 @@
             <file name="tests/ext/sandbox/hook_function/01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/03.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_function/03-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_03.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_access_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_error_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_error_02.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_function/posthook_error_02-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_exceptions_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_exceptions_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_exceptions_03.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_exceptions_04.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_04-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_exit_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_exit_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_limited_01.phpt" role="test" />
@@ -535,18 +500,14 @@
             <file name="tests/ext/sandbox/hook_function/prehook_access_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_error_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_error_02.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_function/prehook_error_02-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_exceptions_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_exceptions_02.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_02-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_exceptions_03.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_exceptions_04.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_04-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_variadic.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/03.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_method/03-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_03.phpt" role="test" />
@@ -554,11 +515,9 @@
             <file name="tests/ext/sandbox/hook_method/posthook_05.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_06.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_07.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_method/posthook_07-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_access_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_error_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_error_02.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_method/posthook_error_02-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_exceptions_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_exceptions_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_exit_01.phpt" role="test" />
@@ -577,10 +536,8 @@
             <file name="tests/ext/sandbox/hook_method/prehook_access_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_error_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_error_02.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_method/prehook_error_02-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_exceptions_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_exceptions_02.phpt" role="test" />
-            <file name="tests/ext/sandbox/hook_method/prehook_exceptions_02-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_scope_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_scope_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_scope_03.phpt" role="test" />
@@ -597,27 +554,20 @@
             <file name="tests/ext/sandbox/preinitialized_tracing_of_method.phpt" role="test" />
             <file name="tests/ext/sandbox/return_by_ref.phpt" role="test" />
             <file name="tests/ext/sandbox/retval_is_null_with_exception.phpt" role="test" />
-            <file name="tests/ext/sandbox/retval_is_null_with_exception-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_metadata.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_properties.phpt" role="test" />
-            <file name="tests/ext/sandbox/safe_to_string_properties-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/span_clone.phpt" role="test" />
             <file name="tests/ext/sandbox/span_resource_serialization.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_01.phpt" role="test" />
-            <file name="tests/ext/sandbox/spans_out_of_sync_01-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_02.phpt" role="test" />
-            <file name="tests/ext/sandbox/spans_out_of_sync_02-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_03_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_03_php7.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_04_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_04_php7.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_05.phpt" role="test" />
-            <file name="tests/ext/sandbox/spans_out_of_sync_05-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync_06.phpt" role="test" />
-            <file name="tests/ext/sandbox/spans_out_of_sync_06-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/static_tracing_closures_will_not_bind_this.phpt" role="test" />
-            <file name="tests/ext/sandbox/static_tracing_closures_will_not_bind_this-legacy.phpt" role="test" />
             <file name="tests/ext/sandbox/variadic_args_internal.phpt" role="test" />
             <file name="tests/ext/sandbox/variadic_no_args.phpt" role="test" />
             <file name="tests/ext/sandbox/vm_var_types_return.phpt" role="test" />
@@ -690,13 +640,11 @@
             <file name="tests/ext/check_memory_under_limit_default.phpt" role="test" />
             <file name="tests/ext/check_memory_under_limit_high_limit.phpt" role="test" />
             <file name="tests/ext/check_memory_under_limit_high_user_limit.phpt" role="test" />
-            <file name="tests/ext/check_memory_under_limit_low_limit.phpt" role="test" />
             <file name="tests/ext/check_memory_under_limit_low_user_limit.phpt" role="test" />
             <file name="tests/ext/circuit_breaker_info.phpt" role="test" />
             <file name="tests/ext/circuit_breaker_max_failures.phpt" role="test" />
             <file name="tests/ext/circuit_breaker_retry_time.phpt" role="test" />
             <file name="tests/ext/dd_trace_api_error.phpt" role="test" />
-            <file name="tests/ext/dd_trace_api_error-legacy.phpt" role="test" />
             <file name="tests/ext/dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
             <file name="tests/ext/dd_trace_current_context.phpt" role="test" />
             <file name="tests/ext/dd_trace_current_context_noenv.phpt" role="test" />
@@ -705,7 +653,6 @@
             <file name="tests/ext/dd_trace_send_traces_via_thread_002.phpt" role="test" />
             <file name="tests/ext/dd_trace_serialize_msgpack.phpt" role="test" />
             <file name="tests/ext/dd_trace_serialize_msgpack_error.phpt" role="test" />
-            <file name="tests/ext/dd_trace_serialize_msgpack_error-legacy.phpt" role="test" />
             <file name="tests/ext/dd_trace_serialize_msgpack_reference.phpt" role="test" />
             <file name="tests/ext/dd_trace_tracer_is_limited_memory.phpt" role="test" />
             <file name="tests/ext/dd_trace_warning.phpt" role="test" />
@@ -713,7 +660,6 @@
             <file name="tests/ext/extension_disabled.phpt" role="test" />
             <file name="tests/ext/from_php_7_3_bug61728.phpt" role="test" />
             <file name="tests/ext/from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
-            <file name="tests/ext/get_memory_limit_0.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_0_percent.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_default.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_set_by_absolute.phpt" role="test" />
@@ -735,12 +681,11 @@
             <file name="tests/ext/startup_logging_diagnostics.phpt" role="test" />
             <file name="tests/ext/startup_logging_disabled.phpt" role="test" />
             <file name="tests/ext/startup_logging_json.phpt" role="test" />
-            <file name="tests/ext/startup_logging_json-legacy.phpt" role="test" />
             <file name="tests/ext/startup_logging_json_config.phpt" role="test" />
-            <file name="tests/ext/startup_logging_json_config-legacy.phpt" role="test" />
             <file name="tests/ext/startup_logging_skipif.inc" role="test" />
             <file name="tests/ext/traced_internal_functions_override_01.phpt" role="test" />
             <file name="tests/ext/traced_internal_functions_override_02.phpt" role="test" />
+            <file name="tests/ext/root_span_add_tag.phpt" role="test" />
 
             <!-- Docs -->
             <file name="CHANGELOG.md" role="doc" />

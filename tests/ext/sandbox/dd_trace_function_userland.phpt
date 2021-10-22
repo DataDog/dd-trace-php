@@ -1,7 +1,5 @@
 --TEST--
 DDTrace\trace_function() can trace userland functions with internal spans
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

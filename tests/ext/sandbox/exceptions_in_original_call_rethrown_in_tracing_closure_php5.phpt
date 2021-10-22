@@ -33,7 +33,7 @@ try {
     echo $e->getMessage() . "\n";
 }
 ?>
---EXPECT--
+--EXPECTF--
 a()
 Oops!
-a with exception: Oops!
+a with exception: Uncaught Exception: Oops! in %s

@@ -1,7 +1,5 @@
 --TEST--
 Startup logging config from JSON fetched at runtime
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_ENV=my-env
 DD_SERVICE=my-service
@@ -84,4 +82,3 @@ traced_internal_functions: "array_sum,mt_rand,DateTime::add"
 auto_prepend_file_configured: true
 integrations_disabled: "curl,mysqli"
 enabled_from_env: false
-No finished traces to be sent to the agent

@@ -146,20 +146,11 @@ final class SpanTest extends BaseTestCase
 
     private function createSpan()
     {
-        if (PHP_VERSION_ID < 70000) {
-            $span = new DDSpan(
-                self::OPERATION_NAME,
-                DDSpanContext::createAsRoot(),
-                self::SERVICE,
-                self::RESOURCE
-            );
-        } else {
-            $internalSpan = \DDTrace\start_span();
-            $internalSpan->name = self::OPERATION_NAME;
-            $internalSpan->service = self::SERVICE;
-            $internalSpan->resource = self::RESOURCE;
-            $span = new DDSpan($internalSpan, DDSpanContext::createAsRoot());
-        }
+        $internalSpan = \DDTrace\start_span();
+        $internalSpan->name = self::OPERATION_NAME;
+        $internalSpan->service = self::SERVICE;
+        $internalSpan->resource = self::RESOURCE;
+        $span = new DDSpan($internalSpan, DDSpanContext::createAsRoot());
         return new Span($span);
     }
 }

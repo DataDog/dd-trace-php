@@ -1,0 +1,41 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  LATEST_URL:
+    value: "https://577339-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_0.65.1_amd64.deb"
+    description: "Location where to download latest built package"
+  DOWNSTREAM_REL_BRANCH:
+    value: "master"
+    description: "Run a specific datadog-reliability-env branch downstream"
+  FORCE_TRIGGER:
+    value: "false"
+    description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
+
+build:
+  stage: build
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - echo $LATEST_URL | sed -E 's/.+_(.+)_.+/UPSTREAM_TRACER_VERSION=\1/' >> upstream.env
+    - curl --fail --location --output php-linux-tracer-deb-latest.deb $LATEST_URL
+  artifacts:
+    paths:
+      - 'upstream.env'
+      - 'php-linux-tracer-deb-latest.deb'
+
+deploy_to_reliability_env:
+  stage: deploy
+  trigger:
+    project: DataDog/datadog-reliability-env
+    branch: $DOWNSTREAM_REL_BRANCH
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+#    COMMIT_SHA would be wrong because the artifact is not built here
+#    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
+    FORCE_TRIGGER: $FORCE_TRIGGER

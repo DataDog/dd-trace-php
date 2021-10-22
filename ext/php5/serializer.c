@@ -2,21 +2,26 @@
 #include <Zend/zend_builtin_functions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
+#include <exceptions/exceptions.h>
 #include <inttypes.h>
 #include <php.h>
+#include <properties/properties.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <ext/spl/spl_exceptions.h>
+#include <ext/standard/php_smart_str.h>
+#include <ext/standard/php_string.h>
+// comment to prevent clang from reordering these headers
+#include <SAPI.h>
 
-#include "arrays.h"
 #include "compat_string.h"
-#include "compatibility.h"
 #include "ddtrace.h"
 #include "engine_hooks.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "span.h"
+#include "uri_normalization.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -105,7 +110,6 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) {
         default:
             ddtrace_log_debug("Serialize values must be of type array, string, int, float, bool or null");
             return 0;
-            break;
     }
     return 1;
 }
@@ -151,242 +155,463 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
     }
 }
 
-static zval *_read_span_property(zval *span_data, const char *name, size_t name_len TSRMLS_DC) {
-    return zend_read_property(ddtrace_ce_span_data, span_data, name, name_len, 1 TSRMLS_CC);
+typedef int (*add_tag_fn_t)(void *context, zai_string_view key, zai_string_view value);
+
+static int dd_exception_to_error_msg(zval *exception, void *context, add_tag_fn_t add_tag TSRMLS_DC) {
+    zai_string_view msg = zai_exception_message(exception TSRMLS_CC);
+    zval *line = ZAI_EXCEPTION_PROPERTY(exception, "line");
+    zval *file = ZAI_EXCEPTION_PROPERTY(exception, "file");
+
+    char *error_text, *status_line;
+    zend_bool caught = SG(sapi_headers).http_response_code >= 500;
+
+    if (caught) {
+        if (SG(sapi_headers).http_status_line) {
+            asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line);
+        } else {
+            asprintf(&status_line, " (%d)", SG(sapi_headers).http_response_code);
+        }
+    }
+
+    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:%ld", caught ? "Caught" : "Uncaught",
+                             Z_OBJCE_P(exception)->name, caught ? status_line : "", msg.len > 0 ? ": " : "",
+                             (int)msg.len, msg.ptr, Z_TYPE_P(file) == IS_STRING ? Z_STRVAL_P(file) : "Unknown",
+                             Z_TYPE_P(line) == IS_LONG ? Z_LVAL_P(line) : 0);
+
+    if (caught) {
+        free(status_line);
+    }
+
+    zai_string_view key = ZAI_STRL_VIEW("error.msg");
+    zai_string_view value = {.ptr = error_text, .len = error_len};
+    int result = add_tag(context, key, value);
+
+    free(error_text);
+    return result;
 }
 
-/* gettraceasstring() macros
- * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L364-L395
- * {{{ */
-#define _DD_TRACE_APPEND_STRL(val, vallen)           \
-    {                                                \
-        int l = vallen;                              \
-        *str = (char *)erealloc(*str, *len + l + 1); \
-        memcpy((*str) + *len, val, l);               \
-        *len += l;                                   \
-    }
+static int dd_exception_to_error_type(zval *exception, void *context, add_tag_fn_t add_tag TSRMLS_DC) {
+    zai_string_view value = ZAI_STRL_VIEW("{unknown error}"), key = ZAI_STRL_VIEW("error.type");
 
-#define _DD_TRACE_APPEND_STR(val) _DD_TRACE_APPEND_STRL(val, sizeof(val) - 1)
+    if (instanceof_function(Z_OBJCE_P(exception), ddtrace_ce_fatal_error TSRMLS_CC)) {
+        zval *code = ZAI_EXCEPTION_PROPERTY(exception, "code");
 
-#define _DD_TRACE_APPEND_KEY(key)                                          \
-    if (zend_hash_find(ht, key, sizeof(key), (void **)&tmp) == SUCCESS) {  \
-        if (Z_TYPE_PP(tmp) != IS_STRING) {                                 \
-            /* zend_error(E_WARNING, "Value for %s is no string", key); */ \
-            _DD_TRACE_APPEND_STR("[unknown]");                             \
-        } else {                                                           \
-            _DD_TRACE_APPEND_STRL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp));     \
-        }                                                                  \
-    }
-/* }}} */
-
-/* This is modeled after _build_trace_string in PHP 5.4
- * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L543-L605
- */
-static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zend_hash_key *hash_key) {
-    UNUSED(hash_key);
-#ifdef ZTS
-    /* This arg is required for the zend_hash_apply_with_arguments function signature, but we don't need it */
-    UNUSED(TSRMLS_C);
-#endif
-
-    char *s_tmp, **str;
-    int *len, *num;
-    long line;
-    HashTable *ht = Z_ARRVAL_PP(frame);
-    zval **file, **tmp;
-
-    if (Z_TYPE_PP(frame) != IS_ARRAY || num_args != 3) {
-        return ZEND_HASH_APPLY_KEEP;
-    }
-
-    str = va_arg(args, char **);
-    len = va_arg(args, int *);
-    num = va_arg(args, int *);
-
-    s_tmp = emalloc(1 + MAX_LENGTH_OF_LONG + 1 + 1);
-    sprintf(s_tmp, "#%d ", (*num)++);
-    _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
-    efree(s_tmp);
-    if (zend_hash_find(ht, "file", sizeof("file"), (void **)&file) == SUCCESS) {
-        if (Z_TYPE_PP(file) != IS_STRING) {
-            ddtrace_log_debug("serializer stack trace: Function name is not a string");
-            _DD_TRACE_APPEND_STR("[unknown function]");
-        } else {
-            if (zend_hash_find(ht, "line", sizeof("line"), (void **)&tmp) == SUCCESS) {
-                if (Z_TYPE_PP(tmp) == IS_LONG) {
-                    line = Z_LVAL_PP(tmp);
-                } else {
-                    ddtrace_log_debug("serializer stack trace: Line is not a long");
-                    line = 0;
-                }
-            } else {
-                line = 0;
+        if (Z_TYPE_P(code) == IS_LONG) {
+            switch (Z_LVAL_P(code)) {
+                case E_ERROR:
+                    value = ZAI_STRL_VIEW("E_ERROR");
+                    break;
+                case E_CORE_ERROR:
+                    value = ZAI_STRL_VIEW("E_CORE_ERROR");
+                    break;
+                case E_COMPILE_ERROR:
+                    value = ZAI_STRL_VIEW("E_COMPILE_ERROR");
+                    break;
+                case E_USER_ERROR:
+                    value = ZAI_STRL_VIEW("E_USER_ERROR");
+                    break;
+                default:
+                    ddtrace_assert_log_debug(
+                        "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
             }
-            s_tmp = emalloc(Z_STRLEN_PP(file) + MAX_LENGTH_OF_LONG + 4 + 1);
-            sprintf(s_tmp, "%s(%ld): ", Z_STRVAL_PP(file), line);
-            _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
-            efree(s_tmp);
+
+        } else {
+            ddtrace_assert_log_debug("Exception was a DDTrace\\FatalError but failed to get an exception code");
         }
     } else {
-        _DD_TRACE_APPEND_STR("[internal function]: ");
+        value = (zai_string_view){.ptr = Z_OBJCE_P(exception)->name, .len = strlen(Z_OBJCE_P(exception)->name)};
     }
 
-    _DD_TRACE_APPEND_KEY("class");
-    _DD_TRACE_APPEND_KEY("type");
-    _DD_TRACE_APPEND_KEY("function");
-
-    /* We intentionally do not show any arguments, not even an ellipsis if there
-     * are arguments; this is for consistency with PHP 7 where there is an INI
-     * setting called zend.exception_ignore_args that prevents "args" from being
-     * generated.
-     */
-    _DD_TRACE_APPEND_STR("()\n");
-
-    return ZEND_HASH_APPLY_KEEP;
+    return add_tag(context, key, value);
 }
 
-/* This is modeled after Exception::getTraceAsString() in PHP 5.4
- * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L607-L635
+static int dd_exception_to_error_stack(char *trace, size_t trace_len, void *context, add_tag_fn_t add_tag) {
+    zai_string_view key = ZAI_STRL_VIEW("error.stack");
+    zai_string_view value = {.ptr = trace, .len = trace_len};
+    return add_tag(context, key, value);
+}
+
+/* "int" return types are SUCCESS=0, anything else is a failure
+ * Guarantees that add_tag will only be called once per tag, will stop trying to add tags if one fails.
  */
-static char *dd_serialize_stack_trace(zval *trace TSRMLS_DC) {
-    char *res, **str, *s_tmp;
-    int res_len = 0, *len = &res_len, num = 0;
+static int ddtrace_exception_to_meta(zval *exception, void *context, add_tag_fn_t add_meta TSRMLS_DC) {
+    zval *exception_root = exception;
+    smart_str trace_str = zai_get_trace_without_args_from_exception(exception TSRMLS_CC);
+    char *full_trace = trace_str.c;
+    size_t full_trace_len = trace_str.len;
 
-    if (Z_TYPE_P(trace) != IS_ARRAY) {
-        return NULL;
+    zval *previous = ZAI_EXCEPTION_PROPERTY(exception, "previous");
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_OBJPROP_P(previous)->nApplyCount &&
+           instanceof_function(Z_OBJCE_P(previous), zend_exception_get_default(TSRMLS_C) TSRMLS_CC)) {
+        smart_str trace_string = zai_get_trace_without_args_from_exception(previous TSRMLS_CC);
+
+        zai_string_view msg = zai_exception_message(exception TSRMLS_CC);
+        zval *line = ZAI_EXCEPTION_PROPERTY(exception, "line");
+        zval *file = ZAI_EXCEPTION_PROPERTY(exception, "file");
+
+        char *old_trace = full_trace;
+        full_trace_len =
+            spprintf(&full_trace, 0, "%.*s\n\nNext %s%s%s in %s:%ld\nStack trace:\n%.*s", (int)trace_string.len,
+                     trace_string.c, Z_OBJCE_P(exception)->name, msg.len ? ": " : "", msg.ptr,
+                     Z_TYPE_P(file) == IS_STRING ? Z_STRVAL_P(file) : "Unknown",
+                     Z_TYPE_P(line) == IS_LONG ? Z_LVAL_P(line) : 0, (int)full_trace_len, old_trace);
+        efree(old_trace);
+
+        ++Z_OBJPROP_P(previous)->nApplyCount;
+        exception = previous;
+        previous = ZAI_EXCEPTION_PROPERTY(exception, "previous");
     }
 
-    res = estrdup("");
-    str = &res;
+    previous = ZAI_EXCEPTION_PROPERTY(exception_root, "previous");
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_OBJPROP_P(previous)->nApplyCount) {
+        --Z_OBJPROP_P(previous)->nApplyCount;
+        previous = ZAI_EXCEPTION_PROPERTY(previous, "previous");
+    }
 
-    zend_hash_apply_with_arguments(Z_ARRVAL_P(trace) TSRMLS_CC, (apply_func_args_t)_trace_string, 3, str, len, &num);
+    bool success = dd_exception_to_error_msg(exception, context, add_meta TSRMLS_CC) == SUCCESS &&
+                   dd_exception_to_error_type(exception, context, add_meta TSRMLS_CC) == SUCCESS &&
+                   dd_exception_to_error_stack(full_trace, full_trace_len, context, add_meta) == SUCCESS;
 
-    s_tmp = emalloc(1 + MAX_LENGTH_OF_LONG + 7 + 1);
-    sprintf(s_tmp, "#%d {main}", num);
-    _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
-    efree(s_tmp);
+    efree(full_trace);
 
-    res[res_len] = '\0';
-
-    return res;
+    return success ? SUCCESS : FAILURE;
 }
 
-int ddtrace_exception_to_meta(ddtrace_exception_t *exception, void *context,
-                              int (*add_tag)(void *context, ddtrace_string key, ddtrace_string value)) {
-    UNUSED(exception, context, add_tag);
+typedef struct dd_error_info {
+    zval *type;
+    zval *msg;
+    zval *stack;
+} dd_error_info;
+
+static zval *dd_error_type(int code) {
+    zval *type = NULL;
+    const char *error_type = "{unknown error}";
+    switch (code) {
+        case E_ERROR:
+            error_type = "E_ERROR";
+            break;
+        case E_CORE_ERROR:
+            error_type = "E_CORE_ERROR";
+            break;
+        case E_COMPILE_ERROR:
+            error_type = "E_COMPILE_ERROR";
+            break;
+        case E_USER_ERROR:
+            error_type = "E_USER_ERROR";
+            break;
+    }
+    MAKE_STD_ZVAL(type);
+    ZVAL_STRING(type, error_type, 1);
+    return type;
+}
+
+static zval *dd_fatal_error_stack(void) {
+    zval *stack = NULL;
+    zval trace = zval_used_for_init;
+    TSRMLS_FETCH();
+
+    zend_fetch_debug_backtrace(&trace, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
+    if (Z_TYPE(trace) == IS_ARRAY) {
+        smart_str stack_str = zai_get_trace_without_args(Z_ARRVAL(trace));
+        if (stack_str.c) {
+            MAKE_STD_ZVAL(stack);
+            ZVAL_STRINGL(stack, stack_str.c, stack_str.len, 0);
+        }
+    }
+    zval_dtor(&trace);
+    return stack;
+}
+
+static void dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
+    if (error.type) {
+        Z_ADDREF_P(error.type);
+        add_assoc_zval(meta, "error.type", error.type);
+    }
+    if (error.msg) {
+        Z_ADDREF_P(error.msg);
+        add_assoc_zval(meta, "error.msg", error.msg);
+    }
+    if (error.stack) {
+        Z_ADDREF_P(error.stack);
+        add_assoc_zval(meta, "error.stack", error.stack);
+    }
+}
+
+static int dd_add_meta_array(void *meta, zai_string_view key, zai_string_view value) {
+    add_assoc_stringl_ex((zval *)meta, key.ptr, key.len + 1, (char *)value.ptr, value.len, 1);
     return SUCCESS;
 }
 
-static void dd_serialize_exception(zval *el, zval *meta, ddtrace_exception_t *exception TSRMLS_DC) {
-    zend_uint class_name_len;
-    const char *class_name;
-    zval *msg = NULL, *stack = NULL;
-
-    if (!exception) {
-        return;
-    }
-
-    add_assoc_long(el, "error", 1);
-
-    zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "getmessage", &msg);
-    if (msg) {
-        add_assoc_zval(meta, "error.msg", msg);
-    }
-
-    bool use_class_name_for_error_type = true;
-    if (instanceof_function(Z_OBJCE_P(exception), ddtrace_ce_fatal_error TSRMLS_CC)) {
-        zval *code = NULL;
-        zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "getcode", &code);
-        if (code) {
-            if (Z_TYPE_P(code) == IS_LONG) {
-                ddtrace_string error_type;
-                switch (Z_LVAL_P(code)) {
-                    case E_ERROR:
-                        error_type = DDTRACE_STRING_LITERAL("E_ERROR");
-                        break;
-                    case E_CORE_ERROR:
-                        error_type = DDTRACE_STRING_LITERAL("E_CORE_ERROR");
-                        break;
-                    case E_COMPILE_ERROR:
-                        error_type = DDTRACE_STRING_LITERAL("E_COMPILE_ERROR");
-                        break;
-                    case E_USER_ERROR:
-                        error_type = DDTRACE_STRING_LITERAL("E_USER_ERROR");
-                        break;
-                    default:
-                        ZEND_ASSERT(0 && "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
-                        error_type = DDTRACE_STRING_LITERAL("{unknown error}");
-                }
-                add_assoc_stringl(meta, "error.type", error_type.ptr, error_type.len, 1);
-                use_class_name_for_error_type = false;
-            } else {
-                ddtrace_log_debug("Exception was a DDTrace\\FatalError but exception code was not an int");
+static void dd_add_header_to_meta(HashTable *meta, const char *type, char *lowerheader, size_t headerlen,
+                                  zval *headerval) {
+    if (zend_hash_exists(get_DD_TRACE_HEADER_TAGS(), lowerheader, headerlen + 1)) {
+        for (char *ptr = lowerheader; *ptr; ++ptr) {
+            if ((*ptr < 'a' || *ptr > 'z') && *ptr != '-' && (*ptr < '0' || *ptr > '9')) {
+                *ptr = '_';
             }
-            zval_ptr_dtor(&code);
+        }
+
+        char *headertag;
+        headerlen = spprintf(&headertag, 0, "http.%s.headers.%s", type, lowerheader);
+        zval_addref_p(headerval);
+        zend_hash_update(meta, headertag, headerlen + 1, (void **)&headerval, sizeof(zval **), NULL);
+        efree(headertag);
+    }
+}
+
+void ddtrace_set_global_span_properties(ddtrace_span_t *span TSRMLS_DC) {
+    zval *meta = ddtrace_spandata_property_meta(span);
+
+    zai_string_view version = get_DD_VERSION();
+    if (version.len > 0) {  // non-empty
+        add_assoc_stringl(meta, "version", (char *)version.ptr, version.len, 1);
+    }
+
+    zai_string_view env = get_DD_ENV();
+    if (env.len > 0) {  // non-empty
+        add_assoc_stringl(meta, "env", (char *)env.ptr, env.len, 1);
+    }
+
+    if (DDTRACE_G(dd_origin)) {
+        add_assoc_string(meta, "_dd.origin", DDTRACE_G(dd_origin), 1);
+    }
+
+    HashTable *global_tags = get_DD_TAGS();
+    char *key;
+    uint key_len;
+    ulong num_key;
+    zval **val;
+    HashPosition pos;
+
+    for (zend_hash_internal_pointer_reset_ex(global_tags, &pos);
+         zend_hash_get_current_key_ex(global_tags, &key, &key_len, &num_key, 0, &pos),
+         zend_hash_get_current_data_ex(global_tags, (void **)&val, &pos) == SUCCESS;
+         zend_hash_move_forward_ex(global_tags, &pos)) {
+        if (zend_hash_add(Z_ARRVAL_P(meta), key, key_len, (void **)val, sizeof(zval *), NULL) == SUCCESS) {
+            zval_addref_p(*val);
+        }
+    }
+
+    for (zend_hash_internal_pointer_reset_ex(&DDTRACE_G(additional_global_tags), &pos);
+         zend_hash_get_current_key_ex(&DDTRACE_G(additional_global_tags), &key, &key_len, &num_key, 0, &pos),
+         zend_hash_get_current_data_ex(&DDTRACE_G(additional_global_tags), (void **)&val, &pos) == SUCCESS;
+         zend_hash_move_forward_ex(&DDTRACE_G(additional_global_tags), &pos)) {
+        if (zend_hash_add(Z_ARRVAL_P(meta), key, key_len, (void **)val, sizeof(zval *), NULL) == SUCCESS) {
+            zval_addref_p(*val);
+        }
+    }
+}
+
+void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
+    zval *meta = ddtrace_spandata_property_meta(span);
+
+    add_assoc_long(meta, "system.pid", (long)getpid());
+
+    const char *uri = SG(request_info).request_uri, *method = SG(request_info).request_method;
+    if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {
+        add_assoc_string(meta, "http.method", (char *)method, 1);
+
+        zval *http_url = NULL;
+        if ((PG(http_globals)[TRACK_VARS_SERVER] && Z_TYPE_P(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY) ||
+            zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC)) {
+            zval **urizv;
+            if (zend_hash_find(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_SERVER]), "REQUEST_URI", sizeof("REQUEST_URI"),
+                               (void **)&urizv) == SUCCESS) {
+                http_url = *urizv;
+                zval_addref_p(http_url);
+            }
+        }
+        if (!http_url && uri) {
+            MAKE_STD_ZVAL(http_url)
+            ZVAL_STRING(http_url, uri, 1);
+        }
+
+        zval **prop_resource = ddtrace_spandata_property_resource_write(span);
+        MAKE_STD_ZVAL(*prop_resource);
+        if (http_url) {
+            add_assoc_zval(meta, "http.url", http_url);
+
+            zai_string_view normalized =
+                ddtrace_uri_normalize_incoming_path((zai_string_view){.ptr = uri, .len = strlen(uri)});
+            char *resource;
+            spprintf(&resource, 0, "%s %s", method, normalized.ptr);
+            efree((char *)normalized.ptr);
+            ZVAL_STRING(*prop_resource, resource, 0);
         } else {
-            ddtrace_log_debug("Failed to fetch exception code of DDTrace\\FatalError");
+            ZVAL_STRING(*prop_resource, method, 1);
+        }
+    }
+    zval **prop_type = ddtrace_spandata_property_type_write(span);
+    MAKE_STD_ZVAL(*prop_type);
+
+    zval **prop_name = ddtrace_spandata_property_name_write(span);
+    MAKE_STD_ZVAL(*prop_name);
+
+    if (strcmp(sapi_module.name, "cli") == 0) {
+        ZVAL_STRING(*prop_type, "cli", 1);
+        if (SG(request_info).argc > 0) {
+            char *basepath;
+            size_t pathlen;
+            php_basename(SG(request_info).argv[0], strlen(SG(request_info).argv[0]), NULL, 0, &basepath,
+                         &pathlen TSRMLS_CC);
+            ZVAL_STRINGL(*prop_name, basepath, pathlen, 0);
+        } else {
+            ZVAL_STRING(*prop_name, "cli.command", 1);
+        }
+    } else {
+        ZVAL_STRING(*prop_type, "web", 1);
+        ZVAL_STRING(*prop_name, "web.request", 1);
+    }
+
+    zval **prop_service = ddtrace_spandata_property_service_write(span);
+    MAKE_STD_ZVAL(*prop_service);
+    ZVAL_STRING(*prop_service, get_DD_SERVICE().len ? get_DD_SERVICE().ptr : Z_STRVAL_PP(prop_name), 1);
+
+    if ((PG(http_globals)[TRACK_VARS_SERVER] && Z_TYPE_P(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY) ||
+        zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC)) {
+        HashPosition pos;
+        char *headername;
+        uint headername_len;
+        ulong num_key;
+        HashTable *server = Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_SERVER]);
+        zval **headerval;
+        for (zend_hash_internal_pointer_reset_ex(server, &pos);
+             zend_hash_get_current_data_ex(server, (void **)&headerval, &pos) == SUCCESS;
+             zend_hash_move_forward_ex(server, &pos)) {
+            int key_type;
+            key_type = zend_hash_get_current_key_ex(server, &headername, &headername_len, &num_key, 0, &pos);
+            --headername_len;  // subtract trailing zero-byte from length
+            if (key_type == HASH_KEY_IS_STRING && Z_TYPE_PP(headerval) == IS_STRING && headername_len > 5 &&
+                memcmp(headername, "HTTP_", 5) == 0) {
+                char *lowerheader = estrndup(headername + 5, headername_len - 5);
+                for (char *ptr = lowerheader; *ptr; ++ptr) {
+                    if (*ptr >= 'A' && *ptr <= 'Z') {
+                        *ptr -= 'A' - 'a';
+                    } else if (*ptr == '_') {
+                        *ptr = '-';
+                    }
+                }
+
+                dd_add_header_to_meta(Z_ARRVAL_P(meta), "request", lowerheader, headername_len - 5, *headerval);
+                efree(lowerheader);
+            }
         }
     }
 
-    if (use_class_name_for_error_type) {
-        int needs_copied = zend_get_object_classname(exception, &class_name, &class_name_len TSRMLS_CC);
-        /* add_assoc_stringl does not actually mutate the string, but we've either
-         * already made a copy, or it will when it duplicates with dup param, so
-         * if it did it should still be safe. */
-        add_assoc_stringl(meta, "error.type", (char *)class_name, class_name_len, needs_copied);
-    }
+    if (get_DD_TRACE_REPORT_HOSTNAME()) {
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 255
+#endif
 
-    /* Note, we use Exception::getTrace() instead of getTraceAsString because
-     * function arguments can contain sensitive information. Since we do not
-     * have a comprehensive way to know which function arguments are sensitive
-     * we will just hide all of them. */
-    zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "gettrace", &stack);
-    if (stack) {
-        char *trace_string = dd_serialize_stack_trace(stack TSRMLS_CC);
-        if (trace_string) {
-            add_assoc_string(meta, "error.stack", trace_string, 0);
+        char *hostname = emalloc(HOST_NAME_MAX + 1);
+        if (gethostname(hostname, HOST_NAME_MAX + 1)) {
+            efree(hostname);
+        } else {
+            hostname = erealloc(hostname, strlen(hostname) + 1);
+            add_assoc_string(meta, "_dd.hostname", hostname, 0);
         }
-        zval_ptr_dtor(&stack);
     }
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
     ddtrace_span_t *span = &span_fci->span;
-    zval *meta, *orig_meta = _read_span_property(span->span_data, ZEND_STRL("meta") TSRMLS_CC);
+    bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
+    zval *meta, *orig_meta = ddtrace_spandata_property_meta(span);
     ALLOC_INIT_ZVAL(meta);
     array_init(meta);
-    if (orig_meta && Z_TYPE_P(orig_meta) == IS_ARRAY) {
-        int key_type;
-        zval **orig_val;
-        zval *val_as_string;
-        HashPosition pos;
-        char *str_key;
-        uint str_key_len;
-        ulong num_key;
-        zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(orig_meta), &pos);
-        while (zend_hash_get_current_data_ex(Z_ARRVAL_P(orig_meta), (void **)&orig_val, &pos) == SUCCESS) {
-            key_type = zend_hash_get_current_key_ex(Z_ARRVAL_P(orig_meta), &str_key, &str_key_len, &num_key, 0, &pos);
-            if (key_type == HASH_KEY_IS_STRING) {
-                ALLOC_INIT_ZVAL(val_as_string);
-                ddtrace_convert_to_string(val_as_string, *orig_val TSRMLS_CC);
-                add_assoc_zval_ex(meta, str_key, str_key_len, val_as_string);
+
+    int key_type;
+    zval **orig_val;
+    zval *val_as_string;
+    HashPosition pos;
+    char *str_key;
+    uint str_key_len;
+    ulong num_key;
+    zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(orig_meta), &pos);
+    while (zend_hash_get_current_data_ex(Z_ARRVAL_P(orig_meta), (void **)&orig_val, &pos) == SUCCESS) {
+        key_type = zend_hash_get_current_key_ex(Z_ARRVAL_P(orig_meta), &str_key, &str_key_len, &num_key, 0, &pos);
+        if (key_type == HASH_KEY_IS_STRING) {
+            ALLOC_INIT_ZVAL(val_as_string);
+            ddtrace_convert_to_string(val_as_string, *orig_val TSRMLS_CC);
+            add_assoc_zval_ex(meta, str_key, str_key_len, val_as_string);
+        }
+        zend_hash_move_forward_ex(Z_ARRVAL_P(orig_meta), &pos);
+    }
+
+    zval *exception_zv = ddtrace_spandata_property_exception(&span_fci->span);
+    if (exception_zv && Z_TYPE_P(exception_zv) == IS_OBJECT &&
+        instanceof_function(Z_OBJCE_P(exception_zv), zend_exception_get_default(TSRMLS_C) TSRMLS_CC)) {
+        ddtrace_exception_to_meta(exception_zv, meta, dd_add_meta_array TSRMLS_CC);
+    }
+
+    if (top_level_span) {
+        if (SG(sapi_headers).http_response_code) {
+            zval *status_code;
+            MAKE_STD_ZVAL(status_code);
+            ZVAL_LONG(status_code, SG(sapi_headers).http_response_code);
+            convert_to_string(status_code);
+            add_assoc_zval(meta, "http.status_code", status_code);
+            if (SG(sapi_headers).http_response_code >= 500) {
+                zval **zv = NULL;
+                if (zend_hash_add(Z_ARRVAL_P(meta), "error.type", sizeof("error.type"), (void **)&zv, sizeof(zval **),
+                                  (void **)&zv) == SUCCESS) {
+                    MAKE_STD_ZVAL(*zv);
+                    ZVAL_STRING(*zv, "Internal Server Error", 1);
+                }
             }
-            zend_hash_move_forward_ex(Z_ARRVAL_P(orig_meta), &pos);
+        }
+
+        zend_llist_position pos;
+        zend_llist *sapi_headers = &SG(sapi_headers).headers;
+        for (sapi_header_struct *h = (sapi_header_struct *)zend_llist_get_first_ex(sapi_headers, &pos); h;
+             h = (sapi_header_struct *)zend_llist_get_next_ex(sapi_headers, &pos)) {
+            if (!h->header_len) {
+            next_header:
+                continue;
+            }
+            char *lowerheader = emalloc(h->header_len);
+            char *lowerptr = lowerheader, *header = h->header, *end = header + h->header_len;
+            for (; *header != ':'; ++header, ++lowerptr) {
+                if (header >= end) {
+                    efree(lowerheader);
+                    goto next_header;
+                }
+                *lowerptr = (char)(*header >= 'A' && *header <= 'Z' ? *header - ('A' - 'a') : *header);
+            }
+            // not actually RFC 7230 compliant (not allowing whitespace there), but most clients accept it. Handle it.
+            while (lowerptr > lowerheader && isspace(lowerptr[-1])) {
+                --lowerptr;
+            }
+            *lowerptr = 0;
+            size_t headerlen = lowerptr - lowerheader;
+            lowerheader = erealloc(lowerheader, headerlen + 1);
+            if (header + 1 < end) {
+                ++header;
+            }
+
+            while (header < end && isspace(*header)) {
+                ++header;
+            }
+            while (end > header && isspace(end[-1])) {
+                --end;
+            }
+
+            zval *headerval;
+            MAKE_STD_ZVAL(headerval);
+            ZVAL_STRINGL(headerval, header, end - header, 1);
+            dd_add_header_to_meta(Z_ARRVAL_P(meta), "response", lowerheader, headerlen, headerval);
+
+            zval_ptr_dtor(&headerval);
+            efree(lowerheader);
         }
     }
 
-    dd_serialize_exception(el, meta, span_fci->exception TSRMLS_CC);
-    // zend_hash_exists on PHP 5 needs `sizeof(string)`, not `sizeof(string) - 1`
-    if (!span_fci->exception && zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg"))) {
+    zend_bool error = zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg")) ||
+                      zend_hash_exists(Z_ARRVAL_P(meta), "error.type", sizeof("error.type"));
+    if (error) {
         add_assoc_long(el, "error", 1);
     }
-    if (span->parent_id == 0) {
-        char pid[MAX_LENGTH_OF_LONG + 1];
-        snprintf(pid, sizeof(pid), "%ld", (long)span->pid);
-        add_assoc_string(meta, "system.pid", pid, 1);
-    }
 
-    // Add meta only if it has elements
     if (zend_hash_num_elements(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);
     } else {
@@ -395,19 +620,9 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
     }
 }
 
-#define ADD_ELEMENT_IF_NOT_NULL(name)                                                        \
-    do {                                                                                     \
-        zval *prop = _read_span_property(span->span_data, name, sizeof(name) - 1 TSRMLS_CC); \
-        zval *prop_as_string;                                                                \
-        if (Z_TYPE_P(prop) != IS_NULL) {                                                     \
-            ALLOC_INIT_ZVAL(prop_as_string);                                                 \
-            ddtrace_convert_to_string(prop_as_string, prop TSRMLS_CC);                       \
-            add_assoc_zval(el, name, prop_as_string);                                        \
-        }                                                                                    \
-    } while (0);
-
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSRMLS_DC) {
     ddtrace_span_t *span = &span_fci->span;
+    bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     zval *el;
     ALLOC_INIT_ZVAL(el);
     array_init(el);
@@ -429,18 +644,21 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     add_assoc_long(el, "duration", span->duration);
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
-    zval *prop_name = _read_span_property(span->span_data, ZEND_STRL("name") TSRMLS_CC);
+    zval *prop_name = ddtrace_spandata_property_name(span);
     zval *prop_name_as_string = NULL;
-    if (Z_TYPE_P(prop_name) != IS_NULL) {
+    if (prop_name && Z_TYPE_P(prop_name) != IS_NULL) {
         ALLOC_INIT_ZVAL(prop_name_as_string);
         ddtrace_convert_to_string(prop_name_as_string, prop_name TSRMLS_CC);
         add_assoc_zval(el, "name", prop_name_as_string);
     }
 
     // SpanData::$resource defaults to SpanData::$name
-    zval *prop_resource = _read_span_property(span->span_data, ZEND_STRL("resource") TSRMLS_CC);
+    zval *prop_resource = ddtrace_spandata_property_resource(span);
     zval *prop_resource_as_string = NULL;
-    if (Z_TYPE_P(prop_resource) != IS_NULL) {
+    zval resource_is_null;
+    if (prop_resource &&
+        (compare_function(&resource_is_null, &EG(uninitialized_zval), prop_resource TSRMLS_CC) == FAILURE ||
+         Z_LVAL(resource_is_null) != 0)) {
         ALLOC_INIT_ZVAL(prop_resource_as_string);
         ddtrace_convert_to_string(prop_resource_as_string, prop_resource TSRMLS_CC);
         add_assoc_zval(el, "resource", prop_resource_as_string);
@@ -450,16 +668,37 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     }
 
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
-    ADD_ELEMENT_IF_NOT_NULL("service");
+    zval *prop_service = ddtrace_spandata_property_service(span);
+    zval *prop_service_as_string = NULL;
+    if (prop_service && Z_TYPE_P(prop_service) != IS_NULL) {
+        ALLOC_INIT_ZVAL(prop_service_as_string);
+        ddtrace_convert_to_string(prop_service_as_string, prop_service TSRMLS_CC);
+
+        HashTable *service_mappings = get_DD_SERVICE_MAPPING();
+        zval **new_name;
+        if (zend_hash_find(service_mappings, Z_STRVAL_P(prop_service_as_string), Z_STRLEN_P(prop_service_as_string) + 1,
+                           (void **)&new_name) == SUCCESS) {
+            zval_dtor(prop_service_as_string);
+            ZVAL_COPY_VALUE(prop_service_as_string, *new_name);
+            zval_copy_ctor(prop_service_as_string);
+        }
+
+        add_assoc_zval(el, "service", prop_service_as_string);
+    }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
-    ADD_ELEMENT_IF_NOT_NULL("type");
+    zval *prop_type = ddtrace_spandata_property_type(span);
+    zval *prop_type_as_string = NULL;
+    if (prop_type && Z_TYPE_P(prop_type) != IS_NULL) {
+        ALLOC_INIT_ZVAL(prop_type_as_string);
+        ddtrace_convert_to_string(prop_type_as_string, prop_type TSRMLS_CC);
+        add_assoc_zval(el, "type", prop_type_as_string);
+    }
 
     _serialize_meta(el, span_fci TSRMLS_CC);
 
-    zval *metrics = _read_span_property(span->span_data, ZEND_STRL("metrics") TSRMLS_CC);
-    if (Z_TYPE_P(metrics) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(metrics))) {
-        zval *metrics_zv;
+    zval *metrics = ddtrace_spandata_property_metrics(span), *metrics_zv = NULL;
+    if (zend_hash_num_elements(Z_ARRVAL_P(metrics))) {
         ALLOC_INIT_ZVAL(metrics_zv);
         array_init(metrics_zv);
         HashPosition pos;
@@ -480,29 +719,36 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
         add_assoc_zval(el, "metrics", metrics_zv);
     }
 
+    if (top_level_span && get_DD_TRACE_MEASURE_COMPILE_TIME()) {
+        if (!metrics_zv) {
+            ALLOC_INIT_ZVAL(metrics_zv);
+            array_init(metrics_zv);
+            add_assoc_zval(el, "metrics", metrics_zv);
+        }
+        add_assoc_double(metrics_zv, "php.compilation.total_time_ms", ddtrace_compile_time_get(TSRMLS_C) / 1000.);
+    }
+
     add_next_index_zval(array, el);
 }
 
-static zval *dd_fatal_error_type(int code) {
-    zval *type = NULL;
-    const char *error_type = "{unknown error}";
-    switch (code) {
-        case E_ERROR:
-            error_type = "E_ERROR";
-            break;
-        case E_CORE_ERROR:
-            error_type = "E_CORE_ERROR";
-            break;
-        case E_COMPILE_ERROR:
-            error_type = "E_COMPILE_ERROR";
-            break;
-        case E_USER_ERROR:
-            error_type = "E_USER_ERROR";
-            break;
+void ddtrace_save_active_error_to_metadata(TSRMLS_D) {
+    if (!DDTRACE_G(active_error).type) {
+        return;
     }
-    MAKE_STD_ZVAL(type);
-    ZVAL_STRING(type, error_type, 1);
-    return type;
+
+    dd_error_info error = {
+        .type = dd_error_type(DDTRACE_G(active_error).type),
+        .msg = DDTRACE_G(active_error).message,
+        .stack = dd_fatal_error_stack(),
+    };
+    for (ddtrace_span_fci *span = DDTRACE_G(open_spans_top); span; span = span->next) {
+        zval *exception = ddtrace_spandata_property_exception(&span->span);
+        if (exception && Z_TYPE_P(exception) == IS_OBJECT) {  // exceptions take priority
+            continue;
+        }
+
+        dd_fatal_error_to_meta(ddtrace_spandata_property_meta(&span->span), error);
+    }
 }
 
 static zval *dd_fatal_error_msg(const char *format, va_list args) {
@@ -548,53 +794,6 @@ static zval *dd_fatal_error_msg(const char *format, va_list args) {
     return msg;
 }
 
-static zval *dd_fatal_error_stack(void) {
-    zval *stack = NULL;
-    zval *trace;
-    TSRMLS_FETCH();
-
-    MAKE_STD_ZVAL(trace);
-    zend_fetch_debug_backtrace(trace, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
-    if (Z_TYPE_P(trace) == IS_ARRAY) {
-        char *stack_str = dd_serialize_stack_trace(trace TSRMLS_CC);
-        if (stack_str) {
-            MAKE_STD_ZVAL(stack);
-            ZVAL_STRING(stack, stack_str, 0);
-        }
-    }
-    zval_ptr_dtor(&trace);
-    return stack;
-}
-
-typedef struct dd_error_info {
-    zval *type;
-    zval *msg;
-    zval *stack;
-} dd_error_info;
-
-static void dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
-    if (error.type) {
-        Z_ADDREF_P(error.type);
-        add_assoc_zval(meta, "error.type", error.type);
-    }
-    if (error.msg) {
-        Z_ADDREF_P(error.msg);
-        add_assoc_zval(meta, "error.msg", error.msg);
-    }
-    if (error.stack) {
-        Z_ADDREF_P(error.stack);
-        add_assoc_zval(meta, "error.stack", error.stack);
-    }
-}
-
-static dd_error_info dd_fatal_error(int type, const char *format, va_list args) {
-    dd_error_info error = {0};
-    error.type = dd_fatal_error_type(type);
-    error.msg = dd_fatal_error_msg(format, args);
-    error.stack = dd_fatal_error_stack();
-    return error;
-}
-
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     TSRMLS_FETCH();
 
@@ -612,31 +811,22 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
          * robust way of detecting this, but I'm not sure how yet.
          */
         if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
-            dd_error_info error = dd_fatal_error(type, format, args);
+            dd_error_info error = {
+                .type = dd_error_type(type),
+                .msg = dd_fatal_error_msg(format, args),
+                .stack = dd_fatal_error_stack(),
+            };
             dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
 
             ddtrace_span_fci *span;
             for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
-                if (span->exception || !span->span.span_data) {
-                    continue;
-                }
-                zval *meta = _read_span_property(span->span.span_data, ZEND_STRL("meta") TSRMLS_CC);
-                if (!meta) {
+                zval *prop_exception = ddtrace_spandata_property_exception(&span->span);
+                if (prop_exception != NULL && Z_TYPE_P(prop_exception) != IS_NULL &&
+                    (Z_TYPE_P(prop_exception) != IS_BOOL || Z_BVAL_P(prop_exception) != 0)) {
                     continue;
                 }
 
-                if (Z_TYPE_P(meta) == IS_NULL) {
-                    // Unlike PHP 7, we cannot mutate the SpanData properties outside of the zend_*_property APIs
-                    zval *zmeta;
-                    MAKE_STD_ZVAL(zmeta);
-                    array_init_size(zmeta, ddtrace_num_error_tags);
-                    dd_fatal_error_to_meta(zmeta, error);
-                    zend_update_property(ddtrace_ce_span_data, span->span.span_data, ZEND_STRL("meta"),
-                                         zmeta TSRMLS_CC);
-                    zval_ptr_dtor(&zmeta);
-                } else if (Z_TYPE_P(meta) == IS_ARRAY) {
-                    dd_fatal_error_to_meta(meta, error);
-                }
+                dd_fatal_error_to_meta(ddtrace_spandata_property_meta(&span->span), error);
             }
 
             if (error.type) {

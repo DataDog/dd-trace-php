@@ -1,7 +1,5 @@
 --TEST--
 Gracefully handle out-of-sync spans in closure itself [user][default properties]
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Test requires internal spans'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--

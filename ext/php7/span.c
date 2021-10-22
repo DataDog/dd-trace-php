@@ -90,6 +90,25 @@ ddtrace_span_fci *ddtrace_init_span(void) {
 
 void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span()); }
 
+bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
+    // Find the root span
+    ddtrace_span_fci *root = DDTRACE_G(open_spans_top);
+    if (root == NULL) {
+        return false;
+    }
+
+    while (root->next) {
+        root = root->next;
+    }
+
+    zval *meta = ddtrace_spandata_property_meta(&root->span);
+    if (Z_TYPE_P(meta) != IS_ARRAY) {
+        return false;
+    }
+
+    return zend_hash_add(Z_ARR_P(meta), tag, value) != NULL;
+}
+
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
     if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value) || DDTRACE_G(disable)) {
         return true;
@@ -249,3 +268,5 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
 }
+
+zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }

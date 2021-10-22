@@ -156,11 +156,13 @@ final class IntegrationsLoaderTest extends BaseTestCase
          */
         $excluded = [];
         if (\PHP_MAJOR_VERSION < 7) {
+            $excluded[] = 'mongodb';
             $excluded[] = 'phpredis'; // PHP 7 only integration
         } else {
             // Deferred loading integrations
             $excluded[] = 'elasticsearch';
             $excluded[] = 'memcached';
+            $excluded[] = 'mongodb';
             $excluded[] = 'nette';
             $excluded[] = 'pdo';
             $excluded[] = 'phpredis';

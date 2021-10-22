@@ -2,7 +2,7 @@
 E_ERROR fatal errors are tracked from hitting the memory limit
 --SKIPIF--
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
-<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality"); ?>
+<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not run posthooks on autoclose"); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--

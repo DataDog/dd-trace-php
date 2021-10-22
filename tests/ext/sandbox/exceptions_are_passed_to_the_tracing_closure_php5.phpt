@@ -47,11 +47,11 @@ try {
     echo $e->getMessage() . "\n";
 }
 ?>
---EXPECT--
+--EXPECTF--
 testExceptionIsNull()
 bool(true)
 testExceptionIsPassed()
 bool(true)
 Oops!
-TestEx with exception: Oops!
+TestEx with exception: Uncaught Exception: Oops! in %s
 TestNull

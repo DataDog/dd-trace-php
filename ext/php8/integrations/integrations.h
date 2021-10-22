@@ -19,6 +19,7 @@
     INTEGRATION(LUMEN, "lumen")                 \
     INTEGRATION(MEMCACHED, "memcached")         \
     INTEGRATION(MONGO, "mongo")                 \
+    INTEGRATION(MONGODB, "mongodb")             \
     INTEGRATION(MYSQLI, "mysqli")               \
     INTEGRATION(NETTE, "nette")                 \
     INTEGRATION(PDO, "pdo")                     \
