@@ -205,6 +205,35 @@ class LaravelIntegration extends Integration
             }
         );
 
+        $shouldReportException = null;
+        \DDTrace\hook_method(
+            'Illuminate\Foundation\Exceptions\Handler',
+            'exceptionContext',
+            function ($This, $scope, $args) use (&$shouldReportException) {
+                $shouldReportException = $args[0];
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Foundation\Http\Kernel',
+            'renderException',
+            function ($This, $scope, $args) use ($rootSpan, &$shouldReportException) {
+                if (isset($This->app['Illuminate\Contracts\Debug\ExceptionHandler'])) {
+                    if (!$This->app['Illuminate\Contracts\Debug\ExceptionHandler']->shouldReport($args[1])) {
+                        return;
+                    }
+                }
+                if (\method_exists('Illuminate\Foundation\Exceptions\Handler', 'exceptionContext')) {
+                    if ($shouldReportException !== $args[1]) {
+                        return;
+                    }
+                }
+                if (!$rootSpan->hasError()) {
+                    $rootSpan->setError($args[1]);
+                }
+            }
+        );
+
         \DDTrace\hook_method(
             'Illuminate\Routing\Pipeline',
             'handleException',
