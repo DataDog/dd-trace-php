@@ -154,6 +154,12 @@ function install($options)
         }
         foreach ($iniFilePaths as $iniFilePath) {
             if (!file_exists($iniFilePath)) {
+                $iniDir = dirname($iniFilePath);
+                execute_or_exit(
+                    "Cannot create directory '$iniDir'",
+                    "mkdir -p " . escapeshellarg($iniDir)
+                );
+
                 if (false === file_put_contents($iniFilePath, get_ini_template($installDirWrapperPath))) {
                     print_error_and_exit("Cannot create INI file $iniFilePath");
                 }
