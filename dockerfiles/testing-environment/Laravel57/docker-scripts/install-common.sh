@@ -10,19 +10,21 @@ apt-get install -y \
     bison \
     build-essential \
     curl \
+    gdb \
     gettext \
     git \
     libcurl4-gnutls-dev \
+    libfcgi0ldbl \
     libssl-dev \
     libtool \
     libxml2-dev \
-    libfcgi0ldbl \
     nginx \
     re2c \
     supervisor \
     unzip \
-    wget \
+    valgrind \
     vim \
+    wget \
     zip
 
 rm -rf /var/lib/apt/lists/*
