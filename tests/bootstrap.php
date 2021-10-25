@@ -6,6 +6,9 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') == 'true' && (false !== getenv('CI') || fal
     throw new Exception('Tests must run using the _generated.php script in CI');
 }
 
+// Setting an environment variable to signal we are in a tests run
+putenv('DD_TEST_EXECUTION=1');
+
 $phpunitVersionParts = class_exists('\PHPUnit\Runner\Version')
     ? explode('.', \PHPUnit\Runner\Version::id())
     : explode('.', PHPUnit_Runner_Version::id());

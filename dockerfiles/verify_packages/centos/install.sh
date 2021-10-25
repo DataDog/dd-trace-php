@@ -38,7 +38,14 @@ adduser -M --system -g www-data www-data
 \cp $(pwd)/dockerfiles/verify_packages/nginx.conf /etc/nginx/nginx.conf
 
 # Installing dd-trace-php
-rpm -ivh $(pwd)/build/packages/*.rpm
+INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
+if [ "$INSTALL_TYPE" = "native_package" ]; then
+    echo "Installing dd-trace-php using the OS-specific package installer"
+    rpm -ivh $(pwd)/build/packages/*.rpm
+else
+    echo "Installing dd-trace-php using the new PHP installer"
+    php dd-library-php-setup.php --tracer-file $(pwd)/build/packages/*.tar.gz --php-bin all
+fi
 
 # Starting services
 php-fpm

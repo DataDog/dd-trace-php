@@ -739,25 +739,18 @@ jobs:
       - setup_remote_docker
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
-  verify_package:
-    working_directory: ~/datadog
-    parameters:
-      docker_image:
-        type: string
-      package_type:
-        type: string
-    docker: [ image: << parameters.docker_image >> ]
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
-
   verify_alpine:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       docker_image:
         type: string
       php_package:
         type: string
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
     docker:
       - image: << parameters.docker_image >>
         environment:
@@ -766,6 +759,7 @@ jobs:
           DD_AGENT_HOST: request-replayer
           DD_TRACE_AGENT_PORT: 80
           DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+          INSTALL_TYPE: << parameters.install_type >>
           VERIFY_APACHE: 'no'
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
@@ -780,6 +774,7 @@ jobs:
 
   verify_centos:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       docker_image:
         type: string
@@ -788,6 +783,10 @@ jobs:
       php_package:
         type: string
         default: ""
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
     docker:
       - image: << parameters.docker_image >>
         environment:
@@ -795,6 +794,7 @@ jobs:
           DD_AGENT_HOST: request-replayer
           DD_TRACE_AGENT_PORT: 80
           DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+          INSTALL_TYPE: << parameters.install_type >>
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
@@ -804,6 +804,12 @@ jobs:
 
   verify_centos_6:
     working_directory: ~/datadog
+    resource_class: small
+    parameters:
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
     machine:
       image: circleci/classic:latest
     steps:
@@ -811,12 +817,13 @@ jobs:
       - run: mkdir -p test-results
       - run:
           name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile docker_compose_pull verify_centos_6
+          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> docker_compose_pull verify_centos_6
       - store_test_results:
           path: test-results
 
   verify_debian:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       docker_image:
         type: string
@@ -826,6 +833,10 @@ jobs:
         # yes|no
         type: string
         default: "yes"
+      install_type:
+        type: string
+        # Possible values: php_installer, native_package
+        default: php_installer
       configuration:
         type: string
     docker:
@@ -836,6 +847,7 @@ jobs:
           DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
           VERIFY_APACHE: << parameters.verify_apache >>
           INSTALL_MODE: << parameters.install_mode >>
+          INSTALL_TYPE: << parameters.install_type >>
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
@@ -845,6 +857,7 @@ jobs:
 
   verify_tar_gz:
     working_directory: ~/datadog
+    resource_class: small
     parameters:
       php_major_minor:
         type: string
@@ -855,6 +868,16 @@ jobs:
       - run:
           name: Validate .tar.gz package
           command: PHP_VERSION=<< parameters.php_major_minor >> bash ./dockerfiles/verify_packages/verify_tar_gz_root.sh
+
+  installer_tests:
+    working_directory: ~/datadog
+    machine:
+      image: ubuntu-2004:202010-01
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Run tests
+          command: make -C dockerfiles/verify_packages test_installer
 
   randomized_tests:
     working_directory: ~/datadog
@@ -1515,7 +1538,8 @@ workflows:
           matrix:
             parameters:
               batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
-
+      - installer_tests:
+          requires: [ 'package extension' ]
       - placeholder:
           requires: [ 'package extension' ]
           name: Framework tests
@@ -1591,6 +1615,9 @@ workflows:
             parameters:
               php_package:
                 - php php-fpm
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - alpine:3.8
                 - alpine:3.9
@@ -1604,6 +1631,9 @@ workflows:
             parameters:
               php_package:
                 - php7 php7-fpm
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - alpine:3.7
                 - alpine:3.8
@@ -1619,6 +1649,9 @@ workflows:
             parameters:
               php_package:
                 - php5 php5-fpm
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - alpine:3.5
                 - alpine:3.6
@@ -1629,6 +1662,9 @@ workflows:
           php_package: ''
           matrix:
             parameters:
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - php:5.6-fpm-alpine
                 - php:7.0-fpm-alpine
@@ -1644,6 +1680,9 @@ workflows:
             parameters:
               docker_image:
                 - centos:7
+              install_type:
+                - php_installer
+                - native_package
               configuration:
                 - PHP_MAJOR=5 PHP_MINOR=4
                 - PHP_MAJOR=5 PHP_MINOR=5
@@ -1657,10 +1696,18 @@ workflows:
                 - PHP_MAJOR=8 PHP_MINOR=1
       - verify_centos_6:
           requires: [ "package extension" ]
+          matrix:
+            parameters:
+              install_type:
+                - php_installer
+                - native_package
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
             parameters:
+              install_type:
+                - php_installer
+                - native_package
               install_mode:
                 - sury
               docker_image:
@@ -1681,6 +1728,9 @@ workflows:
             parameters:
               install_mode:
                 - native
+              install_type:
+                - php_installer
+                - native_package
               docker_image:
                 - debian:jessie
               configuration:

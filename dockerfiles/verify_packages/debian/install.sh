@@ -31,7 +31,7 @@ elif [ "${INSTALL_MODE}" = "sury" ]; then
         WWW_CONF=/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf
         PHP_FPM_BIN=php-fpm${PHP_VERSION}
 else
-    echo "Unknown installation mode"
+    echo "Unknown installation mode: ${INSTALL_MODE}"
     exit 1
 fi
 
@@ -46,7 +46,14 @@ echo "PHP-FPM version installed:"
 ${PHP_FPM_BIN} -v
 
 # Installing dd-trace-php
-dpkg -i $(pwd)/build/packages/*.deb
+INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
+if [ "$INSTALL_TYPE" = "native_package" ]; then
+    echo "Installing dd-trace-php using the OS-specific package installer"
+    dpkg -i $(pwd)/build/packages/*.deb
+else
+    echo "Installing dd-trace-php using the new PHP installer"
+    ${PHP_BIN} dd-library-php-setup.php --tracer-file $(pwd)/build/packages/*.tar.gz --php-bin all
+fi
 
 # PHP-FPM setup
 # For cases when it defaults to UDS

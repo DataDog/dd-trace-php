@@ -8,10 +8,13 @@ use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
 
 /**
- * @method void assertTrue(boolean $value)
- * @method void assertFalse(boolean $value)
+ * @method void assertArrayHasKey(mixed $key, array $arr)
+ * @method void assertContains(mixed $needle, iterable $haystack)
  * @method void assertEmpty(array $arr)
+ * @method void assertFalse(boolean $value)
  * @method void assertNotEmpty(array $arr)
+ * @method void assertSame(mixed $expected, array $value)
+ * @method void assertTrue(boolean $value)
  */
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {
@@ -30,7 +33,9 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
     protected function ddTearDown()
     {
         \Mockery::close();
-        Logger::reset();
+        if (\class_exists('DDTrace\Log\Logger')) {
+            Logger::reset();
+        }
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
 

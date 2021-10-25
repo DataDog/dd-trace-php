@@ -8,7 +8,14 @@ docker_compose_pull:
 
 $(CENTOS6_PHP_VERSIONS): %.centos6:
 	@echo Verifying Centos 6 - PHP $*
-	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-centos6 sh /build_src/dockerfiles/verify_packages/verify_rpm_centos6.sh
+	@docker-compose \
+		-f $(ROOT_DIR)/docker-compose.yml \
+		run \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
+		-T \
+		--rm \
+		${*}-centos6 \
+		sh /build_src/dockerfiles/verify_packages/verify_rpm_centos6.sh
 
 # The list of validated alpine images are in CI config. In case a package has to be validated locally, you can:
 #  1. copy the .apk|.deb|.rpm into '<root>/build/packages'
@@ -21,6 +28,7 @@ verify_alpine:
 		-e VERIFY_APACHE=no \
 		-e PHP_PACKAGE="$(PHP_PACKAGE)" \
 		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
 		-e OS_NAME=alpine \
 		alpine \
 		dockerfiles/verify_packages/verify.sh
@@ -33,14 +41,16 @@ verify_debian:
 		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
 		-e VERIFY_APACHE="$(VERIFY_APACHE)" \
 		-e PHP_FPM_BIN="$(PHP_FPM_BIN)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
 		debian \
-		bash dockerfiles/verify_packages/verify.sh
+		dockerfiles/verify_packages/verify.sh
 
 verify_centos:
 	docker-compose run --rm \
 		-e PHP_MAJOR="$(PHP_MAJOR)" \
 		-e PHP_MINOR="$(PHP_MINOR)" \
 		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
 		centos \
 		dockerfiles/verify_packages/verify.sh
 
@@ -52,3 +62,27 @@ verify_tar_root:
 		-e PHP_VERSION="$(PHP_VERSION)" \
 		tar_gz \
 		bash dockerfiles/verify_packages/verify_tar_gz_root.sh
+
+test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
+
+test_first_install.sh \
+test_install_custom_installation_directory.sh \
+test_install_custom_installation_root.sh \
+test_install_non_root_user.sh \
+test_install_subdir_from_file.sh \
+test_install_subdir_from_url.sh \
+test_install_subdir_from_version.sh \
+test_uninstall.sh \
+test_upgrade_from_legacy.sh \
+test_upgrade_from_php_installer.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+
+test_alpine_no_libcurl.sh \
+test_install_no_ext_curl_no_curl_cli.sh \
+test_install_no_ext_curl_yes_curl_cli.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
+
+test_alpine_no_libexecinfo.sh:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)

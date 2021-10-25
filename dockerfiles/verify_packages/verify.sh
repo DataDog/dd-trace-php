@@ -33,11 +33,11 @@ if [ -z "$DD_TRACE_PHP_BIN" ]; then
     DD_TRACE_PHP_BIN=$(command -v php5 || true)
 fi
 
-echo "PHP version: $(php -v)"
+echo "PHP version: $(${DD_TRACE_PHP_BIN} -v)"
 
 # Script output
 CLI_OUTPUT=$(DD_TRACE_CLI_ENABLED=true ${DD_TRACE_PHP_BIN} /var/www/html/index.php)
-if [ ! "${CLI_OUTPUT}" == "hi" ]; then
+if [ "${CLI_OUTPUT}" != "hi" ]; then
     echo "Error: expected request output is 'hi'. Actual:\n${APACHE_OUTPUT}"
     exit 1
 else
@@ -48,7 +48,7 @@ fi
 sleep 1
 CLI_TRACES=$(curl -s -L request-replayer/replay)
 # sh compatible way to do string contains
-if [ "${CLI_TRACES#*trace_id}" == "${CLI_TRACES}" ]; then
+if [ "${CLI_TRACES#*trace_id}" = "${CLI_TRACES}" ]; then
     echo "Error: traces have not been sent correctly. From request replayer:\n${CLI_TRACES}"
     exit 1
 else
@@ -67,7 +67,7 @@ curl -s -L request-replayer/clear-dumped-data
 
 # Request output
 NGINX_OUTPUT=$(curl -s -L localhost:8080)
-if [ ! "${NGINX_OUTPUT}" == "hi" ]; then
+if [ "${NGINX_OUTPUT}" != "hi" ]; then
     echo "Error: expected request output is 'hi'. Actual:\n${NGINX_OUTPUT}"
     exit 1
 else
@@ -78,7 +78,7 @@ fi
 sleep 2
 NGINX_TRACES=$(curl -s -L request-replayer/replay)
 # sh compatible way to do string contains
-if [ "${NGINX_TRACES#*trace_id}" == "${NGINX_TRACES}" ]; then
+if [ "${NGINX_TRACES#*trace_id}" = "${NGINX_TRACES}" ]; then
     echo "Error: traces have not been sent correctly. From request replayer:\n${NGINX_TRACES}"
     exit 1
 else
@@ -98,7 +98,7 @@ if [ "${VERIFY_APACHE}" != "no" ]; then
 
     # Request output
     APACHE_OUTPUT=$(curl -s -L localhost/index.php)
-    if [ ! "${APACHE_OUTPUT}" == "hi" ]; then
+    if [ "${APACHE_OUTPUT}" != "hi" ]; then
         echo "Error: expected request output is 'hi'. Actual:\n${APACHE_OUTPUT}"
         exit 1
     else
@@ -109,7 +109,7 @@ if [ "${VERIFY_APACHE}" != "no" ]; then
     sleep 2
     APACHE_TRACES=$(curl -s -L request-replayer/replay)
     # sh compatible way to do string contains
-    if [ "${APACHE_TRACES#*trace_id}" == "${APACHE_TRACES}" ]; then
+    if [ "${APACHE_TRACES#*trace_id}" = "${APACHE_TRACES}" ]; then
         echo "Error: traces have not been sent correctly. From request replayer:\n${APACHE_TRACES}"
         exit 1
     else

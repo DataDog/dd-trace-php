@@ -11,8 +11,27 @@ if [ ! -z "${PHP_PACKAGE}" ]; then
     apk add --no-cache ${PHP_PACKAGE}
 fi
 
+# Preparing PHP
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php7 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php5 || true)
+fi
+
 # Installing dd-trace-php
-apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
+INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
+if [ "$INSTALL_TYPE" = "native_package" ]; then
+    echo "Installing dd-trace-php using the OS-specific package installer"
+    apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
+else
+    echo "Installing dd-trace-php using the new PHP installer"
+    apk add --no-cache libexecinfo
+    $PHP_BIN dd-library-php-setup.php --tracer-file $(pwd)/build/packages/*.tar.gz --php-bin all
+fi
 
 # Preparing NGINX
 # Adding www-data in systems where it does not exists
