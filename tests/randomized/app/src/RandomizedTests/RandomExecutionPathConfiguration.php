@@ -22,7 +22,7 @@ class RandomExecutionPathConfiguration
         $allowFatalAndUncaught = true,
         $logMethodExecution = false
     ) {
-        $this->sed = $seed ?: \rand();
+        $this->seed = $seed ?: \rand();
         $this->allowFatalAndUncaught = $allowFatalAndUncaught;
         $this->snippetsConfiguration = $snippetsConfiguration;
         $this->logMethodExecution = $logMethodExecution;
