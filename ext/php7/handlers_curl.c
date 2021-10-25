@@ -331,8 +331,11 @@ ZEND_FUNCTION(ddtrace_curl_init) {
         }
         if (dd_load_curl_integration()) {
             dd_ch_delete_headers(return_value);
-            zval *read_wrapper = &CURL_READ(return_value)->func_name;
-            object_init_ex(read_wrapper, &dd_curl_wrap_handler_ce);
+            zval *read_wrapper = &CURL_READ(return_value)->func_name, new_wrapper;
+            object_init_ex(&new_wrapper, &dd_curl_wrap_handler_ce);
+            /* handle the case of some other extension already pre-populating the value */
+            ZVAL_COPY_VALUE(OBJ_PROP_NUM(Z_OBJ(new_wrapper), 0), read_wrapper);
+            ZVAL_COPY_VALUE(read_wrapper, &new_wrapper);
             ((struct dd_curl_wrapper *)Z_OBJ_P(read_wrapper))->res_handle = Z_RES_HANDLE_P(return_value);
         }
     }
@@ -395,34 +398,46 @@ ZEND_FUNCTION(ddtrace_curl_multi_remove_handle) {
     dd_curl_multi_remove_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
+static void dd_wrap_setopt(zval *ch, void (*orig_setopt)(INTERNAL_FUNCTION_PARAMETERS), INTERNAL_FUNCTION_PARAMETERS) {
+    zend_object *read_wrapper = NULL;
+    uint32_t orig_refcount;
+
+    if (ch && dd_is_valid_curl_resource(ch)) {
+        zval *readfunc = &CURL_READ(ch)->func_name;
+        if (readfunc && Z_TYPE_P(readfunc) == IS_OBJECT && Z_OBJCE_P(readfunc) == &dd_curl_wrap_handler_ce) {
+            read_wrapper = Z_OBJ_P(readfunc);
+            /* Addref to prevent triggering dtor in curl setopt logic */
+            orig_refcount = GC_ADDREF(read_wrapper);
+        }
+    }
+
+    orig_setopt(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    if (read_wrapper != NULL) {
+        /* Now that we've backed up the original refcount, we can check whether it was changed during the function call.
+         * If it was freed (rc differing), then we assume that something replaced our wrapper object by a new handler.
+         * In that case we release the old handler and replace it by the new handler, then we put our wrapper back.
+         * Otherwise we just restore the refcount.
+         */
+        if (GC_REFCOUNT(read_wrapper) == orig_refcount) {
+            GC_DELREF(read_wrapper);
+        } else {
+            zval *handler = OBJ_PROP_NUM(read_wrapper, 0);
+            zval_ptr_dtor(handler);
+            ZVAL_COPY_VALUE(handler, &CURL_READ(ch)->func_name);
+            ZVAL_OBJ(&CURL_READ(ch)->func_name, read_wrapper);
+        }
+    }
+}
+
 ZEND_FUNCTION(ddtrace_curl_setopt) {
     zval *ch, *zvalue;
-    zend_object *read_wrapper = NULL;
     zend_long option;
     bool load_integration =
         dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "rlz", &ch, &option, &zvalue) == SUCCESS;
 
-    if (load_integration && dd_is_valid_curl_resource(ch)) {
-        zval *readfunc = &CURL_READ(ch)->func_name;
-        if (readfunc && Z_TYPE_P(readfunc) == IS_OBJECT && Z_OBJCE_P(readfunc) == &dd_curl_wrap_handler_ce) {
-            read_wrapper = Z_OBJ_P(readfunc);
-            GC_ADDREF(read_wrapper);
-        }
-    }
-
-    dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-
-    if (read_wrapper != NULL) {
-        if (GC_REFCOUNT(read_wrapper) == 1) {
-            zval *handler = OBJ_PROP_NUM(read_wrapper, 0);
-            zval_ptr_dtor(handler);
-            ZVAL_COPY_VALUE(handler, &CURL_READ(ch)->func_name);
-            ZVAL_OBJ(&CURL_READ(ch)->func_name, read_wrapper);
-        } else {
-            GC_DELREF(read_wrapper);
-        }
-    }
+    dd_wrap_setopt(load_integration ? ch : NULL, dd_curl_setopt_handler, INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
     if (load_integration && Z_TYPE_P(return_value) == IS_TRUE && dd_const_curlopt_httpheader == option &&
         Z_TYPE_P(zvalue) == IS_ARRAY) {
@@ -432,11 +447,13 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
 
 ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     zval *ch, *arr;
+    bool load_integration =
+        dd_load_curl_integration() &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &ch, &arr) == SUCCESS;
 
-    dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    dd_wrap_setopt(load_integration ? ch : NULL, dd_curl_setopt_array_handler, INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (dd_load_curl_integration() &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &ch, &arr) == SUCCESS
+    if (load_integration
         /* We still want to apply the original headers even if the this call
          * returns false. The call will (mostly) only ever fail for reasons
          * unrelated to setting CURLOPT_HTTPHEADER (see comment below).
@@ -490,6 +507,7 @@ static PHP_FUNCTION(dd_default_curl_read) {
 
     FILE *fp = CURL_READ(ch)->fp;
     if (fp) {
+        /* emulate logic of curl_read() function */
         zend_string *ret = zend_string_alloc(size, 0);
         ret = zend_string_truncate(ret, fread(ZSTR_VAL(ret), size, 1, fp), 0);
         ZSTR_VAL(ret)[ZSTR_LEN(ret)] = 0;
