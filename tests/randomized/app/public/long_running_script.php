@@ -119,8 +119,7 @@ $snippetsConfiguration = (new SnippetsConfiguration())
 $randomizerConfiguration = new RandomExecutionPathConfiguration(
     $snippetsConfiguration,
     $seed,
-    true,
-    false,
+    false, // because for exceptions/error handlers: "Execution will stop after the callback is called".
     false
 );
 $randomizer = new RandomExecutionPath($randomizerConfiguration);

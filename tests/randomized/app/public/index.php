@@ -27,7 +27,6 @@ $randomizerConfiguration = new RandomExecutionPathConfiguration(
     $snippetsConfiguration,
     isset($queries['seed']) ? intval($queries['seed']) : null,
     true,
-    true,
     isset($queries['execution_path'])
 );
 
