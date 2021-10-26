@@ -36,6 +36,10 @@ echo "Starting apache"
 httpd
 sleep 1
 
+# php cli logs
+mkdir -p /var/log/php/
+chmod a+w /var/log/php/
+
 composer --working-dir=/var/www/html install
 
 # Wait for problematic (host:port)s to be available
