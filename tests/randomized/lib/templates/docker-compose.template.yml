@@ -49,6 +49,7 @@ services:
       - ../.results/{{identifier}}/:/results/
       - ../.results/{{identifier}}/nginx:/var/log/nginx
       - ../.results/{{identifier}}/php-fpm:/var/log/php-fpm
+      - ../.results/{{identifier}}/php:/var/log/php
       - ../.results/{{identifier}}/apache:/var/log/httpd/
       - ../.results/{{identifier}}/corefiles:/tmp/corefiles
     environment:
