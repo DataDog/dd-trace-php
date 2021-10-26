@@ -18,4 +18,10 @@ interface Sapi
      * Whether or not SAPI runs as FastCGI
      */
     public function isFastCgi();
+
+    /**
+     * Check for errors, e.g. crashes or memory leaks
+     * @return string|null
+     */
+    public function checkErrors();
 }

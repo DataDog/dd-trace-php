@@ -239,6 +239,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/signals.c \
       ext/php8/span.c \
       ext/php8/startup_logging.c \
+      ext/php8/weakrefs.c \
     "
 
     ZAI_SOURCES="\

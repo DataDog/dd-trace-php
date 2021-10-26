@@ -27,6 +27,8 @@ class SigSegVTest extends WebFrameworkTestCase
         }
         parent::ddSetUp();
         @unlink(__DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/' . WebServer::ERROR_LOG_NAME);
+
+        $this->checkWebserverErrors = false;
     }
 
     public function testGet()
