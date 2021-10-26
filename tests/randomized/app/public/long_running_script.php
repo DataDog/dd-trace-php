@@ -128,6 +128,7 @@ set_exception_handler([$randomizer, 'handleException']);
 
 for ($repetition = 1; $repetition <= $repetitions; $repetition++) {
     \error_log("Running repetition $repetition of $repetitions");
+    \gc_collect_cycles();
     dumpMemory($file);
     foreach (waitForNewMessages() as $message) {
         processMessage($message, $processors);
