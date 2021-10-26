@@ -82,6 +82,7 @@ function analyze_cli($tmpScenariosFolder)
     $resultsFolder = $tmpScenariosFolder . DIRECTORY_SEPARATOR . '.results';
     $analyzed = [];
     $unexpectedResults = [];
+    $notEnoughResults = [];
 
     foreach (scandir($resultsFolder) as $identifier) {
         if (in_array($identifier, ['.', '..'])) {
@@ -91,11 +92,22 @@ function analyze_cli($tmpScenariosFolder)
         $analyzed[] = $identifier;
 
         $absFilePath = $resultsFolder . DIRECTORY_SEPARATOR . $identifier . DIRECTORY_SEPARATOR . 'memory.out';
+
+        // Old regressions do not have CLI tests
+        if (!file_exists($absFilePath) && strpos($absFilePath, "regression-") !== false) {
+            continue;
+        }
+
         $values = array_map('intval', explode("\n", file_get_contents($absFilePath)));
 
         // removing first and last 5% of samples
         $count = count($values);
         $selectedValues = array_slice($values, $count * 0.05, $count * 0.9);
+
+        if (count($selectedValues) < 50) {
+            $notEnoughResults[] = $identifier;
+            continue;
+        }
 
         // we start being strict, we can be more lenient in the future if that makes sense and to reduce flakiness
         if (min($selectedValues) !== max($selectedValues)) {
@@ -103,17 +115,27 @@ function analyze_cli($tmpScenariosFolder)
         }
     }
 
+    if (count($unexpectedResults) + count($notEnoughResults) === 0) {
+        return true;
+    }
+
     // Reporting errors
     echo "Analyzed " . count($analyzed) . " CLI scenarios.\n";
-    if (count($unexpectedResults) > 0) {
+    if (count($unexpectedResults)) {
         echo "The following scenarios might have memory leaks in CLI. Check out their respective memory.out file:\n ";
         foreach ($unexpectedResults as $unexpectedResult) {
             echo "    $unexpectedResult\n";
         }
-        return false;
+    }
+    if (count($notEnoughResults)) {
+        echo "The following scenarios have not the minimum number of data points. "
+            . "Check out their respective memory.out file:\n ";
+        foreach ($notEnoughResults as $result) {
+            echo "    $result\n";
+        }
     }
 
-    return true;
+    return false;
 }
 
 $webResult = analyze_web(__DIR__ . '/.tmp.scenarios');
