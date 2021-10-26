@@ -13,7 +13,7 @@ usermod -a -G datadog datadog
 new_version="0.65.1"
 
 set +e
-output=$(su datadog -c "php /app/dd-library-php-setup.php --tracer-version ${new_version} --php-bin php")
+output=$(su datadog -c "php /app/dd-library-php-setup.php --tracer-version ${new_version} --no-trace --php-bin php")
 exit_status=$?
 set -e
 

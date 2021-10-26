@@ -66,13 +66,17 @@ verify_tar_root:
 test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
 test_first_install.sh \
+test_install_appsec_prev_config.sh \
 test_install_custom_installation_directory.sh \
 test_install_custom_installation_root.sh \
 test_install_non_root_user.sh \
 test_install_subdir_from_file.sh \
 test_install_subdir_from_url.sh \
 test_install_subdir_from_version.sh \
+test_install_tracer_appsec_latest.sh \
+test_install_tracer_appsec_latest_piecewise.sh \
 test_uninstall.sh \
+test_uninstall_tracer_appsec.sh \
 test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \
 	:

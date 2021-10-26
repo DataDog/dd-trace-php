@@ -21,10 +21,47 @@ assert_no_ddtrace() {
     echo "Ok: ddtrace is not installed"
 }
 
+assert_no_ddappsec() {
+    output="$(php -v)"
+    if [ -z "${output##*ddappsec*}" ]; then
+        echo "---\nError: ddappsec should not be installed\n---\n${1}\n---\n"
+        exit 1
+    fi
+    echo "Ok: ddappsec is not installed"
+}
+
+assert_ddtrace_installed() {
+    if php -r 'exit(extension_loaded("ddtrace") ? 0 : 1);'; then
+        echo "OK: ddtrace is installed"
+    else
+        echo "---\nError: ddtrace should be installed\n---\n${1}\n---\n"
+        exit 1
+    fi
+}
+
+assert_ddappsec_installed() {
+    if php -r 'exit(extension_loaded("ddappsec") ? 0 : 1);'; then
+        echo "OK: ddappsec is installed"
+    else
+        echo "---\nError: ddappsec should be installed\n---\n${1}\n---\n"
+        exit 1
+    fi
+}
+
 assert_ddtrace_version() {
     output="$(php -v)"
     if [ -z "${output##*ddtrace v${1}*}" ]; then
         echo "---\nOk: ddtrace version '${1}' is correctly installed\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong version. Expected: ${1}\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_ddappsec_version() {
+    output="$(php -v)"
+    if [ -z "${output##*ddappsec v${1}*}" ]; then
+        echo "---\nOk: ddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
     else
         echo "---\nError: Wrong version. Expected: ${1}\n---\n${output}\n---\n"
         exit 1
@@ -39,6 +76,14 @@ assert_file_exists() {
     else
         echo "Ok: File '${file}' exists\n"
     fi
+}
+
+php_extension_dir() {
+    php -r 'echo ini_get("extension_dir");'
+}
+
+php_conf_dir() {
+    php -i | grep '^Scan this dir' | sed 's/.*=> //'
 }
 
 install_legacy_ddtrace() {

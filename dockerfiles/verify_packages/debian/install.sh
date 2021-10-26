@@ -52,7 +52,7 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
     dpkg -i $(pwd)/build/packages/*.deb
 else
     echo "Installing dd-trace-php using the new PHP installer"
-    ${PHP_BIN} dd-library-php-setup.php --tracer-file $(pwd)/build/packages/*.tar.gz --php-bin all
+    ${PHP_BIN} dd-library-php-setup.php --tracer-file $(pwd)/build/packages/*.tar.gz --php-bin all --no-appsec
 fi
 
 # PHP-FPM setup
