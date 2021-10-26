@@ -3,6 +3,9 @@
 namespace DDTrace\Util;
 
 /**
+ * @deprecated It is not safe in long running scripts as it does not have an automatic mechanism to clean up the
+ *             internal registry. This class will be removed in a future release.
+ *
  * A key value store that stores metadata into an array. If you have an object that you can use as a carrier, then
  * prefer ObjectKVStore as is provides a better performance. Use this if you do not have an object you can use as
  * a carrier.
