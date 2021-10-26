@@ -251,7 +251,7 @@ static void dd_multi_reset(zval *mh) {
         HashTable *handles = zend_hash_index_find_ptr(dd_multi_handles, Z_RES_HANDLE_P(mh));
         if (handles) {
             zval *easy_res;
-            ZEND_HASH_FOREACH_PTR(handles, easy_res) {
+            ZEND_HASH_FOREACH_VAL(handles, easy_res) {
                 if (dd_is_valid_curl_resource(easy_res)) {
                     zval *readfunc = &CURL_READ(easy_res)->func_name;
                     if (readfunc && Z_TYPE_P(readfunc) == IS_OBJECT &&
