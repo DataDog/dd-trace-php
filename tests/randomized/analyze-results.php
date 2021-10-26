@@ -109,6 +109,31 @@ function analyze_cli($tmpScenariosFolder)
             continue;
         }
 
+        /*
+         * Credits:
+         *   - https://www.statisticshowto.com/probability-and-statistics/statistics-definitions/least-squares-regression-line/
+         *   - https://classroom.synonym.com/calculate-trendline-2709.html
+         */
+        $A_values = [];
+        $B_values_X = [];
+        $B_values_Y = [];
+        $C_values = [];
+        for ($i = 0; $i < count($selectedValues); $i++) {
+            $A_values[] = (float)($i + 1) * (float)$selectedValues[$i];
+            $B_values_X[] = (float)($i + 1);
+            $B_values_Y[] = (float)$selectedValues[$i];
+            $C_values[] = pow((float)($i + 1), 2);
+        }
+        $A = count($A_values) * array_sum($A_values);
+        $B = array_sum($B_values_X) * array_sum($B_values_Y);
+        $C = count($C_values) * array_sum($C_values);
+        $D = pow(array_sum($B_values_X), 2);
+        $slope = ($A - $B) / ($C - $D);
+        $E = array_sum($B_values_Y);
+        $F = $slope * array_sum($B_values_X);
+        $intercept = ($E - $F) / count($selectedValues);
+        error_log('trending line: ' . var_export([$slope, $intercept], true));
+
         // we start being strict, we can be more lenient in the future if that makes sense and to reduce flakiness
         if (min($selectedValues) !== max($selectedValues)) {
             $unexpectedResults[] = $identifier;
