@@ -289,7 +289,6 @@ class RandomExecutionPath
             http_response_code(500);
         }
         $this->logLeave(__FUNCTION__);
-
         exit(1);
     }
 
@@ -313,7 +312,6 @@ class RandomExecutionPath
             // accept (200, 510 - expected exceptions, 511 - expected user errors)
             http_response_code(511);
             $this->logLeave(__FUNCTION__);
-
             exit(1);
         }
         $this->logLeave(__FUNCTION__);

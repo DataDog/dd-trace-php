@@ -107,7 +107,6 @@ function analyze_cli($tmpScenariosFolder)
         }
 
         list($slope, $intercept) = calculate_trend_line($values);
-        error_log('Slope/intercept: ' . var_export([$slope, $intercept], true));
 
         if ($intercept > 5 * 1000 * 1000) {
             // Heuristic 5MB limit. It might have to be increased as we add integrations
@@ -153,7 +152,7 @@ function analyze_cli($tmpScenariosFolder)
 }
 
 /**
- * Calculates the "Least Squares Regression" line.
+ * Calculates the trend line using the "Least Squares Regression" approach.
  *
  * Credits:
  *   - https://www.mathsisfun.com/data/least-squares-regression.html

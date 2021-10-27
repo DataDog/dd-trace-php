@@ -45,20 +45,34 @@ class Message
 /** One of possibly many processing stages, each of which should have a Span */
 class ProcessingStage1
 {
+    /** @var RandomExecutionPath */
+    private $randomizer;
+
+    public function __construct(RandomExecutionPath $randomizer)
+    {
+        $this->randomizer = $randomizer;
+    }
+
     public function process(Message $message)
     {
-        global $randomizer;
-        $randomizer->randomPath();
+        $this->randomizer->randomPath();
     }
 }
 
 /** One of possibly many processing stages, each of which should have a Span */
 class ProcessingStage2
 {
+    /** @var RandomExecutionPath */
+    private $randomizer;
+
+    public function __construct(RandomExecutionPath $randomizer)
+    {
+        $this->randomizer = $randomizer;
+    }
+
     public function process(Message $message)
     {
-        global $randomizer;
-        $randomizer->randomPath();
+        $this->randomizer->randomPath();
     }
 }
 
@@ -91,8 +105,6 @@ function processMessage(Message $m, array $processors)
     }
 }
 
-$processors = [new ProcessingStage1(), new ProcessingStage2()];
-
 // Reading command line options
 $options = getopt('', ['seed:', 'repeat:', 'file:']);
 $seed =  isset($options['seed']) ? intval($options['seed']) : rand();
@@ -119,6 +131,8 @@ $randomizerConfiguration = new RandomExecutionPathConfiguration(
 $randomizer = new RandomExecutionPath($randomizerConfiguration);
 set_error_handler([$randomizer, 'handleError']);
 set_exception_handler([$randomizer, 'handleException']);
+
+$processors = [new ProcessingStage1($randomizer), new ProcessingStage2($randomizer)];
 
 // Open the file before as the first time file_put_content is called it causes a step in measured memory.
 $memoryLogHandle = fopen($file, 'a+');

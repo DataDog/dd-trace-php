@@ -8,7 +8,10 @@ use RandomizedTests\SnippetsConfiguration;
 $composerVendor = getenv('COMPOSER_VENDOR_DIR') ?: __DIR__ . '/../vendor';
 require "$composerVendor/autoload.php";
 
-// Seeding to allow reproducible requests via <url>/?seed=123
+/* Accepted query string parameters:
+ *   - seed=123             reproducible execution path
+ *   - execution_path=true  prints a graph that represents the nested calls
+ */
 $queries = array();
 if (isset($_SERVER['QUERY_STRING'])) {
     parse_str($_SERVER['QUERY_STRING'], $queries);

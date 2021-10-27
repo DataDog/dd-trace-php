@@ -75,7 +75,7 @@ class Snippets
     public function curlVariant1()
     {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $output = curl_exec($ch);
         curl_close($ch);
@@ -84,15 +84,15 @@ class Snippets
     public function curlVariant2()
     {
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch1, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch2, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
 
         $ch3 = curl_init();
-        curl_setopt($ch3, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch3, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch3, CURLOPT_RETURNTRANSFER, 1);
 
         $mh = curl_multi_init();
@@ -117,11 +117,11 @@ class Snippets
         $mh = curl_multi_init();
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch1, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch2, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 
         curl_multi_add_handle($mh, $ch1);
@@ -143,11 +143,11 @@ class Snippets
         $mh = curl_multi_init();
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch1, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch2, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 
         curl_multi_add_handle($mh, $ch1);
@@ -168,11 +168,11 @@ class Snippets
         $mh = curl_multi_init();
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch1, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch2, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 
         curl_multi_add_handle($mh, $ch1);
@@ -218,11 +218,11 @@ class Snippets
         curl_multi_setopt($mh, CURLMOPT_PUSHFUNCTION, $callback);
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch1, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch2, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
 
         curl_multi_add_handle($mh, $ch1);
@@ -244,7 +244,7 @@ class Snippets
         $mh = curl_multi_init();
 
         $ch1 = curl_init();
-        curl_setopt($ch1, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch1, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
 
         # Set a CURLOPT_WRITEFUNCTION callback
@@ -253,7 +253,7 @@ class Snippets
         });
 
         $ch2 = curl_init();
-        curl_setopt($ch2, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch2, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
 
         # Set a CURLOPT_HEADERFUNCTION callback
@@ -278,7 +278,7 @@ class Snippets
     public function curlVariant8()
     {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->config->httpBinHost . '/get?client=curl');
+        curl_setopt($ch, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $output = curl_exec($ch);
 
@@ -316,5 +316,10 @@ class Snippets
         $redis->flushAll();
         $redis->set('k1', 'v1');
         $redis->get('k1');
+    }
+
+    private function getCurlUrl()
+    {
+        return $this->getCurlUrl();
     }
 }
