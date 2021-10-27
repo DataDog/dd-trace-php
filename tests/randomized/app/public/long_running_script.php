@@ -91,12 +91,6 @@ function processMessage(Message $m, array $processors)
     }
 }
 
-function dumpMemory($file)
-{
-    $phpMemoryBytes = memory_get_usage();
-    file_put_contents($file, "$phpMemoryBytes\n", FILE_APPEND);
-}
-
 $processors = [new ProcessingStage1(), new ProcessingStage2()];
 
 // Reading command line options
@@ -126,11 +120,21 @@ $randomizer = new RandomExecutionPath($randomizerConfiguration);
 set_error_handler([$randomizer, 'handleError']);
 set_exception_handler([$randomizer, 'handleException']);
 
-for ($repetition = 1; $repetition <= $repetitions; $repetition++) {
-    \error_log("Running repetition $repetition of $repetitions");
+// Open the file before as the first time file_put_content is called it causes a step in measured memory.
+$memoryLogHandle = fopen($file, 'a+');
+
+// We print the first 5 warm up cycles to a tmp file to dismiss them
+for ($repetition = -5; $repetition <= $repetitions; $repetition++) {
+    echo "Running repetition $repetition of $repetitions\n";
+    // Dumping memory
     \gc_collect_cycles();
-    dumpMemory($file);
+    $memory = \memory_get_usage();
+    if ($repetition > 0) {
+        \fwrite($memoryLogHandle, $memory . "\n");
+    }
     foreach (waitForNewMessages() as $message) {
         processMessage($message, $processors);
     }
 }
+
+fclose($memoryLogHandle);
