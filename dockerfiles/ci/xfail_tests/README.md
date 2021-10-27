@@ -37,7 +37,7 @@ On PHP 5, certain tests can have intermittently deep call stacks that are deep e
 
 ## `var_dump()`-ed objects with additional properties from ObjectKVStore
 
-The following tests assert the output of `var_dump($obj)` and fails because we add the additional properties through `ObjectKVStore`.
+The following tests assert the output of `var_dump($obj)` and fail because we add the additional properties through `ObjectKVStore`.
 
 - `ext/pdo_sqlite/tests/bug43831.phpt` PHP 7+
 - `ext/pdo_sqlite/tests/bug44327_2.phpt` PHP 7+
