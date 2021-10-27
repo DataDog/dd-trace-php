@@ -81,8 +81,9 @@ function analyze_cli($tmpScenariosFolder)
 {
     $resultsFolder = $tmpScenariosFolder . DIRECTORY_SEPARATOR . '.results';
     $analyzed = [];
-    $unexpectedResults = [];
     $notEnoughResults = [];
+    $largeInterceptResults = [];
+    $leaksResults = [];
 
     foreach (scandir($resultsFolder) as $identifier) {
         if (in_array($identifier, ['.', '..'])) {
@@ -100,56 +101,44 @@ function analyze_cli($tmpScenariosFolder)
 
         $values = array_map('intval', explode("\n", file_get_contents($absFilePath)));
 
-        // removing first and last 5% of samples
-        $count = count($values);
-        $selectedValues = array_slice($values, $count * 0.05, $count * 0.9);
-
-        if (count($selectedValues) < 50) {
+        if (count($values) < 50) {
             $notEnoughResults[] = $identifier;
             continue;
         }
 
-        /*
-         * Credits:
-         *   - https://www.statisticshowto.com/probability-and-statistics/statistics-definitions/least-squares-regression-line/
-         *   - https://classroom.synonym.com/calculate-trendline-2709.html
-         */
-        $A_values = [];
-        $B_values_X = [];
-        $B_values_Y = [];
-        $C_values = [];
-        for ($i = 0; $i < count($selectedValues); $i++) {
-            $A_values[] = (float)($i + 1) * (float)$selectedValues[$i];
-            $B_values_X[] = (float)($i + 1);
-            $B_values_Y[] = (float)$selectedValues[$i];
-            $C_values[] = pow((float)($i + 1), 2);
-        }
-        $A = count($A_values) * array_sum($A_values);
-        $B = array_sum($B_values_X) * array_sum($B_values_Y);
-        $C = count($C_values) * array_sum($C_values);
-        $D = pow(array_sum($B_values_X), 2);
-        $slope = ($A - $B) / ($C - $D);
-        $E = array_sum($B_values_Y);
-        $F = $slope * array_sum($B_values_X);
-        $intercept = ($E - $F) / count($selectedValues);
-        error_log('trending line: ' . var_export([$slope, $intercept], true));
+        list($slope, $intercept) = calculate_trend_line($values);
+        error_log('Slope/intercept: ' . var_export([$slope, $intercept], true));
 
-        // we start being strict, we can be more lenient in the future if that makes sense and to reduce flakiness
-        if (min($selectedValues) !== max($selectedValues)) {
-            $unexpectedResults[] = $identifier;
+        if ($intercept > 5 * 1000 * 1000) {
+            // Heuristic 5MB limit. It might have to be increased as we add integrations
+            $largeInterceptResults[] = $identifier;
+            continue;
+        }
+
+        // We must accept a 0.1% slope as elastic search has small increases even when tracer is not loaded.
+        if (abs($slope) > ($intercept * 0.001)) {
+            $leaksResults[] = $identifier;
+            continue;
         }
     }
 
-    if (count($unexpectedResults) + count($notEnoughResults) === 0) {
+    if ((count($largeInterceptResults) + count($notEnoughResults) + count($leaksResults)) === 0) {
         return true;
     }
 
     // Reporting errors
     echo "Analyzed " . count($analyzed) . " CLI scenarios.\n";
-    if (count($unexpectedResults)) {
+    if (count($leaksResults)) {
         echo "The following scenarios might have memory leaks in CLI. Check out their respective memory.out file:\n ";
-        foreach ($unexpectedResults as $unexpectedResult) {
-            echo "    $unexpectedResult\n";
+        foreach ($leaksResults as $result) {
+            echo "    $result\n";
+        }
+    }
+    if (count($largeInterceptResults)) {
+        echo "The following scenarios consume an unexpected amount of memory. "
+            . "Check out their respective memory.out file:\n ";
+        foreach ($largeInterceptResults as $result) {
+            echo "    $result\n";
         }
     }
     if (count($notEnoughResults)) {
@@ -161,6 +150,41 @@ function analyze_cli($tmpScenariosFolder)
     }
 
     return false;
+}
+
+/**
+ * Calculates the "Least Squares Regression" line.
+ *
+ * Credits:
+ *   - https://www.mathsisfun.com/data/least-squares-regression.html
+ *
+ * @return [float, float] slope, intercept
+ */
+function calculate_trend_line(array $values)
+{
+    $count = count($values);
+    $xs = [];
+    $ys = [];
+    $xys = [];
+    $x2s = [];
+    for ($i = 0; $i < count($values); $i++) {
+        $x = (float)($i + 1);
+        $y = (float)$values[$i];
+        $xs[] = $x;
+        $ys[] = $y;
+        $xys[] = $x * $y;
+        $x2s[] = pow($x, 2);
+    }
+
+    $sumXs = array_sum($xs);
+    $sumYs = array_sum($ys);
+    $sumXYs = array_sum($xys);
+    $sumX2s = array_sum($x2s);
+
+    $slope = ($count * $sumXYs - $sumXs * $sumYs) / ($count * $sumX2s - pow($sumXs, 2));
+    $intercept = ($sumYs - $slope * $sumXs) / $count;
+
+    return [$slope, $intercept];
 }
 
 $webResult = analyze_web(__DIR__ . '/.tmp.scenarios');
