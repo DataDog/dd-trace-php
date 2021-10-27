@@ -158,10 +158,10 @@ ext/pdo_sqlite/tests/bug43831.phpt
 ext/pdo_sqlite/tests/bug44327_2.phpt
 ext/pdo_sqlite/tests/bug44327_3.phpt
 ext/pdo_sqlite/tests/bug48773.phpt
-ext/pdo_sqlite/tests/pdo_023.phpt
-ext/pdo_sqlite/tests/pdo_030.phpt
 ext/pdo_sqlite/tests/pdo_fetch_func_001.phpt
 ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt
+ext/pdo/tests/pdo_023.phpt
+ext/pdo/tests/pdo_030.phpt
 ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
 ext/phar/tests/bug69720.phpt
