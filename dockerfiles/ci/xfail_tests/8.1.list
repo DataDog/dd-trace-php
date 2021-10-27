@@ -79,6 +79,14 @@ ext/openssl/tests/tlsv1.3_wrapper.phpt
 ext/pcntl/tests/pcntl_unshare_01.phpt
 ext/pcntl/tests/pcntl_unshare_02.phpt
 ext/pcntl/tests/pcntl_unshare_03.phpt
+ext/pdo_sqlite/tests/bug43831.phpt
+ext/pdo_sqlite/tests/bug44327_2.phpt
+ext/pdo_sqlite/tests/bug44327_3.phpt
+ext/pdo_sqlite/tests/bug48773.phpt
+ext/pdo_sqlite/tests/pdo_023.phpt
+ext/pdo_sqlite/tests/pdo_030.phpt
+ext/pdo_sqlite/tests/pdo_fetch_func_001.phpt
+ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt
 ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
 ext/phar/tests/fatal_error_webphar.phpt

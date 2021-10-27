@@ -154,6 +154,13 @@ ext/openssl/tests/stream_verify_peer_name_001.phpt
 ext/openssl/tests/stream_verify_peer_name_002.phpt
 ext/openssl/tests/stream_verify_peer_name_003.phpt
 ext/openssl/tests/streams_crypto_method.phpt
+ext/pdo_sqlite/tests/bug43831.phpt
+ext/pdo_sqlite/tests/bug44327_2.phpt
+ext/pdo_sqlite/tests/bug44327_3.phpt
+ext/pdo_sqlite/tests/bug48773.phpt
+ext/pdo_sqlite/tests/pdo_023.phpt
+ext/pdo_sqlite/tests/pdo_030.phpt
+ext/pdo_sqlite/tests/pdo_fetch_func_001.phpt
 ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt
 ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
