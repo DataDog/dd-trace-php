@@ -320,6 +320,6 @@ class Snippets
 
     private function getCurlUrl()
     {
-        return $this->getCurlUrl();
+        return $this->config->httpBinHost . '/get?client=guzzle';
     }
 }
