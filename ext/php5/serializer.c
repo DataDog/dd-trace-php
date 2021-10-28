@@ -256,6 +256,7 @@ static int ddtrace_exception_to_meta(zval *exception, void *context, add_tag_fn_
                      Z_TYPE_P(file) == IS_STRING ? Z_STRVAL_P(file) : "Unknown",
                      Z_TYPE_P(line) == IS_LONG ? Z_LVAL_P(line) : 0, (int)full_trace_len, old_trace);
         efree(old_trace);
+        smart_str_free(&trace_string);
 
         ++Z_OBJPROP_P(previous)->nApplyCount;
         exception = previous;
@@ -741,6 +742,7 @@ void ddtrace_save_active_error_to_metadata(TSRMLS_D) {
         .msg = DDTRACE_G(active_error).message,
         .stack = dd_fatal_error_stack(),
     };
+
     for (ddtrace_span_fci *span = DDTRACE_G(open_spans_top); span; span = span->next) {
         zval *exception = ddtrace_spandata_property_exception(&span->span);
         if (exception && Z_TYPE_P(exception) == IS_OBJECT) {  // exceptions take priority
@@ -748,6 +750,16 @@ void ddtrace_save_active_error_to_metadata(TSRMLS_D) {
         }
 
         dd_fatal_error_to_meta(ddtrace_spandata_property_meta(&span->span), error);
+    }
+
+    if (error.type) {
+        zval_ptr_dtor(&error.type);
+    }
+    if (error.msg) {
+        zval_ptr_dtor(&error.msg);
+    }
+    if (error.stack) {
+        zval_ptr_dtor(&error.stack);
     }
 }
 

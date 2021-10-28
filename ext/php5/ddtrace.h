@@ -44,7 +44,7 @@ typedef struct {
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *auto_prepend_file;
-    zend_bool disable;
+    uint8_t disable; // 0 = enabled, 1 = disabled via INI, 2 = disabled, but MINIT was fully executed
     zend_bool request_init_hook_loaded;
 
     uint32_t traces_group_id;

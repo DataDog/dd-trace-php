@@ -30,6 +30,11 @@ final class PhpFpm implements Sapi
     private $configFile;
 
     /**
+     * @var resource
+     */
+    private $logFile;
+
+    /**
      * @param string $rootPath
      * @param string $host
      * @param int $port
@@ -41,12 +46,14 @@ final class PhpFpm implements Sapi
         $this->envs = $envs;
         $this->inis = $inis;
 
+        $logPath = $rootPath . '/' . self::ERROR_LOG;
+
         $replacements = [
             '{{fcgi_host}}' => $host,
             '{{fcgi_port}}' => $port,
             '{{envs}}' => $this->envsForConfFile(),
             '{{inis}}' => $this->inisForConfFile(),
-            '{{error_log}}' => $rootPath . '/' . self::ERROR_LOG,
+            '{{error_log}}' => $logPath,
         ];
         $configContent = str_replace(
             array_keys($replacements),
@@ -55,6 +62,7 @@ final class PhpFpm implements Sapi
         );
 
         $this->configFile = sys_get_temp_dir() . uniqid('/www-conf-', true);
+        $this->logFile = fopen($logPath, "a+");
 
         // This gets logged to phpunit_error.log (check CircleCI artifacts)
         error_log("[php-fpm] Generated config file '{$this->configFile}'");
@@ -138,5 +146,19 @@ final class PhpFpm implements Sapi
         if ($this->configFile) {
             unlink($this->configFile);
         }
+    }
+
+    public function checkErrors()
+    {
+        $newLogs = stream_get_contents($this->logFile);
+        if (preg_match("(=== Total [0-9]+ memory leaks detected ===)", $newLogs)) {
+            return $newLogs;
+        }
+
+        if (preg_match("(child [0-9]+ exited on signal)", $newLogs)) {
+            return $newLogs;
+        }
+
+        return null;
     }
 }

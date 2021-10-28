@@ -18,6 +18,9 @@ class RouteNameTest extends WebFrameworkTestCase
      */
     public function testResource2UriMapping()
     {
+        // memory leak exists in PHP 5.5-7.0, independently of ddtrace
+        $this->checkWebserverErrors = false;
+
         $traces = $this->tracesFromWebRequest(function () {
             $spec  = GetSpec::create('Resource name properly set to route', '/app.php');
             $this->call($spec);

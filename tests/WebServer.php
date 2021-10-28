@@ -168,4 +168,15 @@ final class WebServer
         $this->inis = array_merge($this->defaultInis, $this->inis, $inis);
         return $this;
     }
+
+    /**
+     * @return string|null
+     */
+    public function checkErrors()
+    {
+        if (!$this->sapi) {
+            return null;
+        }
+        return $this->sapi->checkErrors();
+    }
 }

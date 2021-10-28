@@ -23,6 +23,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * @var WebServer|null
      */
     private static $appServer;
+    protected $checkWebserverErrors = true;
 
     public static function ddSetUpBeforeClass()
     {
@@ -38,6 +39,14 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         parent::ddTearDownAfterClass();
         static::tearDownWebServer();
+    }
+
+    protected function ddTearDown()
+    {
+        if (self::$appServer && $this->checkWebserverErrors && ($error = self::$appServer->checkErrors())) {
+            $this->fail("Got error from webserver:\n$error");
+        }
+        parent::ddTearDown();
     }
 
     /**
