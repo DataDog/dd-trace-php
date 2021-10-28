@@ -306,7 +306,7 @@ class Snippets
     public function guzzleVariant1()
     {
         $client = new GuzzleClient();
-        $client->get($this->config->httpBinHost . '/get?client=guzzle');
+        $client->get($this->getGuzzleUrl());
     }
 
     public function phpredisVariant1()
@@ -319,6 +319,11 @@ class Snippets
     }
 
     private function getCurlUrl()
+    {
+        return $this->config->httpBinHost . '/get?client=curl';
+    }
+
+    private function getGuzzleUrl()
     {
         return $this->config->httpBinHost . '/get?client=guzzle';
     }

@@ -134,11 +134,13 @@ set_exception_handler([$randomizer, 'handleException']);
 
 $processors = [new ProcessingStage1($randomizer), new ProcessingStage2($randomizer)];
 
-// Open the file before as the first time file_put_content is called it causes a step in measured memory.
+/* Open the file before and then using fwrite, as the first time file_put_content is called it causes a step in
+ * measured memory.
+ */
 $memoryLogHandle = fopen($file, 'a+');
 
-// We print the first 5 warm up cycles to a tmp file to dismiss them
-for ($repetition = -5; $repetition <= $repetitions; $repetition++) {
+// We use the first 5 cycles to warm up
+for ($repetition = -4; $repetition <= $repetitions; $repetition++) {
     echo "Running repetition $repetition of $repetitions\n";
     // Dumping memory
     \gc_collect_cycles();

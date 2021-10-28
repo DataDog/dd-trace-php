@@ -34,7 +34,7 @@ function analyze_web($tmpScenariosFolder)
     }
 
     // Reporting errors
-    echo "Analyzed " . count($analyzed) . " scenarios.\n";
+    echo "Analyzed " . count($analyzed) . " web scenarios.\n";
 
     $isError = false;
     if (count($unexpectedCodes) > 0) {
@@ -47,7 +47,7 @@ function analyze_web($tmpScenariosFolder)
     }
 
     if ($isError) {
-        exit(1);
+        return false;
     }
 
     // Reading expected identifiers
@@ -67,7 +67,7 @@ function analyze_web($tmpScenariosFolder)
 
     if ($foundScenarios != $analyzed) {
         echo sprintf(
-            "Error: number of scenarios found (%d) and results found (%d) mismastch.\n",
+            "Error: number of scenarios found (%d) and results found (%d) mismatch.\n",
             count($foundScenarios),
             count($analyzed)
         );
@@ -121,12 +121,13 @@ function analyze_cli($tmpScenariosFolder)
         }
     }
 
+    echo "Analyzed " . count($analyzed) . " CLI scenarios.\n";
+
     if ((count($largeInterceptResults) + count($notEnoughResults) + count($leaksResults)) === 0) {
         return true;
     }
 
     // Reporting errors
-    echo "Analyzed " . count($analyzed) . " CLI scenarios.\n";
     if (count($leaksResults)) {
         echo "The following scenarios might have memory leaks in CLI. Check out their respective memory.out file:\n ";
         foreach ($leaksResults as $result) {
