@@ -6,20 +6,13 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\ObjectKVStore;
 
 class PDOIntegration extends Integration
 {
     const NAME = 'pdo';
 
-    /**
-     * @var array
-     */
-    private static $connections = [];
-
-    /**
-     * @var array
-     */
-    private static $statements = [];
+    const CONNECTION_TAGS_KEY = 'connection_tags';
 
     /**
      * @return string The integration name.
@@ -188,43 +181,25 @@ class PDOIntegration extends Integration
         if (isset($constructorArgs[1])) {
             $tags['db.user'] = $constructorArgs[1];
         }
-        self::$connections[spl_object_hash($pdo)] = $tags;
+        ObjectKVStore::put($pdo, PDOIntegration::CONNECTION_TAGS_KEY, $tags);
         return $tags;
     }
 
     public static function storeStatementFromConnection($pdo, $stmt)
     {
-        if (!$stmt instanceof \PDOStatement) {
-            // When an error occurs 'FALSE' will be returned in place of the statement.
-            return;
-        }
-        $pdoHash = spl_object_hash($pdo);
-        if (isset(self::$connections[$pdoHash])) {
-            self::$statements[spl_object_hash($stmt)] = $pdoHash;
-        }
+        ObjectKVStore::propagate($pdo, $stmt, PDOIntegration::CONNECTION_TAGS_KEY);
     }
 
     public static function setConnectionTags($pdo, SpanData $span)
     {
-        $hash = spl_object_hash($pdo);
-        if (!isset(self::$connections[$hash])) {
-            return;
-        }
-        foreach (self::$connections[$hash] as $tag => $value) {
+        foreach (ObjectKVStore::get($pdo, PDOIntegration::CONNECTION_TAGS_KEY, []) as $tag => $value) {
             $span->meta[$tag] = $value;
         }
     }
 
     public static function setStatementTags($stmt, SpanData $span)
     {
-        $stmtHash = spl_object_hash($stmt);
-        if (!isset(self::$statements[$stmtHash])) {
-            return;
-        }
-        if (!isset(self::$connections[self::$statements[$stmtHash]])) {
-            return;
-        }
-        foreach (self::$connections[self::$statements[$stmtHash]] as $tag => $value) {
+        foreach (ObjectKVStore::get($stmt, PDOIntegration::CONNECTION_TAGS_KEY, []) as $tag => $value) {
             $span->meta[$tag] = $value;
         }
     }
