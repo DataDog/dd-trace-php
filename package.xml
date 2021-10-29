@@ -42,7 +42,20 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - (PHP 5) Add zai config, internal spans, and exception handling (#1339)
+    - (PHP 7, 8) Add mongodb instrumentation (#1345)
+    - PHP installation script (beta) (#1335)
+
+    ### Changed
+    - (PHP 5, 7) Move _dd.origin handling to internal #1347
+
+    ### Fixed
+    - (PHP 7, 8) Fix exception handling with opcache cfg optimization enabled (#1344)
+    - (PHP 7, 8) Fix memory leaks in curl and error handling (#1350)
+    - Use ObjectKVStore in place of internal registry to store PDO connection parameters (#1355)
+    </notes>
     <contents>
         <dir name="/">
             <!-- components -->
