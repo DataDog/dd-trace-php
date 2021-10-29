@@ -44,10 +44,10 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
     ### Added
-    - Add zai config, internal spans, and exception handling to PHP 5 (#1339)
+    - (PHP 5) Add zai config, internal spans, and exception handling (#1339)
     - (PHP 7, 8) Add mongodb instrumentation (#1345)
     - PHP installation script (beta) (#1335)
-    -
+
     ### Changed
     - (PHP 5, 7) Move _dd.origin handling to internal #1347
 
