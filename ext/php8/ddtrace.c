@@ -328,14 +328,10 @@ zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_N
 
 bool ddtrace_fetch_prioritySampling_from_root(int *priority) {
     zval *priority_zv;
-    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
+    ddtrace_span_fci *root_span = DDTRACE_G(root_span);
 
     if (!root_span) {
         return false;
-    }
-
-    while (root_span->next) {
-        root_span = root_span->next;
     }
 
     zval *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
@@ -1464,18 +1460,14 @@ static PHP_FUNCTION(root_span) {
     if (!get_DD_TRACE_ENABLED()) {
         RETURN_NULL();
     }
-    if (!DDTRACE_G(open_spans_top)) {
+    if (!DDTRACE_G(root_span)) {
         if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
             ddtrace_push_root_span();  // ensure root span always exists, especially after serialization for testing
         } else {
             RETURN_NULL();
         }
     }
-    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-    while (root_span->next) {
-        root_span = root_span->next;
-    }
-    RETURN_OBJ_COPY(&root_span->span.std);
+    RETURN_OBJ_COPY(&DDTRACE_G(root_span)->span.std);
 }
 
 /* {{{ proto string DDTrace\start_span() */
