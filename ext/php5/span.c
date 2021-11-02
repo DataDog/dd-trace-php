@@ -21,6 +21,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
 }
@@ -37,6 +38,7 @@ static void _free_span_stack(ddtrace_span_fci *span_fci TSRMLS_DC) {
 void ddtrace_free_span_stacks(TSRMLS_D) {
     _free_span_stack(DDTRACE_G(open_spans_top) TSRMLS_CC);
     DDTRACE_G(open_spans_top) = NULL;
+    DDTRACE_G(root_span) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top) TSRMLS_CC);
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
@@ -71,6 +73,7 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
     if (!span_fci->next) {  // root span
+        DDTRACE_G(root_span) = span_fci;
         ddtrace_set_root_span_properties(&span_fci->span TSRMLS_CC);
     } else {
         zval *last_service = ddtrace_spandata_property_service(&span_fci->next->span);
@@ -185,10 +188,12 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
         span_fci->dispatch = NULL;
     }
 
-    // A userland span might still be open so we check the span ID stack instead of the internal span stack
-    // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
-    if (DDTRACE_G(span_ids_top) == NULL && get_DD_TRACE_AUTO_FLUSH_ENABLED()) {
-        if (!ddtrace_flush_tracer(TSRMLS_C)) {
+    if (DDTRACE_G(span_ids_top) == NULL) {
+        DDTRACE_G(root_span) = NULL;
+
+        // A userland span might still be open so we check the span ID stack instead of the internal span stack
+        // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && !ddtrace_flush_tracer(TSRMLS_C)) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
     }
@@ -208,6 +213,7 @@ void ddtrace_drop_top_open_span(TSRMLS_D) {
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     // The tracer supports only one trace per request so free any remaining open spans
     _free_span_stack(DDTRACE_G(open_spans_top) TSRMLS_CC);
+    DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     ddtrace_free_span_id_stack(TSRMLS_C);

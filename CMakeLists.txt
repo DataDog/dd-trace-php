@@ -104,7 +104,9 @@ add_subdirectory(zend_abstract_interface/uri_normalization)
 add_subdirectory(zend_abstract_interface/zai_string)
 add_subdirectory(zend_abstract_interface/zai_assert)
 
-add_subdirectory("ext/${PHP_VERSION_DIRECTORY}/priority_sampling/tests")
+if(NOT PHP_VERSION_DIRECTORY STREQUAL "php5")
+  add_subdirectory("ext/${PHP_VERSION_DIRECTORY}/priority_sampling/tests")
+endif()
 
 install(EXPORT ZendAbstractInterfaceTargets
         FILE ZendAbstractInterfaceTargets.cmake

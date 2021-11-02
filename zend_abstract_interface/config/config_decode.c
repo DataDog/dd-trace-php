@@ -29,12 +29,20 @@ static void zai_config_dtor_ppzval(void *ptr) {
 }
 #endif
 
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID < 70300
+#define GC_DELREF(x) (--GC_REFCOUNT(x))
+#endif
+
 static zend_always_inline void zend_hash_release(zend_array *array) {
     if (!(GC_FLAGS(array) & IS_ARRAY_IMMUTABLE)) {
         if (GC_DELREF(array) == 0) {
             zend_hash_destroy(array);
+#if PHP_VERSION_ID < 70300
+            pefree(array, array->u.flags & HASH_FLAG_PERSISTENT);
+#else
             pefree(array, GC_FLAGS(array) & IS_ARRAY_PERSISTENT);
+#endif
         }
     }
 }

@@ -180,6 +180,8 @@
             <file name="ext/php5/php5/engine_hooks.c" role="src" />
             <file name="ext/php5/php5_4/dispatch.c" role="src" />
             <file name="ext/php5/php5_4/engine_hooks.c" role="src" />
+            <file name="ext/php5/priority_sampling/priority_sampling.c" role="src" />
+            <file name="ext/php5/priority_sampling/priority_sampling.h" role="src" />
             <file name="ext/php5/random.c" role="src" />
             <file name="ext/php5/random.h" role="src" />
             <file name="ext/php5/request_hooks.c" role="src" />
@@ -246,6 +248,8 @@
             <file name="ext/php7/memory_limit.h" role="src" />
             <file name="ext/php7/php7/dispatch.c" role="src" />
             <file name="ext/php7/php7/engine_hooks.c" role="src" />
+            <file name="ext/php7/priority_sampling/priority_sampling.c" role="src" />
+            <file name="ext/php7/priority_sampling/priority_sampling.h" role="src" />
             <file name="ext/php7/random.c" role="src" />
             <file name="ext/php7/random.h" role="src" />
             <file name="ext/php7/request_hooks.c" role="src" />
@@ -312,6 +316,8 @@
             <file name="ext/php8/memory_limit.h" role="src" />
             <file name="ext/php8/php8/dispatch.c" role="src" />
             <file name="ext/php8/php8/engine_hooks.c" role="src" />
+            <file name="ext/php8/priority_sampling/priority_sampling.c" role="src" />
+            <file name="ext/php8/priority_sampling/priority_sampling.h" role="src" />
             <file name="ext/php8/random.c" role="src" />
             <file name="ext/php8/random.h" role="src" />
             <file name="ext/php8/request_hooks.c" role="src" />
