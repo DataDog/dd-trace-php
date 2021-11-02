@@ -19,7 +19,7 @@ INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini file
 
 RUN_TESTS_EXTRA_ARGS :=
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
-ZAI_TEST_DIR := $(shell cd "$(ZAI_BUILD_DIR)" && [ -z "${TESTS}" ] || find . -type d -wholename "*/${TESTS}")
+ZAI_TEST_DIR = $(eval ZAI_TEST_DIR := $(shell cd "$(ZAI_BUILD_DIR)" && ( [ -z "${TESTS}" ] || find . -type d -wholename "*/${TESTS}" )))$(ZAI_TEST_DIR)
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )

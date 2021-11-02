@@ -63,29 +63,29 @@ echo 'Done.' . PHP_EOL;
 --EXPECTF--
 Response #0
 x-bar: theory
-x-datadog-sampling-priority: 2
 x-datadog-parent-id: %d
+x-datadog-sampling-priority: 2
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #1
 x-bar: theory
-x-datadog-sampling-priority: 2
 x-datadog-parent-id: %d
+x-datadog-sampling-priority: 2
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #2
 x-bar: theory
-x-datadog-sampling-priority: 2
 x-datadog-parent-id: %d
+x-datadog-sampling-priority: 2
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #3
 x-bar: linguistics
-x-datadog-sampling-priority: 2
 x-datadog-parent-id: %d
+x-datadog-sampling-priority: 2
 x-datadog-trace-id: %d
 x-foo: after-the-copy
 

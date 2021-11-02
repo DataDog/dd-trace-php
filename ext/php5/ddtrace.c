@@ -17,13 +17,16 @@
 #include <pthread.h>
 #include <stdatomic.h>
 
+#include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 #include <ext/standard/php_smart_str.h>
 #include <ext/standard/php_string.h>
 
+#include "arrays.h"
 #include "auto_flush.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
+#include "compat_string.h"
 #include "compatibility.h"
 #include "coms.h"
 #include "config/config.h"
@@ -39,6 +42,7 @@
 #include "integrations/integrations.h"
 #include "logging.h"
 #include "memory_limit.h"
+#include "priority_sampling/priority_sampling.h"
 #include "random.h"
 #include "request_hooks.h"
 #include "serializer.h"
@@ -197,6 +201,15 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_init, 0, 0, 1)
 ZEND_ARG_INFO(0, dir)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_get_priority_sampling, 0, 0, 0)
+ZEND_ARG_INFO(0, global)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_set_priority_sampling, 0, 0, 1)
+ZEND_ARG_INFO(0, priority)
+ZEND_ARG_INFO(0, global)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
@@ -408,31 +421,6 @@ static zend_object_value ddtrace_fatal_error_new(zend_class_entry *class_type TS
     return Z_OBJVAL(obj);
 }
 
-bool ddtrace_fetch_prioritySampling_from_root(int *priority TSRMLS_DC) {
-    zval **priority_zv;
-    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-
-    if (!root_span) {
-        return false;
-    }
-
-    while (root_span->next) {
-        root_span = root_span->next;
-    }
-
-    zval *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
-    if (zend_hash_find(Z_ARRVAL_P(root_metrics), "_sampling_priority_v1", sizeof("_sampling_priority_v1"),
-                       (void **)&priority_zv) == FAILURE) {
-        return false;
-    }
-
-    zval zv;
-    MAKE_COPY_ZVAL(priority_zv, &zv);
-    convert_to_long(&zv);
-    *priority = (int)Z_LVAL(zv);
-    return true;
-}
-
 /* DDTrace\FatalError */
 zend_class_entry *ddtrace_ce_fatal_error;
 
@@ -546,7 +534,7 @@ static void dd_rinit_once(void) {
      * We use the first RINIT to bust the env var cache and use the SAPI env vars.
      * TODO Audit/remove config usages before RINIT and move config init to RINIT.
      */
-    ddtrace_startup_logging_first_rinit();
+    ddtrace_startup_logging_first_rinit(TSRMLS_C);
 
     // Uses config, cannot run earlier
     ddtrace_signals_first_rinit(TSRMLS_C);
@@ -559,6 +547,7 @@ static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 static void dd_initialize_request(TSRMLS_D) {
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
     zend_hash_init(&DDTRACE_G(additional_global_tags), 8, NULL, ZVAL_PTR_DTOR, 0);
+    DDTRACE_G(default_priority_sampling) = DDTRACE_UNKNOWN_PRIORITY_SAMPLING;
 
     // Things that should only run on the first RINIT
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
@@ -1609,7 +1598,7 @@ static PHP_FUNCTION(root_span) {
     if (!get_DD_TRACE_ENABLED()) {
         RETURN_NULL();
     }
-    if (!DDTRACE_G(open_spans_top)) {
+    if (!DDTRACE_G(root_span)) {
         if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
             ddtrace_push_root_span(
                 TSRMLS_C);  // ensure root span always exists, especially after serialization for testing
@@ -1617,12 +1606,8 @@ static PHP_FUNCTION(root_span) {
             RETURN_NULL();
         }
     }
-    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-    while (root_span->next) {
-        root_span = root_span->next;
-    }
     Z_TYPE_P(return_value) = IS_OBJECT;
-    Z_OBJVAL_P(return_value) = root_span->span.obj_value;
+    Z_OBJVAL_P(return_value) = DDTRACE_G(root_span)->span.obj_value;
     zend_objects_store_add_ref(return_value TSRMLS_CC);
 }
 
@@ -1757,6 +1742,47 @@ static PHP_FUNCTION(dd_trace_compile_time_microseconds) {
     RETURN_LONG(ddtrace_compile_time_get(TSRMLS_C));
 }
 
+static PHP_FUNCTION(set_priority_sampling) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr);
+    bool global = false, unknown_priority;
+    long priority;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "l!|b", &priority, &unknown_priority, &global) == FAILURE) {
+        ddtrace_log_debug("Expected an integer and an optional boolen");
+        RETURN_FALSE;
+    }
+
+    if (unknown_priority) {
+        priority = DDTRACE_UNKNOWN_PRIORITY_SAMPLING;
+    }
+
+    if (global || !DDTRACE_G(root_span)) {
+        DDTRACE_G(default_priority_sampling) = priority;
+    } else {
+        ddtrace_set_prioritySampling_on_root(priority TSRMLS_CC);
+    }
+}
+
+static PHP_FUNCTION(get_priority_sampling) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr);
+    zend_bool global = false;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|b", &global) == FAILURE) {
+        ddtrace_log_debug("Expected an optional boolen");
+        RETURN_FALSE;
+    }
+
+    if (global || !DDTRACE_G(root_span)) {
+        if (DDTRACE_G(default_priority_sampling) == DDTRACE_UNKNOWN_PRIORITY_SAMPLING) {
+            RETURN_NULL();
+        }
+
+        RETURN_LONG(DDTRACE_G(default_priority_sampling));
+    }
+
+    RETURN_LONG(ddtrace_fetch_prioritySampling_from_root(TSRMLS_C));
+}
+
 static PHP_FUNCTION(startup_logs) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
 
@@ -1815,6 +1841,8 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(hook_function, arginfo_ddtrace_hook_function),
     DDTRACE_NS_FE(hook_method, arginfo_ddtrace_hook_method),
     DDTRACE_NS_FE(startup_logs, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(get_priority_sampling, arginfo_get_priority_sampling),
+    DDTRACE_NS_FE(set_priority_sampling, arginfo_set_priority_sampling),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
@@ -1845,7 +1873,7 @@ ZEND_TSRMLS_CACHE_DEFINE();
 void dd_prepare_for_new_trace(TSRMLS_D) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
 
 void dd_read_distributed_tracing_ids(TSRMLS_D) {
-    zai_string_view trace_id_str, parent_id_str, dd_origin_str;
+    zai_string_view trace_id_str, parent_id_str, dd_origin_str, priority_str;
     bool success = true;
 
     if (zai_read_header_literal("X_DATADOG_TRACE_ID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
@@ -1872,5 +1900,9 @@ void dd_read_distributed_tracing_ids(TSRMLS_D) {
     DDTRACE_G(dd_origin) = NULL;
     if (zai_read_header_literal("X_DATADOG_ORIGIN", &dd_origin_str) == ZAI_HEADER_SUCCESS) {
         DDTRACE_G(dd_origin) = estrdup(dd_origin_str.ptr);
+    }
+
+    if (zai_read_header_literal("X_DATADOG_SAMPLING_PRIORITY", &priority_str) == ZAI_HEADER_SUCCESS) {
+        DDTRACE_G(default_priority_sampling) = strtol(priority_str.ptr, NULL, 10);
     }
 }

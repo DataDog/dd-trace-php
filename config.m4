@@ -80,6 +80,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/memory_limit.c \
       ext/php5/php5_4/dispatch.c \
       ext/php5/php5_4/engine_hooks.c \
+      ext/php5/priority_sampling/priority_sampling.c \
       ext/php5/random.c \
       ext/php5/request_hooks.c \
       ext/php5/serializer.c \
@@ -129,6 +130,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/memory_limit.c \
       ext/php5/php5/dispatch.c \
       ext/php5/php5/engine_hooks.c \
+      ext/php5/priority_sampling/priority_sampling.c \
       ext/php5/random.c \
       ext/php5/request_hooks.c \
       ext/php5/serializer.c \
@@ -332,6 +334,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl PHP 5.4
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/php5_4])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/priority_sampling])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php5/integrations])
   elif test $PHP_VERSION_ID -lt 70000; then
@@ -339,6 +342,7 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5])
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/php5])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/priority_sampling])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php5/integrations])
   elif test $PHP_VERSION_ID -lt 80000; then
@@ -346,6 +350,7 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7])
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/php7])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/priority_sampling])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php7/integrations])
   elif test $PHP_VERSION_ID -lt 90000; then

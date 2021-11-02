@@ -68,7 +68,7 @@ service: "my-service"
 enabled_cli: false
 debug: true
 sample_rate: 0.4200
-sampling_rules: "[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]"
+sampling_rules: [{"service":"a.*","name":"b","sample_rate":0.1},{"sample_rate":0.2}]
 tags: {"key1":"value1","key2":"value2"}
 service_mapping: {"pdo":"payments-db","mysqli":"orders-db"}
 distributed_tracing_enabled: false
