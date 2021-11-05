@@ -195,22 +195,37 @@ class LaravelIntegration extends Integration
             }
         );
 
+        $reportedException = null;
+
         \DDTrace\hook_method(
-            'Illuminate\Foundation\Http\Kernel',
-            'renderException',
-            function ($This, $scope, $args) use ($rootSpan) {
-                if (!$rootSpan->hasError()) {
-                    $rootSpan->setError($args[1]);
-                }
+            'Illuminate\Foundation\Exceptions\Handler',
+            'exceptionContext',
+            function ($This, $scope, $args) use (&$reportedException) {
+                $reportedException = $args[0];
             }
         );
 
         \DDTrace\hook_method(
-            'Illuminate\Routing\Pipeline',
-            'handleException',
-            function ($This, $scope, $args) use ($rootSpan) {
-                if (!$rootSpan->hasError()) {
-                    $rootSpan->setError($args[1]);
+            'Illuminate\Foundation\Exceptions\Handler',
+            'report',
+            null,
+            function ($This, $scope, $args) use ($rootSpan, &$reportedException) {
+                if (!\defined('Illuminate\Foundation\Application::VERSION')) {
+                    return;
+                }
+                $version = \Illuminate\Foundation\Application::VERSION;
+                $exception = $args[0];
+                if (\version_compare($version, '6', '>=')) {
+                    if ($reportedException === $exception) {
+                        if (!$rootSpan->hasError()) {
+                            $rootSpan->setError($exception);
+                        }
+                        $reportedException = null;
+                    }
+                } elseif (\version_compare($version, '5', '>=')) {
+                    if ($This->shouldReport($exception) && !$rootSpan->hasError()) {
+                        $rootSpan->setError($exception);
+                    }
                 }
             }
         );
