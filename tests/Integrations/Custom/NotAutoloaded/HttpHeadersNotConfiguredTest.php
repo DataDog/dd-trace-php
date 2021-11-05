@@ -44,7 +44,7 @@ final class HttpHeadersNotConfiguredTest extends WebFrameworkTestCase
                     'GET /'
                 )->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => '/',
+                    'http.url' => 'http://localhost:' . self::PORT . '/',
                     'http.status_code' => 200,
                 ]),
             ]

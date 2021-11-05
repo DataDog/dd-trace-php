@@ -2,6 +2,7 @@
 #include <Zend/zend_builtin_functions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
+#include <Zend/zend_smart_str.h>
 #include <Zend/zend_types.h>
 #include <inttypes.h>
 #include <php.h>
@@ -412,33 +413,58 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span) {
     ZEND_HASH_FOREACH_END();
 }
 
+static zend_string *dd_build_req_url() {
+    const char *uri = NULL;
+    int uri_len;
+    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
+    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+        zval *req_uri = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("REQUEST_URI"));
+        if (req_uri && Z_TYPE_P(req_uri) == IS_STRING) {
+            uri = Z_STRVAL_P(req_uri);
+            uri_len = Z_STRLEN_P(req_uri);
+        }
+    }
+
+    if (!uri) {
+        uri = SG(request_info).request_uri;
+        if (uri) {
+            uri_len = strlen(uri);
+        } else {
+            return ZSTR_EMPTY_ALLOC();
+        }
+    }
+
+    zend_bool is_https = zend_hash_str_exists(Z_ARRVAL_P(_server), ZEND_STRL("HTTPS"));
+
+    zval *host_zv;
+    if ((!(host_zv = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("HTTP_HOST"))) &&
+         !(host_zv = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("SERVER_NAME")))) ||
+        Z_TYPE_P(host_zv) != IS_STRING) {
+        return ZSTR_EMPTY_ALLOC();
+    }
+
+    return zend_strpprintf(0, "http%s://%s%.*s", is_https ? "s" : "", Z_STRVAL_P(host_zv), uri_len, uri);
+}
+
 void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     zval *meta = ddtrace_spandata_property_meta(span);
 
     add_assoc_long(meta, "system.pid", (long)getpid());
 
-    const char *uri = SG(request_info).request_uri, *method = SG(request_info).request_method;
+    const char *method = SG(request_info).request_method;
     if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {
         zval http_method;
         ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
         zend_hash_str_add_new(Z_ARR_P(meta), ZEND_STRL("http.method"), &http_method);
 
-        zval http_url = {0};
-        if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
-            zval *urizv;
-            if ((urizv = zend_hash_str_find(Z_ARR(PG(http_globals)[TRACK_VARS_SERVER]), ZEND_STRL("REQUEST_URI")))) {
-                ZVAL_DEREF(urizv);
-                ZVAL_COPY(&http_url, urizv);
-            }
-        }
-        if (Z_ISUNDEF(http_url) && uri) {
-            ZVAL_STR(&http_url, zend_string_init(uri, strlen(uri), 0));
+        zend_string *http_url = dd_build_req_url();
+        if (ZSTR_LEN(http_url)) {
+            add_assoc_str(meta, "http.url", http_url);
         }
 
+        const char *uri = SG(request_info).request_uri;
         zval *prop_resource = ddtrace_spandata_property_resource(span);
-        if (!Z_ISUNDEF(http_url)) {
-            zend_hash_str_add_new(Z_ARR_P(meta), ZEND_STRL("http.url"), &http_url);
-
+        if (uri) {
             zend_string *path = zend_string_init(uri, strlen(uri), 0);
             zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
             ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s", method, ZSTR_VAL(normalized)));

@@ -34,7 +34,7 @@ class RouteNameTest extends WebFrameworkTestCase
                 'AppBundle\Controller\DefaultController testingRouteNameAction'
             )->withExactTags([
                 'http.method' => 'GET',
-                'http.url' => '/app.php',
+                'http.url' => 'http://localhost:' . self::PORT . '/app.php',
                 'http.status_code' => '200',
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
