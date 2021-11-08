@@ -7,11 +7,13 @@
 #define ZAI_TSRMLS_CC
 #define ZAI_TSRMLS_D
 #define ZAI_TSRMLS_DC
+#define ZAI_TSRMLS_FETCH()
 #else
 #define ZAI_TSRMLS_C TSRMLS_C
 #define ZAI_TSRMLS_CC TSRMLS_CC
 #define ZAI_TSRMLS_D TSRMLS_D
 #define ZAI_TSRMLS_DC TSRMLS_DC
+#define ZAI_TSRMLS_FETCH TSRMLS_FETCH
 #endif
 
 #endif  // ZAI_COMPAT_H

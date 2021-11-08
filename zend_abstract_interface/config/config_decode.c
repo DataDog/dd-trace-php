@@ -6,6 +6,41 @@
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
+#include <ext/json/php_json.h>
+#include "../zai_compat.h"
+
+#if PHP_VERSION_ID < 70000
+#undef zval_internal_ptr_dtor
+#define zval_internal_ptr_dtor zval_internal_dtor
+#define ZVAL_UNDEF(z)  \
+    {                  \
+        INIT_PZVAL(z); \
+        ZVAL_NULL(z);  \
+    }
+static void zai_config_dtor_ppzval(void *ptr) {
+    zval **zval_ptr = ptr;
+    Z_DELREF_PP(zval_ptr);
+    if (Z_REFCOUNT_PP(zval_ptr) == 0) {
+        zai_config_dtor_pzval(*zval_ptr);
+        free(*zval_ptr);
+    } else if (Z_REFCOUNT_PP(zval_ptr) == 1) {
+        Z_UNSET_ISREF_PP(zval_ptr);
+    }
+}
+#endif
+
+void zai_config_dtor_pzval(zval *pval) {
+    if (Z_TYPE_P(pval) == IS_ARRAY) {
+        if (Z_DELREF_P(pval) == 0) {
+            zend_hash_destroy(Z_ARRVAL_P(pval));
+            free(Z_ARRVAL_P(pval));
+        }
+    } else {
+        zval_internal_ptr_dtor(pval);
+    }
+    // Prevent an accidental use after free
+    ZVAL_UNDEF(pval);
+}
 
 static bool zai_config_decode_bool(zai_string_view value, zval *decoded_value) {
     if ((value.len == 1 && strcmp(value.ptr, "1") == 0) || (value.len == 2 && strcasecmp(value.ptr, "on") == 0) ||
@@ -231,6 +266,86 @@ static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bo
     return true;
 }
 
+#if PHP_VERSION_ID < 70000
+static void zai_config_persist_zval(zval *in);
+static void zai_config_persist_zval_ptr(void *ptr) {
+    zval **in = ptr, *out;
+    ALLOC_PERMANENT_ZVAL(out);
+    *out = **in;
+    zai_config_persist_zval(out);
+    efree(*in);
+    *in = out;
+}
+
+static void zai_config_persist_zval(zval *in) {
+    if (Z_TYPE_P(in) == IS_ARRAY) {
+        HashTable *array = Z_ARRVAL_P(in);
+        Z_ARRVAL_P(in) = malloc(sizeof(HashTable));
+        zend_hash_init(Z_ARRVAL_P(in), 8, NULL, zai_config_dtor_ppzval, 1);
+        zend_hash_copy(Z_ARRVAL_P(in), array, zai_config_persist_zval_ptr, NULL, sizeof(zval *));
+        array->pDestructor = NULL;
+        zend_hash_destroy(array);
+        FREE_HASHTABLE(array);
+    } else if (Z_TYPE_P(in) == IS_STRING) {
+        char *str = Z_STRVAL_P(in);
+        Z_STRVAL_P(in) = strndup(str, Z_STRLEN_P(in));
+        efree(str);
+    }
+}
+#else
+static void zai_config_persist_zval(zval *in) {
+    if (Z_TYPE_P(in) == IS_ARRAY) {
+        zend_array *array = Z_ARR_P(in);
+        ZVAL_NEW_PERSISTENT_ARR(in);
+        zend_hash_init(Z_ARR_P(in), 8, NULL, zai_config_dtor_pzval, 1);
+        Bucket *bucket;
+        ZEND_HASH_FOREACH_BUCKET(array, bucket) {
+            zai_config_persist_zval(&bucket->val);
+            Z_TRY_ADDREF(bucket->val);
+            if (bucket->key) {
+                zend_hash_str_add_new(Z_ARR_P(in), ZSTR_VAL(bucket->key), ZSTR_LEN(bucket->key), &bucket->val);
+            } else {
+                zend_hash_index_add_new(Z_ARR_P(in), bucket->h, &bucket->val);
+            }
+        } ZEND_HASH_FOREACH_END();
+        zend_array_release(array);
+    } else if (Z_TYPE_P(in) == IS_STRING) {
+        zend_string *str = Z_STR_P(in);
+        if (!(GC_FLAGS(str) & IS_STR_PERSISTENT)) {
+            ZVAL_PSTRINGL(in, ZSTR_VAL(str), ZSTR_LEN(str));
+            zend_string_release(str);
+        }
+    }
+}
+#endif
+
+ZEND_EXTERN_MODULE_GLOBALS(json)
+
+static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, bool persistent) {
+    ZAI_TSRMLS_FETCH();
+
+#if PHP_VERSION_ID >= 70000
+    php_json_error_code original_error_code = JSON_G(error_code);
+#endif
+    php_json_decode(decoded_value, (char *) value.ptr, (int) value.len, true, 20 ZAI_TSRMLS_CC);
+#if PHP_VERSION_ID >= 70000
+    JSON_G(error_code) = original_error_code;
+#endif
+
+    if (Z_TYPE_P(decoded_value) != IS_ARRAY) {
+        zval_dtor(decoded_value);
+        ZVAL_NULL(decoded_value);
+        return false;
+    }
+
+    // as we do not want to parse the JSON ourselves, we have to ensure persistence ourselves by copying
+    if (persistent) {
+        zai_config_persist_zval(decoded_value);
+    }
+
+    return true;
+}
+
 static bool zai_config_decode_string(zai_string_view value, zval *decoded_value, bool persistent) {
 #if PHP_VERSION_ID < 70000
     ZVAL_STRINGL(decoded_value, pestrndup(value.ptr, value.len, persistent), value.len, 0);
@@ -255,6 +370,8 @@ bool zai_config_decode_value(zai_string_view value, zai_config_type type, zval *
             return zai_config_decode_set(value, decoded_value, persistent, false);
         case ZAI_CONFIG_TYPE_SET_LOWERCASE:
             return zai_config_decode_set(value, decoded_value, persistent, true);
+        case ZAI_CONFIG_TYPE_JSON:
+            return zai_config_decode_json(value, decoded_value, persistent);
         case ZAI_CONFIG_TYPE_STRING:
             return zai_config_decode_string(value, decoded_value, persistent);
         default:

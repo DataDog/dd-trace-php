@@ -130,7 +130,7 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_bool(ht, ZEND_STRL("debug"), get_DD_TRACE_DEBUG());
     _dd_add_assoc_bool(ht, ZEND_STRL("analytics_enabled"), get_DD_TRACE_ANALYTICS_ENABLED());
     _dd_add_assoc_double(ht, ZEND_STRL("sample_rate"), get_DD_TRACE_SAMPLE_RATE());
-    _dd_add_assoc_zstring(ht, ZEND_STRL("sampling_rules"), zend_string_copy(get_DD_TRACE_SAMPLING_RULES()));
+    _dd_add_assoc_array(ht, ZEND_STRL("sampling_rules"), _dd_array_copy(get_DD_TRACE_SAMPLING_RULES()));
     // TODO Add integration-specific config: integration_<integration>_analytics_enabled,
     // integration_<integration>_sample_rate, integrations_loaded
     _dd_add_assoc_array(ht, ZEND_STRL("tags"), _dd_array_copy(get_DD_TAGS()));

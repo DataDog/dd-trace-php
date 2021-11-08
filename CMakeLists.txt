@@ -15,7 +15,7 @@ if (${BUILD_ZAI_TESTING})
   #[[ This file takes a while to build, so we do it once here and every test
       executable can link to it to save time.
   ]]
-  add_library(catch2_main catch2_main.cc)
+  add_library(catch2_main zend_abstract_interface/catch2_main.cc)
   target_link_libraries(catch2_main PUBLIC Catch2::Catch2)
   target_compile_features(catch2_main PUBLIC cxx_std_11)
 
@@ -52,12 +52,6 @@ find_library(PHP_LIB
              # 'REQUIRED' added in cmake v3.18
              REQUIRED)
 
-include_directories("${PHP_PREFIX_PATH}/include/php/"
-                    "${PHP_PREFIX_PATH}/include/php/TSRM"
-                    "${PHP_PREFIX_PATH}/include/php/Zend"
-                    "${PHP_PREFIX_PATH}/include/php/ext"
-                    "${PHP_PREFIX_PATH}/include/php/main")
-
 #[[ Get the PHP version number from php-config. This is used to compile the
     version-specific source files.
 ]]
@@ -81,23 +75,38 @@ else()
   message(FATAL_ERROR "Unsupported PHP version '${PHP_VERSION_ID}'.")
 endif()
 
-add_subdirectory(zai_sapi)
+include_directories("${PHP_PREFIX_PATH}/include/php/"
+        "${PHP_PREFIX_PATH}/include/php/TSRM"
+        "${PHP_PREFIX_PATH}/include/php/Zend"
+        "${PHP_PREFIX_PATH}/include/php/ext"
+        "${PHP_PREFIX_PATH}/include/php/main"
+        "zend_abstract_interface"
+        "ext/vendor/mpack"
+        "ext/vendor/mt19937"
+        "src/dogstatsd"
+        "ext/${PHP_VERSION_DIRECTORY}")
+
+add_subdirectory(zend_abstract_interface/zai_sapi)
 
 # All tests depend on zai_sapi
-add_subdirectory(functions)
-add_subdirectory(env)
-add_subdirectory(exceptions)
-add_subdirectory(config)
+add_subdirectory(zend_abstract_interface/functions)
+add_subdirectory(zend_abstract_interface/env)
+add_subdirectory(zend_abstract_interface/exceptions)
+add_subdirectory(zend_abstract_interface/config)
 if(PHP_VERSION_DIRECTORY STREQUAL "php5")
   # TODO Support PHP 7 & PHP 8
-  add_subdirectory(methods)
+  add_subdirectory(zend_abstract_interface/methods)
 endif()
-add_subdirectory(headers)
-add_subdirectory(properties)
-add_subdirectory(sandbox)
-add_subdirectory(uri_normalization)
-add_subdirectory(zai_string)
-add_subdirectory(zai_assert)
+add_subdirectory(zend_abstract_interface/headers)
+add_subdirectory(zend_abstract_interface/properties)
+add_subdirectory(zend_abstract_interface/sandbox)
+add_subdirectory(zend_abstract_interface/uri_normalization)
+add_subdirectory(zend_abstract_interface/zai_string)
+add_subdirectory(zend_abstract_interface/zai_assert)
+
+if(PHP_VERSION_DIRECTORY STREQUAL "php8")
+  add_subdirectory(ext/php8/priority_sampling/tests)
+endif()
 
 install(EXPORT ZendAbstractInterfaceTargets
         FILE ZendAbstractInterfaceTargets.cmake

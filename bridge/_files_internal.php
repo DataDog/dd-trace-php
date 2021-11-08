@@ -3,7 +3,6 @@
 return [
     __DIR__ . '/configuration.php',
     __DIR__ . '/../src/private/functions.php',
-    __DIR__ . '/../src/DDTrace/Sampling/Sampler.php',
     __DIR__ . '/../src/DDTrace/SpanContext.php',
     __DIR__ . '/../src/DDTrace/Span.php',
     __DIR__ . '/../src/DDTrace/Tracer.php',
@@ -18,9 +17,7 @@ return [
     __DIR__ . '/../src/DDTrace/Util/ArrayKVStore.php',
     __DIR__ . '/../src/DDTrace/Processing/TraceAnalyticsProcessor.php',
     __DIR__ . '/../src/DDTrace/Scope.php',
-    __DIR__ . '/../src/DDTrace/Sampling/AlwaysKeepSampler.php',
     __DIR__ . '/../src/DDTrace/Sampling/PrioritySampling.php',
-    __DIR__ . '/../src/DDTrace/Sampling/ConfigurableSampler.php',
     __DIR__ . '/../src/DDTrace/Propagator.php',
     __DIR__ . '/../src/DDTrace/Bootstrap.php',
     __DIR__ . '/../src/DDTrace/Encoders/SpanEncoder.php',

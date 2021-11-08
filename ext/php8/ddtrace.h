@@ -15,16 +15,17 @@ typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_fci ddtrace_span_fci;
 typedef struct ddtrace_span_t ddtrace_span_t;
 
-zval *ddtrace_spandata_property_name(ddtrace_span_t *span);
-zval *ddtrace_spandata_property_resource(ddtrace_span_t *span);
-zval *ddtrace_spandata_property_service(ddtrace_span_t *span);
-zval *ddtrace_spandata_property_type(ddtrace_span_t *span);
-zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
-zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
-zval *ddtrace_spandata_property_exception(ddtrace_span_t *span);
-zval *ddtrace_spandata_property_parent(ddtrace_span_t *span);
-
-bool ddtrace_fetch_prioritySampling_from_root(int *priority);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
+static inline zval *ddtrace_spandata_property_name(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 0); }
+static inline zval *ddtrace_spandata_property_resource(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 1); }
+static inline zval *ddtrace_spandata_property_service(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 2); }
+static inline zval *ddtrace_spandata_property_type(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 3); }
+static inline zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 4); }
+static inline zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 5); }
+static inline zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 6); }
+static inline zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 7); }
+#pragma GCC diagnostic pop
 
 bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
@@ -57,6 +58,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *dogstatsd_buffer;
 
     uint64_t trace_id;
+    zend_long default_priority_sampling;
     ddtrace_span_ids_t *span_ids_top;
     ddtrace_span_fci *open_spans_top;
     ddtrace_span_fci *closed_spans_top;
