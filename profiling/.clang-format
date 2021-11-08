@@ -1,0 +1,6 @@
+---
+BasedOnStyle: LLVM
+AlignOperands: DontAlign
+AllowShortBlocksOnASingleLine: Always
+BreakStringLiterals: false
+---
