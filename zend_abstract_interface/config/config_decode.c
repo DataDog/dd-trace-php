@@ -29,6 +29,17 @@ static void zai_config_dtor_ppzval(void *ptr) {
 }
 #endif
 
+#if PHP_VERSION_ID < 80000
+static zend_always_inline void zend_hash_release(zend_array *array) {
+    if (!(GC_FLAGS(array) & IS_ARRAY_IMMUTABLE)) {
+        if (GC_DELREF(array) == 0) {
+            zend_hash_destroy(array);
+            pefree(array, GC_FLAGS(array) & IS_ARRAY_PERSISTENT);
+        }
+    }
+}
+#endif
+
 void zai_config_dtor_pzval(zval *pval) {
     if (Z_TYPE_P(pval) == IS_ARRAY) {
         if (Z_DELREF_P(pval) == 0) {
@@ -308,7 +319,7 @@ static void zai_config_persist_zval(zval *in) {
                 zend_hash_index_add_new(Z_ARR_P(in), bucket->h, &bucket->val);
             }
         } ZEND_HASH_FOREACH_END();
-        zend_array_release(array);
+        zend_hash_release(array);
     } else if (Z_TYPE_P(in) == IS_STRING) {
         zend_string *str = Z_STR_P(in);
         if (!(GC_FLAGS(str) & IS_STR_PERSISTENT)) {

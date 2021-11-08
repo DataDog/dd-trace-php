@@ -21,6 +21,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 void ddtrace_init_span_stacks(void) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
 }
@@ -37,6 +38,7 @@ static void _free_span_stack(ddtrace_span_fci *span_fci) {
 void ddtrace_free_span_stacks(void) {
     _free_span_stack(DDTRACE_G(open_spans_top));
     DDTRACE_G(open_spans_top) = NULL;
+    DDTRACE_G(root_span) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top));
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
@@ -71,6 +73,7 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
     if (!span_fci->next) {  // root span
+        DDTRACE_G(root_span) = span_fci;
         ddtrace_set_root_span_properties(&span_fci->span);
     } else {
         ZVAL_COPY(ddtrace_spandata_property_service(&span_fci->span),
@@ -93,14 +96,9 @@ ddtrace_span_fci *ddtrace_init_span(void) {
 void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span()); }
 
 bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
-    // Find the root span
-    ddtrace_span_fci *root = DDTRACE_G(open_spans_top);
+    ddtrace_span_fci *root = DDTRACE_G(root_span);
     if (root == NULL) {
         return false;
-    }
-
-    while (root->next) {
-        root = root->next;
     }
 
     zval *meta = ddtrace_spandata_property_meta(&root->span);
@@ -191,10 +189,12 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
         span_fci->dispatch = NULL;
     }
 
-    // A userland span might still be open so we check the span ID stack instead of the internal span stack
-    // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
-    if (DDTRACE_G(span_ids_top) == NULL && get_DD_TRACE_AUTO_FLUSH_ENABLED()) {
-        if (ddtrace_flush_tracer() == FAILURE) {
+    if (DDTRACE_G(span_ids_top) == NULL) {
+        DDTRACE_G(root_span) = NULL;
+
+        // A userland span might still be open so we check the span ID stack instead of the internal span stack
+        // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer() == FAILURE) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
     }
@@ -214,6 +214,7 @@ void ddtrace_drop_top_open_span(void) {
 void ddtrace_serialize_closed_spans(zval *serialized) {
     // The tracer supports only one trace per request so free any remaining open spans
     _free_span_stack(DDTRACE_G(open_spans_top));
+    DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     ddtrace_free_span_id_stack();

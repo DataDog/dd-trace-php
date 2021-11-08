@@ -84,7 +84,7 @@ extern bool runtime_config_first_init;
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                   \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                   \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                   \
-    CONFIG(STRING, DD_TRACE_SAMPLING_RULES, "")                                                               \
+    CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                               \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                           \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                       \
     CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_TIMEOUT_VAL),                            \
@@ -143,6 +143,7 @@ typedef enum { DD_CONFIGURATION } ddtrace_config_id;
     }
 #define SET MAP
 #define SET_LOWERCASE MAP
+#define JSON MAP
 #define MAP(id)                                                                                             \
     static inline zend_array *get_##id(void) { return Z_ARR_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
     static inline zend_array *get_global_##id(void) {                                                       \
@@ -157,6 +158,7 @@ DD_CONFIGURATION
 #undef MAP
 #undef SET
 #undef SET_LOWERCASE
+#undef JSON
 #undef BOOL
 #undef INT
 #undef DOUBLE

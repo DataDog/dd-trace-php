@@ -104,9 +104,7 @@ add_subdirectory(zend_abstract_interface/uri_normalization)
 add_subdirectory(zend_abstract_interface/zai_string)
 add_subdirectory(zend_abstract_interface/zai_assert)
 
-if(PHP_VERSION_DIRECTORY STREQUAL "php8")
-  add_subdirectory(ext/php8/priority_sampling/tests)
-endif()
+add_subdirectory("ext/${PHP_VERSION_DIRECTORY}/priority_sampling/tests")
 
 install(EXPORT ZendAbstractInterfaceTargets
         FILE ZendAbstractInterfaceTargets.cmake
