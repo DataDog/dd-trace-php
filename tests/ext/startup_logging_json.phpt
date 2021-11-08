@@ -27,7 +27,7 @@ agent_url: "%s"
 debug: false
 analytics_enabled: false
 sample_rate: 1.0000
-sampling_rules: null
+sampling_rules: []
 tags: []
 service_mapping: []
 distributed_tracing_enabled: true

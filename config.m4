@@ -183,6 +183,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/memory_limit.c \
       ext/php7/php7/dispatch.c \
       ext/php7/php7/engine_hooks.c \
+      ext/php7/priority_sampling/priority_sampling.c \
       ext/php7/random.c \
       ext/php7/request_hooks.c \
       ext/php7/serializer.c \
@@ -236,6 +237,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/memory_limit.c \
       ext/php8/php8/dispatch.c \
       ext/php8/php8/engine_hooks.c \
+      ext/php8/priority_sampling/priority_sampling.c \
       ext/php8/random.c \
       ext/php8/request_hooks.c \
       ext/php8/serializer.c \
@@ -351,6 +353,7 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8])
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/php8])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/priority_sampling])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php8/integrations])
   fi

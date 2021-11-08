@@ -1232,7 +1232,7 @@ jobs:
                       -DCMAKE_BUILD_TYPE=Debug \
                       -DBUILD_ZAI_TESTING=ON \
                       -DPHP_CONFIG=$(which php-config) \
-                      ~/datadog/zend_abstract_interface
+                      ~/datadog
                     make -j all
                     make test
                     grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
@@ -1263,7 +1263,7 @@ jobs:
                       -DCMAKE_BUILD_TYPE=Debug \
                       -DBUILD_ZAI_TESTING=ON \
                       -DPHP_CONFIG=$(which php-config) \
-                      ~/datadog/zend_abstract_interface
+                      ~/datadog
                     make -j all
                     make test
                     grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
@@ -1281,7 +1281,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
               -DPHP_CONFIG=$(which php-config) \
-              ~/datadog/zend_abstract_interface
+              ~/datadog
             make -j all
             make test
             grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true

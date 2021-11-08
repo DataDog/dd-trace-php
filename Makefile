@@ -19,6 +19,7 @@ INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini file
 
 RUN_TESTS_EXTRA_ARGS :=
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
+ZAI_TEST_DIR := $(shell cd "$(ZAI_BUILD_DIR)" && [ -z "${TESTS}" ] || find . -type d -wholename "*/${TESTS}")
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -145,24 +146,24 @@ build_zai:
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT); \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
 test_zai: build_zai
-	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
+	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "$(ZAI_TEST_DIR)" ] || echo "ARGS='--test-dir $(ZAI_TEST_DIR)'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/$(ZAI_TEST_DIR)/Testing/Temporary/LastTest.log \
 
 build_zai_asan:
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DBUILD_ZAI_ASAN=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DBUILD_ZAI_ASAN=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT); \
 	$(MAKE) clean $(MAKEFLAGS); \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
 test_zai_asan: build_zai_asan
-	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
+	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "$(ZAI_TEST_DIR)" ] || echo "ARGS='--test-dir $(ZAI_TEST_DIR)'") USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/$(ZAI_TEST_DIR)/Testing/Temporary/LastTest.log
 
 build_zai_coverage:
 	( \
