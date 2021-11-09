@@ -158,7 +158,6 @@ build_zai_asan:
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DBUILD_ZAI_ASAN=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT); \
-	$(MAKE) clean $(MAKEFLAGS); \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 

@@ -29,11 +29,14 @@ extern "C" {
     unsigned long long genrand64_int64() { return very_random_integer; }
 }
 
+ZEND_GINIT_FUNCTION(ddtrace) {}
+
 #define TEST_SAMPLING(name, code) TEST_CASE(name, "[priority_sampling]") { \
         REQUIRE(zai_sapi_spinup()); \
         ZAI_SAPI_ABORT_ON_BAILOUT_OPEN() \
+        ZEND_INIT_MODULE_GLOBALS(ddtrace, ZEND_MODULE_GLOBALS_CTOR_N(ddtrace), NULL); \
 \
-        DDTRACE_G(default_priority_sampling) = DDTRACE_UNKNOWN_PRIORITY_SAMPLING; \
+        DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN; \
         ddtrace_span_fci span = {0}; \
         DDTRACE_G(root_span) = &span; \
         very_random_integer = 0; \

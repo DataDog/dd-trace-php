@@ -480,7 +480,7 @@ static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 static void dd_initialize_request() {
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
-    DDTRACE_G(default_priority_sampling) = DDTRACE_UNKNOWN_PRIORITY_SAMPLING;
+    DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
 
     // Things that should only run on the first RINIT
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
@@ -1628,16 +1628,17 @@ static PHP_FUNCTION(dd_trace_compile_time_microseconds) {
 }
 
 static PHP_FUNCTION(set_priority_sampling) {
-    bool global = false, unknown_priority;
+    bool global = false, unset_priority;
     zend_long priority;
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "l!|b", &priority, &unknown_priority, &global) == FAILURE) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "l!|b", &priority, &unset_priority,
+                                 &global) == FAILURE) {
         ddtrace_log_debug("Expected an integer and an optional boolen");
         RETURN_FALSE;
     }
 
-    if (unknown_priority) {
-        priority = DDTRACE_UNKNOWN_PRIORITY_SAMPLING;
+    if (unset_priority) {
+        priority = DDTRACE_PRIORITY_SAMPLING_UNSET;
     }
 
     if (global || !DDTRACE_G(root_span)) {
@@ -1656,7 +1657,8 @@ static PHP_FUNCTION(get_priority_sampling) {
     }
 
     if (global || !DDTRACE_G(root_span)) {
-        if (DDTRACE_G(default_priority_sampling) == DDTRACE_UNKNOWN_PRIORITY_SAMPLING) {
+        if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN ||
+            DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
             RETURN_NULL();
         }
 

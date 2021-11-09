@@ -7,8 +7,8 @@
 #include <stdbool.h>
 #include <time.h>
 
-#include <ext/standard/info.h>
 #include <ext/json/php_json.h>
+#include <ext/standard/info.h>
 
 #include "coms.h"
 #include "configuration.h"
