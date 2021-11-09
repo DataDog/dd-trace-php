@@ -17,14 +17,30 @@ typedef struct ddtrace_span_t ddtrace_span_t;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
-static inline zval *ddtrace_spandata_property_name(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 0); }
-static inline zval *ddtrace_spandata_property_resource(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 1); }
-static inline zval *ddtrace_spandata_property_service(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 2); }
-static inline zval *ddtrace_spandata_property_type(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 3); }
-static inline zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 4); }
-static inline zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 5); }
-static inline zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 6); }
-static inline zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 7); }
+static inline zval *ddtrace_spandata_property_name(ddtrace_span_t *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 0);
+}
+static inline zval *ddtrace_spandata_property_resource(ddtrace_span_t *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 1);
+}
+static inline zval *ddtrace_spandata_property_service(ddtrace_span_t *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 2);
+}
+static inline zval *ddtrace_spandata_property_type(ddtrace_span_t *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 3);
+}
+static inline zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 4);
+}
+static inline zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 5);
+}
+static inline zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 6);
+}
+static inline zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 7);
+}
 #pragma GCC diagnostic pop
 
 bool ddtrace_tracer_is_limited(void);

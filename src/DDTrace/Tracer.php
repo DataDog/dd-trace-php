@@ -95,7 +95,6 @@ final class Tracer implements TracerInterface
         $this->propagators = $propagators ?: [
             Format::TEXT_MAP => $textMapPropagator,
             Format::HTTP_HEADERS => $textMapPropagator,
-            Format::CURL_HTTP_HEADERS => new CurlHeadersMap($this),
         ];
         $this->config = array_merge($this->config, $config);
         $this->reset();

@@ -6,7 +6,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
+
 #include <ext/json/php_json.h>
+
 #include "../zai_compat.h"
 
 #if PHP_VERSION_ID < 70000
@@ -320,13 +322,14 @@ static void zai_config_persist_zval(zval *in) {
         Bucket *bucket;
         ZEND_HASH_FOREACH_BUCKET(array, bucket) {
             zai_config_persist_zval(&bucket->val);
-            Z_TRY_ADDREF(bucket->val);
             if (bucket->key) {
                 zend_hash_str_add_new(Z_ARR_P(in), ZSTR_VAL(bucket->key), ZSTR_LEN(bucket->key), &bucket->val);
             } else {
                 zend_hash_index_add_new(Z_ARR_P(in), bucket->h, &bucket->val);
             }
-        } ZEND_HASH_FOREACH_END();
+            ZVAL_NULL(&bucket->val);
+        }
+        ZEND_HASH_FOREACH_END();
         zend_hash_release(array);
     } else if (Z_TYPE_P(in) == IS_STRING) {
         zend_string *str = Z_STR_P(in);
@@ -346,7 +349,7 @@ static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, b
 #if PHP_VERSION_ID >= 70000
     php_json_error_code original_error_code = JSON_G(error_code);
 #endif
-    php_json_decode(decoded_value, (char *) value.ptr, (int) value.len, true, 20 ZAI_TSRMLS_CC);
+    php_json_decode(decoded_value, (char *)value.ptr, (int)value.len, true, 20 ZAI_TSRMLS_CC);
 #if PHP_VERSION_ID >= 70000
     JSON_G(error_code) = original_error_code;
 #endif

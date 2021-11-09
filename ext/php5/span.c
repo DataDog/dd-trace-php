@@ -2,6 +2,7 @@
 
 #include <SAPI.h>
 #include <inttypes.h>
+#include <php5/priority_sampling/priority_sampling.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -189,6 +190,9 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     }
 
     if (DDTRACE_G(span_ids_top) == NULL) {
+        // Enforce a sampling decision here
+        ddtrace_fetch_prioritySampling_from_root(TSRMLS_C);
+
         DDTRACE_G(root_span) = NULL;
 
         // A userland span might still be open so we check the span ID stack instead of the internal span stack

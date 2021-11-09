@@ -430,7 +430,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
             $this->assertSame('test.invalid', $found['headers']['Host']);
             $this->assertSame('application/json', $found['headers']['Accept']);
-            $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+            $this->assertSame('2', $found['headers']['X-Datadog-Sampling-Priority']);
         });
     }
 
@@ -457,7 +457,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
-                ->withExactMetrics(['_sampling_priority_v1' => 1, '_dd.rule_psr' => 1])
+                ->withExactMetrics(['_sampling_priority_v1' => 2])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                         ->setTraceAnalyticsCandidate()

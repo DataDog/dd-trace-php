@@ -60,7 +60,6 @@ if (!dd_tracing_enabled()) {
 
 // Required classes and functions
 require __DIR__ . '/autoload.php';
-require __DIR__ . '/curl_inject.php';
 
 // Optional classes and functions
 require __DIR__ . '/dd_register_optional_deps_autoloader.php';
