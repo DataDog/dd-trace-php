@@ -5,7 +5,7 @@ PHP_ARG_ENABLE([datadog-profiling],
   [no],
   [no])
 
-if test "$PHP_DATADOG_PROFILING" = "yes"; then
+if PHP_VERSION_ID -ge 70100 ||  test "$PHP_DATADOG_PROFILING" = "yes"; then
   dnl libuv version? also, verify --with-pic?
   PKG_CHECK_MODULES([LIBUV], [libuv-static])
   PHP_EVAL_LIBLINE($LIBUV_LIBS, EXTRA_LDFLAGS)

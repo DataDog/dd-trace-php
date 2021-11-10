@@ -275,7 +275,6 @@ if test "$PHP_DDTRACE" != "no"; then
   if test "$PHP_DATADOG_PROFILING" = "yes" ; then
     dnl todo: make all includes relative to profiling
     PHP_ADD_INCLUDE([$ext_srcdir/profiling])
-    dnl PHP_ADD_INCLUDE([$ext_srcdir/profiling/components])
 
     PHP_ADD_BUILD_DIR([$ext_builddir/profiling])
     PHP_ADD_BUILD_DIR([$ext_builddir/components])
