@@ -55,9 +55,9 @@ if test "$PHP_DDTRACE" != "no"; then
   fi
 
   dnl PKG_CHECK_MODULE was included in PHP 7.4, required for profiling/config.m4
-  if test $PHP_VERSION_ID -lt 70400 || test $PHP_VERSION_ID -ge 70100; then
-    m4_include(DDTRACE_BASEDIR/m4/pkg.m4)
-  fi
+  ifdef([PKG_CHECK_MODULES],
+    [], dnl do nothing; already have the macro
+    [m4_include(DDTRACE_BASEDIR/m4/pkg.m4)])
 
   m4_include(DDTRACE_BASEDIR/profiling/config.m4)
 

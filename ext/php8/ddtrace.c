@@ -86,11 +86,12 @@ static int ddtrace_startup(struct _zend_extension *extension) {
 }
 
 static void ddtrace_shutdown(struct _zend_extension *extension) {
-    UNUSED(extension);
-
     ddtrace_internal_handlers_shutdown();
+
 #ifdef PHP_DATADOG_PROFILING_H
     datadog_profiling_shutdown(extension);
+#else
+    UNUSED(extension);
 #endif
 }
 
