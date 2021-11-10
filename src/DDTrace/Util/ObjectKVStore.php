@@ -108,6 +108,8 @@ class ObjectKVStore
 {
     private static $KEY_PREFIX = '__dd_store_';
 
+    private static $weakmap;
+
     /**
      * Put or replaces a key with a specific value.
      *
@@ -120,8 +122,23 @@ class ObjectKVStore
         if (self::isIncompleteInfo($instance, $key)) {
             return;
         }
-        $scopedKey = self::getScopedKeyName($key);
-        $instance->$scopedKey = $value;
+
+        if (\class_exists("WeakMap")) {
+            if (!self::$weakmap) {
+                self::$weakmap = new \WeakMap();
+            }
+
+            if (isset(self::$weakmap[$instance])) {
+                $store =& self::$weakmap[$instance];
+                $store[$key] = $value;
+                return;
+            }
+
+            self::$weakmap[$instance] = [$key => $value];
+        } else {
+            $scopedKey = self::getScopedKeyName($key);
+            $instance->$scopedKey = $value;
+        }
     }
 
     /**
@@ -137,8 +154,23 @@ class ObjectKVStore
         if (self::isIncompleteInfo($instance, $key)) {
             return $default;
         }
-        $scopedKey = self::getScopedKeyName($key);
-        return property_exists($instance, $scopedKey) ? $instance->$scopedKey : $default;
+
+        if (\class_exists("WeakMap")) {
+            if (!self::$weakmap || !isset(self::$weakmap[$instance])) {
+                return $default;
+            }
+
+            $store = self::$weakmap[$instance];
+
+            if (!isset($store[$key])) {
+                return $default;
+            }
+
+            return $store[$key];
+        } else {
+            $scopedKey = self::getScopedKeyName($key);
+            return property_exists($instance, $scopedKey) ? $instance->$scopedKey : $default;
+        }
     }
 
     /**

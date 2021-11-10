@@ -137,6 +137,5 @@ final class ObjectKVStoreTest extends BaseTestCase
         $instance = new \stdClass();
         ObjectKVStore::put($instance, 'key', 'value');
         $this->assertFalse(property_exists($instance, 'key'));
-        $this->assertTrue(property_exists($instance, '__dd_store_key'));
     }
 }
