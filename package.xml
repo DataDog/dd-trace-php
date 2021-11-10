@@ -53,6 +53,36 @@
             <file name="components/string_view/string_view.c" role="src" />
             <file name="components/string_view/string_view.h" role="src" />
 
+            <!-- Continuous Profiler -->
+            <file name="profiling/config.m4" role="src" />
+            <file name="components/arena/arena.c" role="src" />
+            <file name="components/arena/arena.h" role="src" />
+            <file name="components/channel/channel.c" role="src" />
+            <file name="components/channel/channel.h" role="src" />
+            <file name="components/log/log.c" role="src" />
+            <file name="components/log/log.h" role="src" />
+            <file name="components/queue/queue.c" role="src" />
+            <file name="components/queue/queue.h" role="src" />
+            <file name="components/sapi/sapi.c" role="src" />
+            <file name="components/sapi/sapi.h" role="src" />
+            <file name="components/stack-sample/stack-sample.c" role="src" />
+            <file name="components/stack-sample/stack-sample.h" role="src" />
+            <file name="components/string-view/string-view.c" role="src" />
+            <file name="components/string-view/string-view.h" role="src" />
+            <file name="components/time/time.c" role="src" />
+            <file name="components/time/time.h" role="src" />
+            <file name="plugins/log_plugin/log_plugin.c" role="src" />
+            <file name="plugins/log_plugin/log_plugin.h" role="src" />
+            <file name="plugins/recorder_plugin/recorder_plugin.c" role="src" />
+            <file name="plugins/recorder_plugin/recorder_plugin.h" role="src" />
+            <file name="plugins/stack_collector_plugin/stack_collector_plugin.c" role="src" />
+            <file name="plugins/stack_collector_plugin/stack_collector_plugin.h" role="src" />
+            <file name="stack-collector/stack-collector.c" role="src" />
+            <file name="stack-collector/stack-collector.h" role="src" />
+            <file name="profiling/datadog-profiling.c" role="src" />
+            <file name="profiling/datadog-profiling.h" role="src" />
+            <file name="profiling/php_datadog-profiling.h" role="src" />
+
             <!-- Zend Abstract Interface -->
             <file name="zend_abstract_interface/config/config.c" role="src" />
             <file name="zend_abstract_interface/config/config.h" role="src" />
@@ -129,6 +159,7 @@
             <file name="ext/vendor/mt19937/mt19937-64.c" role="src" />
             <file name="ext/vendor/mt19937/mt19937-64.h" role="src" />
             <file name="m4/ax_execinfo.m4" role="src" />
+            <file name="m4/pkg.m4" role="src" />
             <file name="m4/polyfill.m4" role="src" />
             <!-- PHP 5.x -->
             <file name="ext/php5/arrays.c" role="src" />
