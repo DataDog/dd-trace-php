@@ -17,7 +17,6 @@ if test "$PHP_DDTRACE" != "no"; then
   define(DDTRACE_BASEDIR, esyscmd(printf %s "$(dirname "__file__")"))
   m4_include(DDTRACE_BASEDIR/m4/polyfill.m4)
   m4_include(DDTRACE_BASEDIR/m4/ax_execinfo.m4)
-  m4_include(DDTRACE_BASEDIR/profiling/config.m4)
 
   AX_EXECINFO
 
@@ -54,6 +53,13 @@ if test "$PHP_DDTRACE" != "no"; then
   if test -z ${PHP_VERSION_ID+x}; then
     PHP_VERSION_ID=$("$PHP_CONFIG" --vernum)
   fi
+
+  dnl PKG_CHECK_MODULE was included in PHP 7.4, required for profiling/config.m4
+  if test $PHP_VERSION_ID -lt 70400 || test $PHP_VERSION_ID -ge 70100; then
+    m4_include(DDTRACE_BASEDIR/m4/pkg.m4)
+  fi
+
+  m4_include(DDTRACE_BASEDIR/profiling/config.m4)
 
   if test $PHP_VERSION_ID -lt 50500; then
     dnl PHP 5.4
