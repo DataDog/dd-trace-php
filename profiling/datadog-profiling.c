@@ -12,13 +12,12 @@
 // must come after php.h
 #include <ext/standard/info.h>
 
+#include "components/log/log.h"
+#include "components/sapi/sapi.h"
+#include "components/string-view/string-view.h"
 #include "plugins/log_plugin/log_plugin.h"
 #include "plugins/recorder_plugin/recorder_plugin.h"
 #include "plugins/stack_collector_plugin/stack_collector_plugin.h"
-
-#include <log/log.h>
-#include <sapi/sapi.h>
-#include <string-view/string-view.h>
 
 // These type names are long, let's shorten them up
 typedef datadog_php_log_level log_level_t;

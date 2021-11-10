@@ -1,7 +1,7 @@
 #ifndef DATADOG_PHP_STACK_COLLECTOR_H
 #define DATADOG_PHP_STACK_COLLECTOR_H
 
-#include <stack-sample/stack-sample.h>
+#include <components/stack-sample/stack-sample.h>
 
 typedef struct _zend_execute_data zend_execute_data;
 

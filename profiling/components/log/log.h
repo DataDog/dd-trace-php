@@ -1,7 +1,7 @@
 #ifndef DATADOG_PHP_PROFILER_LOG_H
 #define DATADOG_PHP_PROFILER_LOG_H
 
-#include <string-view/string-view.h>
+#include <components/string-view/string-view.h>
 
 #include <pthread.h>
 #include <stdint.h>

@@ -17,6 +17,7 @@ if test "$PHP_DDTRACE" != "no"; then
   define(DDTRACE_BASEDIR, esyscmd(printf %s "$(dirname "__file__")"))
   m4_include(DDTRACE_BASEDIR/m4/polyfill.m4)
   m4_include(DDTRACE_BASEDIR/m4/ax_execinfo.m4)
+  m4_include(DDTRACE_BASEDIR/profiling/config.m4)
 
   AX_EXECINFO
 
@@ -257,7 +258,7 @@ if test "$PHP_DDTRACE" != "no"; then
     "
   fi
 
-  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
+  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES $PHP_DATADOG_PROFILING_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11 $PHP_DATADOG_PROFILING_CFLAGS)
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
   PHP_CHECK_LIBRARY(rt, shm_open,
@@ -269,6 +270,30 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
   PHP_SUBST(EXTRA_LDFLAGS)
+
+  dnl How can we isolate these things to profiling/config.m4?
+  if test "$PHP_DATADOG_PROFILING" = "yes" ; then
+    dnl todo: make all includes relative to profiling
+    PHP_ADD_INCLUDE([$ext_srcdir/profiling])
+    dnl PHP_ADD_INCLUDE([$ext_srcdir/profiling/components])
+
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/arena])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/log])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/queue])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/sapi])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/stack-sample])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/string-view])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/time])
+
+    PHP_ADD_BUILD_DIR([$ext_builddir/plugins])
+    PHP_ADD_BUILD_DIR([$ext_builddir/plugins/log_plugin])
+    PHP_ADD_BUILD_DIR([$ext_builddir/plugins/recorder_plugin])
+    PHP_ADD_BUILD_DIR([$ext_builddir/plugins/stack_collector_plugin])
+
+    PHP_ADD_BUILD_DIR([$ext_builddir/stack-collector])
+  fi
 
   PHP_ADD_INCLUDE([$ext_srcdir])
   PHP_ADD_INCLUDE([$ext_srcdir/ext])

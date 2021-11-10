@@ -1,7 +1,7 @@
 #ifndef DATADOG_PHP_SAPI_H
 #define DATADOG_PHP_SAPI_H
 
-#include <string-view/string-view.h>
+#include <components/string-view/string-view.h>
 
 typedef enum {
   DATADOG_PHP_SAPI_UNKNOWN = 0,

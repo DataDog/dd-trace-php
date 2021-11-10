@@ -2,12 +2,12 @@
 
 #include <php_datadog-profiling.h>
 #include <plugins/log_plugin/log_plugin.h>
-#include <time/time.h>
 
 #include <SAPI.h>
 #include <components/arena/arena.h>
 #include <components/channel/channel.h>
 #include <components/string-view/string-view.h>
+#include <components/time/time.h>
 #include <ddprof/ffi.h>
 #include <php.h>
 #include <stdatomic.h>
@@ -200,7 +200,7 @@ static bool ddprof_ffi_export(datadog_php_static_logger *logger,
         datadog_php_string_view messages[2] = {
             datadog_php_string_view_from_cstr(
                 "[Datadog Profiling] Unexpected HTTP status code when sending profile: "),
-            {sizeof code_string, code_string},
+            {strlen(code_string), code_string},
         };
         datadog_php_log_level log_level =
             code >= 400 ? DATADOG_PHP_LOG_ERROR : DATADOG_PHP_LOG_WARN;

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <uv.h>
 
-#include <queue/queue.h>
+#include <components/queue/queue.h>
 
 struct datadog_php_channel_impl_s {
   datadog_php_queue queue;

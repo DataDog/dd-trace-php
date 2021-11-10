@@ -2,8 +2,8 @@
 #define DATADOG_PHP_LOG_PLUGIN_H
 
 #include "datadog-profiling.h"
-#include <log/log.h>
-#include <string-view/string-view.h>
+#include <components/log/log.h>
+#include <components/string-view/string-view.h>
 
 #if __cplusplus
 #define C_STATIC(...)

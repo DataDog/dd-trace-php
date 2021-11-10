@@ -2,8 +2,8 @@
 #define DATADOG_PHP_STACK_SAMPLE_H
 
 #include <assert.h>
+#include <components/string-view/string-view.h>
 #include <stdint.h>
-#include <string-view/string-view.h>
 
 #define DATADOG_PHP_STACK_SAMPLE_MAX_DEPTH 101u
 static const uint16_t datadog_php_stack_sample_max_depth =

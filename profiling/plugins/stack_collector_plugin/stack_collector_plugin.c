@@ -2,8 +2,8 @@
 
 #include "../log_plugin/log_plugin.h"
 #include "../recorder_plugin/recorder_plugin.h"
+#include <components/time/time.h>
 #include <stack-collector/stack-collector.h>
-#include <time/time.h>
 
 #include <Zend/zend_execute.h>
 #include <errno.h>
