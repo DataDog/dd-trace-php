@@ -2,9 +2,8 @@ extern "C" {
 #include "container_id/container_id.h"
 }
 
-#include <cstring>
-
 #include <catch2/catch.hpp>
+#include <cstring>
 
 #define MAX_ID_LEN DATADOG_PHP_CONTAINER_ID_MAX_LEN
 
@@ -17,7 +16,8 @@ TEST_CASE("parser: valid cgroup lines", "[container_id_parser]") {
     const char *lines[] = {
         "4:perf_event:/",
         "1:name=systemd:/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890",
-        "2:memory:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da",
+        "2:memory:/ecs/55091c13-b8cf-4801-b527-f4601742204d/"
+        "432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da",
         "7:pids:/user.slice/user-0.slice/session-14.scope",
         "7:pids:/user.slice/user-0.slice/session-14.scope\n",
         "1::/",
@@ -36,12 +36,7 @@ TEST_CASE("parser: invalid cgroup lines", "[container_id_parser]") {
     REQUIRE(datadog_php_container_id_parser_ctor(&parser));
 
     const char *lines[] = {
-        "foo line",
-        "a4:perf_event:/",
-        ":perf_event:/",
-        "1:perf_event",
-        "\n",
-        "",
+        "foo line", "a4:perf_event:/", ":perf_event:/", "1:perf_event", "\n", "",
     };
 
     for (const char *line : lines) {
@@ -61,8 +56,10 @@ TEST_CASE("parser: successfully parse a container ID", "[container_id_parser]") 
         "1::9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f",
         "1:devices:9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f\n",
         "1:devices:      9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f        ",
-        "1:name=systemd:/ecs/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f/34dc0b5e626f2c5c4c5170e34b10e765-1234567890",  // Contains valid task ID
-        "8:net_cls,net_prio:/ecs/55091c13-b8cf-4801-b527-f4601742204d/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f",
+        "1:name=systemd:/ecs/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f/"
+        "34dc0b5e626f2c5c4c5170e34b10e765-1234567890",  // Contains valid task ID
+        "8:net_cls,net_prio:/ecs/55091c13-b8cf-4801-b527-f4601742204d/"
+        "9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f",
     };
 
     char buf[MAX_ID_LEN + 1] = {0};
@@ -84,7 +81,7 @@ TEST_CASE("parser: fail to parse a container ID", "[container_id_parser]") {
 
     const char *lines[] = {
         "d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f",  // 63 characters
-        "34dc0b5e626f2c5c4c5170e34b10e765-1234567890",  // Task ID
+        "34dc0b5e626f2c5c4c5170e34b10e765-1234567890",                      // Task ID
         "",
         "a",
         "zd5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f",
@@ -115,7 +112,8 @@ TEST_CASE("parser: successfully parse a task ID", "[container_id_parser]") {
         "1:name=systemd:/ecs/         34dc0b5e626f2c5c4c5170e34b10e765-1234567890",
         "1:name=systemd:/ecs/         34dc0b5e626f2c5c4c5170e34b10e765-1234567890       ",
         "1:name=systemd:/ecs/55091c13-b8cf-4801-b527-f4601742204d/34dc0b5e626f2c5c4c5170e34b10e765-1234567890",
-        "1:name=systemd:/ecs/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f/34dc0b5e626f2c5c4c5170e34b10e765-1234567890",  // Contains valid container ID
+        "1:name=systemd:/ecs/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f/"
+        "34dc0b5e626f2c5c4c5170e34b10e765-1234567890",  // Contains valid container ID
     };
 
     char buf[MAX_ID_LEN + 1] = {0};
@@ -183,7 +181,7 @@ TEST_CASE("parser: fail to parse a task ID", "[container_id_parser]") {
     REQUIRE(datadog_php_container_id_parser_ctor(&parser));
 
     const char *lines[] = {
-        "4dc0b5e626f2c5c4c5170e34b10e765-1234567890",  // 31 hex characters
+        "4dc0b5e626f2c5c4c5170e34b10e765-1234567890",                        // 31 hex characters
         "9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f",  // Container ID
         "34dc0b5e626f2c5c4c5170e34b10e765-",
         "a-0",
@@ -212,7 +210,10 @@ TEST_CASE("parser: fail to parse a task ID", "[container_id_parser]") {
 TEST_CASE("parser: successfully parse a Kubernetes container ID", "[container_id_parser]") {
     dd_parser parser;
     char buf[MAX_ID_LEN + 1] = {0};
-    const char line[] = "1:name=systemd:/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod2d3da189_6407_48e3_9ab6_78188d75e609.slice/docker-7b8952daecf4c0e44bbcefe1b5c5ebc7b4839d4eefeccefe694709d3809b6199.scope";
+    const char line[] =
+        "1:name=systemd:/kubepods.slice/kubepods-burstable.slice/"
+        "kubepods-burstable-pod2d3da189_6407_48e3_9ab6_78188d75e609.slice/"
+        "docker-7b8952daecf4c0e44bbcefe1b5c5ebc7b4839d4eefeccefe694709d3809b6199.scope";
 
     REQUIRE(datadog_php_container_id_parser_ctor(&parser));
     REQUIRE(parser.extract_container_id(&parser, buf, line));

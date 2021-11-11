@@ -19,15 +19,13 @@ if test $PHP_VERSION_ID -ge 70100 &&  test "$PHP_DATADOG_PROFILING" = "yes"; the
   PHP_EVAL_INCLINE($LIBDDPROF_FFI_CFLAGS)
 
   PHP_DATADOG_PROFILING_SOURCES="\
+    components/arena/arena.c \
+    components/channel/channel.c \
+    components/log/log.c \
+    components/queue/queue.c \
+    components/stack-sample/stack-sample.c \
+    components/time/time.c \
     profiling/datadog-profiling.c \
-    profiling/components/arena/arena.c \
-    profiling/components/channel/channel.c \
-    profiling/components/log/log.c \
-    profiling/components/queue/queue.c \
-    profiling/components/sapi/sapi.c \
-    profiling/components/stack-sample/stack-sample.c \
-    profiling/components/string-view/string-view.c \
-    profiling/components/time/time.c \
     profiling/plugins/log_plugin/log_plugin.c \
     profiling/plugins/recorder_plugin/recorder_plugin.c \
     profiling/plugins/stack_collector_plugin/stack_collector_plugin.c \

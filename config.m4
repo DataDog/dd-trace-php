@@ -279,25 +279,22 @@ if test "$PHP_DDTRACE" != "no"; then
 
   dnl How can we isolate these things to profiling/config.m4?
   if test "$PHP_DATADOG_PROFILING" = "yes" ; then
-    dnl todo: make all includes relative to profiling
     PHP_ADD_INCLUDE([$ext_srcdir/profiling])
 
-    PHP_ADD_BUILD_DIR([$ext_builddir/profiling])
     PHP_ADD_BUILD_DIR([$ext_builddir/components])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/arena])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/log])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/queue])
-    PHP_ADD_BUILD_DIR([$ext_builddir/components/sapi])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/stack-sample])
-    PHP_ADD_BUILD_DIR([$ext_builddir/components/string-view])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/time])
 
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling])
     PHP_ADD_BUILD_DIR([$ext_builddir/plugins])
-    PHP_ADD_BUILD_DIR([$ext_builddir/plugins/log_plugin])
-    PHP_ADD_BUILD_DIR([$ext_builddir/plugins/recorder_plugin])
-    PHP_ADD_BUILD_DIR([$ext_builddir/plugins/stack_collector_plugin])
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling/plugins/log_plugin])
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling/plugins/recorder_plugin])
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling/plugins/stack_collector_plugin])
 
-    PHP_ADD_BUILD_DIR([$ext_builddir/stack-collector])
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling/stack-collector])
   fi
 
   PHP_ADD_INCLUDE([$ext_srcdir])

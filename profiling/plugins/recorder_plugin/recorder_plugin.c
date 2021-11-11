@@ -6,12 +6,12 @@
 #include <SAPI.h>
 #include <components/arena/arena.h>
 #include <components/channel/channel.h>
-#include <components/string-view/string-view.h>
 #include <components/time/time.h>
 #include <ddprof/ffi.h>
 #include <php.h>
 #include <stdatomic.h>
 #include <stdlib.h>
+#include <string_view/string_view.h>
 #include <uv.h>
 
 // must come after php.h

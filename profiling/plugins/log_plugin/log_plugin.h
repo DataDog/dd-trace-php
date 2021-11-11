@@ -3,7 +3,7 @@
 
 #include "datadog-profiling.h"
 #include <components/log/log.h>
-#include <components/string-view/string-view.h>
+#include <string_view/string_view.h>
 
 #if __cplusplus
 #define C_STATIC(...)

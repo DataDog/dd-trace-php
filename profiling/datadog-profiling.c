@@ -12,16 +12,17 @@
 // must come after php.h
 #include <ext/standard/info.h>
 
+#include <string_view/string_view.h>
+
 #include "components/log/log.h"
 #include "components/sapi/sapi.h"
-#include "components/string-view/string-view.h"
 #include "plugins/log_plugin/log_plugin.h"
 #include "plugins/recorder_plugin/recorder_plugin.h"
 #include "plugins/stack_collector_plugin/stack_collector_plugin.h"
 
 // These type names are long, let's shorten them up
 typedef datadog_php_log_level log_level_t;
-typedef datadog_php_sapi_type sapi_t;
+typedef datadog_php_sapi sapi_t;
 typedef datadog_php_string_view string_view_t;
 
 static uv_once_t first_activate_once = UV_ONCE_INIT;
@@ -230,4 +231,15 @@ ZEND_COLD void datadog_profiling_info_diagnostics_row(const char *col_a,
   datadog_info_print("</td><td class='v'>");
   datadog_info_print(col_b);
   datadog_info_print("</td></tr>\n");
+}
+
+bool datadog_php_string_view_is_boolean_true(string_view_t str) {
+  size_t len = str.len;
+  if (len > 0 && len < 5) {
+    const char *truthy[] = {"1", "on", "yes", "true"};
+    // Conveniently, by pure luck len - 1 is the index for that string.
+    return memcmp(str.ptr, truthy[len - 1], len) == 0;
+  } else {
+    return false;
+  }
 }
