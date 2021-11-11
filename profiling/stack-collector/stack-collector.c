@@ -53,11 +53,11 @@ void datadog_php_stack_collect(zend_execute_data *execute_data,
        */
 
       int result =
-          snprintf(buffer, sizeof buffer, "%.*s%s%.*s%s%.*s", (int)module.len,
-                   module.ptr, module.len ? "|" : "", (int)Class.len, Class.ptr,
+          snprintf(buffer, sizeof buffer, fmt, (int)module.len, module.ptr,
+                   module.len ? "|" : "", (int)Class.len, Class.ptr,
                    Class.len ? "::" : "", (int)Func.len, Func.ptr);
 
-      if (result < 0 || result >= sizeof buffer) {
+      if (result < 0 || ((size_t)result) >= sizeof buffer) {
         if (execute_data->prev_execute_data) {
           execute_data = execute_data->prev_execute_data;
           goto loop_begin;

@@ -289,7 +289,7 @@ static void datadog_php_recorder_add(struct ddprof_ffi_Profile *profile,
   size_t thread_id_len;
   int result = snprintf(thread_id_str, sizeof thread_id_str, "%" PRId64,
                         message->thread_id);
-  if (result <= 0 || result >= sizeof thread_id_str) {
+  if (result <= 0 || ((size_t)result) >= sizeof thread_id_str) {
     // include null byte in copy
     thread_id_len = sizeof("{unknown thread id}") - 1;
     memcpy(thread_id_str, "{unknown thread id}", thread_id_len + 1);
@@ -362,6 +362,24 @@ static struct ddprof_ffi_Profile *profile_new(void) {
 }
 
 void datadog_php_recorder_plugin_main(void) {
+  if (period.value < 0) {
+    // widest i64 is -9223372036854775808 (20 chars)
+    char buffer[24] = {'(', 'u', 'n', 'k', 'n', 'o', 'w', 'n', ')', '\0'};
+
+    (void)snprintf(buffer, sizeof buffer, "%" PRId64, period.value);
+
+    datadog_php_string_view messages[] = {
+        datadog_php_string_view_from_cstr(
+            "[Datadog Profiling] Failed to start; invalid upload period of "),
+        {strlen(buffer), buffer},
+        datadog_php_string_view_from_cstr("."),
+    };
+    size_t n_messages = sizeof messages / sizeof *messages;
+    prof_logger.logv(DATADOG_PHP_LOG_ERROR, n_messages, messages);
+    return;
+  }
+
+  const uint64_t period_val = (uint64_t)period.value;
   datadog_php_receiver *receiver = &channel.receiver;
   struct ddprof_ffi_Profile *profile = profile_new();
   if (!profile) {
@@ -387,7 +405,7 @@ void datadog_php_recorder_plugin_main(void) {
         }
       }
       uint64_t duration = instant_elapsed(before);
-      sleep_for_nanos = duration < period.value ? period.value - duration : 0;
+      sleep_for_nanos = duration < period_val ? period_val - duration : 0;
       // protect against underflow
     } while (enabled && sleep_for_nanos);
 
