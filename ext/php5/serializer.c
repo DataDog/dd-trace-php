@@ -38,24 +38,34 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
     uint str_len;
     HashPosition iterator;
     zend_ulong num_key;
-    int key_type = HASH_KEY_NON_EXISTANT;
-    bool first_time = true;
+    int key_type;
+    bool is_assoc = 0;
 
-    zend_hash_internal_pointer_reset_ex(ht, &iterator);
-    while (zend_hash_get_current_data_ex(ht, (void **)&tmp, &iterator) == SUCCESS) {
+    for (zend_hash_internal_pointer_reset_ex(ht, &iterator);
+         (key_type = zend_hash_get_current_key_ex(ht, &string_key, &str_len, &num_key, 0, &iterator)) !=
+         HASH_KEY_NON_EXISTANT;
+         zend_hash_move_forward_ex(ht, &iterator)) {
+        is_assoc = is_assoc || key_type == HASH_KEY_IS_STRING;
+    }
+
+    if (is_assoc) {
+        mpack_start_map(writer, zend_hash_num_elements(ht));
+    } else {
+        mpack_start_array(writer, zend_hash_num_elements(ht));
+    }
+
+    for (zend_hash_internal_pointer_reset_ex(ht, &iterator);
+         zend_hash_get_current_data_ex(ht, (void **)&tmp, &iterator) == SUCCESS;
+         zend_hash_move_forward_ex(ht, &iterator)) {
         key_type = zend_hash_get_current_key_ex(ht, &string_key, &str_len, &num_key, 0, &iterator);
-        if (first_time == true) {
-            first_time = false;
-            if (key_type == HASH_KEY_IS_STRING) {
-                mpack_start_map(writer, zend_hash_num_elements(ht));
-            } else {
-                mpack_start_array(writer, zend_hash_num_elements(ht));
-            }
-        }
-
         // Writing the key, if associative
         bool zval_string_as_uint64 = false;
-        if (key_type == HASH_KEY_IS_STRING) {
+        if (is_assoc == 1) {
+            char num_str_buf[MAX_ID_BUFSIZ];
+            if (key_type != HASH_KEY_IS_STRING) {
+                string_key = num_str_buf;
+                sprintf(num_str_buf, "%ld", num_key);
+            }
             mpack_write_cstr(writer, string_key);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
             if (0 == strcmp(KEY_TRACE_ID, string_key) || 0 == strcmp(KEY_SPAN_ID, string_key) ||
@@ -70,14 +80,9 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
         } else if (msgpack_write_zval(writer, *tmp TSRMLS_CC) != 1) {
             return 0;
         }
-
-        zend_hash_move_forward_ex(ht, &iterator);
     }
 
-    if (key_type == HASH_KEY_NON_EXISTANT) {
-        mpack_start_array(writer, 0);
-        mpack_finish_array(writer);
-    } else if (key_type == HASH_KEY_IS_STRING) {
+    if (is_assoc) {
         mpack_finish_map(writer);
     } else {
         mpack_finish_array(writer);

@@ -26,9 +26,7 @@ void ddtrace_downcase_zval(zval *src) {
     zend_string_release(str);
 }
 
-/* zend_operators.h wrongfully defines _convert_to_string, so use the ddtrace
- * prefix even though its private to this translation unit */
-static zend_string *_ddtrace_convert_to_string(zval *op) {
+zend_string *ddtrace_convert_to_str(zval *op) {
 try_again:
     switch (Z_TYPE_P(op)) {
         case IS_UNDEF:
@@ -56,10 +54,6 @@ try_again:
             return ZSTR_KNOWN(ZEND_STR_ARRAY_CAPITALIZED);
 
         case IS_OBJECT: {
-            zval tmp;
-            if (Z_OBJ_HT_P(op)->cast_object(Z_OBJ_P(op), &tmp, IS_STRING) == SUCCESS) {
-                return Z_STR(tmp);
-            }
             zend_string *class_name = Z_OBJ_HANDLER_P(op, get_class_name)(Z_OBJ_P(op));
             zend_string *message = strpprintf(0, "object(%s)#%d", ZSTR_VAL(class_name), Z_OBJ_HANDLE_P(op));
             zend_string_release(class_name);
@@ -78,7 +72,7 @@ try_again:
 }
 
 void ddtrace_convert_to_string(zval *dst, zval *src) {
-    zend_string *str = _ddtrace_convert_to_string(src);
+    zend_string *str = ddtrace_convert_to_str(src);
     if (str) {
         ZVAL_STR(dst, str);
     } else {

@@ -45,7 +45,7 @@ class Urls
      */
     public static function sanitize($url)
     {
-        return strstr($url, '?', true) ?: $url;
+        return strstr($url, '?', true) ?: (string) $url;
     }
 
     /**
