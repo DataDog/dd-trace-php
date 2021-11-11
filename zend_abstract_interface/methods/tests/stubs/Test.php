@@ -25,4 +25,9 @@ class Test
     {
         return new static;
     }
+
+    public function returnsArg($arg)
+    {
+        return $arg;
+    }
 }
