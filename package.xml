@@ -55,30 +55,30 @@
 
             <!-- Continuous Profiler -->
             <file name="profiling/config.m4" role="src" />
-            <file name="components/arena/arena.c" role="src" />
-            <file name="components/arena/arena.h" role="src" />
-            <file name="components/channel/channel.c" role="src" />
-            <file name="components/channel/channel.h" role="src" />
-            <file name="components/log/log.c" role="src" />
-            <file name="components/log/log.h" role="src" />
-            <file name="components/queue/queue.c" role="src" />
-            <file name="components/queue/queue.h" role="src" />
-            <file name="components/sapi/sapi.c" role="src" />
-            <file name="components/sapi/sapi.h" role="src" />
-            <file name="components/stack-sample/stack-sample.c" role="src" />
-            <file name="components/stack-sample/stack-sample.h" role="src" />
-            <file name="components/string-view/string-view.c" role="src" />
-            <file name="components/string-view/string-view.h" role="src" />
-            <file name="components/time/time.c" role="src" />
-            <file name="components/time/time.h" role="src" />
-            <file name="plugins/log_plugin/log_plugin.c" role="src" />
-            <file name="plugins/log_plugin/log_plugin.h" role="src" />
-            <file name="plugins/recorder_plugin/recorder_plugin.c" role="src" />
-            <file name="plugins/recorder_plugin/recorder_plugin.h" role="src" />
-            <file name="plugins/stack_collector_plugin/stack_collector_plugin.c" role="src" />
-            <file name="plugins/stack_collector_plugin/stack_collector_plugin.h" role="src" />
-            <file name="stack-collector/stack-collector.c" role="src" />
-            <file name="stack-collector/stack-collector.h" role="src" />
+            <file name="profiling/components/arena/arena.c" role="src" />
+            <file name="profiling/components/arena/arena.h" role="src" />
+            <file name="profiling/components/channel/channel.c" role="src" />
+            <file name="profiling/components/channel/channel.h" role="src" />
+            <file name="profiling/components/log/log.c" role="src" />
+            <file name="profiling/components/log/log.h" role="src" />
+            <file name="profiling/components/queue/queue.c" role="src" />
+            <file name="profiling/components/queue/queue.h" role="src" />
+            <file name="profiling/components/sapi/sapi.c" role="src" />
+            <file name="profiling/components/sapi/sapi.h" role="src" />
+            <file name="profiling/components/stack-sample/stack-sample.c" role="src" />
+            <file name="profiling/components/stack-sample/stack-sample.h" role="src" />
+            <file name="profiling/components/string-view/string-view.c" role="src" />
+            <file name="profiling/components/string-view/string-view.h" role="src" />
+            <file name="profiling/components/time/time.c" role="src" />
+            <file name="profiling/components/time/time.h" role="src" />
+            <file name="profiling/plugins/log_plugin/log_plugin.c" role="src" />
+            <file name="profiling/plugins/log_plugin/log_plugin.h" role="src" />
+            <file name="profiling/plugins/recorder_plugin/recorder_plugin.c" role="src" />
+            <file name="profiling/plugins/recorder_plugin/recorder_plugin.h" role="src" />
+            <file name="profiling/plugins/stack_collector_plugin/stack_collector_plugin.c" role="src" />
+            <file name="profiling/plugins/stack_collector_plugin/stack_collector_plugin.h" role="src" />
+            <file name="profiling/stack-collector/stack-collector.c" role="src" />
+            <file name="profiling/stack-collector/stack-collector.h" role="src" />
             <file name="profiling/datadog-profiling.c" role="src" />
             <file name="profiling/datadog-profiling.h" role="src" />
             <file name="profiling/php_datadog-profiling.h" role="src" />

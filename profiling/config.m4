@@ -5,7 +5,7 @@ PHP_ARG_ENABLE([datadog-profiling],
   [no],
   [no])
 
-if test $PHP_VERSION_ID -ge 70100 ||  test "$PHP_DATADOG_PROFILING" = "yes"; then
+if test $PHP_VERSION_ID -ge 70100 &&  test "$PHP_DATADOG_PROFILING" = "yes"; then
   dnl When packaging this ourselves, make sure it's the static version!
   PKG_CHECK_MODULES([LIBUV], [libuv])
   PHP_EVAL_LIBLINE($LIBUV_LIBS, EXTRA_LDFLAGS)
