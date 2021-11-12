@@ -55,22 +55,6 @@ void ddtrace_convert_to_string(zval *dst, zval *src TSRMLS_DC) {
             break;
 
         case IS_OBJECT: {
-            if (Z_OBJ_HANDLER_P(src, cast_object)) {
-                if (Z_OBJ_HANDLER_P(src, cast_object)(src, dst, IS_STRING TSRMLS_CC) == SUCCESS) {
-                    return;
-                }
-            } else if (Z_OBJ_HANDLER_P(src, get)) {
-                zval *newop = Z_OBJ_HANDLER_P(src, get)(src TSRMLS_CC);
-                if (Z_TYPE_P(newop) != IS_OBJECT) {
-                    /* for safety - avoid loop */
-                    ddtrace_convert_to_string(dst, newop TSRMLS_CC);
-
-                    // I think?
-                    zval_dtor(newop);
-                    return;
-                }
-            }
-
             char *class_name;
             zend_uint class_name_len;
             Z_OBJ_HANDLER_P(src, get_class_name)(src, (const char **)&class_name, &class_name_len, 0 TSRMLS_CC);

@@ -79,10 +79,10 @@ object(MyDt)#%d (3) {
   ["timezone"]=>
   string(3) "UTC"
 }
-string(10) "2019-09-10"
-string(10) "2019-09-10"
-string(10) "2019-09-10"
-string(10) "2019-09-10"
+string(%d) "object(MyDt)#%d"
+string(%d) "object(MyDt)#%d"
+string(%d) "object(MyDt)#%d"
+string(%d) "object(MyDt)#%d"
 
 object(DateTime)#%d (3) {
   ["date"]=>

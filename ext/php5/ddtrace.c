@@ -328,10 +328,10 @@ static zval *OBJ_PROP_NUM_array_init(zend_object *obj, uint32_t offset) {
         return *zv;
     }
     if (*zv) {
-        zval **oldzv = zv;
+        zval *oldzv = *zv;
         MAKE_STD_ZVAL(*zv);
         array_init(*zv);
-        zval_ptr_dtor(oldzv);
+        zval_ptr_dtor(&oldzv);
     } else {
         MAKE_STD_ZVAL(*zv);
         array_init(*zv);
@@ -624,7 +624,6 @@ static void dd_clean_globals(TSRMLS_D) {
     ddtrace_internal_handlers_rshutdown(TSRMLS_C);
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
-    ddtrace_free_span_id_stack(TSRMLS_C);
     ddtrace_free_span_stacks(TSRMLS_C);
     ddtrace_coms_rshutdown();
 
@@ -638,6 +637,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     if (!get_DD_TRACE_ENABLED()) {
         ddtrace_dispatch_destroy(TSRMLS_C);
+        ddtrace_free_span_id_stack(TSRMLS_C);
 
         return SUCCESS;
     }
@@ -655,6 +655,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     dd_clean_globals(TSRMLS_C);
 
     ddtrace_dispatch_destroy(TSRMLS_C);
+    ddtrace_free_span_id_stack(TSRMLS_C);
 
     return SUCCESS;
 }
@@ -876,6 +877,10 @@ static PHP_FUNCTION(dd_trace) {
     }
 
     if (ddtrace_should_warn_legacy()) {
+        if (class_name) {
+            convert_to_string(class_name);
+        }
+        convert_to_string(function);
         char *message =
             "dd_trace DEPRECATION NOTICE: the function `dd_trace` (target: %s%s%s) is deprecated and has become a "
             "no-op since 0.48.0, and will eventually be removed. Please follow "
@@ -1145,7 +1150,7 @@ static PHP_FUNCTION(dd_untrace) {
     }
 
     if (DDTRACE_G(function_lookup)) {
-        zend_hash_del(DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
+        zend_hash_del(DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function) + 1);
     }
 
     RETURN_BOOL(1);

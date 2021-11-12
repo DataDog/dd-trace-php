@@ -43,6 +43,7 @@
         <exclude-pattern>tests/Integrations/PHPRedis/V3/*Test.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V4/*Test.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V5/*Test.php</exclude-pattern>
+        <exclude-pattern>tests/internal-api-stress-test.php</exclude-pattern>
         <exclude-pattern>tests/randomized/analyze-results.php</exclude-pattern>
         <exclude-pattern>tests/randomized/generate-scenarios.php</exclude-pattern>
         <exclude-pattern>tests/randomized/lib/RequestTargetsGenerator.php</exclude-pattern>

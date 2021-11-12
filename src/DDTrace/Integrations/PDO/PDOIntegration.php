@@ -47,7 +47,7 @@ class PDOIntegration extends Integration
             $span->name = 'PDO.exec';
             $span->service = 'pdo';
             $span->type = Type::SQL;
-            $span->resource = $args[0];
+            $span->resource = Integration::toString($args[0]);
             if (is_numeric($retval)) {
                 $span->meta = [
                     'db.rowcount' => $retval,
@@ -67,7 +67,7 @@ class PDOIntegration extends Integration
             $span->name = 'PDO.query';
             $span->service = 'pdo';
             $span->type = Type::SQL;
-            $span->resource = $args[0];
+            $span->resource = Integration::toString($args[0]);
             if ($retval instanceof \PDOStatement) {
                 $span->meta = [
                     'db.rowcount' => $retval->rowCount(),
@@ -92,7 +92,7 @@ class PDOIntegration extends Integration
             $span->name = 'PDO.prepare';
             $span->service = 'pdo';
             $span->type = Type::SQL;
-            $span->resource = $args[0];
+            $span->resource = Integration::toString($args[0]);
             PDOIntegration::setConnectionTags($this, $span);
             PDOIntegration::storeStatementFromConnection($this, $retval);
         });

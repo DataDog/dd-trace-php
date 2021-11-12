@@ -37,22 +37,30 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace);
 static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
     zval *tmp;
     zend_string *string_key;
-    int is_assoc = -1;
+    zend_long num_key;
+    bool is_assoc = 0;
 
-    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, string_key, tmp) {
-        if (is_assoc == -1) {
-            is_assoc = string_key != NULL ? 1 : 0;
-            if (is_assoc == 1) {
-                mpack_start_map(writer, zend_hash_num_elements(ht));
-            } else {
-                mpack_start_array(writer, zend_hash_num_elements(ht));
-            }
-        }
+    Bucket *bucket;
+    ZEND_HASH_FOREACH_BUCKET(ht, bucket) { is_assoc = is_assoc || bucket->key != NULL; }
+    ZEND_HASH_FOREACH_END();
 
+    if (is_assoc) {
+        mpack_start_map(writer, zend_hash_num_elements(ht));
+    } else {
+        mpack_start_array(writer, zend_hash_num_elements(ht));
+    }
+
+    ZEND_HASH_FOREACH_KEY_VAL_IND(ht, num_key, string_key, tmp) {
         // Writing the key, if associative
         bool zval_string_as_uint64 = false;
         if (is_assoc == 1) {
-            char *key = ZSTR_VAL(string_key);
+            char num_str_buf[MAX_ID_BUFSIZ], *key;
+            if (string_key) {
+                key = ZSTR_VAL(string_key);
+            } else {
+                key = num_str_buf;
+                sprintf(num_str_buf, ZEND_LONG_FMT, num_key);
+            }
             mpack_write_cstr(writer, key);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
             if (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key)) {
@@ -69,10 +77,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
     }
     ZEND_HASH_FOREACH_END();
 
-    if (is_assoc == -1) {
-        mpack_start_array(writer, 0);
-        mpack_finish_array(writer);
-    } else if (is_assoc) {
+    if (is_assoc) {
         mpack_finish_map(writer);
     } else {
         mpack_finish_array(writer);
@@ -167,7 +172,7 @@ typedef zend_result (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_s
 static zend_result dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag) {
     zend_string *msg = zai_exception_message(exception);
     zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
-    zend_string *file = zval_get_string(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
+    zend_string *file = ddtrace_convert_to_str(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
 
     char *error_text, *status_line;
     zend_bool caught = SG(sapi_headers).http_response_code >= 500;
@@ -256,7 +261,7 @@ static zend_result ddtrace_exception_to_meta(zend_object *exception, void *conte
 
         zend_string *msg = zai_exception_message(exception);
         zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
-        zend_string *file = zval_get_string(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
+        zend_string *file = ddtrace_convert_to_str(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
 
         zend_string *complete_trace =
             zend_strpprintf(0, "%s\n\nNext %s%s%s in %s:" ZEND_LONG_FMT "\nStack trace:\n%s", ZSTR_VAL(trace_string),
