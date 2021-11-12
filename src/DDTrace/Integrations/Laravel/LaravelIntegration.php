@@ -89,13 +89,7 @@ class LaravelIntegration extends Integration
 
                 // Overwriting the default web integration
                 $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
-                $routeName = $route->getName() ?: LaravelIntegration::UNNAMED_ROUTE;
-                // Starting with PHP 7, unnamed routes have been given a randomly generated name that we need to
-                // normalize:
-                // https://github.com/laravel/framework/blob/7.x/src/Illuminate/Routing/AbstractRouteCollection.php#L227
-                if (\substr($routeName, 0, 11) === "generated::") {
-                    $routeName = LaravelIntegration::UNNAMED_ROUTE;
-                }
+                $routeName = LaravelIntegration::normalizeRouteName($route->getName());
 
                 $rootSpan->setTag(
                     Tag::RESOURCE_NAME,
@@ -239,5 +233,33 @@ class LaravelIntegration extends Integration
     public function isLumen(Span $rootSpan)
     {
         return $rootSpan->getOperationName() === 'lumen.request';
+    }
+
+    /**
+     * @param mixed $routeName
+     * @return string
+     */
+    public static function normalizeRouteName($routeName)
+    {
+        if (!\is_string($routeName)) {
+            return LaravelIntegration::UNNAMED_ROUTE;
+        }
+
+        $routeName = \trim($routeName);
+        if ($routeName === '') {
+            return LaravelIntegration::UNNAMED_ROUTE;
+        }
+
+        // Starting with PHP 7, unnamed routes have been given a randomly generated name that we need to
+        // normalize:
+        // https://github.com/laravel/framework/blob/7.x/src/Illuminate/Routing/AbstractRouteCollection.php#L227
+        //
+        // Can be prefixed with domain name when caching if specified as Route::domain()->group(...);
+        // https://github.com/laravel/framework/blob/2049de73aa099a113a287587df4cc522c90961f5/src/Illuminate/Routing/Route.php#L1209
+        if (\strpos($routeName, 'generated::') !== false) {
+            return LaravelIntegration::UNNAMED_ROUTE;
+        }
+
+        return $routeName;
     }
 }
