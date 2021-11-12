@@ -42,15 +42,15 @@ int main(void) {
 struct timespec ts;
 return clock_gettime(CLOCK_REALTIME, &ts) == 0 ? 0 : 1;
 }
-" DATADOG_HAVE_CLOCK_GETTIME)
+" DATADOG_HAVE_CLOCK_GETTIME_RT)
 
-  if(DATADOG_HAVE_CLOCK_GETTIME)
+  if(DATADOG_HAVE_CLOCK_GETTIME_RT)
     target_link_libraries(datadog-php-time PRIVATE -lrt)
   endif()
   cmake_pop_check_state()
 endif()
 
-if(DATADOG_HAVE_CLOCK_GETTIME)
+if(DATADOG_HAVE_CLOCK_GETTIME OR DATADOG_HAVE_CLOCK_GETTIME_RT)
   target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_CLOCK_GETTIME=1)
 
   cmake_push_check_state(RESET)
