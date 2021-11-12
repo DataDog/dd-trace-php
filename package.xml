@@ -66,7 +66,6 @@
             <file name="components/time/time.h" role="src" />
 
             <!-- Continuous Profiler -->
-            <file name="profiling/config.m4" role="src" />
             <file name="profiling/plugins/log_plugin/log_plugin.c" role="src" />
             <file name="profiling/plugins/log_plugin/log_plugin.h" role="src" />
             <file name="profiling/plugins/recorder_plugin/recorder_plugin.c" role="src" />
@@ -77,6 +76,7 @@
             <file name="profiling/stack-collector/stack-collector.h" role="src" />
             <file name="profiling/datadog-profiling.c" role="src" />
             <file name="profiling/datadog-profiling.h" role="src" />
+            <file name="profiling/datadog-profiling.m4" role="src" />
             <file name="profiling/php_datadog-profiling.h" role="src" />
 
             <!-- Zend Abstract Interface -->
