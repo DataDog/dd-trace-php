@@ -255,7 +255,6 @@ class LaravelIntegration extends Integration
         // https://github.com/laravel/framework/blob/7.x/src/Illuminate/Routing/AbstractRouteCollection.php#L227
         //
         // It can also be prefixed with domain name when caching is specified as Route::domain()->group(...);
-        // https://github.com/laravel/framework/blob/2049de73aa099a113a287587df4cc522c90961f5/src/Illuminate/Routing/Route.php#L1209
         if (\strpos($routeName, 'generated::') !== false) {
             return LaravelIntegration::UNNAMED_ROUTE;
         }
