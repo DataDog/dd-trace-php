@@ -1404,6 +1404,10 @@ workflows:
                 - "datadog/dd-trace-ci:buster"
               cmake_version:
                 - "3.14.7"
+                - "3.15.7"
+                - "3.16.9"
+                - "3.17.5"
+                - "3.18.6"
                 - "3.19.6"
               catch2_version:
                 - "2.13.4"
