@@ -244,6 +244,16 @@ static void ddtrace_span_data_free_storage(zend_object *object) {
     memset(object->properties_table, 0, sizeof(((ddtrace_span_t *)NULL)->properties_table_placeholder));
 }
 
+static zval* ddtrace_span_data_readonly(zend_object *object, zend_string *member, zval *value, void **cache_slot) {
+    if (zend_string_equals_literal(member, "parent")) {
+        zend_throw_error(zend_ce_error,
+            "Cannot modify readonly property %s::%s", ZSTR_VAL(object->ce->name), ZSTR_VAL(member));
+        return &EG(uninitialized_zval);
+    }
+
+    return zend_std_write_property(object, member, value, cache_slot);
+}
+
 static zend_object *ddtrace_span_data_clone_obj(zend_object *old_obj) {
     zend_object *new_obj = ddtrace_span_data_create(old_obj->ce);
     zend_objects_clone_members(new_obj, old_obj);
@@ -272,6 +282,7 @@ static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_span_data_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
     ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
+    ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
 
     zend_class_entry ce_span_data;
     INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", class_DDTrace_SpanData_methods);
@@ -292,6 +303,7 @@ static void dd_register_span_data_ce(void) {
     zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC);
 }
 
 #pragma GCC diagnostic push
@@ -310,6 +322,8 @@ zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 5); }
 // SpanData::$exception
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
+// SpanData::$parent
+zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 7); }
 #pragma GCC diagnostic pop
 
 bool ddtrace_fetch_prioritySampling_from_root(int *priority) {
