@@ -47,6 +47,8 @@ if test $PHP_VERSION_ID -ge 70100 &&  test "$PHP_DATADOG_PROFILING" = "yes"; the
         [ac_cv_pthread_getcpuclockid=yes], [ac_cv_pthread_getcpuclockid=no])
     ])
 
+  dnl Prior to glibc 2.17, clock_gettime was in librt, but this will not try to link.
+  dnl todo: use AC_RUN_IFELSE instead
   AC_CACHE_CHECK([for clock_gettime], ac_cv_clock_gettime,
     [
       AC_COMPILE_IFELSE(

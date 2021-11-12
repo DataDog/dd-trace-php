@@ -14,10 +14,14 @@ int main(void) {
 }
 " DATADOG_HAVE_TIMESPEC_GET)
 
-if (DATADOG_HAVE_TIMESPEC_GET)
+if(DATADOG_HAVE_TIMESPEC_GET)
   target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_TIMESPEC_GET=1)
-endif ()
+endif()
 
+#[[ Prior to glibc 2.17, librt was required for clock_gettime.
+    Check for it without flags first.
+]]
+cmake_push_check_state(RESET)
 check_c_source_runs("#include <time.h>
 
 int main(void) {
@@ -26,27 +30,48 @@ return clock_gettime(CLOCK_REALTIME, &ts) == 0 ? 0 : 1;
 }
 " DATADOG_HAVE_CLOCK_GETTIME)
 
-if (DATADOG_HAVE_CLOCK_GETTIME)
+cmake_pop_check_state()
+
+if(NOT DATADOG_HAVE_CLOCK_GETTIME)
+  # Try again with -lrt
+  cmake_push_check_state(RESET)
+  set(CMAKE_REQUIRED_LIBRARIES -lrt)
+  check_c_source_runs("#include <time.h>
+
+int main(void) {
+struct timespec ts;
+return clock_gettime(CLOCK_REALTIME, &ts) == 0 ? 0 : 1;
+}
+" DATADOG_HAVE_CLOCK_GETTIME)
+
+  if(DATADOG_HAVE_CLOCK_GETTIME)
+    target_link_libraries(datadog-php-time PRIVATE -lrt)
+  endif()
+  cmake_pop_check_state()
+endif()
+
+if(DATADOG_HAVE_CLOCK_GETTIME)
   target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_CLOCK_GETTIME=1)
+
   cmake_push_check_state(RESET)
   set(CMAKE_REQUIRED_LIBRARIES Threads::Threads)
   check_c_source_runs("
-#include <pthread.h>
-#include <time.h>
+  #include <pthread.h>
+  #include <time.h>
 
-int main(void) {
-  clockid_t clockid;
-  // consider the fact the API exists good enough; it may still fail at runtime,
-  // and that's okay; it just needs to exist.
-  (void)pthread_getcpuclockid(pthread_self(), &clockid);
-  return 0;
-}
-" DATADOG_HAVE_PTHREAD_GETCPUCLOCKID)
+  int main(void) {
+    clockid_t clockid;
+    // consider the fact the API exists good enough; it may still fail at runtime,
+    // and that's okay; it just needs to exist.
+    (void)pthread_getcpuclockid(pthread_self(), &clockid);
+    return 0;
+  }
+  " DATADOG_HAVE_PTHREAD_GETCPUCLOCKID)
   if(DATADOG_HAVE_PTHREAD_GETCPUCLOCKID)
     target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_PTHREAD_GETCPUCLOCKID=1)
   endif()
   cmake_pop_check_state()
-endif ()
+endif()
 
 check_c_source_runs("#include <mach/mach_init.h>
 #include <mach/thread_act.h>

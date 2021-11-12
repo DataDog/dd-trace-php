@@ -1,7 +1,6 @@
 #ifndef DATADOG_PHP_STACK_SAMPLE_H
 #define DATADOG_PHP_STACK_SAMPLE_H
 
-#include <assert.h>
 #include <stdint.h>
 #include <string_view/string_view.h>
 
@@ -36,9 +35,6 @@ typedef struct datadog_php_stack_sample_s {
      */
     char buffer[(DATADOG_PHP_STACK_SAMPLE_MAX_DEPTH + 1) * 64u];
 } datadog_php_stack_sample;
-
-static_assert(sizeof(struct datadog_php_stack_sample_s) <= 8192u,
-              "datadog_php_stack_sample should be less than or equal to 8KiB");
 
 typedef struct datadog_php_stack_sample_frame_s {
     datadog_php_string_view function;
