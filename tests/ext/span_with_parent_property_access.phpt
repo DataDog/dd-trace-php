@@ -8,7 +8,7 @@ $root = DDTrace\start_span();
 
 $span = DDTrace\start_span();
 
-if ($span->parent === $root) {
+if (!isset($root->parent) && $span->parent === $root) {
     echo "OK\n";
 
     try {
