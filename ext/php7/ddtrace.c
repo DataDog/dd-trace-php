@@ -288,8 +288,8 @@ static zval* ddtrace_span_data_readonly(zval *object, zval *member, zval *value,
 static void ddtrace_span_data_readonly(zval *object, zval *member, zval *value, void **cache_slot) {
 #endif
     if (Z_TYPE_P(member) == IS_STRING && zend_string_equals_literal(Z_STR_P(member), "parent")) {
-        zend_throw_error(zend_ce_error,
-            "Cannot modify readonly property %s::%s", ZSTR_VAL(Z_OBJCE_P(object)->name), Z_STRVAL_P(member));
+        zend_throw_error(zend_ce_exception,
+            "Cannot modify readonly property %s::$%s", ZSTR_VAL(Z_OBJCE_P(object)->name), Z_STRVAL_P(member));
 #if PHP_VERSION_ID >= 70400
         return &EG(uninitialized_zval);
 #else

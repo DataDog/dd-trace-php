@@ -1,5 +1,7 @@
 --TEST--
 Test DDTrace\SpanData::$parent
+--ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 $root = DDTrace\start_span();
@@ -11,7 +13,7 @@ if ($span->parent === $root) {
 
     try {
         $span->parent = null;
-    } catch (\Error $error) {
+    } catch (\Exception $error) {
         print $error->getMessage() . PHP_EOL;
     } finally {
         if ($span->parent === null) {
@@ -24,4 +26,4 @@ if ($span->parent === $root) {
 ?>
 --EXPECT--
 OK
-Cannot modify readonly property DDTrace\SpanData::parent
+Cannot modify readonly property DDTrace\SpanData::$parent
