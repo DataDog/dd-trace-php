@@ -15,10 +15,6 @@ if (!isset($root->parent) && $span->parent === $root) {
         $span->parent = null;
     } catch (\Exception $error) {
         print $error->getMessage() . PHP_EOL;
-    } finally {
-        if ($span->parent === null) {
-            echo "FAIL\n";
-        }
     }
 } else {
     var_dump($root, $span);
