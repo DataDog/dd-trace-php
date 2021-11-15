@@ -15,6 +15,8 @@ if (!isset($root->parent) && $span->parent === $root) {
         $span->parent = null;
     } catch (\Exception $error) {
         print $error->getMessage() . PHP_EOL;
+    } catch (\Throwable $error) {
+        print $error->getMessage() . PHP_EOL;
     }
 } else {
     var_dump($root, $span);
