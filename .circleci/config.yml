@@ -1100,7 +1100,13 @@ jobs:
               -DBUILD_COMPONENTS_TESTING=ON \
               ~/datadog/components
             make -j all
-            make test
+            ctest --output-on-failure
+
+            # channel is non-deterministic, so run tests a few more times. At
+            # the moment, Catch2 tests are not automatically adding labels, so
+            # run all tests:
+            # https://github.com/catchorg/Catch2/issues/1590
+            ctest --output-on-failure --repeat until-fail:9
 
       - run:
           command: |
