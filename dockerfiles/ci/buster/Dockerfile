@@ -27,6 +27,7 @@ ENV RUNTIME_DEPS \
     libzip-dev \
     netbase \
     nginx \
+    strace \
     sudo \
     unzip \
     valgrind \
@@ -195,6 +196,31 @@ RUN set -eux; \
 # Setup php install directory
     mkdir -p $PHP_INSTALL_DIR; \
     chown -R circleci:circleci /opt;
+
+# libuv
+ARG LIBUV_VERSION="1.42.0"
+ARG LIBUV_SHA256="371e5419708f6aaeb8656671f89400b92a9bba6443369af1bb70bcd6e4b3c764"
+
+RUN set -eux; \
+    cd /usr/local/src; \
+    curl -OL https://github.com/libuv/libuv/archive/refs/tags/v${LIBUV_VERSION}.tar.gz; \
+    (echo "${LIBUV_SHA256} v${LIBUV_VERSION}.tar.gz" | sha256sum -c -); \
+    mv "v${LIBUV_VERSION}.tar.gz" "libuv-${LIBUV_VERSION}.tar.gz";
+
+RUN set -eux; \
+    cd /usr/local/src; \
+    tar -xvf "libuv-${LIBUV_VERSION}.tar.gz"; \
+    cd "libuv-${LIBUV_VERSION}"; \
+    ./autogen.sh; \
+    ./configure --prefix=/opt/libuv \
+        --disable-shared \
+        --enable-static \
+        --with-pic \
+        --disable-dependency-tracking \
+    ; \
+    make -j 4 all install; \
+    cd -; \
+    rm -fr "libuv-${LIBUV_VERSION}";
 
 # Run everything else as circleci user
 USER circleci

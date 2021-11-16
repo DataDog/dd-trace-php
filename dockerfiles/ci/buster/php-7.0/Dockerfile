@@ -71,7 +71,7 @@ RUN set -eux; \
         yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
         pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
         yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
-        pecl install mongodb; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
+        pecl install mongodb-1.9.2; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
         pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
         # Xdebug is disabled by default
         pecl install xdebug-2.7.2; \
