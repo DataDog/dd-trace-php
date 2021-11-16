@@ -745,6 +745,10 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     _dd_info_diagnostics_table();
 
     DISPLAY_INI_ENTRIES();
+
+#ifdef PHP_DATADOG_PROFILING_H
+    datadog_profiling_diagnostics();
+#endif
 }
 
 static bool _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options) {

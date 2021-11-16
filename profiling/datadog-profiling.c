@@ -27,60 +27,14 @@ typedef datadog_php_string_view string_view_t;
 
 static uv_once_t first_activate_once = UV_ONCE_INIT;
 
-/* This is used by the engine to ensure that the extension is built against
- * the same version as the engine. It must be named `extension_version_info`.
- */
-ZEND_API zend_extension_version_info extension_version_info = {
-    .zend_extension_api_no = ZEND_EXTENSION_API_NO,
-    .build_id = ZEND_EXTENSION_BUILD_ID,
-};
-
-/* This must be named `zend_extension_entry` for the engine to know this is a
- * zend extension.
- */
-ZEND_API zend_extension zend_extension_entry = {
-    .name = "datadog-profiling",
-    .version = PHP_DATADOG_PROFILING_VERSION,
-    .author = "Datadog",
-    .URL = "todo: url for extension",
-    .copyright = "Copyright Datadog",
-    .startup = datadog_profiling_startup,
-    .activate = datadog_profiling_activate,
-    .deactivate = datadog_profiling_deactivate,
-    .shutdown = datadog_profiling_shutdown,
-    .resource_number = -1,
-};
-
 /**
  * Diagnose issues such as being unable to reach the agent.
  */
-ZEND_COLD void datadog_php_profiler_diagnostics(void) {
+ZEND_API ZEND_COLD void datadog_php_profiler_diagnostics(void) {
   php_info_print_table_start();
   datadog_php_recorder_plugin_diagnose();
   php_info_print_table_end();
 }
-
-PHP_MINFO_FUNCTION(datadog_profiling) {
-  (void)zend_module;
-
-  datadog_php_profiler_diagnostics();
-}
-
-/* Make this a hybrid zendextension-module, which gives us access to the minfo
- * hook, so we can print diagnostics.
- */
-static zend_module_entry datadog_profiling_module_entry = {
-    STANDARD_MODULE_HEADER,
-    "datadog-profiling",
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    PHP_MINFO(datadog_profiling),
-    PHP_DATADOG_PROFILING_VERSION,
-    STANDARD_MODULE_PROPERTIES,
-};
 
 ZEND_TLS bool datadog_profiling_enabled;
 
@@ -154,7 +108,7 @@ static void sapi_diagnose(sapi_t sapi, datadog_php_string_view pretty_name) {
 ZEND_COLD ZEND_API int datadog_profiling_startup(zend_extension *extension) {
   datadog_php_stack_collector_startup(extension);
 
-  return zend_startup_module(&datadog_profiling_module_entry);
+  return SUCCESS;
 }
 
 // todo: extract this common code out of log_plugin, recorder, etc

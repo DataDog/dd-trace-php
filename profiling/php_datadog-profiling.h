@@ -11,6 +11,7 @@ ZEND_API int datadog_profiling_startup(zend_extension *);
 ZEND_API void datadog_profiling_activate(void);
 ZEND_API void datadog_profiling_deactivate(void);
 ZEND_API void datadog_profiling_shutdown(zend_extension *);
+ZEND_API ZEND_COLD void datadog_profiling_diagnostics(void);
 
 #if defined(ZTS)
 ZEND_TSRMLS_CACHE_EXTERN()
