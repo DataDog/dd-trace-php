@@ -77,6 +77,8 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
                   ddtrace_spandata_property_service(&span_fci->next->span));
         ZVAL_COPY(ddtrace_spandata_property_type(&span_fci->span),
                   ddtrace_spandata_property_type(&span_fci->next->span));
+        ZVAL_OBJ(ddtrace_spandata_property_parent(&span_fci->span), &span_fci->next->span.std);
+        Z_ADDREF_P(ddtrace_spandata_property_parent(&span_fci->span));
     }
     ddtrace_set_global_span_properties(&span_fci->span);
 }

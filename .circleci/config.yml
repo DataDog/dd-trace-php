@@ -1415,7 +1415,7 @@ workflows:
                 - "3.19.8"
                 - "3.21.4"
               catch2_version:
-                - "2.13.4"
+                - "2.13.7"
 
   zend_abstract_interface:
     jobs:

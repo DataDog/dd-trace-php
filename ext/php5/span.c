@@ -85,6 +85,11 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
             MAKE_STD_ZVAL(*type);
             MAKE_COPY_ZVAL(&last_type, *type);
         }
+        zval **parent = ddtrace_spandata_property_parent_write(&span_fci->span);
+        MAKE_STD_ZVAL(*parent);
+        Z_TYPE_PP(parent) = IS_OBJECT;
+        Z_OBJVAL_PP(parent) = span_fci->next->span.obj_value;
+        zend_objects_store_add_ref(*parent TSRMLS_CC);
     }
     ddtrace_set_global_span_properties(&span_fci->span TSRMLS_CC);
 }
