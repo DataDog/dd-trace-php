@@ -256,11 +256,10 @@ static zend_object_value ddtrace_span_data_clone_obj(zval *old_zv TSRMLS_DC) {
 }
 
 static void ddtrace_span_data_readonly(zval *object, zval *member, zval *value, const zend_literal *key TSRMLS_DC) {
-    if ((Z_TYPE_P(member) == IS_STRING) &&
-        (Z_STRLEN_P(member) == sizeof("parent")-1) &&
-        (SUCCESS == memcmp(Z_STRVAL_P(member), "parent", sizeof("parent")-1))) {
-        zend_throw_exception_ex(NULL, 0 TSRMLS_CC,
-            "Cannot modify readonly property %s::$%s", Z_OBJCE_P(object)->name, Z_STRVAL_P(member));
+    if ((Z_TYPE_P(member) == IS_STRING) && (Z_STRLEN_P(member) == sizeof("parent") - 1) &&
+        (SUCCESS == memcmp(Z_STRVAL_P(member), "parent", sizeof("parent") - 1))) {
+        zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Cannot modify readonly property %s::$%s", Z_OBJCE_P(object)->name,
+                                Z_STRVAL_P(member));
         return;
     }
 

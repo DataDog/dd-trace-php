@@ -244,10 +244,10 @@ static void ddtrace_span_data_free_storage(zend_object *object) {
     memset(object->properties_table, 0, sizeof(((ddtrace_span_t *)NULL)->properties_table_placeholder));
 }
 
-static zval* ddtrace_span_data_readonly(zend_object *object, zend_string *member, zval *value, void **cache_slot) {
+static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member, zval *value, void **cache_slot) {
     if (zend_string_equals_literal(member, "parent")) {
-        zend_throw_error(zend_ce_error,
-            "Cannot modify readonly property %s::$%s", ZSTR_VAL(object->ce->name), ZSTR_VAL(member));
+        zend_throw_error(zend_ce_error, "Cannot modify readonly property %s::$%s", ZSTR_VAL(object->ce->name),
+                         ZSTR_VAL(member));
         return &EG(uninitialized_zval);
     }
 
