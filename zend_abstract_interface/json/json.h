@@ -11,8 +11,8 @@
 #if PHP_VERSION_ID < 70000
 #include "ext/standard/php_smart_str.h"
 
-void php_json_encode(smart_str *buf, zval *val, int options TSRMLS_DC);
-void php_json_decode_ex(zval *return_value, char *str, int str_len, int options, long depth TSRMLS_DC);
+extern void (*php_json_encode)(smart_str *buf, zval *val, int options TSRMLS_DC);
+extern void (*php_json_decode_ex)(zval *return_value, char *str, int str_len, int options, long depth TSRMLS_DC);
 
 static inline void php_json_decode(zval *return_value, char *str, int str_len, zend_bool assoc, long depth TSRMLS_DC)
 {
