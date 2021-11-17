@@ -408,35 +408,72 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span TSRMLS_DC) {
     }
 }
 
+static smart_str dd_build_req_url(TSRMLS_D) {
+    smart_str url_str = {0};
+
+    const char *uri = NULL;
+    size_t uri_len;
+    zval *_server = PG(http_globals)[TRACK_VARS_SERVER];
+    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC)) {
+        zval **req_uri;
+        if (zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("REQUEST_URI"), (void **)&req_uri) == SUCCESS) {
+            if (Z_TYPE_PP(req_uri) == IS_STRING) {
+                uri = Z_STRVAL_PP(req_uri);
+                uri_len = Z_STRLEN_PP(req_uri);
+            }
+        }
+    }
+
+    if (!uri) {
+        uri = SG(request_info).request_uri;
+        if (uri) {
+            uri_len = strlen(uri);
+        }
+    }
+
+    if (!uri) {
+        return url_str;
+    }
+
+    zend_bool is_https = zend_hash_exists(Z_ARRVAL_P(_server), ZEND_STRS("HTTPS"));
+
+    zval **host_zv;
+    if ((zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("HTTP_HOST"), (void **)&host_zv) == FAILURE &&
+         zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("SERVER_NAME"), (void **)&host_zv) == FAILURE) ||
+        Z_TYPE_PP(host_zv) != IS_STRING) {
+        return url_str;
+    }
+
+    smart_str_appendl(&url_str, "http", sizeof("http") - 1);
+    if (is_https) {
+        smart_str_appendc(&url_str, 's');
+    }
+    smart_str_appendl(&url_str, "://", sizeof("://") - 1);
+    smart_str_appendl(&url_str, Z_STRVAL_PP(host_zv), Z_STRLEN_PP(host_zv));
+    smart_str_appendl(&url_str, uri, uri_len);
+    smart_str_0(&url_str);
+
+    return url_str;
+}
+
 void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
     zval *meta = ddtrace_spandata_property_meta(span);
 
     add_assoc_long(meta, "system.pid", (long)getpid());
 
-    const char *uri = SG(request_info).request_uri, *method = SG(request_info).request_method;
+    const char *method = SG(request_info).request_method;
     if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {
         add_assoc_string(meta, "http.method", (char *)method, 1);
 
-        zval *http_url = NULL;
-        if ((PG(http_globals)[TRACK_VARS_SERVER] && Z_TYPE_P(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY) ||
-            zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC)) {
-            zval **urizv;
-            if (zend_hash_find(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_SERVER]), "REQUEST_URI", sizeof("REQUEST_URI"),
-                               (void **)&urizv) == SUCCESS) {
-                http_url = *urizv;
-                zval_addref_p(http_url);
-            }
-        }
-        if (!http_url && uri) {
-            MAKE_STD_ZVAL(http_url)
-            ZVAL_STRING(http_url, uri, 1);
+        smart_str http_url = dd_build_req_url(TSRMLS_C);
+        if (http_url.c) {
+            add_assoc_string(meta, "http.url", http_url.c, 0);
         }
 
+        const char *uri = SG(request_info).request_uri;
         zval **prop_resource = ddtrace_spandata_property_resource_write(span);
         MAKE_STD_ZVAL(*prop_resource);
-        if (http_url) {
-            add_assoc_zval(meta, "http.url", http_url);
-
+        if (uri) {
             zai_string_view normalized =
                 ddtrace_uri_normalize_incoming_path((zai_string_view){.ptr = uri, .len = strlen(uri)});
             char *resource;
