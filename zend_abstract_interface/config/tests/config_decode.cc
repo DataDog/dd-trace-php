@@ -3,6 +3,7 @@ extern "C" {
 
 #include "config/config_decode.h"
 #include "ext_zai_config.h"
+#include "json/json.h"
 #include "zai_sapi/zai_sapi.h"
 #include "zai_sapi/zai_sapi_extension.h"
 }
@@ -329,6 +330,7 @@ TEST_CASE("decode json", "[zai_config_decode]") {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    zai_json_setup_bindings();
 
     // ---
 

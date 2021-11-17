@@ -148,7 +148,7 @@ build_zai:
 	)
 
 test_zai: build_zai
-	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "$(ZAI_TEST_DIR)" ] || echo "ARGS='--test-dir $(ZAI_TEST_DIR)'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/$(ZAI_TEST_DIR)/Testing/Temporary/LastTest.log \
+	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "$(ZAI_TEST_DIR)" ] || echo "ARGS='--test-dir $(ZAI_TEST_DIR)'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/$(ZAI_TEST_DIR)/Testing/Temporary/LastTest.log
 
 build_zai_asan:
 	( \

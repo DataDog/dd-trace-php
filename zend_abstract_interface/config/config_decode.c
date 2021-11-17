@@ -2,12 +2,11 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <json/json.h>
 #include <main/php.h>
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
-
-#include <ext/json/php_json.h>
 
 #include "../zai_compat.h"
 
@@ -341,18 +340,10 @@ static void zai_config_persist_zval(zval *in) {
 }
 #endif
 
-ZEND_EXTERN_MODULE_GLOBALS(json)
-
 static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, bool persistent) {
     ZAI_TSRMLS_FETCH();
 
-#if PHP_VERSION_ID >= 70000
-    php_json_error_code original_error_code = JSON_G(error_code);
-#endif
     php_json_decode(decoded_value, (char *)value.ptr, (int)value.len, true, 20 ZAI_TSRMLS_CC);
-#if PHP_VERSION_ID >= 70000
-    JSON_G(error_code) = original_error_code;
-#endif
 
     if (Z_TYPE_P(decoded_value) != IS_ARRAY) {
         zval_dtor(decoded_value);

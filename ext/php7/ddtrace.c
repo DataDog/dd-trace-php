@@ -10,6 +10,7 @@
 #include <Zend/zend_vm.h>
 #include <headers/headers.h>
 #include <inttypes.h>
+#include <json/json.h>
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
@@ -397,6 +398,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
     REGISTER_INI_ENTRIES();
+
+    zai_json_setup_bindings();
 
     // config initialization needs to be at the top
     ddtrace_config_minit(module_number);
@@ -1734,11 +1737,16 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 
-zend_module_entry ddtrace_module_entry = {
-    STANDARD_MODULE_HEADER,  PHP_DDTRACE_EXTNAME,          ddtrace_functions,      PHP_MINIT(ddtrace),
-    PHP_MSHUTDOWN(ddtrace),  PHP_RINIT(ddtrace),           PHP_RSHUTDOWN(ddtrace), PHP_MINFO(ddtrace),
-    PHP_DDTRACE_VERSION,     PHP_MODULE_GLOBALS(ddtrace),  PHP_GINIT(ddtrace),     NULL,
-    ddtrace_post_deactivate, STANDARD_MODULE_PROPERTIES_EX};
+static const zend_module_dep ddtrace_module_reqs[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_END};
+
+zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
+                                          ddtrace_module_reqs,       PHP_DDTRACE_EXTNAME,
+                                          ddtrace_functions,         PHP_MINIT(ddtrace),
+                                          PHP_MSHUTDOWN(ddtrace),    PHP_RINIT(ddtrace),
+                                          PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),
+                                          PHP_DDTRACE_VERSION,       PHP_MODULE_GLOBALS(ddtrace),
+                                          PHP_GINIT(ddtrace),        NULL,
+                                          ddtrace_post_deactivate,   STANDARD_MODULE_PROPERTIES_EX};
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)

@@ -1614,7 +1614,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php php-fpm
+                - php php-fpm php-json
               install_type:
                 - php_installer
                 - native_package
@@ -1630,7 +1630,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php7 php7-fpm
+                - php7 php7-fpm php7-json
               install_type:
                 - php_installer
                 - native_package
@@ -1648,7 +1648,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php5 php5-fpm
+                - php5 php5-fpm php5-json
               install_type:
                 - php_installer
                 - native_package

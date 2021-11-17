@@ -92,6 +92,7 @@ add_subdirectory(zend_abstract_interface/zai_sapi)
 add_subdirectory(zend_abstract_interface/functions)
 add_subdirectory(zend_abstract_interface/env)
 add_subdirectory(zend_abstract_interface/exceptions)
+add_subdirectory(zend_abstract_interface/json)
 add_subdirectory(zend_abstract_interface/config)
 if(PHP_VERSION_DIRECTORY STREQUAL "php5")
   # TODO Support PHP 7 & PHP 8
