@@ -27,6 +27,8 @@ zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span);
 zval **ddtrace_spandata_property_exception_write(ddtrace_span_t *span);
+zval *ddtrace_spandata_property_parent(ddtrace_span_t *span);
+zval **ddtrace_spandata_property_parent_write(ddtrace_span_t *span);
 
 bool ddtrace_fetch_prioritySampling_from_root(int *priority TSRMLS_DC);
 

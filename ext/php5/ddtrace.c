@@ -255,6 +255,17 @@ static zend_object_value ddtrace_span_data_clone_obj(zval *old_zv TSRMLS_DC) {
     return new_obj_val;
 }
 
+static void ddtrace_span_data_readonly(zval *object, zval *member, zval *value, const zend_literal *key TSRMLS_DC) {
+    if ((Z_TYPE_P(member) == IS_STRING) && (Z_STRLEN_P(member) == sizeof("parent") - 1) &&
+        (SUCCESS == memcmp(Z_STRVAL_P(member), "parent", sizeof("parent") - 1))) {
+        zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Cannot modify readonly property %s::$%s", Z_OBJCE_P(object)->name,
+                                Z_STRVAL_P(member));
+        return;
+    }
+
+    zend_std_write_property(object, member, value, key TSRMLS_CC);
+}
+
 static PHP_METHOD(DDTrace_SpanData, getDuration) {
     UNUSED(ht, return_value_used, this_ptr, return_value_ptr);
     ddtrace_span_fci *span_fci = (ddtrace_span_fci *)zend_object_store_get_object(getThis() TSRMLS_CC);
@@ -278,6 +289,8 @@ const zend_function_entry class_DDTrace_SpanData_methods[] = {
 static void dd_register_span_data_ce(TSRMLS_D) {
     memcpy(&ddtrace_span_data_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
+    ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
+
     zend_class_entry ce_span_data;
     INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", class_DDTrace_SpanData_methods);
     ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data TSRMLS_CC);
@@ -296,6 +309,7 @@ static void dd_register_span_data_ce(TSRMLS_D) {
     zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static zval *OBJ_PROP_NUM(zend_object *obj, uint32_t offset) {
@@ -358,6 +372,9 @@ zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_
 // SpanData::$exception
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
 zval **ddtrace_spandata_property_exception_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 6); }
+// SpanData::$parent
+zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 7); }
+zval **ddtrace_spandata_property_parent_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 7); }
 
 static zend_object_handlers ddtrace_fatal_error_handlers;
 /* The goal is to mimic zend_default_exception_new_ex except for adding

@@ -282,6 +282,28 @@ static zend_object *ddtrace_span_data_clone_obj(zval *old_zv) {
     return new_obj;
 }
 
+#if PHP_VERSION_ID >= 70400
+static zval *ddtrace_span_data_readonly(zval *object, zval *member, zval *value, void **cache_slot) {
+#else
+static void ddtrace_span_data_readonly(zval *object, zval *member, zval *value, void **cache_slot) {
+#endif
+    if (Z_TYPE_P(member) == IS_STRING && zend_string_equals_literal(Z_STR_P(member), "parent")) {
+        zend_throw_error(zend_ce_error, "Cannot modify readonly property %s::$%s", ZSTR_VAL(Z_OBJCE_P(object)->name),
+                         Z_STRVAL_P(member));
+#if PHP_VERSION_ID >= 70400
+        return &EG(uninitialized_zval);
+#else
+        return;
+#endif
+    }
+
+#if PHP_VERSION_ID >= 70400
+    return zend_std_write_property(object, member, value, cache_slot);
+#else
+    zend_std_write_property(object, member, value, cache_slot);
+#endif
+}
+
 static PHP_METHOD(DDTrace_SpanData, getDuration) {
     ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ_P(getThis());
     RETURN_LONG(span_fci->span.duration);
@@ -304,6 +326,7 @@ static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_span_data_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
     ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
+    ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
 
     zend_class_entry ce_span_data;
     INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", class_DDTrace_SpanData_methods);
@@ -324,6 +347,7 @@ static void dd_register_span_data_ce(void) {
     zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC);
 }
 
 #pragma GCC diagnostic push
@@ -342,6 +366,8 @@ zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 5); }
 // SpanData::$exception
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
+// SpanData::$parent
+zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 7); }
 #pragma GCC diagnostic pop
 
 bool ddtrace_fetch_prioritySampling_from_root(int *priority) {
