@@ -2,6 +2,7 @@
 #define ZAI_JSON_H
 
 #include "php.h"
+#include <stdbool.h>
 #include "../zai_compat.h"
 #if PHP_VERSION_ID < 70000
 #include "ext/standard/php_smart_str.h"
