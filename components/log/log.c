@@ -20,22 +20,14 @@ logger_t datadog_php_logger_ctor(int descriptor, log_level_t log_level, pthread_
 
 static bool logger_valid(datadog_php_logger *logger) {
     return logger->descriptor >= 0 && logger->log_level >= DATADOG_PHP_LOG_OFF &&
-           logger->log_level <= DATADOG_PHP_LOG_DEBUG;
+           logger->log_level <= DATADOG_PHP_LOG_DEBUG && logger->mutex;
 }
 
 bool datadog_php_logger_valid(datadog_php_logger *logger) {
-    bool valid;
-    if (logger->mutex) {
-        if (pthread_mutex_lock(logger->mutex) == 0) {
-            valid = logger_valid(logger);
-
-            (void)pthread_mutex_unlock(logger->mutex);
-        } else {
-            // we were unable to acquire the mutex, so we are definitely invalid
-            return false;
-        }
-    } else {
+    bool valid = false;
+    if (logger->mutex && pthread_mutex_lock(logger->mutex) == 0) {
         valid = logger_valid(logger);
+        (void)pthread_mutex_unlock(logger->mutex);
     }
     return valid;
 }
@@ -100,17 +92,12 @@ void datadog_php_log(logger_t *logger, log_level_t level, string_view_t message)
 
 int64_t datadog_php_logv(datadog_php_logger *logger, datadog_php_log_level level, size_t n_messages,
                          datadog_php_string_view messages[static n_messages]) {
-    if (!datadog_php_logger_valid(logger)) return -1;
-    if (logger->mutex) {
-        if (pthread_mutex_lock(logger->mutex) == 0) {
-            int64_t result = log_writev(logger, level, n_messages, messages);
-            (void)pthread_mutex_unlock(logger->mutex);
-            return result;
-        }
-        return -1;
-    } else {
-        return log_writev(logger, level, n_messages, messages);
+    if (logger->mutex && pthread_mutex_lock(logger->mutex) == 0) {
+        int64_t result = logger_valid(logger) ? log_writev(logger, level, n_messages, messages) : -1;
+        (void)pthread_mutex_unlock(logger->mutex);
+        return result;
     }
+    return -1;
 }
 
 static char datadog_tolower_ascii(char c) { return (char)(c >= 'A' && c <= 'Z' ? (c - ('A' - 'a')) : c); }
@@ -165,11 +152,8 @@ log_level_t datadog_php_log_level_detect(string_view_t val) {
  * Sets the current log level of the application.
  */
 void datadog_php_log_level_set(logger_t *logger, log_level_t level) {
-    if (logger->mutex) {
-        pthread_mutex_lock(logger->mutex);
+    if (logger->mutex && pthread_mutex_lock(logger->mutex) == 0) {
         logger->log_level = level;
         pthread_mutex_unlock(logger->mutex);
-    } else {
-        logger->log_level = level;
     }
 }

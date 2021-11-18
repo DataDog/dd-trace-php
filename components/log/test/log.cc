@@ -3,6 +3,7 @@ extern "C" {
 }
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -45,7 +46,10 @@ TEST_CASE("logv", "[log]") {
     REQUIRE(mem);
     REQUIRE(mem != MAP_FAILED);
 
-    auto logger = datadog_php_logger_ctor(fd, DATADOG_PHP_LOG_DEBUG, nullptr);
+    pthread_mutex_t mutex;
+    REQUIRE(pthread_mutex_init(&mutex, nullptr) == 0);
+
+    auto logger = datadog_php_logger_ctor(fd, DATADOG_PHP_LOG_DEBUG, &mutex);
     REQUIRE(datadog_php_logger_valid(&logger));
 
     datadog_php_string_view messages[3] = {
@@ -63,4 +67,5 @@ TEST_CASE("logv", "[log]") {
     datadog_php_logger_dtor(&logger);
     CHECK(munmap(mem, mem_len) == 0);
     CHECK(close(fd) == 0);
+    CHECK(pthread_mutex_destroy(&mutex) == 0);
 }
