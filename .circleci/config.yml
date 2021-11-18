@@ -1066,6 +1066,9 @@ jobs:
           name: Build and test Datadog::Php::Components (ASan)
           command: |
             export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ] ; then
+              export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"
+            fi
             mkdir -p /tmp/build/datadog_php_components_asan
             cd /tmp/build/datadog_php_components_asan
             if [ -f "/etc/debian_version" ]
@@ -1097,7 +1100,12 @@ jobs:
               -DBUILD_COMPONENTS_TESTING=ON \
               ~/datadog/components
             make -j all
-            make test
+
+            # channel is non-deterministic, so run tests a few more times. At
+            # the moment, Catch2 tests are not automatically adding labels, so
+            # run all tests instead of just channel's:
+            # https://github.com/catchorg/Catch2/issues/1590
+            make test ARGS="--output-on-failure --repeat until-fail:10"
 
       - run:
           command: |
@@ -1403,8 +1411,8 @@ workflows:
                 - "datadog/dd-trace-ci:alpine"
                 - "datadog/dd-trace-ci:buster"
               cmake_version:
-                - "3.14.7"
-                - "3.19.6"
+                - "3.19.8"
+                - "3.21.4"
               catch2_version:
                 - "2.13.7"
 

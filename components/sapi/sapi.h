@@ -16,5 +16,6 @@ typedef enum {
 } datadog_php_sapi;
 
 datadog_php_sapi datadog_php_sapi_from_name(datadog_php_string_view module);
+datadog_php_sapi datadog_php_sapi_detect(datadog_php_string_view module);
 
 #endif  // DATADOG_PHP_SAPI_H

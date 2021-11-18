@@ -1,15 +1,26 @@
 #[[ Need CMake 3.14 so that `install(TARGETS)` uses better defaults, which
     saves us from repeating configuration in every file (and must be the same).
+    Need CMake 3.15+ because the time component feature checks fail on 3.14;
+    instead of just bumping incrementally, I've bumped this to the latest
+    version that's been tested in CI: 3.19.
 ]]
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.19)
 
 project(datadog-php-components
   VERSION 0.1.0
   LANGUAGES C
 )
 
+find_package(PkgConfig)
+if (PKG_CONFIG_FOUND)
+  pkg_check_modules(UV IMPORTED_TARGET libuv)
+endif()
+
 option(BUILD_COMPONENTS_TESTING "Enable tests" OFF)
 if (${BUILD_COMPONENTS_TESTING})
+  # todo: remove this compat shim
+  set(DATADOG_PHP_TESTING "${BUILD_COMPONENTS_TESTING}")
+
   # Tests uses the C++ testing framework Catch2
   enable_language(CXX)
 
@@ -20,11 +31,28 @@ if (${BUILD_COMPONENTS_TESTING})
   #[[ This file takes a while to build, so we do it once here and every test
       executable can link to it to save time.
   ]]
-  add_library(catch2_main catch2_main.cc)
-  target_link_libraries(catch2_main PUBLIC Catch2::Catch2)
-  target_compile_features(catch2_main PUBLIC cxx_std_11)
 
   include(Catch)
+
+  if (NOT TARGET Catch2::Catch2WithMain AND TARGET Catch2::Catch2)
+    #[[ The build of catch2 we are using wasn't configured with
+        `CATCH_BUILD_STATIC_LIBRARY`; let's polyfill it.
+    ]]
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/catch2withmain.cc
+      "#define CATCH_CONFIG_MAIN\n"
+      "#include <catch2/catch.hpp>\n"
+      )
+
+    add_library(Catch2WithMain ${CMAKE_CURRENT_BINARY_DIR}/catch2withmain.cc)
+    target_compile_features(Catch2WithMain INTERFACE cxx_std_11)
+    target_link_libraries(Catch2WithMain PUBLIC Catch2::Catch2)
+    add_library(Catch2::Catch2WithMain ALIAS Catch2WithMain)
+  endif ()
+
+  if (NOT TARGET Catch2::Catch2WithMain)
+    message(FATAL_ERROR "Catch2WithMain not found and polyfill failed.")
+  endif ()
+
   enable_testing()
 endif()
 
@@ -34,10 +62,20 @@ add_library(datadog_php_components INTERFACE)
 
 add_subdirectory(string_view)
 
-# sapi depends on string_view
-add_subdirectory(sapi)
+add_subdirectory(arena)
+
+if (TARGET PkgConfig::UV)
+  add_subdirectory(channel)
+else ()
+  message(WARNING "component channel was skipped because libuv is missing")
+endif()
 
 add_subdirectory(container_id)
+add_subdirectory(log)
+add_subdirectory(queue)
+add_subdirectory(sapi)
+add_subdirectory(stack-sample)
+add_subdirectory(time)
 
 install(EXPORT DatadogPhpComponentsTargets
   FILE DatadogPhpComponentsTargets.cmake
