@@ -5,6 +5,7 @@
 #include "ddtrace.h"
 #include "engine_hooks.h"
 #include "logging.h"
+#include "predictive_changelog.h"
 
 typedef void (*ddtrace_zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 
@@ -79,6 +80,8 @@ void ddtrace_internal_handlers_install(zend_array *traced_internal_functions) {
         zend_string_release(function);
     }
     ZEND_HASH_FOREACH_END();
+
+    ddtrace_predictive_changelog_replace_internal_functions();
 }
 
 void ddtrace_free_unregistered_class(zend_class_entry *ce) {

@@ -179,6 +179,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/integrations/integrations.c \
       ext/php7/logging.c \
       ext/php7/memory_limit.c \
+      ext/php7/predictive_changelog.c \
       ext/php7/php7/dispatch.c \
       ext/php7/php7/engine_hooks.c \
       ext/php7/random.c \

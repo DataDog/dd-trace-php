@@ -40,6 +40,7 @@
 #include "integrations/integrations.h"
 #include "logging.h"
 #include "memory_limit.h"
+#include "predictive_changelog.h"
 #include "random.h"
 #include "request_hooks.h"
 #include "sapi/sapi.h"
@@ -552,6 +553,8 @@ static void dd_initialize_request() {
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
     }
+
+    ddtrace_predictive_changelog_rinit();
 }
 
 static PHP_RINIT_FUNCTION(ddtrace) {

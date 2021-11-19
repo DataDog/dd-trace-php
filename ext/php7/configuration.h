@@ -79,6 +79,7 @@ extern bool runtime_config_first_init;
     CONFIG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001")                                    \
     CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                               \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                 \
+    CONFIG(STRING, DD_TRACE_PCL_PHP_UPGRADE_VERSION, "8.1")                                                   \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                           \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                     \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                   \

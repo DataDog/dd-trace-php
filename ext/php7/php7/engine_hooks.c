@@ -14,6 +14,7 @@
 #include "ext/php7/dispatch.h"
 #include "ext/php7/engine_api.h"
 #include "ext/php7/logging.h"
+#include "ext/php7/predictive_changelog.h"
 #include "ext/php7/span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
@@ -178,7 +179,8 @@ static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, 
 
 static bool dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
     // the callable can be NULL for ddtrace_known_integrations
-    if (Z_TYPE(dispatch->callable) != IS_OBJECT && Z_TYPE(dispatch->callable) != IS_STRING) {
+    // The callable will be IS_PTR for predictive changelog functions
+    if (Z_TYPE(dispatch->callable) != IS_OBJECT && Z_TYPE(dispatch->callable) != IS_STRING && Z_TYPE(dispatch->callable) != IS_PTR) {
         return false;
     }
 
@@ -419,6 +421,25 @@ static bool dd_call_sandboxed_tracing_closure(ddtrace_span_fci *span_fci, zval *
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
     ddtrace_span_t *span = &span_fci->span;
     zval user_args, span_zv;
+
+    // IS_PTR tracing closures are predictive changelog candidates
+    if (Z_TYPE_P(callable) == IS_PTR) {
+        if (!call->func) {
+            ddtrace_log_debug("Unknown function for predictive changelog; perhaps is ddtrace_known_integrations");
+            return false;
+        }
+        ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
+        while (root_span->next) {
+            root_span = root_span->next;
+        }
+        ddpcl_function_breaking_change *bc = (ddpcl_function_breaking_change *) Z_PTR_P(callable);
+        bc->handler(call, &root_span->span);
+        return false; // Drop the fake span
+
+        // Alternatively we could keep this span and attach the meta directly to it
+        //ddtrace_predictive_changelog_check_function(call, span);
+        //return true; // Keep the span
+    }
 
     ZVAL_OBJ(&span_zv, &span->std);
     void (*copy_args)(zval * args, zend_execute_data * call) =
