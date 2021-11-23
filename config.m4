@@ -244,6 +244,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/request_hooks.c \
       ext/php8/serializer.c \
       ext/php8/signals.c \
+      ext/php8/source_wrapper.c \
       ext/php8/span.c \
       ext/php8/startup_logging.c \
       ext/php8/weakrefs.c \
@@ -363,4 +364,6 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php8/integrations])
   fi
+
+  PHP_ADD_MAKEFILE_FRAGMENT()
 fi

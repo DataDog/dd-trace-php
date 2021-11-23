@@ -11,6 +11,7 @@ composer.lock
 .tmp/
 **.code-workspace
 /Makefile*
+!/Makefile.frag
 acinclude.m4
 aclocal.m4
 autom4te*
@@ -45,3 +46,4 @@ tmp-php.ini
 tmp/opcache*
 *.orig
 docker-compose.override.yml
+ext/compiled_source_*.txt

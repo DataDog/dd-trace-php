@@ -23,27 +23,36 @@
     } while (0)
 #define UNUSED_3(x, y, z) \
     do {                  \
-        UNUSED_1(x);      \
-        UNUSED_1(y);      \
+        UNUSED_2(x, y);      \
         UNUSED_1(z);      \
     } while (0)
 #define UNUSED_4(x, y, z, q) \
     do {                     \
-        UNUSED_1(x);         \
-        UNUSED_1(y);         \
-        UNUSED_1(z);         \
+        UNUSED_3(x, y, z);         \
         UNUSED_1(q);         \
     } while (0)
 #define UNUSED_5(x, y, z, q, w) \
     do {                        \
-        UNUSED_1(x);            \
-        UNUSED_1(y);            \
-        UNUSED_1(z);            \
-        UNUSED_1(q);            \
+        UNUSED_4(x, y, z, q);            \
         UNUSED_1(w);            \
     } while (0)
-#define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, _5, ARITY, ...) UNUSED_##ARITY
-#define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 5, 4, 3, 2, 1)(__VA_ARGS__)
+#define UNUSED_6(x, y, z, q, w, v) \
+    do {                        \
+        UNUSED_5(x, y, z, q, w);            \
+        UNUSED_1(v);            \
+    } while (0)
+#define UNUSED_7(x, y, z, q, w, v, u) \
+    do {                        \
+        UNUSED_6(x, y, z, q, w, v);            \
+        UNUSED_1(u);            \
+    } while (0)
+#define UNUSED_8(x, y, z, q, w, v, u, t) \
+    do {                        \
+        UNUSED_7(x, y, z, q, w, v, u);            \
+        UNUSED_1(t);            \
+    } while (0)
+#define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, _5, _6, _7, _8, ARITY, ...) UNUSED_##ARITY
+#define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1)(__VA_ARGS__)
 
 #define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c)
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))

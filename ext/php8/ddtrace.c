@@ -49,6 +49,7 @@
 #include "signals.h"
 #include "span.h"
 #include "startup_logging.h"
+#include "source_wrapper.h"
 
 bool ddtrace_has_excluded_module;
 
@@ -380,6 +381,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_dogstatsd_client_minit();
     ddshared_minit();
+
+    ddtrace_register_source_stream_wrapper();
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
