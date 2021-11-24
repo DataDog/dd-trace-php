@@ -3,18 +3,17 @@
 
 #include "php.h"
 
-#define php_json_encode _dd_json_encode
-#define php_json_decode_ex _dd_json_decode_ex
+#include "zai_compat.h"
 
 #define PHP_JSON_OBJECT_AS_ARRAY (1 << 0)
 
 #if PHP_VERSION_ID < 70000
 #include "ext/standard/php_smart_str.h"
 
-extern void (*php_json_encode)(smart_str *buf, zval *val, int options TSRMLS_DC);
-extern void (*php_json_decode_ex)(zval *return_value, char *str, int str_len, int options, long depth TSRMLS_DC);
+extern void (*php_json_encode)(smart_str *buf, zval *val, int options ZAI_TSRMLS_DC);
+extern void (*php_json_decode_ex)(zval *return_value, char *str, int str_len, int options, long depth ZAI_TSRMLS_DC);
 
-static inline void php_json_decode(zval *return_value, char *str, int str_len, zend_bool assoc, long depth TSRMLS_DC) {
+static inline void php_json_decode(zval *return_value, char *str, int str_len, zend_bool assoc, long depth ZAI_TSRMLS_DC) {
     php_json_decode_ex(return_value, str, str_len, assoc ? PHP_JSON_OBJECT_AS_ARRAY : 0, depth TSRMLS_CC);
 }
 #else
@@ -22,12 +21,12 @@ static inline void php_json_decode(zval *return_value, char *str, int str_len, z
 
 #include "zend_smart_str.h"
 
-extern int (*php_json_encode)(smart_str *buf, zval *val, int options);
+extern int (*php_json_encode)(smart_str *buf, zval *val, int options ZAI_TSRMLS_DC);
 extern int (*php_json_decode_ex)(zval *return_value, const char *str, size_t str_len, zend_long options,
-                                 zend_long depth);
+                                 zend_long depth ZAI_TSRMLS_DC);
 
-static inline int php_json_decode(zval *return_value, const char *str, int str_len, bool assoc, zend_long depth) {
-    return php_json_decode_ex(return_value, str, str_len, assoc ? PHP_JSON_OBJECT_AS_ARRAY : 0, depth);
+static inline int php_json_decode(zval *return_value, const char *str, int str_len, bool assoc, zend_long depth ZAI_TSRMLS_DC) {
+    return php_json_decode_ex(return_value, str, str_len, assoc ? PHP_JSON_OBJECT_AS_ARRAY : 0, depth ZAI_TSRMLS_CC);
 }
 #endif
 
