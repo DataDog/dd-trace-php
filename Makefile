@@ -240,23 +240,20 @@ $(PACKAGES_BUILD_DIR):
 	fpm -p /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) -t dir $(FPM_OPTS) $(FPM_FILES)
 	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).x86_64.tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
+build_pecl_package:
+	BUILD_DIR='$(BUILD_DIR)/'; \
+	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
+	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
+
 packages: .apk .rpm .deb .tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
-
-verify_pecl_file_definitions:
-	@for i in $(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES); do\
-		grep -q $${i#"$(BUILD_DIR)/"} package.xml && continue;\
-		echo package.xml is missing \"$${i#"$(BUILD_DIR)/"}\"; \
-		exit 1;\
-	done
-	@echo "PECL file definitions are correct"
 
 verify_version:
 	@grep -q "#define PHP_DDTRACE_VERSION \"$(VERSION)" ext/version.h || (echo ext/version.h Version missmatch && exit 1)
 	@grep -q "const VERSION = '$(VERSION)" src/DDTrace/Tracer.php || (echo src/DDTrace/Tracer.php Version missmatch && exit 1)
 	@echo "All version files match"
 
-verify_all: verify_pecl_file_definitions verify_version
+verify_all: verify_version
 
 # Generates the bridge/_generated_api and _generate_internal.php files. Note it only works on PHP < 8.0 because:
 #  - we need classpreloader: 1.4.* because otherwise the generated file is not compatible with 5.4
