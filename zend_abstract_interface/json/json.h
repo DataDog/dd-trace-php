@@ -17,8 +17,6 @@ extern void (*php_json_decode_ex)(zval *return_value, char *str, int str_len, in
 static inline void php_json_decode(zval *return_value, char *str, int str_len, zend_bool assoc, long depth TSRMLS_DC) {
     php_json_decode_ex(return_value, str, str_len, assoc ? PHP_JSON_OBJECT_AS_ARRAY : 0, depth TSRMLS_CC);
 }
-#define smart_str_length(str) (str)->len
-#define smart_str_value(str) ((char *)(str)->c)
 #else
 #include <stdbool.h>
 
@@ -31,8 +29,6 @@ extern int (*php_json_decode_ex)(zval *return_value, const char *str, size_t str
 static inline int php_json_decode(zval *return_value, const char *str, int str_len, bool assoc, zend_long depth) {
     return php_json_decode_ex(return_value, str, str_len, assoc ? PHP_JSON_OBJECT_AS_ARRAY : 0, depth);
 }
-#define smart_str_length(str) (str)->s->len
-#define smart_str_value(str) ((char *)(str)->s->val)
 #endif
 
 void zai_json_setup_bindings(void);
