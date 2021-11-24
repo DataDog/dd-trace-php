@@ -78,6 +78,8 @@
             <file name="zend_abstract_interface/headers/php5/headers.c" role="src" />
             <file name="zend_abstract_interface/headers/php7-8/headers.c" role="src" />
             <file name="zend_abstract_interface/headers/headers.h" role="src" />
+            <file name="zend_abstract_interface/json/json.c" role="src" />
+            <file name="zend_abstract_interface/json/json.h" role="src" />
             <file name="zend_abstract_interface/methods/methods.h" role="src" />
             <file name="zend_abstract_interface/methods/php5/methods.c" role="src" />
             <file name="zend_abstract_interface/properties/php5/properties.c" role="src" />
