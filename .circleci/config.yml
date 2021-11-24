@@ -289,7 +289,7 @@ jobs:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
       - run:
-          name: Verify PECL config and Version files
+          name: Verify Version files
           command: make verify_all
       - <<: *STEP_STORE_TEST_RESULTS
 
@@ -929,7 +929,7 @@ jobs:
       - run:
           name: Make PECL build
           command: |
-            tooling/bin/pecl-build
+            make build_pecl_package
             mkdir -p ./pecl && cp datadog_trace-*.tgz ./pecl
       #- store_artifacts:
       #    path: pecl
