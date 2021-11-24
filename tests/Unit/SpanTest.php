@@ -251,6 +251,9 @@ final class SpanTest extends BaseTestCase
         $span = $this->createSpan();
         $span->setTag(Tag::MANUAL_DROP, null);
         $this->assertSame(PrioritySampling::USER_REJECT, $this->tracer->getPrioritySampling());
+
+        // reset default
+        \DDTrace\set_priority_sampling(PrioritySampling::USER_KEEP, true);
     }
 
     public function testHasTag()
