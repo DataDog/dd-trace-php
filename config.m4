@@ -198,6 +198,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/functions/php7-8/functions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
+      zend_abstract_interface/json/json.c \
       zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php7/sandbox.c \
       zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
@@ -251,6 +252,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/functions/php7-8/functions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
+      zend_abstract_interface/json/json.c \
       zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
       zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
@@ -294,6 +296,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php7-8])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/methods])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/methods/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties])
