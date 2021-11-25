@@ -35,7 +35,7 @@ apk add --no-cache \
     libexecinfo-dev \
     make \
 
-make all CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror" ECHO_ARG="-e"
+make -j all CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror" ECHO_ARG="-e"
 
 sofile="tmp/build_extension/.libs/ddtrace.so"
 actual_symbols=`mktemp "$TMPDIR/actual_symbols.XXXXXXXX"`

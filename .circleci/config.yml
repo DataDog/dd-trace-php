@@ -1447,14 +1447,14 @@ jobs:
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension basic .so
-          command: make all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make -j all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension debug .so
-          command: make clean all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make clean && make -j all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
@@ -1483,19 +1483,19 @@ jobs:
           name: Build ndebug, nts configuration
           command: |
             switch-php << parameters.php_version >>
-            make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
             switch-php << parameters.php_version >>-debug
-            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
       - run:
           name: Build zts configuration
           command: |
             switch-php << parameters.php_version >>-zts
-            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-zts.so
       - persist_to_workspace:
           root: '.'
