@@ -42,7 +42,7 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
      */
     public function postDispatch(Zend_Controller_Request_Abstract $request)
     {
-        $span = \DDTrace\root_span();;
+        $span = \DDTrace\root_span();
         if (null === $span) {
             return;
         }

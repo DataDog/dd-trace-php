@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Laravel;
 
-use DDTrace\Contracts\Span;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -219,7 +218,7 @@ class LaravelIntegration extends Integration
     /**
      * Tells whether a span is a lumen request.
      *
-     * @param Span $rootSpan
+     * @param SpanData $rootSpan
      * @return bool
      */
     public function isLumen(SpanData $rootSpan)
