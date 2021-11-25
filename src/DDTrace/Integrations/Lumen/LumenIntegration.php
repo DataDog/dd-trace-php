@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Lumen;
 
-use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -39,10 +38,9 @@ class LumenIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootScope = GlobalTracer::get()->getRootScope();
-        $rootSpan = null;
+        $rootSpan = \DDTrace\root_span();
 
-        if (null === $rootScope || null === ($rootSpan = $rootScope->getSpan())) {
+        if (null === $rootSpan) {
             return Integration::NOT_LOADED;
         }
 
@@ -54,11 +52,11 @@ class LumenIntegration extends Integration
             'prepareRequest',
             function (SpanData $span, $args) use ($rootSpan, $integration, $appName) {
                 $request = $args[0];
-                $rootSpan->overwriteOperationName('lumen.request');
-                $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
-                $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
-                $rootSpan->setTag(Tag::HTTP_URL, $request->getUri());
-                $rootSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
+                $rootSpan->name = 'lumen.request';
+                $rootSpan->service = $appName;
+                $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                $rootSpan->meta[Tag::HTTP_URL] = $request->getUri();
+                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 return false;
             }
         );
@@ -80,33 +78,30 @@ class LumenIntegration extends Integration
                     $resourceName = null;
                     if (isset($routeInfo[1]['uses'])) {
                         $action = $routeInfo[1]['uses'];
-                        $rootSpan->setTag('lumen.route.action', $action);
+                        $rootSpan->meta['lumen.route.action'] = $action;
                         $span->meta['lumen.route.action'] = $action;
                     }
                     if (isset($routeInfo[1]['as'])) {
                         $routeAlias = $routeInfo[1]['as'];
-                        $rootSpan->setTag('lumen.route.name', $routeAlias);
+                        $rootSpan->meta['lumen.route.name'] = $routeAlias;
                         $span->resource = $routeAlias;
                         $resourceName = $routeAlias;
                     }
                     if (null !== $resourceName && !\ddtrace_config_url_resource_name_enabled()) {
-                        $rootSpan->setTag(
-                            Tag::RESOURCE_NAME,
-                            $rootSpan->getTag(Tag::HTTP_METHOD) . ' ' . $resourceName
-                        );
+                        $rootSpan->resource = $rootSpan->meta[Tag::HTTP_METHOD] . ' ' . $resourceName;
                     }
                 },
             ]
         );
 
-        $exceptionRender = function (SpanData $span, $args) use ($rootSpan, $appName) {
+        $exceptionRender = function (SpanData $span, $args) use ($rootSpan, $appName, $integration) {
             $span->service = $appName;
             $span->type = 'web';
             if (count($args) < 1 || !\is_a($args[0], 'Throwable')) {
                 return;
             }
             $exception = $args[0];
-            $rootSpan->setError($exception);
+            $integration->setError($rootSpan, $exception);
         };
 
         \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [$hook => $exceptionRender]);
