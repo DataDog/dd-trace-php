@@ -2,8 +2,6 @@
 
 namespace DDTrace\Integrations\Yii;
 
-use DDTrace\Contracts\Scope;
-use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -54,12 +52,12 @@ class YiiIntegration extends Integration
 
     public function loadV2()
     {
-        $scope = GlobalTracer::get()->getRootScope();
-        if (!$scope instanceof Scope) {
-            return;
+        $rootSpan = \DDTrace\root_span();
+        if (!$rootSpan) {
+            return Integration::NOT_LOADED;
         }
-        $root = $scope->getSpan();
-        $this->addTraceAnalyticsIfEnabledLegacy($root);
+
+        $this->addTraceAnalyticsIfEnabled($rootSpan);
         $service = \ddtrace_config_app_name(YiiIntegration::NAME);
 
         \DDTrace\trace_method(
@@ -96,31 +94,31 @@ class YiiIntegration extends Integration
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ? : $span->name;
+                $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
             }
         );
 
         \DDTrace\trace_method(
             'yii\base\Controller',
             'runAction',
-            function (SpanData $span, $args) use (&$firstController, $service, $root) {
+            function (SpanData $span, $args) use (&$firstController, $service, $rootSpan) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ? : $span->name;
+                $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
 
                 if (
                     $firstController === $this
-                    && $root->getTag('app.endpoint') === null
+                    && $rootSpan->meta['app.endpoint'] === null
                     && isset($this->action->actionMethod)
                 ) {
                     $controller = \get_class($this);
                     $endpoint = "{$controller}::{$this->action->actionMethod}";
-                    $root->setTag("app.endpoint", $endpoint);
-                    $root->setTag(Tag::HTTP_URL, Url::base(true) . Url::current());
+                    $rootSpan->meta["app.endpoint"] = $endpoint;
+                    $rootSpan->meta[Tag::HTTP_URL] = Url::base(true) . Url::current();
                 }
 
-                if ($root->getTag('app.route.path') === null) {
+                if ($rootSpan->meta['app.route.path'] === null) {
                     $route = $this->module->requestedRoute;
                     $namedParams = [$route];
                     $placeholders = [$route];
@@ -132,10 +130,10 @@ class YiiIntegration extends Integration
                     }
 
                     $routePath = \urldecode(Url::toRoute($namedParams));
-                    $root->setTag('app.route.path', $routePath);
+                    $rootSpan->meta['app.route.path'] = $routePath;
 
                     $resourceName = \urldecode(Url::toRoute($placeholders));
-                    $root->setTag(Tag::RESOURCE_NAME, "{$_SERVER['REQUEST_METHOD']} {$resourceName}", true);
+                    $rootSpan->resource = "{$_SERVER['REQUEST_METHOD']} {$resourceName}";
                 }
             }
         );
