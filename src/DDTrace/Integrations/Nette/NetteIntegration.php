@@ -2,13 +2,10 @@
 
 namespace DDTrace\Integrations\Nette;
 
-use DDTrace\Contracts\Scope;
-use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-use Nette\Application\Application;
 
 class NetteIntegration extends Integration
 {
@@ -53,16 +50,15 @@ class NetteIntegration extends Integration
 
     public function load()
     {
-        $scope = GlobalTracer::get()->getRootScope();
-        if (!$scope instanceof Scope) {
+        $rootSpan = \DDTrace\root_span();
+        if (!$rootSpan) {
             return;
         }
 
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
 
-        $root = $scope->getSpan();
-        $root->setTraceAnalyticsCandidate();
-        $root->setTag(Tag::SERVICE_NAME, $service);
+        $this->addTraceAnalyticsIfEnabled($rootSpan);
+        $rootSpan->service = $service;
 
         \DDTrace\trace_method(
             'Nette\Configurator',
@@ -77,18 +73,18 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Nette\Application\Application',
             'run',
-            function (SpanData $span) use ($root, $service) {
+            function (SpanData $span) use ($rootSpan, $service) {
                 $span->name = 'nette.application.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $root->setTag(Tag::HTTP_STATUS_CODE, http_response_code());
+                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
             }
         );
 
         \DDTrace\trace_method(
             'Nette\Application\UI\Presenter',
             'run',
-            function (SpanData $span, $args) use ($root, $service) {
+            function (SpanData $span, $args) use ($rootSpan, $service) {
 
                 $span->name = 'nette.presenter.run';
                 $span->type = Type::WEB_SERVLET;
@@ -102,9 +98,9 @@ class NetteIntegration extends Integration
                 $presenter = $request->getPresenterName();
                 $action = $request->getParameter('action');
 
-                $root->setTag(Tag::HTTP_METHOD, $request->getMethod());
-                $root->setTag('nette.route.presenter', $presenter);
-                $root->setTag('nette.route.action', $action);
+                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->meta['nette.route.presenter'] = $presenter;
+                $rootSpan->meta['nette.route.action'] = $action;
             }
         );
 
