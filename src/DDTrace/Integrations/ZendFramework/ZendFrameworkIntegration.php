@@ -58,12 +58,7 @@ class ZendFrameworkIntegration extends Integration
             'Zend_Controller_Plugin_Broker',
             'preDispatch',
             function (SpanData $spanData, $args) use ($integration, $appName) {
-                $rootScope = GlobalTracer::get()->getRootScope();
-                if (null === $rootScope) {
-                    return false;
-                }
-
-                $rootSpan = $rootScope->getSpan();
+                $rootSpan = \DDTrace\root_span();
                 if (null === $rootSpan) {
                     return false;
                 }
@@ -73,23 +68,21 @@ class ZendFrameworkIntegration extends Integration
                 try {
                     /** @var Zend_Controller_Request_Abstract $request */
                     list($request) = $args;
-                    $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
-                    $rootSpan->overwriteOperationName($integration->getOperationName());
-                    $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
+                    $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                    $rootSpan->name = $integration->getOperationName();
+                    $rootSpan->service = $appName;
                     $controller = $request->getControllerName();
                     $action = $request->getActionName();
                     $route = Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName();
-                    $rootSpan->setTag('zf1.controller', $controller);
-                    $rootSpan->setTag('zf1.action', $action);
-                    $rootSpan->setTag('zf1.route_name', $route);
-                    $rootSpan->setResource($controller . '@' . $action . ' ' . $route);
-                    $rootSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
-                    $rootSpan->setTag(
-                        Tag::HTTP_URL,
+                    $rootSpan->meta['zf1.controller'] = $controller;
+                    $rootSpan->meta['zf1.action'] = $action;
+                    $rootSpan->meta['zf1.route_name'] = $route;
+                    $rootSpan->resource = $controller . '@' . $action . ' ' . $route;
+                    $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                    $rootSpan->meta[Tag::HTTP_URL] =
                         $request->getScheme() . '://' .
                         $request->getHttpHost() .
-                        $request->getRequestUri()
-                    );
+                        $request->getRequestUri();
                 } catch (\Exception $e) {
                 }
 
@@ -98,15 +91,15 @@ class ZendFrameworkIntegration extends Integration
         );
 
         \DDTrace\trace_method('Zend_Controller_Plugin_Broker', 'postDispatch', function () {
-            $rootScope = GlobalTracer::get()->getRootScope();
-            if (null === $rootScope || null === ($rootSpan = $rootScope->getSpan())) {
+            $rootSpan = \DDTrace\root_span();
+            if (null === $rootSpan) {
                 return false;
             }
 
             // We are enclosing this into a try-catch because we always have to return false,
             // even at the cost of not setting specific metadata.
             try {
-                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $this->getResponse()->getHttpResponseCode());
+                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $this->getResponse()->getHttpResponseCode();
             } catch (\Exception $e) {
             }
 

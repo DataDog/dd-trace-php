@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\ZendFramework\V1;
 
-use DDTrace\GlobalTracer;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 use DDTrace\Tag;
 use Zend_Controller_Front;
@@ -17,28 +16,25 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
      */
     public function preDispatch(Zend_Controller_Request_Abstract $request)
     {
-        $scope = GlobalTracer::get()->getRootScope();
-        if (null === $scope) {
+        $span = \DDTrace\root_span();
+        if (null === $span) {
             return;
         }
-        $span = $scope->getSpan();
         $integration = new ZendFrameworkIntegration();
         // Overwriting the default web integration
-        $integration->addTraceAnalyticsIfEnabledLegacy($span);
+        $integration->addTraceAnalyticsIfEnabled($span);
         $controller = $request->getControllerName();
         $action = $request->getActionName();
         $route = Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName();
-        $span->setTag('zf1.controller', $controller);
-        $span->setTag('zf1.action', $action);
-        $span->setTag('zf1.route_name', $route);
-        $span->setResource($controller . '@' . $action . ' ' . $route);
-        $span->setTag(Tag::HTTP_METHOD, $request->getMethod());
-        $span->setTag(
-            Tag::HTTP_URL,
+        $span->meta['zf1.controller'] = $controller;
+        $span->meta['zf1.action'] = $action;
+        $span->meta['zf1.route_name'] = $route;
+        $span->resource = $controller . '@' . $action . ' ' . $route;
+        $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
+        $span->meta[Tag::HTTP_URL] =
             $request->getScheme() . '://' .
             $request->getHttpHost() .
-            $request->getRequestUri()
-        );
+            $request->getRequestUri();
     }
 
     /**
@@ -46,10 +42,10 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
      */
     public function postDispatch(Zend_Controller_Request_Abstract $request)
     {
-        $scope = GlobalTracer::get()->getRootScope();
-        if (null === $scope) {
+        $span = \DDTrace\root_span();;
+        if (null === $span) {
             return;
         }
-        $scope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $this->getResponse()->getHttpResponseCode());
+        $span->meta[Tag::HTTP_STATUS_CODE] = $this->getResponse()->getHttpResponseCode();
     }
 }
