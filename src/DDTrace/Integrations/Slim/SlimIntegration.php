@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Slim;
 
-use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -46,9 +45,9 @@ class SlimIntegration extends Integration
                 }
 
                 // Overwrite root span info
-                $rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
-                $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
-                $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
+                $rootSpan = \DDTrace\root_span();
+                $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                $rootSpan->service = $appName;
 
                 if ('4' === $majorVersion) {
                     \DDTrace\hook_method('Slim\\MiddlewareDispatcher', 'addMiddleware', function ($This, $self, $args) {
@@ -68,11 +67,11 @@ class SlimIntegration extends Integration
                     \DDTrace\hook_method(
                         'Slim\\Middleware\\ErrorMiddleware',
                         'handleException',
-                        function ($errorMiddleware, $self, $args) use ($rootSpan) {
+                        function ($errorMiddleware, $self, $args) use ($rootSpan, $integration) {
                             if (isset($args[1])) {
                                 $throwable = $args[1];
                                 if ($throwable instanceof \Throwable) {
-                                    $rootSpan->setError($throwable);
+                                    $integration->setError($rootSpan);
                                 }
                             }
                         }
@@ -81,7 +80,7 @@ class SlimIntegration extends Integration
                 }
 
                 if ('3' === $majorVersion) {
-                    $rootSpan->overwriteOperationName('slim.request');
+                    $rootSpan->name = 'slim.request';
 
                     // Hook into the router to extract the proper route name
                     \DDTrace\hook_method(
@@ -91,10 +90,8 @@ class SlimIntegration extends Integration
                         function ($router, $scope, $args, $return) use ($rootSpan) {
                             /** @var \Slim\Interfaces\RouteInterface $route */
                             $route = $return;
-                            $rootSpan->setTag(
-                                Tag::RESOURCE_NAME,
-                                $_SERVER['REQUEST_METHOD'] . ' ' . ($route->getName() ?: $route->getPattern())
-                            );
+                            $rootSpan->resource =
+                                $_SERVER['REQUEST_METHOD'] . ' ' . ($route->getName() ?: $route->getPattern());
                         }
                     );
                 }
@@ -111,22 +108,22 @@ class SlimIntegration extends Integration
 
                     /** @var ServerRequestInterface $request */
                     $request = $args[1];
-                    $rootSpan->setTag(Tag::HTTP_URL, (string) $request->getUri());
+                    $rootSpan->meta[Tag::HTTP_URL] = (string) $request->getUri();
 
                     if ('4' === $majorVersion) {
                         $span->name = 'slim.route';
-                        $rootSpan->setTag('slim.route.handler', $callableName);
+                        $rootSpan->meta['slim.route.handler'] = $callableName;
 
                         $route = $request->getAttribute(RouteContext::ROUTE);
                         if ($route && $route instanceof \Slim\Interfaces\RouteInterface) {
                             $routeName = $route->getName();
                             if ($routeName) {
                                 $span->meta['slim.route.name'] = $routeName;
-                                $rootSpan->setTag('slim.route.name', $routeName);
+                                $rootSpan->meta['slim.route.name'] = $routeName;
                             }
                         }
                     } else {
-                        $rootSpan->setTag('slim.route.controller', $callableName);
+                        $rootSpan->meta['slim.route.controller'] = $callableName;
                         $span->name = 'slim.route.controller';
                     }
                 };
