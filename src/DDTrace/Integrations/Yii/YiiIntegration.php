@@ -109,7 +109,7 @@ class YiiIntegration extends Integration
 
                 if (
                     $firstController === $this
-                    && $rootSpan->meta['app.endpoint'] === null
+                    && empty($rootSpan->meta['app.endpoint'])
                     && isset($this->action->actionMethod)
                 ) {
                     $controller = \get_class($this);
@@ -118,7 +118,7 @@ class YiiIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_URL] = Url::base(true) . Url::current();
                 }
 
-                if ($rootSpan->meta['app.route.path'] === null) {
+                if (empty($rootSpan->meta['app.route.path'])) {
                     $route = $this->module->requestedRoute;
                     $namedParams = [$route];
                     $placeholders = [$route];
