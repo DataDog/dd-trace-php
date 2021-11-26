@@ -184,7 +184,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Foundation\Http\Kernel',
             'renderException',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (!$rootSpan->exception) {
+                if (empty($rootSpan->exception)) {
                     $integration->setError($rootSpan, $args[1]);
                 }
             }
@@ -194,7 +194,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Routing\Pipeline',
             'handleException',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (!$rootSpan->exception) {
+                if (empty($rootSpan->exception)) {
                     $integration->setError($rootSpan, $args[1]);
                 }
             }
