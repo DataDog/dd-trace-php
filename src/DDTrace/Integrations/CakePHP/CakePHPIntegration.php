@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\CakePHP;
 
 use CakeRequest;
-use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
