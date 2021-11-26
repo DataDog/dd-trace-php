@@ -236,8 +236,6 @@ static zend_object_value ddtrace_span_data_create(zend_class_entry *class_type T
     ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
     zend_object_std_init(&span_fci->span.std, class_type TSRMLS_CC);
     object_properties_init(&span_fci->span.std, class_type);
-    span_fci->span.std.properties_table = ecalloc(class_type->default_properties_count, sizeof(zval *));
-    span_fci->span.std.properties = NULL;
     // ensure array initialized
     ddtrace_spandata_property_meta(&span_fci->span);
     ddtrace_spandata_property_metrics(&span_fci->span);
