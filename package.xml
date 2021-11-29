@@ -64,6 +64,8 @@
             <file name="components/string_view/string_view.h" role="src" />
             <file name="components/time/time.c" role="src" />
             <file name="components/time/time.h" role="src" />
+            <file name="components/uuid/uuid.c" role="src" />
+            <file name="components/uuid/uuid.h" role="src" />
 
             <!-- Zend Abstract Interface -->
             <file name="zend_abstract_interface/config/config.c" role="src" />
