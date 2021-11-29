@@ -998,12 +998,11 @@ jobs:
             fi
             if [ -e /etc/alpine-release ]
             then
-              # We build from source on Alpine (slow)
-              mkdir -p /tmp/cmake /opt/cmake/<< parameters.cmake_version >>
-              cd /tmp/cmake
-              curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>.tar.gz
-              tar -xf *.tar.gz --strip 1
-              ./bootstrap --prefix=/opt/cmake/<< parameters.cmake_version >> --parallel=2 && make -j 2 && make install
+              if [ -f /usr/bin/cmake ]; then
+              	sudo apk del cmake
+              fi
+              sudo apk add "cmake><< parameters.cmake_version >>"
+              mkdir -p /opt/cmake/<< parameters.cmake_version >>
             else
               # We use prebuilt Linux packages everywhere else (fast)
               cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
