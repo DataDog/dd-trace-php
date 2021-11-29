@@ -3,6 +3,7 @@ extern "C" {
 
 #include "config/config_decode.h"
 #include "ext_zai_config.h"
+#include "json/json.h"
 #include "zai_sapi/zai_sapi.h"
 #include "zai_sapi/zai_sapi_extension.h"
 }
@@ -267,6 +268,7 @@ TEST_CASE("decode set", "[zai_config_decode]") {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    zai_json_setup_bindings();
 
     zval value;
     bool ret;
@@ -317,6 +319,56 @@ TEST_CASE("decode set", "[zai_config_decode]") {
 
     ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
     zai_sapi_spindown();
+}
+
+// we deliberately do not test the json implementation, but just the basic invocation and conversion to persistent
+// and also the handling of error cases
+TEST_CASE("decode json", "[zai_config_decode]") {
+    zval value;
+    bool ret;
+    zai_config_type type = ZAI_CONFIG_TYPE_JSON;
+
+    REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
+    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    zai_json_setup_bindings();
+
+    // ---
+
+    zai_string_view errors[] = {
+        ZAI_STRL_VIEW("0"),
+        ZAI_STRL_VIEW("\"foo\""),
+        ZAI_STRL_VIEW("[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]"),
+    };
+
+    for (zai_string_view name : errors) {
+        ZVAL_UNDEF(&value);
+        ret = zai_config_decode_value(name, type, &value, false);
+
+        REQUIRE(ret == false);
+        REQUIRE(Z_TYPE(value) <= IS_NULL);
+    }
+
+    // ---
+
+    ZVAL_UNDEF(&value);
+    ret = zai_config_decode_value(ZAI_STRL_VIEW("{\"foo\":1,\"bar\":\"str\",\"baz\":[1],\"empty\":[]}"), type, &value, true);
+
+    // ---
+
+    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    zai_sapi_spindown();
+
+    // execute after zend_MM free
+    REQUIRE(ret == true);
+    REQUIRE(Z_TYPE(value) == IS_ARRAY);
+    REQUIRE_MAP_KEY(&value, "foo");
+    REQUIRE_MAP_VALUE_EQ(&value, "bar", "str");
+    REQUIRE_MAP_KEY(&value, "baz");
+    REQUIRE_MAP_KEY(&value, "empty");
+    REQUIRE(zend_hash_num_elements(Z_ARRVAL(value)) == 4);
+    zend_hash_destroy(Z_ARRVAL(value));
+    free(Z_ARRVAL(value));
 }
 
 /******************* zai_config_decode_value() (persistent) *******************/
