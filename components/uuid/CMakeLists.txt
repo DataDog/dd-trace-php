@@ -7,7 +7,7 @@ target_include_directories(datadog-php-uuid
 )
 
 target_compile_features(datadog-php-uuid
-  PUBLIC c_std_99
+  PUBLIC c_std_11
 )
 
 set_target_properties(datadog-php-uuid PROPERTIES

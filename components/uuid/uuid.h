@@ -1,6 +1,7 @@
 #ifndef DATADOG_PHP_UUID
 #define DATADOG_PHP_UUID
 
+#include <stdalign.h>
 #include <stdint.h>
 
 #if __cplusplus
@@ -13,7 +14,7 @@
 
 typedef struct datadog_php_uuid {
     // Since this is a 16-byte type, let's use a 16 byte alignment
-    _Alignas(16) uint8_t data[16];
+    alignas(16) uint8_t data[16];
 } datadog_php_uuid;
 
 #define DATADOG_PHP_UUID_INIT                              \
