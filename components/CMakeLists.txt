@@ -14,23 +14,17 @@ project(datadog-php-components
 find_package(PkgConfig)
 if (PKG_CONFIG_FOUND)
   pkg_check_modules(UV IMPORTED_TARGET libuv)
-endif()
+endif ()
 
-option(BUILD_COMPONENTS_TESTING "Enable tests" OFF)
-if (${BUILD_COMPONENTS_TESTING})
-  # todo: remove this compat shim
-  set(DATADOG_PHP_TESTING "${BUILD_COMPONENTS_TESTING}")
+option(DATADOG_PHP_TESTING "Enable Datadog PHP tests" OFF)
+if (${DATADOG_PHP_TESTING})
 
-  # Tests uses the C++ testing framework Catch2
+  # Tests use the C++ testing framework Catch2
   enable_language(CXX)
 
   # The Catch2::Catch2 target has been available since 2.1.2
   # We are unsure of the true minimum, but have tested 2.4
   find_package(Catch2 2.4 REQUIRED)
-
-  #[[ This file takes a while to build, so we do it once here and every test
-      executable can link to it to save time.
-  ]]
 
   include(Catch)
 
@@ -41,7 +35,7 @@ if (${BUILD_COMPONENTS_TESTING})
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/catch2withmain.cc
       "#define CATCH_CONFIG_MAIN\n"
       "#include <catch2/catch.hpp>\n"
-      )
+    )
 
     add_library(Catch2WithMain ${CMAKE_CURRENT_BINARY_DIR}/catch2withmain.cc)
     target_compile_features(Catch2WithMain INTERFACE cxx_std_11)
@@ -54,7 +48,7 @@ if (${BUILD_COMPONENTS_TESTING})
   endif ()
 
   enable_testing()
-endif()
+endif ()
 
 include(GNUInstallDirs)
 
@@ -68,7 +62,7 @@ if (TARGET PkgConfig::UV)
   add_subdirectory(channel)
 else ()
   message(WARNING "component channel was skipped because libuv is missing")
-endif()
+endif ()
 
 add_subdirectory(container_id)
 add_subdirectory(log)

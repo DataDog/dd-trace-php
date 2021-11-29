@@ -14,9 +14,9 @@ int main(void) {
 }
 " DATADOG_HAVE_TIMESPEC_GET)
 
-if(DATADOG_HAVE_TIMESPEC_GET)
+if (DATADOG_HAVE_TIMESPEC_GET)
   target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_TIMESPEC_GET=1)
-endif()
+endif ()
 
 #[[ Prior to glibc 2.17, librt was required for clock_gettime.
     Check for it without flags first.
@@ -32,7 +32,7 @@ return clock_gettime(CLOCK_REALTIME, &ts) == 0 ? 0 : 1;
 
 cmake_pop_check_state()
 
-if(NOT DATADOG_HAVE_CLOCK_GETTIME)
+if (NOT DATADOG_HAVE_CLOCK_GETTIME)
   # Try again with -lrt
   cmake_push_check_state(RESET)
   set(CMAKE_REQUIRED_LIBRARIES -lrt)
@@ -44,13 +44,13 @@ return clock_gettime(CLOCK_REALTIME, &ts) == 0 ? 0 : 1;
 }
 " DATADOG_HAVE_CLOCK_GETTIME_RT)
 
-  if(DATADOG_HAVE_CLOCK_GETTIME_RT)
+  if (DATADOG_HAVE_CLOCK_GETTIME_RT)
     target_link_libraries(datadog-php-time PRIVATE -lrt)
-  endif()
+  endif ()
   cmake_pop_check_state()
-endif()
+endif ()
 
-if(DATADOG_HAVE_CLOCK_GETTIME OR DATADOG_HAVE_CLOCK_GETTIME_RT)
+if (DATADOG_HAVE_CLOCK_GETTIME OR DATADOG_HAVE_CLOCK_GETTIME_RT)
   target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_CLOCK_GETTIME=1)
 
   cmake_push_check_state(RESET)
@@ -67,11 +67,11 @@ if(DATADOG_HAVE_CLOCK_GETTIME OR DATADOG_HAVE_CLOCK_GETTIME_RT)
     return 0;
   }
   " DATADOG_HAVE_PTHREAD_GETCPUCLOCKID)
-  if(DATADOG_HAVE_PTHREAD_GETCPUCLOCKID)
+  if (DATADOG_HAVE_PTHREAD_GETCPUCLOCKID)
     target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_PTHREAD_GETCPUCLOCKID=1)
-  endif()
+  endif ()
   cmake_pop_check_state()
-endif()
+endif ()
 
 check_c_source_runs("#include <mach/mach_init.h>
 #include <mach/thread_act.h>
@@ -85,6 +85,6 @@ int main(void) {
 }
 " DATADOG_HAVE_THREAD_INFO)
 
-if(DATADOG_HAVE_THREAD_INFO)
+if (DATADOG_HAVE_THREAD_INFO)
   target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_THREAD_INFO=1)
-endif()
+endif ()

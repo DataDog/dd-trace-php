@@ -19,9 +19,9 @@ add_library(Datadog::Php::Uuid
   ALIAS datadog-php-uuid
 )
 
-if(DATADOG_PHP_TESTING)
+if (DATADOG_PHP_TESTING)
   add_subdirectory(tests)
-endif()
+endif ()
 
 # This copies the include files when `install` is ran
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/uuid.h
