@@ -46,7 +46,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'http.status_code' => '200',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
-                    '_sampling_priority_v1' => 2,
+                    '_sampling_priority_v1' => 1,
                 ])->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                         SpanAssertion::exists('symfony.httpkernel.kernel.boot'),

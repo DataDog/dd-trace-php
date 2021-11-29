@@ -43,7 +43,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
-                        '_sampling_priority_v1' => 2,
+                        '_sampling_priority_v1' => 1,
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.application.handle')

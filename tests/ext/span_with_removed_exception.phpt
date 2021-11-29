@@ -70,7 +70,7 @@ array(1) {
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
-      float(2)
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
@@ -105,7 +105,7 @@ array(1) {
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
-      float(2)
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
@@ -140,7 +140,7 @@ array(1) {
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
-      float(2)
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
