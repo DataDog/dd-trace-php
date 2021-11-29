@@ -3,11 +3,11 @@
 #include <assert.h>
 #include <ctype.h>
 #include <json/json.h>
-#include <zai_compat.h>
 #include <main/php.h>
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
+#include <zai_compat.h>
 
 #if PHP_VERSION_ID < 70000
 #undef zval_internal_ptr_dtor
