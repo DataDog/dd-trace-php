@@ -430,7 +430,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
             $this->assertSame('test.invalid', $found['headers']['Host']);
             $this->assertSame('application/json', $found['headers']['Accept']);
-            $this->assertSame('2', $found['headers']['X-Datadog-Sampling-Priority']);
+            $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         });
     }
 
