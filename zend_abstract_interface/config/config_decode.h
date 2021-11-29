@@ -13,9 +13,11 @@ typedef enum {
     ZAI_CONFIG_TYPE_MAP,
     ZAI_CONFIG_TYPE_SET,
     ZAI_CONFIG_TYPE_SET_LOWERCASE,
+    ZAI_CONFIG_TYPE_JSON,
     ZAI_CONFIG_TYPE_STRING,
 } zai_config_type;
 
+void zai_config_dtor_pzval(zval *pval);
 bool zai_config_decode_value(zai_string_view value, zai_config_type type, zval *decoded_value, bool persistent);
 
 #endif  // ZAI_CONFIG_DECODE_H

@@ -10,7 +10,24 @@ composer -dtooling/generation verify
 # PECL doesn't like the "-nightly" part of the nightly version number so we have to change it
 dd_version=$(awk -F\' '/const VERSION/ {sub(/-nightly/, "", $2); print $2}' < src/DDTrace/Tracer.php)
 
-sed -e "s/\${version}/${dd_version}/g" -e "s/\${date}/$(date +%Y-%m-%d)/g" -i package.xml
+configuration_placeholder='
+                <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />
+                <tasks:replace from="_BUILD_FROM_PECL_" to="PHP_VERSION_ID" type="php-const" />
+            </file>
+'
+
+codefiles=""
+for file in "$@"; do
+  codefiles="${codefiles}"$'\n            <file name="'"${file}"'" role="'"$([[ $file == tests/* ]] && echo test || echo src)"'" '"$([[ $file == */configuration.h ]] && echo ">$configuration_placeholder" || echo "/>")"
+done
+
+pkg_xml=$(cat package.xml)
+
+pkg_xml=${pkg_xml//'${version}'/${dd_version}}
+pkg_xml=${pkg_xml//'${date}'/$(date +%Y-%m-%d)}
+pkg_xml=${pkg_xml//'${codefiles}'/${codefiles}}
+
+echo "$pkg_xml" > package.xml
 
 pear package-validate package.xml
 pear package
