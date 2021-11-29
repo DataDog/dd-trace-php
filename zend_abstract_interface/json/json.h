@@ -13,7 +13,8 @@
 extern void (*php_json_encode)(smart_str *buf, zval *val, int options ZAI_TSRMLS_DC);
 extern void (*php_json_decode_ex)(zval *return_value, char *str, int str_len, int options, long depth ZAI_TSRMLS_DC);
 
-static inline void php_json_decode(zval *return_value, char *str, int str_len, zend_bool assoc, long depth ZAI_TSRMLS_DC) {
+static inline void php_json_decode(zval *return_value, char *str, int str_len, zend_bool assoc,
+                                   long depth ZAI_TSRMLS_DC) {
     php_json_decode_ex(return_value, str, str_len, assoc ? PHP_JSON_OBJECT_AS_ARRAY : 0, depth TSRMLS_CC);
 }
 #else
@@ -25,7 +26,8 @@ extern int (*php_json_encode)(smart_str *buf, zval *val, int options ZAI_TSRMLS_
 extern int (*php_json_decode_ex)(zval *return_value, const char *str, size_t str_len, zend_long options,
                                  zend_long depth ZAI_TSRMLS_DC);
 
-static inline int php_json_decode(zval *return_value, const char *str, int str_len, bool assoc, zend_long depth ZAI_TSRMLS_DC) {
+static inline int php_json_decode(zval *return_value, const char *str, int str_len, bool assoc,
+                                  zend_long depth ZAI_TSRMLS_DC) {
     return php_json_decode_ex(return_value, str, str_len, assoc ? PHP_JSON_OBJECT_AS_ARRAY : 0, depth ZAI_TSRMLS_CC);
 }
 #endif
