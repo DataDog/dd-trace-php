@@ -9,27 +9,27 @@ typedef datadog_php_logger logger_t;
 typedef datadog_php_log_level log_level_t;
 typedef datadog_php_string_view string_view_t;
 
-logger_t datadog_php_logger_ctor(int descriptor, log_level_t log_level, pthread_mutex_t *mutex) {
-    logger_t logger = {
+/**
+ * Ensures the logger looks like it should be logging anything at all.
+ *
+ * # Safety
+ * Mutex must exist and be locked prior to calling this function if used in a
+ * multi-threaded context.
+ * `logger` must not be null.
+ */
+__attribute__((nonnull)) static bool logger_valid(datadog_php_logger *logger) {
+    return logger->descriptor >= 0 && logger->log_level >= DATADOG_PHP_LOG_OFF &&
+           logger->log_level <= DATADOG_PHP_LOG_DEBUG;
+}
+
+__attribute__((nonnull)) bool datadog_php_logger_ctor(logger_t *logger, int descriptor, log_level_t log_level,
+                                                      pthread_mutex_t *mutex) {
+    *logger = (logger_t){
         .descriptor = descriptor < 0 ? -1 : descriptor,  // normalize invalid
         .log_level = log_level,
         .mutex = mutex,
     };
-    return logger;
-}
-
-static bool logger_valid(datadog_php_logger *logger) {
-    return logger->descriptor >= 0 && logger->log_level >= DATADOG_PHP_LOG_OFF &&
-           logger->log_level <= DATADOG_PHP_LOG_DEBUG && logger->mutex;
-}
-
-bool datadog_php_logger_valid(datadog_php_logger *logger) {
-    bool valid = false;
-    if (logger->mutex && pthread_mutex_lock(logger->mutex) == 0) {
-        valid = logger_valid(logger);
-        (void)pthread_mutex_unlock(logger->mutex);
-    }
-    return valid;
+    return logger_valid(logger);
 }
 
 void datadog_php_logger_dtor(logger_t *logger) {

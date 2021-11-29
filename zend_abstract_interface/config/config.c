@@ -7,8 +7,6 @@
 #include <string.h>
 
 #if PHP_VERSION_ID < 70000
-#undef zval_internal_ptr_dtor
-#define zval_internal_ptr_dtor zval_internal_dtor
 #define ZVAL_UNDEF(z)  \
     {                  \
         INIT_PZVAL(z); \
@@ -27,19 +25,6 @@ static bool zai_config_get_env_value(zai_string_view name, zai_env_buffer buf) {
     // We want to explicitly allow pre-RINIT access to env vars here. So that callers can have an early view at config.
     // But in general allmost all configurations shall only be accessed after first RINIT. (the trivial getter will
     return zai_getenv_ex(name, buf, true) == ZAI_ENV_SUCCESS;
-}
-
-void zai_config_dtor_pzval(zval *pval) {
-    if (Z_TYPE_P(pval) == IS_ARRAY) {
-        if (Z_DELREF_P(pval) == 0) {
-            zend_hash_destroy(Z_ARRVAL_P(pval));
-            free(Z_ARRVAL_P(pval));
-        }
-    } else {
-        zval_internal_ptr_dtor(pval);
-    }
-    // Prevent an accidental use after free
-    ZVAL_UNDEF(pval);
 }
 
 static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id) {

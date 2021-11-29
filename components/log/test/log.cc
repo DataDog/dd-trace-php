@@ -49,8 +49,8 @@ TEST_CASE("logv", "[log]") {
     pthread_mutex_t mutex;
     REQUIRE(pthread_mutex_init(&mutex, nullptr) == 0);
 
-    auto logger = datadog_php_logger_ctor(fd, DATADOG_PHP_LOG_DEBUG, &mutex);
-    REQUIRE(datadog_php_logger_valid(&logger));
+    datadog_php_logger logger = DATADOG_PHP_LOGGER_INIT;
+    REQUIRE(datadog_php_logger_ctor(&logger, fd, DATADOG_PHP_LOG_DEBUG, &mutex));
 
     datadog_php_string_view messages[3] = {
         {datadog_php_string_view_from_cstr("[Datadog Profiling] ")},

@@ -31,7 +31,7 @@ avoided by using components.
 ## Components should be tested
 
 Components must have a tests subdirectory which gets added to the CMake project
-when the `BUILD_COMPONENTS_TESTING` option is set to true/on. The tests need to
+when the `DATADOG_PHP_TESTING` option is set to true/on. The tests need to
 integrate with CMake so that when the main `test` target is run that the
 component's tests are run as well.
 

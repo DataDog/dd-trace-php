@@ -211,9 +211,7 @@ TEST_CASE("parser: successfully parse a Kubernetes container ID", "[container_id
     dd_parser parser;
     char buf[MAX_ID_LEN + 1] = {0};
     const char line[] =
-        "1:name=systemd:/kubepods.slice/kubepods-burstable.slice/"
-        "kubepods-burstable-pod2d3da189_6407_48e3_9ab6_78188d75e609.slice/"
-        "docker-7b8952daecf4c0e44bbcefe1b5c5ebc7b4839d4eefeccefe694709d3809b6199.scope";
+        "1:name=systemd:/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod2d3da189_6407_48e3_9ab6_78188d75e609.slice/docker-7b8952daecf4c0e44bbcefe1b5c5ebc7b4839d4eefeccefe694709d3809b6199.scope";
 
     REQUIRE(datadog_php_container_id_parser_ctor(&parser));
     REQUIRE(parser.extract_container_id(&parser, buf, line));

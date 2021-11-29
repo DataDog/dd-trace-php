@@ -31,25 +31,14 @@ typedef struct datadog_php_logger_s {
     { -1, DATADOG_PHP_LOG_UNKNOWN, NULL }
 
 /**
- * Returns true if the logger is considered to be valid by the implementation;
- * returns false otherwise.
- * @param logger
- * @return
- */
-bool datadog_php_logger_valid(datadog_php_logger *logger);
-
-/**
- * Returns a newly constructed logger. The result may be valid or invalid; check
- * with the function `datadog_php_logger_valid`.
+ * Creates a logger instance in `logger`. The result may be valid or invalid;
+ * check the return value: `true` for valid.
  *
  * For now, only file descriptors are expected to work, but other types are
  * expected to work in the future.
- *
- * @param descriptor
- * @param log_level
- * @return
  */
-datadog_php_logger datadog_php_logger_ctor(int descriptor, datadog_php_log_level log_level, pthread_mutex_t *mutex);
+__attribute__((nonnull)) bool datadog_php_logger_ctor(datadog_php_logger *logger, int descriptor,
+                                                      datadog_php_log_level log_level, pthread_mutex_t *mutex);
 
 /**
  * Sets the .descriptor to -1, .log_level to `DATADOG_PROFILER_LOG_UNKNOWN`,
