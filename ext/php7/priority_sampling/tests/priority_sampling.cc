@@ -54,32 +54,32 @@ ZEND_GINIT_FUNCTION(ddtrace) {}
     }
 
 TEST_SAMPLING("default sampling", {
-    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_USER_KEEP);
+    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_AUTO_KEEP);
     zend_array *metrics = Z_ARR_P(ddtrace_spandata_property_metrics(&DDTRACE_G(root_span)->span));
     zval *prio = zend_hash_str_find(metrics, ZEND_STRL("_sampling_priority_v1"));
     REQUIRE(prio);
     REQUIRE(Z_TYPE_P(prio) == IS_LONG);
-    REQUIRE(Z_LVAL_P(prio) == PRIORITY_SAMPLING_USER_KEEP);
+    REQUIRE(Z_LVAL_P(prio) == PRIORITY_SAMPLING_AUTO_KEEP);
     zval *psr = zend_hash_str_find(metrics, ZEND_STRL("_dd.rule_psr"));
     REQUIRE(psr);
     REQUIRE(Z_TYPE_P(psr) == IS_DOUBLE);
     REQUIRE(Z_DVAL_P(psr) == 1);
 
-    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_USER_KEEP);
+    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_AUTO_KEEP);
 })
 
 TEST_SAMPLING("low sampling probability - reject", {
     ZVAL_DOUBLE(&config_sample_rate, 0.99);
     very_random_integer = ~0ULL - 100;
 
-    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_USER_REJECT);
+    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_AUTO_REJECT);
 
     // only sampled once
     very_random_integer = 0;
-    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_USER_REJECT);
+    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_AUTO_REJECT);
 
     zend_array *metrics = Z_ARR_P(ddtrace_spandata_property_metrics(&DDTRACE_G(root_span)->span));
-    REQUIRE(Z_LVAL_P(zend_hash_str_find(metrics, ZEND_STRL("_sampling_priority_v1"))) == PRIORITY_SAMPLING_USER_REJECT);
+    REQUIRE(Z_LVAL_P(zend_hash_str_find(metrics, ZEND_STRL("_sampling_priority_v1"))) == PRIORITY_SAMPLING_AUTO_REJECT);
     REQUIRE(Z_DVAL_P(zend_hash_str_find(metrics, ZEND_STRL("_dd.rule_psr"))) == 0.99);
 })
 
@@ -87,7 +87,7 @@ TEST_SAMPLING("low sampling probability - keep", {
     ZVAL_DOUBLE(&config_sample_rate, 0.01);
     very_random_integer = 100;
 
-    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_USER_KEEP);
+    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_AUTO_KEEP);
 })
 
 TEST_SAMPLING("sampling rules - simple rule", {
@@ -197,5 +197,3 @@ TEST_SAMPLING("sampling decision retained from default", {
     zend_array *metrics = Z_ARR_P(ddtrace_spandata_property_metrics(&DDTRACE_G(root_span)->span));
     REQUIRE(!zend_hash_str_exists(metrics, ZEND_STRL("_dd.rule_psr")));
 })
-
-

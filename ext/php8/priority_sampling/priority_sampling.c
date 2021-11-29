@@ -29,6 +29,7 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
     int priority = DDTRACE_G(default_priority_sampling);
     if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         zval *rule;
+        bool explicit_rule = false;
         double sample_rate = get_DD_TRACE_SAMPLE_RATE();
         ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
@@ -48,6 +49,7 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
             zval *sample_rate_zv;
             if (rule_matches && (sample_rate_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("sample_rate")))) {
                 sample_rate = zval_get_double(sample_rate_zv);
+                explicit_rule = true;
                 break;
             }
         }
@@ -57,7 +59,11 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
 
         bool sampling = (double)genrand64_int64() < sample_rate * (double)~0ULL;
 
-        priority = sampling ? PRIORITY_SAMPLING_USER_KEEP : PRIORITY_SAMPLING_USER_REJECT;
+        if (explicit_rule) {
+            priority = sampling ? PRIORITY_SAMPLING_USER_KEEP : PRIORITY_SAMPLING_USER_REJECT;
+        } else {
+            priority = sampling ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
+        }
     }
     add_assoc_long_ex(ddtrace_spandata_property_metrics(&span->span), ZEND_STRL("_sampling_priority_v1"), priority);
 }

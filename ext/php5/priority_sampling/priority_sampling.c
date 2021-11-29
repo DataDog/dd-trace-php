@@ -30,6 +30,7 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span TSRMLS_DC) {
     int priority = DDTRACE_G(default_priority_sampling);
     if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         double sample_rate = get_DD_TRACE_SAMPLE_RATE();
+        bool explicit_rule = false;
         HashPosition pos;
         HashTable *rules = get_DD_TRACE_SAMPLING_RULES();
         zval **rule;
@@ -58,6 +59,7 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span TSRMLS_DC) {
                 zval_copy_ctor(&doublezv);
                 convert_to_double(&doublezv);
                 sample_rate = Z_DVAL(doublezv);
+                explicit_rule = true;
                 break;
             }
         }
@@ -67,7 +69,11 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span TSRMLS_DC) {
 
         bool sampling = (double)genrand64_int64() < sample_rate * (double)~0ULL;
 
-        priority = sampling ? PRIORITY_SAMPLING_USER_KEEP : PRIORITY_SAMPLING_USER_REJECT;
+        if (explicit_rule) {
+            priority = sampling ? PRIORITY_SAMPLING_USER_KEEP : PRIORITY_SAMPLING_USER_REJECT;
+        } else {
+            priority = sampling ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
+        }
     }
     add_assoc_long_ex(ddtrace_spandata_property_metrics(&span->span), "_sampling_priority_v1",
                       sizeof("_sampling_priority_v1"), priority);
