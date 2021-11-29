@@ -2,6 +2,8 @@ extern "C" {
 #include "json/json.h"
 #include "zai_sapi/zai_sapi.h"
 #include "zai_sapi/zai_sapi_extension.h"
+
+#include "zai_compat.h"
 }
 
 #include <catch2/catch.hpp>
