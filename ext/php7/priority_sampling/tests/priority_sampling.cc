@@ -26,6 +26,8 @@ extern "C" {
         return NULL;
     }
 
+    zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
+
     unsigned long long genrand64_int64() { return very_random_integer; }
 }
 
@@ -42,6 +44,7 @@ ZEND_GINIT_FUNCTION(ddtrace) {}
         very_random_integer = 0; \
         array_init(&config_sampling_rules); \
         ZVAL_DOUBLE(&config_sample_rate, 1); \
+        zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index = -1; \
 \
         { code } \
 \
@@ -69,25 +72,27 @@ TEST_SAMPLING("default sampling", {
 })
 
 TEST_SAMPLING("low sampling probability - reject", {
+    zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index = 0;
     ZVAL_DOUBLE(&config_sample_rate, 0.99);
     very_random_integer = ~0ULL - 100;
 
-    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_AUTO_REJECT);
+    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_USER_REJECT);
 
     // only sampled once
     very_random_integer = 0;
-    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_AUTO_REJECT);
+    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_USER_REJECT);
 
     zend_array *metrics = Z_ARR_P(ddtrace_spandata_property_metrics(&DDTRACE_G(root_span)->span));
-    REQUIRE(Z_LVAL_P(zend_hash_str_find(metrics, ZEND_STRL("_sampling_priority_v1"))) == PRIORITY_SAMPLING_AUTO_REJECT);
+    REQUIRE(Z_LVAL_P(zend_hash_str_find(metrics, ZEND_STRL("_sampling_priority_v1"))) == PRIORITY_SAMPLING_USER_REJECT);
     REQUIRE(Z_DVAL_P(zend_hash_str_find(metrics, ZEND_STRL("_dd.rule_psr"))) == 0.99);
 })
 
 TEST_SAMPLING("low sampling probability - keep", {
+    zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index = 1;
     ZVAL_DOUBLE(&config_sample_rate, 0.01);
     very_random_integer = 100;
 
-    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_AUTO_KEEP);
+    REQUIRE(ddtrace_fetch_prioritySampling_from_root() == PRIORITY_SAMPLING_USER_KEEP);
 })
 
 TEST_SAMPLING("sampling rules - simple rule", {

@@ -30,7 +30,7 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span TSRMLS_DC) {
     int priority = DDTRACE_G(default_priority_sampling);
     if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         double sample_rate = get_DD_TRACE_SAMPLE_RATE();
-        bool explicit_rule = false;
+        bool explicit_rule = zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index >= 0;
         HashPosition pos;
         HashTable *rules = get_DD_TRACE_SAMPLING_RULES();
         zval **rule;
