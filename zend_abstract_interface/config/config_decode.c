@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <json/json.h>
+#include <zai_compat.h>
 #include <main/php.h>
 #include <stdbool.h>
 #include <string.h>
