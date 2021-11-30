@@ -1,6 +1,6 @@
 #include "ddshared.h"
 
-#include "container_id/container_id.h"
+#include <components/container_id/container_id.h>
 #include "ddtrace.h"
 #include "logging.h"
 

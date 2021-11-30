@@ -1,5 +1,5 @@
 extern "C" {
-#include "sapi/sapi.h"
+#include <components/sapi/sapi.h>
 }
 
 #include <catch2/catch.hpp>

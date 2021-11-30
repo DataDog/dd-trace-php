@@ -3,8 +3,6 @@
 
 #include <TSRM/TSRM.h>
 
-#include "container_id/container_id.h"
-
 void ddshared_minit(TSRMLS_D);
 
 char *ddshared_container_id(void);

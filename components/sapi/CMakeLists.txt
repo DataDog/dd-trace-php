@@ -2,7 +2,7 @@ add_library(datadog_php_sapi sapi.c)
 
 target_include_directories(datadog_php_sapi
   PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../..>
     $<INSTALL_INTERFACE:include>
 )
 
@@ -23,9 +23,9 @@ add_library(Datadog::Php::Sapi
   ALIAS datadog_php_sapi
 )
 
-if (${BUILD_COMPONENTS_TESTING})
+if (${DATADOG_PHP_TESTING})
   add_subdirectory(tests)
-endif()
+endif ()
 
 # This copies the include files when `install` is ran
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/sapi.h

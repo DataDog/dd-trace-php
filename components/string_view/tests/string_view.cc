@@ -1,5 +1,5 @@
 extern "C" {
-#include "string_view/string_view.h"
+#include <components/string_view/string_view.h>
 }
 
 #include <catch2/catch.hpp>
@@ -28,7 +28,7 @@ TEST_CASE("string_view cstrings", "[string_view]") {
     const char buff[5] = "four";
     datadog_php_string_view four = datadog_php_string_view_from_cstr(buff);
     REQUIRE(four.len == 4);
-    REQUIRE((const void*)four.ptr == (const void*)&buff);
+    REQUIRE((const void *)four.ptr == (const void *)&buff);
 }
 
 TEST_CASE("string_view empty equal", "[string_view]") {
@@ -46,7 +46,7 @@ TEST_CASE("string_view empty equal", "[string_view]") {
 TEST_CASE("string_view equal", "[string_view]") {
     const char buff1[] = "asdf";
     char buff2[sizeof buff1];
-    memcpy((void*)buff2, buff1, sizeof buff1);
+    memcpy((void *)buff2, buff1, sizeof buff1);
 
     datadog_php_string_view str1 = datadog_php_string_view_from_cstr(buff1);
     datadog_php_string_view str2 = datadog_php_string_view_from_cstr(buff2);
@@ -54,6 +54,35 @@ TEST_CASE("string_view equal", "[string_view]") {
     REQUIRE(datadog_php_string_view_equal(str1, str2));
 
     // identity cases
-    REQUIRE(datadog_php_string_view_equal(str1, str1));
-    REQUIRE(datadog_php_string_view_equal(str2, str2));
+    CHECK(datadog_php_string_view_equal(str1, str1));
+    CHECK(datadog_php_string_view_equal(str2, str2));
+
+    char a[] = "aBcDE01234";
+    char b[] = "abcde01234";
+
+    auto x = datadog_php_string_view_from_cstr(a);
+    auto y = datadog_php_string_view_from_cstr(b);
+    CHECK(!datadog_php_string_view_equal(x, y));
+
+    for (auto &ch : a) {
+        ch = (char)(unsigned char)tolower((unsigned char)ch);
+    }
+
+    CHECK(datadog_php_string_view_equal(x, y));
+}
+
+TEST_CASE("string_view equal different lengths", "[string_view]") {
+    char a[] = "aBcDE0";
+    char b[] = "abcde01234";
+
+    auto x = datadog_php_string_view_from_cstr(a);
+    auto y = datadog_php_string_view_from_cstr(b);
+    CHECK(!datadog_php_string_view_equal(x, y));
+
+    for (auto &ch : a) {
+        ch = (char)(unsigned char)tolower((unsigned char)ch);
+    }
+
+    // still not equal after lower-casing
+    CHECK(!datadog_php_string_view_equal(x, y));
 }
