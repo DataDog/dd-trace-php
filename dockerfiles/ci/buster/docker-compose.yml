@@ -44,6 +44,16 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-7.4.21.tar.gz
         phpSha256Hash: 4b9623accbe4b8923a801212f371f784069535009185e7bf7e4dec66bbea61db
 
+  php-7.4-shared-ext:
+    image: datadog/dd-trace-ci:php-7.4-shared-ext
+    build:
+      context: ./php-7.4
+      dockerfile: Dockerfile_shared_ext
+      args:
+        phpVersion: 7.4
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.26.tar.gz
+        phpSha256Hash: 890a7e730f96708a68a77b19fd57fec33cc81573f7249111c870edac42b91a72
+
   php-7.3:
     image: datadog/dd-trace-ci:php-7.3_buster
     build:
