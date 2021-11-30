@@ -74,7 +74,7 @@ class Urls
         if (\substr($path, 0, 1) === '/') {
             // If the user by mistake directly provided an abs path, guzzle and curl
             // will let a request go through, but there will be an error.
-            return 'empty_url';
+            return 'unknown_host';
         }
 
         $pathFragments = \explode('/', $path);

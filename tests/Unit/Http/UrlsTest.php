@@ -104,8 +104,6 @@ final class UrlsTest extends BaseTestCase
         return [
             [null, 'unparsable_url'],
             ['', 'unparsable_url'],
-            ['/', 'empty_url'],
-            ['/path', 'empty_url'],
 
             // no schema
             ['example.com', 'example.com'],
@@ -128,6 +126,12 @@ final class UrlsTest extends BaseTestCase
             ['http://no_dots_in_host/path', 'no_dots_in_host'],
             ['http://no_dots_in_host/path?key=value', 'no_dots_in_host'],
             ['http://no_dots_in_host/path?key=value#fragment', 'no_dots_in_host'],
+
+            // absolute paths
+            ['/', 'unknown_host'],
+            ['/path', 'unknown_host'],
+            ['/path?key=value', 'unknown_host'],
+            ['/path?key=value#fragment', 'unknown_host'],
         ];
     }
 }
