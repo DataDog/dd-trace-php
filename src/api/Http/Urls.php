@@ -56,7 +56,29 @@ class Urls
      */
     public static function hostname($url)
     {
-        return (string) parse_url($url, PHP_URL_HOST);
+        $unparsableUrl = 'unparsable_url';
+        $parts = \parse_url($url);
+        if (!$parts) {
+            return $unparsableUrl;
+        }
+
+        if (isset($parts['host'])) {
+            return $parts['host'];
+        }
+
+        if (empty($parts['path'])) {
+            return $unparsableUrl;
+        }
+
+        $path = $parts['path'];
+        if (\substr($path, 0, 1) === '/') {
+            // If the user by mistake directly provided an abs path, guzzle and curl
+            // will let a request go through, but there will be an error.
+            return 'empty_url';
+        }
+
+        $pathFragments = \explode('/', $path);
+        return $pathFragments[0];
     }
 
     /**

@@ -87,4 +87,47 @@ final class UrlsTest extends BaseTestCase
             ['/secret/one/two/three/test', '/?/one/two/three/test'],
         ];
     }
+
+    /**
+     * @dataProvider dataProviderHostname
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testHostname($url, $expected)
+    {
+        $this->assertSame($expected, Urls::hostname($url));
+    }
+
+    public function dataProviderHostname()
+    {
+        return [
+            [null, 'unparsable_url'],
+            ['', 'unparsable_url'],
+            ['/', 'empty_url'],
+            ['/path', 'empty_url'],
+
+            // no schema
+            ['example.com', 'example.com'],
+            ['example.com/', 'example.com'],
+            ['example.com/path', 'example.com'],
+            ['example.com/path?key=value', 'example.com'],
+            ['example.com/path?key=value#fragment', 'example.com'],
+
+            // with schema
+            ['http://example.com', 'example.com'],
+            ['http://example.com/', 'example.com'],
+            ['http://example.com/path', 'example.com'],
+            ['http://example.com/path?key=value', 'example.com'],
+            ['http://example.com/path?key=value#fragment', 'example.com'],
+
+            // no dots in host name
+            ['no_dots_in_host', 'no_dots_in_host'],
+            ['http://no_dots_in_host', 'no_dots_in_host'],
+            ['http://no_dots_in_host/', 'no_dots_in_host'],
+            ['http://no_dots_in_host/path', 'no_dots_in_host'],
+            ['http://no_dots_in_host/path?key=value', 'no_dots_in_host'],
+            ['http://no_dots_in_host/path?key=value#fragment', 'no_dots_in_host'],
+        ];
+    }
 }

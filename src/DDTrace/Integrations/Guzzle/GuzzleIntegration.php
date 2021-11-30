@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Guzzle;
 
-use DDTrace\Format;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
