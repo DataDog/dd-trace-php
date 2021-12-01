@@ -1,4 +1,4 @@
-#include "sapi/sapi.h"
+#include "sapi.h"
 
 typedef datadog_php_sapi sapi_t;
 typedef datadog_php_string_view string_view_t;
@@ -6,6 +6,10 @@ typedef datadog_php_string_view string_view_t;
 #define SV(cstr) DATADOG_PHP_STRING_VIEW_LITERAL(cstr)
 
 sapi_t datadog_php_sapi_from_name(string_view_t module) {
+    if (!module.ptr || module.len == 0) {
+        return DATADOG_PHP_SAPI_UNKNOWN;
+    }
+
     struct {
         string_view_t str;
         sapi_t type;
@@ -29,3 +33,5 @@ sapi_t datadog_php_sapi_from_name(string_view_t module) {
 
     return DATADOG_PHP_SAPI_UNKNOWN;
 }
+
+datadog_php_sapi datadog_php_sapi_detect(datadog_php_string_view module) { return datadog_php_sapi_from_name(module); }

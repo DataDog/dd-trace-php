@@ -1075,7 +1075,7 @@ jobs:
             CMAKE_PREFIX_PATH=/opt/catch2 cmake \
               $toolchain \
               -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_COMPONENTS_TESTING=ON \
+              -DDATADOG_PHP_TESTING=ON \
               ~/datadog/components
             make -j all
             make test
@@ -1094,7 +1094,7 @@ jobs:
             CMAKE_PREFIX_PATH=/opt/catch2 cmake \
               -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
               -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_COMPONENTS_TESTING=ON \
+              -DDATADOG_PHP_TESTING=ON \
               ~/datadog/components
             make -j all
             make test

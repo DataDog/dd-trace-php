@@ -8,25 +8,39 @@ project(datadog-php-components
   LANGUAGES C
 )
 
-option(BUILD_COMPONENTS_TESTING "Enable tests" OFF)
-if (${BUILD_COMPONENTS_TESTING})
-  # Tests uses the C++ testing framework Catch2
+option(DATADOG_PHP_TESTING "Enable Datadog PHP tests" OFF)
+if (${DATADOG_PHP_TESTING})
+
+  # Tests use the C++ testing framework Catch2
   enable_language(CXX)
 
   # The Catch2::Catch2 target has been available since 2.1.2
   # We are unsure of the true minimum, but have tested 2.4
   find_package(Catch2 2.4 REQUIRED)
 
-  #[[ This file takes a while to build, so we do it once here and every test
-      executable can link to it to save time.
-  ]]
-  add_library(catch2_main catch2_main.cc)
-  target_link_libraries(catch2_main PUBLIC Catch2::Catch2)
-  target_compile_features(catch2_main PUBLIC cxx_std_11)
-
   include(Catch)
+
+  if (NOT TARGET Catch2::Catch2WithMain AND TARGET Catch2::Catch2)
+    #[[ The build of catch2 we are using wasn't configured with
+        `CATCH_BUILD_STATIC_LIBRARY`; let's polyfill it.
+    ]]
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/catch2withmain.cc
+      "#define CATCH_CONFIG_MAIN\n"
+      "#include <catch2/catch.hpp>\n"
+    )
+
+    add_library(Catch2WithMain ${CMAKE_CURRENT_BINARY_DIR}/catch2withmain.cc)
+    target_compile_features(Catch2WithMain INTERFACE cxx_std_11)
+    target_link_libraries(Catch2WithMain PUBLIC Catch2::Catch2)
+    add_library(Catch2::Catch2WithMain ALIAS Catch2WithMain)
+  endif ()
+
+  if (NOT TARGET Catch2::Catch2WithMain)
+    message(FATAL_ERROR "Catch2WithMain not found and polyfill failed.")
+  endif ()
+
   enable_testing()
-endif()
+endif ()
 
 include(GNUInstallDirs)
 

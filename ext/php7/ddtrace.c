@@ -8,6 +8,7 @@
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_smart_str.h>
 #include <Zend/zend_vm.h>
+#include <components/sapi/sapi.h>
 #include <headers/headers.h>
 #include <inttypes.h>
 #include <php.h>
@@ -42,7 +43,6 @@
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
-#include "sapi/sapi.h"
 #include "serializer.h"
 #include "signals.h"
 #include "span.h"
