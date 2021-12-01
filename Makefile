@@ -85,7 +85,6 @@ test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
-test_c_coverage: export DD_TRACE_CLI_ENABLED=1
 test_c_coverage: dist_clean
 	EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" REPORT_EXIT_STATUS=0 $(MAKE) test_c
 
