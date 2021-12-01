@@ -60,6 +60,7 @@ else ()
 endif ()
 
 add_subdirectory(container_id)
+add_subdirectory(log)
 add_subdirectory(queue)
 add_subdirectory(sapi)
 
