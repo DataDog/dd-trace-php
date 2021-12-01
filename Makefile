@@ -5,9 +5,9 @@ SHELL := /bin/bash
 BUILD_SUFFIX := extension
 BUILD_DIR := $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
 ZAI_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_zai
+COMPONENTS_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_components
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
-EXTRA_CFLAGS :=
 CFLAGS := -O2 $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 -g) $(EXTRA_CFLAGS) $(WALL_FLAGS)
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
@@ -85,6 +85,10 @@ test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
+test_c_coverage: export DD_TRACE_CLI_ENABLED=1
+test_c_coverage: dist_clean
+	EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" REPORT_EXIT_STATUS=0 $(MAKE) test_c
+
 test_c_disabled: export DD_TRACE_CLI_ENABLED=0
 test_c_disabled: export DD_TRACE_DEBUG=1
 test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
@@ -161,11 +165,59 @@ build_zai_asan:
 test_zai_asan: build_zai_asan
 	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
 
+build_zai_coverage:
+	( \
+	mkdir -p "$(ZAI_BUILD_DIR)"; \
+	cd $(ZAI_BUILD_DIR); \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	$(MAKE) $(MAKEFLAGS); \
+	)
+
+test_zai_coverage: build_zai_coverage
+	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
+
 clean_zai:
 	rm -rf $(ZAI_BUILD_DIR)
 
+build_components_coverage:
+	( \
+	mkdir -p "$(COMPONENTS_BUILD_DIR)"; \
+	cd $(COMPONENTS_BUILD_DIR); \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPONENTS_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" $(PROJECT_ROOT)/components; \
+	$(MAKE) $(MAKEFLAGS); \
+	)
+
+test_components_coverage: build_components_coverage
+	$(MAKE) -C $(COMPONENTS_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(COMPONENTS_BUILD_DIR)/Testing/Temporary/LastTest.log
+
+test_coverage_collect:
+	$(Q) lcov --directory $(PROJECT_ROOT)/tmp \
+		  --capture \
+		  --exclude "/usr/include/*.h" \
+		  --exclude "/usr/include/*/*/*" \
+		  --exclude "/opt/php/*/include/php/Zend/*" \
+		  --exclude "$(BUILD_DIR)/components/*/*" \
+		  --exclude "$(BUILD_DIR)/zend_abstract_interface/*/*" \
+		  --exclude "$(BUILD_DIR)/ext/vendor/*/*" \
+		  --exclude "$(BUILD_DIR)/src/dogstatsd/*" \
+		  --exclude "$(BUILD_DIR)/src/dogstatsd/dogstatsd_client/*" \
+		  --output-file $(PROJECT_ROOT)/tmp/coverage.info
+	$(Q) sed -i 's+tmp/build_extension/ext+ext+g' $(PROJECT_ROOT)/tmp/coverage.info
+
+test_coverage_output:
+	$(Q) genhtml --legend \
+		     --title "PHP v$(shell php-config --version) / dd-trace-php combined coverage" \
+		     -o $(PROJECT_ROOT)/coverage \
+		     --prefix $(PROJECT_ROOT) \
+		     $(PROJECT_ROOT)/tmp/coverage.info
+
+test_coverage: dist_clean test_components_coverage test_zai_coverage test_c_coverage test_coverage_collect test_coverage_output
+
+clean_components:
+	rm -rf $(COMPONENTS_BUILD_DIR)
+
 dist_clean:
-	rm -rf $(BUILD_DIR) $(ZAI_BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(ZAI_BUILD_DIR) $(COMPONENTS_BUILD_DIR)
 
 clean:
 	if [[ -f "$(BUILD_DIR)/Makefile" ]]; then $(MAKE) -C $(BUILD_DIR) clean; fi
