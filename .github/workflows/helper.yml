@@ -1,0 +1,159 @@
+name: Helper
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - "*"
+  pull_request:
+    paths-ignore:
+      - cmake/extension.cmake
+      - cmake/run-tests-wrapper.sh
+      - cmake/run_tests.cmake
+      - cmake/tracer.cmake
+      - src/extension/**
+      - tests/extension/**
+      - tests/mock_helper/**
+      - examples/**
+      - valgrind.supp
+      - run-tests.php
+      - 'LICENSE**'
+      - NOTICE
+      - '**.md'
+  schedule:
+    - cron:  30 0 * * *
+jobs:
+  helper-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Cache hunter packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.hunter
+          key: ${{ runner.os }}-helper
+      - name: Generate Build Scripts
+        run: |
+            mkdir build
+            cd build
+            cmake .. -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=ON
+      - name: Build
+        run: VERBOSE=1 make -j ddappsec-helper ddappsec_helper_test
+        working-directory: ${{ github.workspace }}/build
+      - name: Test
+        run: ./tests/helper/ddappsec_helper_test
+        working-directory: ${{ github.workspace }}/build
+      - name: Generate coverage report
+        run: |
+          sudo apt-get install -y gcovr
+          gcovr -f '.*src/helper/.*' -x -d -o coverage.xml
+      - name: Submit coverage
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: helper
+          verbose: true
+          files: coverage.xml
+  helper-test-asan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Cache hunter packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.hunter
+          key: ${{ runner.os }}-helper
+      - name: Install clang-tidy
+        run: |
+          cd /tmp
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 13
+          sudo apt-get install -y clang-tidy-13
+      - name: Generate Build Scripts
+        run: |
+            mkdir build
+            cd build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug \
+            -DDD_APPSEC_BUILD_EXTENSION=OFF \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
+            -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
+            -DDD_APPSEC_ENABLE_CLANG_TIDY=ON \
+            -DCLANG_TIDY=/usr/bin/clang-tidy-13
+      - name: Build
+        run: make -j $(nproc) ddappsec-helper ddappsec_helper_test
+        working-directory: ${{ github.workspace }}/build
+      - name: Run clang-tidy
+        run: |
+          VERBOSE=1 make -C build tidy
+      - name: Test
+        run: |
+            ASAN_OPTIONS="verbosity=1 fast_unwind_on_malloc=0 detect_leaks=1" \
+            LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.5 \
+            ./tests/helper/ddappsec_helper_test
+        working-directory: ${{ github.workspace }}/build
+  helper-fuzzer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Cache hunter packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.hunter
+          key: ${{ runner.os }}-helper
+      - name: Install clang
+        run: sudo apt-get install clang
+      - name: Generate Build Scripts
+        run: |
+            mkdir build
+            cd build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug  -DDD_APPSEC_BUILD_EXTENSION=OFF
+        env:
+            CXX: clang++
+            CC: clang
+      - name: Build
+        run: make -j $(nproc) ddappsec_helper_fuzzer corpus_generator
+        working-directory: ${{ github.workspace }}/build
+      - name: Create directories
+        run: mkdir -p tests/fuzzer/{corpus,results,logs}
+        working-directory: ${{ github.workspace }}
+      - name: Generate corpus
+        run: |
+            rm -f tests/fuzzer/corpus/*
+            ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+        working-directory: ${{ github.workspace }}
+      - name: Run fuzzer in nop mode
+        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+        working-directory: ${{ github.workspace }}
+      - name: Generate corpus
+        run: |
+            rm -f tests/fuzzer/corpus/*
+            ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+        working-directory: ${{ github.workspace }}
+      - name: Run fuzzer in raw mode
+        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+        working-directory: ${{ github.workspace }}
+      - name: Generate corpus
+        run: |
+            rm -f tests/fuzzer/corpus/*
+            ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+        working-directory: ${{ github.workspace }}
+      - name: Run fuzzer in body mode
+        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+        working-directory: ${{ github.workspace }}
+      - uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: Upload fuzzer results
+          path: ${{ github.workspace }}/tests/fuzzer/results/*

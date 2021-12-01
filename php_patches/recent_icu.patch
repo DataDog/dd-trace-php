@@ -1,0 +1,107 @@
+diff --git a/ext/intl/breakiterator/breakiterator_class.h b/ext/intl/breakiterator/breakiterator_class.h
+index d1b5ebb2c8..a856b7c7e0 100644
+--- a/ext/intl/breakiterator/breakiterator_class.h
++++ b/ext/intl/breakiterator/breakiterator_class.h
+@@ -26,6 +26,8 @@
+ 
+ #ifndef USE_BREAKITERATOR_POINTER
+ typedef void BreakIterator;
++#else
++using icu::BreakIterator;
+ #endif
+ 
+ typedef struct {
+diff --git a/ext/intl/breakiterator/codepointiterator_internal.h b/ext/intl/breakiterator/codepointiterator_internal.h
+index d34fc0a2c2..16c5d6aed6 100644
+--- a/ext/intl/breakiterator/codepointiterator_internal.h
++++ b/ext/intl/breakiterator/codepointiterator_internal.h
+@@ -19,6 +19,7 @@
+ 
+ #include <unicode/brkiter.h>
+ 
++using namespace icu;
+ using U_ICU_NAMESPACE::BreakIterator;
+ 
+ namespace PHP {
+diff --git a/ext/intl/calendar/calendar_class.h b/ext/intl/calendar/calendar_class.h
+index a884580a9a..066708e781 100644
+--- a/ext/intl/calendar/calendar_class.h
++++ b/ext/intl/calendar/calendar_class.h
+@@ -24,8 +24,11 @@
+ #include "intl_error.h"
+ #include "intl_data.h"
+ 
++
+ #ifndef USE_CALENDAR_POINTER
+ typedef void Calendar;
++#else
++using namespace icu;
+ #endif
+ 
+ typedef struct {
+diff --git a/ext/intl/common/common_date.cpp b/ext/intl/common/common_date.cpp
+index f1bf75ab0f..8f8cb64673 100644
+--- a/ext/intl/common/common_date.cpp
++++ b/ext/intl/common/common_date.cpp
+@@ -17,6 +17,7 @@
+ #include "../intl_cppshims.h"
+ 
+ #include <unicode/calendar.h>
++using namespace icu;
+ 
+ extern "C" {
+ #include "../php_intl.h"
+diff --git a/ext/intl/common/common_enum.h b/ext/intl/common/common_enum.h
+index b9b87c17e0..d21713012b 100644
+--- a/ext/intl/common/common_enum.h
++++ b/ext/intl/common/common_enum.h
+@@ -29,8 +29,10 @@ extern "C" {
+ #include "../intl_data.h"
+ #ifdef __cplusplus
+ }
++using namespace icu;
+ #endif
+ 
++
+ #define INTLITERATOR_ERROR(ii)						(ii)->err
+ #define INTLITERATOR_ERROR_P(ii)					&(INTLITERATOR_ERROR(ii))
+ 
+diff --git a/ext/intl/dateformat/dateformat_helpers.h b/ext/intl/dateformat/dateformat_helpers.h
+index eb90c99169..f0163291f7 100644
+--- a/ext/intl/dateformat/dateformat_helpers.h
++++ b/ext/intl/dateformat/dateformat_helpers.h
+@@ -27,6 +27,8 @@ extern "C" {
+ #include "../php_intl.h"
+ }
+ 
++using namespace icu;
++
+ int datefmt_process_calendar_arg(zval* calendar_zv,
+ 								 Locale const& locale,
+ 								 const char *func_name,
+diff --git a/ext/intl/intl_convertcpp.h b/ext/intl/intl_convertcpp.h
+index eab5f149c8..08d89828ab 100644
+--- a/ext/intl/intl_convertcpp.h
++++ b/ext/intl/intl_convertcpp.h
+@@ -26,6 +26,8 @@
+ #include <unicode/unistr.h>
+ #include <zend_types.h>
+ 
++using namespace icu;
++
+ int intl_stringFromChar(UnicodeString &ret, char *str, size_t str_len, UErrorCode *status);
+ 
+ zend_string* intl_charFromString(const UnicodeString &from, UErrorCode *status);
+diff --git a/ext/intl/timezone/timezone_class.h b/ext/intl/timezone/timezone_class.h
+index 0667c78994..99e9b56dae 100644
+--- a/ext/intl/timezone/timezone_class.h
++++ b/ext/intl/timezone/timezone_class.h
+@@ -29,6 +29,8 @@
+ 
+ #ifndef USE_TIMEZONE_POINTER
+ typedef void TimeZone;
++#else
++using icu::TimeZone;
+ #endif
+ 
+ typedef struct {

@@ -1,0 +1,111 @@
+version: '3.7'
+
+services:
+  toolchain:
+    image: datadog/dd-appsec-php-ci:toolchain
+    build:
+      context: toolchain
+
+  hunter-cache:
+    image: datadog/dd-appsec-php-ci:hunter-cache
+    build:
+      dockerfile: tests/docker/hunter-cache/Dockerfile
+      context: ../..
+
+  php-7.0-release:
+    image: datadog/dd-appsec-php-ci:php-7.0-release
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.0.33', VARIANT: 'release' }
+
+  php-7.0-release-zts:
+    image: datadog/dd-appsec-php-ci:php-7.0-release-zts
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.0.33', VARIANT: 'release-zts' }
+
+  php-7.1-release:
+    image: datadog/dd-appsec-php-ci:php-7.1-release
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.1.33', VARIANT: 'release' }
+
+  php-7.1-release-zts:
+    image: datadog/dd-appsec-php-ci:php-7.1-release-zts
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.1.33', VARIANT: 'release-zts' }
+
+  php-7.2-release:
+    image: datadog/dd-appsec-php-ci:php-7.2-release
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.2.34', VARIANT: 'release' }
+
+  php-7.2-release-zts:
+    image: datadog/dd-appsec-php-ci:php-7.2-release-zts
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.2.34', VARIANT: 'release-zts' }
+
+  php-7.3-release:
+    image: datadog/dd-appsec-php-ci:php-7.3-release
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.3.31', VARIANT: 'release' }
+
+  php-7.3-release-zts:
+    image: datadog/dd-appsec-php-ci:php-7.3-release-zts
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.3.31', VARIANT: 'release-zts' }
+
+  php-7.4-release:
+    image: datadog/dd-appsec-php-ci:php-7.4-release
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.4.24', VARIANT: 'release' }
+
+  php-7.4-release-zts:
+    image: datadog/dd-appsec-php-ci:php-7.4-release-zts
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '7.4.24', VARIANT: 'release-zts' }
+
+  php-8.0-release:
+    image: datadog/dd-appsec-php-ci:php-8.0-release
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '8.0.11', VARIANT: 'release' }
+
+  php-8.0-release-zts:
+    image: datadog/dd-appsec-php-ci:php-8.0-release-zts
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '8.0.11', VARIANT: 'release-zts' }
+
+  php-8.1-release:
+    image: datadog/dd-appsec-php-ci:php-8.1-release
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '8.1.0', VARIANT: 'release' }
+
+  php-8.1-release-zts:
+    image: datadog/dd-appsec-php-ci:php-8.1-release-zts
+    build:
+      context: ../..
+      dockerfile: tests/docker/php/Dockerfile
+      args: { PHP_VERSION: '8.1.0', VARIANT: 'release-zts' }

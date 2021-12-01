@@ -1,0 +1,52 @@
+{
+   <ddtrace unclean thread shutdown>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:ddtrace_coms_init_and_start_writer
+   fun:dd_rinit_once
+   ...
+   fun:zm_activate_ddtrace
+   fun:zend_activate_modules
+   fun:php_request_startup
+   ...
+}
+{
+   <ddtrace unclean thread shutdown 2>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:ddtrace_coms_init_and_start_writer
+   ...
+   fun:zm_activate_ddtrace
+   fun:zend_activate_modules
+   ...
+   fun:php_request_startup
+   ...
+}
+# https://gist.github.com/nikic/8d404c6799a1532b0c10280f5e57a888
+{
+   String_Equality_Intentionally_Reads_Uninit_Memory
+   Memcheck:Cond
+   fun:zend_string_equal_val
+}
+{
+   <_emit_error>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:php_verror
+   fun:_emit_error
+   ...
+}
+{
+   <leak during error raising 7.4>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:__zend_malloc
+   fun:zend_compile
+   fun:compile_file
+   fun:zend_execute_scripts
+   fun:php_execute_script
+}

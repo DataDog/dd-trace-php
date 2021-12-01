@@ -1,0 +1,66 @@
+plugins {
+    id 'groovy'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'ch.qos.logback:logback-classic:1.2.6'
+    implementation 'org.slf4j:jul-to-slf4j:1.7.32'
+
+    implementation 'org.codehaus.groovy:groovy:3.0.9'
+    implementation 'com.google.guava:guava:31.0.1-jre'
+    implementation 'org.msgpack:msgpack-core:0.9.0'
+
+    implementation platform('org.testcontainers:testcontainers-bom:1.16.2')
+    implementation "org.testcontainers:junit-jupiter"
+    implementation 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    implementation 'com.flipkart.zjsonpatch:zjsonpatch:0.4.11'
+
+}
+
+test {
+}
+
+tasks['test'].enabled(false)
+
+def testMatrix = ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0'].collectMany {
+    [[it, 'release'], [it, 'release-zts']]
+}
+
+testMatrix.each { spec ->
+    def phpVersion = spec[0]
+    def variant = spec[1]
+
+
+    def task = tasks.register("test${phpVersion}-$variant", Test) {
+        group = 'Verification'
+        description = "Run tests for PHP ${phpVersion} ${variant}"
+
+        it.outputs.upToDateWhen { false }
+
+        it.useJUnitPlatform {
+            includeEngines('junit-jupiter')
+            excludeEngines('junit-vintage')
+        }
+
+        it.systemProperty 'PHP_VERSION', phpVersion
+        it.systemProperty 'VARIANT', variant
+        it.systemProperty 'TRACER_VERSION', '0.67.0'
+    }
+
+    tasks['check'].dependsOn task
+}
+
+if (hasProperty('buildScan')) {
+    buildScan {
+        termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+        termsOfServiceAgree = 'yes'
+    }
+}
+
+
+// vim: set et sw=4 ts=4:

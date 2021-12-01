@@ -1,0 +1,16 @@
+---
+IndentWidth: 4
+AlignAfterOpenBracket: DontAlign
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: true
+IndentPPDirectives: AfterHash
+# needs a very recent clang-format
+#PPIndentWidth: 2
+---
+Language: Cpp
+ColumnLimit: 80
+Standard: c++20
+---

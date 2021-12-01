@@ -1,0 +1,47 @@
+Component,Origin,License,Copyright
+core,php,PHP-3.01,The PHP Group
+core,rapidjson,MIT,THL A29 Limited a Tencent company and Milo Yip
+core,msgpack-c,BSL-1.0,FURUHASHI Sadayuki
+core,mpack,MIT,Nicholas Fraser and the MPack authors
+core,libddwaf,Apache-2.0,Datadog Inc
+core,spdlog,MIT,Gabi Melman
+core,boost,BSL-1.0,The original authors
+dev,googletest,BSD-3-Clause,Google Inc
+dev,gflags,BSD-3-Clause,Google Inc
+dev,libfuzzer,Apache-2.0,The original authors
+build,cmake,BSD-3-Clause,Kitware Inc and Contributors
+build,hunter,BSD-2-Clause,Ruslan Baratov
+junit,junit,EPL-1.0,JUnit
+junit-jupiter-api,org.junit.jupiter,EPL-2.0,JUnit
+junit-jupiter-engine,org.junit.jupiter,EPL-2.0,JUnit
+junit-platform-commons,org.junit.platform,EPL-2.0,JUnit
+junit-platform-engine,org.junit.platform,EPL-2.0,JUnit
+junit-jupiter,org.testcontainers,MIT,Richard North and other authors
+testcontainers,org.testcontainers,MIT,Richard North and other authors
+duct-tape,org.rnorth.duct-tape,MIT,Richard North
+zjsonpatch,com.flipkart.zjsonpatch,Apache-2.0,lipkart.com zjsonpatch
+jna,net.java.dev.jna,Apache-2.0,The original authors
+jul-to-slf4j,org.slf4j,MIT,QOS.ch
+logback-classic,ch.qos.logback,EPL-1.0,QOS.ch
+logback-core,ch.qos.logback,EPL-1.0,QOS.ch
+slf4j-api,org.slf4j,MIT,QOS.ch
+hamcrest-core,org.hamcrest,BSD-2-Clause,hamcrest.org
+failureaccess,com.google.guava,Apache-2.0,The Guava Authors
+guava,com.google.guava,Apache-2.0,The Guava Authors
+listenablefuture,com.google.guava,Apache-2.0,The Guava Authors
+error_prone_annotations,com.google.errorprone,Apache-2.0,The Error Prone Authors
+checker-qual,org.checkerframework,MIT,The Checker Framework developers
+annotations,org.jetbrains,Apache-2.0,JetBrains s.r.o
+j2objc-annotations,com.google.j2objc,Apache-2.0,Google Inc
+jsr305,com.google.code.findbugs,Apache-2.0,Google Inc
+groovy,org.codehaus.groovy,Apache-2.0,The Apache Software Foundation
+commons-compress,org.apache.commons,Apache-2.0,The Apache Software Foundation
+commons-collections4,org.apache.commons,Apache-2.0,The Apache Software Foundation
+jackson-annotations,com.fasterxml.jackson.core,Apache-2.0,FasterXML
+jackson-core,com.fasterxml.jackson.core,Apache-2.0,FasterXML
+jackson-databind,com.fasterxml.jackson.core,Apache-2.0,FasterXML
+opentest4j,org.opentest4j,Apache-2.0,The original authors.
+msgpack-core,org.msgpack,Apache-2.0,The original authors.
+docker-java-api,com.github.docker-java,Apache-2.0,The original authors
+docker-java-transport,com.github.docker-java,Apache-2.0,The original authors
+docker-java-transport-zerodep,com.github.docker-java,Apache-2.0,The original authors

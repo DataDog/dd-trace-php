@@ -1,0 +1,72 @@
+#!/bin/bash -e
+
+set -x
+
+mkdir -p /pbuild
+cd /pbuild
+
+function prepare {
+  local -r php_v=$1 # php dir or "helper"
+
+  cmake \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCMAKE_INSTALL_PREFIX=/dd-appsec-php \
+    -DDD_APPSEC_BUILD_HELPER=$(if [[ $php_v = 'helper' ]]; then echo ON; else echo OFF; fi) \
+    -DDD_APPSEC_BUILD_EXTENSION=$(if [[ $php_v = 'helper' ]]; then echo OFF; else echo ON; fi) \
+    -DPHP_CONFIG="${php_v}"/bin/php-config \
+    -DDD_APPSEC_BUILD_TRACER=OFF \
+    -DDD_APPSEC_TRACER_VERSION=0.67.0 \
+    -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \
+    -DDD_APPSEC_INSTALL_RULES_FILE=/project/.github/workflows/release/recommended.json \
+    -DCMAKE_TOOLCHAIN_FILE=/build/Toolchain.cmake \
+    /project
+}
+
+function build_helper {
+   prepare helper
+   VERBOSE=1 make -j ddappsec-helper ddappsec_helper_test
+   ./tests/helper/ddappsec_helper_test
+   make install
+}
+
+function build_ext {
+  if [[ -d $1 ]]; then
+    prepare $1
+    VERBOSE=1 make -j extension
+    TESTS="--show-diff" make -j xtest
+    make install
+  else
+    prepare "${PHP_ROOT}/$1-release-minimal"
+    VERBOSE=1 make -j extension
+    TESTS="--show-diff" make -j xtest
+    make install
+
+    prepare "${PHP_ROOT}/$1-release-zts-minimal"
+    TESTS="--show-diff" VERBOSE=1 make -j extension
+    make -j xtest
+    make install
+  fi
+}
+
+function tarballs {
+  local -r version=$(grep -Po '(?<=project\(ddappsec VERSION ).+(?=\))' /project/CMakeLists.txt)
+  mkdir -p /out
+
+  echo $version > /dd-appsec-php/VERSION
+  tar -C / --exclude '**/*.debug' -czf /out/dd-appsec-php-$version-amd64.tar.gz dd-appsec-php
+
+  (
+    cd /
+    shopt -s globstar
+    tar -czf /out/dd-appsec-php-$version-amd64-debug.tar.gz dd-appsec-php/**/*.debug
+  )
+}
+
+
+for v in "$@"; do
+  build_ext $v
+done
+
+build_helper
+
+tarballs

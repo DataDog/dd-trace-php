@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    env:
+      PHP_HOMEDIR: /php
+    steps:
+      - name: Create /php ($PHP_HOMEDIR)
+        run: sudo mkdir $PHP_HOMEDIR && sudo chown $(whoami) $PHP_HOMEDIR
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Cache toolchain
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/toolchain.tar
+          key: toolchain-${{ hashFiles('.github/workflows/release/toolchain/*') }}
+      - name: Cache PHP
+        id: cache_php
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.PHP_HOMEDIR }}
+          key: ${{ runner.os }}-php-3
+      - name: Cache Hunter
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.hunter
+          key: ${{ runner.os }}-hunter-libcxx-2
+      - name: Download pre-built php environments
+        if: steps.cache_php.outputs.cache-hit != 'true'
+        run: |
+          curl -o /tmp/php_cache.tar.gz http://sqreen-download-private.s3.amazonaws.com/php/php_cache.tar.gz
+          echo '65923f071340253e4a9b7e770a94e8215dccd897038d5a4a079b31bcae7af92c11348e1ac00cb1bf23f63437f1d937d5bc610326b0f19368baeecd3494970173  /tmp/php_cache.tar.gz' | sha512sum --check
+          tar -C / -xzf /tmp/php_cache.tar.gz
+      - name: Prepare build environment
+        run: |
+          if [[ -f ~/toolchain.tar ]]; then
+            docker load --input ~/toolchain.tar
+          else
+            docker build -t toolchain $(realpath .github/workflows/release/toolchain)
+            docker save --output ~/toolchain.tar toolchain
+          fi
+      - name: Build PHPs
+        run: |
+          sudo apt-get install -y libcurl4-openssl-dev libxml2-dev libonig-dev libzip-dev
+          for v in 8.1.0 8.0.11 7.4.24 7.3.31 7.2.34 7.1.33 7.0.33; do
+            if [[ ! -d $PHP_HOMEDIR/${v}-release-minimal ]]; then
+              ./build_dev_php.sh $v release-minimal
+            fi
+            if [[ ! -d $PHP_HOMEDIR/${v}-release-zts-minimal ]]; then
+              ./build_dev_php.sh $v release-zts-minimal
+            fi
+          done
+          rm -rf $PHP_HOMEDIR/sources
+      - name: Build Package
+        run: |
+          mkdir /tmp/out/
+          docker run -i --rm \
+            -v $PHP_HOMEDIR:$PHP_HOMEDIR \
+            -e PHP_ROOT=$PHP_HOMEDIR \
+            -v $(pwd):/project \
+            -v $HOME/.hunter:/root/.hunter \
+            -v /tmp/out:/out \
+            toolchain \
+            /project/.github/workflows/release/build_package \
+            8.1.0 8.0.11 7.4.24 7.3.31 7.2.34 7.1.33 7.0.33
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: /tmp/out/*.tar.gz

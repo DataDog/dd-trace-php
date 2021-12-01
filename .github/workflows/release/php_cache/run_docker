@@ -1,0 +1,10 @@
+#!/bin/bash -e
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+docker run -it --rm \
+  -v "$SCRIPT_DIR":/build \
+  -v $(realpath "$SCRIPT_DIR"/../../../../build_dev_php.sh):/build/build_dev_php.sh \
+  -v $(realpath "$SCRIPT_DIR"/../../../../php_patches):/build/php_patches \
+  ubuntu:20.04 \
+  /build/build_all

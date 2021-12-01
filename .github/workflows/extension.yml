@@ -1,0 +1,117 @@
+name: Extension
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - "*"
+  pull_request:
+    paths-ignore:
+      - cmake/helper.cmake
+      - src/helper/**
+      - tests/helper/**
+      - examples/**
+      - 'LICENSE**'
+      - NOTICE
+      - '**.md'
+  schedule:
+    - cron:  30 0 * * *
+jobs:
+  extension-test:
+    strategy:
+      matrix:
+        cfg:
+          - os: 'ubuntu-latest'
+            version: 7.0
+          - os: 'ubuntu-latest'
+            version: 7.1
+          - os: 'ubuntu-latest'
+            version: 7.2
+          - os: 'ubuntu-latest'
+            version: 7.3
+          - os: 'ubuntu-latest'
+            version: 7.4
+            coverage: 'true'
+          - os: 'ubuntu-latest'
+            version: 7.4
+            valgrind: 'true'
+          - os: 'ubuntu-latest'
+            version: 7.4
+            static_analysis: 'true'
+          - os: 'ubuntu-latest'
+            version: '8.0'
+          - os: 'ubuntu-latest'
+            version: '8.1'
+          - os: 'macos-latest'
+            version: 7.4
+    runs-on: ${{ matrix.cfg.os }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Cache hunter packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.hunter
+          key: ${{ runner.os }}-extension
+      - name: PHP Setup
+        uses: shivammathur/setup-php@v2
+        if: matrix.cfg.os != 'ubuntu-latest' || matrix.cfg.valgrind != 'true'
+        with:
+            php-version: ${{ matrix.cfg.version }}
+      - name: Install clang-tidy
+        if: matrix.cfg.static_analysis == 'true'
+        run: |
+          cd /tmp
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 13
+          sudo apt-get install -y clang-tidy-13
+      - name: Add repository for PHP debug symbols
+        if: matrix.cfg.os == 'ubuntu-latest' && matrix.cfg.valgrind == 'true'
+        run: |
+          echo deb http://ppa.launchpad.net/ondrej/php/ubuntu $(lsb_release -cs) main main/debug | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
+      - name: Install required packages
+        if: matrix.cfg.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get install -y \
+          libcurl4-openssl-dev $(if [[ "${{ matrix.cfg.valgrind }}" = true ]]; then \
+            echo valgrind php${{ matrix.cfg.version }}-cli php${{ matrix.cfg.version }}-cli-dbgsym \
+            php${{ matrix.cfg.version }}-cgi php${{ matrix.cfg.version }}-cgi-dbgsym; fi)
+      - name: Generate Build Scripts
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Debug \
+            -DDD_APPSEC_BUILD_HELPER=OFF \
+            -DDD_APPSEC_ENABLE_COVERAGE=$(if [[ "${{ matrix.cfg.coverage }}" = true ]]; then echo ON; else echo OFF; fi) \
+            -DDD_APPSEC_ENABLE_CLANG_TIDY=$(if [[ "${{ matrix.cfg.static_analysis }}" = true ]]; then echo ON; else echo OFF; fi) \
+            $(if [[ "${{ matrix.cfg.valgrind }}" = true ]]; then echo -DPHP_CONFIG=/usr/bin/php-config${{ matrix.cfg.version  }}; fi) \
+            -DCLANG_TIDY=/usr/bin/clang-tidy-13 \
+            ..
+      - name: Run clang-tidy
+        if: matrix.cfg.static_analysis == 'true'
+        run: |
+          VERBOSE=1 make -C build tidy
+      - name: Build
+        run: |
+          VERBOSE=1 make -C build -j extension
+          VERBOSE=1 make -C build -j proj_tracer mock_helper
+      - name: Test
+        run: TESTS="--show-diff --show-mem $(if [[ "${{ matrix.cfg.valgrind }}" = true ]]; then echo -m; fi)" make -C build xtest
+      - name: Generate coverage report
+        if: matrix.cfg.coverage == 'true'
+        run: |
+          sudo apt-get install -y gcovr
+          gcovr -f '.*src/extension/.*' -x -d -o coverage.xml
+      - name: Submit coverage
+        if: matrix.cfg.coverage == 'true'
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: helper
+          verbose: true
+          files: coverage.xml

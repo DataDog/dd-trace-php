@@ -1,0 +1,40 @@
+---
+# readability-function-cognitive-complexity temporarily disabled until clang-tidy is fixed
+# right now emalloc causes it to misbehave
+Checks:          '*,-bugprone-reserved-identifier,-hicpp-signed-bitwise,-llvmlibc-restrict-system-libc-headers,-altera-unroll-loops,-hicpp-named-parameter,-cert-dcl37-c,-cert-dcl51-cpp,-read,-cppcoreguidelines-init-variables,-cppcoreguidelines-avoid-non-const-global-variables,-altera-id-dependent-backward-branch,-performance-no-int-to-ptr,-altera-struct-pack-align,-google-readability-casting,-modernize-use-trailing-return-type,-llvmlibc-implementation-in-namespace,-llvmlibc-callee-namespace,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-fuchsia-default-arguments-declarations,-fuchsia-overloaded-operator,-cppcoreguidelines-pro-type-union-access,-fuchsia-default-arguments-calls,-cppcoreguidelines-non-private-member-variables-in-classes,-misc-non-private-member-variables-in-classes,-google-readability-todo,-llvm-header-guard,-readability-function-cognitive-complexity'
+WarningsAsErrors: '*'
+HeaderFilterRegex: ''
+AnalyzeTemporaryDtors: false
+CheckOptions:
+  - key:             readability-function-cognitive-complexity.Threshold
+    value:           35
+  - key:             llvm-else-after-return.WarnOnConditionVariables
+    value:           'false'
+  - key:             modernize-loop-convert.MinConfidence
+    value:           reasonable
+  - key:             modernize-replace-auto-ptr.IncludeStyle
+    value:           llvm
+  - key:             google-readability-namespace-comments.ShortNamespaceLines
+    value:           '10'
+  - key:             cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField
+    value:           'false'
+  - key:             cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value:           'true'
+  - key:             cert-dcl16-c.NewSuffixes
+    value:           'L;LL;LU;LLU'
+  - key:             google-readability-braces-around-statements.ShortStatementLines
+    value:           '1'
+  - key:             modernize-pass-by-value.IncludeStyle
+    value:           llvm
+  - key:             google-readability-namespace-comments.SpacesBeforeComments
+    value:           '1'
+  - key:             modernize-loop-convert.MaxCopySize
+    value:           '16'
+  - key:             cppcoreguidelines-explicit-virtual-functions.IgnoreDestructors
+    value:           'true'
+  - key:             llvm-qualified-auto.AddConstToQualified
+    value:           'false'
+  - key:             llvm-else-after-return.WarnOnUnfixable
+    value:           'false'
+  - key:             google-readability-function-size.StatementThreshold
+    value:           '800'

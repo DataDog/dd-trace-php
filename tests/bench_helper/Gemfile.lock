@@ -1,0 +1,13 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    msgpack (1.4.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  msgpack
+
+BUNDLED WITH
+   1.17.3

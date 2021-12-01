@@ -1,0 +1,33 @@
+#!/bin/bash -e
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+export PHP_HOMEDIR=/php
+export USER=root
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install -y libcurl4-openssl-dev libxml2-dev libonig-dev libzip-dev \
+  binutils make gcc pkg-config curl patch file
+
+for v in 8.1.0 8.0.11 7.4.24 7.3.31 7.2.34 7.1.33 7.0.33; do
+  if [[ ! -d ~/php/${v}-release-minimal ]]; then
+    "$SCRIPT_DIR"/build_dev_php.sh $v release-minimal > /tmp/log-${v}-release-minimal &
+  fi
+done
+
+for job in $(jobs -p); do
+    wait $job
+done
+
+for v in 8.1.0 8.0.11 7.4.24 7.3.31 7.2.34 7.1.33 7.0.33; do
+  if [[ ! -d ~/php/${v}-release-minimal ]]; then
+    "$SCRIPT_DIR"/build_dev_php.sh $v release-zts-minimal > /tmp/log-${v}-release-zts-minimal &
+  fi
+done
+
+for job in $(jobs -p); do
+    wait $job
+done
+
+rm -rf $PHP_HOMEDIR/sources
+tar -C / -czf "$SCRIPT_DIR"/php_cache.tar.gz php

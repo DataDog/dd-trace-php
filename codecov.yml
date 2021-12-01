@@ -1,0 +1,7 @@
+flags:
+  helper:
+    paths:
+      - src/helper/
+  extension:
+    paths:
+      - src/extension/

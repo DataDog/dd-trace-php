@@ -1,0 +1,2 @@
+# Depends: mpm_%MPM
+LoadModule php%PHP_MAJOR_VERSION_module /usr/lib/apache2/modules/libphp%PHP_MAJOR_VERSION.so

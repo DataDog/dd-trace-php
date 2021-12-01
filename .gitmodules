@@ -1,0 +1,9 @@
+[submodule "third_party/libddwaf"]
+	path = third_party/libddwaf
+	url = git@github.com:DataDog/libddwaf.git
+[submodule "third_party/mpack"]
+	path = third_party/mpack
+	url = git@github.com:ludocode/mpack.git
+[submodule "third_party/msgpack-c"]
+	path = third_party/msgpack-c
+	url = git@github.com:msgpack/msgpack-c.git

@@ -1,0 +1,54 @@
+name: Integration
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - "*"
+  pull_request:
+    paths-ignore:
+      - 'LICENSE**'
+      - NOTICE
+      - '**.md'
+  schedule:
+    - cron:  30 0 * * *
+jobs:
+  test:
+    strategy:
+      matrix:
+        cfg:
+          - version: '7.0'
+          - version: '7.1'
+          - version: '7.2'
+          - version: '7.3'
+          - version: '7.4'
+          - version: '8.0'
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '15'
+      - name: Cache Gradle artifacts
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: Pull images
+        run: |
+          docker pull datadog/dd-appsec-php-ci:toolchain
+          docker pull datadog/dd-appsec-php-ci:hunter-cache
+          docker pull datadog/dd-appsec-php-ci:php-${{ matrix.cfg.version }}-release
+          docker pull datadog/dd-appsec-php-ci:php-${{ matrix.cfg.version }}-release-zts
+      - name: Run tests
+        run: |
+          cd tests/integration
+          TERM=dumb ./gradlew --info --scan \
+            test${{ matrix.cfg.version }}-release test${{ matrix.cfg.version }}-release-zts
