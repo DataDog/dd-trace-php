@@ -191,25 +191,27 @@ test_components_coverage: build_components_coverage
 	$(MAKE) -C $(COMPONENTS_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(COMPONENTS_BUILD_DIR)/Testing/Temporary/LastTest.log
 
 test_coverage_collect:
-	$(Q) lcov --directory $(PROJECT_ROOT)/tmp \
-		  --capture \
-		  --exclude "/usr/include/*.h" \
-		  --exclude "/usr/include/*/*/*" \
-		  --exclude "/opt/php/*/include/php/Zend/*" \
-		  --exclude "$(BUILD_DIR)/components/*/*" \
-		  --exclude "$(BUILD_DIR)/zend_abstract_interface/*/*" \
-		  --exclude "$(BUILD_DIR)/ext/vendor/*/*" \
-		  --exclude "$(BUILD_DIR)/src/dogstatsd/*" \
-		  --exclude "$(BUILD_DIR)/src/dogstatsd/dogstatsd_client/*" \
-		  --output-file $(PROJECT_ROOT)/tmp/coverage.info
+	$(Q) lcov \
+		--directory $(PROJECT_ROOT)/tmp \
+		--capture \
+		--exclude "/usr/include/*.h" \
+		--exclude "/usr/include/*/*/*" \
+		--exclude "/opt/php/*/include/php/Zend/*" \
+		--exclude "$(BUILD_DIR)/components/*/*" \
+		--exclude "$(BUILD_DIR)/zend_abstract_interface/*/*" \
+		--exclude "$(BUILD_DIR)/ext/vendor/*/*" \
+		--exclude "$(BUILD_DIR)/src/dogstatsd/*" \
+		--exclude "$(BUILD_DIR)/src/dogstatsd/dogstatsd_client/*" \
+		--output-file $(PROJECT_ROOT)/tmp/coverage.info
 	$(Q) sed -i 's+tmp/build_extension/ext+ext+g' $(PROJECT_ROOT)/tmp/coverage.info
 
 test_coverage_output:
-	$(Q) genhtml --legend \
-		     --title "PHP v$(shell php-config --version) / dd-trace-php combined coverage" \
-		     -o $(PROJECT_ROOT)/coverage \
-		     --prefix $(PROJECT_ROOT) \
-		     $(PROJECT_ROOT)/tmp/coverage.info
+	$(Q) genhtml \
+		--legend \
+		--title "PHP v$(shell php-config --version) / dd-trace-php combined coverage" \
+		-o $(PROJECT_ROOT)/coverage \
+		--prefix $(PROJECT_ROOT) \
+		$(PROJECT_ROOT)/tmp/coverage.info
 
 test_coverage: dist_clean test_components_coverage test_zai_coverage test_c_coverage test_coverage_collect test_coverage_output
 
