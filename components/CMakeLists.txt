@@ -53,6 +53,8 @@ add_library(datadog_php_components INTERFACE)
 
 add_subdirectory(string_view)
 
+add_subdirectory(arena)
+
 if (TARGET PkgConfig::UV)
   add_subdirectory(channel)
 else ()
