@@ -86,7 +86,7 @@ test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
 test_c_coverage: dist_clean
-	EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" REPORT_EXIT_STATUS=0 $(MAKE) test_c
+	EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
 
 test_c_disabled: export DD_TRACE_CLI_ENABLED=0
 test_c_disabled: export DD_TRACE_DEBUG=1
