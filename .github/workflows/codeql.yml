@@ -10,7 +10,7 @@ on:
 
 jobs:
   analyze-helper:
-    name: Analyze
+    name: Analyze Helper
     runs-on: ubuntu-latest
     permissions:
       actions: read
