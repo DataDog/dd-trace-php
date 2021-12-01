@@ -1,7 +1,10 @@
 #[[ Need CMake 3.14 so that `install(TARGETS)` uses better defaults, which
     saves us from repeating configuration in every file (and must be the same).
+    Need CMake 3.15+ because the time component feature checks fail on 3.14;
+    instead of just bumping incrementally, I've bumped this to the latest
+    version that's been tested in CI: 3.19.
 ]]
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.19)
 
 project(datadog-php-components
   VERSION 0.1.0
@@ -53,6 +56,8 @@ add_library(datadog_php_components INTERFACE)
 
 add_subdirectory(string_view)
 
+add_subdirectory(arena)
+
 if (TARGET PkgConfig::UV)
   add_subdirectory(channel)
 else ()
@@ -60,8 +65,12 @@ else ()
 endif ()
 
 add_subdirectory(container_id)
+add_subdirectory(log)
 add_subdirectory(queue)
 add_subdirectory(sapi)
+add_subdirectory(stack-sample)
+add_subdirectory(time)
+add_subdirectory(uuid)
 
 install(EXPORT DatadogPhpComponentsTargets
   FILE DatadogPhpComponentsTargets.cmake
