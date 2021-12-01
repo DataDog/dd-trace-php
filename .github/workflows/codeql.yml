@@ -9,7 +9,7 @@ on:
     - cron: '29 17 * * 0'
 
 jobs:
-  analyze:
+  analyze-helper:
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
@@ -21,20 +21,34 @@ jobs:
       fail-fast: false
       matrix:
         language: [ 'cpp' ]
-      
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
         submodules: recursive
 
+    - name: Cache hunter packages
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.hunter
+        key: ${{ runner.os }}-helper
+
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
       with:
         languages: ${{ matrix.language }}
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v1
+    - name: Generate Build Scripts
+      run: |
+          mkdir build
+          cd build
+          cmake .. -DDD_APPSEC_BUILD_EXTENSION=OFF
+
+    - name: Build
+      run: VERBOSE=1 make -j ddappsec-helper
+      working-directory: ${{ github.workspace }}/build
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
