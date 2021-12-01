@@ -1,8 +1,8 @@
 # Datadog PHP Application Security
 
-![extension](https://github.com/DataDog/dd-appsec-php/actions/workflows/extension.yml/badge.svg?branch=main)
-![helper](https://github.com/DataDog/dd-appsec-php/actions/workflows/helper.yml/badge.svg?branch=main)
-![integration](https://github.com/DataDog/dd-appsec-php/actions/workflows/integration.yml/badge.svg?branch=main)
+![extension](https://github.com/DataDog/dd-appsec-php/actions/workflows/extension.yml/badge.svg?branch=master)
+![helper](https://github.com/DataDog/dd-appsec-php/actions/workflows/helper.yml/badge.svg?branch=master)
+![integration](https://github.com/DataDog/dd-appsec-php/actions/workflows/integration.yml/badge.svg?branch=master)
 [![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%207.0-8892BF.svg)](https://php.net/)
 [![Minimum Tracer Version](https://img.shields.io/badge/tracer-%3E%3D%200.67.0-2892BF.svg)](https://github.com/DataDog/dd-trace-php)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
