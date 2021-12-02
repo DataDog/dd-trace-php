@@ -53,8 +53,8 @@ struct datadog_php_sender_s {
  * datadog_php_channel is a bounded, multiple-producer, single-consumer channel
  * suitable for inter-thread communication.
  *
- * The caller is responsible for any additional cleanup of contents; it does
- * not assume pointers are malloc'd.
+ * The user is responsible for any additional cleanup of contents; it does not
+ * assume pointers are malloc'd.
  *
  * The channel is not destructed directly. It must outlive any senders and
  * receivers, and the last sender/receiver must dtor the channel when the
