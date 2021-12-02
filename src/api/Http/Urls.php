@@ -62,6 +62,7 @@ class Urls
     {
         $unparsableUrl = 'unparsable-host';
         $parts = \parse_url($url);
+        error_log('Parts: ' . var_export($parts, true));
         if (!$parts) {
             return $unparsableUrl;
         }
