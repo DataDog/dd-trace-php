@@ -102,8 +102,8 @@ final class UrlsTest extends BaseTestCase
     public function dataProviderHostname()
     {
         return [
-            [null, 'unparsable_url'],
-            ['', 'unparsable_url'],
+            [null, 'unparsable-host'],
+            ['', 'unparsable-host'],
 
             // no schema
             ['example.com', 'example.com'],
@@ -128,10 +128,70 @@ final class UrlsTest extends BaseTestCase
             ['http://no_dots_in_host/path?key=value#fragment', 'no_dots_in_host'],
 
             // absolute paths
-            ['/', 'unknown_host'],
-            ['/path', 'unknown_host'],
-            ['/path?key=value', 'unknown_host'],
-            ['/path?key=value#fragment', 'unknown_host'],
+            ['/', 'unknown-host'],
+            ['/path', 'unknown-host'],
+            ['/path?key=value', 'unknown-host'],
+            ['/path?key=value#fragment', 'unknown-host'],
+
+            // uds-style sockets should not generate an error but be converted to unparsable-host,
+            // as there is now a dedicated function for them.
+            ['uds:///tmp/socket.file', 'unparsable-host'],
+            ['http+unix:///tmp/socket.file', 'unparsable-host'],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderHostnameForTag
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testHostnameForTag($url, $expected)
+    {
+        $this->assertSame($expected, Urls::hostnameForTag($url));
+    }
+
+    public function dataProviderHostnameForTag()
+    {
+        return [
+            [null, 'host-unparsable-host'],
+            ['', 'host-unparsable-host'],
+
+            // no schema
+            ['example.com', 'host-example.com'],
+            ['example.com/', 'host-example.com'],
+            ['example.com/path', 'host-example.com'],
+            ['example.com/path?key=value', 'host-example.com'],
+            ['example.com/path?key=value#fragment', 'host-example.com'],
+
+            // with schema
+            ['http://example.com', 'host-example.com'],
+            ['http://example.com/', 'host-example.com'],
+            ['http://example.com/path', 'host-example.com'],
+            ['http://example.com/path?key=value', 'host-example.com'],
+            ['http://example.com/path?key=value#fragment', 'host-example.com'],
+
+            // no dots in host name
+            ['no_dots_in_host', 'host-no_dots_in_host'],
+            ['http://no_dots_in_host', 'host-no_dots_in_host'],
+            ['http://no_dots_in_host/', 'host-no_dots_in_host'],
+            ['http://no_dots_in_host/path', 'host-no_dots_in_host'],
+            ['http://no_dots_in_host/path?key=value', 'host-no_dots_in_host'],
+            ['http://no_dots_in_host/path?key=value#fragment', 'host-no_dots_in_host'],
+
+            // absolute paths
+            ['/', 'host-unknown-host'],
+            ['/path', 'host-unknown-host'],
+            ['/path?key=value', 'host-unknown-host'],
+            ['/path?key=value#fragment', 'host-unknown-host'],
+
+            // Common UDS urls
+            ['uds:///tmp/socket.file', 'socket-tmp-socket.file'],
+            ['unix:///tmp/socket.file', 'socket-tmp-socket.file'],
+            ['http+unix:///tmp/socket.file', 'socket-tmp-socket.file'],
+            ['https+unix:///tmp/socket.file', 'socket-tmp-socket.file'],
+            ['https+unix:///tmp/s!o!c!k!e!t.file', 'socket-tmp-s-o-c-k-e-t.file'],
+            ['https+unix:///   tmp/soc   ket.file    ', 'socket-tmp-soc-ket.file'],
         ];
     }
 }
