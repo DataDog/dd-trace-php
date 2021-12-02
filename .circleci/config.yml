@@ -473,6 +473,9 @@ jobs:
           command: |
             set -euo pipefail
             make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      - run:
+          name: Install CodeCov Uploader Dependencies
+          command: sudo apt install -y gpg
       - codecov/upload:
           file: tmp/coverage.info
           upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
@@ -937,7 +940,7 @@ jobs:
           command: ls -al
       - run:
           name: Install required packages
-          command: sudo apt update && sudo apt install -y php git gpg
+          command: sudo apt update && sudo apt install -y php git
       - run:
           name: "Increase virtual memory limit for elasticsearch"
           command: sudo sysctl -w vm.max_map_count=262144
