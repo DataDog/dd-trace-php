@@ -38,56 +38,18 @@ class Urls
     }
 
     /**
-     * Removes query string and fragment from a url.
+     * Removes query string and fragment and user information from a url.
      *
      * @param string $url
      * @return string
      */
     public static function sanitize($url)
     {
-        $sanitized = "";
-        $parsedUrl = \parse_url($url);
+        if (\function_exists('DDTrace\Private_\util_url_sanitize')) {
+            return \DDTrace\Private_\util_url_sanitize($url);
+        }
 
-        if (isset($parsedUrl['scheme'])) {
-            $sanitized .= $parsedUrl['scheme'] . '://';
-        }
-        if (isset($parsedUrl['user'])) {
-            $sanitized .= '?:';
-            /* Password isset() in the array but empty() in valid url "http://user:@domain.com" (meaning no password).
-             * see: https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.1
-             */
-            if (!empty($parsedUrl['pass'])) {
-                $sanitized .= '?';
-            }
-            $sanitized .= '@';
-        }
-        if (isset($parsedUrl['host'])) {
-            $sanitized .= $parsedUrl['host'];
-            if (isset($parsedUrl['port'])) {
-                $sanitized .= ':' . $parsedUrl['port'];
-            }
-            if (isset($parsedUrl['path'])) {
-                $sanitized .= $parsedUrl['path'];
-            }
-        } elseif (isset($parsedUrl['path'])) {
-            /* If the scheme is not present, parse_url() returns the host as part of the path,
-             * for example: array (
-             *   'path' => 'my_user:@some_url.com/path/',
-             * )
-             */
-            if (false === \strpos($parsedUrl['path'], '@')) {
-                $sanitized .= $parsedUrl['path'];
-            } else {
-                list($userInfo, $restOfPath) = \explode('@', $parsedUrl['path'], 2);
-                $userInfoParts = \explode(':', $userInfo, 2);
-                $sanitized .= '?:';
-                if (!empty($userInfoParts[1])) {
-                    $sanitized .= '?';
-                }
-                $sanitized .= '@' . $restOfPath;
-            }
-        }
-        return $sanitized;
+        return '';
     }
 
     /**

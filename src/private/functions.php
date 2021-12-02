@@ -53,8 +53,7 @@ function _util_uri_apply_rules($uriPath, $incoming)
         return '/';
     }
 
-    // Removing query string
-    $uriPath = strstr($uriPath, '?', true) ?: $uriPath;
+    $uriPath = util_url_sanitize($uriPath);
 
     // We always expect leading slash if it is a pure path, while urls with RFC3986 complaint schemes are preserved.
     // See: https://tools.ietf.org/html/rfc3986#page-17
@@ -125,6 +124,74 @@ function _util_uri_apply_rules($uriPath, $incoming)
     }
 
     return implode('/', $fragments);
+}
+
+/**
+ * Removes query string, fragment and user information from a url.
+ *
+ * @param string $url
+ * @return string
+ */
+function util_url_sanitize($url)
+{
+    $sanitized = "";
+
+    // This operation should be idem-potent, but http://?:?@... breaks parse_url. We have to remove it and add it back
+    $sanitizedUserInfo = null;
+    if (false !== \strpos($url, '?:?@')) {
+        $url = \str_replace('?:?@', '', $url);
+        $sanitizedUserInfo = '?:?@';
+    } elseif (false !== \strpos($url, '?:@')) {
+        $url = \str_replace('?:@', '', $url);
+        $sanitizedUserInfo = '?:@';
+    }
+
+    $parsedUrl = \parse_url($url);
+
+    if (isset($parsedUrl['scheme'])) {
+        $sanitized .= $parsedUrl['scheme'] . '://';
+    }
+
+    if (isset($parsedUrl['user'])) {
+        $sanitized .= '?:';
+        /* Password isset() in the array but empty() in valid url "http://user:@domain.com" (meaning no password).
+             * see: https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.1
+             */
+        if (!empty($parsedUrl['pass'])) {
+            $sanitized .= '?';
+        }
+        $sanitized .= '@';
+    } elseif ($sanitizedUserInfo) {
+        $sanitized .= $sanitizedUserInfo;
+    }
+
+    if (isset($parsedUrl['host'])) {
+        $sanitized .= $parsedUrl['host'];
+        if (isset($parsedUrl['port'])) {
+            $sanitized .= ':' . $parsedUrl['port'];
+        }
+        if (isset($parsedUrl['path'])) {
+            $sanitized .= $parsedUrl['path'];
+        }
+    } elseif (isset($parsedUrl['path'])) {
+        /* If the scheme is not present, parse_url() returns the host as part of the path,
+             * for example: array (
+             *   'path' => 'my_user:@some_url.com/path/',
+             * )
+             */
+        if (false === \strpos($parsedUrl['path'], '@')) {
+            $sanitized .= $parsedUrl['path'];
+        } else {
+            list($userInfo, $restOfPath) = \explode('@', $parsedUrl['path'], 2);
+            $userInfoParts = \explode(':', $userInfo, 2);
+            $sanitized .= '?:';
+            if (!empty($userInfoParts[1])) {
+                $sanitized .= '?';
+            }
+            $sanitized .= '@' . $restOfPath;
+        }
+    }
+    return $sanitized;
 }
 
 /**

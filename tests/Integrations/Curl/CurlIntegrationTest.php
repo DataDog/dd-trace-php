@@ -2,14 +2,11 @@
 
 namespace DDTrace\Tests\Integrations\Curl;
 
-use DDTrace\GlobalTracer;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
-use DDTrace\Tracer;
 
 class PrivateCallbackRequest
 {
@@ -149,13 +146,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $this->assertStringContains('my_user', $response);
             curl_close($ch);
         });
-        error_log('Traces: ' . var_export($traces, true));
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://?:?@httpbin_integration/basic-auth/my_user/my_password')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
-                    'http.url' => self::URL . '/status/200',
+                    'http.url' => 'http://?:?@httpbin_integration/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -174,7 +170,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $this->assertStringContains('my_user', $response);
             curl_close($ch);
         });
-        error_log('Traces: ' . var_export($traces, true));
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/basic-auth/my_user/my_password')
