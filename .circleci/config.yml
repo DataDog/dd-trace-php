@@ -1,5 +1,6 @@
 version: "2.1"
-
+orbs:
+  codecov: codecov/codecov@1.0.2
 aliases:
 
   - &CACHE_COMPOSER_KEY
@@ -433,6 +434,9 @@ jobs:
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
+      - codecov/upload:
+          file: tmp/coverage.info
+          upload_name: "PHP v<< parameters.php_major_minor >> / dd-trace-php combined coverage"
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
@@ -1888,6 +1892,7 @@ workflows:
                 - "8.0"
                 - "8.1"
               make_target:
+                - test_coverage
                 - test_extension_ci
                 - test_unit
                 - test_api_unit
