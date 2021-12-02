@@ -937,7 +937,7 @@ jobs:
           command: ls -al
       - run:
           name: Install required packages
-          command: sudo apt update && sudo apt install -y php git
+          command: sudo apt update && sudo apt install -y php git gpg
       - run:
           name: "Increase virtual memory limit for elasticsearch"
           command: sudo sysctl -w vm.max_map_count=262144
