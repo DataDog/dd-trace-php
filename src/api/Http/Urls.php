@@ -70,7 +70,7 @@ class Urls
                 $sanitized .= $parsedUrl['path'];
             }
         } elseif (isset($parsedUrl['path'])) {
-            /* If the scheme is not present, parse_url() returns the host as part of teh path,
+            /* If the scheme is not present, parse_url() returns the host as part of the path,
              * for example: array (
              *   'path' => 'my_user:@some_url.com/path/',
              * )
