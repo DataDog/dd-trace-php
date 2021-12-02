@@ -58,14 +58,20 @@ void runner::run() {
 
             if (!running_) { break; }
 
-            auto broker = std::make_unique<network::broker>(std::move(socket));
+            std::shared_ptr<client> c =
+                std::make_shared<client>(engine_pool_, std::move(socket));
 
             SPDLOG_DEBUG("new client connected");
-            auto runnable = [epool = engine_pool_, broker = std::move(broker)](
-                                dds::worker::monitor &wm) mutable {
-                client c(epool, std::move(broker));
-                c.run(wm);
-            };
+            std::function<void(dds::worker::monitor&)> runnable(
+                [c](dds::worker::monitor &wm) mutable {
+                    while (wm.running()) { 
+                        if (!c->run_once()) { break; }
+                    }
+                    // NOLINTNEXTLINE(bugprone-lambda-function-name)
+                    SPDLOG_DEBUG("Finished handling client");
+                }
+            );
+
             worker_pool_.launch(std::move(runnable));
         }
     } catch (const std::exception &e) {
