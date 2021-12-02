@@ -8,7 +8,7 @@ ZAI_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_zai
 COMPONENTS_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_components
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
-CFLAGS := -O2 $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 -g) $(EXTRA_CFLAGS) $(WALL_FLAGS)
+CFLAGS := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 -g) $(WALL_FLAGS)
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
@@ -86,7 +86,7 @@ test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
 test_c_coverage: dist_clean
-	EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
+	EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage -O0 -g" $(MAKE) test_c || exit 0
 
 test_c_disabled: export DD_TRACE_CLI_ENABLED=0
 test_c_disabled: export DD_TRACE_DEBUG=1
