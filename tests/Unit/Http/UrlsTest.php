@@ -7,24 +7,40 @@ use DDTrace\Tests\Common\BaseTestCase;
 
 final class UrlsTest extends BaseTestCase
 {
-    public function testSimpleUrlsAreReturned()
+    /**
+     * @dataProvider dataProviderSanitize
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testSanitize($url, $expected)
     {
-        $this->assertSame('some_url.com/path/', Urls::sanitize('some_url.com/path/'));
+        $this->assertSame($expected, Urls::sanitize($url));
     }
 
-    public function testSimpleUrlsWithSchemaAreReturned()
+    public function dataProviderSanitize()
     {
-        $this->assertSame('https://some_url.com/path/', Urls::sanitize('https://some_url.com/path/'));
-    }
+        return [
+            // empty
+            [null, ''],
+            ['', ''],
 
-    public function testQueryStringIsRemoved()
-    {
-        $this->assertSame('some_url.com/path/', Urls::sanitize('some_url.com/path/?some=value'));
-    }
+            // with schema
+            ['https://some_url.com/path/', 'https://some_url.com/path/'],
 
-    public function testFragmentIsRemoved()
-    {
-        $this->assertSame('some_url.com/path/', Urls::sanitize('some_url.com/path/?some=value#fragment'));
+            // with no schema
+            ['some_url.com/path/', 'some_url.com/path/'],
+
+            // query and fragment
+            ['some_url.com/path/?some=value', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', '?:?@some_url.com/path/'],
+            ['my_user:@some_url.com/path/', '?:@some_url.com/path/'],
+            ['https://my_user:my_password@some_url.com/path/', 'https://?:?@some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/', 'https://?:@some_url.com/path/'],
+        ];
     }
 
     /**
@@ -132,6 +148,12 @@ final class UrlsTest extends BaseTestCase
             ['/path', 'unknown-host'],
             ['/path?key=value', 'unknown-host'],
             ['/path?key=value#fragment', 'unknown-host'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', 'some_url.com'],
+            ['my_user:@some_url.com/path/', 'some_url.com'],
+            ['https://my_user:my_password@some_url.com/path/', 'some_url.com'],
+            ['https://my_user:@some_url.com/path/', 'some_url.com'],
 
             // uds-style sockets should not generate an error but be converted to unparsable-host,
             // as there is now a dedicated function for them.
