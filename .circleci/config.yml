@@ -1,6 +1,6 @@
 version: "2.1"
 orbs:
-  codecov: codecov/codecov@1.0.2
+  codecov: codecov/codecov@3.2.2
 aliases:
 
   - &CACHE_COMPOSER_KEY
@@ -472,7 +472,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - codecov/upload:
           file: tmp/coverage.info
           upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
