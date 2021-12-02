@@ -147,3 +147,75 @@ TEST_CASE("channel empty recv does not wait if no producers", "[channel]") {
 
     channel.receiver.dtor(&channel.receiver);
 }
+
+#define ASSERT(EXPR) (void)((EXPR) || (print_assert(#EXPR, __FILE__, __LINE__), args->succeeded = false))
+static void send4(args *args) {
+    datadog_php_sender *sender = args->sender;
+    datadog_php_receiver *receiver = args->receiver;
+    void *done = nullptr;
+
+    int items[4] = {2, 4, 6, 8};
+
+    ASSERT(sender->send(sender, items + 0));
+    ASSERT(sender->send(sender, items + 1));
+    ASSERT(sender->send(sender, items + 2));
+    ASSERT(sender->send(sender, items + 3));
+
+    // We passed stack variables, so block until they've been received.
+    ASSERT(receiver->recv(receiver, (void **)&done, TIMEOUT));
+}
+#undef ASSERT
+
+TEST_CASE("channel multiple producers easy", "[channel]") {
+    // ensure there is enough capacity without contention
+    constexpr const int capacity = 8;
+    datadog_php_channel channel;
+    REQUIRE(datadog_php_channel_ctor(&channel, capacity));
+
+    datadog_php_channel sync[2];
+    REQUIRE(datadog_php_channel_ctor(sync + 0, 1));
+    REQUIRE(datadog_php_channel_ctor(sync + 1, 1));
+
+    datadog_php_sender additional_sender;
+    REQUIRE(channel.sender.clone(&channel.sender, &additional_sender));
+
+    args args[2] = {
+        {true, &channel.sender, &sync[0].receiver},
+        {true, &additional_sender, &sync[1].receiver},
+    };
+    uv_thread_t threads[2];
+    REQUIRE(uv_thread_create(&threads[0], reinterpret_cast<uv_thread_cb>(send4), &args[0]) == 0);
+    REQUIRE(uv_thread_create(&threads[1], reinterpret_cast<uv_thread_cb>(send4), &args[1]) == 0);
+
+    datadog_php_receiver *receiver = &channel.receiver;
+
+    int sum = 0;
+    for (int i = 0; i < capacity; ++i) {
+        int *item = nullptr;
+        CHECK(receiver->recv(receiver, (void**)&item, TIMEOUT));
+        sum += *item;
+    }
+
+    for (auto chan : sync) {
+        // Sent value is unused; just using it to sync.
+        CHECK(chan.sender.send(&chan.sender, (void *)&chan));
+    }
+
+    for (auto thread : threads) {
+        CHECK(uv_thread_join(&thread) == 0);
+    }
+
+    for (auto chan : sync) {
+        chan.sender.dtor(&chan.sender);
+        chan.receiver.dtor(&chan.receiver);
+    }
+
+    CHECK(sum == 40);
+
+    additional_sender.dtor(&additional_sender);
+    channel.sender.dtor(&channel.sender);
+    channel.receiver.dtor(&channel.receiver);
+
+    CHECK(args[0].succeeded);
+    CHECK(args[1].succeeded);
+}
