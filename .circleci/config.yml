@@ -466,7 +466,6 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
-      - prepare_extension_and_composer_with_cache
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
@@ -476,7 +475,7 @@ jobs:
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - codecov/upload:
           file: tmp/coverage.info
-          upload_name: "PHP v<< parameters.php_major_minor >> / dd-trace-php combined coverage"
+          upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
