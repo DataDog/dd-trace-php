@@ -3,7 +3,6 @@
 
 #include "php.h"
 
-#if PHP_VERSION_ID < 80000
 #define PHP_JSON_OBJECT_AS_ARRAY (1 << 0)
 
 /**
@@ -33,10 +32,6 @@ extern int (*zai_json_decode_ex)(zval *return_value, const char *str, size_t str
 static inline int zai_json_decode(zval *return_value, const char *str, int str_len, bool assoc, zend_long depth) {
     return zai_json_decode_ex(return_value, str, str_len, assoc ? PHP_JSON_OBJECT_AS_ARRAY : 0, depth);
 }
-#endif
-#else
-# include "zend_smart_str.h"
-# include "ext/json/php_json.h"
 #endif
 
 void zai_json_setup_bindings(void);

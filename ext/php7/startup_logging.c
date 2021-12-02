@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <time.h>
 
-#include <ext/json/php_json.h>
+#include <json/json.h>
 #include <ext/standard/info.h>
 
 #include "coms.h"
@@ -309,7 +309,7 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
 static void _dd_serialize_json(HashTable *ht, smart_str *buf) {
     zval zv;
     ZVAL_ARR(&zv, ht);
-    php_json_encode(buf, &zv, 0);
+    zai_json_encode(buf, &zv, 0);
     smart_str_0(buf);
 }
 

@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <time.h>
 
-#include <ext/json/php_json.h>
+#include <json/json.h>
 #include <ext/standard/info.h>
 
 #include "coms.h"
@@ -321,7 +321,7 @@ static void _dd_serialize_json(HashTable *ht, smart_str *buf TSRMLS_DC) {
     zval zv;
     Z_ARRVAL(zv) = ht;
     Z_TYPE(zv) = IS_ARRAY;
-    php_json_encode(buf, &zv, 0 TSRMLS_CC);
+    zai_json_encode(buf, &zv, 0 TSRMLS_CC);
     smart_str_0(buf);
 }
 
