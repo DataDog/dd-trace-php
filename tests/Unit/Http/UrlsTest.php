@@ -7,40 +7,15 @@ use DDTrace\Tests\Common\BaseTestCase;
 
 final class UrlsTest extends BaseTestCase
 {
-    /**
-     * @dataProvider dataProviderSanitize
-     * @param string $url
-     * @param string $expected
-     * @return void
-     */
-    public function testSanitize($url, $expected)
+    public function testSanitize()
     {
-        $this->assertSame($expected, Urls::sanitize($url));
-    }
-
-    public function dataProviderSanitize()
-    {
-        return [
-            // empty
-            [null, ''],
-            ['', ''],
-
-            // with schema
-            ['https://some_url.com/path/', 'https://some_url.com/path/'],
-
-            // with no schema
-            ['some_url.com/path/', 'some_url.com/path/'],
-
-            // query and fragment
-            ['some_url.com/path/?some=value', 'some_url.com/path/'],
-            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
-
-            // userinfo
-            ['my_user:my_password@some_url.com/path/', '?:?@some_url.com/path/'],
-            ['my_user:@some_url.com/path/', '?:@some_url.com/path/'],
-            ['https://my_user:my_password@some_url.com/path/', 'https://?:?@some_url.com/path/'],
-            ['https://my_user:@some_url.com/path/', 'https://?:@some_url.com/path/'],
-        ];
+        /* All use cases are tested in tests/Unit/private/UriTest.php as Urls::sanitize() is just a proxy.
+         * This test only verifies that the actual function is actually proxied.
+         */
+        $this->assertSame(
+            'http://?:?@some_url.com/path/',
+            \DDTrace\Private_\util_url_sanitize('http://my_user:my_password@some_url.com/path/?key=value')
+        );
     }
 
     /**

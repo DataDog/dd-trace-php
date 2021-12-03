@@ -130,9 +130,11 @@ function _util_uri_apply_rules($uriPath, $incoming)
  * Removes query string, fragment and user information from a url.
  *
  * @param string $url
+ * @param bool $dropUserInfo Optional. If `true`, removes the user information fragment instead of obfuscating it.
+ *                           Defaults to `false`.
  * @return string
  */
-function util_url_sanitize($url)
+function util_url_sanitize($url, $dropUserInfo = false)
 {
     $sanitized = "";
 
@@ -153,15 +155,15 @@ function util_url_sanitize($url)
     }
 
     if (isset($parsedUrl['user'])) {
-        $sanitized .= '?:';
+        $sanitized .= $dropUserInfo ? '' : '?:';
         /* Password isset() in the array but empty() in valid url "http://user:@domain.com" (meaning no password).
          * see: https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.1
          */
         if (!empty($parsedUrl['pass'])) {
-            $sanitized .= '?';
+            $sanitized .= $dropUserInfo ? '' : '?';
         }
-        $sanitized .= '@';
-    } elseif ($sanitizedUserInfo) {
+        $sanitized .= $dropUserInfo ? '' : '@';
+    } elseif ($sanitizedUserInfo && !$dropUserInfo) {
         $sanitized .= $sanitizedUserInfo;
     }
 
@@ -184,11 +186,11 @@ function util_url_sanitize($url)
         } else {
             list($userInfo, $restOfPath) = \explode('@', $parsedUrl['path'], 2);
             $userInfoParts = \explode(':', $userInfo, 2);
-            $sanitized .= '?:';
+            $sanitized .= $dropUserInfo ? '' : '?:';
             if (!empty($userInfoParts[1])) {
-                $sanitized .= '?';
+                $sanitized .= $dropUserInfo ? '' : '?';
             }
-            $sanitized .= '@' . $restOfPath;
+            $sanitized .= ($dropUserInfo ? '' : '@') . $restOfPath;
         }
     }
     return $sanitized;

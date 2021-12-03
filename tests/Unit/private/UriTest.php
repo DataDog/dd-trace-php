@@ -502,4 +502,80 @@ class UriTest extends BaseTestCase
             \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/nested/some?key=value')
         );
     }
+
+    /**
+     * @dataProvider dataProviderSanitize
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testSanitize($url, $expected)
+    {
+        $this->assertSame($expected, \DDtrace\Private_\util_url_sanitize($url));
+    }
+
+    public function dataProviderSanitize()
+    {
+        return [
+            // empty
+            [null, ''],
+            ['', ''],
+
+            // with schema
+            ['https://some_url.com/path/', 'https://some_url.com/path/'],
+
+            // with no schema
+            ['some_url.com/path/', 'some_url.com/path/'],
+
+            // query and fragment
+            ['some_url.com/path/?some=value', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', '?:?@some_url.com/path/'],
+            ['my_user:@some_url.com/path/', '?:@some_url.com/path/'],
+            ['my_user:@some_url.com/path/?key=value', '?:@some_url.com/path/'],
+            ['https://my_user:my_password@some_url.com/path/', 'https://?:?@some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/', 'https://?:@some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/?key=value', 'https://?:@some_url.com/path/'],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderSanitizeDropUserinfo
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testSanitizeDropUserinfo($url, $expected)
+    {
+        $this->assertSame($expected, \DDtrace\Private_\util_url_sanitize($url, true));
+    }
+
+    public function dataProviderSanitizeDropUserinfo()
+    {
+        return [
+            // empty
+            [null, ''],
+            ['', ''],
+
+            // with schema
+            ['https://some_url.com/path/', 'https://some_url.com/path/'],
+
+            // with no schema
+            ['some_url.com/path/', 'some_url.com/path/'],
+
+            // query and fragment
+            ['some_url.com/path/?some=value', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', 'some_url.com/path/'],
+            ['my_user:@some_url.com/path/', 'some_url.com/path/'],
+            ['my_user:@some_url.com/path/?key=value', 'some_url.com/path/'],
+            ['https://my_user:my_password@some_url.com/path/', 'https://some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/', 'https://some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/?key=value', 'https://some_url.com/path/'],
+        ];
+    }
 }
