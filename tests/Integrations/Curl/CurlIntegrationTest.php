@@ -136,7 +136,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         ]);
     }
 
-    public function testCredentialsViaUrlUserinfoField()
+    public function testInlineCredentials()
     {
         $traces = $this->isolateTracer(function () {
             $ch = curl_init();
@@ -453,6 +453,35 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
+        ]);
+    }
+
+    public function testAppendHostnameToServiceNameInlineCredentials()
+    {
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+
+        $traces = $this->isolateTracer(function () {
+            $ch = curl_init(self::URL_WITH_CREDENTIALS . '/status/200');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertSame('', $response);
+            curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build(
+                'curl_exec',
+                'host-httpbin_integration',
+                'http',
+                'http://?:?@httpbin_integration/status/?'
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.url' => 'http://?:?@httpbin_integration/status/200',
                     'http.status_code' => '200',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())

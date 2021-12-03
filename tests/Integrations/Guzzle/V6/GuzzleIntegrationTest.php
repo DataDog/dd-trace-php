@@ -118,6 +118,23 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         ]);
     }
 
+    public function testGetInlineCredentials()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://my_user:my_password@example.com');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://?:?@example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
     public function testDistributedTracingIsPropagated()
     {
         $client = $this->getRealClient();
@@ -289,6 +306,24 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testAppendHostnameToServiceNameInlineCredentials()
+    {
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://my_user:my_password@example.com');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'host-example.com', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                 ]),
         ]);
