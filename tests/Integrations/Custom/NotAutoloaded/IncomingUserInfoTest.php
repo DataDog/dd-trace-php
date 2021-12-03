@@ -24,7 +24,6 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $response = $this->sendRequest('GET', self::HOST_WITH_CREDENTIALS . ':' . self::PORT);
         });
-        error_log('Traces: ' . var_export($traces, true));
 
         $this->assertFlameGraph(
             $traces,

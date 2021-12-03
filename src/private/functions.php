@@ -196,17 +196,6 @@ function util_url_sanitize($url, $dropUserInfo = false)
     return $sanitized;
 }
 
-function util_url_obfuscate_userinfo($url)
-{
-    if (false !== \strpos($url, '?:?@')) {
-        $url = \str_replace('?:?@', '', $url);
-        $sanitizedUserInfo = '?:?@';
-    } elseif (false !== \strpos($url, '?:@')) {
-        $url = \str_replace('?:@', '', $url);
-        $sanitizedUserInfo = '?:@';
-    }
-}
-
 /**
  * Transform a host name (optionally with schema) or unix domain socket path into a service name-friendly string.
  *
