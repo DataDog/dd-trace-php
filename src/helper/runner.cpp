@@ -54,24 +54,25 @@ runner::runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor
 
 void runner::run() {
     try {
-        auto last_idle = std::chrono::steady_clock::now();
+        auto last_not_idle = std::chrono::steady_clock::now();
         SPDLOG_INFO("Running");
         while (running_) {
             network::base_socket::ptr socket;
             try {
                 socket = acceptor_->accept();
             } catch (const timeout_error &e) {
-                // Prevent a missed EINTR
+                // If there was a signal while the exception was being thrown
+                // the runner should have been instructed to exit.
                 if (!running_) { break; }
 
                 // If there are clients running, we don't
                 if (worker_pool_.worker_count() > 0) {
                     // We are not idle, update
-                    last_idle = std::chrono::steady_clock::now();
+                    last_not_idle = std::chrono::steady_clock::now();
                     continue;
                 }
 
-                auto elapsed = std::chrono::steady_clock::now() - last_idle;
+                auto elapsed = std::chrono::steady_clock::now() - last_not_idle;
                 if (elapsed >= idle_timeout_) {
                     SPDLOG_INFO("Runner idle for {} minutes, exiting", 
                         idle_timeout_.count());
@@ -97,7 +98,7 @@ void runner::run() {
                 c.run(wm);
             };
             worker_pool_.launch(std::move(runnable));
-            last_idle = std::chrono::steady_clock::now();
+            last_not_idle = std::chrono::steady_clock::now();
         }
     } catch (const std::exception &e) {
         SPDLOG_ERROR("exception: {}", e.what());
