@@ -42,6 +42,7 @@ TEST("decode", {
     ZVAL_LONG(&val, 42);
 
     zai_json_encode(&buf, &val, 0 ZAI_TSRMLS_CC);
+    smart_str_0(&buf);
 
     REQUIRE(smart_str_length(&buf));
 
