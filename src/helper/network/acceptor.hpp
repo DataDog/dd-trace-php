@@ -6,6 +6,7 @@
 #pragma once
 
 #include "socket.hpp"
+#include <chrono>
 #include <string_view>
 
 namespace dds::network {
@@ -21,6 +22,7 @@ class base_acceptor {
     base_acceptor& operator=(base_acceptor&&) = default;
     virtual ~base_acceptor() = default;
 
+    virtual void set_accept_timeout(std::chrono::seconds timeout) = 0;
     [[nodiscard]] virtual base_socket::ptr accept() = 0;
 };
 
@@ -32,10 +34,25 @@ class acceptor : public base_acceptor {
     explicit acceptor(const std::string_view &sv);
     acceptor(const acceptor&) = delete;
     acceptor& operator=(const acceptor&) = delete;
-    acceptor(acceptor&&) = default;
-    acceptor& operator=(acceptor&&) = default;
-    ~acceptor() override = default;
 
+    acceptor(acceptor &&other): sock_(other.sock_)
+    {
+        other.sock_ = -1;
+    }
+
+    acceptor& operator=(acceptor&& other)
+    {
+        sock_ = other.sock_;
+        other.sock_ = -1;
+        return *this;
+    }
+
+    ~acceptor() override
+    {
+        close(sock_);
+    }
+
+    void set_accept_timeout(std::chrono::seconds timeout) override;
     [[nodiscard]] base_socket::ptr accept() override;
 
   private:

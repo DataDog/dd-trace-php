@@ -7,6 +7,7 @@
 #define RUNNER_HPP
 
 #include <boost/asio.hpp>
+#include <chrono>
 
 #include "config.hpp"
 #include "engine_pool.hpp"
@@ -37,7 +38,8 @@ class runner {
     worker::pool worker_pool_;
 
     // Server variables
-    network::base_acceptor::ptr acceptor;
+    network::base_acceptor::ptr acceptor_;
+    std::chrono::minutes idle_timeout_;
     std::atomic<bool> running_{true};
 };
 
