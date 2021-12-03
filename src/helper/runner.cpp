@@ -61,10 +61,6 @@ void runner::run() {
             try {
                 socket = acceptor_->accept();
             } catch (const timeout_error &e) {
-                // If there was a signal while the exception was being thrown
-                // the runner should have been instructed to exit.
-                if (!running_) { break; }
-
                 // If there are clients running, we don't
                 if (worker_pool_.worker_count() > 0) {
                     // We are not idle, update
