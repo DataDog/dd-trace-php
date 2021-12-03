@@ -35,12 +35,12 @@ class acceptor : public base_acceptor {
     acceptor(const acceptor&) = delete;
     acceptor& operator=(const acceptor&) = delete;
 
-    acceptor(acceptor &&other): sock_(other.sock_)
+    acceptor(acceptor &&other): sock_(other.sock_) noexcept
     {
         other.sock_ = -1;
     }
 
-    acceptor& operator=(acceptor&& other)
+    acceptor& operator=(acceptor&& other) noexcept
     {
         sock_ = other.sock_;
         other.sock_ = -1;
