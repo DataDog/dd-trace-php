@@ -53,4 +53,4 @@ TEST("decode", {
     REQUIRE(Z_LVAL(val) == 42);
 
     smart_str_free(&buf);
-});
+})
