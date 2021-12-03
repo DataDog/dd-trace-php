@@ -1730,11 +1730,16 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 
-zend_module_entry ddtrace_module_entry = {
-    STANDARD_MODULE_HEADER,  PHP_DDTRACE_EXTNAME,          ddtrace_functions,      PHP_MINIT(ddtrace),
-    PHP_MSHUTDOWN(ddtrace),  PHP_RINIT(ddtrace),           PHP_RSHUTDOWN(ddtrace), PHP_MINFO(ddtrace),
-    PHP_DDTRACE_VERSION,     PHP_MODULE_GLOBALS(ddtrace),  PHP_GINIT(ddtrace),     NULL,
-    ddtrace_post_deactivate, STANDARD_MODULE_PROPERTIES_EX};
+static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_END};
+
+zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
+                                          ddtrace_module_deps,       PHP_DDTRACE_EXTNAME,
+                                          ddtrace_functions,         PHP_MINIT(ddtrace),
+                                          PHP_MSHUTDOWN(ddtrace),    PHP_RINIT(ddtrace),
+                                          PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),
+                                          PHP_DDTRACE_VERSION,       PHP_MODULE_GLOBALS(ddtrace),
+                                          PHP_GINIT(ddtrace),        NULL,
+                                          ddtrace_post_deactivate,   STANDARD_MODULE_PROPERTIES_EX};
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)

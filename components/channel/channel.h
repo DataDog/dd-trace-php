@@ -11,7 +11,7 @@ typedef struct datadog_php_channel_impl_s datadog_php_channel_impl;
 
 struct datadog_php_receiver_s {
     /**
-     * Receives on item, waiting for a send to the channel if necessary.
+     * Receives an item, waiting for a send to the channel if necessary.
      * However, it may return empty-handed and return false, such as if there are
      * no senders left, or the timeout is reached, or if it is interrupted.
      */

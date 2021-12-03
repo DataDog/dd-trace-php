@@ -12,7 +12,43 @@ void datadog_php_arena_delete(datadog_php_arena *arena) { (void)arena; }
 void datadog_php_arena_reset(datadog_php_arena *arena) { arena->offset = 0; }
 
 static uint32_t align_diff(uintptr_t ptr, uint32_t align) {
-    uintptr_t diff = (~ptr + 1) & (align - 1);
+    /* The `align` must be a power of two, which means it has a single bit set:
+     * 0b0100
+     * By subtracting one, the bits below the only set bit will all be 1, while
+     * that bit and above will all be 0:
+     * 0b0011
+     */
+    uintptr_t lower_bits_mask = align - 1;
+
+    /* Here's how (~ptr) + 1 evaluates for a few numbers:
+     * Each group is distinct:
+     *      0     1     2     3     4     5     6     7     8
+     * into binary:
+     *   0000  0001  0010  0011  0100  0101  0110  0111  1000
+     * ~ ====  ====  ====  ====  ====  ====  ====  ====  ====
+     *   1111  1110  1101  1100  1011  1010  1001  1000  0111
+     * + 0001  0001  0001  0001  0001  0001  0001  0001  0001
+     *   ====  ====  ====  ====  ====  ====  ====  ====  ====
+     *  10000  1111  1110  1101  1100  1011  1010  1001  1000
+     */
+    uintptr_t inverted = (~ptr) + 1;  // parens are redundant
+
+    /* Okay, let's use an alignment of 8, which is a mask of 0111 (or 7)
+     * on the numbers from above:
+     *  10000  1111  1110  1101  1100  1011  1010  1001  1000
+     * & 0111  0111  0111  0111  0111  0111  0111  0111  0111
+     *   ====  ====  ====  ====  ====  ====  ====  ====  ====
+     *   0000  0111  0110  0101  0100  0011  0010  0001  0000
+     * Converted to decimal:
+     *      0     7     6     5     4     3     2     1     0
+     * which check out; add those to our original numbers and they all become
+     * a multiple of 8 (yes, 0 is a multiple of 8):
+     *      0     1     2     3     4     5     6     7     8
+     * +    0     7     6     5     4     3     2     1     0
+     *      =     =     =     =     =     =     =     =     =
+     *      0     8     8     8     8     8     8     8     8
+     */
+    uintptr_t diff = inverted & lower_bits_mask;
     return diff;
 }
 

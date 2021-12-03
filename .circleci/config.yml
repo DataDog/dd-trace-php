@@ -1,5 +1,6 @@
 version: "2.1"
-
+orbs:
+  codecov: codecov/codecov@3.2.2
 aliases:
 
   - &CACHE_COMPOSER_KEY
@@ -433,6 +434,51 @@ jobs:
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
+  coverage: &TEST_BASE
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 5.6
+        type: string
+      make_target:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+    working_directory: ~/datadog
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
+      HTTPBIN_HOSTNAME: httpbin_integration
+      DATADOG_HAVE_DEV_ENV: 1
+    executor:
+      name: with_httpbin_and_request_replayer
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Run tests
+          command: |
+            set -euo pipefail
+            make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      - run:
+          name: Install CodeCov Uploader Dependencies
+          command: sudo apt install -y gpg
+      - codecov/upload:
+          file: tmp/coverage.info
+          upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
@@ -1622,7 +1668,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php php-fpm
+                - php php-fpm php-json
               install_type:
                 - php_installer
                 - native_package
@@ -1638,7 +1684,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php7 php7-fpm
+                - php7 php7-fpm php7-json
               install_type:
                 - php_installer
                 - native_package
@@ -1656,7 +1702,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php5 php5-fpm
+                - php5 php5-fpm php5-json
               install_type:
                 - php_installer
                 - native_package
@@ -1896,12 +1942,29 @@ workflows:
                 - "8.0"
                 - "8.1"
               make_target:
+                - test_coverage
                 - test_extension_ci
                 - test_unit
                 - test_api_unit
                 - test_c2php
                 - test_c_disabled
-
+      - coverage:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "5.4"
+                - "5.5"
+                - "5.6"
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+                - "8.1"
+              make_target:
+                - test_coverage
       - asan:
           requires: [ 'Prepare Code' ]
           matrix:

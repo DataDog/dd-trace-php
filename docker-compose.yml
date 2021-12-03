@@ -57,6 +57,7 @@ services:
   '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
   '7.3-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
   '7.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
+  '7.4-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext' }
   '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
   '8.0-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
   '8.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }

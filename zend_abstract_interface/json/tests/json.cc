@@ -28,7 +28,7 @@ TEST("encode", {
 
     ZVAL_LONG(&val, 42);
 
-    php_json_encode(&buf, &val, 0 ZAI_TSRMLS_CC);
+    zai_json_encode(&buf, &val, 0 ZAI_TSRMLS_CC);
 
     REQUIRE(smart_str_length(&buf) > 0);
 
@@ -41,16 +41,17 @@ TEST("decode", {
 
     ZVAL_LONG(&val, 42);
 
-    php_json_encode(&buf, &val, 0 ZAI_TSRMLS_CC);
+    zai_json_encode(&buf, &val, 0 ZAI_TSRMLS_CC);
+    smart_str_0(&buf);
 
     REQUIRE(smart_str_length(&buf));
 
     ZVAL_NULL(&val);
 
-    php_json_decode(&val, smart_str_value(&buf), smart_str_length(&buf), 0, 1 ZAI_TSRMLS_CC);
+    zai_json_decode(&val, smart_str_value(&buf), smart_str_length(&buf), 0, 1 ZAI_TSRMLS_CC);
 
     REQUIRE(Z_TYPE(val) == IS_LONG);
     REQUIRE(Z_LVAL(val) == 42);
 
     smart_str_free(&buf);
-});
+})

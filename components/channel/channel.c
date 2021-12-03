@@ -48,7 +48,10 @@ static bool receiver_recv(struct datadog_php_receiver_s *receiver, void **data, 
         uint64_t now = uv_hrtime();
         uint64_t timeout_target = now + timeout_nanos;
         do {
-            // Handle being signalled, waking up spuriously, and timing out the same.
+            /* Handle being signalled, waking up spuriously, and timing out the
+             * same. Note that the mutex will be released while waiting, and
+             * the mutex will be re-acquired when resuming.
+             */
             (void)uv_cond_timedwait(&channel->condvar, &channel->mutex, timeout_target - now);
             succeeded = queue->try_pop(queue, data);
             if (succeeded) {
