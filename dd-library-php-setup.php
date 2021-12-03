@@ -53,7 +53,8 @@ Options:
     --tracer-url <url>          Install the tracing library from a url. If set --tracer-file is ignored.
     --tracer-file <file>        Install the tracing library from a local .tar.gz file.
     --no tracer                 Do not install the tracing library.
-    --appsec-version <0.1.0>    Install a specific version of the appsec lib. If set --tracer-url and --tracer-file are ignored.
+    --appsec-version <0.1.0>    Install a specific version of the appsec lib.
+                                If set --tracer-url and --tracer-file are ignored.
     --appsec-url <url>          Install the appsec library from a url. If set --appsec-file is ignored.
     --appsec-file <file>        Install the appsec library from a local .tar.gz file.
     --no-appsec                 Do not install the appsec library.
@@ -114,12 +115,14 @@ function install_tracer($options, $selectedBinaries)
         "Cannot clean '$tmpDir'",
         "rm -rf " . escapeshellarg($tmpDir) . "/* "
     );
-	delete_on_exit($tmpDir);
+    delete_on_exit($tmpDir);
 
-    if (!isset($options[OPT_TRACER_FILE]) &&
+    if (
+        !isset($options[OPT_TRACER_FILE]) &&
         !isset($options[OPT_TRACER_URL]) &&
         !isset($options[OPT_TRACER_VERSION]) ||
-        isset($options[OPT_TRACER_VERSION]) && $options[OPT_TRACER_VERSION] == 'latest') {
+        isset($options[OPT_TRACER_VERSION]) && $options[OPT_TRACER_VERSION] == 'latest'
+    ) {
         $options[OPT_TRACER_VERSION] = latest_release("dd-trace-php");
     }
 
@@ -231,10 +234,12 @@ function install_appsec($options, $selectedBinaries)
     if ($options[OPT_NO_APPSEC]) {
         return;
     }
-    if (!isset($options[OPT_APPSEC_FILE]) &&
+    if (
+        !isset($options[OPT_APPSEC_FILE]) &&
         !isset($options[OPT_APPSEC_URL]) &&
         !isset($options[OPT_APPSEC_VERSION]) ||
-        isset($options[OPT_APPSEC_VERSION]) && $options[OPT_APPSEC_VERSION] == 'latest') {
+        isset($options[OPT_APPSEC_VERSION]) && $options[OPT_APPSEC_VERSION] == 'latest'
+    ) {
         $options[OPT_APPSEC_VERSION] = latest_release("dd-appsec-php");
     }
 
@@ -243,13 +248,15 @@ function install_appsec($options, $selectedBinaries)
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-appsec';
     $tarball = "$tmpDir/dd-appsec-php.tar.gz";
-    execute_or_exit("Cannot create directory '$tmpDir'",
-        "mkdir -p " . escapeshellarg($tmpDir));
+    execute_or_exit(
+        "Cannot create directory '$tmpDir'",
+        "mkdir -p " . escapeshellarg($tmpDir)
+    );
     execute_or_exit(
         "Cannot clean '$tmpDir'",
         "rm -f " . escapeshellarg($tarball)
     );
-	delete_on_exit($tmpDir);
+    delete_on_exit($tmpDir);
 
     // Retrieve the archive to the temporary location
     if (isset($options[OPT_APPSEC_FILE])) {
@@ -257,10 +264,12 @@ function install_appsec($options, $selectedBinaries)
     } else {
         $url = isset($options[OPT_APPSEC_URL])
             ? $options[OPT_APPSEC_URL]
-            : sprintf('https://github.com/DataDog/dd-appsec-php/releases/' .
+            : sprintf(
+                'https://github.com/DataDog/dd-appsec-php/releases/' .
                 "download/v%s/dd-appsec-php-%s-amd64.tar.gz",
                 rawurlencode($options[OPT_APPSEC_VERSION]),
-                rawurlencode($options[OPT_APPSEC_VERSION]));
+                rawurlencode($options[OPT_APPSEC_VERSION])
+            );
         download($url, $tarball);
     }
 
@@ -294,8 +303,9 @@ function install_appsec($options, $selectedBinaries)
         $extensionFilename = 'ddappsec.so';
         $extensionOrigin = sprintf(
             "$installDir/lib/php/no-debug-%s-%s/$extensionFilename",
-            is_truthy($phpProperties[THREAD_SAFETY]) ? 'zts' :'non-zts',
-            $phpProperties[PHP_API]);
+            is_truthy($phpProperties[THREAD_SAFETY]) ? 'zts' : 'non-zts',
+            $phpProperties[PHP_API]
+        );
 
         if (!file_exists($extensionOrigin)) {
             echo "WARNING: Cannot install appsec for $binaryForLog: " .
@@ -513,7 +523,7 @@ function parse_validate_user_options()
 
     $normalizedOptions = [];
 
-    $normalizeBool = function($name) use ($options, &$normalizedOptions) {
+    $normalizeBool = function ($name) use ($options, &$normalizedOptions) {
         $normalizedOptions[$name] = isset($options[$name]) ? true : false;
     };
     $normalizeBool(OPT_UNINSTALL);
@@ -523,20 +533,24 @@ function parse_validate_user_options()
     if (!$normalizedOptions[OPT_UNINSTALL]) {
         // At most one among --tracer-version, --tracer-url, --tracer-file and --no-tracer must be provided
         $installables = array_intersect(
-            [OPT_TRACER_VERSION, OPT_TRACER_URL, OPT_TRACER_FILE, OPT_NO_TRACER], array_keys($options));
+            [OPT_TRACER_VERSION, OPT_TRACER_URL, OPT_TRACER_FILE, OPT_NO_TRACER],
+            array_keys($options)
+        );
         if (count($installables) > 1) {
             print_error_and_exit(
                 'Only one among --tracer-version, --tracer-url, --tracer-file and --no-tracer must be provided'
             );
         }
         $installables = array_intersect(
-            [OPT_APPSEC_VERSION, OPT_APPSEC_URL, OPT_APPSEC_FILE, OPT_NO_APPSEC], array_keys($options));
+            [OPT_APPSEC_VERSION, OPT_APPSEC_URL, OPT_APPSEC_FILE, OPT_NO_APPSEC],
+            array_keys($options)
+        );
         if (count($installables) > 1) {
             print_error_and_exit(
                 'Only one among --appsec-version, --appsec-url, --appsec-file and --no-appsec must be provided'
             );
         }
-        $normalizeSingleOpt = function($opt) use ($options, &$normalizedOptions) {
+        $normalizeSingleOpt = function ($opt) use ($options, &$normalizedOptions) {
             if (isset($options[$opt])) {
                 if (is_array($options[$opt])) {
                     print_error_and_exit("Only one --$opt can be provided");
@@ -628,10 +642,12 @@ function extract_version_appsec($options, $tarball)
         return trim($options[OPT_APPSEC_VERSION]);
     }
 
-    execute_or_exit("Cannot extract dd-appsec-php/VERSION from $tarball " .
+    execute_or_exit(
+        "Cannot extract dd-appsec-php/VERSION from $tarball " .
         "(not a valid dd-appsec-php bundle)",
         "tar -O -xf " . escapeshellarg($tarball) . " dd-appsec-php/VERSION",
-        $output);
+        $output
+    );
     $version = reset($output);
     if ($version === false) {
         print_error_and_exit("Archive $tarball has an invalid dd-appsec-php/VERSION file");
@@ -706,7 +722,7 @@ function execute_or_exit($exitMessage, $command, &$output = array())
  */
 function download($url, $destination, $print = true)
 {
-    $printfn = function($msg) use ($print) {
+    $printfn = function ($msg) use ($print) {
         if ($print) {
             echo "$msg\n";
         }
@@ -775,11 +791,11 @@ function download($url, $destination, $print = true)
         return;
     }
 
-    $printfn( "Error: Cannot download the installable archive.");
-    $printfn( "  One of the following prerequisites must be satisfied:");
-    $printfn( "    - PHP ext-curl extension is installed");
-    $printfn( "    - curl CLI command is available");
-    $printfn( "    - the INI setting 'allow_url_fopen=1'");
+    $printfn("Error: Cannot download the installable archive.");
+    $printfn("  One of the following prerequisites must be satisfied:");
+    $printfn("    - PHP ext-curl extension is installed");
+    $printfn("    - curl CLI command is available");
+    $printfn("    - the INI setting 'allow_url_fopen=1'");
 
     exit(1);
 }
@@ -815,7 +831,9 @@ function on_download_progress($curlHandle, $download_size, $downloaded)
 function latest_release($repo)
 {
     $path = tempnam(sys_get_temp_dir(), "lat_ver_check");
-    register_shutdown_function(function() use ($path) { @unlink($path); });
+    register_shutdown_function(function () use ($path) {
+        @unlink($path);
+    });
     $url = "https://api.github.com/repos/Datadog/$repo/releases/latest";
     download($url, $path, false);
     $jsonData = file_get_contents($path);
@@ -974,7 +992,8 @@ function ini_file_paths($phpProperties, $iniFileName)
         print_error_and_exit(
             "This PHP installation does not have an ini configuration directory set. " .
             "Either it has single php.ini file set or none at all; in any case, such setup " .
-            "is unsupported.\nHint: Set env var PHP_INI_SCAN_DIR to the desired directory");
+            "is unsupported.\nHint: Set env var PHP_INI_SCAN_DIR to the desired directory"
+        );
     }
     $posComma = strpos($iniDir, ':');
     if ($posComma !== false) {
@@ -1222,15 +1241,16 @@ function get_supported_php_versions()
     return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
 }
 
-function delete_on_exit($dir) {
-	static $initialized = false;
-	static $directories = [];
-	if (!$initialized) {
-		register_shutdown_function(function() use (&$directories) {
-			exec('rm -rf ' . join(' ', array_map('escapeshellarg', $directories)));
-		});
-	}
-	$directories[] = $dir;
+function delete_on_exit($dir)
+{
+    static $initialized = false;
+    static $directories = [];
+    if (!$initialized) {
+        register_shutdown_function(function () use (&$directories) {
+            exec('rm -rf ' . join(' ', array_map('escapeshellarg', $directories)));
+        });
+    }
+    $directories[] = $dir;
 }
 
 main();
