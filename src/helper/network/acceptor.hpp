@@ -35,7 +35,7 @@ class acceptor : public base_acceptor {
     acceptor(const acceptor&) = delete;
     acceptor& operator=(const acceptor&) = delete;
 
-    acceptor(acceptor &&other): sock_(other.sock_) noexcept
+    acceptor(acceptor &&other) noexcept : sock_(other.sock_)
     {
         other.sock_ = -1;
     }
