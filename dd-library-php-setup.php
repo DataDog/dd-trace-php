@@ -843,7 +843,8 @@ function ini_values($binary)
     $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
     $lines = [];
     // Timezone is irrelevant to this script. Quick-and-dirty workaround to the PHP 5 warning with missing timezone
-    exec(escapeshellarg($binary) . " -d date.timezone=UTC -i", $lines);
+    exec(escapeshellarg($binary) .
+        ' -d ddappsec.enabled=1 -d ddappsec.enabled_on_cli=0 -d date.timezone=UTC -i', $lines);
     $found = [];
     foreach ($lines as $line) {
         $parts = explode('=>', $line);
