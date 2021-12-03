@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <sys/stat.h>
 
+
 namespace dds {
 
 namespace {
@@ -36,21 +37,47 @@ network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
 } // namespace
 
 runner::runner(const config::config &cfg)
-    : cfg_(cfg), engine_pool_{std::make_shared<engine_pool>()},
-      acceptor(acceptor_from_config(cfg))
-{
-}
+    : runner(cfg, acceptor_from_config(cfg)) {}
 
 runner::runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor)
     : cfg_(cfg), engine_pool_{std::make_shared<engine_pool>()},
-      acceptor(std::move(acceptor))
+      acceptor_(std::move(acceptor)),
+      idle_timeout_(cfg.get<unsigned>("runner_idle_timeout"))
 {
+    try {
+        acceptor_->set_accept_timeout(1min);
+    } catch (const std::exception &e) {
+        // Not a critical error, we should continue
+        SPDLOG_WARN("Failed to set runner timeout: {}", e.what());
+    }
 }
 
 void runner::run() {
     try {
+        auto last_not_idle = std::chrono::steady_clock::now();
+        SPDLOG_INFO("Running");
         while (running_) {
-            auto socket = acceptor->accept();
+            network::base_socket::ptr socket;
+            try {
+                socket = acceptor_->accept();
+            } catch (const timeout_error &e) {
+                // If there are clients running, we don't
+                if (worker_pool_.worker_count() > 0) {
+                    // We are not idle, update
+                    last_not_idle = std::chrono::steady_clock::now();
+                    continue;
+                }
+
+                auto elapsed = std::chrono::steady_clock::now() - last_not_idle;
+                if (elapsed >= idle_timeout_) {
+                    SPDLOG_INFO("Runner idle for {} minutes, exiting", 
+                        idle_timeout_.count());
+                    break;
+                }
+
+                continue;
+            }
+
             if (!socket) {
                 SPDLOG_CRITICAL("Acceptor returned invalid socket. Bug.");
                 break;
@@ -67,6 +94,7 @@ void runner::run() {
                 c.run(wm);
             };
             worker_pool_.launch(std::move(runnable));
+            last_not_idle = std::chrono::steady_clock::now();
         }
     } catch (const std::exception &e) {
         SPDLOG_ERROR("exception: {}", e.what());

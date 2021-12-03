@@ -23,11 +23,6 @@ void signal_handler(int signum) {
     dds::runner *runner = global_runner.load();
     runner->exit();
     exit_signal = true;
-    // Since at the moment we're using blocking asio and we have no way of
-    // setting timeouts, handling the signal will be of no use so we'll just
-    // exit.
-
-    exit(0); // NOLINT
 }
 
 bool ensure_unique(const dds::config::config &config) {

@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2021 Datadog, Inc.
 #include "acceptor.hpp"
+#include "../exception.hpp"
 #include <cerrno>
 #include <chrono>
 #include <iostream>
@@ -15,6 +16,8 @@
 #include <sys/un.h>
 #include <system_error>
 #include <unistd.h>
+
+using namespace std::chrono_literals;
 
 namespace dds::network::local {
 
@@ -49,6 +52,16 @@ acceptor::acceptor(const std::string_view &sv)
     }
 }
 
+void acceptor::set_accept_timeout(std::chrono::seconds timeout)
+{
+    struct timeval tv = {timeout.count(), 0};
+    int res = setsockopt(
+        sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    if (res == -1) {
+        throw std::system_error(errno, std::generic_category());
+    }
+}
+
 socket::ptr acceptor::accept()
 {
     struct sockaddr_un addr{};
@@ -57,6 +70,10 @@ socket::ptr acceptor::accept()
     // NOLINTNEXTLINE(android-cloexec-accept,cppcoreguidelines-pro-type-reinterpret-cast)
     int s = ::accept(sock_, reinterpret_cast<struct sockaddr *>(&addr), &len);
     if (s == -1) {
+        if (errno == EAGAIN) {
+            throw dds::timeout_error();
+        }
+
         throw std::system_error(errno, std::generic_category());
     }
 
