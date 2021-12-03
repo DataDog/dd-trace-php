@@ -114,6 +114,7 @@ function install_tracer($options, $selectedBinaries)
         "Cannot clean '$tmpDir'",
         "rm -rf " . escapeshellarg($tmpDir) . "/* "
     );
+	delete_on_exit($tmpDir);
 
     if (!isset($options[OPT_TRACER_FILE]) &&
         !isset($options[OPT_TRACER_URL]) &&
@@ -248,6 +249,7 @@ function install_appsec($options, $selectedBinaries)
         "Cannot clean '$tmpDir'",
         "rm -f " . escapeshellarg($tarball)
     );
+	delete_on_exit($tmpDir);
 
     // Retrieve the archive to the temporary location
     if (isset($options[OPT_APPSEC_FILE])) {
@@ -1217,6 +1219,17 @@ EOD;
 function get_supported_php_versions()
 {
     return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
+}
+
+function delete_on_exit($dir) {
+	static $initialized = false;
+	static $directories = [];
+	if (!$initialized) {
+		register_shutdown_function(function() use (&$directories) {
+			exec('rm -rf ' . join(' ', array_map('escapeshellarg', $directories)));
+		});
+	}
+	$directories[] = $dir;
 }
 
 main();
