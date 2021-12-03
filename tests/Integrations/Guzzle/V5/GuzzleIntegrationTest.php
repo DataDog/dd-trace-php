@@ -7,7 +7,6 @@ use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
 use GuzzleHttp\Client;
 use GuzzleHttp\Message\Request;
-use GuzzleHttp\Ring\Client\CurlMultiHandler;
 use GuzzleHttp\Ring\Client\MockHandler;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
