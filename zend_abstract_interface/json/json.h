@@ -6,10 +6,10 @@
 #define PHP_JSON_OBJECT_AS_ARRAY (1 << 0)
 
 /**
-* This interface is 1:1 with ext/json, but with different names to avoid possible symbol clashes and confusion
-*
-* WARNING: php_json_encode will not null terminate buf; Always do smart_str_0 on buf or risk shenanigans
-**/
+ * This interface is 1:1 with ext/json, but with different names to avoid possible symbol clashes and confusion
+ *
+ * WARNING: php_json_encode will not null terminate buf; Always do smart_str_0 on buf or risk shenanigans
+ **/
 
 #if PHP_VERSION_ID < 70000
 #include "ext/standard/php_smart_str.h"
