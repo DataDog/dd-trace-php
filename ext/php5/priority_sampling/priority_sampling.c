@@ -22,7 +22,7 @@ static bool dd_rule_matches(zval *pattern, zval *prop TSRMLS_DC) {
     pcre_cache_entry *pce = pcre_get_compiled_regex_cache(regex, regexlen TSRMLS_CC);
     zval ret;
     php_pcre_match_impl(pce, Z_STRVAL_P(prop), Z_STRLEN_P(prop), &ret, NULL, 0, 0, 0, 0 TSRMLS_CC);
-    free(regex);
+    efree(regex);
     return Z_TYPE(ret) == IS_LONG && Z_LVAL(ret) > 0;
 }
 
