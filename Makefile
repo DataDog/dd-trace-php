@@ -182,7 +182,7 @@ build_components_coverage:
 	( \
 	mkdir -p "$(COMPONENTS_BUILD_DIR)"; \
 	cd $(COMPONENTS_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPONENTS_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" $(PROJECT_ROOT)/components; \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" $(PROJECT_ROOT)/components; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
