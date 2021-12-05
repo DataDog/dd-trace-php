@@ -1756,24 +1756,13 @@ static PHP_FUNCTION(dd_trace_compile_time_microseconds) {
 
 static PHP_FUNCTION(set_priority_sampling) {
     UNUSED(return_value_used, this_ptr, return_value_ptr);
-    bool global = false, unset_priority;
+    bool global = false;
     long priority;
 
-#if PHP_VERSION_ID < 50500
-    unset_priority =
-        ZEND_NUM_ARGS() >= 1 && ZVAL_IS_NULL(*(zval **)(zend_vm_stack_top(TSRMLS_C) - 2 - (ZEND_NUM_ARGS() - 1)));
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "l|b", &priority, &global) ==
         FAILURE) {
-#else
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "l!|b", &priority, &unset_priority,
-                                 &global) == FAILURE) {
-#endif
         ddtrace_log_debug("Expected an integer and an optional boolen");
         RETURN_FALSE;
-    }
-
-    if (unset_priority) {
-        priority = DDTRACE_PRIORITY_SAMPLING_UNSET;
     }
 
     if (global || !DDTRACE_G(root_span)) {
@@ -1793,11 +1782,6 @@ static PHP_FUNCTION(get_priority_sampling) {
     }
 
     if (global || !DDTRACE_G(root_span)) {
-        if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN ||
-            DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-            RETURN_NULL();
-        }
-
         RETURN_LONG(DDTRACE_G(default_priority_sampling));
     }
 
