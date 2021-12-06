@@ -52,6 +52,13 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_VERSION_ID=$("$PHP_CONFIG" --vernum)
   fi
 
+  dnl PKG_CHECK_MODULE was included in PHP 7.4, required for profiling
+  ifdef([PKG_CHECK_MODULES],
+    [], dnl do nothing; already have the macro
+    [m4_include(DDTRACE_BASEDIR/m4/pkg.m4)])
+
+  m4_include(DDTRACE_BASEDIR/profiling/datadog-profiling.m4)
+
   if test $PHP_VERSION_ID -lt 50500; then
     dnl PHP 5.4
     dnl ddtrace.c comes first, then everything else alphabetically
@@ -259,7 +266,12 @@ if test "$PHP_DDTRACE" != "no"; then
     "
   fi
 
-  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
+  PHP_NEW_EXTENSION(ddtrace,
+    $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES $PHP_DATADOG_PROFILING_SOURCES,
+    $ext_shared,
+    ,
+    -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
   PHP_CHECK_LIBRARY(rt, shm_open,
@@ -271,6 +283,8 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
 
+  EXTRA_CFLAGS="$EXTRA_CFLAGS -Wall -std=gnu11 $PHP_DATADOG_PROFILING_CFLAGS"
+
   dnl Only export symbols defined in ddtrace.sym, which should all be marked as
   dnl DDTRACE_PUBLIC in their source files as well.
   EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
@@ -278,6 +292,26 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_SUBST(EXTRA_CFLAGS)
   PHP_SUBST(EXTRA_LDFLAGS)
+
+  dnl How can we isolate these things to profiling/config.m4?
+  if test "$PHP_DATADOG_PROFILING" = "yes" ; then
+    PHP_ADD_INCLUDE([$ext_srcdir/profiling])
+
+    PHP_ADD_BUILD_DIR([$ext_builddir/components])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/arena])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/log])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/queue])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/stack-sample])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/time])
+
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling])
+    PHP_ADD_BUILD_DIR([$ext_builddir/plugins])
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling/plugins/log_plugin])
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling/plugins/recorder_plugin])
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling/plugins/stack_collector_plugin])
+
+    PHP_ADD_BUILD_DIR([$ext_builddir/profiling/stack-collector])
+  fi
 
   PHP_ADD_INCLUDE([$ext_srcdir])
   PHP_ADD_INCLUDE([$ext_srcdir/ext])

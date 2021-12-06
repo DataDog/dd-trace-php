@@ -48,6 +48,10 @@
 #include "span.h"
 #include "startup_logging.h"
 
+#if HAVE_DATADOG_PROFILING
+#include <php_datadog-profiling.h>
+#endif
+
 bool ddtrace_has_excluded_module;
 
 atomic_int ddtrace_warn_legacy_api;
@@ -80,17 +84,35 @@ static int ddtrace_startup(struct _zend_extension *extension) {
     // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done
     // post-startup
     ddtrace_internal_handlers_startup();
+
+#ifdef PHP_DATADOG_PROFILING_H
+    return datadog_profiling_startup(extension);
+#else
     return SUCCESS;
+#endif
 }
 
 static void ddtrace_shutdown(struct _zend_extension *extension) {
-    UNUSED(extension);
-
     ddtrace_internal_handlers_shutdown();
+
+#ifdef PHP_DATADOG_PROFILING_H
+    datadog_profiling_shutdown(extension);
+#else
+    UNUSED(extension);
+#endif
 }
 
-static void ddtrace_activate(void) {}
-static void ddtrace_deactivate(void) {}
+static void ddtrace_activate(void) {
+#ifdef PHP_DATADOG_PROFILING_H
+    datadog_profiling_activate();
+#endif
+}
+
+static void ddtrace_deactivate(void) {
+#ifdef PHP_DATADOG_PROFILING_H
+    datadog_profiling_deactivate();
+#endif
+}
 
 static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   PHP_DDTRACE_VERSION,
@@ -707,6 +729,10 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     _dd_info_diagnostics_table();
 
     DISPLAY_INI_ENTRIES();
+
+#ifdef PHP_DATADOG_PROFILING_H
+    datadog_profiling_diagnostics();
+#endif
 }
 
 static bool _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options) {
