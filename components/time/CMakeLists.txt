@@ -54,6 +54,7 @@ if (DATADOG_HAVE_CLOCK_GETTIME OR DATADOG_HAVE_CLOCK_GETTIME_RT)
   " DATADOG_HAVE_PTHREAD_GETCPUCLOCKID)
   if (DATADOG_HAVE_PTHREAD_GETCPUCLOCKID)
     target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_PTHREAD_GETCPUCLOCKID=1)
+    target_link_libraries(datadog-php-time PRIVATE Threads::Threads)
   endif ()
   cmake_pop_check_state()
 endif ()
@@ -72,4 +73,8 @@ int main(void) {
 
 if (DATADOG_HAVE_THREAD_INFO)
   target_compile_definitions(datadog-php-time PRIVATE -DDATADOG_HAVE_THREAD_INFO=1)
+endif ()
+
+if (${DATADOG_PHP_TESTING})
+  add_subdirectory(tests)
 endif ()
