@@ -70,6 +70,15 @@ zend_string *ddtrace_format_propagated_tags(void) {
                     "The to be propagated tag '%s=%.*s' is too long and exceeds the maximum limit of " ZEND_LONG_FMT
                     " characters and is thus dropped.",
                     ZSTR_VAL(tagname), ZSTR_LEN(str), ZSTR_VAL(str), get_DD_TRACE_MAX_PROPAGATED_TAGS_LENGTH());
+
+                zval *meta = ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span);
+                ZVAL_DEREF(meta);
+                if (Z_TYPE_P(meta) != IS_ARRAY) {
+                    zval_ptr_dtor(meta);
+                    array_init(meta);
+                }
+                SEPARATE_ARRAY(meta);
+                add_assoc_string_ex(meta, ZEND_STRL("_dd.propagation_error"), "encoding_error");
             }
 
             zend_string_release(str);
