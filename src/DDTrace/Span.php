@@ -170,7 +170,7 @@ class Span extends DataSpan
             }
 
             if ($key === Tag::HTTP_URL) {
-                $value = \DDTrace\Private_\util_url_sanitize((string)$value);
+                $value = Urls::sanitize((string)$value);
             }
 
             if ($key === Tag::HTTP_STATUS_CODE && $value >= 500) {
