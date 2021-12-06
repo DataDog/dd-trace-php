@@ -577,8 +577,8 @@ static zend_string *nullable _is_relevant_resp_header(
     if (!dd_string_starts_with_lc(name, name_len, ZEND_STRL("content-"))) {
         return NULL;
     }
-    const char *const rest = name + sizeof("content-") - 1;
-    size_t rest_len = name_len - (sizeof("content-") - 1);
+    const char *const rest = name + LSTRLEN("content-");
+    size_t rest_len = name_len - LSTRLEN("content-");
     if (dd_string_equals_lc(rest, rest_len, ZEND_STRL("length"))) {
         return _dd_tag_rh_content_length;
     }
