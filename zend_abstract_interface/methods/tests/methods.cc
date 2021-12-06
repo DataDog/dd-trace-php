@@ -40,13 +40,13 @@ static zval *zai_instantiate_object_from_ce(zend_class_entry *ce) {
     if (ce->constructor && (ce->constructor->common.fn_flags & ZEND_ACC_PUBLIC)) {
         zval *retval_ptr = NULL;
 
-        zend_fcall_info fci = {0};
+        zend_fcall_info fci = empty_fcall_info;
         fci.size = sizeof(zend_fcall_info);
         fci.object_ptr = obj;
         fci.retval_ptr_ptr = &retval_ptr;
         fci.no_separation = 1;
 
-        zend_fcall_info_cache fcc = {0};
+        zend_fcall_info_cache fcc = empty_fcall_info_cache;
         fcc.initialized = 1;
         fcc.function_handler = ce->constructor;
         fcc.calling_scope = ce;

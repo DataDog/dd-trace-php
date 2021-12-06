@@ -77,7 +77,7 @@ static bool z_vcall_method_ex(zval *object, zend_class_entry *ce, const char *me
         goto error_exit;
     }
 
-    zend_fcall_info_cache fcc = {0};
+    zend_fcall_info_cache fcc = empty_fcall_info_cache;
     fcc.initialized = 1;
     fcc.function_handler = func;
     fcc.calling_scope = ce;
@@ -87,7 +87,7 @@ static bool z_vcall_method_ex(zval *object, zend_class_entry *ce, const char *me
         fcc.called_scope = ce;
     }
 
-    zend_fcall_info fci = {0};
+    zend_fcall_info fci = empty_fcall_info;
     fci.size = sizeof(zend_fcall_info);
     fci.no_separation = 1;
     fci.retval_ptr_ptr = retval;
