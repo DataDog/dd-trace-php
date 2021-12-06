@@ -73,9 +73,11 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
+      ["_dd.p.upstream_services"]=>
+      string(56) "c3RhcnRfc3Bhbl93aXRoX2FsbF9wcm9wZXJ0aWVzLnBocA|1|1|1.000"
     }
     ["metrics"]=>
     array(3) {
@@ -106,11 +108,13 @@ array(2) {
     ["type"]=>
     string(6) "runner"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["aa"]=>
       string(2) "bb"
+      ["_dd.p.upstream_services"]=>
+      string(16) "dGVzdA|1|1|1.000"
     }
     ["metrics"]=>
     array(4) {

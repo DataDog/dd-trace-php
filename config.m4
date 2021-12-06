@@ -244,6 +244,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/signals.c \
       ext/php8/span.c \
       ext/php8/startup_logging.c \
+      ext/php8/tracer_tag_propagation/tracer_tag_propagation.c \
       ext/php8/weakrefs.c \
     "
 
@@ -364,6 +365,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/php8])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/priority_sampling])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/tracer_tag_propagation])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php8/integrations])
   fi

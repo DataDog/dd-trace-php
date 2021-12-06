@@ -7,7 +7,6 @@ Distributed tracing headers propagate with curl_exec()
 ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
 DD_TRACE_DEBUG=1
-DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 HTTP_X_DATADOG_ORIGIN=phpt-test
 --FILE--
 <?php

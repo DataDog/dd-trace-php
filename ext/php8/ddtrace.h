@@ -82,6 +82,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *function_lookup;
     zval additional_trace_meta; // IS_ARRAY
     zend_array *additional_global_tags;
+    zend_array root_span_tags_preset;
+    zend_array propagated_root_span_tags;
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
@@ -92,6 +94,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     uint64_t trace_id;
     zend_long default_priority_sampling;
+    zend_long propagated_priority_sampling;
     ddtrace_span_ids_t *span_ids_top;
     ddtrace_span_fci *open_spans_top;
     ddtrace_span_fci *closed_spans_top;

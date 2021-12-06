@@ -44,11 +44,13 @@ array(1) {
     ["error"]=>
     int(1)
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["error.msg"]=>
       string(9) "Foo error"
+      ["_dd.p.upstream_services"]=>
+      string(58) "ZXJyb3JzX2FyZV9mbGFnZ2VkX2Zyb21fdXNlcmxhbmQucGhw|1|1|1.000"
     }
     ["metrics"]=>
     array(3) {

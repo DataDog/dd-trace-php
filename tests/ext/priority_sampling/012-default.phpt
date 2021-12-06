@@ -12,10 +12,12 @@ DD_TRACE_GENERATE_ROOT_SPAN=1
 $root = \DDTrace\root_span();
 
 if (!isset($root->metrics["_dd.rule_psr"])) {
-    echo "OK";
+    echo "OK\n";
 } else {
     echo "metrics[_dd.rule_psr] = {$root->metrics["_dd.rule_psr"]}\n";
 }
+echo "_dd.p.upstream_services = " . ($root->meta["_dd.p.upstream_services"] ?? "(null)") . "\n";
 ?>
 --EXPECT--
 OK
+_dd.p.upstream_services = (null)

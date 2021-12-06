@@ -358,6 +358,10 @@ final class SpanChecker
 
             $filtered = $out;
             $expectedTags = $exp->getExactTags();
+            // Ignore _dd.p.upstream_services unless explicitly tested
+            if (!isset($expectedTags['_dd.p.upstream_services'])) {
+                unset($filtered['_dd.p.upstream_services']);
+            }
             foreach ($expectedTags as $tagName => $tagValue) {
                 TestCase::assertArrayHasKey(
                     $tagName,
