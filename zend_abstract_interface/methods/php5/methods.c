@@ -135,7 +135,7 @@ static bool z_vcall_method_ex(zval *object, zend_class_entry *ce, const char *me
 
     /* The zend_call_method() API only supports up to two arguments so we use
      * zend_call_function() instead.
-    */
+     */
     zend_try { call_fn_result = zend_call_function(&fci, &fcc TSRMLS_CC); }
     zend_catch { should_bail = true; }
     zend_end_try();
