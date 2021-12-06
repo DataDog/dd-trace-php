@@ -98,12 +98,6 @@ static bool z_vcall_method_ex(zval *object, zend_class_entry *ce, const char *me
         fcc.object_ptr = object;
     }
 
-    /* Marking these as 'volatile' will ensure they survive a possible long jump
-     * from a zend_bailout without getting clobbered.
-     */
-    volatile bool should_bail = false;
-    volatile int call_fn_result = FAILURE;
-
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
 
@@ -131,18 +125,20 @@ static bool z_vcall_method_ex(zval *object, zend_class_entry *ce, const char *me
 
         fci.param_count = (uint32_t)argc;
         fci.params = param_ptrs;
-
-        /* The zend_call_method() API only supports up to two arguments so we
-         * use zend_call_function() instead.
-         */
-        zend_try { call_fn_result = zend_call_function(&fci, &fcc TSRMLS_CC); }
-        zend_catch { should_bail = true; }
-        zend_end_try();
-    } else {
-        zend_try { call_fn_result = zend_call_function(&fci, &fcc TSRMLS_CC); }
-        zend_catch { should_bail = true; }
-        zend_end_try();
     }
+
+    /* Marking these as 'volatile' will ensure they survive a possible long jump
+     * from a zend_bailout without getting clobbered.
+     */
+    volatile bool should_bail = false;
+    volatile int call_fn_result = FAILURE;
+
+    /* The zend_call_method() API only supports up to two arguments so we use
+     * zend_call_function() instead.
+    */
+    zend_try { call_fn_result = zend_call_function(&fci, &fcc TSRMLS_CC); }
+    zend_catch { should_bail = true; }
+    zend_end_try();
 
     if (should_bail) {
         /* An unclean shutdown from a zend_bailout can occur deep within a
