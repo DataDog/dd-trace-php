@@ -6,6 +6,7 @@ fi
 ${PHP_SRC_DIR}/configure \
     --disable-all \
     --enable-cgi \
+    --enable-embed \
     --enable-fpm \
     --enable-pcntl=shared \
     --enable-phpdbg \
