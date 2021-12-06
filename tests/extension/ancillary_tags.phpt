@@ -39,6 +39,11 @@ key=val
 use function datadog\appsec\testing\add_ancillary_tags;
 
 header('Content-type: application/json');
+header('Content-encoding: foobar');
+header('Content-language: pt_PT');
+header('Content-length: 42');
+header('Content-ignored: 42');
+header('Another-header: 42');
 http_response_code(404);
 flush();
 
@@ -73,6 +78,9 @@ Array
     [http.request.headers.x-forwarded] => for="foo"
     [http.request.headers.x-forwarded-for] => 7.7.7.7,10.0.0.1
     [http.request.headers.x-real-ip] => 7.7.7.8
+    [http.response.headers.content-encoding] => foobar
+    [http.response.headers.content-language] => pt_PT
+    [http.response.headers.content-length] => 42
     [http.response.headers.content-type] => application/json
     [http.status_code] => 404
     [http.url] => https://myhost:8888/my/uri.php

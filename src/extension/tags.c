@@ -23,7 +23,10 @@
 #define DD_TAG_HTTP_URL "http.url"
 #define DD_TAG_NETWORK_CLIENT_IP "network.client.ip"
 #define DD_PREFIX_TAG_REQUEST_HEADER "http.request.headers."
-#define DD_PREFIX_TAG_RESPONSE_HEADER "http.response.headers."
+#define DD_TAG_HTTP_RH_CONTENT_LENGTH "http.response.headers.content-length"
+#define DD_TAG_HTTP_RH_CONTENT_TYPE "http.response.headers.content-type"
+#define DD_TAG_HTTP_RH_CONTENT_ENCODING "http.response.headers.content-encoding"
+#define DD_TAG_HTTP_RH_CONTENT_LANGUAGE "http.response.headers.content-language"
 #define DD_METRIC_ENABLED "_dd.appsec.enabled"
 #define DD_METRIC_SAMPLING_PRIORITY "_sampling_priority_v1"
 #define DD_SAMPLING_PRIORITY_USER_KEEP 2
@@ -35,6 +38,10 @@ static zend_string *_dd_tag_http_user_agent_zstr;
 static zend_string *_dd_tag_http_status_code_zstr;
 static zend_string *_dd_tag_http_url_zstr;
 static zend_string *_dd_tag_network_client_ip_zstr;
+static zend_string *_dd_tag_rh_content_length; // response
+static zend_string *_dd_tag_rh_content_type; // response
+static zend_string *_dd_tag_rh_content_encoding; // response
+static zend_string *_dd_tag_rh_content_language; // response
 static zend_string *_dd_metric_enabled;
 static zend_string *_dd_metric_sampling_prio_zstr;
 static zend_string *_key_request_uri_zstr;
@@ -77,6 +84,15 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_URL), 1);
     _dd_tag_network_client_ip_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_NETWORK_CLIENT_IP), 1);
+
+    _dd_tag_rh_content_length =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LENGTH), 1);
+    _dd_tag_rh_content_type =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_TYPE), 1);
+    _dd_tag_rh_content_encoding =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_ENCODING), 1);
+    _dd_tag_rh_content_language =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LANGUAGE), 1);
 
     _dd_metric_enabled =
         zend_string_init_interned(LSTRARG(DD_METRIC_ENABLED), 1);
@@ -511,6 +527,8 @@ static void _dd_request_headers(zend_array *meta_ht, zval *_server)
     ZEND_HASH_FOREACH_END();
 }
 
+static zend_string *nullable _is_relevant_resp_header(
+    const char *name, size_t name_len);
 static void _dd_response_headers(zend_array *meta_ht)
 {
     zend_llist *l = &SG(sapi_headers).headers;
@@ -527,24 +545,11 @@ static void _dd_response_headers(zend_array *meta_ht)
         }
 
         size_t header_name_len = pcol - header->header;
-        size_t tag_len =
-            LSTRLEN(DD_PREFIX_TAG_RESPONSE_HEADER) + header_name_len;
-
-        zend_string *tag_name = zend_string_alloc(tag_len, 0);
-        char *tag_p = ZSTR_VAL(tag_name);
-
-        memcpy(tag_p, LSTRARG(DD_PREFIX_TAG_RESPONSE_HEADER));
-        tag_p += LSTRLEN(DD_PREFIX_TAG_RESPONSE_HEADER);
-
-        memcpy(tag_p, header->header, header_name_len);
-        dd_string_normalize_header(tag_p, header_name_len);
-        if (!zend_hash_str_exists(&_relevant_headers, tag_p, header_name_len)) {
-            zend_string_efree(tag_name);
+        zend_string *const tag_name =
+            _is_relevant_resp_header(header->header, header_name_len);
+        if (!tag_name) {
             continue;
         }
-
-        tag_p += header_name_len;
-        *tag_p = '\0';
 
         // skip spaces after colon
         const char *const end = header->header + header->header_len;
@@ -562,8 +567,31 @@ static void _dd_response_headers(zend_array *meta_ht)
         } else {
             zend_string_efree(header_value);
         }
-        zend_string_release(tag_name);
     }
+}
+
+static zend_string *nullable _is_relevant_resp_header(
+    const char *name, size_t name_len)
+{
+    // content-{length,type,encoding,language}
+    if (!dd_string_starts_with_lc(name, name_len, ZEND_STRL("content-"))) {
+        return NULL;
+    }
+    const char *const rest = name + sizeof("content-") - 1;
+    size_t rest_len = name_len - (sizeof("content-") - 1);
+    if (dd_string_equals_lc(rest, rest_len, ZEND_STRL("length"))) {
+        return _dd_tag_rh_content_length;
+    }
+    if (dd_string_equals_lc(rest, rest_len, ZEND_STRL("type"))) {
+        return _dd_tag_rh_content_type;
+    }
+    if (dd_string_equals_lc(rest, rest_len, ZEND_STRL("encoding"))) {
+        return _dd_tag_rh_content_encoding;
+    }
+    if (dd_string_equals_lc(rest, rest_len, ZEND_STRL("language"))) {
+        return _dd_tag_rh_content_language;
+    }
+    return NULL;
 }
 
 void _set_runtime_family()
