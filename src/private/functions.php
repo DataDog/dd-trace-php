@@ -136,6 +136,9 @@ function _util_uri_apply_rules($uriPath, $incoming)
  */
 function util_url_sanitize($url, $dropUserInfo = false)
 {
+    /* The implementation of this method is an exact replica of DDTrace\Http\Urls:;sanitize() - and has to
+     * be kept in sync - until this method will be removed as part of the PHP->C migration.
+     */
     $sanitized = "";
 
     // This operation should be idem-potent, but http://?:?@... breaks parse_url. We have to remove it and add it back

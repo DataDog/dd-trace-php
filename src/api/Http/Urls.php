@@ -41,15 +41,75 @@ class Urls
      * Removes query string and fragment and user information from a url.
      *
      * @param string $url
-     * @return string
+     * @param bool $dropUserInfo Optional. If `true`, removes the user information fragment instead of obfuscating it.
+     *                           Defaults to `false`.
      */
-    public static function sanitize($url)
+    public static function sanitize($url, $dropUserInfo = false)
     {
-        if (\function_exists('DDTrace\Private_\util_url_sanitize')) {
-            return \DDTrace\Private_\util_url_sanitize($url);
+        /* The implementation of this method is an exact replica of \DDTrace\Private_\util_url_sanitize() - and has to
+         * be kept in sync - until \DDTrace\Private_\util_url_sanitize() will be removed as part of the PHP->C
+         * migration.
+         */
+        $sanitized = "";
+
+        /* This operation should be idem-potent, but http://?:?@... breaks parse_url. We have to remove it and add
+         * it back.
+         */
+        $sanitizedUserInfo = null;
+        if (false !== \strpos($url, '?:?@')) {
+            $url = \str_replace('?:?@', '', $url);
+            $sanitizedUserInfo = '?:?@';
+        } elseif (false !== \strpos($url, '?:@')) {
+            $url = \str_replace('?:@', '', $url);
+            $sanitizedUserInfo = '?:@';
         }
 
-        return '';
+        $parsedUrl = \parse_url($url);
+
+        if (isset($parsedUrl['scheme'])) {
+            $sanitized .= $parsedUrl['scheme'] . '://';
+        }
+
+        if (isset($parsedUrl['user'])) {
+            $sanitized .= $dropUserInfo ? '' : '?:';
+            /* Password isset() in the array but empty() in valid url "http://user:@domain.com" (meaning no password).
+         * see: https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.1
+         */
+            if (!empty($parsedUrl['pass'])) {
+                $sanitized .= $dropUserInfo ? '' : '?';
+            }
+            $sanitized .= $dropUserInfo ? '' : '@';
+        } elseif ($sanitizedUserInfo && !$dropUserInfo) {
+            $sanitized .= $sanitizedUserInfo;
+        }
+
+        if (isset($parsedUrl['host'])) {
+            $sanitized .= $parsedUrl['host'];
+            if (isset($parsedUrl['port'])) {
+                $sanitized .= ':' . $parsedUrl['port'];
+            }
+            if (isset($parsedUrl['path'])) {
+                $sanitized .= $parsedUrl['path'];
+            }
+        } elseif (isset($parsedUrl['path'])) {
+            /* If the scheme is not present, parse_url() returns the host as part of the path,
+         * for example: array (
+         *   'path' => 'my_user:@some_url.com/path/',
+         * )
+         */
+            if (false === \strpos($parsedUrl['path'], '@')) {
+                $sanitized .= $parsedUrl['path'];
+            } else {
+                list($userInfo, $restOfPath) = \explode('@', $parsedUrl['path'], 2);
+                $userInfoParts = \explode(':', $userInfo, 2);
+                $sanitized .= $dropUserInfo ? '' : '?:';
+                if (!empty($userInfoParts[1])) {
+                    $sanitized .= $dropUserInfo ? '' : '?';
+                }
+                $sanitized .= ($dropUserInfo ? '' : '@') . $restOfPath;
+            }
+        }
+        return $sanitized;
     }
 
     /**
@@ -60,7 +120,7 @@ class Urls
      */
     public static function hostname($url)
     {
-        $url = \DDTrace\Private_\util_url_sanitize($url, true);
+        $url = self::sanitize($url, true);
         $unparsableUrl = 'unparsable-host';
         $parts = \parse_url($url);
         if (!$parts) {

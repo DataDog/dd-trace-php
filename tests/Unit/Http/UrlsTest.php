@@ -7,15 +7,87 @@ use DDTrace\Tests\Common\BaseTestCase;
 
 final class UrlsTest extends BaseTestCase
 {
-    public function testSanitize()
+
+    /**
+     * @dataProvider dataProviderSanitize
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testSanitize($url, $expected)
     {
-        /* All use cases are tested in tests/Unit/private/UriTest.php as Urls::sanitize() is just a proxy.
-         * This test only verifies that the actual function is actually proxied.
+        /* This test is an exact replica of the same method in tests/Unit/private/UriTest.php and has to be kept in sync
+         * until the other test will be removed as part of the PHP->C migration
          */
-        $this->assertSame(
-            'http://?:?@some_url.com/path/',
-            \DDTrace\Private_\util_url_sanitize('http://my_user:my_password@some_url.com/path/?key=value')
-        );
+        $this->assertSame($expected, Urls::sanitize($url));
+    }
+
+    public function dataProviderSanitize()
+    {
+        return [
+            // empty
+            [null, ''],
+            ['', ''],
+
+            // with schema
+            ['https://some_url.com/path/', 'https://some_url.com/path/'],
+
+            // with no schema
+            ['some_url.com/path/', 'some_url.com/path/'],
+
+            // query and fragment
+            ['some_url.com/path/?some=value', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', '?:?@some_url.com/path/'],
+            ['my_user:@some_url.com/path/', '?:@some_url.com/path/'],
+            ['my_user:@some_url.com/path/?key=value', '?:@some_url.com/path/'],
+            ['https://my_user:my_password@some_url.com/path/', 'https://?:?@some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/', 'https://?:@some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/?key=value', 'https://?:@some_url.com/path/'],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderSanitizeDropUserinfo
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testSanitizeDropUserinfo($url, $expected)
+    {
+        /* This test is an exact replica of the same method in tests/Unit/private/UriTest.php and has to be kept in sync
+         * until the other test will be removed as part of the PHP->C migration
+         */
+        $this->assertSame($expected, Urls::sanitize($url, true));
+    }
+
+    public function dataProviderSanitizeDropUserinfo()
+    {
+        return [
+            // empty
+            [null, ''],
+            ['', ''],
+
+            // with schema
+            ['https://some_url.com/path/', 'https://some_url.com/path/'],
+
+            // with no schema
+            ['some_url.com/path/', 'some_url.com/path/'],
+
+            // query and fragment
+            ['some_url.com/path/?some=value', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', 'some_url.com/path/'],
+            ['my_user:@some_url.com/path/', 'some_url.com/path/'],
+            ['my_user:@some_url.com/path/?key=value', 'some_url.com/path/'],
+            ['https://my_user:my_password@some_url.com/path/', 'https://some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/', 'https://some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/?key=value', 'https://some_url.com/path/'],
+        ];
     }
 
     /**

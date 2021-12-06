@@ -511,6 +511,9 @@ class UriTest extends BaseTestCase
      */
     public function testSanitize($url, $expected)
     {
+        /* This test is an exact replica of the same method in tests/Unit/Http/UrlsTest.php and has to be kept in sync
+         * until the current test will be removed as part of the PHP->C migration
+         */
         $this->assertSame($expected, \DDtrace\Private_\util_url_sanitize($url));
     }
 
@@ -549,6 +552,9 @@ class UriTest extends BaseTestCase
      */
     public function testSanitizeDropUserinfo($url, $expected)
     {
+        /* This test is an exact replica of the same method in tests/Unit/Http/UrlsTest.php and has to be kept in sync
+         * until the current test will be removed as part of the PHP->C migration
+         */
         $this->assertSame($expected, \DDtrace\Private_\util_url_sanitize($url, true));
     }
 
