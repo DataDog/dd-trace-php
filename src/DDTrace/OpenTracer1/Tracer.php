@@ -3,6 +3,7 @@
 namespace DDTrace\OpenTracer1;
 
 use DDTrace\Contracts\Tracer as TracerInterface;
+use DDTrace\GlobalTracer;
 use DDTrace\Propagator;
 use DDTrace\Tracer as DDTracer;
 use DDTrace\Transport;
@@ -29,7 +30,7 @@ final class Tracer implements OTTracer
      */
     public function __construct(TracerInterface $tracer = null)
     {
-        $this->tracer = $tracer ?: self::make();
+        $this->tracer = $tracer ?: GlobalTracer::get();
     }
 
     /**
