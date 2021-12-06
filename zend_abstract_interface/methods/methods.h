@@ -30,12 +30,13 @@ zend_class_entry *zai_class_lookup_ex(const char *cname, size_t cname_len ZAI_TS
  * Methods cannot be called outside of a request context so this MUST be called
  * from within a request context (after RINIT and before RSHUTDOWN).
  */
-bool zai_call_method_ex(zval *object, const char *method, size_t method_len, zval **retval TSRMLS_DC, int argc, ...);
+bool zai_call_method_ex(zval *object, const char *method, size_t method_len, zval **retval ZAI_TSRMLS_DC, int argc,
+                        ...);
 
 /* Calls a static method on a class entry 'ce'. Return value handling is the
  * same as zai_call_method().
  */
-bool zai_call_static_method_ex(zend_class_entry *ce, const char *method, size_t method_len, zval **retval TSRMLS_DC,
+bool zai_call_static_method_ex(zend_class_entry *ce, const char *method, size_t method_len, zval **retval ZAI_TSRMLS_DC,
                                int argc, ...);
 
 /* A convenience wrapper to call zai_class_lookup() using a string literal. This
