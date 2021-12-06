@@ -36,7 +36,7 @@ jobs:
       - name: Download pre-built php environments
         if: steps.cache_php.outputs.cache-hit != 'true'
         run: |
-          curl -o /tmp/php_cache.tar.gz http://sqreen-download-private.s3.amazonaws.com/php/php_cache.tar.gz
+          curl -o /tmp/php_cache.tar.gz https://sqreen-download-private.s3.amazonaws.com/php/php_cache.tar.gz
           echo '65923f071340253e4a9b7e770a94e8215dccd897038d5a4a079b31bcae7af92c11348e1ac00cb1bf23f63437f1d937d5bc610326b0f19368baeecd3494970173  /tmp/php_cache.tar.gz' | sha512sum --check
           tar -C / -xzf /tmp/php_cache.tar.gz
       - name: Prepare build environment
