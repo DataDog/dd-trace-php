@@ -1,7 +1,10 @@
 #[[ Need CMake 3.14 so that `install(TARGETS)` uses better defaults, which
     saves us from repeating configuration in every file (and must be the same).
+    Need CMake 3.15+ because the channel component fails on 3.14. Instead of
+    just bumping incrementally, I've bumped this to the latest version that's
+    been tested in CI for a while: 3.19.
 ]]
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.19)
 
 project(datadog-php-components
   VERSION 0.1.0
