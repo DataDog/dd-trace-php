@@ -71,7 +71,7 @@ jobs:
           key: ${{ runner.os }}-helper
       - name: Install clang-tidy
         run: |
-          sudo .github/scripts/llvm.sh 13
+          sudo .github/workflows/scripts/llvm.sh 13
           sudo apt-get install -y clang-tidy-13
       - name: Generate Build Scripts
         run: |

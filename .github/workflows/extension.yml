@@ -64,7 +64,7 @@ jobs:
       - name: Install clang-tidy
         if: matrix.cfg.static_analysis == 'true'
         run: |
-          sudo .github/scripts/llvm.sh 13
+          sudo .github/workflows/scripts/llvm.sh 13
           sudo apt-get install -y clang-tidy-13
       - name: Add repository for PHP debug symbols
         if: matrix.cfg.os == 'ubuntu-latest' && matrix.cfg.valgrind == 'true'
