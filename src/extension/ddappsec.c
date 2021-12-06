@@ -272,7 +272,8 @@ static ZEND_INI_MH(_on_update_appsec_enabled)
 {
     ZEND_INI_MH_UNUSED();
     // handle ddappsec.enabled
-    bool is_cli = strcmp(sapi_module.name, "cli") == 0;
+    bool is_cli =
+        strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
     if (is_cli) {
         return SUCCESS;
     }
@@ -286,7 +287,8 @@ static ZEND_INI_MH(_on_update_appsec_enabled_on_cli)
 {
     ZEND_INI_MH_UNUSED();
     // handle ddappsec.enabled.cli
-    bool is_cli = strcmp(sapi_module.name, "cli") == 0;
+    bool is_cli =
+        strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
     if (!is_cli) {
         return SUCCESS;
     }
