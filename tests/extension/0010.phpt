@@ -7,6 +7,12 @@ if (extension_loaded('ddappsec')) {
 } else {
     echo "ddappsec COULD NOT BE LOADED\n";
 }
+if (\datadog\appsec\is_enabled()) {
+    echo "ddappsec extension is enabled\n";
+} else {
+    echo "ddappsec extension is disabled\n";
+}
 ?>
 --EXPECT--
 ddappsec extension is available
+ddappsec extension is enabled

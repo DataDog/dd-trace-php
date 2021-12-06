@@ -272,7 +272,8 @@ static ZEND_INI_MH(_on_update_appsec_enabled)
 {
     ZEND_INI_MH_UNUSED();
     // handle ddappsec.enabled
-    bool is_cli = strcmp(sapi_module.name, "cli") == 0;
+    bool is_cli =
+        strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
     if (is_cli) {
         return SUCCESS;
     }
@@ -286,7 +287,8 @@ static ZEND_INI_MH(_on_update_appsec_enabled_on_cli)
 {
     ZEND_INI_MH_UNUSED();
     // handle ddappsec.enabled.cli
-    bool is_cli = strcmp(sapi_module.name, "cli") == 0;
+    bool is_cli =
+        strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
     if (!is_cli) {
         return SUCCESS;
     }
@@ -296,7 +298,14 @@ static ZEND_INI_MH(_on_update_appsec_enabled_on_cli)
     return SUCCESS;
 }
 
-#ifdef TESTING
+static PHP_FUNCTION(datadog_appsec_is_enabled)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(DDAPPSEC_G(enabled));
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_rinit)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -361,6 +370,10 @@ ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry functions[] = {
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0)
+    PHP_FE_END
+};
+static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0)
@@ -371,11 +384,11 @@ static const zend_function_entry functions[] = {
 
 static void _register_testing_objects()
 {
+    dd_phpobj_reg_funcs(functions);
+
     if (!DDAPPSEC_G(testing)) {
         return;
     }
 
-    dd_phpobj_reg_funcs(functions);
+    dd_phpobj_reg_funcs(testing_functions);
 }
-
-#endif

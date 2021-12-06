@@ -10,6 +10,7 @@
 #include <zend_globals.h>
 #include <zend_ini.h>
 
+#define DD_APPSEC_NS "datadog\\appsec\\"
 #define DD_TESTING_NS "datadog\\appsec\\testing\\"
 
 typedef struct _dd_ini_setting {
