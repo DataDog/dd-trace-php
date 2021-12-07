@@ -16,7 +16,7 @@ assert_no_ddappsec
 assert_file_exists "$(php_conf_dir)"/98-ddtrace.ini
 
 # then the latest tracer
-php dd-library-php-setup.php --php-bin php --no--tracer
+php dd-library-php-setup.php --php-bin php --no--trace
 
 assert_ddtrace_installed
 assert_ddappsec_installed

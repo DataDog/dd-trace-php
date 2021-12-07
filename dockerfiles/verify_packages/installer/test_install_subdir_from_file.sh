@@ -13,7 +13,7 @@ if [ "$CIRCLECI" = "true" ]; then
 fi
 
 # Install using the php installer
-php dd-library-php-setup.php --php-bin php --tracer-file build/packages/*.tar.gz --no-appsec
+php dd-library-php-setup.php --php-bin php --trace-file build/packages/*.tar.gz --no-appsec
 
 # Just check installation, not the version as it is not deterministic.
 if [ -z "$(php -m | grep ddtrace)" ]; then

@@ -10,10 +10,10 @@ const IS_DEBUG = 'Debug Build';
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
-const OPT_TRACER_FILE = 'tracer-file';
-const OPT_TRACER_URL = 'tracer-url';
-const OPT_TRACER_VERSION = 'tracer-version';
-const OPT_NO_TRACER = 'no-tracer';
+const OPT_TRACE_FILE = 'trace-file';
+const OPT_TRACE_URL = 'trace-url';
+const OPT_TRACE_VERSION = 'trace-version';
+const OPT_NO_TRACE = 'no-trace';
 const OPT_APPSEC_FILE = 'appsec-file';
 const OPT_APPSEC_URL = 'appsec-url';
 const OPT_APPSEC_VERSION = 'appsec-version';
@@ -40,28 +40,28 @@ function print_help_and_exit()
 
 Usage:
     Interactive
-        php get-dd-trace.php --tracer-version x.y.z ...
+        php get-dd-trace.php --trace-version x.y.z ...
     Non-Interactive
-        php get-dd-trace.php --tracer-version x.y.z --php-bin php ...
-        php get-dd-trace.php --tracer-version x.y.z --php-bin php --php-bin /usr/local/sbin/php-fpm ...
+        php get-dd-trace.php --trace-version x.y.z --php-bin php ...
+        php get-dd-trace.php --trace-version x.y.z --php-bin php --php-bin /usr/local/sbin/php-fpm ...
 
 Options:
     -h, --help                  Print this help text and exit
     --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search
                                 paths. The option can be provided multiple times.
-    --tracer-version <0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
-    --tracer-url <url>          Install the tracing library from a url. If set --tracer-file is ignored.
-    --tracer-file <file>        Install the tracing library from a local .tar.gz file.
-    --no-tracer                 Do not install the tracing library.
+    --trace-version <0.1.2>    Install a specific version. If set --trace-url and --trace-file are ignored.
+    --trace-url <url>          Install the tracing library from a url. If set --trace-file is ignored.
+    --trace-file <file>        Install the tracing library from a local .tar.gz file.
+    --no-trace                 Do not install the tracing library.
     --appsec-version <0.1.0>    Install a specific version of the appsec lib.
-                                If set --tracer-url and --tracer-file are ignored.
+                                If set --trace-url and --trace-file are ignored.
     --appsec-url <url>          Install the appsec library from a url. If set --appsec-file is ignored.
     --appsec-file <file>        Install the appsec library from a local .tar.gz file.
     --no-appsec                 Do not install the appsec library.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
 
-Using "--tracer-version latest" or "--appsec-version latest" will download the
+Using "--trace-version latest" or "--appsec-version latest" will download the
 latest releases. For each component, this will be implied if no version, url or
 file are given.
 EOD;
@@ -80,7 +80,7 @@ function install($options)
     $selectedBinaries = require_binaries_or_exit($options);
     $interactive = empty($options[OPT_PHP_BIN]);
 
-    install_tracer($options, $selectedBinaries);
+    install_trace($options, $selectedBinaries);
     install_appsec($options, $selectedBinaries);
 
     echo "--------------------------------------------------\n";
@@ -100,9 +100,9 @@ function install($options)
     }
 }
 
-function install_tracer($options, $selectedBinaries)
+function install_trace($options, $selectedBinaries)
 {
-    if ($options[OPT_NO_TRACER]) {
+    if ($options[OPT_NO_TRACE]) {
         return;
     }
     // Preparing clean tmp folder to extract files
@@ -118,23 +118,23 @@ function install_tracer($options, $selectedBinaries)
     delete_on_exit($tmpDir);
 
     if (
-        !isset($options[OPT_TRACER_FILE]) &&
-        !isset($options[OPT_TRACER_URL]) &&
-        !isset($options[OPT_TRACER_VERSION]) ||
-        isset($options[OPT_TRACER_VERSION]) && $options[OPT_TRACER_VERSION] == 'latest'
+        !isset($options[OPT_TRACE_FILE]) &&
+        !isset($options[OPT_TRACE_URL]) &&
+        !isset($options[OPT_TRACE_VERSION]) ||
+        isset($options[OPT_TRACE_VERSION]) && $options[OPT_TRACE_VERSION] == 'latest'
     ) {
-        $options[OPT_TRACER_VERSION] = latest_release("dd-trace-php");
+        $options[OPT_TRACE_VERSION] = latest_release("dd-trace-php");
     }
 
     // Retrieve and extract the archive to a tmp location
-    if (isset($options[OPT_TRACER_FILE])) {
-        $tmpDirTarGz = $options[OPT_TRACER_FILE];
+    if (isset($options[OPT_TRACE_FILE])) {
+        $tmpDirTarGz = $options[OPT_TRACE_FILE];
     } else {
-        $url = isset($options[OPT_TRACER_URL])
-            ? $options[OPT_TRACER_URL]
+        $url = isset($options[OPT_TRACE_URL])
+            ? $options[OPT_TRACE_URL]
             : "https://github.com/DataDog/dd-trace-php/releases/download/" .
-            $options[OPT_TRACER_VERSION] . "/datadog-php-tracer-" .
-            $options[OPT_TRACER_VERSION] . ".x86_64.tar.gz";
+            $options[OPT_TRACE_VERSION] . "/datadog-php-tracer-" .
+            $options[OPT_TRACE_VERSION] . ".x86_64.tar.gz";
         download($url, $tmpDirTarGz);
     }
     execute_or_exit(
@@ -514,10 +514,10 @@ function parse_validate_user_options()
     $longOptions = [
         OPT_HELP,
         OPT_PHP_BIN . ':',
-        OPT_TRACER_FILE . ':',
-        OPT_TRACER_URL . ':',
-        OPT_TRACER_VERSION . ':',
-        OPT_NO_TRACER,
+        OPT_TRACE_FILE . ':',
+        OPT_TRACE_URL . ':',
+        OPT_TRACE_VERSION . ':',
+        OPT_NO_TRACE,
         OPT_APPSEC_FILE . ':',
         OPT_APPSEC_URL . ':',
         OPT_APPSEC_VERSION . ':',
@@ -538,18 +538,18 @@ function parse_validate_user_options()
         $normalizedOptions[$name] = isset($options[$name]) ? true : false;
     };
     $normalizeBool(OPT_UNINSTALL);
-    $normalizeBool(OPT_NO_TRACER);
+    $normalizeBool(OPT_NO_TRACE);
     $normalizeBool(OPT_NO_APPSEC);
 
     if (!$normalizedOptions[OPT_UNINSTALL]) {
-        // At most one among --tracer-version, --tracer-url, --tracer-file and --no-tracer must be provided
+        // At most one among --trace-version, --trace-url, --trace-file and --no-trace must be provided
         $installables = array_intersect(
-            [OPT_TRACER_VERSION, OPT_TRACER_URL, OPT_TRACER_FILE, OPT_NO_TRACER],
+            [OPT_TRACE_VERSION, OPT_TRACE_URL, OPT_TRACE_FILE, OPT_NO_TRACE],
             array_keys($options)
         );
         if (count($installables) > 1) {
             print_error_and_exit(
-                'Only one among --tracer-version, --tracer-url, --tracer-file and --no-tracer must be provided'
+                'Only one among --trace-version, --trace-url, --trace-file and --no-trace must be provided'
             );
         }
         $installables = array_intersect(
@@ -569,9 +569,9 @@ function parse_validate_user_options()
                 $normalizedOptions[$opt] = $options[$opt];
             }
         };
-        $normalizeSingleOpt(OPT_TRACER_VERSION);
-        $normalizeSingleOpt(OPT_TRACER_URL);
-        $normalizeSingleOpt(OPT_TRACER_FILE);
+        $normalizeSingleOpt(OPT_TRACE_VERSION);
+        $normalizeSingleOpt(OPT_TRACE_URL);
+        $normalizeSingleOpt(OPT_TRACE_FILE);
         $normalizeSingleOpt(OPT_APPSEC_VERSION);
         $normalizeSingleOpt(OPT_APPSEC_URL);
         $normalizeSingleOpt(OPT_APPSEC_FILE);
@@ -615,15 +615,15 @@ function print_warning($message)
 function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSourcesRoot)
 {
     /* We apply the following decision making algorithm
-     *   1) if --tracer-version is provided, we use it
+     *   1) if --trace-version is provided, we use it
      *   2) if a VERSION file exists at the archive root, we use it
      *   3) if sources are provided, we parse src/DDTrace/Tracer.php
      *   4) fallback to YYYY.MM.DD-HH.mm
      */
 
     // 1)
-    if (isset($options[OPT_TRACER_VERSION])) {
-        return trim($options[OPT_TRACER_VERSION]);
+    if (isset($options[OPT_TRACE_VERSION])) {
+        return trim($options[OPT_TRACE_VERSION]);
     }
 
     // 2)

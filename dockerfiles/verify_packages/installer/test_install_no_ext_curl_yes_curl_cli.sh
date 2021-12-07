@@ -11,5 +11,5 @@ assert_no_ddtrace
 
 # Install using the php installer
 new_version="0.65.1"
-php dd-library-php-setup.php --php-bin php --tracer-version "${new_version}" --no-appsec
+php dd-library-php-setup.php --php-bin php --trace-version "${new_version}" --no-appsec
 assert_ddtrace_version "${new_version}"

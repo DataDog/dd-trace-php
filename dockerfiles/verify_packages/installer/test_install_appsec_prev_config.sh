@@ -13,7 +13,7 @@ echo 'extension=ddappsec.so' >> "$ini"
 echo 'ddappsec.helper_path=/foo/bar' >> "$ini"
 
 appsec_version=0.1.0
-php dd-library-php-setup.php --php-bin php --no-tracer --appsec-version 0.1.0
+php dd-library-php-setup.php --php-bin php --no-trace --appsec-version 0.1.0
 
 assert_ddappsec_installed
 

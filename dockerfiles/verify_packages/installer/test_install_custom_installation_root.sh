@@ -13,7 +13,7 @@ new_version="0.65.1"
 # Verify that wrong installation dir (e.g. /) does not delete all files in root
 php dd-library-php-setup.php \
   --php-bin php \
-  --tracer-version "${new_version}" \
+  --trace-version "${new_version}" \
   --no-appsec \
   --install-dir /
 assert_ddtrace_version "${new_version}"

@@ -11,7 +11,7 @@ assert_no_ddtrace
 new_version="0.65.1"
 php dd-library-php-setup.php \
   --php-bin php \
-  --tracer-url "https://github.com/DataDog/dd-trace-php/releases/download/${new_version}/datadog-php-tracer-${new_version}.x86_64.tar.gz" \
+  --trace-url "https://github.com/DataDog/dd-trace-php/releases/download/${new_version}/datadog-php-trace-${new_version}.x86_64.tar.gz" \
   --no-appsec
 
 assert_ddtrace_version "${new_version}"

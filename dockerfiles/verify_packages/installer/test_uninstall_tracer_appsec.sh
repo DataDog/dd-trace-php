@@ -7,10 +7,10 @@ set -e
 
 extension_dir=$(php_extension_dir)
 ini_dir=$(php_conf_dir)
-tracer_version="0.67.0"
+trace_version="0.67.0"
 appsec_version="0.1.0"
 php dd-library-php-setup.php --php-bin php \
-  --tracer-version $tracer_version --appsec-version $appsec_version
+  --trace-version $trace_version --appsec-version $appsec_version
 assert_ddtrace_version "${new_version}"
 
 # Uninstall
