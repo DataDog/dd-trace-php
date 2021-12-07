@@ -5,6 +5,7 @@
 // Copyright 2021 Datadog, Inc.
 #include "config.hpp"
 #include "runner.hpp"
+#include "subscriber/waf.hpp"
 #include <csignal>
 #include <fcntl.h>
 #include <iostream>
@@ -54,8 +55,10 @@ int main(int argc, char *argv[]) {
     auto logger = spdlog::stderr_color_mt("ddappsec");
     spdlog::set_default_logger(logger);
     logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e][%l][%t] %v");
-    spdlog::set_level(
-        spdlog::level::from_str(config.get<std::string>("log_level")));
+
+    auto level = spdlog::level::from_str(config.get<std::string>("log_level"));
+    spdlog::set_level(level);
+    dds::waf::initialise_logging(level);
 
     if (!ensure_unique(config)) {
         logger->warn("helper launched, but not unique, exiting");

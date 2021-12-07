@@ -59,7 +59,7 @@ const std::unordered_map<std::string_view, std::string_view> config::defaults =
     {
         {"lock_path", "/tmp/ddappsec.lock"},
         {"socket_path", "/tmp/ddappsec.sock"},
-        {"log_level", "info"},
+        {"log_level", "warn"},
         {"runner_idle_timeout", "1440" } // minutes
 };
 
