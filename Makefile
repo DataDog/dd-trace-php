@@ -55,7 +55,7 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
-$(BUILD_DIR)/config.m4: $(M4_FILES)
+$(BUILD_DIR)/config.m4: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym
 
 $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
 	$(Q) (cd $(BUILD_DIR); phpize && sed -i 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)

@@ -92,7 +92,7 @@ ddtrace_span_fci *ddtrace_init_span(void) {
 
 void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span()); }
 
-bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
+DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
     // Find the root span
     ddtrace_span_fci *root = DDTRACE_G(open_spans_top);
     if (root == NULL) {
