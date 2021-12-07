@@ -124,28 +124,30 @@ dds::result format_waf_result(dds::result::code code, std::string_view json) {
 
     return res;
 }
-} // namespace
 
-namespace dds::waf {
-
-namespace {
-
-void log_cb (DDWAF_LOG_LEVEL level, const char* function, const char* file,
+void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
     unsigned line, const char* message, uint64_t message_len)
 {
+    if (!spdlog::default_logger()) { return; }
+
     auto new_level = spdlog::level::off;
 
     switch(level) {
     case DDWAF_LOG_TRACE:
         new_level = spdlog::level::trace;
+        break;
     case DDWAF_LOG_DEBUG:
         new_level = spdlog::level::debug;
+        break;
     case DDWAF_LOG_INFO:
         new_level = spdlog::level::info;
+        break;
     case DDWAF_LOG_WARN:
         new_level = spdlog::level::warn;
+        break;
     case DDWAF_LOG_ERROR:
         new_level = spdlog::level::err;
+        break;
     case DDWAF_LOG_OFF: [[fallthrough]];
     default:
         break;
@@ -176,7 +178,10 @@ DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
     }
     return DDWAF_LOG_OFF;
 }
-}
+
+} // namespace
+
+namespace dds::waf {
 
 instance::listener::listener(ddwaf_context ctx) : handle_(ctx) {}
 
