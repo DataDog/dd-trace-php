@@ -52,7 +52,7 @@ Options:
     --tracer-version <0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
     --tracer-url <url>          Install the tracing library from a url. If set --tracer-file is ignored.
     --tracer-file <file>        Install the tracing library from a local .tar.gz file.
-    --no tracer                 Do not install the tracing library.
+    --no-tracer                 Do not install the tracing library.
     --appsec-version <0.1.0>    Install a specific version of the appsec lib.
                                 If set --tracer-url and --tracer-file are ignored.
     --appsec-url <url>          Install the appsec library from a url. If set --appsec-file is ignored.
@@ -234,10 +234,12 @@ function install_appsec($options, $selectedBinaries)
     if ($options[OPT_NO_APPSEC]) {
         return;
     }
-    if (
-        !isset($options[OPT_APPSEC_FILE]) &&
+    $implicitAppsec = !isset($options[OPT_APPSEC_FILE]) &&
         !isset($options[OPT_APPSEC_URL]) &&
-        !isset($options[OPT_APPSEC_VERSION]) ||
+        !isset($options[OPT_APPSEC_VERSION]);
+
+    if (
+        $implicitAppsec ||
         isset($options[OPT_APPSEC_VERSION]) && $options[OPT_APPSEC_VERSION] == 'latest'
     ) {
         $options[OPT_APPSEC_VERSION] = latest_release("dd-appsec-php");
@@ -266,8 +268,7 @@ function install_appsec($options, $selectedBinaries)
             ? $options[OPT_APPSEC_URL]
             : sprintf(
                 'https://github.com/DataDog/dd-appsec-php/releases/' .
-                "download/v%s/dd-appsec-php-%s-amd64.tar.gz",
-                rawurlencode($options[OPT_APPSEC_VERSION]),
+                'download/v%1$s/dd-appsec-php-%1$s-amd64.tar.gz',
                 rawurlencode($options[OPT_APPSEC_VERSION])
             );
         download($url, $tarball);
@@ -294,9 +295,14 @@ function install_appsec($options, $selectedBinaries)
         $phpProperties = ini_values($fullPath);
 
         if (is_truthy($phpProperties[IS_DEBUG])) {
-            echo "WARNING: Cannot install appsec for $binaryForLog: " .
-                "this is a debug PHP build, which is not supported\n";
-            continue;
+            if ($implicitAppsec) {
+                echo "WARNING: Cannot install appsec for $binaryForLog: " .
+                    "this is a debug PHP build, which is not supported\n";
+                continue;
+            } else {
+                print_error_and_exit("Cannot install appsec for $binaryForLog: " .
+                    "this is a debug PHP build, which is not supported\n");
+            }
         }
 
         // Copy ddappsec.so
@@ -308,9 +314,14 @@ function install_appsec($options, $selectedBinaries)
         );
 
         if (!file_exists($extensionOrigin)) {
-            echo "WARNING: Cannot install appsec for $binaryForLog: " .
-                "the PHP version is unsupported; no such file '$extensionOrigin'\n";
-            continue;
+            if ($implicitAppsec) {
+                echo "WARNING: Cannot install appsec for $binaryForLog: " .
+                    "the PHP version is unsupported; no such file '$extensionOrigin'\n";
+                continue;
+            } else {
+                print_error_and_exit("Cannot install appsec for $binaryForLog: " .
+                    "the PHP version is unsupported; no such file '$extensionOrigin'\n");
+            }
         }
 
         $extensionDestination = "{$phpProperties[EXTENSION_DIR]}/$extensionFilename";
@@ -318,7 +329,7 @@ function install_appsec($options, $selectedBinaries)
         $tmpExtName = "$extensionDestination.tmp";
         copy($extensionOrigin, $tmpExtName);
         rename($tmpExtName, $extensionDestination);
-        echo "Copied '$extensionOrigin' '$extensionDestination'\n";
+        echo "Copied '$extensionOrigin' to '$extensionDestination'\n";
 
         // Writing the ini file
         $iniFileName = '98-ddappsec.ini';
@@ -862,7 +873,7 @@ function ini_values($binary)
     $lines = [];
     // Timezone is irrelevant to this script. Quick-and-dirty workaround to the PHP 5 warning with missing timezone
     exec(escapeshellarg($binary) .
-        ' -d ddappsec.enabled=1 -d ddappsec.enabled_on_cli=0 -d date.timezone=UTC -i', $lines);
+        ' -d ddappsec.enabled=0 -d ddappsec.enabled_on_cli=0 -d date.timezone=UTC -i', $lines);
     $found = [];
     foreach ($lines as $line) {
         $parts = explode('=>', $line);
