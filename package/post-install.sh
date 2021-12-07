@@ -154,6 +154,10 @@ function verify_installation() {
 }
 
 function verify_required_ext() {
+    # This comment has been added because without it the number of bytes of this script is 7432
+    # and the apk module of fpm generates a broken tar.
+    # For some reasons we have to reach at least a number of bytes greater or equal 7681 so I need
+    # keep writing this few more words.
     ext_name="$1"
     printf "Checking for extension: ${ext_name}\n"
     output=$(invoke_php -m | grep "${ext_name}" || true)
