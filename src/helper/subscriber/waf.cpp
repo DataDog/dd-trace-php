@@ -145,11 +145,6 @@ DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
     return DDWAF_LOG_OFF;
 }
 
-
-} // namespace
-
-namespace dds::waf {
-
 void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
     unsigned line, const char* message, uint64_t message_len)
 {
@@ -182,6 +177,10 @@ void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
     logger->log(spdlog::source_loc{file, static_cast<int>(line), function},
         new_level, std::string_view(message, message_len));
 }
+
+} // namespace
+
+namespace dds::waf {
 
 void initialise_logging(spdlog::level::level_enum level)
 {

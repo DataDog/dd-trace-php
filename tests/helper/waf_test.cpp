@@ -128,7 +128,7 @@ TEST(WafTest, Logging) {
         sink->clear();
     }
 
-    // Count the extra  ifno message from the WAF "Sending log messages..."
+    // Count the extra if no message from the WAF "Sending log messages..."
     {
         dds::waf::initialise_logging(spdlog::level::info);
         DDWAF_TRACE("trace");

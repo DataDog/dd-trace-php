@@ -18,10 +18,6 @@
 
 namespace dds::waf {
 
-// The callback is exposed for testing
-void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
-    unsigned line, const char* message, uint64_t message_len);
-
 void initialise_logging(spdlog::level::level_enum level);
 
 class instance : public dds::subscriber {
