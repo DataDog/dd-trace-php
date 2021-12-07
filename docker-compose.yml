@@ -135,3 +135,9 @@ services:
     - DD_API_KEY=${DATADOG_API_KEY}
     - DD_APM_ENABLED=true
     - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
+
+  packager:
+    image: datadog/docker-library:ddtrace_php_fpm_packaging
+    working_dir: /app
+    volumes:
+      - .:/app
