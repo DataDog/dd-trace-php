@@ -78,6 +78,7 @@ test_upgrade_from_php_installer.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
+test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
 test_install_no_ext_curl_no_curl_cli.sh \
 test_install_no_ext_curl_yes_curl_cli.sh \
