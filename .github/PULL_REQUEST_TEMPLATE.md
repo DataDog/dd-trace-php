@@ -20,11 +20,16 @@ for testing, if the process requires more than just
 running on one of the supported platforms.
 -->
 
-### Checklist
+### Readiness checklist
 
 <!-- Place an '[x]' (no spaces) in all applicable fields. Please remove unrelated fields. -->
 
-- [ ] The CHANGELOG.md has been updated
 - [ ] Unit tests have been updated and pass
 - [ ] If known, an appropriate milestone has been selected
 - [ ] All new source files include the required notice
+
+### Release checklist
+
+- [ ] The CHANGELOG.md has been updated
+
+

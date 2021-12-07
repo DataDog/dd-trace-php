@@ -14,8 +14,8 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/writer.h>
-#include <spdlog/spdlog.h>
 #include <stdexcept>
+#include <string_view>
 
 #include "../json_helper.hpp"
 #include "../result.hpp"
@@ -123,9 +123,67 @@ dds::result format_waf_result(dds::result::code code, std::string_view json) {
 
     return res;
 }
+
+DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
+{
+    switch(level) {
+    case spdlog::level::trace:
+        return DDWAF_LOG_TRACE;
+    case spdlog::level::debug:
+        return DDWAF_LOG_DEBUG;
+    case spdlog::level::info:
+        return DDWAF_LOG_INFO;
+    case spdlog::level::warn:
+        return DDWAF_LOG_WARN;
+    case spdlog::level::err: [[fallthrough]];
+    case spdlog::level::critical:
+        return DDWAF_LOG_ERROR;
+    case spdlog::level::off: [[fallthrough]];
+    default:
+        break;
+    }
+    return DDWAF_LOG_OFF;
+}
+
+void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
+    unsigned line, const char* message, uint64_t message_len)
+{
+    auto new_level = spdlog::level::off;
+    switch(level) {
+    case DDWAF_LOG_TRACE:
+        new_level = spdlog::level::trace;
+        break;
+    case DDWAF_LOG_DEBUG:
+        new_level = spdlog::level::debug;
+        break;
+    case DDWAF_LOG_INFO:
+        new_level = spdlog::level::info;
+        break;
+    case DDWAF_LOG_WARN:
+        new_level = spdlog::level::warn;
+        break;
+    case DDWAF_LOG_ERROR:
+        new_level = spdlog::level::err;
+        break;
+    case DDWAF_LOG_OFF: [[fallthrough]];
+    default:
+        break;
+    }
+
+    spdlog::default_logger()->log(
+        spdlog::source_loc{file, static_cast<int>(line), function},
+        new_level, std::string_view(message, message_len));
+}
+
 } // namespace
 
 namespace dds::waf {
+
+void initialise_logging(spdlog::level::level_enum level)
+{
+    ddwaf_set_log_cb(log_cb, spdlog_level_to_ddwaf(level));
+}
+
 instance::listener::listener(ddwaf_context ctx) : handle_(ctx) {}
 
 instance::listener::listener(instance::listener &&other) noexcept
@@ -188,10 +246,11 @@ dds::result instance::listener::call(dds::parameter &data, unsigned timeout) {
         throw invalid_object();
     case DDWAF_ERR_INVALID_ARGUMENT:
         throw invalid_argument();
-    case DDWAF_ERR_TIMEOUT:
-        throw timeout_error();
     case DDWAF_GOOD:
-        [[fallthrough]];
+        if (res.timeout) {
+            throw timeout_error();
+        }
+        break;
     default:
         break;
     }

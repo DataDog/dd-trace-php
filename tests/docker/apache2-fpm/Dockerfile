@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
 	&& rm -rf /var/lib/apt/lists/*
 
 ARG TRACER_VERSION
-RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/cataphract/dd-trace-php/php-install-ddappsec/dd-library-php-setup.php && \
-	PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --tracer-version $TRACER_VERSION --php-bin all
+RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-trace-php/cataphract/appsec-installer/dd-library-php-setup.php && \
+	PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
 
 RUN rm -rf /var/www/html
 ADD --chown=www-data:www-data examples/webroot/ /var/www/html/

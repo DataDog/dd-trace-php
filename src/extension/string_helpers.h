@@ -5,8 +5,9 @@
 // Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <stdlib.h>
 #include "attributes.h"
+#include <stdbool.h>
+#include <stdlib.h>
 
 #define STR_FOR_FMT(a) ((a) != NULL ? (a) : "(null)")
 
@@ -19,34 +20,10 @@
 #define LSTRLEN(str) (sizeof(str "") - 1)
 #define LSTRARG(str) (str ""), LSTRLEN(str)
 
-static inline void dd_string_normalize_header(
-    char *nonnull s, size_t len)
-{
-    // in and out can overlap
-    const char *end = s + len;
-    for (char *p = s; p != end; p++) {
-        char c = *p;
-        if (c >= 'A' && c <= 'Z') {
-            *p = (char)(c - 'A' + 'a');
-        } else if (c == '_') {
-            *p = '-';
-        }
-    }
-}
-static inline void dd_string_normalize_header2(
-    const char *nonnull in, char *nonnull out, size_t len)
-{
-    // in and out can overlap
-    const char *end = in + len;
-    for (const char *p = in; p != end; p++) {
-        char c = *p;
-        if (c >= 'A' && c <= 'Z') {
-            *out++ = (char)(c - 'A' + 'a');
-        } else if (c == '_') {
-            *out++ = '-';
-        } else {
-            *out++ = c;
-        }
-    }
-    *out = '\0';
-}
+bool dd_string_starts_with_lc(const char *nonnull s, size_t len,
+    const char *nonnull cmp_lc, size_t cmp_lc_len);
+bool dd_string_equals_lc(const char *nonnull s, size_t len,
+    const char *nonnull cmp_lc, size_t cmp_lc_len);
+void dd_string_normalize_header(char *nonnull s, size_t len);
+void dd_string_normalize_header2(
+    const char *nonnull in, char *nonnull out, size_t len);

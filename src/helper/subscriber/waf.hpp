@@ -7,6 +7,7 @@
 #define WAF_HPP
 
 #include <ddwaf.h>
+#include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
 
@@ -15,6 +16,8 @@
 #include "../parameter.hpp"
 
 namespace dds::waf {
+
+void initialise_logging(spdlog::level::level_enum level);
 
 class instance : public dds::subscriber {
   public:

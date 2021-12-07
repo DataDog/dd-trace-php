@@ -57,6 +57,8 @@ public:
         cv.notify_one(); 
     }
 
+    void set_accept_timeout(std::chrono::seconds timeout) override {}
+
     [[nodiscard]] network::base_socket::ptr accept() override
     {
         while (true) {
