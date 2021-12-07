@@ -81,11 +81,22 @@ static bool z_vcall_method_ex(zval *object, zend_class_entry *ce, const char *me
     fcc.initialized = 1;
     fcc.function_handler = func;
     fcc.calling_scope = ce;
+
+    /* Late static binding is intentionally not supported here. Since ZAI
+     * methods will be used primarily to call userland methods at atypical
+     * points in the VM execution, there might be an edge case where a call to
+     * 'static::method_name();' might result in the wrong target class.
+     */
+#define DD_SUPPORT_LSB 0
+#if DD_SUPPORT_LSB
     if (!object && (EG(called_scope) && instanceof_function(EG(called_scope), ce TSRMLS_CC))) {
         fcc.called_scope = EG(called_scope);
     } else {
         fcc.called_scope = ce;
     }
+#else
+    fcc.called_scope = ce;
+#endif
 
     zend_fcall_info fci = empty_fcall_info;
     fci.size = sizeof(zend_fcall_info);
