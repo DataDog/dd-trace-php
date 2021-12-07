@@ -9,9 +9,8 @@
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
 #include <subscriber/waf.hpp>
+#include <defer.hpp>
 #include "common.hpp"
-
-#include <iostream>
 
 const std::string waf_rule =
     R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}],"action":"record"}]})";
@@ -90,7 +89,9 @@ TEST(WafTest, ValidRunMonitor) {
 }
 
 TEST(WafTest, Logging) {
-    auto old_logger = spdlog::default_logger();
+    auto d = defer([old_logger = spdlog::default_logger()]() {
+        spdlog::set_default_logger(old_logger);
+    });
 
     auto sink = std::make_shared<log_counter_sink_st>();
     auto logger = std::make_shared<spdlog::logger>("ddappsec_test", sink);
@@ -163,8 +164,6 @@ TEST(WafTest, Logging) {
         EXPECT_EQ(sink->count(), 6);
         sink->clear();
     }
-
-    spdlog::set_default_logger(old_logger);
 }
 
 } // namespace dds
