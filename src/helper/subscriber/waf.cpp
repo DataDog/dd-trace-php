@@ -153,7 +153,7 @@ void log_cb (DDWAF_LOG_LEVEL level, const char* function, const char* file,
 
     spdlog::default_logger()->log(
         spdlog::source_loc{file, static_cast<int>(line), function},
-        spdlog::level::debug, std::string_view(message, message_len));
+        new_level, std::string_view(message, message_len));
 }
 
 DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
@@ -254,8 +254,10 @@ dds::result instance::listener::call(dds::parameter &data, unsigned timeout) {
 
 instance::instance(parameter &rule) : handle_(ddwaf_init(rule.ptr(), nullptr))
 {
-    // Perhaps we need a better place to do this
-    static auto logger = []{
+    // Initialise the WAF logger only once, this is not important at the moment
+    // since we only  have one instance of the WAF, but this will prevent us
+    // from initialising it multiple times.
+    static bool logger = []{
         ddwaf_set_log_cb(log_cb,
             spdlog_level_to_ddwaf(spdlog::default_logger()->level()));
         return true;
