@@ -14,7 +14,6 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/writer.h>
-#include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string_view>
 
@@ -125,10 +124,37 @@ dds::result format_waf_result(dds::result::code code, std::string_view json) {
     return res;
 }
 
+DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
+{
+    switch(level) {
+    case spdlog::level::trace:
+        return DDWAF_LOG_TRACE;
+    case spdlog::level::debug:
+        return DDWAF_LOG_DEBUG;
+    case spdlog::level::info:
+        return DDWAF_LOG_INFO;
+    case spdlog::level::warn:
+        return DDWAF_LOG_WARN;
+    case spdlog::level::err: [[fallthrough]];
+    case spdlog::level::critical:
+        return DDWAF_LOG_ERROR;
+    case spdlog::level::off: [[fallthrough]];
+    default:
+        break;
+    }
+    return DDWAF_LOG_OFF;
+}
+
+
+} // namespace
+
+namespace dds::waf {
+
 void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
     unsigned line, const char* message, uint64_t message_len)
 {
-    if (!spdlog::default_logger()) { return; }
+    auto logger = spdlog::default_logger();
+    if (!logger) { return; }
 
     auto new_level = spdlog::level::off;
 
@@ -153,35 +179,14 @@ void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
         break;
     }
 
-    spdlog::default_logger()->log(
-        spdlog::source_loc{file, static_cast<int>(line), function},
+    logger->log(spdlog::source_loc{file, static_cast<int>(line), function},
         new_level, std::string_view(message, message_len));
 }
 
-DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
+void initialise_logging(spdlog::level::level_enum level)
 {
-    switch(level) {
-    case spdlog::level::trace:
-        return DDWAF_LOG_TRACE;
-    case spdlog::level::debug:
-        return DDWAF_LOG_DEBUG;
-    case spdlog::level::info:
-        return DDWAF_LOG_INFO;
-    case spdlog::level::warn:
-        return DDWAF_LOG_WARN;
-    case spdlog::level::err: [[fallthrough]];
-    case spdlog::level::critical:
-        return DDWAF_LOG_ERROR;
-    case spdlog::level::off: [[fallthrough]];
-    default:
-        break;
-    }
-    return DDWAF_LOG_OFF;
+    ddwaf_set_log_cb(log_cb, spdlog_level_to_ddwaf(level));
 }
-
-} // namespace
-
-namespace dds::waf {
 
 instance::listener::listener(ddwaf_context ctx) : handle_(ctx) {}
 
@@ -259,15 +264,6 @@ dds::result instance::listener::call(dds::parameter &data, unsigned timeout) {
 
 instance::instance(parameter &rule) : handle_(ddwaf_init(rule.ptr(), nullptr))
 {
-    // Initialise the WAF logger only once, this is not important at the moment
-    // since we only  have one instance of the WAF, but this will prevent us
-    // from initialising it multiple times.
-    static bool logger = []{
-        ddwaf_set_log_cb(log_cb,
-            spdlog_level_to_ddwaf(spdlog::default_logger()->level()));
-        return true;
-    }();
-
     rule.free();
     if (handle_ == nullptr) {
         throw invalid_object();
