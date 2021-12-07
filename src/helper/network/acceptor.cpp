@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "acceptor.hpp"
 #include "../exception.hpp"
 #include <cerrno>
@@ -28,15 +28,16 @@ acceptor::acceptor(const std::string_view &sv)
         throw std::system_error(errno, std::generic_category());
     }
 
-    struct sockaddr_un addr{};
+    struct sockaddr_un addr {
+    };
     addr.sun_family = AF_UNIX;
     if (sv.size() > sizeof(addr.sun_path) - 1) {
         throw std::invalid_argument{"socket path too long"};
     }
-    strcpy(static_cast<char*>(addr.sun_path), sv.data()); // NOLINT
+    strcpy(static_cast<char *>(addr.sun_path), sv.data()); // NOLINT
 
     // Remove the existing socket
-    ::unlink(static_cast<char*>(addr.sun_path));
+    ::unlink(static_cast<char *>(addr.sun_path));
 
     socklen_t len = sv.size() + sizeof(addr.sun_family);
     // NOLINTNEXTLINE
@@ -55,8 +56,7 @@ acceptor::acceptor(const std::string_view &sv)
 void acceptor::set_accept_timeout(std::chrono::seconds timeout)
 {
     struct timeval tv = {timeout.count(), 0};
-    int res = setsockopt(
-        sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    int res = setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     if (res == -1) {
         throw std::system_error(errno, std::generic_category());
     }
@@ -64,7 +64,8 @@ void acceptor::set_accept_timeout(std::chrono::seconds timeout)
 
 socket::ptr acceptor::accept()
 {
-    struct sockaddr_un addr{};
+    struct sockaddr_un addr {
+    };
     socklen_t len = sizeof(addr);
 
     // NOLINTNEXTLINE(android-cloexec-accept,cppcoreguidelines-pro-type-reinterpret-cast)

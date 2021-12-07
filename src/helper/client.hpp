@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
@@ -32,11 +32,11 @@ class client {
     client(client &&) = delete;
     client &operator=(client &&) = delete;
 
-    bool handle_command(const network::client_init::request&);
+    bool handle_command(const network::client_init::request &);
     // NOLINTNEXTLINE(google-runtime-references)
-    bool handle_command(network::request_init::request&);
+    bool handle_command(network::request_init::request &);
     // NOLINTNEXTLINE(google-runtime-references)
-    bool handle_command(network::request_shutdown::request&);
+    bool handle_command(network::request_shutdown::request &);
 
     bool run_client_init();
     bool run_once();

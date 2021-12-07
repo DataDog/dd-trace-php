@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <set>
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
@@ -26,15 +26,17 @@ void engine::subscribe(const subscriber::ptr &sub)
     }
 }
 
-engine::context::~context() {
+engine::context::~context()
+{
     for (auto &param : prev_published_params_) { param.free(); }
 }
 
-result engine::context::publish(parameter &&param, unsigned timeout) {
+result engine::context::publish(parameter &&param, unsigned timeout)
+{
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
     prev_published_params_.push_back(std::move(param));
-    
+
     auto &data = prev_published_params_.back();
     if (!data.is_map()) {
         throw invalid_object(".", "not a map");

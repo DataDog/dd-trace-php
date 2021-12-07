@@ -1,16 +1,18 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "engine_pool.hpp"
 #include "subscriber/waf.hpp"
 #ifdef __cpp_lib_filesystem
-#include <filesystem>
+#    include <filesystem>
 #else
-#include <experimental/filesystem>
+#    include <experimental/filesystem>
 // NOLINTNEXTLINE(cert-dcl58-cpp)
-namespace std { namespace filesystem = experimental::filesystem; }
+namespace std {
+namespace filesystem = experimental::filesystem;
+}
 #endif
 
 #include <mutex>
@@ -58,7 +60,6 @@ void engine_pool::cleanup_cache()
     }
 }
 
-
 const std::string &engine_pool::default_rules_file()
 {
     struct def_rules_file {
@@ -80,6 +81,5 @@ const std::string &engine_pool::default_rules_file()
     static def_rules_file drf;
     return drf.file;
 }
-
 
 } // namespace dds

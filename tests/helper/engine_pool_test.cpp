@@ -1,11 +1,11 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
-#include <engine_pool.hpp>
-#include <boost/algorithm/string/predicate.hpp>
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include <boost/algorithm/string/predicate.hpp>
+#include <engine_pool.hpp>
 
 namespace algo = boost::algorithm;
 
@@ -60,7 +60,6 @@ TEST(EnginePoolTest, LoadRulesFileNotFound)
 TEST(EnginePoolTest, BadRulesFile)
 {
     engine_pool_exp pool;
-    EXPECT_THROW(
-        { pool.load_file("/dev/null"); }, dds::parsing_error);
+    EXPECT_THROW({ pool.load_file("/dev/null"); }, dds::parsing_error);
 }
-} //namespace dds
+} // namespace dds

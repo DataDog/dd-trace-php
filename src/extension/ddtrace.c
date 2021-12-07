@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "ddtrace.h"
 #include <fcntl.h>
 #include <unistd.h>
@@ -85,7 +85,8 @@ static zend_module_entry *_find_ddtrace_module()
     return mod;
 }
 
-void dd_trace_shutdown() {
+void dd_trace_shutdown()
+{
     zend_module_entry *mod = _find_ddtrace_module();
     if (mod) {
         mod->request_shutdown_func = _orig_ddtrace_shutdown;
@@ -149,7 +150,7 @@ bool dd_trace_root_span_add_tag_str(const char *nonnull tag, size_t tag_len,
     ZVAL_STRINGL(&zvalue, value, value_len);
 
     mlog(dd_log_debug, "Adding to root span the tag '%.*s' with value '%.*s'",
-            (int)tag_len, tag, (int)value_len, value);
+        (int)tag_len, tag, (int)value_len, value);
 
     bool res = (*_ddtrace_root_span_add_tag)(ztag, &zvalue);
     zend_string_release(ztag);
@@ -317,7 +318,4 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
-{
-    dd_phpobj_reg_funcs(functions);
-}
+static void _register_testing_objects() { dd_phpobj_reg_funcs(functions); }

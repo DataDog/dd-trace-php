@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #ifndef WORKER_POOL_HPP
 #define WORKER_POOL_HPP
 
@@ -45,7 +45,8 @@ class monitor {
 class pool {
   public:
     pool() = default;
-    ~pool() {
+    ~pool()
+    {
         if (wm_.running()) {
             stop();
         }
@@ -57,7 +58,8 @@ class pool {
     pool &operator=(pool &&) = delete;
 
     template <class Function, class... Args>
-    bool launch(Function &&f, Args &&... args) {
+    bool launch(Function &&f, Args &&...args)
+    {
         if (!wm_.running()) {
             return false;
         }

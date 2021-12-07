@@ -1,33 +1,30 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <libddwaf/src/log.hpp>
 
+#include "common.hpp"
+#include <defer.hpp>
 #include <rapidjson/document.h>
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
 #include <subscriber/waf.hpp>
-#include <defer.hpp>
-#include "common.hpp"
 
 const std::string waf_rule =
     R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}],"action":"record"}]})";
 
 namespace dds {
 
-template<typename Mutex>
-class log_counter_sink : public spdlog::sinks::base_sink <Mutex>
-{
-public:
+template <typename Mutex>
+class log_counter_sink : public spdlog::sinks::base_sink<Mutex> {
+  public:
     size_t count() const noexcept { return counter; }
     void clear() noexcept { counter = 0; }
-protected:
-    void sink_it_(const spdlog::details::log_msg& msg) override
-    {
-        counter++;
-    }
+
+  protected:
+    void sink_it_(const spdlog::details::log_msg &msg) override { counter++; }
 
     void flush_() override {}
 
@@ -36,7 +33,8 @@ protected:
 
 using log_counter_sink_st = log_counter_sink<spdlog::details::null_mutex>;
 
-TEST(WafTest, RunWithInvalidParam) {
+TEST(WafTest, RunWithInvalidParam)
+{
     subscriber::ptr wi(waf::instance::from_string(waf_rule));
     auto ctx = wi->get_listener();
     parameter p;
@@ -44,7 +42,8 @@ TEST(WafTest, RunWithInvalidParam) {
     p.free();
 }
 
-TEST(WafTest, RunWithTimeout) {
+TEST(WafTest, RunWithTimeout)
+{
     subscriber::ptr wi(waf::instance::from_string(waf_rule));
     auto ctx = wi->get_listener();
 
@@ -56,7 +55,8 @@ TEST(WafTest, RunWithTimeout) {
     p.free();
 }
 
-TEST(WafTest, ValidRunGood) {
+TEST(WafTest, ValidRunGood)
+{
     subscriber::ptr wi(waf::instance::from_string(waf_rule));
     auto ctx = wi->get_listener();
 
@@ -68,7 +68,8 @@ TEST(WafTest, ValidRunGood) {
     EXPECT_EQ(res.value, dds::result::code::ok);
 }
 
-TEST(WafTest, ValidRunMonitor) {
+TEST(WafTest, ValidRunMonitor)
+{
     subscriber::ptr wi(waf::instance::from_string(waf_rule));
     auto ctx = wi->get_listener();
 
@@ -88,7 +89,8 @@ TEST(WafTest, ValidRunMonitor) {
     }
 }
 
-TEST(WafTest, Logging) {
+TEST(WafTest, Logging)
+{
     auto d = defer([old_logger = spdlog::default_logger()]() {
         spdlog::set_default_logger(old_logger);
     });
@@ -139,7 +141,7 @@ TEST(WafTest, Logging) {
         DDWAF_INFO("info");
         DDWAF_WARN("warn");
         DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 4); 
+        EXPECT_EQ(sink->count(), 4);
         sink->clear();
     }
 

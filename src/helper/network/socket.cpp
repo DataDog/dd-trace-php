@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "socket.hpp"
 #include <cerrno>
 #include <chrono>
@@ -59,8 +59,7 @@ struct timeval from_chrono(std::chrono::milliseconds duration)
 void socket::set_send_timeout(std::chrono::milliseconds timeout)
 {
     struct timeval tv = from_chrono(timeout);
-    int res = ::setsockopt(
-        sock_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    int res = ::setsockopt(sock_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
     if (res == -1) {
         throw std::system_error(errno, std::generic_category());
     }
@@ -68,8 +67,7 @@ void socket::set_send_timeout(std::chrono::milliseconds timeout)
 void socket::set_recv_timeout(std::chrono::milliseconds timeout)
 {
     struct timeval tv = from_chrono(timeout);
-    int res = setsockopt(
-        sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    int res = setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     if (res == -1) {
         throw std::system_error(errno, std::generic_category());
     }

@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "runner.hpp"
 
 #include "client.hpp"
@@ -13,7 +13,6 @@
 #include <stdexcept>
 #include <sys/stat.h>
 
-
 namespace dds {
 
 namespace {
@@ -23,7 +22,8 @@ network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
     if (value.size() >= 4 && value.substr(0, 3) == "fd:") {
         auto rest{value.substr(3)};
         int fd = std::stoi(std::string{rest}); // can throw
-        struct stat statbuf{};
+        struct stat statbuf {
+        };
         int res = fstat(fd, &statbuf);
         if (res == -1 || !S_ISSOCK(statbuf.st_mode)) {
             throw std::invalid_argument{
@@ -37,9 +37,12 @@ network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
 } // namespace
 
 runner::runner(const config::config &cfg)
-    : runner(cfg, acceptor_from_config(cfg)) {}
+    : runner(cfg, acceptor_from_config(cfg))
+{
+}
 
-runner::runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor)
+runner::runner(
+    const config::config &cfg, network::base_acceptor::ptr &&acceptor)
     : cfg_(cfg), engine_pool_{std::make_shared<engine_pool>()},
       acceptor_(std::move(acceptor)),
       idle_timeout_(cfg.get<unsigned>("runner_idle_timeout"))
@@ -52,7 +55,8 @@ runner::runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor
     }
 }
 
-void runner::run() {
+void runner::run()
+{
     try {
         auto last_not_idle = std::chrono::steady_clock::now();
         SPDLOG_INFO("Running");
@@ -70,7 +74,7 @@ void runner::run() {
 
                 auto elapsed = std::chrono::steady_clock::now() - last_not_idle;
                 if (elapsed >= idle_timeout_) {
-                    SPDLOG_INFO("Runner idle for {} minutes, exiting", 
+                    SPDLOG_INFO("Runner idle for {} minutes, exiting",
                         idle_timeout_.count());
                     break;
                 }
@@ -83,7 +87,9 @@ void runner::run() {
                 break;
             }
 
-            if (!running_) { break; }
+            if (!running_) {
+                break;
+            }
 
             auto broker = std::make_unique<network::broker>(std::move(socket));
 

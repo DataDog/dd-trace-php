@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "php_helpers.h"
 #include "ddappsec.h"
 #include "php_compat.h"
@@ -38,7 +38,8 @@ dd_php_array_type dd_php_determine_array_type(zval *nonnull zv)
     return php_array_type_sequential;
 }
 
-zval *nullable dd_php_get_autoglobal(int track_var, const char *nonnull name, size_t len)
+zval *nullable dd_php_get_autoglobal(
+    int track_var, const char *nonnull name, size_t len)
 {
     zval *var;
     if (EXPECTED(track_var >= 0)) {
@@ -48,7 +49,7 @@ zval *nullable dd_php_get_autoglobal(int track_var, const char *nonnull name, si
         }
     }
 
-    if (zend_is_auto_global_str((char*)name, len)) {
+    if (zend_is_auto_global_str((char *)name, len)) {
         var = &PG(http_globals)[track_var];
         if (Z_TYPE_P(var) == IS_ARRAY) {
             return var;

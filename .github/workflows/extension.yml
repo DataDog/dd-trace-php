@@ -61,11 +61,11 @@ jobs:
         if: matrix.cfg.os != 'ubuntu-latest' || matrix.cfg.valgrind != 'true'
         with:
             php-version: ${{ matrix.cfg.version }}
-      - name: Install clang-tidy
+      - name: Install clang-{tidy,format}
         if: matrix.cfg.static_analysis == 'true'
         run: |
           sudo .github/workflows/scripts/llvm.sh 13
-          sudo apt-get install -y clang-tidy-13
+          sudo apt-get install -y clang-tidy-13 clang-format-13
       - name: Add repository for PHP debug symbols
         if: matrix.cfg.os == 'ubuntu-latest' && matrix.cfg.valgrind == 'true'
         run: |
@@ -86,14 +86,14 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Debug \
             -DDD_APPSEC_BUILD_HELPER=OFF \
             -DDD_APPSEC_ENABLE_COVERAGE=$(if [[ "${{ matrix.cfg.coverage }}" = true ]]; then echo ON; else echo OFF; fi) \
-            -DDD_APPSEC_ENABLE_CLANG_TIDY=$(if [[ "${{ matrix.cfg.static_analysis }}" = true ]]; then echo ON; else echo OFF; fi) \
             $(if [[ "${{ matrix.cfg.valgrind }}" = true ]]; then echo -DPHP_CONFIG=/usr/bin/php-config${{ matrix.cfg.version  }}; fi) \
             -DCLANG_TIDY=/usr/bin/clang-tidy-13 \
+            -DCLANG_FORMAT=/usr/bin/clang-format-13 \
             ..
       - name: Run clang-tidy
         if: matrix.cfg.static_analysis == 'true'
         run: |
-          VERBOSE=1 make -C build tidy
+          VERBOSE=1 make -C build tidy format
       - name: Build
         run: |
           VERBOSE=1 make -C build -j extension

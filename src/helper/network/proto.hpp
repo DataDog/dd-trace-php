@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
 #include "msgpack_helpers.hpp"
@@ -37,37 +37,38 @@ enum class response_id : unsigned {
 
 struct base_request {
     base_request() = default;
-    base_request(const base_request&) = default;
-    base_request& operator=(const base_request&) = default;
-    base_request(base_request&&) = default;
-    base_request& operator=(base_request&&) = default;
+    base_request(const base_request &) = default;
+    base_request &operator=(const base_request &) = default;
+    base_request(base_request &&) = default;
+    base_request &operator=(base_request &&) = default;
 
     virtual ~base_request() = default;
 };
 
 struct base_response {
     base_response() = default;
-    base_response(const base_response&) = default;
-    base_response& operator=(const base_response&) noexcept = default;
-    base_response(base_response&&) noexcept = default;
-    base_response& operator=(base_response&&) = default;
+    base_response(const base_response &) = default;
+    base_response &operator=(const base_response &) noexcept = default;
+    base_response(base_response &&) noexcept = default;
+    base_response &operator=(base_response &&) = default;
 
     virtual ~base_response() = default;
     // NOLINTNEXTLINE(google-runtime-references)
-    virtual stream_packer& pack(stream_packer& packer) const = 0;
+    virtual stream_packer &pack(stream_packer &packer) const = 0;
 };
 
-template <typename T>
-struct base_response_generic : base_response {
+template <typename T> struct base_response_generic : base_response {
     base_response_generic() = default;
-    base_response_generic(const base_response_generic&) = default;
-    base_response_generic& operator=(const base_response_generic&) = default;
-    base_response_generic(base_response_generic&&) noexcept = default;
-    base_response_generic& operator=(base_response_generic&&) noexcept = default;
+    base_response_generic(const base_response_generic &) = default;
+    base_response_generic &operator=(const base_response_generic &) = default;
+    base_response_generic(base_response_generic &&) noexcept = default;
+    base_response_generic &operator=(
+        base_response_generic &&) noexcept = default;
     ~base_response_generic() override = default;
 
-    stream_packer& pack(stream_packer& packer) const override {
-        return packer.pack(*static_cast<const T*>(this));
+    stream_packer &pack(stream_packer &packer) const override
+    {
+        return packer.pack(*static_cast<const T *>(this));
     }
 };
 
@@ -83,9 +84,9 @@ struct client_init {
 
         request() = default;
         request(const request &) = delete;
-        request& operator=(const request&) = delete;
+        request &operator=(const request &) = delete;
         request(request &&) = default;
-        request& operator=(request&&) = default;
+        request &operator=(request &&) = default;
         ~request() override = default;
 
         MSGPACK_DEFINE(pid, client_version, runtime_version, rules_file);
@@ -110,9 +111,9 @@ struct request_init {
 
         request() = default;
         request(const request &) = delete;
-        request& operator=(const request&) = delete;
+        request &operator=(const request &) = delete;
         request(request &&) = default;
-        request& operator=(request&&) = default;
+        request &operator=(request &&) = default;
         ~request() override { data.free(); }
 
         MSGPACK_DEFINE(data)
@@ -137,9 +138,9 @@ struct request_shutdown {
 
         request() = default;
         request(const request &) = delete;
-        request& operator=(const request&) = delete;
+        request &operator=(const request &) = delete;
         request(request &&) = default;
-        request& operator=(request&&) = default;
+        request &operator=(request &&) = default;
         ~request() override { data.free(); }
 
         MSGPACK_DEFINE(data)
@@ -161,42 +162,45 @@ struct request {
     std::shared_ptr<base_request> arguments;
 
     request() = default;
-    request(const request&) = default;
-    request& operator=(const request&) = default;
-    request(request&&) = default;
-    request& operator=(request&&) = default;
+    request(const request &) = default;
+    request &operator=(const request &) = default;
+    request(request &&) = default;
+    request &operator=(request &&) = default;
     ~request() = default;
 
-    template <typename T, typename = std::enable_if_t<std::is_base_of<base_request, T>::value>>
-    explicit request(T &&msg):
-        id(T::id), method(T::name),
-        arguments(std::make_shared<T>(std::forward<T>(msg))) {}
+    template <typename T,
+        typename = std::enable_if_t<std::is_base_of<base_request, T>::value>>
+    explicit request(T &&msg)
+        : id(T::id), method(T::name),
+          arguments(std::make_shared<T>(std::forward<T>(msg)))
+    {
+    }
 
-    template <typename T>
-    typename T::request & as() {
+    template <typename T> typename T::request &as()
+    {
         using R = typename T::request;
         if (id != R::id) {
             throw std::bad_cast();
         }
-        return *static_cast<R*>(arguments.get());
+        return *static_cast<R *>(arguments.get());
     }
 };
 
 } // namespace dds::network
 
 namespace msgpack {
-MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
-namespace adaptor {
-template <>
-struct as<dds::network::request> {
-    dds::network::request operator()(const msgpack::object& o) const;
-};
+MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
+{
+    namespace adaptor {
+    template <> struct as<dds::network::request> {
+        dds::network::request operator()(const msgpack::object &o) const;
+    };
 
-template<>
-struct pack<dds::network::base_response> {
-    // NOLINTNEXTLINE(google-runtime-references)
-    stream_packer& operator()(stream_packer& o, const dds::network::base_response& v) const;
-};
-} // namespace adaptor
+    template <> struct pack<dds::network::base_response> {
+        // NOLINTNEXTLINE(google-runtime-references)
+        stream_packer &operator()(
+            stream_packer &o, const dds::network::base_response &v) const;
+    };
+    } // namespace adaptor
 }
 } // namespace msgpack

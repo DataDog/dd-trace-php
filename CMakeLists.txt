@@ -25,7 +25,6 @@ option(DD_APPSEC_ENABLE_TRACER "Whether to make the tracer  available" ON)
 set(DD_APPSEC_INSTALL_RULES_FILE "" CACHE FILEPATH "Use this rules file instead of checking out appsec-event-rules")
 
 option(DD_APPSEC_ENABLE_COVERAGE "Whether to enable coverage calculation" OFF)
-option(DD_APPSEC_ENABLE_CLANG_TIDY "Whether to create tidy target" OFF)
 option(DD_APPSEC_ENABLE_PATCHELF_LIBC "Whether to remove dependency on libc.so (musl)" OFF)
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
@@ -44,6 +43,5 @@ if(DD_APPSEC_BUILD_EXTENSION)
     endif()
 endif()
 
-if(DD_APPSEC_ENABLE_CLANG_TIDY)
-    include(cmake/clang-tidy.cmake)
-endif()
+include(cmake/clang-tidy.cmake)
+include(cmake/clang-format.cmake)

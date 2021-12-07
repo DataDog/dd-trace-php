@@ -1,13 +1,14 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "config.hpp"
 
 namespace dds::config {
 
-config::config(int argc, char *argv[]) { // NOLINT
+config::config(int argc, char *argv[])
+{ // NOLINT
     for (int i = 1; i < argc; ++i) {
         std::string_view arg(argv[i]);
         if (arg.size() < 2 || arg.substr(0, 2) != "--") {
@@ -41,16 +42,19 @@ config::config(int argc, char *argv[]) { // NOLINT
     }
 }
 
-template <> bool config::get<bool>(std::string_view key) const {
+template <> bool config::get<bool>(std::string_view key) const
+{
     return kv_.find(key) != kv_.end();
 }
 
-template <> std::string config::get<std::string>(std::string_view key) const {
+template <> std::string config::get<std::string>(std::string_view key) const
+{
     return std::string(kv_.at(key));
 }
 
 template <>
-std::string_view config::get<std::string_view>(std::string_view key) const {
+std::string_view config::get<std::string_view>(std::string_view key) const
+{
     return kv_.at(key);
 }
 
@@ -58,9 +62,8 @@ std::string_view config::get<std::string_view>(std::string_view key) const {
 const std::unordered_map<std::string_view, std::string_view> config::defaults =
     {
         {"lock_path", "/tmp/ddappsec.lock"},
-        {"socket_path", "/tmp/ddappsec.sock"},
-        {"log_level", "warn"},
-        {"runner_idle_timeout", "1440" } // minutes
+        {"socket_path", "/tmp/ddappsec.sock"}, {"log_level", "warn"},
+        {"runner_idle_timeout", "1440"} // minutes
 };
 
 } // namespace dds::config

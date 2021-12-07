@@ -1,10 +1,10 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
-#include <gtest/gtest.h>
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include <gtest/gtest.h>
 
 std::string create_sample_rules_ok()
 {
@@ -79,14 +79,15 @@ std::string create_sample_rules_ok()
 
     char tmpl[] = "/tmp/test_ddappsec_XXXXXX";
     int fd = mkstemp(tmpl);
-    std::FILE* tmpf = fdopen(fd, "wb+");
+    std::FILE *tmpf = fdopen(fd, "wb+");
     std::fwrite(data, sizeof(data) - 1, 1, tmpf);
     std::fclose(tmpf);
 
     return tmpl;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

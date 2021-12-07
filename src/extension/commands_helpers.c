@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "commands_helpers.h"
 #include "msgpack_helpers.h"
 #include "tags.h"
@@ -89,12 +89,14 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
         }
 
         res = spec->incoming_cb(imsg.root, ctx);
-        mlog(dd_log_debug, "Processing for command %.*s returned %s",
-            NAME_L, dd_result_to_string(res));
+        mlog(dd_log_debug, "Processing for command %.*s returned %s", NAME_L,
+            dd_result_to_string(res));
         mpack_error_t err = _imsg_destroy(&imsg);
         if (err != mpack_ok) {
-            mlog(dd_log_warning, "Response message for %.*s does not "
-                                 "have the expected form", NAME_L);
+            mlog(dd_log_warning,
+                "Response message for %.*s does not "
+                "have the expected form",
+                NAME_L);
             return dd_error;
         }
         if (res != dd_success && res != dd_should_block) {
@@ -141,8 +143,7 @@ static inline void _omsg_init(dd_omsg *nonnull omsg, const char *nonnull cmd,
     mpack_start_array(&omsg->writer, num_args);
 }
 
-static inline ATTR_WARN_UNUSED mpack_error_t _omsg_finish(
-    dd_omsg *nonnull omsg)
+static inline ATTR_WARN_UNUSED mpack_error_t _omsg_finish(dd_omsg *nonnull omsg)
 {
     mpack_finish_array(&omsg->writer);
     mpack_finish_array(&omsg->writer);
@@ -159,8 +160,7 @@ static inline void _omsg_destroy(dd_omsg *nonnull omsg)
     zend_llist_destroy(&omsg->iovecs);
 }
 
-static inline dd_result _omsg_send(
-    dd_conn *nonnull conn, dd_omsg *nonnull omsg)
+static inline dd_result _omsg_send(dd_conn *nonnull conn, dd_omsg *nonnull omsg)
 {
     return dd_conn_sendv(conn, &omsg->iovecs);
 }
@@ -245,7 +245,7 @@ dd_result dd_command_proc_resp_verd_span_data(
 
 static void _add_appsec_span_data_frag(mpack_node_t node)
 {
-    const char *data =  mpack_node_data(node);
+    const char *data = mpack_node_data(node);
     size_t len = mpack_node_data_len(node);
     if (data == NULL || data[0] == '\0' || len == 0) {
         mlog(dd_log_warning, "Empty appsec event data. Bug");

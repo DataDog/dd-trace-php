@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #ifndef WAF_HPP
 #define WAF_HPP
 
@@ -27,9 +27,9 @@ class instance : public dds::subscriber {
     class listener : public dds::subscriber::listener {
       public:
         listener() = default;
-        listener(const listener&) = delete;
-        listener &operator=(const listener&) = delete;
-        listener(listener &&) noexcept ;
+        listener(const listener &) = delete;
+        listener &operator=(const listener &) = delete;
+        listener(listener &&) noexcept;
         explicit listener(ddwaf_context ctx);
         listener &operator=(listener &&) noexcept;
         ~listener() override;
@@ -43,9 +43,9 @@ class instance : public dds::subscriber {
     // NOLINTNEXTLINE(google-runtime-references)
     explicit instance(dds::parameter &rule);
     instance(const instance &) = delete;
-    instance &operator=(const instance&) = delete;
+    instance &operator=(const instance &) = delete;
     instance(instance &&) noexcept;
-    instance &operator=(instance &&) noexcept ;
+    instance &operator=(instance &&) noexcept;
     ~instance() override;
 
     std::vector<std::string_view> get_subscriptions() override;
