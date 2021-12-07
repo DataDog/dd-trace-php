@@ -327,7 +327,7 @@ function check_php_ext_prerequisite_or_exit($binary, $extName)
 {
     $lastLine = execute_or_exit(
         "Cannot retrieve extensions list",
-        // '|| true' is necessary because grep exists with 1 if the pattern was not found.
+        // '|| true' is necessary because grep exits with 1 if the pattern was not found.
         "$binary -m | grep '$extName' || true"
     );
 

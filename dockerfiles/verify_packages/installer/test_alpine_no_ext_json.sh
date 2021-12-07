@@ -24,10 +24,10 @@ else
     exit 1
 fi
 
-if [ -z "${output##*json*}" ]; then
+output_last_line=$(echo "${output}" | tail -1)
+if [ -z "${output_last_line##*json*}" ]; then
     printf "Ok: output contains text 'json'\n"
 else
-    output_last_line=$(echo "${output}" | tail -1)
     printf "Error: Output does not contain text 'json'. Output is\n---\n${output_last_line}\n---\n"
     exit 1
 fi
