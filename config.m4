@@ -293,12 +293,13 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_SUBST(EXTRA_CFLAGS)
   PHP_SUBST(EXTRA_LDFLAGS)
 
-  dnl How can we isolate these things to profiling/config.m4?
+  dnl How can we isolate these things to profiling/?
   if test "$PHP_DATADOG_PROFILING" = "yes" ; then
     PHP_ADD_INCLUDE([$ext_srcdir/profiling])
 
     PHP_ADD_BUILD_DIR([$ext_builddir/components])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/arena])
+    PHP_ADD_BUILD_DIR([$ext_builddir/components/channel])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/log])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/queue])
     PHP_ADD_BUILD_DIR([$ext_builddir/components/stack-sample])
