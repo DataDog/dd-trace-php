@@ -153,6 +153,19 @@ function verify_installation() {
         fail_print_and_exit
 }
 
+function verify_required_ext() {
+    ext_name="$1"
+    printf "Checking for extension: ${ext_name}\n"
+    output=$(invoke_php -m | grep "${ext_name}" || true)
+
+    if [ "${output}" == "${ext_name}" ]; then
+        printf "Extension '${ext_name}' was found.\n"
+    else
+        printf "Error: PHP extension '${ext_name}' was not found.\n"
+        exit 1
+    fi
+}
+
 println "PHP version"
 invoke_php -v
 
@@ -194,6 +207,8 @@ extension=${EXTENSION_FILE_PATH}
 datadog.trace.request_init_hook=${EXTENSION_AUTO_INSTRUMENTATION_FILE}
 EOF
 )
+
+verify_required_ext json
 
 if [[ ! -e $PHP_CFG_DIR ]]; then
     println

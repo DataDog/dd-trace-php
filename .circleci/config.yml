@@ -915,6 +915,21 @@ jobs:
           name: Validate .tar.gz package
           command: PHP_VERSION=<< parameters.php_major_minor >> bash ./dockerfiles/verify_packages/verify_tar_gz_root.sh
 
+  verify_no_json_ext:
+    working_directory: ~/datadog
+    resource_class: small
+    docker:
+      - image: alpine:3.12
+    steps:
+      - run:
+          # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+          name: Install ca-certificates
+          command: apk add --no-cache ca-certificates
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Test
+          command: ./dockerfiles/verify_packages/verify_no_ext_json.sh
+
   installer_tests:
     working_directory: ~/datadog
     machine:
@@ -1801,6 +1816,9 @@ workflows:
                 - "8.0"
                 # There is little value in testing several versions, since all the packages are already verified on the
                 # respective platforms using the native packages. Let's save some CPU cycles.
+
+      - verify_no_json_ext:
+          requires: [ "package extension" ]
 
       - pecl_tests:
           requires: [ "Build PECL" ]
