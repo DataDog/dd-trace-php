@@ -90,6 +90,8 @@ TEST(WafTest, ValidRunMonitor) {
 }
 
 TEST(WafTest, Logging) {
+    auto old_logger = spdlog::default_logger();
+
     auto sink = std::make_shared<log_counter_sink_st>();
     auto logger = std::make_shared<spdlog::logger>("ddappsec_test", sink);
 
@@ -161,6 +163,8 @@ TEST(WafTest, Logging) {
         EXPECT_EQ(sink->count(), 6);
         sink->clear();
     }
+
+    spdlog::set_default_logger(old_logger);
 }
 
 } // namespace dds

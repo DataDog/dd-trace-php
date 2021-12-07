@@ -148,11 +148,7 @@ DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
 void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
     unsigned line, const char* message, uint64_t message_len)
 {
-    auto logger = spdlog::default_logger();
-    if (!logger) { return; }
-
     auto new_level = spdlog::level::off;
-
     switch(level) {
     case DDWAF_LOG_TRACE:
         new_level = spdlog::level::trace;
@@ -174,7 +170,8 @@ void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
         break;
     }
 
-    logger->log(spdlog::source_loc{file, static_cast<int>(line), function},
+    spdlog::default_logger()->log(
+        spdlog::source_loc{file, static_cast<int>(line), function},
         new_level, std::string_view(message, message_len));
 }
 
