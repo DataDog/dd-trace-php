@@ -14,8 +14,7 @@
 
 namespace {
 
-// NOLINTNEXTLINE
-bool default_reference_func(
+bool default_reference_func( // NOLINTNEXTLINE
     msgpack::type::object_type /*type*/, std::size_t /*len*/, void *)
 {
     return true;
@@ -29,8 +28,7 @@ request broker::recv(std::chrono::milliseconds initial_timeout) const
     socket_->set_recv_timeout(initial_timeout);
 
     header_t h;
-    // NOLINTNEXTLINE
-    std::size_t res =
+    std::size_t res = // NOLINTNEXTLINE
         socket_->recv(reinterpret_cast<char *>(&h), sizeof(header_t));
     if (res != sizeof(header_t)) {
         // The sender probably closed the socket

@@ -14,7 +14,7 @@
 namespace dds {
 
 class parameter : public ddwaf_object {
-  public:
+public:
     parameter();
     explicit parameter(const ddwaf_object &arg);
 

@@ -18,7 +18,7 @@
 namespace dds {
 
 class runner {
-  public:
+public:
     explicit runner(const config::config &cfg);
     runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor);
     runner(const runner &) = delete;
@@ -31,7 +31,7 @@ class runner {
 
     void exit() { running_ = false; }
 
-  private:
+private:
     const config::config &cfg_;
     std::shared_ptr<engine_pool> engine_pool_;
     worker::pool worker_pool_;

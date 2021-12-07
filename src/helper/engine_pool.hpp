@@ -14,12 +14,12 @@
 namespace dds {
 
 class engine_pool {
-  public:
+public:
     static const std::string &default_rules_file();
 
     std::shared_ptr<engine> load_file(std::string rules_path);
 
-  protected:
+protected:
     using cache_t = std::unordered_map<std::string, std::weak_ptr<engine>>;
 
     void cleanup_cache(); // mutex_ must be held when calling this

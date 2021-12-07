@@ -14,13 +14,13 @@ namespace dds {
 // provides a const char * so it can still be used when std::string_view is
 // enough.
 class string_buffer {
-  public:
+public:
     using Ch = char;
 
-  protected:
+protected:
     static constexpr std::size_t default_capacity = 1024;
 
-  public:
+public:
     string_buffer() { buffer_.reserve(default_capacity); }
 
     void Put(Ch c) { buffer_.push_back(c); }
@@ -37,7 +37,7 @@ class string_buffer {
 
     std::string &get_string_ref() { return buffer_; }
 
-  protected:
+protected:
     std::string buffer_;
 };
 

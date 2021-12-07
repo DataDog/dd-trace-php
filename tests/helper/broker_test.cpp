@@ -13,7 +13,7 @@ namespace dds {
 namespace mock {
 
 class socket : public network::base_socket {
-  public:
+public:
     ~socket() override = default;
     MOCK_METHOD2(recv, std::size_t(char *, std::size_t));
     MOCK_METHOD2(send, std::size_t(const char *, std::size_t));

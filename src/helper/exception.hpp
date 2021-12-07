@@ -16,7 +16,7 @@ namespace dds {
 using namespace std::literals;
 
 class internal_error : public std::exception {
-  public:
+public:
     [[nodiscard]] const char *what() const noexcept override
     {
         return "internal error";
@@ -24,7 +24,7 @@ class internal_error : public std::exception {
 };
 
 class timeout_error : public std::exception {
-  public:
+public:
     [[nodiscard]] const char *what() const noexcept override
     {
         return "timeout error";
@@ -32,25 +32,24 @@ class timeout_error : public std::exception {
 };
 
 class invalid_object : public std::exception {
-  public:
+public:
     invalid_object() : what_("invalid object") {}
     explicit invalid_object(std::string_view what) : what_(what) {}
     invalid_object(const std::string &key, const std::string &what)
         : what_("invalid object: key '" + key + "' " + what)
-    {
-    }
+    {}
     [[nodiscard]] const char *what() const noexcept override
     {
         return what_.c_str();
     }
 
-  protected:
+protected:
     std::string parent_;
     std::string what_;
 };
 
 class invalid_argument : public std::exception {
-  public:
+public:
     [[nodiscard]] const char *what() const noexcept override
     {
         return "invalid argument";
@@ -58,26 +57,26 @@ class invalid_argument : public std::exception {
 };
 
 class parsing_error : public std::exception {
-  public:
+public:
     explicit parsing_error(std::string what) : what_(std::move(what)) {}
     [[nodiscard]] const char *what() const noexcept override
     {
         return what_.c_str();
     }
 
-  protected:
+protected:
     const std::string what_;
 };
 
 class bad_cast : public std::exception {
-  public:
+public:
     explicit bad_cast(std::string what) : what_(std::move(what)) {}
     [[nodiscard]] const char *what() const noexcept override
     {
         return what_.c_str();
     }
 
-  protected:
+protected:
     const std::string what_;
 };
 

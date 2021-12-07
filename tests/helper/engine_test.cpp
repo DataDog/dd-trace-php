@@ -15,14 +15,14 @@ namespace dds {
 
 namespace mock {
 class listener : public dds::subscriber::listener {
-  public:
+public:
     typedef std::shared_ptr<dds::mock::listener> ptr;
 
     MOCK_METHOD2(call, dds::result(dds::parameter &, unsigned));
 };
 
 class subscriber : public dds::subscriber {
-  public:
+public:
     typedef std::shared_ptr<dds::mock::subscriber> ptr;
 
     MOCK_METHOD0(get_listener, dds::subscriber::listener::ptr());

@@ -13,7 +13,7 @@ namespace dds::config {
 // TODO: Rename to ArgConfig or ArgParser?
 //       Perhaps make this a "singleton"
 class config {
-  public:
+public:
     config() = default;
     config(int argc, char *argv[]); // NOLINT
 
@@ -22,7 +22,7 @@ class config {
         return boost::lexical_cast<T>(kv_.at(key));
     }
 
-  protected:
+protected:
     static const std::unordered_map<std::string_view, std::string_view>
         defaults;
     std::unordered_map<std::string_view, std::string_view> kv_{defaults};

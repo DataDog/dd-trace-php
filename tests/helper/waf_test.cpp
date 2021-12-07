@@ -19,11 +19,11 @@ namespace dds {
 
 template <typename Mutex>
 class log_counter_sink : public spdlog::sinks::base_sink<Mutex> {
-  public:
+public:
     size_t count() const noexcept { return counter; }
     void clear() noexcept { counter = 0; }
 
-  protected:
+protected:
     void sink_it_(const spdlog::details::log_msg &msg) override { counter++; }
 
     void flush_() override {}

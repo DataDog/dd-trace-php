@@ -173,8 +173,7 @@ struct request {
     explicit request(T &&msg)
         : id(T::id), method(T::name),
           arguments(std::make_shared<T>(std::forward<T>(msg)))
-    {
-    }
+    {}
 
     template <typename T> typename T::request &as()
     {
@@ -189,18 +188,17 @@ struct request {
 } // namespace dds::network
 
 namespace msgpack {
-MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
-{
-    namespace adaptor {
-    template <> struct as<dds::network::request> {
-        dds::network::request operator()(const msgpack::object &o) const;
-    };
+MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
+namespace adaptor {
+template <> struct as<dds::network::request> {
+    dds::network::request operator()(const msgpack::object &o) const;
+};
 
-    template <> struct pack<dds::network::base_response> {
-        // NOLINTNEXTLINE(google-runtime-references)
-        stream_packer &operator()(
-            stream_packer &o, const dds::network::base_response &v) const;
-    };
-    } // namespace adaptor
-}
+template <> struct pack<dds::network::base_response> {
+    // NOLINTNEXTLINE(google-runtime-references)
+    stream_packer &operator()(
+        stream_packer &o, const dds::network::base_response &v) const;
+};
+} // namespace adaptor
+} // MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
 } // namespace msgpack

@@ -21,11 +21,11 @@ namespace dds::waf {
 void initialise_logging(spdlog::level::level_enum level);
 
 class instance : public dds::subscriber {
-  public:
+public:
     using ptr = std::shared_ptr<instance>;
 
     class listener : public dds::subscriber::listener {
-      public:
+    public:
         listener() = default;
         listener(const listener &) = delete;
         listener &operator=(const listener &) = delete;
@@ -36,7 +36,7 @@ class instance : public dds::subscriber {
 
         dds::result call(dds::parameter &data, unsigned timeout) override;
 
-      protected:
+    protected:
         ddwaf_context handle_{};
     };
 
@@ -55,7 +55,7 @@ class instance : public dds::subscriber {
     static instance::ptr from_file(std::string_view rule_file);
     static instance::ptr from_string(std::string_view rule);
 
-  protected:
+protected:
     ddwaf_handle handle_{nullptr};
 };
 

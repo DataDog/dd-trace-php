@@ -7,8 +7,9 @@
 
 namespace dds::config {
 
+// NOLINTNEXTLINE
 config::config(int argc, char *argv[])
-{ // NOLINT
+{
     for (int i = 1; i < argc; ++i) {
         std::string_view arg(argv[i]);
         if (arg.size() < 2 || arg.substr(0, 2) != "--") {

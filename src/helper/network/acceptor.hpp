@@ -12,7 +12,7 @@
 namespace dds::network {
 
 class base_acceptor {
-  public:
+public:
     using ptr = std::unique_ptr<base_acceptor>;
 
     base_acceptor() = default;
@@ -29,7 +29,7 @@ class base_acceptor {
 namespace local {
 
 class acceptor : public base_acceptor {
-  public:
+public:
     explicit acceptor(int fd) : sock_{fd} {};
     explicit acceptor(const std::string_view &sv);
     acceptor(const acceptor &) = delete;
@@ -52,7 +52,7 @@ class acceptor : public base_acceptor {
     void set_accept_timeout(std::chrono::seconds timeout) override;
     [[nodiscard]] base_socket::ptr accept() override;
 
-  private:
+private:
     int sock_{-1};
 };
 

@@ -38,8 +38,7 @@ network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
 
 runner::runner(const config::config &cfg)
     : runner(cfg, acceptor_from_config(cfg))
-{
-}
+{}
 
 runner::runner(
     const config::config &cfg, network::base_acceptor::ptr &&acceptor)

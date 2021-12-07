@@ -6,70 +6,68 @@
 #include "proto.hpp"
 
 namespace msgpack {
-MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
+MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
+namespace adaptor {
+
+using dds::network::base_response;
+using dds::network::client_init;
+using dds::network::request;
+using dds::network::request_id;
+using dds::network::request_init;
+using dds::network::request_shutdown;
+
+namespace {
+request_id command_name_to_id(const std::string &str)
 {
-    namespace adaptor {
+    static const std::map<std::string_view, request_id> mapping = {
+        {client_init::request::name, client_init::request::id},
+        {request_init::request::name, request_init::request::id},
+        {request_shutdown::request::name, request_shutdown::request::id}};
 
-    using dds::network::base_response;
-    using dds::network::client_init;
-    using dds::network::request;
-    using dds::network::request_id;
-    using dds::network::request_init;
-    using dds::network::request_shutdown;
-
-    namespace {
-    request_id command_name_to_id(const std::string &str)
-    {
-        static const std::map<std::string_view, request_id> mapping = {
-            {client_init::request::name, client_init::request::id},
-            {request_init::request::name, request_init::request::id},
-            {request_shutdown::request::name, request_shutdown::request::id}};
-
-        auto it = mapping.find(str);
-        return (it == mapping.end() ? request_id::unknown : it->second);
-    }
-
-    template <typename T> auto msgpack_to_request(const msgpack::object &o)
-    {
-        using R = typename T::request;
-        return std::make_shared<R>(o.as<R>());
-    }
-
-    } // namespace
-
-    request as<request>::operator()(const msgpack::object &o) const
-    {
-        request r;
-        if (o.type != msgpack::type::ARRAY || o.via.array.size != 2) {
-            throw msgpack::type_error();
-        }
-
-        r.method = o.via.array.ptr[0].as<std::string>();
-        r.id = command_name_to_id(r.method);
-        switch (r.id) {
-        case client_init::request::id:
-            r.arguments = msgpack_to_request<client_init>(o.via.array.ptr[1]);
-            break;
-        case request_init::request::id:
-            r.arguments = msgpack_to_request<request_init>(o.via.array.ptr[1]);
-            break;
-        case request_shutdown::request::id:
-            r.arguments =
-                msgpack_to_request<request_shutdown>(o.via.array.ptr[1]);
-            break;
-        default:
-            break;
-        }
-
-        return r;
-    }
-
-    stream_packer &pack<base_response>::operator()(
-        stream_packer &o, const base_response &v) const
-    {
-        return v.pack(o);
-    }
-
-    } // namespace adaptor
+    auto it = mapping.find(str);
+    return (it == mapping.end() ? request_id::unknown : it->second);
 }
+
+template <typename T> auto msgpack_to_request(const msgpack::object &o)
+{
+    using R = typename T::request;
+    return std::make_shared<R>(o.as<R>());
+}
+
+} // namespace
+
+request as<request>::operator()(const msgpack::object &o) const
+{
+    request r;
+    if (o.type != msgpack::type::ARRAY || o.via.array.size != 2) {
+        throw msgpack::type_error();
+    }
+
+    r.method = o.via.array.ptr[0].as<std::string>();
+    r.id = command_name_to_id(r.method);
+    switch (r.id) {
+    case client_init::request::id:
+        r.arguments = msgpack_to_request<client_init>(o.via.array.ptr[1]);
+        break;
+    case request_init::request::id:
+        r.arguments = msgpack_to_request<request_init>(o.via.array.ptr[1]);
+        break;
+    case request_shutdown::request::id:
+        r.arguments = msgpack_to_request<request_shutdown>(o.via.array.ptr[1]);
+        break;
+    default:
+        break;
+    }
+
+    return r;
+}
+
+stream_packer &pack<base_response>::operator()(
+    stream_packer &o, const base_response &v) const
+{
+    return v.pack(o);
+}
+
+} // namespace adaptor
+} // MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
 } // namespace msgpack

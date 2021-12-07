@@ -12,7 +12,7 @@
 namespace dds::network {
 
 class base_broker {
-  public:
+public:
     using ptr = std::unique_ptr<base_broker>;
 
     base_broker() = default;
@@ -28,7 +28,7 @@ class base_broker {
 };
 
 class broker : public base_broker {
-  public:
+public:
     // msgpack limits
     static constexpr std::size_t max_array_size = 256;
     static constexpr std::size_t max_map_size = 256;
@@ -51,7 +51,7 @@ class broker : public base_broker {
         std::chrono::milliseconds initial_timeout) const override;
     [[nodiscard]] bool send(const base_response &msg) const override;
 
-  protected:
+protected:
     base_socket::ptr socket_;
 };
 

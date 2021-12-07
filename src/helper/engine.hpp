@@ -24,14 +24,14 @@ namespace dds {
  *    - subscriber: data consumer, defines its required topics and immutable
  *                  state.
  *    - subscriber::listener: request-bound data consumer, consumes the data and
- *provides the mutable state.
+ *                            provides the mutable state.
  *    - address: addresses to which a subscriber subscribes.
  *    - subscription: the mapping between an address and a subscriber.
  **/
 class engine : std::enable_shared_from_this<engine> {
     engine() = default;
 
-  public:
+public:
     static constexpr int default_timeout = 10000; /* microseconds */
 
     using subscription_map =
@@ -41,11 +41,10 @@ class engine : std::enable_shared_from_this<engine> {
     // beyond the engine. This could be enforced by having the context
     // store a shared_ptr to the engine
     class context {
-      public:
+    public:
         explicit context(const engine &engine)
             : subscriptions_(engine.subscriptions_)
-        {
-        }
+        {}
         context(const context &) = delete;
         context &operator=(const context &) = delete;
         context(context &&) = delete;
@@ -54,7 +53,7 @@ class engine : std::enable_shared_from_this<engine> {
 
         result publish(parameter &&param, unsigned timeout = default_timeout);
 
-      protected:
+    protected:
         std::vector<parameter> prev_published_params_;
         std::map<subscriber::ptr, subscriber::listener::ptr> listeners_;
         const subscription_map &subscriptions_;
@@ -65,7 +64,7 @@ class engine : std::enable_shared_from_this<engine> {
     context get_context() { return context{*this}; }
     void subscribe(const subscriber::ptr &sub);
 
-  protected:
+protected:
     subscription_map subscriptions_;
 };
 

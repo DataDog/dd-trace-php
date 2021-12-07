@@ -12,7 +12,7 @@
 // NOLINTNEXTLINE(cert-dcl58-cpp)
 namespace std {
 namespace filesystem = experimental::filesystem;
-}
+} // namespace std
 #endif
 
 #include <mutex>

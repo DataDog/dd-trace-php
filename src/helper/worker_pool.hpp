@@ -18,7 +18,7 @@
 namespace dds::worker {
 
 class monitor {
-  public:
+public:
     monitor() = default;
     [[nodiscard]] bool running() const { return running_; }
 
@@ -31,7 +31,7 @@ class monitor {
     // We could block but who has the time
     [[nodiscard]] unsigned count() const { return thread_count_; }
 
-  protected:
+protected:
     std::atomic<bool> running_{true};
     unsigned thread_count_{0};
     std::mutex m_;
@@ -43,7 +43,7 @@ class monitor {
 // is used as a thread reference counter as well as a mechanism to signal
 // when they should stop running.
 class pool {
-  public:
+public:
     pool() = default;
     ~pool()
     {
@@ -73,7 +73,7 @@ class pool {
 
     void stop() { wm_.stop(); }
 
-  private:
+private:
     monitor wm_;
 };
 

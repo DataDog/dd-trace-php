@@ -14,7 +14,7 @@
 namespace dds::network {
 
 class base_socket {
-  public:
+public:
     using ptr = std::unique_ptr<base_socket>;
 
     base_socket() = default;
@@ -34,7 +34,7 @@ class base_socket {
 
 namespace local {
 class socket : public base_socket {
-  public:
+public:
     explicit socket(int s) : sock_(s) {}
     socket(const socket &) = delete; // could use dup though
     socket &operator=(const socket &) = delete;
@@ -62,7 +62,7 @@ class socket : public base_socket {
     void set_send_timeout(std::chrono::milliseconds timeout) override;
     void set_recv_timeout(std::chrono::milliseconds timeout) override;
 
-  private:
+private:
     void close() noexcept
     {
         if (sock_ == -1) {

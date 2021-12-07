@@ -20,12 +20,11 @@
 namespace dds {
 
 class client {
-  public:
+public:
     client(std::shared_ptr<engine_pool> engine_pool,
         network::base_broker::ptr &&broker)
         : engine_pool_(std::move(engine_pool)), broker_(std::move(broker))
-    {
-    }
+    {}
     ~client() = default;
     client(const client &) = delete;
     client &operator=(const client &) = delete;
@@ -44,7 +43,7 @@ class client {
     // NOLINTNEXTLINE(google-runtime-references)
     void run(worker::monitor &wm);
 
-  protected:
+protected:
     uint32_t version{};
     network::base_broker::ptr broker_;
     std::shared_ptr<engine_pool> engine_pool_;

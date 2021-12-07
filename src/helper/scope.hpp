@@ -13,17 +13,17 @@ namespace dds {
 // This class can be used to derive from if necessary also duck-typing is
 // another acceptable option.
 class ref_counted {
-  public:
+public:
     void add_reference() { count++; }
     void delete_reference() { count--; }
     unsigned reference_count() { return count; }
 
-  protected:
+protected:
     std::atomic<unsigned> count{0};
 };
 
 template <typename T> class scope {
-  public:
+public:
     explicit scope(T &rc) : rc_(rc) { rc_.add_reference(); }
     ~scope() { rc_.delete_reference(); }
 
@@ -32,7 +32,7 @@ template <typename T> class scope {
     scope(scope<T> &&) = delete;
     scope &operator=(scope<T> &&) = delete;
 
-  private:
+private:
     T &rc_;
 };
 

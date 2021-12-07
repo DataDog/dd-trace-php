@@ -19,8 +19,7 @@ struct result {
     result() = default;
     explicit result(code c) : value(c) {}
     result(code c, std::vector<std::string> &&s) : value(c), data(std::move(s))
-    {
-    }
+    {}
     result(const result &) = default;
     result(result &&) = default;
     result &operator=(const result &) = default;

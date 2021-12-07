@@ -14,11 +14,11 @@
 namespace dds {
 
 class subscriber {
-  public:
+public:
     using ptr = std::shared_ptr<subscriber>;
 
     class listener {
-      public:
+    public:
         using ptr = std::shared_ptr<listener>;
 
         listener() = default;

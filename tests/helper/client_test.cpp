@@ -12,7 +12,7 @@ namespace dds {
 
 namespace mock {
 class broker : public dds::network::base_broker {
-  public:
+public:
     MOCK_CONST_METHOD1(
         recv, network::request(std::chrono::milliseconds initial_timeout));
     MOCK_CONST_METHOD1(send, bool(const network::base_response &msg));

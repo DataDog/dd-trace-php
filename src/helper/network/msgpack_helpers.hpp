@@ -12,21 +12,20 @@
 #include <sstream>
 
 namespace msgpack {
-MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
-{
-    namespace adaptor {
+MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
+namespace adaptor {
 
-    template <> struct as<dds::parameter> {
-        dds::parameter operator()(const msgpack::object &o) const;
-    };
+template <> struct as<dds::parameter> {
+    dds::parameter operator()(const msgpack::object &o) const;
+};
 
-    template <> struct convert<dds::parameter> {
-        // NOLINTNEXTLINE(google-runtime-references)
-        msgpack::object const &operator()(
-            const msgpack::object &o, dds::parameter &v) const;
-    };
+template <> struct convert<dds::parameter> {
+    // NOLINTNEXTLINE(google-runtime-references)
+    msgpack::object const &operator()(
+        const msgpack::object &o, dds::parameter &v) const;
+};
 
-    } // namespace adaptor
-}
+} // namespace adaptor
+} // MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
 } // namespace msgpack
 #endif
