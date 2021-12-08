@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <SAPI.h>
 #include <ext/standard/info.h>
 #include <php.h>
@@ -43,7 +43,8 @@ static void _register_testing_objects(void);
 #endif
 
 // GINIT/GSHUTDOWN run before/after MINIT/MSHUTDOWN
-static PHP_GINIT_FUNCTION(ddappsec) {
+static PHP_GINIT_FUNCTION(ddappsec)
+{
 #if defined(ZTS)
     TSRMLS_CACHE = tsrm_get_ls_cache();
 #endif
@@ -55,7 +56,8 @@ static PHP_GINIT_FUNCTION(ddappsec) {
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
 }
 
-static PHP_GSHUTDOWN_FUNCTION(ddappsec) {
+static PHP_GSHUTDOWN_FUNCTION(ddappsec)
+{
     // delay log shutdown until the last possible moment, so that TSRM
     // destructors can run with logging
 #if ZTS
@@ -71,7 +73,8 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec) {
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static PHP_MINIT_FUNCTION(ddappsec) {
+static PHP_MINIT_FUNCTION(ddappsec)
+{
     UNUSED(type);
     UNUSED(module_number);
 
@@ -92,7 +95,8 @@ static PHP_MINIT_FUNCTION(ddappsec) {
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static PHP_MSHUTDOWN_FUNCTION(ddappsec) {
+static PHP_MSHUTDOWN_FUNCTION(ddappsec)
+{
     UNUSED(type);
     UNUSED(module_number);
 
@@ -105,7 +109,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec) {
     return SUCCESS;
 }
 
-static PHP_RINIT_FUNCTION(ddappsec) {
+static PHP_RINIT_FUNCTION(ddappsec)
+{
     if (!DDAPPSEC_G(enabled)) {
         mlog_g(dd_log_debug, "Appsec disabled");
         return SUCCESS;
@@ -197,7 +202,8 @@ int dd_appsec_rshutdown()
     return SUCCESS;
 }
 
-static PHP_MINFO_FUNCTION(ddappsec) {
+static PHP_MINFO_FUNCTION(ddappsec)
+{
     php_info_print_box_start(0);
     PUTS("Datadog PHP AppSec extension");
     PUTS(!sapi_module.phpinfo_as_text ? "<br>" : "\n");
@@ -206,7 +212,7 @@ static PHP_MINFO_FUNCTION(ddappsec) {
 
     php_info_print_table_start();
     php_info_print_table_row(2, "Datadog AppSec support",
-        DDAPPSEC_G(enabled) ? "enabled" :"disabled");
+        DDAPPSEC_G(enabled) ? "enabled" : "disabled");
     php_info_print_table_row(2, "Version", PHP_DDAPPSEC_VERSION);
     php_info_print_table_end();
 
@@ -222,6 +228,7 @@ static const  zend_module_dep _ddappsec_deps[] = {
 
 ZEND_DECLARE_MODULE_GLOBALS(ddappsec)
 
+// clang-format off
 static zend_module_entry ddappsec_module_entry = {
     STANDARD_MODULE_HEADER_EX,
     NULL,
@@ -240,6 +247,7 @@ static zend_module_entry ddappsec_module_entry = {
     NULL,
     STANDARD_MODULE_PROPERTIES_EX
 };
+// clang-format on
 
 ZEND_GET_MODULE(ddappsec)
 
@@ -252,7 +260,7 @@ static ZEND_INI_MH(_on_update_appsec_enabled_on_cli);
 
 static void _register_ini_entries()
 {
-// clang-format off
+    // clang-format off
     static const dd_ini_setting settings[] = {
         DD_INI_ENV("enabled", "0", PHP_INI_SYSTEM, _on_update_appsec_enabled),
         DD_INI_ENV("enabled_on_cli", "0", PHP_INI_SYSTEM, _on_update_appsec_enabled_on_cli),
@@ -263,7 +271,7 @@ static void _register_ini_entries()
         DD_INI_ENV_GLOB("testing_abort_rinit", "0", PHP_INI_SYSTEM, OnUpdateBool, testing_abort_rinit, zend_ddappsec_globals, ddappsec_globals),
         {0}
     };
-// clang-format on
+    // clang-format on
 
     dd_phpobj_reg_ini_envs(settings);
 }

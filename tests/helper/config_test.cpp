@@ -1,35 +1,39 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
-#include <config.hpp>
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include <config.hpp>
 
 namespace dds {
 
-TEST(ConfigTest, ValidConstruction) {
+TEST(ConfigTest, ValidConstruction)
+{
     int argc = 3;
     char *argv[] = {const_cast<char *>("tester"), const_cast<char *>("--key"),
         const_cast<char *>("value"), nullptr};
     EXPECT_NO_THROW(config::config(argc, argv));
 }
 
-TEST(ConfigTest, NonNullTerminatedListConstruction) {
+TEST(ConfigTest, NonNullTerminatedListConstruction)
+{
     int argc = 2;
     char *argv[] = {const_cast<char *>("a"), const_cast<char *>("b")};
 
     EXPECT_NO_THROW(config::config(argc, argv));
 }
 
-TEST(ConfigTest, TestDefaultKeys) {
+TEST(ConfigTest, TestDefaultKeys)
+{
     config::config cfg(0, nullptr);
     EXPECT_NO_THROW(cfg.get<std::string_view>("lock_path"));
     EXPECT_NO_THROW(cfg.get<std::string_view>("socket_path"));
     EXPECT_NO_THROW(cfg.get<std::string_view>("log_level"));
 }
 
-TEST(ConfigTest, TestDefaultOverride) {
+TEST(ConfigTest, TestDefaultOverride)
+{
     int argc = 7;
     char *argv[] = {const_cast<char *>("tester"),
         const_cast<char *>("--lock_path"), const_cast<char *>("unknown"),
@@ -43,12 +47,14 @@ TEST(ConfigTest, TestDefaultOverride) {
     EXPECT_TRUE(cfg.get<std::string_view>("log_level") == "unknown");
 }
 
-TEST(ConfigTest, TestInvalidKeys) {
+TEST(ConfigTest, TestInvalidKeys)
+{
     config::config cfg(0, nullptr);
     EXPECT_THROW(cfg.get<std::string_view>("invalid"), std::out_of_range);
 }
 
-TEST(ConfigTest, TestKeyValue) {
+TEST(ConfigTest, TestKeyValue)
+{
     int argc = 7;
     char *argv[] = {const_cast<char *>("tester"), const_cast<char *>("--a_key"),
         const_cast<char *>("a_value"), const_cast<char *>("--b_key"),
@@ -61,7 +67,8 @@ TEST(ConfigTest, TestKeyValue) {
     EXPECT_TRUE(cfg.get<std::string_view>("c_key") == "c_value");
 }
 
-TEST(ConfigTest, TestModifiers) {
+TEST(ConfigTest, TestModifiers)
+{
     int argc = 2;
     char *argv[] = {const_cast<char *>("tester"),
         const_cast<char *>("--modifier"), nullptr};

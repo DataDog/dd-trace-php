@@ -1,15 +1,14 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
-#include <worker_pool.hpp>
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include <worker_pool.hpp>
 
 namespace {
 void thread_handler(dds::worker::consumer_queue &wm, bool &running, std::mutex &m,
     std::condition_variable &cv) {
-
     ASSERT_TRUE(wm.running());
 
     {
@@ -26,7 +25,8 @@ void thread_handler(dds::worker::consumer_queue &wm, bool &running, std::mutex &
 
 namespace dds {
 
-TEST(WorkerPoolTest, PoolLaunchZeroWorkers) {
+TEST(WorkerPoolTest, PoolLaunchZeroWorkers)
+{
     worker::pool wp;
     EXPECT_EQ(wp.worker_count(), 0);
 
@@ -34,7 +34,8 @@ TEST(WorkerPoolTest, PoolLaunchZeroWorkers) {
     EXPECT_EQ(wp.worker_count(), 0);
 }
 
-TEST(WorkerPoolTest, PoolLaunchOneWorker) {
+TEST(WorkerPoolTest, PoolLaunchOneWorker)
+{
     worker::pool wp;
     EXPECT_EQ(wp.worker_count(), 0);
 
@@ -57,7 +58,8 @@ TEST(WorkerPoolTest, PoolLaunchOneWorker) {
     EXPECT_EQ(wp.worker_count(), 0);
 }
 
-TEST(WorkerPoolTest, PoolLaunchNWorkers) {
+TEST(WorkerPoolTest, PoolLaunchNWorkers)
+{
     worker::pool wp;
     EXPECT_EQ(wp.worker_count(), 0);
 

@@ -1,12 +1,12 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#include "php_objects.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "php_compat.h"
-#include "php_objects.h"
 
 static int _module_number;
 static zend_llist _function_entry_arrays;
@@ -60,8 +60,8 @@ void dd_phpobj_reg_ini_env(const dd_ini_setting *sett)
             .name_length = (uint16_t)name_len,
             .modifiable = sett->modifiable,
             .value = env_def ? ZSTR_VAL(env_def) : sett->default_value,
-            .value_length = env_def ? ZSTR_LEN(env_def)
-                                    : (uint32_t)sett->default_value_len,
+            .value_length =
+                env_def ? ZSTR_LEN(env_def) : (uint32_t)sett->default_value_len,
 
             .on_modify = sett->on_modify,
             .mh_arg1 = (void *)(uintptr_t)sett->field_offset,
@@ -96,7 +96,7 @@ static zend_string *nullable _fetch_from_env(const char *name, size_t name_len)
     *w = '\0';
 
     tsrm_env_lock();
-    const char *res = getenv(env_name); //NOLINT
+    const char *res = getenv(env_name); // NOLINT
     tsrm_env_unlock();
     efree(env_name);
 

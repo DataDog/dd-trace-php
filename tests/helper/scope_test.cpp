@@ -1,14 +1,15 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
-#include <scope.hpp>
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include <scope.hpp>
 
 namespace dds {
 
-TEST(ScopeTest, BasicTest) {
+TEST(ScopeTest, BasicTest)
+{
     ref_counted r;
     EXPECT_EQ(r.reference_count(), 0);
 

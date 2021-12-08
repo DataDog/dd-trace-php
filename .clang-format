@@ -1,12 +1,17 @@
 ---
 IndentWidth: 4
+AccessModifierOffset: -4
 AlignAfterOpenBracket: DontAlign
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterFunction: true
+  SplitEmptyFunction: false
 AllowShortLoopsOnASingleLine: true
 AllowShortBlocksOnASingleLine: true
 IndentPPDirectives: AfterHash
+NamespaceIndentation: None
+NamespaceMacros:
+  - MSGPACK_API_VERSION_NAMESPACE
 # needs a very recent clang-format
 #PPIndentWidth: 2
 ---

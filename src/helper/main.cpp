@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "config.hpp"
 #include "runner.hpp"
 #include "subscriber/waf.hpp"
@@ -18,7 +18,8 @@
 std::atomic<bool> exit_signal = false;
 std::atomic<dds::runner *> global_runner = nullptr;
 
-void signal_handler(int signum) {
+void signal_handler(int signum)
+{
     SPDLOG_INFO("Got signal {}", signum);
 
     dds::runner *runner = global_runner.load();
@@ -26,7 +27,8 @@ void signal_handler(int signum) {
     exit_signal = true;
 }
 
-bool ensure_unique(const dds::config::config &config) {
+bool ensure_unique(const dds::config::config &config)
+{
     auto lock_path = config.get<std::string_view>("lock_path");
 
     // do not acquire the lock / assume we inherited it
@@ -47,7 +49,8 @@ bool ensure_unique(const dds::config::config &config) {
     return res != -1;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     std::signal(SIGTERM, signal_handler);
     std::signal(SIGPIPE, SIG_IGN); // NOLINT
     dds::config::config config(argc, argv);

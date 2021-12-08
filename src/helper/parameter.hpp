@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #ifndef PARAMETER_HPP
 #define PARAMETER_HPP
 
@@ -14,14 +14,14 @@
 namespace dds {
 
 class parameter : public ddwaf_object {
-  public:
+public:
     parameter();
     explicit parameter(const ddwaf_object &arg);
 
     // FIXME: Copy and move semantics are unclear, perhaps copy should be
     //        deleted and move reimplemented to invalidate source parameter.
-    parameter(const parameter &) = delete;//fault;
-    parameter &operator=(const parameter &) = delete;//fault;
+    parameter(const parameter &) = delete;            // fault;
+    parameter &operator=(const parameter &) = delete; // fault;
 
     parameter(parameter &&) noexcept;
     parameter &operator=(parameter &&) noexcept;

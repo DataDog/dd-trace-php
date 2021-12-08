@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "request_shutdown.h"
 #include "../commands_helpers.h"
 #include "../ddappsec.h"
@@ -104,10 +104,7 @@ static void _pack_headers_no_cookies(mpack_writer_t *nonnull w)
         const char *const hv_end = header->header + header->header_len;
         const char *hvp;
         for (hvp = pcol + 1; hvp < hv_end && *hvp == ' '; hvp++) {}
-        struct _header_val hv = {
-            .val = hvp,
-            .len = hv_end - hvp
-        };
+        struct _header_val hv = {.val = hvp, .len = hv_end - hvp};
         zend_llist_add_element(coll, &hv);
     }
 
@@ -115,19 +112,20 @@ static void _pack_headers_no_cookies(mpack_writer_t *nonnull w)
     mpack_start_map(w, zend_array_count(&headers_map));
     zend_string *key;
     zend_llist *coll;
-    ZEND_HASH_FOREACH_STR_KEY_PTR(&headers_map, key, coll) {
+    ZEND_HASH_FOREACH_STR_KEY_PTR(&headers_map, key, coll)
+    {
         mpack_write_str(w, ZSTR_VAL(key), ZSTR_LEN(key));
         mpack_start_array(w, zend_llist_count(coll));
 
         zend_llist_position p;
-        for (struct _header_val *hv = zend_llist_get_first_ex(coll, &p);
-             hv; hv = zend_llist_get_next_ex(coll, &p)) {
+        for (struct _header_val *hv = zend_llist_get_first_ex(coll, &p); hv;
+             hv = zend_llist_get_next_ex(coll, &p)) {
             mpack_write_str(w, hv->val, hv->len);
         }
         mpack_finish_array(w);
-    } ZEND_HASH_FOREACH_END();
+    }
+    ZEND_HASH_FOREACH_END();
     mpack_finish_map(w);
 
     zend_hash_destroy(&headers_map);
 }
-

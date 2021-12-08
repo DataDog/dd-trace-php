@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <SAPI.h>
 #include <php.h>
 #include <stdio.h>
@@ -177,9 +177,9 @@ void dd_request_abort_static_page()
     _abort_prelude();
 
     char *ct_header; // NOLINT
-    uint ct_header_len = (uint) spprintf(&ct_header, 0, "Content-type: %s",
-                                         STATIC_PAGE_CONTENT_TYPE);
-    sapi_header_line line = { .line = ct_header, .line_len = ct_header_len };
+    uint ct_header_len = (uint)spprintf(
+        &ct_header, 0, "Content-type: %s", STATIC_PAGE_CONTENT_TYPE);
+    sapi_header_line line = {.line = ct_header, .line_len = ct_header_len};
     int res = sapi_header_op(SAPI_HEADER_REPLACE, &line);
     efree(ct_header);
     if (res == FAILURE) {
@@ -188,8 +188,8 @@ void dd_request_abort_static_page()
 
     SG(sapi_headers).http_response_code = INTERNAL_ERROR_STATUS_CODE;
 
-    size_t written = php_output_write(
-                static_error_page, sizeof(static_error_page) - 1);
+    size_t written =
+        php_output_write(static_error_page, sizeof(static_error_page) - 1);
     if (written != sizeof(static_error_page) - 1) {
         mlog(dd_log_info, "could not write full response (written: %zu)",
             written);
@@ -215,7 +215,7 @@ static void _abort_prelude()
 
     if (SG(headers_sent)) {
         mlog(dd_log_info, "Headers already sent; response code was %d",
-             SG(sapi_headers).http_response_code);
+            SG(sapi_headers).http_response_code);
         _emit_error("Sqreen blocked the request, but the response has already "
                     "been partially committed");
         return;
@@ -312,8 +312,8 @@ static void _run_rshutdowns()
 
     mlog_g(dd_log_debug, "Running remaining extensions' RSHUTDOWN");
     for (zend_hash_internal_pointer_end_ex(&module_registry, &pos);
-         (module = zend_hash_get_current_data_ptr_ex(
-              &module_registry, &pos)) != NULL;
+         (module = zend_hash_get_current_data_ptr_ex(&module_registry, &pos)) !=
+         NULL;
          zend_hash_move_backwards_ex(&module_registry, &pos)) {
         if (!found_ddappsec && strcmp("ddappsec", module->name) == 0) {
             found_ddappsec = true;
@@ -326,9 +326,8 @@ static void _run_rshutdowns()
 
         if (found_ddappsec) {
             mlog_g(dd_log_debug, "Running RSHUTDOWN function for module %s",
-                   module->name);
-            module->request_shutdown_func(
-                        module->type, module->module_number);
+                module->name);
+            module->request_shutdown_func(module->type, module->module_number);
         }
     }
 }
@@ -339,12 +338,11 @@ static void _suppress_error_reporting()
      * EG(error_reporting) directly so the value is restored
      * on the deactivate phase (zend_ini_deactivate) */
 
-    zend_string *name = zend_string_init(
-                ZEND_STRL("error_reporting"), 0);
+    zend_string *name = zend_string_init(ZEND_STRL("error_reporting"), 0);
     zend_string *value = zend_string_init(ZEND_STRL("0"), 0);
 
-    zend_alter_ini_entry_ex(name, value,
-                            PHP_INI_SYSTEM, PHP_INI_STAGE_RUNTIME, 1);
+    zend_alter_ini_entry_ex(
+        name, value, PHP_INI_SYSTEM, PHP_INI_STAGE_RUNTIME, 1);
 
     zend_string_release(name);
     zend_string_release(value);

@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "client.hpp"
 
 #include "exception.hpp"
@@ -56,7 +56,7 @@ bool handle_message(client &client, const network::base_broker &broker,
     std::chrono::milliseconds initial_timeout)
 {
     if (spdlog::should_log(spdlog::level::debug)) {
-        std::array names {Ms::request::name...};
+        std::array names{Ms::request::name...};
         std::ostringstream all_names;
         std::copy(names.begin(), names.end(),
             std::ostream_iterator<std::string>(all_names, " "));
@@ -66,7 +66,7 @@ bool handle_message(client &client, const network::base_broker &broker,
     try {
         auto msg = broker.recv(initial_timeout);
         return maybe_exec_cmd_M<Ms...>(client, msg);
-    } catch(const std::exception &e) {
+    } catch (const std::exception &e) {
         SPDLOG_WARN(e.what());
     }
 
@@ -112,7 +112,7 @@ bool client::handle_command(const network::client_init::request &command)
         if (!broker_->send(response)) {
             has_errors = true;
         }
-    } catch(std::exception &e) {
+    } catch (std::exception &e) {
         SPDLOG_ERROR(e.what());
         has_errors = true;
     }
@@ -156,7 +156,7 @@ bool client::handle_command(network::request_init::request &command)
         "sending response to request_init, verdict: {}", response.verdict);
     try {
         return broker_->send(response);
-    } catch(std::exception &e) {
+    } catch (std::exception &e) {
         SPDLOG_ERROR(e.what());
     }
 
@@ -197,7 +197,7 @@ bool client::handle_command(network::request_shutdown::request &command)
         "sending response to request_shutdown, verdict: {}", response.verdict);
     try {
         return broker_->send(response);
-    } catch(std::exception &e) {
+    } catch (std::exception &e) {
         SPDLOG_ERROR(e.what());
     }
 

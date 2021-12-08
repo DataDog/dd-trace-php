@@ -1,6 +1,7 @@
 find_program(CLANG_TIDY clang-tidy)
 if(CLANG_TIDY STREQUAL CLANG_TIDY-NOTFOUND)
-    message(FATAL_ERROR "Cannot find clang-tidy, either set CLANG_TIDY or make it discoverable")
+    message(STATUS "Cannot find clang-tidy, either set CLANG_TIDY or make it discoverable")
+    return()
 endif()
 
 set(FILE_LIST "")

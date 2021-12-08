@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <SAPI.h>
 #include <ext/standard/url.h>
 #include <php.h>
@@ -112,14 +112,13 @@ static dd_result _request_pack(
     return dd_success;
 }
 
-
-static void _init_autoglobals() {
+static void _init_autoglobals()
+{
     // force the autoglobal callback called even if global jit is enabled
     zend_is_auto_global_str(ZEND_STRL("_SERVER"));
     zend_is_auto_global_str(ZEND_STRL("_COOKIE"));
     zend_is_auto_global_str(ZEND_STRL("_POST"));
 }
-
 
 static const char http_prefix[] = "HTTP_";
 static const size_t http_prefix_len = sizeof("HTTP_") - 1;
@@ -153,7 +152,8 @@ static void _pack_headers(mpack_writer_t *nonnull w)
     // Pack headers
     zend_string *key;
     zval *val;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(server), key, val) {
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(server), key, val)
+    {
         if (!key) {
             continue;
         }
@@ -174,7 +174,6 @@ static void _pack_headers(mpack_writer_t *nonnull w)
     mpack_complete_map(w);
 }
 
-
 static void _pack_filenames(mpack_writer_t *nonnull w)
 {
     zval *files = dd_php_get_autoglobal(TRACK_VARS_FILES, ZEND_STRL("_FILES"));
@@ -187,7 +186,8 @@ static void _pack_filenames(mpack_writer_t *nonnull w)
     mpack_build_array(w);
 
     zval *val;
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(files), val) {
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(files), val)
+    {
         if (!val || Z_TYPE_P(val) != IS_ARRAY) {
             continue;
         }
@@ -217,7 +217,8 @@ static void _pack_files_field_names(mpack_writer_t *nonnull w)
 
     zend_ulong key_i;
     zend_string *key_s;
-    ZEND_HASH_FOREACH_KEY(Z_ARRVAL_P(files), key_i, key_s) {
+    ZEND_HASH_FOREACH_KEY(Z_ARRVAL_P(files), key_i, key_s)
+    {
         if (key_s) {
             dd_mpack_write_zstr(w, key_s);
         } else {

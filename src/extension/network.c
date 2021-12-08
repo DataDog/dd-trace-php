@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -16,20 +16,20 @@
 #include <sys/un.h>
 
 #define HELPER_PROCESS_C_INCLUDES
-#include "network.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "logging.h"
+#include "network.h"
 #include "php_compat.h"
 
 struct PACKED _dd_header { // NOLINT
-    char code[4]; //dds\0
+    char code[4];          // dds\0
     uint32_t size;
 };
 
 typedef struct PACKED _dd_header dd_header;
 
-static const int CONNECT_TIMEOUT = 2500; //ms
+static const int CONNECT_TIMEOUT = 2500; // ms
 static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
 
 int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
@@ -80,8 +80,8 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
             }
             if (res == -1) {
                 dd_conn_destroy(conn);
-                mlog_err(dd_log_info,
-                    "Error in connection to helper (poll() call)");
+                mlog_err(
+                    dd_log_info, "Error in connection to helper (poll() call)");
                 return dd_error;
             }
             if (pfds[0].revents & POLLERR) { // NOLINT
@@ -123,14 +123,12 @@ static size_t _iovecs_total_size(zend_llist *nonnull iovecs)
     return total;
 }
 
-dd_result dd_conn_sendv(
-    dd_conn *nonnull conn, zend_llist *nonnull iovecs)
+dd_result dd_conn_sendv(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
 {
     size_t data_len = _iovecs_total_size(iovecs);
     size_t iovecs_count = zend_llist_count(iovecs);
 
-    if (!dd_conn_connected(conn) ||
-        data_len > SSIZE_MAX - sizeof(dd_header) ||
+    if (!dd_conn_connected(conn) || data_len > SSIZE_MAX - sizeof(dd_header) ||
         iovecs_count > INT_MAX - 1) {
         return dd_error;
     }
@@ -196,7 +194,7 @@ dd_result dd_conn_recv(dd_conn *nonnull conn, char *nullable *nonnull data,
         mlog(dd_log_warning, "Invalid message header from helper");
         // to force the connection closed. It may be we half-read a previous
         // message, so a reconnection can help
-        return dd_network; 
+        return dd_network;
     }
     // size is in machine order
     if (h.size > MAX_RECV_MESSAGE_SIZE) {
@@ -288,7 +286,7 @@ dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
         // will return after setsockopt() call
     }
 
-    setsockopt(conn->socket, SOL_SOCKET, SO_PASSCRED, &(int) {0}, sizeof(int));
+    setsockopt(conn->socket, SOL_SOCKET, SO_PASSCRED, &(int){0}, sizeof(int));
 
     if (recv_bytes <= 0) {
         mlog(dd_log_info, "No data received");
@@ -315,7 +313,8 @@ dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
 
     return _recv_message_body(conn->socket, data, data_len, h.size);
 }
-static dd_result _check_credentials(struct cmsghdr *cmsgp) {
+static dd_result _check_credentials(struct cmsghdr *cmsgp)
+{
     if (!cmsgp || cmsgp->cmsg_len != CMSG_LEN(sizeof(struct ucred))) {
         mlog(dd_log_warning,
             "Helper credentials: no ancillary data or incorrect size");
@@ -346,7 +345,7 @@ static dd_result _check_credentials(struct cmsghdr *cmsgp) {
             "Mismatch of effective uid between helper and this process. "
             "Helper's uid is %d, ours is %d",
             (int)creds.uid, (int)geteuid());
-            return dd_network;
+        return dd_network;
     }
 
     mlog(dd_log_debug, "Helper's process credentials are correct");
@@ -356,11 +355,12 @@ static dd_result _check_credentials(struct cmsghdr *cmsgp) {
 dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
     size_t *nonnull data_len)
 {
-	return dd_conn_recv(conn, data, data_len);
+    return dd_conn_recv(conn, data, data_len);
 }
 #endif
 
-int dd_conn_destroy(dd_conn *nonnull conn) {
+int dd_conn_destroy(dd_conn *nonnull conn)
+{
     if (conn->socket == -1) {
         return 0;
     }
@@ -383,7 +383,7 @@ dd_result dd_conn_set_timeout(
         return dd_error;
     }
 
-    int time_seconds = milliseconds / 1000; // NOLINT
+    int time_seconds = milliseconds / 1000;               // NOLINT
     int time_microseconds = (milliseconds % 1000) * 1000; // NOLINT
 
     /* 200 ms = 200 * 1000 us */
