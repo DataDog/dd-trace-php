@@ -1,8 +1,9 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#include "tags.h"
 #include "ddappsec.h"
 #include "ddtrace.h"
 #include "logging.h"
@@ -10,7 +11,6 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "string_helpers.h"
-#include "tags.h"
 #include <SAPI.h>
 #include <zend_smart_str.h>
 
@@ -38,8 +38,8 @@ static zend_string *_dd_tag_http_user_agent_zstr;
 static zend_string *_dd_tag_http_status_code_zstr;
 static zend_string *_dd_tag_http_url_zstr;
 static zend_string *_dd_tag_network_client_ip_zstr;
-static zend_string *_dd_tag_rh_content_length; // response
-static zend_string *_dd_tag_rh_content_type; // response
+static zend_string *_dd_tag_rh_content_length;   // response
+static zend_string *_dd_tag_rh_content_type;     // response
 static zend_string *_dd_tag_rh_content_encoding; // response
 static zend_string *_dd_tag_rh_content_language; // response
 static zend_string *_dd_metric_enabled;
@@ -56,7 +56,7 @@ static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 
 static void _init_relevant_headers(void);
-static zend_string* _concat_json_fragments(void);
+static zend_string *_concat_json_fragments(void);
 static void _zend_string_release_indirect(void *s);
 static bool _add_ancillary_tags(void);
 void _set_runtime_family(void);
@@ -101,8 +101,7 @@ void dd_tags_startup()
 
     _key_request_uri_zstr =
         zend_string_init_interned(LSTRARG("REQUEST_URI"), 1);
-    _key_http_host_zstr =
-        zend_string_init_interned(LSTRARG("HTTP_HOST"), 1);
+    _key_http_host_zstr = zend_string_init_interned(LSTRARG("HTTP_HOST"), 1);
     _key_server_name_zstr =
         zend_string_init_interned(LSTRARG("SERVER_NAME"), 1);
     _key_http_user_agent_zstr =
@@ -112,7 +111,7 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG("REMOTE_ADDR"), 1);
 
     _init_relevant_headers();
-    
+
     if (DDAPPSEC_G(testing)) {
         _register_test_functions();
     }
@@ -266,10 +265,10 @@ void dd_tags_rshutdown_testing()
 
 static void _zend_string_release_indirect(void *s)
 {
-    zend_string_release(*(zend_string**)s);
+    zend_string_release(*(zend_string **)s);
 }
 
-static zend_string* _concat_json_fragments()
+static zend_string *_concat_json_fragments()
 {
 #define DD_DATA_TAG_BEFORE "{\"triggers\":["
 #define DD_DATA_TAG_AFTER "]}"
@@ -412,8 +411,7 @@ static void _dd_http_url(zend_array *meta_ht, zval *_server)
 
     bool has_https = zend_hash_exists(Z_ARRVAL_P(_server), _key_https_zstr);
     size_t final_len = (has_https ? LSTRLEN("https") : LSTRLEN("http")) +
-                       LSTRLEN("://") + ZSTR_LEN(http_host_zstr) +
-                       uri_len;
+                       LSTRLEN("://") + ZSTR_LEN(http_host_zstr) + uri_len;
     smart_str url_str = {0};
     smart_str_alloc(&url_str, final_len, 0);
     smart_str_appendl_ex(&url_str, LSTRARG("http"), 0);
@@ -482,7 +480,8 @@ static void _dd_request_headers(zend_array *meta_ht, zval *_server)
     // Pack headers
     zend_string *key;
     zval *val;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(_server), key, val) {
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(_server), key, val)
+    {
         if (!key) {
             continue;
         }
@@ -497,8 +496,8 @@ static void _dd_request_headers(zend_array *meta_ht, zval *_server)
         }
 
         size_t header_name_len = ZSTR_LEN(key) - LSTRLEN("HTTP_");
-        size_t tag_len = LSTRLEN(DD_PREFIX_TAG_REQUEST_HEADER) +
-            header_name_len;
+        size_t tag_len =
+            LSTRLEN(DD_PREFIX_TAG_REQUEST_HEADER) + header_name_len;
 
         zend_string *tag_name = zend_string_alloc(tag_len, 0);
 
@@ -616,8 +615,8 @@ static void _set_sampling_priority(zval *metrics_zv)
 {
     zval zv;
     ZVAL_LONG(&zv, DD_SAMPLING_PRIORITY_USER_KEEP);
-    zend_hash_update(Z_ARRVAL_P(metrics_zv),
-               _dd_metric_sampling_prio_zstr, &zv);
+    zend_hash_update(
+        Z_ARRVAL_P(metrics_zv), _dd_metric_sampling_prio_zstr, &zv);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_add_ancillary_tags)
@@ -641,8 +640,4 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-static void _register_test_functions()
-{
-    dd_phpobj_reg_funcs(functions);
-}
-
+static void _register_test_functions() { dd_phpobj_reg_funcs(functions); }

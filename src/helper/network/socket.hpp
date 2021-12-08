@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
 #include <chrono>
@@ -18,10 +18,10 @@ public:
     using ptr = std::unique_ptr<base_socket>;
 
     base_socket() = default;
-    base_socket(const base_socket&) = delete;
-    base_socket& operator=(const base_socket&) = delete;
-    base_socket(base_socket&&) = default;
-    base_socket& operator=(base_socket&&) = default;
+    base_socket(const base_socket &) = delete;
+    base_socket &operator=(const base_socket &) = delete;
+    base_socket(base_socket &&) = default;
+    base_socket &operator=(base_socket &&) = default;
 
     virtual ~base_socket() = default;
 
@@ -34,10 +34,10 @@ public:
 
 namespace local {
 class socket : public base_socket {
-  public:
+public:
     explicit socket(int s) : sock_(s) {}
-    socket(const socket&) = delete; // could use dup though
-    socket& operator=(const socket&) = delete;
+    socket(const socket &) = delete; // could use dup though
+    socket &operator=(const socket &) = delete;
 
     ~socket() override { close(); }
 
@@ -62,10 +62,11 @@ class socket : public base_socket {
     void set_send_timeout(std::chrono::milliseconds timeout) override;
     void set_recv_timeout(std::chrono::milliseconds timeout) override;
 
-  private:
-    void close() noexcept {
+private:
+    void close() noexcept
+    {
         if (sock_ == -1) {
-          return;
+            return;
         }
         ::close(sock_);
         SPDLOG_DEBUG("Closing socket {}", sock_);

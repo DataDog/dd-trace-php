@@ -1,23 +1,24 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "proto.hpp"
 
 namespace msgpack {
 MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
 namespace adaptor {
 
-using dds::network::request;
-using dds::network::request_id;
 using dds::network::base_response;
 using dds::network::client_init;
+using dds::network::request;
+using dds::network::request_id;
 using dds::network::request_init;
 using dds::network::request_shutdown;
 
 namespace {
-request_id command_name_to_id(const std::string &str) {
+request_id command_name_to_id(const std::string &str)
+{
     static const std::map<std::string_view, request_id> mapping = {
         {client_init::request::name, client_init::request::id},
         {request_init::request::name, request_init::request::id},
@@ -27,15 +28,16 @@ request_id command_name_to_id(const std::string &str) {
     return (it == mapping.end() ? request_id::unknown : it->second);
 }
 
-template<typename T>
-auto msgpack_to_request(const msgpack::object& o) {
+template <typename T> auto msgpack_to_request(const msgpack::object &o)
+{
     using R = typename T::request;
     return std::make_shared<R>(o.as<R>());
 }
 
 } // namespace
 
-request as<request>::operator()(const msgpack::object& o) const {
+request as<request>::operator()(const msgpack::object &o) const
+{
     request r;
     if (o.type != msgpack::type::ARRAY || o.via.array.size != 2) {
         throw msgpack::type_error();
@@ -60,10 +62,12 @@ request as<request>::operator()(const msgpack::object& o) const {
     return r;
 }
 
-stream_packer& pack<base_response>::operator()(stream_packer& o, const base_response& v) const {
+stream_packer &pack<base_response>::operator()(
+    stream_packer &o, const base_response &v) const
+{
     return v.pack(o);
 }
 
 } // namespace adaptor
-}
+} // MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
 } // namespace msgpack

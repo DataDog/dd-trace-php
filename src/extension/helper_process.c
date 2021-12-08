@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <php.h>
 #include <php_output.h>
 #include <spprintf.h>
@@ -201,7 +201,8 @@ error:
     _inc_failed_counter();
     return NULL;
 }
-dd_conn *nullable dd_helper_mgr_cur_conn(void) {
+dd_conn *nullable dd_helper_mgr_cur_conn(void)
+{
     dd_conn *conn = &_mgr.conn;
     if (dd_conn_connected(conn)) {
         return conn;
@@ -576,7 +577,7 @@ static char **nullable _split_params(
             break;
         }
         } // end switch
-    } // end loop
+    }     // end loop
 
     if (escaped) {
         mlog(dd_log_warning,
@@ -701,7 +702,7 @@ static ATTR_NO_RETURN void _continue_in_intermediate_process(
     /* open stdin, stdout /dev/null and stderr as dup of log_fd (typically
      * /dev/null too, generally the value of ddappsec.helper_log_file */
     int fd0 = open("/dev/null", O_RDWR); // NOLINT
-    int fd1 = dup(0); // NOLINT
+    int fd1 = dup(0);                    // NOLINT
     int fd2 = dup2(log_fd, 2);
     close(log_fd);
     log_fd = fd2; // for PREEXEC_LOG macro
@@ -899,9 +900,7 @@ static PHP_FUNCTION(datadog_appsec_testing_get_helper_argv)
         return;
     }
 
-    for (char **s = argv; *s; s++) {
-        add_next_index_string(return_value, *s);
-    }
+    for (char **s = argv; *s; s++) { add_next_index_string(return_value, *s); }
 
     if (argv[1]) {
         efree(argv[1]);
@@ -921,7 +920,7 @@ static PHP_FUNCTION(datadog_appsec_testing_is_connected_to_helper)
     }
 }
 
-#define TEN_E9_D 1000000000.0
+#    define TEN_E9_D 1000000000.0
 static PHP_FUNCTION(datadog_appsec_testing_backoff_status)
 {
     if (zend_parse_parameters_none() == FAILURE) {

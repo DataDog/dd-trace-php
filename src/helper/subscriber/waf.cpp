@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "../std_logging.hpp"
 #include "ddwaf.h"
 #include <chrono>
@@ -25,7 +25,8 @@ namespace {
 
 // TODO: actually, we should limit the recursion
 // NOLINTNEXTLINE(misc-no-recursion)
-template <typename T> void json_to_object(ddwaf_object *object, T &doc) {
+template <typename T> void json_to_object(ddwaf_object *object, T &doc)
+{
     switch (doc.GetType()) {
     case rapidjson::kFalseType:
         ddwaf_object_stringl(object, "false", sizeof("false") - 1);
@@ -74,7 +75,8 @@ template <typename T> void json_to_object(ddwaf_object *object, T &doc) {
     }
 }
 
-std::string read_rule_file(std::string_view filename) {
+std::string read_rule_file(std::string_view filename)
+{
     std::ifstream rule_file(filename.data(), std::ios::in);
     if (!rule_file) {
         throw std::system_error(errno, std::generic_category());
@@ -98,7 +100,8 @@ std::string read_rule_file(std::string_view filename) {
     return buffer;
 }
 
-dds::result format_waf_result(dds::result::code code, std::string_view json) {
+dds::result format_waf_result(dds::result::code code, std::string_view json)
+{
     dds::result res{code};
     rapidjson::Document doc;
     rapidjson::ParseResult status = doc.Parse(json.data(), json.size());
@@ -110,7 +113,8 @@ dds::result format_waf_result(dds::result::code code, std::string_view json) {
 
     if (doc.GetType() != rapidjson::kArrayType) {
         // perhaps throw something?
-        SPDLOG_ERROR("unexpected WAF result type {}, expected array", doc.GetType());
+        SPDLOG_ERROR(
+            "unexpected WAF result type {}, expected array", doc.GetType());
         return res;
     }
 
@@ -126,7 +130,7 @@ dds::result format_waf_result(dds::result::code code, std::string_view json) {
 
 DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
 {
-    switch(level) {
+    switch (level) {
     case spdlog::level::trace:
         return DDWAF_LOG_TRACE;
     case spdlog::level::debug:
@@ -135,21 +139,23 @@ DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
         return DDWAF_LOG_INFO;
     case spdlog::level::warn:
         return DDWAF_LOG_WARN;
-    case spdlog::level::err: [[fallthrough]];
+    case spdlog::level::err:
+        [[fallthrough]];
     case spdlog::level::critical:
         return DDWAF_LOG_ERROR;
-    case spdlog::level::off: [[fallthrough]];
+    case spdlog::level::off:
+        [[fallthrough]];
     default:
         break;
     }
     return DDWAF_LOG_OFF;
 }
 
-void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
-    unsigned line, const char* message, uint64_t message_len)
+void log_cb(DDWAF_LOG_LEVEL level, const char *function, const char *file,
+    unsigned line, const char *message, uint64_t message_len)
 {
     auto new_level = spdlog::level::off;
-    switch(level) {
+    switch (level) {
     case DDWAF_LOG_TRACE:
         new_level = spdlog::level::trace;
         break;
@@ -165,14 +171,15 @@ void log_cb(DDWAF_LOG_LEVEL level, const char* function, const char* file,
     case DDWAF_LOG_ERROR:
         new_level = spdlog::level::err;
         break;
-    case DDWAF_LOG_OFF: [[fallthrough]];
+    case DDWAF_LOG_OFF:
+        [[fallthrough]];
     default:
         break;
     }
 
     spdlog::default_logger()->log(
-        spdlog::source_loc{file, static_cast<int>(line), function},
-        new_level, std::string_view(message, message_len));
+        spdlog::source_loc{file, static_cast<int>(line), function}, new_level,
+        std::string_view(message, message_len));
 }
 
 } // namespace
@@ -199,13 +206,15 @@ instance::listener &instance::listener::operator=(listener &&other) noexcept
     return *this;
 }
 
-instance::listener::~listener() {
+instance::listener::~listener()
+{
     if (handle_ != nullptr) {
         ddwaf_context_destroy(handle_);
     }
 }
 
-dds::result instance::listener::call(dds::parameter &data, unsigned timeout) {
+dds::result instance::listener::call(dds::parameter &data, unsigned timeout)
+{
     DD_STDLOG(DD_STDLOG_BEFORE_WAF);
 
     ddwaf_result res;
@@ -279,7 +288,8 @@ instance &instance::operator=(instance &&other) noexcept
     return *this;
 }
 
-instance::~instance() {
+instance::~instance()
+{
     if (handle_ != nullptr) {
         ddwaf_destroy(handle_);
     }
@@ -290,7 +300,8 @@ instance::listener::ptr instance::get_listener()
     return listener::ptr(new listener(ddwaf_context_init(handle_, nullptr)));
 }
 
-std::vector<std::string_view> instance::get_subscriptions() {
+std::vector<std::string_view> instance::get_subscriptions()
+{
     uint32_t size;
     const auto *addrs = ddwaf_required_addresses(handle_, &size);
 
@@ -299,12 +310,14 @@ std::vector<std::string_view> instance::get_subscriptions() {
     return output;
 }
 
-instance::ptr instance::from_file(std::string_view rule_file) {
+instance::ptr instance::from_file(std::string_view rule_file)
+{
     dds::parameter param = parse_file(rule_file);
     return std::make_shared<instance>(param);
 }
 
-instance::ptr instance::from_string(std::string_view rule) {
+instance::ptr instance::from_string(std::string_view rule)
+{
     dds::parameter param = parse_string(rule);
     return std::make_shared<instance>(param);
 }
@@ -322,7 +335,8 @@ parameter parse_string(std::string_view config)
     return obj;
 }
 
-parameter parse_file(std::string_view filename) {
+parameter parse_file(std::string_view filename)
+{
     auto json = read_rule_file(filename);
     return parse_string(json);
 }

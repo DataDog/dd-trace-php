@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "logging.h"
 #include "attributes.h"
 #include "ddappsec.h"
@@ -55,7 +55,7 @@ static const char *_log_file;
 
 typedef int (*strerror_r_t)(int errnum, char *buf, size_t buflen);
 static strerror_r_t _libc_strerror_r;
-static void  _find_strerror_r(void);
+static void _find_strerror_r(void);
 static void _ensure_init(void);
 static dd_result _do_dd_log_init(void);
 static void ATTR_FORMAT(2, 3)
@@ -195,7 +195,7 @@ static dd_log_level_t _dd_log_level_from_str(const char *nullable log_level)
         return dd_log_fatal;
     }
     if (STR_CONS_EQ(log_level, len, "warning") ||
-               STR_CONS_EQ(log_level, len, "warn")) {
+        STR_CONS_EQ(log_level, len, "warn")) {
         return dd_log_warning;
     }
     if (STR_CONS_EQ(log_level, len, "info")) {
@@ -346,18 +346,18 @@ static void _mlog_file(dd_log_level_t level, const char *format, va_list args,
     }
 
 #if !defined(ZTS)
-    data_len = spprintf(&data, 0, "[%s][%d][%s] %s at %s:%d:%s\n",
-        time_str, getpid(),
+    data_len =
+        spprintf(&data, 0, "[%s][%d][%s] %s at %s:%d:%s\n", time_str, getpid(),
 #else
-    data_len = spprintf(&data, 0, "[%s][%d:%ld][%s] %s at %s:%d:%s\n",
-        time_str, getpid(),
+    data_len = spprintf(&data, 0, "[%s][%d:%ld][%s] %s at %s:%d:%s\n", time_str,
+        getpid(),
 #    ifdef __linux__
         syscall(__NR_gettid),
 #    else
         (long)tsrm_thread_id(),
 #    endif
 #endif
-        _dd_log_level_to_str(level), message_data, file, line, function);
+            _dd_log_level_to_str(level), message_data, file, line, function);
 
     efree(message_data);
     TSRM_MUTEX_LOCK(_mutex);

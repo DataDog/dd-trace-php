@@ -1,14 +1,14 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
 #include <spdlog/spdlog.h>
 
 // NOLINTNEXTLINE
-#define DD_STDLOG(...)                                                        \
+#define DD_STDLOG(...)                                                         \
     SPDLOG_LOGGER_CALL(spdlog::default_logger_raw(), __VA_ARGS__)
 
 /* Startup 1 [CRITICAL]

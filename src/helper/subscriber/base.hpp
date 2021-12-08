@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #ifndef SUBSCRIBER_BASE_HPP
 #define SUBSCRIBER_BASE_HPP
 
@@ -14,11 +14,11 @@
 namespace dds {
 
 class subscriber {
-  public:
+public:
     using ptr = std::shared_ptr<subscriber>;
 
     class listener {
-      public:
+    public:
         using ptr = std::shared_ptr<listener>;
 
         listener() = default;

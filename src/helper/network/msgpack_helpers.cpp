@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "msgpack_helpers.hpp"
 
 namespace msgpack {
@@ -13,7 +13,8 @@ namespace {
 constexpr unsigned max_depth = 20;
 
 // NOLINTNEXTLINE(misc-no-recursion)
-dds::parameter msgpack_to_param(const msgpack::object & o, unsigned depth = 0) {
+dds::parameter msgpack_to_param(const msgpack::object &o, unsigned depth = 0)
+{
     if (depth++ >= max_depth) {
         return {};
     }
@@ -41,8 +42,8 @@ dds::parameter msgpack_to_param(const msgpack::object & o, unsigned depth = 0) {
             for (uint32_t i = 0; i < map.size; i++) {
                 const msgpack::object_kv &kv = map.ptr[i];
                 // Assume keys are strings
-                p.add(
-                    kv.key.as<std::string_view>(), msgpack_to_param(kv.val, depth));
+                p.add(kv.key.as<std::string_view>(),
+                    msgpack_to_param(kv.val, depth));
             }
         } catch (...) {
             p.free();
@@ -60,17 +61,18 @@ dds::parameter msgpack_to_param(const msgpack::object & o, unsigned depth = 0) {
 }
 } // namespace
 
-dds::parameter as<dds::parameter>::operator()(const msgpack::object& o) const {
+dds::parameter as<dds::parameter>::operator()(const msgpack::object &o) const
+{
     return msgpack_to_param(o);
 }
 
-msgpack::object const& convert<dds::parameter>::operator()(
-    msgpack::object const& o, dds::parameter& v) const
+msgpack::object const &convert<dds::parameter>::operator()(
+    msgpack::object const &o, dds::parameter &v) const
 {
     v = msgpack_to_param(o);
     return o;
 }
 
 } // namespace adaptor
-}
+} // MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
 } // namespace msgpack
