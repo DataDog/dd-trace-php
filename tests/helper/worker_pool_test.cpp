@@ -7,8 +7,9 @@
 #include <worker_pool.hpp>
 
 namespace {
-void thread_handler(dds::worker::consumer_queue &wm, bool &running, std::mutex &m,
-    std::condition_variable &cv) {
+void thread_handler(dds::worker::consumer_queue &wm, bool &running,
+    std::mutex &m, std::condition_variable &cv)
+{
     ASSERT_TRUE(wm.running());
 
     {
@@ -42,11 +43,10 @@ TEST(WorkerPoolTest, PoolLaunchOneWorker)
     std::mutex m;
     std::condition_variable cv;
     bool running = false;
-    wp.launch(
-        [&running = running, &m = m, &cv = cv](dds::worker::consumer_queue &wm) {
-            thread_handler(wm, running, m, cv);
-        }
-    );
+    wp.launch([&running = running, &m = m, &cv = cv](
+                  dds::worker::consumer_queue &wm) {
+        thread_handler(wm, running, m, cv);
+    });
 
     {
         std::unique_lock<std::mutex> lock(m);
@@ -68,11 +68,10 @@ TEST(WorkerPoolTest, PoolLaunchNWorkers)
     bool running = false;
 
     for (int i = 0; i < 10; i++) {
-        wp.launch(
-            [&running = running, &m = m, &cv = cv](dds::worker::consumer_queue &wm) {
-                thread_handler(wm, running, m, cv);
-            }
-        );
+        wp.launch([&running = running, &m = m, &cv = cv](
+                      dds::worker::consumer_queue &wm) {
+            thread_handler(wm, running, m, cv);
+        });
 
         {
             std::unique_lock<std::mutex> lock(m);

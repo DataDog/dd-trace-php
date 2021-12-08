@@ -14,6 +14,7 @@
 #include "network/broker.hpp"
 #include "network/proto.hpp"
 #include "network/socket.hpp"
+#include "worker_pool.hpp"
 #include <optional>
 
 namespace dds {
@@ -27,7 +28,7 @@ public:
 
     client(std::shared_ptr<engine_pool> engine_pool,
         network::base_socket::ptr &&socket)
-        : engine_pool_(std::move(engine_pool)), 
+        : engine_pool_(std::move(engine_pool)),
           broker_(std::make_unique<network::broker>(std::move(socket)))
     {}
 
@@ -45,9 +46,11 @@ public:
 
     bool run_client_init();
     bool run_request();
-    bool run_once();
 
-  protected:
+    // NOLINTNEXTLINE(google-runtime-references)
+    void run(worker::consumer_queue &q);
+
+protected:
     bool initialised{false};
     uint32_t version{};
     network::base_broker::ptr broker_;

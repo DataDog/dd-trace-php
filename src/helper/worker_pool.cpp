@@ -12,7 +12,8 @@ namespace dds::worker {
 
 namespace {
 
-void work_handler(consumer_queue &&q, std::optional<runnable> &&opt_r) {
+void work_handler(consumer_queue &&q, std::optional<runnable> &&opt_r)
+{
     while (q.running() && opt_r) {
         opt_r.value()(q);
         opt_r = std::move(q.pop(60s));
@@ -46,7 +47,8 @@ void producer_queue::wait()
     }
 }
 
-bool pool::launch(runnable &&f) {
+bool pool::launch(runnable &&f)
+{
     if (!q_.running()) {
         return false;
     }

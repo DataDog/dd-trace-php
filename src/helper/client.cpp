@@ -218,17 +218,20 @@ bool client::run_request()
     );
 }
 
-bool client::run_once() {
-    if (!initialised) {
+void client::run(worker::consumer_queue &q)
+{
+    if (q.running()) {
         if (!run_client_init()) {
             SPDLOG_DEBUG("Finished handling client (client_init failed)");
-            return false;
+            return;
         }
-        initialised = true;
+
         SPDLOG_DEBUG("Finished handling client (client_init succeded)");
-        return true;
     }
-    return run_request();
+
+    while (q.running() && run_request()) {}
+
+    SPDLOG_DEBUG("Finished handling client");
 }
 
 } // namespace dds

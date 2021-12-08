@@ -94,17 +94,10 @@ void runner::run()
                 std::make_shared<client>(engine_pool_, std::move(socket));
 
             SPDLOG_DEBUG("new client connected");
-            dds::worker::runnable r(
-                [c](dds::worker::consumer_queue &q) mutable {
-                    while (q.running()) { 
-                        if (!c->run_once()) { break; }
-                    }
-                    // NOLINTNEXTLINE(bugprone-lambda-function-name)
-                    SPDLOG_DEBUG("Finished handling client");
-                }
-            );
 
-            worker_pool_.launch(std::move(r));
+            worker_pool_.launch(
+                [c](worker::consumer_queue &q) mutable { c->run(q); });
+
             last_not_idle = std::chrono::steady_clock::now();
         }
     } catch (const std::exception &e) {
