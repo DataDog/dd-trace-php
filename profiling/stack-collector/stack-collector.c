@@ -1,6 +1,7 @@
 #include "stack-collector.h"
 
 #include <Zend/zend_compile.h>
+#include <Zend/zend_portability.h>
 
 typedef datadog_php_string_view string_view_t;
 
@@ -10,8 +11,7 @@ void datadog_php_stack_collect(zend_execute_data *execute_data,
 
   for (uint16_t depth = 0;
        depth < datadog_php_stack_sample_max_depth && execute_data;
-       ++depth, execute_data = execute_data->prev_execute_data) {
-  loop_begin:;
+       execute_data = execute_data->prev_execute_data) {
     zend_function *func = execute_data->func;
 
     datadog_php_stack_sample_frame frame = {
@@ -20,9 +20,13 @@ void datadog_php_stack_collect(zend_execute_data *execute_data,
         .lineno = 0,
     };
 
-    if (func) {
-      /* User functions do not have a module; if we can ever extract info
-       * from composer packages then we could perhaps use that.
+    /* This may be a dummy frame. Dummy frames are often used by require/include
+     * but as far as I know there aren't any flags on the execute_data to let
+     * you know that's where it came from.
+     */
+    if (EXPECTED(func)) {
+      /* User functions do not have a module; if we can ever extract info from
+       * composer packages then we could perhaps use that.
        */
       string_view_t module = {0, NULL};
       if (func->type == ZEND_INTERNAL_FUNCTION &&
@@ -57,12 +61,8 @@ void datadog_php_stack_collect(zend_execute_data *execute_data,
                    module.len ? "|" : "", (int)Class.len, Class.ptr,
                    Class.len ? "::" : "", (int)Func.len, Func.ptr);
 
-      if (result < 0 || ((size_t)result) >= sizeof buffer) {
-        if (execute_data->prev_execute_data) {
-          execute_data = execute_data->prev_execute_data;
-          goto loop_begin;
-        }
-        break;
+      if (UNEXPECTED(result < 0 || ((size_t)result) >= sizeof buffer)) {
+        continue;
       }
 
       frame.function = (string_view_t){result, buffer};
@@ -76,13 +76,9 @@ void datadog_php_stack_collect(zend_execute_data *execute_data,
         }
       }
 
-      if (!frame.function.len && !frame.file.len) {
+      if (UNEXPECTED(!frame.function.len && !frame.file.len)) {
         // No file nor function -> skip the frame (do not increase depth)
-        if (execute_data->prev_execute_data) {
-          execute_data = execute_data->prev_execute_data;
-          goto loop_begin;
-        }
-        break;
+        continue;
       }
 
       if (frame.file.len && !frame.function.len) {
@@ -90,21 +86,16 @@ void datadog_php_stack_collect(zend_execute_data *execute_data,
         frame.function = (string_view_t){sizeof("<php>") - 1, "<php>"};
       }
 
-      if (!datadog_php_stack_sample_try_add(sample, frame)) {
+      if (UNEXPECTED(!datadog_php_stack_sample_try_add(sample, frame))) {
         // todo: is the top sample valid? (probably not)
         break;
       }
 
-    } else if (execute_data->prev_execute_data) {
-      /* This may be a dummy frame. Dummy frames are often used by
-       * require/include but as far as I know there aren't any flags on the
-       * execute_data to let you know that's where it came from.
-       * So we skip this frame, intentionally _not_ increasing depth. I do not
-       * like this goto, but if this is the top frame then doing a --depth would
-       * cause a logic issue.
+      ++depth;
+    } else {
+      /* Skip this frame because it is missing the zend_function (e.g. a 'dummy'
+       * frame), therefore do not increase the depth.
        */
-      execute_data = execute_data->prev_execute_data;
-      goto loop_begin;
     }
   }
 }
