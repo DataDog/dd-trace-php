@@ -17,102 +17,122 @@
 
 namespace dds::worker {
 
-class monitor {
+class consumer_queue;
+
+using runnable = std::function<void(consumer_queue&)>;
+
+class producer_queue {
 public:
-    class scope {
-    public:
-        // NOLINTNEXTLINE(google-runtime-references)
-        explicit scope(monitor &m_): m(m_) { m.add_ref(); }
-        ~scope() { if(valid) { m.del_ref(); } }
-        scope(const scope&) = delete;
-        scope& operator=(const scope&) = delete;
-        scope(scope &&other) noexcept : m(other.m) { other.valid = false; }
-        scope& operator=(scope&&) = delete;
+    producer_queue() = default;
+    ~producer_queue() { stop(); }
 
-        [[nodiscard]] monitor& get() const { return m; }
-    protected:
-        bool valid{true};
-        monitor &m;
-    };
+    producer_queue(const producer_queue&) = delete;
+    producer_queue& operator=(const producer_queue&) = delete;
+    producer_queue(producer_queue&&) = delete;
+    producer_queue& operator=(producer_queue&&) = delete;
 
-    monitor() = default;
-    ~monitor() {
-        if (running_) {
-            stop();
+    [[nodiscard]] bool running()
+    {
+        return running_.load(std::memory_order_relaxed);
+    }
+
+    [[nodiscard]] unsigned ref_count() const
+    {
+        return rc_.count;
+    }
+
+    // NOLINTNEXTLINE(google-runtime-references)
+    bool push(runnable &data);
+    void wait();
+
+    void stop()
+    {
+        running_.store(false, std::memory_order_relaxed);
+        wait();
+    }
+protected:
+    struct refcount {
+        std::mutex mtx;
+        std::condition_variable cv;
+        unsigned count{0};
+    } rc_;
+
+    std::atomic<bool> running_{true};
+
+    struct queue {
+        std::mutex mtx;
+        std::condition_variable cv;
+        unsigned pending{0};
+        std::queue<runnable> data;
+    } q_;
+
+    friend class consumer_queue;
+};
+
+class consumer_queue {
+public:
+    // NOLINTNEXTLINE(google-runtime-references)
+    explicit consumer_queue(producer_queue &pq):
+        rc_(pq.rc_), running_(pq.running_), q_(pq.q_)
+    {
+        std::unique_lock<std::mutex> lock(rc_.mtx);
+        ++rc_.count;
+    }
+
+    ~consumer_queue()
+    {
+        if (!valid) { return; }
+
+        std::unique_lock<std::mutex> lock(rc_.mtx);
+        if (--rc_.count == 0 && !running()) {
+            std::notify_all_at_thread_exit(rc_.cv, std::move(lock));
         }
     }
 
-    monitor(const monitor&) = delete;
-    monitor& operator=(const monitor&) = delete;
-    monitor(monitor&&) = delete;
-    monitor& operator=(monitor&&) = delete;
+    consumer_queue(const consumer_queue &other) = delete;
+    consumer_queue& operator=(const consumer_queue&) = delete;
 
-    void stop();
-    void add_ref();
-    void del_ref();
-    [[nodiscard]] bool running() const { return running_; }
-    [[nodiscard]] unsigned count() const { return count_; }
-protected:
-    std::mutex mtx_;
-    std::atomic<bool> running_{true};
-    unsigned count_{0};
-    std::condition_variable cv_;
-};
+    consumer_queue(consumer_queue &&other) noexcept
+        : rc_(other.rc_), running_(other.running_), q_(other.q_)
+    {
+        other.valid = false;
+    }
 
-template<typename T>
-class queue {
-public:
-    enum class push_mode : uint8_t {
-        require_pending = 0,
-        ignore_pending
-    };
+    consumer_queue& operator=(consumer_queue&&) = delete;
 
-    queue() = default;
-    ~queue() = default;
-    queue(const queue&) = delete;
-    queue& operator=(const queue&) = delete;
-    queue(queue&&) noexcept = default;
-    queue& operator=(queue&&) noexcept = default;
-
-    bool push(T &data, push_mode mode = push_mode::require_pending) {
-        {
-            std::unique_lock<std::mutex> lock(mtx_);
-            if (pending_ > 0 || mode == push_mode::ignore_pending) {
-                q_.push(std::move(data));
-            } else {
-                return false;
-            }
-        }
-
-        cv_.notify_one();
-        return true;
+    [[nodiscard]] bool running()
+    {
+        return running_.load(std::memory_order_relaxed);
     }
 
     template< class Rep, class Period >
-    std::optional<T> pop(const std::chrono::duration<Rep, Period>& duration) {
-        std::unique_lock<std::mutex> lock(mtx_);
-        std::optional<T> retval;
-        if (q_.empty()) {
-            ++pending_;
-            cv_.wait_for(lock, duration);
-            --pending_;
-            if (q_.empty()) { return retval; }
+    std::optional<runnable> pop(const std::chrono::duration<Rep, Period>& duration)
+    {
+        std::optional<runnable> retval;
+        std::unique_lock<std::mutex> lock(q_.mtx);
+        if (q_.data.empty()) {
+            ++q_.pending;
+            q_.cv.wait_for(lock, duration);
+            --q_.pending;
+
+            if (q_.data.empty()) {
+                return retval;
+            }
         }
 
-        retval = std::move(q_.front());
-        q_.pop();
+        retval = std::move(q_.data.front());
+        q_.data.pop();
 
         return retval;
     }
-
 protected:
-    std::mutex mtx_;
-    std::condition_variable cv_;
-    std::queue<T> q_;
-    unsigned pending_{0};
+    bool valid{true};
+    producer_queue::refcount &rc_;
+    std::atomic<bool> &running_;
+    producer_queue::queue &q_;
 };
 
-using worker_queue = queue<std::function<void(monitor&)>>;
+
 
 // Workers should require no extra storage within the pool, they are
 // essentially detached threads and handle their own memory. The Monitor
@@ -121,25 +141,20 @@ using worker_queue = queue<std::function<void(monitor&)>>;
 class pool {
 public:
     pool() = default;
-    ~pool() {
-        if (wm_.running()) {
-            stop();
-        }
-    }
-
+    ~pool() = default;
     pool(const pool &) = delete;
     pool &operator=(const pool &) = delete;
     pool(pool &&) = delete;
     pool &operator=(pool &&) = delete;
 
-    bool launch(std::function<void(monitor&)> &&f);
+    bool launch(runnable &&f);
 
-    void stop() { wm_.stop(); }
+    void wait() { q_.wait(); }
+    void stop() { q_.stop(); }
 
-    [[nodiscard]] unsigned worker_count() const { return wm_.count(); }
+    [[nodiscard]] unsigned worker_count() const { return q_.ref_count(); }
 private:
-    monitor wm_;
-    worker_queue wq_;
+    producer_queue q_;
 };
 
 } // namespace dds::worker
