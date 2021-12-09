@@ -1,5 +1,6 @@
 #include "mpack-common.h"
 #include "mpack-reader.h"
+#include "mpack-writer.h"
 #include "spdlog/common.h"
 #include <algorithm>
 #include <array>
@@ -38,19 +39,18 @@ using error_code = boost::system::error_code;
 template <typename R = std::ratio<1, 1>> struct CmdlineDuration {
     constexpr explicit CmdlineDuration(int64_t value_i)
         : value_{std::chrono::duration<int64_t, R>{value_i}}
-    {
-    }
+    {}
     template <typename R2>
     constexpr explicit CmdlineDuration(std::chrono::duration<int64_t, R2> value)
         : value_{std::chrono::duration_cast<std::chrono::duration<int64_t, R>>(
               value)}
-    {
-    }
+    {}
     constexpr CmdlineDuration() = default;
     std::chrono::duration<int64_t, R> value_{};
 
-    template<typename R2> // NOLINTNEXTLINE
-    operator std::chrono::duration<int64_t, R2>() const {
+    template <typename R2> // NOLINTNEXTLINE
+    operator std::chrono::duration<int64_t, R2>() const
+    {
         return std::chrono::duration_cast<std::chrono::duration<int64_t, R2>>(
             value_);
     }
@@ -62,7 +62,7 @@ template <typename R = std::ratio<1, 1>> struct CmdlineDuration {
         static constexpr int64_t TEN_E6{1000000};
         int64_t us_int = std::chrono::duration_cast<std::chrono::microseconds>(
             duration.value_)
-                              .count();
+                             .count();
         if (us_int >= TEN_E6) {
             os << static_cast<double>(us_int) / TEN_E6 << " s";
         } else if (us_int >= TEN_E3) {
@@ -74,7 +74,7 @@ template <typename R = std::ratio<1, 1>> struct CmdlineDuration {
     }
 };
 
-template<class charT, typename R>
+template <class charT, typename R>
 void validate(boost::any &v, const std::vector<std::basic_string<charT>> &xs,
     CmdlineDuration<R> *, long) // NOLINT
 {
@@ -105,17 +105,19 @@ void validate(boost::any &v, const std::vector<std::basic_string<charT>> &xs,
 
 static constexpr int default_concurrent_clients = 20;
 static constexpr int default_req_per_client = 50;
-static constexpr ::CmdlineDuration<std::milli> default_delay{200}; // NOLINT
-static constexpr ::CmdlineDuration<> default_duration{60}; // NOLINT
-static const std::string default_socket{"/tmp/ddappsec.sock"}; // NOLINT
-static const std::string default_output{"bench_timings.bin"}; // NOLINT
-static const std::string default_payload{"payload.msgpack"}; // NOLINT
+static constexpr ::CmdlineDuration<std::milli> default_delay{200};   // NOLINT
+static constexpr ::CmdlineDuration<> default_duration{60};           // NOLINT
+static const std::string default_socket{"/tmp/ddappsec.sock"};       // NOLINT
+static const std::string default_output{"bench_timings.bin"};        // NOLINT
+static const std::string default_payload{"payload.msgpack"};         // NOLINT
+static const std::string default_payload_sh{"req_shutdown.msgpack"}; // NOLINT
 
+static constexpr std::uint64_t waf_timeout_ms = 10;
 static constexpr int max_simultaneous_connects = 5;
 
 // avoid blowing off the backlog of the socket, esp at startup
 class ConnectionLimiter {
-  public:
+public:
     explicit ConnectionLimiter(asio::io_context &context, uint32_t limit)
         : limit_{limit}, timer_{context}
     {
@@ -126,21 +128,22 @@ class ConnectionLimiter {
         const asio::local::stream_protocol::endpoint &endpoint,
         const asio::yield_context &yield);
 
-  private:
+private:
     const uint32_t limit_;
     uint32_t connecting_{};
     asio::deadline_timer timer_;
 };
 
 class Benchmark {
-  public:
-    explicit Benchmark(const po::variables_map& opt_vm);
+public:
+    explicit Benchmark(const po::variables_map &opt_vm);
 
     int run();
-  private:
+
+private:
     using yc = asio::yield_context;
     void wait_for_finish();
-    void spawn_run(const yc& yield);
+    void spawn_run(const yc &yield);
     void client_notify(std::chrono::microseconds req_duration);
 
     const std::string rules_file_;
@@ -150,6 +153,7 @@ class Benchmark {
     const std::chrono::seconds duration_;
     const asio::local::stream_protocol::endpoint sock_endpoint_;
     std::string payload_;
+    std::string payload_shutdown_;
     std::ofstream os_;
 
     asio::io_context iocontext_;
@@ -160,42 +164,49 @@ class Benchmark {
     uint64_t total_requests_{};
 };
 
-template<typename C>
 class Client {
-  public:
+public:
+    template <typename C>
     Client(C &&notify, std::string rules_file, int num_requests,
-        std::chrono::milliseconds delay, const std::string &payload,
+        std::chrono::milliseconds delay, const std::string &payload, // NOLINT
+        const std::string &payload_shutdown,
         asio::local::stream_protocol::socket &&sock,
         asio::io_context &iocontext, asio::yield_context yc)
-        : id_{++next_client_id}, notify_{std::move(notify)},
+        : id_{++next_client_id}, notify_{std::forward<C>(notify)},
           rules_file_{std::move(rules_file)}, requests_left_{num_requests},
-          delay_{delay}, payload_{payload}, sock_{std::move(sock)},
-          iocontext_{iocontext}, yc_{std::move(yc)}
-    {
-    }
+          delay_{delay}, payload_{payload}, payload_shutdown_{payload_shutdown},
+          sock_{std::move(sock)}, iocontext_{iocontext}, yc_{std::move(yc)}
+    {}
 
     void run();
 
-  private:
+private:
     struct Header {
         Header() = default;
         explicit Header(uint32_t size) : size{size} {}
-        std::array<char, 4> marker {'d', 'd', 's', '\0'};
+        std::array<char, 4> marker{'d', 'd', 's', '\0'};
         uint32_t size{};
     } __attribute__((packed));
 
     static inline uint64_t next_client_id{0};
 
     void do_client_init();
-    void do_single_request();
+    void do_request_init();
+    void do_request_shutdown();
+
+    template <const char *MessageType>
+    void send_helper_payload(
+        asio::const_buffer msg_begin, const std::string &payload);
+
     template <typename Function> std::string read_helper_response(Function &&f);
 
     uint64_t id_;
-    C notify_;
+    std::function<void(std::chrono::microseconds)> notify_;
     const std::string rules_file_;
     int requests_left_;
     const std::chrono::milliseconds delay_;
-    const std::string& payload_;
+    const std::string &payload_;
+    const std::string &payload_shutdown_;
 
     boost::beast::basic_stream<asio::local::stream_protocol> sock_;
 
@@ -215,6 +226,8 @@ int main(int argc, char **argv)
                                  "The path to the UNIX socket")
         ("payload,p",            po::value<std::string>()->default_value(default_payload),
                                  "The path to the msgpack payload for request_init")
+        ("payload-sh,t",         po::value<std::string>()->default_value(default_payload_sh),
+                                 "The path to the msgpack payload for request_shutdown")
         ("output,o",             po::value<std::string>()->default_value(default_output),
                                  "Where to write the timings for each request")
         ("concurrent-clients,c", po::value<int>()->default_value(default_concurrent_clients),
@@ -229,12 +242,10 @@ int main(int argc, char **argv)
                                  "Enable verbose logging");
     // clang-format on
 
-
     po::variables_map opt_vm;
     try {
-        auto parsed_options = po::command_line_parser(argc, argv)
-                                  .options(opt_desc)
-                                  .run();
+        auto parsed_options =
+            po::command_line_parser(argc, argv).options(opt_desc).run();
         po::store(parsed_options, opt_vm);
     } catch (const std::exception &ex) {
         std::cerr << ex.what() << "\n";
@@ -253,7 +264,6 @@ int main(int argc, char **argv)
     if (opt_vm["verbose"].as<bool>()) {
         spdlog::set_level(spdlog::level::debug);
     }
-
 
     Benchmark bench{opt_vm};
     return bench.run();
@@ -274,23 +284,26 @@ Benchmark::Benchmark(const po::variables_map &opt_vm)
         throw std::runtime_error{"Could not open output file"};
     }
 
-    auto payload_f = opt_vm["payload"].as<std::string>();
-    SPDLOG_INFO("Using {} for payload", payload_f);
-    std::ifstream payload_stream{payload_f};
-    
-    if (!payload_stream.is_open()) {
-        throw std::runtime_error{"Could not open input file " + payload_f};
-    }
-    payload_ = {std::istreambuf_iterator<char>{payload_stream},
-    std::istreambuf_iterator<char>{}};
+    auto read_payload_file = [&](const std::string &opt) -> std::string {
+        auto payload_f = opt_vm[opt].as<std::string>();
+        SPDLOG_INFO("Using {} for payload", payload_f); // NOLINT
+        std::ifstream payload_stream{payload_f};
+
+        if (!payload_stream.is_open()) {
+            throw std::runtime_error{"Could not open input file " + payload_f};
+        }
+        return {std::istreambuf_iterator<char>{payload_stream},
+            std::istreambuf_iterator<char>{}};
+    };
+    payload_ = read_payload_file("payload");
+    payload_shutdown_ = read_payload_file("payload-sh");
 }
 
 int Benchmark::run()
 {
     for (int i = 0; i < concurrent_clients_; i++) {
-        boost::asio::spawn(iocontext_, [this](const yc &yield) {
-            spawn_run(yield);
-        });
+        boost::asio::spawn(
+            iocontext_, [this](const yc &yield) { spawn_run(yield); });
     }
 
     start = std::chrono::steady_clock::now();
@@ -308,14 +321,15 @@ int Benchmark::run()
             .count()};
 
     std::cout << "Did " << total_requests_ << " requests in " << duration_secs
-               << " seconds\n";
-    std::cout << "Average of " <<
-        (static_cast<double>(total_requests_) / duration_secs) << " req/s\n";
+              << " seconds\n";
+    std::cout << "Average of "
+              << (static_cast<double>(total_requests_) / duration_secs)
+              << " req/s\n";
 
     return 0;
 }
 
-void Benchmark::spawn_run(const yc& yield)
+void Benchmark::spawn_run(const yc &yield)
 {
     for (;;) {
         asio::local::stream_protocol::socket sock_{iocontext_};
@@ -328,8 +342,8 @@ void Benchmark::spawn_run(const yc& yield)
         }
 
         Client c{[this](auto arg) { client_notify(arg); }, rules_file_,
-            req_per_client_, delay_, payload_, std::move(sock_), iocontext_,
-            yield};
+            req_per_client_, delay_, payload_, payload_shutdown_,
+            std::move(sock_), iocontext_, yield};
         c.run();
     }
 }
@@ -341,14 +355,15 @@ void Benchmark::client_notify(std::chrono::microseconds req_duration)
     total_requests_ += 1;
 }
 
-template <typename C> void Client<C>::run()
+void Client::run()
 {
     SPDLOG_DEBUG("C#{} Doing client_init", id_);
     do_client_init();
     SPDLOG_DEBUG("C#{} client_init done", id_);
     while (requests_left_-- > 0) {
         auto start{std::chrono::steady_clock::now()};
-        do_single_request();
+        do_request_init();
+        do_request_shutdown();
         auto duration = std::chrono::steady_clock::now() - start;
         notify_(
             std::chrono::duration_cast<std::chrono::microseconds>(duration));
@@ -362,7 +377,7 @@ template <typename C> void Client<C>::run()
     sock_.release_socket().close();
     SPDLOG_DEBUG("C#{} finished requests", id_);
 }
-template <typename C> void Client<C>::do_client_init()
+void Client::do_client_init()
 {
     // write
     {
@@ -377,8 +392,13 @@ template <typename C> void Client<C>::do_client_init()
         mpack_write(&w, static_cast<uint32_t>(getpid()));
         mpack_write(&w, "1.0.0");
         mpack_write(&w, "7.0.0");
+        mpack_start_map(&w, 2);
+        mpack_write(&w, "rules_file");
         mpack_write_str(
             &w, &rules_file_[0], static_cast<uint32_t>(rules_file_.size()));
+        mpack_write(&w, "waf_timeout_ms");
+        mpack_write_u64(&w, waf_timeout_ms);
+        mpack_finish_map(&w);
         mpack_finish_array(&w);
 
         mpack_finish_array(&w);
@@ -391,24 +411,24 @@ template <typename C> void Client<C>::do_client_init()
 
         Header header{static_cast<uint32_t>(size)};
         std::array<asio::const_buffer, 2> buffers{
-            asio::const_buffer{ // NOLINTNEXTLINE
+            asio::const_buffer{// NOLINTNEXTLINE
                 reinterpret_cast<char *>(&header), sizeof(header)},
             {data, size},
         };
-        SPDLOG_DEBUG("C#{} Writing client_id message", id_);
+        SPDLOG_DEBUG("C#{} Writing client_init message", id_);
         sock_.expires_after(std::chrono::seconds{5}); // NOLINT
         error_code ec;
         asio::async_write(sock_, buffers, yc_[ec]);
         if (ec.failed()) {
             throw std::runtime_error{
-                "Failed writing client_id message: " + ec.message()};
+                "Failed writing client_init message: " + ec.message()};
         }
         MPACK_FREE(data); // NOLINT
     }
 
     // read
     {
-        SPDLOG_DEBUG("C#{} Reading client_id message response", id_);
+        SPDLOG_DEBUG("C#{} Reading client_init message response", id_);
         // we read the error array that should be after the status
         auto log_error = [this](mpack_reader_t *r, const std::string &status,
                              uint32_t num_elements) {
@@ -438,50 +458,68 @@ template <typename C> void Client<C>::do_client_init()
             }
             spdlog::default_logger_raw()->log(
                 spdlog::source_loc{__FILE__, __LINE__, "do_client_init"},
-                spdlog::level::err,
-                "C#{} Error message for client_init is: {}", id_, res_str);
+                spdlog::level::err, "C#{} Error message for client_init is: {}",
+                id_, res_str);
         };
 
         std::string resp{read_helper_response(std::move(log_error))};
-        SPDLOG_DEBUG("C#{} client_id response:", id_, resp);
+        SPDLOG_DEBUG("C#{} client_init response:", id_, resp);
         if (resp != "ok") {
             throw std::runtime_error{"client_init response was not ok"};
         }
     }
 }
 
-template<typename C>
-void Client<C>::do_single_request() {
-    // write
-    {
-        static constexpr char msg_beg[] = "\x92\xacrequest_init\x91"; // NOLINT
+void Client::do_request_init()
+{
+    static constexpr char msg_beg[] = "\x92\xacrequest_init\x91"; // NOLINT
+    static constexpr char request_init_id[] = "request_init";     // NOLINT
+    send_helper_payload<request_init_id>(
+        {&msg_beg, sizeof(msg_beg) - 1}, payload_);
 
-        Header header{
-            static_cast<uint32_t>(payload_.size() + sizeof(msg_beg) - 1)};
-        std::array<asio::const_buffer, 3> buffers{
-            asio::const_buffer{ // NOLINTNEXTLINE
-                reinterpret_cast<char *>(&header), sizeof(header)},
-            {static_cast<const char*>(msg_beg), sizeof(msg_beg) - 1},
-            {payload_.data(), payload_.size()},
-        };
-        sock_.expires_after(std::chrono::seconds{5}); // NOLINT
-        error_code ec;
-        asio::async_write(sock_, buffers, yc_[ec]);
-        if (ec.failed()) {
-            throw std::runtime_error{
-                "Failed writing request_init message: " + ec.message()};
-        }
-    }
-
-    std::string resp{read_helper_response([](auto...){})};
+    std::string resp{read_helper_response([](auto...) {})};
     if (resp != "ok" && resp != "record" && resp != "block") {
         throw std::runtime_error{
             "response to payload was neither ok nor block, nor monitor"};
     }
 }
-template<typename C>
-template<typename Function>
-std::string Client<C>::read_helper_response(Function&& f)
+void Client::do_request_shutdown()
+{
+    static constexpr char msg_beg[] = "\x92\xb0request_shutdown\x91"; // NOLINT
+    static constexpr char request_shutdown_id[] = "request_shutdown"; // NOLINT
+    send_helper_payload<request_shutdown_id>(
+        {&msg_beg, sizeof(msg_beg) - 1}, payload_shutdown_);
+
+    std::string resp{read_helper_response([](auto...) {})};
+    if (resp != "ok" && resp != "record" && resp != "block") {
+        throw std::runtime_error{
+            "response to payload was neither ok nor block, nor monitor"};
+    }
+}
+
+template <const char *MessageType>
+void Client::send_helper_payload(
+    asio::const_buffer msg_begin, const std::string &payload)
+{
+    Header header{static_cast<uint32_t>(payload.size() + msg_begin.size())};
+    std::array<asio::const_buffer, 3> buffers{
+        asio::const_buffer{// NOLINTNEXTLINE
+            reinterpret_cast<char *>(&header), sizeof(header)},
+        msg_begin,
+        {payload.data(), payload.size()},
+    };
+    sock_.expires_after(std::chrono::seconds{5}); // NOLINT
+    error_code ec;
+    asio::async_write(sock_, buffers, yc_[ec]);
+    if (ec.failed()) {
+        // NOLINTNEXTLINE
+        throw std::runtime_error{std::string{"Failed writing "} + MessageType +
+                                 " message: " + ec.message()};
+    }
+}
+
+template <typename Function>
+std::string Client::read_helper_response(Function &&f)
 {
     Header header;
     sock_.expires_after(std::chrono::seconds{10}); // NOLINT
@@ -504,9 +542,9 @@ std::string Client<C>::read_helper_response(Function&& f)
     r.context = &ctx;
     mpack_reader_set_fill(
         &r, [](mpack_reader_t *r, char *buffer, size_t count) -> size_t {
-            auto context = static_cast<decltype(ctx) *>(r->context);
-            auto thiz = std::get<Client*>(*context);
-            auto& left = std::get<1>(*context);
+            auto *context = static_cast<decltype(ctx) *>(r->context);
+            auto *thiz = std::get<Client *>(*context);
+            auto &left = std::get<1>(*context);
             size_t reading_now = std::min(count, static_cast<size_t>(left));
             error_code ec;
             auto read = asio::async_read(thiz->sock_,
