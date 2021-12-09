@@ -1,7 +1,11 @@
 #[[ Need CMake 3.14 so that `install(TARGETS)` uses better defaults, which
     saves us from repeating configuration in every file (and must be the same).
+    Need CMake 3.15+ because the channel component fails on 3.14, as does the
+    time component's feature check. Instead of just bumping incrementally, I've
+    bumped this to the latest version that's been tested in CI for a while:
+    version 3.19.
 ]]
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.19)
 
 project(datadog-php-components
   VERSION 0.1.0
@@ -65,6 +69,9 @@ add_subdirectory(container_id)
 add_subdirectory(log)
 add_subdirectory(queue)
 add_subdirectory(sapi)
+add_subdirectory(stack-sample)
+add_subdirectory(time)
+add_subdirectory(uuid)
 
 install(EXPORT DatadogPhpComponentsTargets
   FILE DatadogPhpComponentsTargets.cmake

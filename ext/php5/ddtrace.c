@@ -56,6 +56,10 @@ atomic_int ddtrace_warn_legacy_api;
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
+#ifdef COMPILE_DL_DDTRACE
+ZEND_GET_MODULE(ddtrace)
+#endif
+
 PHP_INI_BEGIN()
 STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
                     ddtrace_globals)
@@ -486,7 +490,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
      * {{{ */
     Dl_info infos;
     zend_register_extension(&_dd_zend_extension_entry, ddtrace_module_entry.handle);
-    dladdr(ZEND_MODULE_STARTUP_N(ddtrace), &infos);
+    // The symbol used needs to be public on Alpine.
+    dladdr(get_module, &infos);
     dlopen(infos.dli_fname, RTLD_LAZY);
     /* }}} */
 
@@ -1865,13 +1870,6 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
                                           PHP_DDTRACE_VERSION,       PHP_MODULE_GLOBALS(ddtrace),
                                           PHP_GINIT(ddtrace),        NULL,
                                           ddtrace_post_deactivate,   STANDARD_MODULE_PROPERTIES_EX};
-
-#ifdef COMPILE_DL_DDTRACE
-ZEND_GET_MODULE(ddtrace)
-#if defined(ZTS) && PHP_VERSION_ID >= 70000
-ZEND_TSRMLS_CACHE_DEFINE();
-#endif
-#endif
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
 //   - set a new trace (group) id

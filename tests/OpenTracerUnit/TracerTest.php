@@ -37,6 +37,24 @@ final class TracerTest extends BaseTestCase
         parent::ddTearDown();
     }
 
+    public function testTracerNoConstructorArg()
+    {
+        $tracer = new Tracer(); //  Tracer::make(new NoopTransport());
+
+        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
+        $this->assertNull($span->getTag(Tag::ENV));
+        $this->assertNull($span->getTag(Tag::VERSION));
+    }
+
+    public function testTracerWithConstructorArg()
+    {
+        $tracer = new Tracer(\DDTrace\GlobalTracer::get());
+
+        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
+        $this->assertNull($span->getTag(Tag::ENV));
+        $this->assertNull($span->getTag(Tag::VERSION));
+    }
+
     public function testCreateSpanWithDefaultTags()
     {
         $tracer = Tracer::make(new NoopTransport());

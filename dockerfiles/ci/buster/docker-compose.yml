@@ -32,8 +32,8 @@ services:
       dockerfile: Dockerfile_shared_ext
       args:
         phpVersion: 8.0
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.8.tar.gz
-        phpSha256Hash: 084a1e8020e86fb99b663d195fd9ac98a9f37dfcb9ecb5c159054cdb8f388945
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.13.tar.gz
+        phpSha256Hash: b4c2d27c954e1b0d84fd4bfef4d252e154ba479e7db11abd89358f2164ee7cc8
 
   php-7.4:
     image: datadog/dd-trace-ci:php-7.4_buster
