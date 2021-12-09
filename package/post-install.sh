@@ -6,7 +6,7 @@
 # (fpm 1.14.0, ruby 3.0, tar 1.34).
 # Packing fails if this script size in bytes is between <unknown> and 7680. This value has been found empirically and
 # measured via `wc -c`.
-# The issue seems related to this very specific file size ony, as generating a package that includes only this script
+# The issue seems related to this very specific file size only, as generating a package that includes only this script
 # (no binaries and sources) will result in the very same error.
 # Issue reported to the fpm project (https://github.com/jordansissel/fpm/issues/1866), see there for more details and
 # a reproduction case.
