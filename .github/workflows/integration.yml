@@ -23,6 +23,7 @@ jobs:
           - version: '7.3'
           - version: '7.4'
           - version: '8.0'
+          - version: '8.1'
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
