@@ -1,5 +1,16 @@
 #!/bin/bash --login
 
+# WARNING: apk packaging via fpm (https://github.com/jordansissel/fpm) can fail because the tar file generated is not
+# valid.
+# This has been tested both on our custom image (fpm 1.11.0, ruby 2.5, tar 1.29), and on a ruby 3.0-bullseye
+# (fpm 1.14.0, ruby 3.0, tar 1.34).
+# Packing fails if this script size in bytes is between <unknown> and 7680. This value has been found empirically and
+# measured via `wc -c`.
+# The issue seems related to this very specific file size ony, as generating a package that includes only this script
+# (no binaries and sources) will result in the very same error.
+# Issue reported to the fpm project (https://github.com/jordansissel/fpm/issues/1866), see there for more details and
+# a reproduction case.
+
 EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions
 EXTENSION_CFG_DIR=${EXTENSION_BASE_DIR}/etc
@@ -154,10 +165,6 @@ function verify_installation() {
 }
 
 function verify_required_ext() {
-    # This comment has been added because without it the number of bytes of this script is 7432
-    # and the apk module of fpm generates a broken tar.
-    # For some reasons we have to reach at least a number of bytes greater or equal 7681 so I need
-    # keep writing this few more words.
     ext_name="$1"
     printf "Checking for extension: ${ext_name}\n"
     output=$(invoke_php -m | grep "${ext_name}" || true)
