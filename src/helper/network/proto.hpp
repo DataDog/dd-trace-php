@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "engine.hpp"
 #include "msgpack_helpers.hpp"
 #include <iostream>
 #include <msgpack.hpp>
@@ -76,11 +77,16 @@ struct client_init {
     struct request : base_request {
         static constexpr const char *name = "client_init";
         static constexpr request_id id = request_id::client_init;
+        static constexpr std::uint64_t default_waf_timeout_ms = 10;
+
+        struct settings : engine::settings {
+            MSGPACK_DEFINE_MAP(rules_file, waf_timeout_ms);
+        };
 
         unsigned pid{0};
         std::string client_version;
         std::string runtime_version;
-        std::string rules_file;
+        settings settings;
 
         request() = default;
         request(const request &) = delete;
@@ -89,7 +95,7 @@ struct client_init {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(pid, client_version, runtime_version, rules_file);
+        MSGPACK_DEFINE(pid, client_version, runtime_version, settings);
     };
 
     struct response : base_response_generic<response> {

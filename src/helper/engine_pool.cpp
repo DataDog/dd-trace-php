@@ -20,28 +20,30 @@ namespace filesystem = experimental::filesystem;
 
 namespace dds {
 
-std::shared_ptr<engine> engine_pool::load_file(std::string rules_path)
+std::shared_ptr<engine> engine_pool::create_engine(
+    const engine::settings &settings)
 {
     std::lock_guard guard{mutex_};
 
-    auto hit = cache_.find(rules_path);
+    auto hit = cache_.find(settings);
     if (hit != cache_.end()) {
         std::shared_ptr engine_ptr = hit->second.lock();
         if (engine_ptr) { // not expired
-            SPDLOG_DEBUG("Cache hit for rules file {}", rules_path);
+            SPDLOG_DEBUG("Cache hit settings {}", settings);
             return engine_ptr;
         }
     }
 
     // no cache hit
 
-    SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);
+    SPDLOG_DEBUG("Will load WAF rules from {}", settings.rules_file);
     // may throw std::exception
-    subscriber::ptr waf = waf::instance::from_file(rules_path);
+    subscriber::ptr waf =
+        waf::instance::from_file(settings.rules_file, settings.waf_timeout_ms);
 
     std::shared_ptr engine_ptr{engine::create()};
     engine_ptr->subscribe(waf);
-    cache_.emplace(std::move(rules_path), engine_ptr);
+    cache_.emplace(settings, engine_ptr);
     last_engine_ = engine_ptr;
 
     cleanup_cache();

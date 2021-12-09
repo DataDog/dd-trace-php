@@ -35,49 +35,52 @@ using log_counter_sink_st = log_counter_sink<spdlog::details::null_mutex>;
 
 TEST(WafTest, RunWithInvalidParam)
 {
-    subscriber::ptr wi(waf::instance::from_string(waf_rule));
+    subscriber::ptr wi(waf::instance::from_string(
+        waf_rule, dds::engine::default_waf_timeout_ms));
     auto ctx = wi->get_listener();
     parameter p;
-    EXPECT_THROW(ctx->call(p, dds::engine::default_timeout), invalid_object);
+    EXPECT_THROW(ctx->call(p), invalid_object);
     p.free();
 }
 
 TEST(WafTest, RunWithTimeout)
 {
-    subscriber::ptr wi(waf::instance::from_string(waf_rule));
+    subscriber::ptr wi(waf::instance::from_string(waf_rule, 0));
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
     p.add("arg1", parameter("string 1"sv));
     p.add("arg2", parameter("string 2"sv));
 
-    EXPECT_THROW(ctx->call(p, 0), timeout_error);
+    EXPECT_THROW(ctx->call(p), timeout_error);
     p.free();
 }
 
 TEST(WafTest, ValidRunGood)
 {
-    subscriber::ptr wi(waf::instance::from_string(waf_rule));
+    subscriber::ptr wi(
+        waf::instance::from_string(waf_rule, engine::default_waf_timeout_ms));
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
     p.add("arg1", parameter("string 1"sv));
 
-    auto res = ctx->call(p, dds::engine::default_timeout);
+    auto res = ctx->call(p);
     p.free();
     EXPECT_EQ(res.value, dds::result::code::ok);
 }
 
 TEST(WafTest, ValidRunMonitor)
 {
-    subscriber::ptr wi(waf::instance::from_string(waf_rule));
+    subscriber::ptr wi(
+        waf::instance::from_string(waf_rule, engine::default_waf_timeout_ms));
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
     p.add("arg1", parameter("string 1"sv));
     p.add("arg2", parameter("string 3"sv));
 
-    auto res = ctx->call(p, dds::engine::default_timeout);
+    auto res = ctx->call(p);
     p.free();
     EXPECT_EQ(res.value, dds::result::code::record);
 

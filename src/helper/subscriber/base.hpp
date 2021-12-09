@@ -29,7 +29,7 @@ public:
 
         virtual ~listener() = default;
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual result call(parameter &data, unsigned timeout) = 0;
+        virtual result call(parameter &data) = 0;
     };
 
     subscriber() = default;

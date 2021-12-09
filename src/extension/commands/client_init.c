@@ -12,6 +12,7 @@
 #include "client_init.h"
 #include "mpack-common.h"
 #include "mpack-node.h"
+#include "mpack-writer.h"
 
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nullable ctx);
 static dd_result _process_response(mpack_node_t root, void *nullable ctx);
@@ -37,14 +38,22 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, PHP_DDAPPSEC_VERSION);
     dd_mpack_write_lstr(w, PHP_VERSION);
 
-    const char *rules_file = DDAPPSEC_G(rules_file);
-    bool has_rules_file = rules_file && *rules_file;
+    mpack_start_map(w, 2);
+    {
+        dd_mpack_write_lstr(w, "rules_file");
+        const char *rules_file = DDAPPSEC_G(rules_file);
+        bool has_rules_file = rules_file && *rules_file;
 
-    if (!has_rules_file) {
-        mlog(dd_log_info, "ddappsec.rules_path was not provided. The helper "
-                          "will atttempt to use the default file");
+        if (!has_rules_file) {
+            mlog(dd_log_info,
+                "ddappsec.rules_path was not provided. The helper "
+                "will atttempt to use the default file");
+        }
+        dd_mpack_write_nullable_cstr(w, rules_file);
     }
-    dd_mpack_write_nullable_cstr(w, rules_file);
+    dd_mpack_write_lstr(w, "waf_timeout_ms");
+    mpack_write(w, (uint64_t)DDAPPSEC_G(waf_timeout_ms));
+    mpack_finish_map(w);
 
     return dd_success;
 }

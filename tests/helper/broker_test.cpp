@@ -164,7 +164,11 @@ TEST(BrokerTest, BrokerRecvClientInit)
     packer.pack_unsigned_int(20);
     pack_str(packer, "one");
     pack_str(packer, "two");
+    packer.pack_map(2);
+    pack_str(packer, "rules_file");
     pack_str(packer, "three");
+    pack_str(packer, "waf_timeout_ms");
+    packer.pack_uint64(42ul);
     const std::string &expected_data = ss.str();
 
     network::header_t h{"dds", (uint32_t)expected_data.size()};
@@ -181,7 +185,8 @@ TEST(BrokerTest, BrokerRecvClientInit)
     EXPECT_EQ(command.pid, 20);
     EXPECT_STREQ(command.client_version.c_str(), "one");
     EXPECT_STREQ(command.runtime_version.c_str(), "two");
-    EXPECT_STREQ(command.rules_file.c_str(), "three");
+    EXPECT_EQ(command.settings.rules_file, std::string{"three"});
+    EXPECT_EQ(command.settings.waf_timeout_ms, 42ul);
 }
 
 TEST(BrokerTest, BrokerRecvRequestInit)
