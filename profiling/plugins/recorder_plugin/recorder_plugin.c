@@ -101,7 +101,7 @@ struct record_msg_s {
   datadog_php_stack_sample sample;
 };
 
-__attribute__((nonnull)) bool
+DDTRACE_HOT __attribute__((nonnull)) bool
 datadog_php_recorder_plugin_record(datadog_php_record_values record_values,
                                    int64_t tid,
                                    const datadog_php_stack_sample *sample) {
@@ -716,7 +716,7 @@ static void upload_log_cstr(datadog_php_log_level level, const char *cstr) {
 
 #undef C_STATIC
 
-ZEND_COLD void datadog_php_recorder_plugin_diagnose(void) {
+DDTRACE_COLD void datadog_php_recorder_plugin_diagnose(void) {
   const char *yes = "yes", *no = "no";
 
   php_info_print_table_colspan_header(2, "Recorder Diagnostics");

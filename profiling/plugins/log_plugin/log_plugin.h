@@ -13,7 +13,7 @@
 #endif
 
 void datadog_php_log_plugin_first_activate(bool profiling_enabled);
-void datadog_php_log_plugin_shutdown(zend_extension *extension);
+DDTRACE_COLD void datadog_php_log_plugin_shutdown(zend_extension *extension);
 
 /* It's called a "static logger" because the logger isn't passed as a parameter,
  * so somewhere there must be a static object holding onto it.

@@ -63,7 +63,8 @@ datadog_php_stack_collector_interrupt_function_helper(zend_execute_data *);
 static void datadog_php_stack_collector_execute_internal(zend_execute_data *,
                                                          zval *retval);
 
-ZEND_COLD void datadog_php_stack_collector_startup(zend_extension *extension) {
+DDTRACE_COLD void
+datadog_php_stack_collector_startup(zend_extension *extension) {
   (void)extension;
 
 #if !defined(ZTS)

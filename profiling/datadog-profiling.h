@@ -4,6 +4,7 @@
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_modules.h>
 #include <components/string_view/string_view.h>
+#include <ddtrace_attribtues.h>
 #include <stdbool.h>
 
 /**
@@ -16,7 +17,7 @@
  */
 bool datadog_php_string_view_is_boolean_true(datadog_php_string_view str);
 
-ZEND_COLD void datadog_profiling_info_diagnostics_row(const char *col_a,
-                                                      const char *col_b);
+DDTRACE_COLD void datadog_profiling_info_diagnostics_row(const char *col_a,
+                                                         const char *col_b);
 
 #endif // DATADOG_PHP_PROFILING_H

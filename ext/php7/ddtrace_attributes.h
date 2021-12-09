@@ -1,5 +1,5 @@
-#ifndef DDTRACE_EXPORT_H
-#define DDTRACE_EXPORT_H
+#ifndef DDTRACE_ATTRIBUTES_H
+#define DDTRACE_ATTRIBUTES_H
 
 // clang-format off
 /* Define DDTRACE_STATIC before including this header to avoid exporting the
@@ -20,8 +20,16 @@
 #endif
 
 #ifndef DDTRACE_DEPRECATED
-#  define DDTRACE_DEPRECATED __attribute__ ((__deprecated__))
+#  define DDTRACE_DEPRECATED __attribute__((__deprecated__))
+#endif
+
+#ifndef DDTRACE_HOT
+#  define DDTRACE_HOT __attribute__((hot))
+#endif
+
+#ifndef DDTRACE_COLD
+#  define DDTRACE_COLD __attribute__((cold))
 #endif
 // clang-format on
 
-#endif /* DDTRACE_EXPORT_H */
+#endif /* DDTRACE_ATTRIBUTES_H */

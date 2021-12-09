@@ -28,7 +28,7 @@ static uv_once_t first_activate_once = UV_ONCE_INIT;
 /**
  * Diagnose issues such as being unable to reach the agent.
  */
-ZEND_API ZEND_COLD void datadog_profiling_diagnostics(void) {
+DDTRACE_COLD void datadog_profiling_diagnostics(void) {
   php_info_print_table_start();
   datadog_php_recorder_plugin_diagnose();
   php_info_print_table_end();
@@ -48,7 +48,7 @@ ZEND_TLS bool datadog_profiling_enabled;
  * @param sapi
  * @return
  */
-ZEND_COLD
+DDTRACE_COLD
 static bool detect_profiling_enabled(const char *value, sapi_t sapi) {
   string_view_t enabled = datadog_php_string_view_from_cstr(value);
   if (datadog_php_string_view_is_boolean_true(enabled))
@@ -56,7 +56,7 @@ static bool detect_profiling_enabled(const char *value, sapi_t sapi) {
   return sapi == DATADOG_PHP_SAPI_CLI ? false : enabled.len == 0;
 }
 
-ZEND_COLD
+DDTRACE_COLD
 static void diagnose_profiling_enabled(bool enabled) {
   const char *string = NULL;
 
@@ -103,7 +103,7 @@ static void sapi_diagnose(sapi_t sapi, datadog_php_string_view pretty_name) {
   }
 }
 
-ZEND_COLD ZEND_API int datadog_profiling_startup(zend_extension *extension) {
+DDTRACE_COLD int datadog_profiling_startup(zend_extension *extension) {
   datadog_php_stack_collector_startup(extension);
 
   return SUCCESS;
@@ -152,17 +152,17 @@ static void datadog_profiling_first_activate(void) {
   datadog_php_stack_collector_first_activate(datadog_profiling_enabled);
 }
 
-ZEND_API void datadog_profiling_activate(void) {
+void datadog_profiling_activate(void) {
   uv_once(&first_activate_once, datadog_profiling_first_activate);
 
   datadog_php_stack_collector_activate();
 }
 
-ZEND_API void datadog_profiling_deactivate(void) {
+void datadog_profiling_deactivate(void) {
   datadog_php_stack_collector_deactivate();
 }
 
-ZEND_COLD ZEND_API void datadog_profiling_shutdown(zend_extension *extension) {
+DDTRACE_COLD void datadog_profiling_shutdown(zend_extension *extension) {
   datadog_php_recorder_plugin_shutdown(extension);
   datadog_php_log_plugin_shutdown(extension);
 }
@@ -171,8 +171,8 @@ static void datadog_info_print(const char *str) {
   php_output_write(str, strlen(str));
 }
 
-ZEND_COLD void datadog_profiling_info_diagnostics_row(const char *col_a,
-                                                      const char *col_b) {
+DDTRACE_COLD void datadog_profiling_info_diagnostics_row(const char *col_a,
+                                                         const char *col_b) {
 
   if (sapi_module.phpinfo_as_text) {
     php_info_print_table_row(2, col_a, col_b);

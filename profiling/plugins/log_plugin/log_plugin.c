@@ -2,6 +2,7 @@
 
 #include <SAPI.h>
 #include <Zend/zend.h>
+#include <ddtrace_attributes.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -65,7 +66,7 @@ static int64_t datadog_php_log_plugin_logv(
   sapi_getenv((char *)(name), name_len TSRMLS_CC)
 #endif
 
-static ZEND_COLD void datadog_php_log_plugin_init(void) {
+static DDTRACE_COLD void datadog_php_log_plugin_init(void) {
   int descriptor = dup(STDERR_FILENO);
   if (descriptor < 1) {
     return;
@@ -129,7 +130,7 @@ void datadog_php_log_plugin_first_activate(bool profiling_enabled) {
   datadog_php_log_plugin_init();
 }
 
-ZEND_COLD void datadog_php_log_plugin_shutdown(zend_extension *extension) {
+DDTRACE_COLD void datadog_php_log_plugin_shutdown(zend_extension *extension) {
   (void)extension;
 
   if (profiler_logger.descriptor >= 0)

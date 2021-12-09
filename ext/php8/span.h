@@ -8,7 +8,7 @@
 
 #include "compatibility.h"
 #include "ddtrace.h"
-#include "ddtrace_export.h"
+#include "ddtrace_attributes.h"
 
 // error.type, error.type, error.stack
 static const int ddtrace_num_error_tags = 3;

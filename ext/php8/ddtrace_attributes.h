@@ -20,7 +20,15 @@
 #endif
 
 #ifndef DDTRACE_DEPRECATED
-#  define DDTRACE_DEPRECATED __attribute__ ((__deprecated__))
+#  define DDTRACE_DEPRECATED __attribute__((__deprecated__))
+#endif
+
+#ifndef DDTRACE_HOT
+#  define DDTRACE_HOT __attribute__((hot))
+#endif
+
+#ifndef DDTRACE_COLD
+#  define DDTRACE_COLD __attribute__((cold))
 #endif
 // clang-format on
 
