@@ -136,67 +136,43 @@ function _util_uri_apply_rules($uriPath, $incoming)
  */
 function util_url_sanitize($url, $dropUserInfo = false)
 {
-    /* The implementation of this method is an exact replica of DDTrace\Http\Urls:;sanitize() - and has to
+    /* The implementation of this method is an exact replica of DDTrace\Http\Urls::sanitize() - and has to
      * be kept in sync - until this method will be removed as part of the PHP->C migration.
+     *
+     * Definition of unreserved and sub-delims in https://datatracker.ietf.org/doc/html/rfc3986#page-18
+     * Note: this implementation detects the following false positives and sanitize them even if they are valid and
+     * should not be sanitized (see: https://datatracker.ietf.org/doc/html/rfc3986#section-3.3)
+     *   - path fragments like /before/<something>:@<anything>/after => /before/?:@<anything>/after
+     *   - path fragments like /before/<something>:<something>@<anything>/after => /before/?:?@<anything>/after
+     * However, given how rare they are and the fact that we over-sanitize (rather than under-sanitize), it is
+     * believed that this represents a good trade-off between correctness and complexity.
      */
-    $sanitized = "";
+    $userinfoPattern = "[a-zA-Z0-9\-._~!$&'()*+,;=%?]+";
+    /*                   \            /\         /||
+     *                    \          /  \       / |↳ supports urls that might already be sanitized
+     *                     \        /    \_____/  ↳ percent escape (hexadecimal already included in 'unreserved')
+     *                      \______/        ↳ sub-delims https://datatracker.ietf.org/doc/html/rfc3986#section-2.2
+     *                          ↳ unreserved https://datatracker.ietf.org/doc/html/rfc3986#section-2.3
+     */
 
-    // This operation should be idem-potent, but http://?:?@... breaks parse_url. We have to remove it and add it back
-    $sanitizedUserInfo = null;
-    if (false !== \strpos($url, '?:?@')) {
-        $url = \str_replace('?:?@', '', $url);
-        $sanitizedUserInfo = '?:?@';
-    } elseif (false !== \strpos($url, '?:@')) {
-        $url = \str_replace('?:@', '', $url);
-        $sanitizedUserInfo = '?:@';
-    }
-
-    $parsedUrl = \parse_url($url);
-
-    if (isset($parsedUrl['scheme'])) {
-        $sanitized .= $parsedUrl['scheme'] . '://';
-    }
-
-    if (isset($parsedUrl['user'])) {
-        $sanitized .= $dropUserInfo ? '' : '?:';
-        /* Password isset() in the array but empty() in valid url "http://user:@domain.com" (meaning no password).
-         * see: https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.1
+    $sanitizedUserinfo = preg_replace(
+        [
+            "/${userinfoPattern}:@/",
+            "/${userinfoPattern}:${userinfoPattern}@/",
+        ],
+        [
+            $dropUserInfo ? '' : '<sanitized>:@',
+            $dropUserInfo ? '' : '<sanitized>:<sanitized>@',
+        ],
+        /*
+         * Skip the query string. There can only be one question mark as it is a reserved word
+         * and only allowed between path and query.
+         * See: https://datatracker.ietf.org/doc/html/rfc3986#section-3
          */
-        if (!empty($parsedUrl['pass'])) {
-            $sanitized .= $dropUserInfo ? '' : '?';
-        }
-        $sanitized .= $dropUserInfo ? '' : '@';
-    } elseif ($sanitizedUserInfo && !$dropUserInfo) {
-        $sanitized .= $sanitizedUserInfo;
-    }
+        $url
+    );
 
-    if (isset($parsedUrl['host'])) {
-        $sanitized .= $parsedUrl['host'];
-        if (isset($parsedUrl['port'])) {
-            $sanitized .= ':' . $parsedUrl['port'];
-        }
-        if (isset($parsedUrl['path'])) {
-            $sanitized .= $parsedUrl['path'];
-        }
-    } elseif (isset($parsedUrl['path'])) {
-        /* If the scheme is not present, parse_url() returns the host as part of the path,
-         * for example: array (
-         *   'path' => 'my_user:@some_url.com/path/',
-         * )
-         */
-        if (false === \strpos($parsedUrl['path'], '@')) {
-            $sanitized .= $parsedUrl['path'];
-        } else {
-            list($userInfo, $restOfPath) = \explode('@', $parsedUrl['path'], 2);
-            $userInfoParts = \explode(':', $userInfo, 2);
-            $sanitized .= $dropUserInfo ? '' : '?:';
-            if (!empty($userInfoParts[1])) {
-                $sanitized .= $dropUserInfo ? '' : '?';
-            }
-            $sanitized .= ($dropUserInfo ? '' : '@') . $restOfPath;
-        }
-    }
-    return $sanitized;
+    return \str_replace('<sanitized>', '?', strstr($sanitizedUserinfo, '?', true) ?: $sanitizedUserinfo);
 }
 
 /**
