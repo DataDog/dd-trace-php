@@ -22,12 +22,12 @@ assert_no_ddtrace() {
 }
 
 assert_no_ddappsec() {
-    output="$(php -v)"
-    if [ -z "${output##*ddappsec*}" ]; then
+    if php -r 'exit(extension_loaded("ddappsec") ? 0 : 1);'; then
         echo "---\nError: ddappsec should not be installed\n---\n${1}\n---\n"
         exit 1
+    else
+        echo "OK: ddappsec is installed"
     fi
-    echo "Ok: ddappsec is not installed"
 }
 
 assert_ddtrace_installed() {
@@ -60,7 +60,7 @@ assert_ddtrace_version() {
 
 assert_ddappsec_disabled() {
     if php -r 'exit(ini_get("ddappsec.enabled") ? 0 : 1);'; then
-        echo "---\nError: ddappsec is enabled. Expected it disableld \n---\n"
+        echo "---\nError: ddappsec is enabled. Expected it disabled \n---\n"
         exit 1
     else
         echo "OK: ddappsec is disabled\n"

@@ -1282,6 +1282,11 @@ function get_supported_php_versions()
     return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
 }
 
+/**
+ * Registers a directory or file to delete upon php shutdown.
+ * Non-existing files or files not under /tmp are ignored.
+ * @param $dir string directory or file under /tmp
+ */
 function delete_on_exit($dir)
 {
     static $initialized = false;
@@ -1289,7 +1294,10 @@ function delete_on_exit($dir)
     if (!$initialized) {
         $initialized = true;
         register_shutdown_function(function () use (&$directories) {
-            exec('rm -rf ' . join(' ', array_map('escapeshellarg', $directories)));
+            $existingDirs = array_filter($directories, function ($dir) {
+                return file_exists($dir) && strpos(realpath($dir), '/tmp/') === 0;
+            });
+            exec('rm -rf ' . join(' ', array_map('escapeshellarg', $existingDirs)));
         });
     }
     $directories[] = $dir;
