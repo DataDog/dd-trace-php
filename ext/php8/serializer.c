@@ -23,6 +23,7 @@
 #include "engine_hooks.h"
 #include "logging.h"
 #include "mpack/mpack.h"
+#include "priority_sampling/priority_sampling.h"
 #include "span.h"
 #include "uri_normalization.h"
 
@@ -526,6 +527,8 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
             add_assoc_str(meta, "_dd.hostname", hostname);
         }
     }
+
+    ddtrace_set_prioritySampling_on_root(DDTRACE_G(default_priority_sampling));
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
