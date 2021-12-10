@@ -90,15 +90,14 @@ void runner::run()
                 break;
             }
 
-            auto broker = std::make_unique<network::broker>(std::move(socket));
+            std::shared_ptr<client> c =
+                std::make_shared<client>(engine_pool_, std::move(socket));
 
             SPDLOG_DEBUG("new client connected");
-            auto runnable = [epool = engine_pool_, broker = std::move(broker)](
-                                dds::worker::monitor &wm) mutable {
-                client c(epool, std::move(broker));
-                c.run(wm);
-            };
-            worker_pool_.launch(std::move(runnable));
+
+            worker_pool_.launch(
+                [c](worker::queue_consumer &q) mutable { c->run(q); });
+
             last_not_idle = std::chrono::steady_clock::now();
         }
     } catch (const std::exception &e) {

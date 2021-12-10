@@ -14,7 +14,6 @@
 #include "../engine.hpp"
 #include "../exception.hpp"
 #include "../parameter.hpp"
-#include "../scope.hpp"
 
 namespace dds::waf {
 

@@ -75,20 +75,6 @@ bool handle_message(client &client, const network::base_broker &broker,
 
 } // namespace
 
-bool client::run_client_init()
-{
-    static constexpr auto client_init_timeout{std::chrono::milliseconds{500}};
-    return handle_message<network::client_init>(
-        *this, *broker_, client_init_timeout);
-}
-
-bool client::run_once()
-{
-    return handle_message<network::request_init, network::request_shutdown>(
-        *this, *broker_, std::chrono::milliseconds{0} /* no initial timeout */
-    );
-}
-
 bool client::handle_command(const network::client_init::request &command)
 {
     SPDLOG_DEBUG("Got client_id with pid={}, client_version={}, "
@@ -218,11 +204,23 @@ bool client::handle_command(network::request_shutdown::request &command)
     return false;
 }
 
-// NOLINTNEXTLINE(google-runtime-references)
-void client::run(worker::monitor &wm)
+bool client::run_client_init()
 {
-    scope<worker::monitor> ws(wm);
-    if (wm.running()) {
+    static constexpr auto client_init_timeout{std::chrono::milliseconds{500}};
+    return handle_message<network::client_init>(
+        *this, *broker_, client_init_timeout);
+}
+
+bool client::run_request()
+{
+    return handle_message<network::request_init, network::request_shutdown>(
+        *this, *broker_, std::chrono::milliseconds{0} /* no initial timeout */
+    );
+}
+
+void client::run(worker::queue_consumer &q)
+{
+    if (q.running()) {
         if (!run_client_init()) {
             SPDLOG_DEBUG("Finished handling client (client_init failed)");
             return;
@@ -230,11 +228,9 @@ void client::run(worker::monitor &wm)
 
         SPDLOG_DEBUG("Finished handling client (client_init succeded)");
     }
-    while (wm.running()) {
-        if (!run_once()) {
-            break;
-        }
-    }
+
+    while (q.running() && run_request()) {}
+
     SPDLOG_DEBUG("Finished handling client");
 }
 

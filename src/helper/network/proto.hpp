@@ -195,8 +195,8 @@ template <> struct as<dds::network::request> {
 };
 
 template <> struct pack<dds::network::base_response> {
-    // NOLINTNEXTLINE(google-runtime-references)
     stream_packer &operator()(
+        // NOLINTNEXTLINE(google-runtime-references)
         stream_packer &o, const dds::network::base_response &v) const;
 };
 } // namespace adaptor

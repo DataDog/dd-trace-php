@@ -25,6 +25,13 @@ public:
         network::base_broker::ptr &&broker)
         : engine_pool_(std::move(engine_pool)), broker_(std::move(broker))
     {}
+
+    client(std::shared_ptr<engine_pool> engine_pool,
+        network::base_socket::ptr &&socket)
+        : engine_pool_(std::move(engine_pool)),
+          broker_(std::make_unique<network::broker>(std::move(socket)))
+    {}
+
     ~client() = default;
     client(const client &) = delete;
     client &operator=(const client &) = delete;
@@ -38,12 +45,13 @@ public:
     bool handle_command(network::request_shutdown::request &);
 
     bool run_client_init();
-    bool run_once();
+    bool run_request();
 
     // NOLINTNEXTLINE(google-runtime-references)
-    void run(worker::monitor &wm);
+    void run(worker::queue_consumer &q);
 
 protected:
+    bool initialised{false};
     uint32_t version{};
     network::base_broker::ptr broker_;
     std::shared_ptr<engine_pool> engine_pool_;

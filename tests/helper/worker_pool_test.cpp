@@ -7,11 +7,9 @@
 #include <worker_pool.hpp>
 
 namespace {
-void thread_handler(dds::worker::monitor &wm, bool &running, std::mutex &m,
-    std::condition_variable &cv)
+void thread_handler(dds::worker::queue_consumer &wm, bool &running,
+    std::mutex &m, std::condition_variable &cv)
 {
-    dds::scope<dds::worker::monitor> ws(wm);
-
     ASSERT_TRUE(wm.running());
 
     {
@@ -45,7 +43,10 @@ TEST(WorkerPoolTest, PoolLaunchOneWorker)
     std::mutex m;
     std::condition_variable cv;
     bool running = false;
-    wp.launch(thread_handler, std::ref(running), std::ref(m), std::ref(cv));
+    wp.launch([&](dds::worker::queue_consumer &wm) {
+        thread_handler(wm, running, m, cv);
+    });
+
     {
         std::unique_lock<std::mutex> lock(m);
         while (!running) { cv.wait(lock); }
@@ -66,7 +67,10 @@ TEST(WorkerPoolTest, PoolLaunchNWorkers)
     bool running = false;
 
     for (int i = 0; i < 10; i++) {
-        wp.launch(thread_handler, std::ref(running), std::ref(m), std::ref(cv));
+        wp.launch([&](dds::worker::queue_consumer &wm) {
+            thread_handler(wm, running, m, cv);
+        });
+
         {
             std::unique_lock<std::mutex> lock(m);
             while (!running) { cv.wait(lock); }

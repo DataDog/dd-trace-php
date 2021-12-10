@@ -3,40 +3,60 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
 #include "worker_pool.hpp"
+
+using namespace std::chrono_literals;
 
 namespace dds::worker {
 
-void monitor::stop()
+namespace {
+
+void work_handler(queue_consumer &&q, std::optional<runnable> &&opt_r)
 {
-    // While running is atomic, we ensure that no thread can unregister
-    // before we wait on the condition variable.
-    std::unique_lock<std::mutex> lock(m_);
-    running_ = false;
-    if (thread_count_ > 0) {
-        cv_.wait(lock);
+    while (q.running() && opt_r) {
+        opt_r.value()(q);
+        opt_r = std::move(q.pop(60s));
     }
 }
 
-void monitor::add_reference()
-{
-    std::lock_guard<std::mutex> lock(m_);
-    ++thread_count_;
-}
+} // namespace
 
-void monitor::delete_reference()
+bool queue_producer::push(runnable &data)
 {
-    bool notify = false;
+
     {
-        std::lock_guard<std::mutex> lock(m_);
-        if (--thread_count_ == 0) {
-            notify = true;
+        std::unique_lock<std::mutex> lock(q_.mtx);
+        if (q_.pending > 0) {
+            q_.data.push(std::move(data));
+        } else {
+            return false;
         }
     }
 
-    if (!running_ && notify) {
-        cv_.notify_all();
+    q_.cv.notify_one();
+    return true;
+}
+
+void queue_producer::wait()
+{
+    std::unique_lock<std::mutex> lock(rc_.mtx);
+    while (rc_.count > 0) {
+        q_.cv.notify_all();
+        rc_.cv.wait_for(lock, 100us);
     }
+}
+
+bool pool::launch(runnable &&f)
+{
+    if (!q_.running()) {
+        return false;
+    }
+
+    if (!q_.push(f)) {
+        std::thread(work_handler, queue_consumer(q_), std::move(f)).detach();
+    }
+    return true;
 }
 
 } // namespace dds::worker

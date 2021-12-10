@@ -20,8 +20,8 @@ template <> struct as<dds::parameter> {
 };
 
 template <> struct convert<dds::parameter> {
-    // NOLINTNEXTLINE(google-runtime-references)
     msgpack::object const &operator()(
+        // NOLINTNEXTLINE(google-runtime-references)
         const msgpack::object &o, dds::parameter &v) const;
 };
 
