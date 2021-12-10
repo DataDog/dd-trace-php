@@ -112,6 +112,9 @@ function install($options)
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Installing to binary: $binaryForLog\n";
+
+        check_php_ext_prerequisite_or_exit($fullPath, 'json');
+
         $phpProperties = ini_values($fullPath);
 
         // Copying the extension
@@ -314,6 +317,27 @@ function check_library_prerequisite_or_exit($requiredLibrary)
 }
 
 /**
+ * Checks if an extension is enabled or not.
+ *
+ * @param string $binary
+ * @param string $requiredLibrary E.g. json
+ * @return void
+ */
+function check_php_ext_prerequisite_or_exit($binary, $extName)
+{
+    $lastLine = execute_or_exit(
+        "Cannot retrieve extensions list",
+        // '|| true' is necessary because grep exits with 1 if the pattern was not found.
+        "$binary -m | grep '$extName' || true"
+    );
+
+
+    if (empty($lastLine)) {
+        print_error_and_exit("Required PHP extension '$extName' not found.\n");
+    }
+}
+
+/**
  * @return bool
  */
 function is_alpine()
@@ -500,7 +524,7 @@ function execute_or_exit($exitMessage, $command)
     if (false === $lastLine || $returnCode > 0) {
         print_error_and_exit(
             $exitMessage .
-                "\nFailed command: $command\n---- Output ----\n" .
+                "\nFailed command (return code $returnCode): $command\n---- Output ----\n" .
                 implode("\n", $output) .
                 "\n---- End of output ----\n"
         );

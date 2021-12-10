@@ -63,6 +63,9 @@ verify_tar_root:
 		tar_gz \
 		bash dockerfiles/verify_packages/verify_tar_gz_root.sh
 
+test_legacy_installer_no_ext_json:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/verify_no_ext_json.sh
+
 test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
 test_first_install.sh \
@@ -78,6 +81,7 @@ test_upgrade_from_php_installer.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
+test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
 test_install_no_ext_curl_no_curl_cli.sh \
 test_install_no_ext_curl_yes_curl_cli.sh \
