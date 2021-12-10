@@ -96,7 +96,7 @@ void runner::run()
             SPDLOG_DEBUG("new client connected");
 
             worker_pool_.launch(
-                [c](worker::consumer_queue &q) mutable { c->run(q); });
+                [c](worker::queue_consumer &q) mutable { c->run(q); });
 
             last_not_idle = std::chrono::steady_clock::now();
         }

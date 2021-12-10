@@ -48,7 +48,7 @@ public:
     bool run_request();
 
     // NOLINTNEXTLINE(google-runtime-references)
-    void run(worker::consumer_queue &q);
+    void run(worker::queue_consumer &q);
 
 protected:
     bool initialised{false};

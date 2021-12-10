@@ -218,7 +218,7 @@ bool client::run_request()
     );
 }
 
-void client::run(worker::consumer_queue &q)
+void client::run(worker::queue_consumer &q)
 {
     if (q.running()) {
         if (!run_client_init()) {

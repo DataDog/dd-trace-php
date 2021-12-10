@@ -18,19 +18,19 @@
 
 namespace dds::worker {
 
-class consumer_queue;
+class queue_consumer;
 
-using runnable = std::function<void(consumer_queue &)>;
+using runnable = std::function<void(queue_consumer &)>;
 
-class producer_queue {
+class queue_producer {
 public:
-    producer_queue() = default;
-    ~producer_queue() { stop(); }
+    queue_producer() = default;
+    ~queue_producer() { stop(); }
 
-    producer_queue(const producer_queue &) = delete;
-    producer_queue &operator=(const producer_queue &) = delete;
-    producer_queue(producer_queue &&) = delete;
-    producer_queue &operator=(producer_queue &&) = delete;
+    queue_producer(const queue_producer &) = delete;
+    queue_producer &operator=(const queue_producer &) = delete;
+    queue_producer(queue_producer &&) = delete;
+    queue_producer &operator=(queue_producer &&) = delete;
 
     [[nodiscard]] bool running()
     {
@@ -65,22 +65,22 @@ protected:
         std::queue<runnable> data;
     } q_;
 
-    friend class consumer_queue;
+    friend class queue_consumer;
 };
 
-class consumer_queue {
+class queue_consumer {
 public:
     // NOLINTNEXTLINE(google-runtime-references)
-    explicit consumer_queue(producer_queue &pq)
+    explicit queue_consumer(queue_producer &pq)
         : rc_(pq.rc_), running_(pq.running_), q_(pq.q_)
     {
         std::unique_lock<std::mutex> lock(rc_.mtx);
         ++rc_.count;
     }
 
-    ~consumer_queue()
+    ~queue_consumer()
     {
-        if (!valid) {
+        if (was_moved_from_) {
             return;
         }
 
@@ -90,16 +90,16 @@ public:
         }
     }
 
-    consumer_queue(const consumer_queue &other) = delete;
-    consumer_queue &operator=(const consumer_queue &) = delete;
+    queue_consumer(const queue_consumer &other) = delete;
+    queue_consumer &operator=(const queue_consumer &) = delete;
 
-    consumer_queue(consumer_queue &&other) noexcept
+    queue_consumer(queue_consumer &&other) noexcept
         : rc_(other.rc_), running_(other.running_), q_(other.q_)
     {
-        other.valid = false;
+        other.was_moved_from_ = true;
     }
 
-    consumer_queue &operator=(consumer_queue &&) = delete;
+    queue_consumer &operator=(queue_consumer &&) = delete;
 
     [[nodiscard]] bool running()
     {
@@ -129,10 +129,10 @@ public:
     }
 
 protected:
-    bool valid{true};
-    producer_queue::refcount &rc_;
+    bool was_moved_from_{false};
+    queue_producer::refcount &rc_;
     std::atomic<bool> &running_;
-    producer_queue::queue &q_;
+    queue_producer::queue &q_;
 };
 
 // Workers should require no extra storage within the pool, they are
@@ -156,7 +156,7 @@ public:
     [[nodiscard]] unsigned worker_count() const { return q_.ref_count(); }
 
 private:
-    producer_queue q_;
+    queue_producer q_;
 };
 
 } // namespace dds::worker

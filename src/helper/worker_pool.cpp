@@ -12,7 +12,7 @@ namespace dds::worker {
 
 namespace {
 
-void work_handler(consumer_queue &&q, std::optional<runnable> &&opt_r)
+void work_handler(queue_consumer &&q, std::optional<runnable> &&opt_r)
 {
     while (q.running() && opt_r) {
         opt_r.value()(q);
@@ -22,7 +22,7 @@ void work_handler(consumer_queue &&q, std::optional<runnable> &&opt_r)
 
 } // namespace
 
-bool producer_queue::push(runnable &data)
+bool queue_producer::push(runnable &data)
 {
 
     {
@@ -38,7 +38,7 @@ bool producer_queue::push(runnable &data)
     return true;
 }
 
-void producer_queue::wait()
+void queue_producer::wait()
 {
     std::unique_lock<std::mutex> lock(rc_.mtx);
     while (rc_.count > 0) {
@@ -54,7 +54,7 @@ bool pool::launch(runnable &&f)
     }
 
     if (!q_.push(f)) {
-        std::thread(work_handler, consumer_queue(q_), std::move(f)).detach();
+        std::thread(work_handler, queue_consumer(q_), std::move(f)).detach();
     }
     return true;
 }

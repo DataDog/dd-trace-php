@@ -7,7 +7,7 @@
 #include <worker_pool.hpp>
 
 namespace {
-void thread_handler(dds::worker::consumer_queue &wm, bool &running,
+void thread_handler(dds::worker::queue_consumer &wm, bool &running,
     std::mutex &m, std::condition_variable &cv)
 {
     ASSERT_TRUE(wm.running());
@@ -44,7 +44,7 @@ TEST(WorkerPoolTest, PoolLaunchOneWorker)
     std::condition_variable cv;
     bool running = false;
     wp.launch([&running = running, &m = m, &cv = cv](
-                  dds::worker::consumer_queue &wm) {
+                  dds::worker::queue_consumer &wm) {
         thread_handler(wm, running, m, cv);
     });
 
@@ -68,8 +68,7 @@ TEST(WorkerPoolTest, PoolLaunchNWorkers)
     bool running = false;
 
     for (int i = 0; i < 10; i++) {
-        wp.launch([&running = running, &m = m, &cv = cv](
-                      dds::worker::consumer_queue &wm) {
+        wp.launch([&](dds::worker::queue_consumer &wm) {
             thread_handler(wm, running, m, cv);
         });
 
