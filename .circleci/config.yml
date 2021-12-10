@@ -1,5 +1,6 @@
 version: "2.1"
-
+orbs:
+  codecov: codecov/codecov@3.2.2
 aliases:
 
   - &CACHE_COMPOSER_KEY
@@ -442,6 +443,51 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+  coverage: &TEST_BASE
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 5.6
+        type: string
+      make_target:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+    working_directory: ~/datadog
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
+      HTTPBIN_HOSTNAME: httpbin_integration
+      DATADOG_HAVE_DEV_ENV: 1
+    executor:
+      name: with_httpbin_and_request_replayer
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Run tests
+          command: |
+            set -euo pipefail
+            make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      - run:
+          name: Install CodeCov Uploader Dependencies
+          command: sudo apt install -y gpg
+      - codecov/upload:
+          file: tmp/coverage.info
+          upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   asan: *TEST_BASE
 
   integration:
@@ -869,6 +915,21 @@ jobs:
           name: Validate .tar.gz package
           command: PHP_VERSION=<< parameters.php_major_minor >> bash ./dockerfiles/verify_packages/verify_tar_gz_root.sh
 
+  verify_no_json_ext:
+    working_directory: ~/datadog
+    resource_class: small
+    docker:
+      - image: alpine:3.12
+    steps:
+      - run:
+          # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+          name: Install ca-certificates
+          command: apk add --no-cache ca-certificates
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Test
+          command: ./dockerfiles/verify_packages/verify_no_ext_json.sh
+
   installer_tests:
     working_directory: ~/datadog
     machine:
@@ -1066,6 +1127,9 @@ jobs:
           name: Build and test Datadog::Php::Components (ASan)
           command: |
             export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ] ; then
+              export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"
+            fi
             mkdir -p /tmp/build/datadog_php_components_asan
             cd /tmp/build/datadog_php_components_asan
             if [ -f "/etc/debian_version" ]
@@ -1075,7 +1139,7 @@ jobs:
             CMAKE_PREFIX_PATH=/opt/catch2 cmake \
               $toolchain \
               -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_COMPONENTS_TESTING=ON \
+              -DDATADOG_PHP_TESTING=ON \
               ~/datadog/components
             make -j all
             make test
@@ -1094,10 +1158,15 @@ jobs:
             CMAKE_PREFIX_PATH=/opt/catch2 cmake \
               -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
               -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_COMPONENTS_TESTING=ON \
+              -DDATADOG_PHP_TESTING=ON \
               ~/datadog/components
             make -j all
-            make test
+
+            # channel is non-deterministic, so run tests a few more times. At
+            # the moment, Catch2 tests are not automatically adding labels, so
+            # run all tests instead of just channel's:
+            # https://github.com/catchorg/Catch2/issues/1590
+            make test ARGS="--output-on-failure --repeat until-fail:10"
 
       - run:
           command: |
@@ -1403,8 +1472,8 @@ workflows:
                 - "datadog/dd-trace-ci:alpine"
                 - "datadog/dd-trace-ci:buster"
               cmake_version:
-                - "3.14.7"
-                - "3.19.6"
+                - "3.19.8"
+                - "3.21.4"
               catch2_version:
                 - "2.13.7"
 
@@ -1614,7 +1683,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php php-fpm
+                - php php-fpm php-json
               install_type:
                 - php_installer
                 - native_package
@@ -1630,7 +1699,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php7 php7-fpm
+                - php7 php7-fpm php7-json
               install_type:
                 - php_installer
                 - native_package
@@ -1648,7 +1717,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php5 php5-fpm
+                - php5 php5-fpm php5-json
               install_type:
                 - php_installer
                 - native_package
@@ -1747,6 +1816,9 @@ workflows:
                 - "8.0"
                 # There is little value in testing several versions, since all the packages are already verified on the
                 # respective platforms using the native packages. Let's save some CPU cycles.
+
+      - verify_no_json_ext:
+          requires: [ "package extension" ]
 
       - pecl_tests:
           requires: [ "Build PECL" ]
@@ -1888,12 +1960,29 @@ workflows:
                 - "8.0"
                 - "8.1"
               make_target:
+                - test_coverage
                 - test_extension_ci
                 - test_unit
                 - test_api_unit
                 - test_c2php
                 - test_c_disabled
-
+      - coverage:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "5.4"
+                - "5.5"
+                - "5.6"
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+                - "8.1"
+              make_target:
+                - test_coverage
       - asan:
           requires: [ 'Prepare Code' ]
           matrix:

@@ -56,19 +56,66 @@ class Urls
      */
     public static function hostname($url)
     {
-        return (string) parse_url($url, PHP_URL_HOST);
+        $unparsableUrl = 'unparsable-host';
+        $parts = \parse_url($url);
+        if (!$parts) {
+            return $unparsableUrl;
+        }
+
+        if (isset($parts['host'])) {
+            return $parts['host'];
+        }
+
+        if (empty($parts['path'])) {
+            return $unparsableUrl;
+        }
+
+        $path = $parts['path'];
+        if (\substr($path, 0, 1) === '/') {
+            // If the user by mistake directly provided an abs path, guzzle and curl
+            // will let a request go through, but there will be an error.
+            return 'unknown-host';
+        }
+
+        $pathFragments = \explode('/', $path);
+        return $pathFragments[0];
     }
 
     /**
      * Metadata keys must start with [a-zA-Z:] so IP addresses,
-     * for example, need to be prefixed with a valid character
+     * for example, need to be prefixed with a valid character.
+     *
+     * Note: then name of this function is misleading, as it should actually be normalizeUrlForService(), but since this
+     * part of the public API, we keep it like this and discuss a future deprecation.
      *
      * @param string $url
      * @return string
      */
     public static function hostnameForTag($url)
     {
+        $url = \trim($url);
+
+        // Common UDS protocols are treated differently as they are not recognized by parse_url()
+        $knownUnixProtocols = ['uds', 'unix', 'http+unix', 'https+unix'];
+        foreach ($knownUnixProtocols as $protocol) {
+            $length = \strlen($protocol);
+            if ($protocol . '://' === \substr($url, 0, $length + 3)) {
+                return 'socket-' . Urls::normalizeFileSystemPath(\substr($url, $length + 3));
+            }
+        }
+
         return 'host-' . self::hostname($url);
+    }
+
+    /**
+     * Replaces all groups of non-(alphabetical chatacters|numbers|dots) with character '-'.
+     *
+     * @param string $url
+     * @return string
+     */
+    private static function normalizeFileSystemPath($url)
+    {
+        return \trim(\preg_replace('/[^0-9a-zA-Z\.]+/', '-', \trim($url)), '-');
     }
 
     /**

@@ -4,7 +4,7 @@ add_executable(container_id
 )
 
 target_link_libraries(container_id
-  PUBLIC catch2_main Datadog::Php::ContainerId
+  PUBLIC Catch2::Catch2WithMain Datadog::Php::ContainerId
 )
 
 file(

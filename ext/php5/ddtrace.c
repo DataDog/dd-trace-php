@@ -8,6 +8,7 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_vm.h>
+#include <components/sapi/sapi.h>
 #include <headers/headers.h>
 #include <inttypes.h>
 #include <php.h>
@@ -40,7 +41,6 @@
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
-#include "sapi/sapi.h"
 #include "serializer.h"
 #include "signals.h"
 #include "span.h"
@@ -51,6 +51,10 @@ bool ddtrace_has_excluded_module;
 atomic_int ddtrace_warn_legacy_api;
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
+
+#ifdef COMPILE_DL_DDTRACE
+ZEND_GET_MODULE(ddtrace)
+#endif
 
 PHP_INI_BEGIN()
 STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
@@ -486,7 +490,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
      * {{{ */
     Dl_info infos;
     zend_register_extension(&_dd_zend_extension_entry, ddtrace_module_entry.handle);
-    dladdr(ZEND_MODULE_STARTUP_N(ddtrace), &infos);
+    // The symbol used needs to be public on Alpine.
+    dladdr(get_module, &infos);
     dlopen(infos.dli_fname, RTLD_LAZY);
     /* }}} */
 
@@ -1822,18 +1827,16 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 
-zend_module_entry ddtrace_module_entry = {
-    STANDARD_MODULE_HEADER,  PHP_DDTRACE_EXTNAME,          ddtrace_functions,      PHP_MINIT(ddtrace),
-    PHP_MSHUTDOWN(ddtrace),  PHP_RINIT(ddtrace),           PHP_RSHUTDOWN(ddtrace), PHP_MINFO(ddtrace),
-    PHP_DDTRACE_VERSION,     PHP_MODULE_GLOBALS(ddtrace),  PHP_GINIT(ddtrace),     NULL,
-    ddtrace_post_deactivate, STANDARD_MODULE_PROPERTIES_EX};
+static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_END};
 
-#ifdef COMPILE_DL_DDTRACE
-ZEND_GET_MODULE(ddtrace)
-#if defined(ZTS) && PHP_VERSION_ID >= 70000
-ZEND_TSRMLS_CACHE_DEFINE();
-#endif
-#endif
+zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
+                                          ddtrace_module_deps,       PHP_DDTRACE_EXTNAME,
+                                          ddtrace_functions,         PHP_MINIT(ddtrace),
+                                          PHP_MSHUTDOWN(ddtrace),    PHP_RINIT(ddtrace),
+                                          PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),
+                                          PHP_DDTRACE_VERSION,       PHP_MODULE_GLOBALS(ddtrace),
+                                          PHP_GINIT(ddtrace),        NULL,
+                                          ddtrace_post_deactivate,   STANDARD_MODULE_PROPERTIES_EX};
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
 //   - set a new trace (group) id

@@ -1,7 +1,7 @@
 #ifndef DATADOG_PHP_SAPI_H
 #define DATADOG_PHP_SAPI_H
 
-#include "string_view/string_view.h"
+#include <components/string_view/string_view.h>
 
 typedef enum {
     DATADOG_PHP_SAPI_UNKNOWN = 0,
@@ -16,5 +16,6 @@ typedef enum {
 } datadog_php_sapi;
 
 datadog_php_sapi datadog_php_sapi_from_name(datadog_php_string_view module);
+datadog_php_sapi datadog_php_sapi_detect(datadog_php_string_view module);
 
 #endif  // DATADOG_PHP_SAPI_H

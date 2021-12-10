@@ -4,7 +4,7 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
-apk add php7 libcurl libexecinfo php7-openssl
+apk add php7 php7-json libcurl libexecinfo php7-openssl
 
 # Initially no ddtrace
 assert_no_ddtrace

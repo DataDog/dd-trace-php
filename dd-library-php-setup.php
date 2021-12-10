@@ -161,6 +161,9 @@ function install_tracer($options, $selectedBinaries)
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Installing tracer to binary: $binaryForLog\n";
+
+        check_php_ext_prerequisite_or_exit($fullPath, 'json');
+
         $phpProperties = ini_values($fullPath);
 
         // Copying the extension
@@ -253,7 +256,7 @@ function install_appsec($options, $selectedBinaries)
     execute_or_exit(
         "Cannot create directory '$tmpDir'",
         "mkdir -p " . escapeshellarg($tmpDir)
-    );
+        );
     execute_or_exit(
         "Cannot clean '$tmpDir'",
         "rm -f " . escapeshellarg($tarball)
@@ -369,7 +372,7 @@ function repl_or_add_ini_sett($iniFilePath, $key, $value)
         $f = fopen($iniFilePath, "a");
         if ($f === false) {
             print_error_and_exit("Could not open $iniFilePath for writing");
-        }
+    }
         fwrite($f, "\n\nddappsec.$key = \"$value\"");
         return;
     }
@@ -491,6 +494,27 @@ function check_library_prerequisite_or_exit($requiredLibrary)
 }
 
 /**
+ * Checks if an extension is enabled or not.
+ *
+ * @param string $binary
+ * @param string $requiredLibrary E.g. json
+ * @return void
+ */
+function check_php_ext_prerequisite_or_exit($binary, $extName)
+{
+    $lastLine = execute_or_exit(
+        "Cannot retrieve extensions list",
+        // '|| true' is necessary because grep exits with 1 if the pattern was not found.
+        "$binary -m | grep '$extName' || true"
+    );
+
+
+    if (empty($lastLine)) {
+        print_error_and_exit("Required PHP extension '$extName' not found.\n");
+    }
+}
+
+/**
  * @return bool
  */
 function is_alpine()
@@ -560,12 +584,12 @@ function parse_validate_user_options()
             print_error_and_exit(
                 'Only one among --appsec-version, --appsec-url, --appsec-file and --no-appsec must be provided'
             );
-        }
+            }
         $normalizeSingleOpt = function ($opt) use ($options, &$normalizedOptions) {
             if (isset($options[$opt])) {
                 if (is_array($options[$opt])) {
                     print_error_and_exit("Only one --$opt can be provided");
-                }
+            }
                 $normalizedOptions[$opt] = $options[$opt];
             }
         };
@@ -716,7 +740,7 @@ function execute_or_exit($exitMessage, $command, &$output = array())
     if (false === $lastLine || $returnCode > 0) {
         print_error_and_exit(
             $exitMessage .
-                "\nFailed command: $command\n---- Output ----\n" .
+                "\nFailed command (return code $returnCode): $command\n---- Output ----\n" .
                 implode("\n", $output) .
                 "\n---- End of output ----\n"
         );
