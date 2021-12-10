@@ -43,8 +43,7 @@ TEST(WorkerPoolTest, PoolLaunchOneWorker)
     std::mutex m;
     std::condition_variable cv;
     bool running = false;
-    wp.launch([&running = running, &m = m, &cv = cv](
-                  dds::worker::queue_consumer &wm) {
+    wp.launch([&](dds::worker::queue_consumer &wm) {
         thread_handler(wm, running, m, cv);
     });
 
