@@ -190,6 +190,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/signals.c \
       ext/php7/span.c \
       ext/php7/startup_logging.c \
+      ext/php7/tracer_tag_propagation/tracer_tag_propagation.c \
     "
 
     ZAI_SOURCES="\
@@ -357,6 +358,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/php7])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/priority_sampling])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/tracer_tag_propagation])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php7/integrations])
   elif test $PHP_VERSION_ID -lt 90000; then
