@@ -543,7 +543,8 @@ class UriTest extends BaseTestCase
 
             // idempotency
             ['https://?:@some_url.com/path/?key=value', 'https://?:@some_url.com/path/'],
-            ['?:?@some_url.com/path/?some=value#fragment', '?:?@some_url.com/path/'],
+            ['?:?@some_url.com/path/', '?:?@some_url.com/path/'],
+            ['?:@some_url.com/path/?some=?#fragment', '?:@some_url.com/path/'],
 
             // false positives that should not be sanitized, but we accept this lack of correctness to reduce complexity
             ['https://my_user:@some_url.com/before/a:b@/after', 'https://?:@some_url.com/before/?:?@/after'],
@@ -595,7 +596,8 @@ class UriTest extends BaseTestCase
 
             // idempotency
             ['https://?:@some_url.com/path/?key=value', 'https://some_url.com/path/'],
-            ['?:?@some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+            ['?:?@some_url.com/path/', 'some_url.com/path/'],
+            ['?:@some_url.com/path/?some=?#fragment', 'some_url.com/path/'],
 
             // false positives that should not be sanitized, but we accept this lack of correctness to reduce complexity
             ['https://my_user:@some_url.com/before/a:b@/after', 'https://some_url.com/before//after'],
