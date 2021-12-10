@@ -58,12 +58,20 @@ assert_ddtrace_version() {
     fi
 }
 
-assert_ddappsec_version() {
-    output="$(php -v)"
-    if [ -z "${output##*ddappsec v${1}*}" ]; then
-        echo "---\nOk: ddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
+assert_ddappsec_disabled() {
+    if php -r 'exit(ini_get("ddappsec.enabled") ? 0 : 1);'; then
+        echo "---\nError: ddappsec is enabled. Expected it disableld \n---\n"
+        exit 1
     else
-        echo "---\nError: Wrong version. Expected: ${1}\n---\n${output}\n---\n"
+        echo "OK: ddappsec is disabled\n"
+    fi
+}
+
+assert_ddappsec_enabled() {
+    if php -r 'exit(ini_get("ddappsec.enabled") ? 0 : 1);'; then
+        echo "OK: ddappsec is enabled\n"
+    else
+        echo "---\nError: ddappsec is disabled. Expected it enabled \n---\n"
         exit 1
     fi
 }

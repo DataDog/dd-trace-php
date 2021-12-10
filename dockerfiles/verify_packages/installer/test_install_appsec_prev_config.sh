@@ -16,6 +16,7 @@ appsec_version=0.1.0
 php dd-library-php-setup.php --php-bin php --no-tracer --appsec-version 0.1.0
 
 assert_ddappsec_installed
+assert_ddappsec_disabled
 
 if grep -q '^ddappsec\.helper_path\s\?=\s\?"/opt/' "$ini" && ! grep -q foo/bar "$ini"; then
   echo "OK: ddappsec.helper_path correctly changed"

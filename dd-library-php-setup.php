@@ -348,7 +348,7 @@ function install_appsec($options, $selectedBinaries)
                     "mkdir -p " . escapeshellarg($iniDir)
                 );
 
-                $iniContent = get_ini_content_appsec($helperPath, $rulesPath);
+                $iniContent = get_ini_content_appsec($helperPath, $rulesPath, $implicitAppsec);
                 if (false === file_put_contents($iniFilePath, $iniContent)) {
                     print_error_and_exit("Cannot create INI file $iniFilePath");
                 }
@@ -1187,8 +1187,14 @@ EOD;
     // phpcs:enable Generic.Files.LineLength.TooLong
 }
 
-function get_ini_content_appsec($helperPath, $rulesPath)
+function get_ini_content_appsec($helperPath, $rulesPath, $implicitAppsec)
 {
+    if ($implicitAppsec) {
+        $enabledLine = ';ddappsec.enabled = Off';
+    } else {
+        $enabledLine = 'ddappsec.enabled = On';
+    }
+
     // phpcs:disable Generic.Files.LineLength.TooLong
     return <<<EOD
 ; Loads the dd-appsec extension
@@ -1197,7 +1203,7 @@ extension = ddappsec.so
 ; Enables or disables the loaded dd-appsec extension.
 ; If disabled, the extension will do no work during the requests.
 ; This value is ignored on the CLI SAPI, see ddappsec.enabled_on_cli.
-;ddappsec.enabled = Off
+$enabledLine
 
 ; Enables or disables the loaded dd-appsec extension for the CLI SAPI.
 ; This value is only used for the CLI SAPI, see ddappsec.enabled for the
@@ -1281,6 +1287,7 @@ function delete_on_exit($dir)
     static $initialized = false;
     static $directories = [];
     if (!$initialized) {
+        $initialized = true;
         register_shutdown_function(function () use (&$directories) {
             exec('rm -rf ' . join(' ', array_map('escapeshellarg', $directories)));
         });

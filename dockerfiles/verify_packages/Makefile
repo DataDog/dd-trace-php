@@ -76,6 +76,7 @@ test_install_non_root_user.sh \
 test_install_subdir_from_file.sh \
 test_install_subdir_from_url.sh \
 test_install_subdir_from_version.sh \
+test_install_tracer_appsec_explicit.sh \
 test_install_tracer_appsec_latest.sh \
 test_install_tracer_appsec_latest_piecewise.sh \
 test_uninstall.sh \

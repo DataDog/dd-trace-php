@@ -23,3 +23,4 @@ assert_ddappsec_installed
 
 assert_file_exists "$(php_conf_dir)"/98-ddappsec.ini
 assert_file_exists "$(php_conf_dir)"/98-ddtrace.ini
+assert_ddappsec_disabled
