@@ -5,6 +5,9 @@ SHELL := /bin/bash
 BUILD_SUFFIX := extension
 BUILD_DIR := $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
 ZAI_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_zai
+ZAI_SAPI_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_zai_sapi
+ZAI_SAPI_INSTALL_DIR := $(ZAI_SAPI_BUILD_DIR)/opt
+ZAI_SAPI_BUILD_TESTS := ON
 COMPONENTS_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_components
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
@@ -141,6 +144,29 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
+build_zai_sapi:
+	( \
+	mkdir -p "$(ZAI_SAPI_BUILD_DIR)" "$(ZAI_SAPI_INSTALL_DIR)"; \
+	cd $(ZAI_SAPI_BUILD_DIR); \
+	CMAKE_PREFIX_PATH=/opt/catch2 \
+	cmake \
+		-DCMAKE_INSTALL_PREFIX=$(ZAI_SAPI_INSTALL_DIR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DBUILD_ZAI_SAPI_TESTING=$(ZAI_SAPI_BUILD_TESTS) \
+		-DPHP_CONFIG=$(shell which php-config) \
+	$(PROJECT_ROOT)/zai_sapi; \
+	$(MAKE) $(MAKEFLAGS); \
+	)
+
+test_zai_sapi: build_zai_sapi
+	( \
+	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) test; \
+	! grep -e "=== Total .* memory leaks detected ===" $(ZAI_SAPI_BUILD_DIR)/Testing/Temporary/LastTest.log; \
+	)
+
+install_zai_sapi: build_zai_sapi
+	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) install;
+
 build_zai:
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
@@ -164,11 +190,13 @@ build_zai_asan:
 test_zai_asan: build_zai_asan
 	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
 
-build_zai_coverage:
+build_zai_coverage: install_zai_sapi
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	CMAKE_PREFIX_PATH=/opt/catch2 \
+	ZaiSapi_ROOT=$(ZAI_SAPI_BUILD_DIR)/opt \
+	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
