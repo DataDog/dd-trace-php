@@ -2,14 +2,11 @@
 
 namespace DDTrace\Tests\Integrations\Curl;
 
-use DDTrace\GlobalTracer;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
-use DDTrace\Tracer;
 
 class PrivateCallbackRequest
 {
@@ -32,6 +29,7 @@ class PrivateCallbackRequest
 final class CurlIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
+    const URL_WITH_CREDENTIALS = 'http://my_user:my_password@httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
     public function ddSetUp()
@@ -131,6 +129,53 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
+        ]);
+    }
+
+    public function testInlineCredentials()
+    {
+        $traces = $this->isolateTracer(function () {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, self::URL_WITH_CREDENTIALS . '/basic-auth/my_user/my_password');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertStringContains('my_user', $response);
+            curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://?:?@httpbin_integration/basic-auth/my_user/my_password')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.url' => 'http://?:?@httpbin_integration/basic-auth/my_user/my_password',
+                    'http.status_code' => '200',
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
+        ]);
+    }
+
+    public function testCredentialsViaBasicAuth()
+    {
+        $traces = $this->isolateTracer(function () {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, self::URL . '/basic-auth/my_user/my_password');
+            curl_setopt($ch, CURLOPT_USERPWD, "my_user:my_password");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertStringContains('my_user', $response);
+            curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/basic-auth/my_user/my_password')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.url' => self::URL . '/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -408,6 +453,35 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
+        ]);
+    }
+
+    public function testAppendHostnameToServiceNameInlineCredentials()
+    {
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+
+        $traces = $this->isolateTracer(function () {
+            $ch = curl_init(self::URL_WITH_CREDENTIALS . '/status/200');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertSame('', $response);
+            curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build(
+                'curl_exec',
+                'host-httpbin_integration',
+                'http',
+                'http://?:?@httpbin_integration/status/?'
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.url' => 'http://?:?@httpbin_integration/status/200',
                     'http.status_code' => '200',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())

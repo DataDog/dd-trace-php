@@ -53,8 +53,7 @@ function _util_uri_apply_rules($uriPath, $incoming)
         return '/';
     }
 
-    // Removing query string
-    $uriPath = strstr($uriPath, '?', true) ?: $uriPath;
+    $uriPath = util_url_sanitize($uriPath);
 
     // We always expect leading slash if it is a pure path, while urls with RFC3986 complaint schemes are preserved.
     // See: https://tools.ietf.org/html/rfc3986#page-17
@@ -125,6 +124,55 @@ function _util_uri_apply_rules($uriPath, $incoming)
     }
 
     return implode('/', $fragments);
+}
+
+/**
+ * Removes query string, fragment and user information from a url.
+ *
+ * @param string $url
+ * @param bool $dropUserInfo Optional. If `true`, removes the user information fragment instead of obfuscating it.
+ *                           Defaults to `false`.
+ * @return string
+ */
+function util_url_sanitize($url, $dropUserInfo = false)
+{
+    /* The implementation of this method is an exact replica of DDTrace\Http\Urls::sanitize() - and has to
+     * be kept in sync - until this method will be removed as part of the PHP->C migration.
+     *
+     * Definition of unreserved and sub-delims in https://datatracker.ietf.org/doc/html/rfc3986#page-18
+     * Note: this implementation detects the following false positives and sanitize them even if they are valid and
+     * should not be sanitized (see: https://datatracker.ietf.org/doc/html/rfc3986#section-3.3)
+     *   - path fragments like /before/<something>:@<anything>/after => /before/?:@<anything>/after
+     *   - path fragments like /before/<something>:<something>@<anything>/after => /before/?:?@<anything>/after
+     * However, given how rare they are and the fact that we over-sanitize (rather than under-sanitize), it is
+     * believed that this represents a good trade-off between correctness and complexity.
+     */
+    $userinfoPattern = "[a-zA-Z0-9\-._~!$&'()*+,;=%?]+";
+    /*                   \            /\         /||
+     *                    \          /  \       / |↳ supports urls that might already be sanitized
+     *                     \        /    \_____/  ↳ percent escape (hexadecimal already included in 'unreserved')
+     *                      \______/        ↳ sub-delims https://datatracker.ietf.org/doc/html/rfc3986#section-2.2
+     *                          ↳ unreserved https://datatracker.ietf.org/doc/html/rfc3986#section-2.3
+     */
+
+    $sanitizedUserinfo = preg_replace(
+        [
+            "/${userinfoPattern}:@/",
+            "/${userinfoPattern}:${userinfoPattern}@/",
+        ],
+        [
+            $dropUserInfo ? '' : '<sanitized>:@',
+            $dropUserInfo ? '' : '<sanitized>:<sanitized>@',
+        ],
+        /*
+         * Skip the query string. There can only be one question mark as it is a reserved word
+         * and only allowed between path and query.
+         * See: https://datatracker.ietf.org/doc/html/rfc3986#section-3
+         */
+        $url
+    );
+
+    return \str_replace('<sanitized>', '?', strstr($sanitizedUserinfo, '?', true) ?: $sanitizedUserinfo);
 }
 
 /**

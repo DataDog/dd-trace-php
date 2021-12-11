@@ -7,24 +7,111 @@ use DDTrace\Tests\Common\BaseTestCase;
 
 final class UrlsTest extends BaseTestCase
 {
-    public function testSimpleUrlsAreReturned()
+
+    /**
+     * @dataProvider dataProviderSanitize
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testSanitize($url, $expected)
     {
-        $this->assertSame('some_url.com/path/', Urls::sanitize('some_url.com/path/'));
+        /* This test is an exact replica of the same method in tests/Unit/private/UriTest.php and has to be kept in sync
+         * until the other test will be removed as part of the PHP->C migration
+         */
+        $this->assertSame($expected, Urls::sanitize($url));
     }
 
-    public function testSimpleUrlsWithSchemaAreReturned()
+    public function dataProviderSanitize()
     {
-        $this->assertSame('https://some_url.com/path/', Urls::sanitize('https://some_url.com/path/'));
+        return [
+            // empty
+            [null, ''],
+            ['', ''],
+
+            // with schema
+            ['https://some_url.com/path/', 'https://some_url.com/path/'],
+
+            // with no schema
+            ['some_url.com/path/', 'some_url.com/path/'],
+
+            // query and fragment
+            ['some_url.com/path/?some=value', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', '?:?@some_url.com/path/'],
+            ['my_user:@some_url.com/path/', '?:@some_url.com/path/'],
+            ['my_user:@some_url.com/path/?key=value', '?:@some_url.com/path/'],
+            ['https://my_user:my_password@some_url.com/path/', 'https://?:?@some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/', 'https://?:@some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/?key=value', 'https://?:@some_url.com/path/'],
+
+            // idempotency
+            ['https://?:@some_url.com/path/?key=value', 'https://?:@some_url.com/path/'],
+            ['?:?@some_url.com/path/', '?:?@some_url.com/path/'],
+            ['?:@some_url.com/path/?some=?#fragment', '?:@some_url.com/path/'],
+
+            // false positives that should not be sanitized, but we accept this lack of correctness to reduce complexity
+            ['https://my_user:@some_url.com/before/a:b@/after', 'https://?:@some_url.com/before/?:?@/after'],
+            [
+                'https://my_user:my_passwords@some_url.com/before/a:b@/after',
+                'https://?:?@some_url.com/before/?:?@/after',
+            ],
+        ];
     }
 
-    public function testQueryStringIsRemoved()
+    /**
+     * @dataProvider dataProviderSanitizeDropUserinfo
+     * @param string $url
+     * @param string $expected
+     * @return void
+     */
+    public function testSanitizeDropUserinfo($url, $expected)
     {
-        $this->assertSame('some_url.com/path/', Urls::sanitize('some_url.com/path/?some=value'));
+        /* This test is an exact replica of the same method in tests/Unit/private/UriTest.php and has to be kept in sync
+         * until the other test will be removed as part of the PHP->C migration
+         */
+        $this->assertSame($expected, Urls::sanitize($url, true));
     }
 
-    public function testFragmentIsRemoved()
+    public function dataProviderSanitizeDropUserinfo()
     {
-        $this->assertSame('some_url.com/path/', Urls::sanitize('some_url.com/path/?some=value#fragment'));
+        return [
+            // empty
+            [null, ''],
+            ['', ''],
+
+            // with schema
+            ['https://some_url.com/path/', 'https://some_url.com/path/'],
+
+            // with no schema
+            ['some_url.com/path/', 'some_url.com/path/'],
+
+            // query and fragment
+            ['some_url.com/path/?some=value', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', 'some_url.com/path/'],
+            ['my_user:@some_url.com/path/', 'some_url.com/path/'],
+            ['my_user:@some_url.com/path/?key=value', 'some_url.com/path/'],
+            ['https://my_user:my_password@some_url.com/path/', 'https://some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/', 'https://some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/?key=value', 'https://some_url.com/path/'],
+
+            // idempotency
+            ['https://?:@some_url.com/path/?key=value', 'https://some_url.com/path/'],
+            ['?:?@some_url.com/path/', 'some_url.com/path/'],
+            ['?:@some_url.com/path/?some=?#fragment', 'some_url.com/path/'],
+
+            // false positives that should not be sanitized, but we accept this lack of correctness to reduce complexity
+            ['https://my_user:@some_url.com/before/a:b@/after', 'https://some_url.com/before//after'],
+            [
+                'https://my_user:my_passwords@some_url.com/before//after',
+                'https://some_url.com/before//after',
+            ],
+        ];
     }
 
     /**
@@ -132,6 +219,12 @@ final class UrlsTest extends BaseTestCase
             ['/path', 'unknown-host'],
             ['/path?key=value', 'unknown-host'],
             ['/path?key=value#fragment', 'unknown-host'],
+
+            // userinfo
+            ['my_user:my_password@some_url.com/path/', 'some_url.com'],
+            ['my_user:@some_url.com/path/', 'some_url.com'],
+            ['https://my_user:my_password@some_url.com/path/', 'some_url.com'],
+            ['https://my_user:@some_url.com/path/', 'some_url.com'],
 
             // uds-style sockets should not generate an error but be converted to unparsable-host,
             // as there is now a dedicated function for them.

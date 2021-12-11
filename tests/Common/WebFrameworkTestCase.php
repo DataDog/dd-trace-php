@@ -15,6 +15,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     const FLUSH_INTERVAL_MS = 333;
 
+    // host and port for the testing framework
+    const HOST = 'http://localhost';
+    const HOST_WITH_CREDENTIALS = 'http://my_user:my_password@localhost';
     const PORT = 9999;
 
     const ERROR_LOG_NAME = 'phpunit_error.log';
@@ -127,7 +130,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $response = $this->sendRequest(
             $spec->getMethod(),
-            'http://localhost:' . self::PORT . $spec->getPath(),
+            self::HOST . ':' . self::PORT . $spec->getPath(),
             $spec->getHeaders()
         );
         return $response;
