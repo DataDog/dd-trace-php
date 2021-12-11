@@ -2,18 +2,18 @@
 
 namespace RandomizedTests\Tooling;
 
+require_once __DIR__ . '/Utils.php';
+
 class MakefileScenarioGenerator
 {
     public function generate($destination, $scenarioName)
     {
-        $template = \file_get_contents(__DIR__ . '/templates/Makefile.scenario.template');
-        file_put_contents(
+        Utils::writeTemplate(
             $destination,
-            str_replace(
-                ['{{scenario_name}}'],
-                [$scenarioName],
-                $template
-            )
+            __DIR__ . '/templates/Makefile.scenario.template',
+            [
+                'scenario_name' => $scenarioName,
+            ]
         );
     }
 }

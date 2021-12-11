@@ -2,30 +2,31 @@
 
 namespace RandomizedTests\Tooling;
 
+require_once __DIR__ . '/Utils.php';
+
 class ApacheConfigGenerator
 {
     public function generate($destination, array $envs, array $inis)
     {
-        $envsString = "";
+        $substitutions = [
+            'envs' => '',
+            'inis' => '',
+        ];
         foreach ($envs as $envName => $envValue) {
-            $envsString .= "    SetEnv $envName \"$envValue\"\n";
+            $substitutions['envs'] .= "    SetEnv $envName \"$envValue\"\n";
         }
-        $inisString = "";
         foreach ($inis as $iniName => $iniValue) {
             if (is_bool($iniValue)) {
-                $inisString .= sprintf("    php_admin_flag %s %s\n", $iniName, $iniValue ? 'on' : 'off');
+                $substitutions['inis'] .= sprintf("    php_admin_flag %s %s\n", $iniName, $iniValue ? 'on' : 'off');
             } else {
-                $inisString .= sprintf("    php_admin_value %s %s\n", $iniName, $iniValue);
+                $substitutions['inis'] .= sprintf("    php_admin_value %s %s\n", $iniName, $iniValue);
             }
         }
-        $template = \file_get_contents(__DIR__ . '/templates/apache.template.conf');
-        file_put_contents(
+
+        Utils::writeTemplate(
             $destination,
-            str_replace(
-                ['{{envs}}', '{{inis}}'],
-                [$envsString, $inisString],
-                $template
-            )
+            __DIR__ . '/templates/apache.template.conf',
+            $substitutions
         );
     }
 }
