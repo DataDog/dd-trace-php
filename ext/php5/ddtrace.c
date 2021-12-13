@@ -1766,7 +1766,7 @@ static PHP_FUNCTION(set_priority_sampling) {
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "l|b", &priority, &global) ==
         FAILURE) {
-        ddtrace_log_debug("Expected an integer and an optional boolen");
+        ddtrace_log_debug("Expected an integer and an optional boolean");
         RETURN_FALSE;
     }
 
@@ -1782,7 +1782,7 @@ static PHP_FUNCTION(get_priority_sampling) {
     zend_bool global = false;
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|b", &global) == FAILURE) {
-        ddtrace_log_debug("Expected an optional boolen");
+        ddtrace_log_debug("Expected an optional boolean");
         RETURN_FALSE;
     }
 

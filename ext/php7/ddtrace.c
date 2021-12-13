@@ -1652,7 +1652,7 @@ static PHP_FUNCTION(set_priority_sampling) {
     zend_long priority;
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "l|b", &priority, &global) == FAILURE) {
-        ddtrace_log_debug("Expected an integer and an optional boolen");
+        ddtrace_log_debug("Expected an integer and an optional boolean");
         RETURN_FALSE;
     }
 
@@ -1667,7 +1667,7 @@ static PHP_FUNCTION(get_priority_sampling) {
     zend_bool global = false;
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "|b", &global) == FAILURE) {
-        ddtrace_log_debug("Expected an optional boolen");
+        ddtrace_log_debug("Expected an optional boolean");
         RETURN_FALSE;
     }
 
