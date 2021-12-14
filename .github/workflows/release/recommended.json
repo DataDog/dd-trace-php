@@ -4292,7 +4292,8 @@
           },
           "operator": "match_regex"
         }
-      ]
+      ],
+      "transformers": []
     },
     {
       "id": "sqr-000-012",
