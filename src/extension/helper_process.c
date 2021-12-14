@@ -245,9 +245,8 @@ static dd_result _launch_helper_daemon(int lock_fd);
 static bool _maybe_launch_helper()
 {
     if (!_launch_helper) {
-        mlog(dd_log_debug,
-            "Will not try to launch daemon due to ini "
-            "datadog.appsec.launch_helper");
+        mlog(dd_log_debug, "Will not try to launch daemon due to ini "
+                           "datadog.appsec.launch_helper");
         return false;
     }
 
@@ -582,7 +581,8 @@ static char **nullable _split_params(
 
     if (escaped) {
         mlog(dd_log_warning,
-            "datadog.appsec.helper_extra_args has an unpaired \\ at the end: %s",
+            "datadog.appsec.helper_extra_args has an unpaired \\ at the end: "
+            "%s",
             orig_params_str);
         efree(ret);
         efree(params_buffer);
