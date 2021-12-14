@@ -1,14 +1,14 @@
 --TEST--
 Can't launch helper because the lock is taken
 --INI--
-ddappsec.helper_path=/usr/bin/true
-ddappsec.helper_lock_path=/tmp/lock_taken.lock
-ddappsec.helper_launch=1
+datadog.appsec.helper_path=/usr/bin/true
+datadog.appsec.helper_lock_path=/tmp/lock_taken.lock
+datadog.appsec.helper_launch=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{helper_mgr_acquire_conn,backoff_status};
 
-$f = fopen(ini_get('ddappsec.helper_lock_path'), 'c');
+$f = fopen(ini_get('datadog.appsec.helper_lock_path'), 'c');
 var_dump(flock($f, LOCK_EX));
 
 var_dump(helper_mgr_acquire_conn());

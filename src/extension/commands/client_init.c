@@ -41,7 +41,7 @@ static dd_result _pack_command(
     bool has_rules_file = rules_file && *rules_file;
 
     if (!has_rules_file) {
-        mlog(dd_log_info, "ddappsec.rules_path was not provided. The helper "
+        mlog(dd_log_info, "datadog.appsec.rules_path was not provided. The helper "
                           "will atttempt to use the default file");
     }
     dd_mpack_write_nullable_cstr(w, rules_file);

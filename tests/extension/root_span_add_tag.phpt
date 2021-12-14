@@ -4,8 +4,8 @@ Test ddtrace_root_span_add_tag
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --INI--
 extension=ddtrace.so
-ddappsec.log_file=/tmp/php_appsec_test.log
-ddappsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=debug
 --SKIPIF--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';

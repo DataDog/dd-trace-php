@@ -37,7 +37,7 @@ dd_result dd_phpobj_reg_ini(const zend_ini_entry_def *entries)
     return res == FAILURE ? dd_error : dd_success;
 }
 
-#define NAME_PREFIX "ddappsec."
+#define NAME_PREFIX "datadog.appsec."
 #define NAME_PREFIX_LEN (sizeof(NAME_PREFIX) - 1)
 #define ENV_NAME_PREFIX "DD_APPSEC_"
 #define ENV_NAME_PREFIX_LEN (sizeof(ENV_NAME_PREFIX) - 1)

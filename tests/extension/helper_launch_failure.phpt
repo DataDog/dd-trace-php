@@ -8,10 +8,10 @@ if (key_exists('USE_ZEND_ALLOC', $_ENV) && $_ENV['USE_ZEND_ALLOC'] == '0' &&
 }
 ?>
 --INI--
-ddappsec.helper_path=/usr/bin/true
-ddappsec.helper_launch=1
-ddappsec.log_level=debug
-ddappsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.helper_path=/usr/bin/true
+datadog.appsec.helper_launch=1
+datadog.appsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
 --FILE--
 <?php
 include __DIR__ . "/inc/logging.php";

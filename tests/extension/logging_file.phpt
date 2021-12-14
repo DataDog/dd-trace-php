@@ -2,7 +2,7 @@
 Logging to a specific file
 --INI--
 error_reporting=2147483647
-ddappsec.log_file=/tmp/appseclog.txt
+datadog.appsec.log_file=/tmp/appseclog.txt
 --FILE--
 <?php
 use function datadog\appsec\testing\mlog;

@@ -8,7 +8,7 @@ if (key_exists('USE_ZEND_ALLOC', $_ENV) && $_ENV['USE_ZEND_ALLOC'] == '0') {
 ?>
 --INI--
 error_reporting=2147483647
-ddappsec.log_file=stdout
+datadog.appsec.log_file=stdout
 --FILE--
 <?php
 use function datadog\appsec\testing\{mlog,fdclose};
