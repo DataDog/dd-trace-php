@@ -17,6 +17,7 @@ using dds::network::request_init;
 using dds::network::request_shutdown;
 
 namespace {
+// NOLINTNEXTLINE(cert-err58-cpp,fuchsia-statically-constructed-objects)
 const std::map<std::string_view, request_id> mapping = {
     {client_init::request::name, client_init::request::id},
     {request_init::request::name, request_init::request::id},
