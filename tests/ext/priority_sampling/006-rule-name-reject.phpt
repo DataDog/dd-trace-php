@@ -15,7 +15,7 @@ if ($root->metrics["_dd.rule_psr"] != 0.3) {
 } else {
     var_dump($root->metrics);
 }
-echo "_dd.p.upstream_services = " . ($root->meta["_dd.p.upstream_services"] ?? "(null)") . "\n";
+echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
 ?>
 --EXPECT--
 Rule OK

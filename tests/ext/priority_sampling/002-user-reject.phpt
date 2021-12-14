@@ -30,7 +30,7 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_REJECT)
 } else {
     echo "Default priority sampling is not automatically kept\n";
 }
-echo "_dd.p.upstream_services = " . ($root->meta["_dd.p.upstream_services"] ?? "(null)") . "\n";
+echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
 ?>
 --EXPECT--
 \DDTrace\get_priority_sampling() OK
