@@ -25,7 +25,6 @@ class Apache2ModTests implements CommonTests {
                     tracerVersion: tracerVersion
             )
 
-
     @Test
     void 'trace without attack after soft restart'() {
         // Kill any rogue helper processes
@@ -42,5 +41,4 @@ class Apache2ModTests implements CommonTests {
         }
         assert trace.metrics."_dd.appsec.enabled" == 1.0d
     }
-
 }

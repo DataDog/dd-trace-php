@@ -17,13 +17,13 @@ using dds::network::request_init;
 using dds::network::request_shutdown;
 
 namespace {
+const std::map<std::string_view, request_id> mapping = {
+    {client_init::request::name, client_init::request::id},
+    {request_init::request::name, request_init::request::id},
+    {request_shutdown::request::name, request_shutdown::request::id}};
+
 request_id command_name_to_id(const std::string &str)
 {
-    static const std::map<std::string_view, request_id> mapping = {
-        {client_init::request::name, client_init::request::id},
-        {request_init::request::name, request_init::request::id},
-        {request_shutdown::request::name, request_shutdown::request::id}};
-
     auto it = mapping.find(str);
     return (it == mapping.end() ? request_id::unknown : it->second);
 }
