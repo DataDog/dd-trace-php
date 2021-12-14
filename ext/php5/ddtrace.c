@@ -1783,7 +1783,7 @@ static PHP_FUNCTION(get_priority_sampling) {
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|b", &global) == FAILURE) {
         ddtrace_log_debug("Expected an optional boolean");
-        RETURN_FALSE;
+        RETURN_NULL();
     }
 
     if (global || !DDTRACE_G(root_span)) {
