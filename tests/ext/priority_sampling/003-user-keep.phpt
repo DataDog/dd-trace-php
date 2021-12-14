@@ -22,7 +22,7 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
                 echo "Default priority sampling changed\n";
             }
         } else {
-            echo "_dd.rule_pstr is {$root->metrics["_dd.rule_psr"]}\n";
+            echo "_dd.rule_psr is {$root->metrics["_dd.rule_psr"]}\n";
         }
     } else {
         echo "_sampling_priority_v1 metric is missing from root span metrics\n";
