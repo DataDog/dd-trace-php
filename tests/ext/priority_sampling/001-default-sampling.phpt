@@ -21,7 +21,7 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
                 echo "Default priority sampling changed\n";
             }
         } else {
-            echo "_dd.rule_pstr is missing from root span metrics\n";
+            echo "_dd.rule_psr is missing from root span metrics\n";
         }
     } else {
         echo "_sampling_priority_v1 metric is missing from root span metrics\n";
