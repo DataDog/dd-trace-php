@@ -1,5 +1,7 @@
 <?php
 
+// Tests for the installer are in 'dockerfiles/verify_packages/installer'
+
 const INI_CONF = 'Scan this dir for additional .ini files';
 const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
