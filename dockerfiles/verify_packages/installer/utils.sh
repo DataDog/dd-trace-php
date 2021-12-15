@@ -12,6 +12,16 @@ assert_file_contains() {
     fi
 }
 
+assert_file_not_contains() {
+    output=$(cat ${1})
+    if [ -z "${output##*$2*}" ]; then
+        echo "---\nError: file $1 contains text '$2'\n---\n${output}\n---\n"
+        exit 1
+    else
+        echo "Ok: file $1 does not contains text '$2'"
+    fi
+}
+
 assert_no_ddtrace() {
     output="$(php -v)"
     if [ -z "${output##*ddtrace*}" ]; then
@@ -47,4 +57,8 @@ install_legacy_ddtrace() {
         "https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-php-tracer-${version}.x86_64.tar.gz"
     tar -xf  "/tmp/legacy-${version}.tar.gz" -C /
     /opt/datadog-php/bin/post-install.sh
+}
+
+get_php_conf_dir() {
+    php -i | grep -i 'scan this dir for additional .ini files' | awk '{print $NF}'
 }
