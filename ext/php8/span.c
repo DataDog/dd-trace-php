@@ -242,11 +242,11 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
     // Assign and clear out additional trace meta; re-initialize it to empty
     if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY &&
         zend_hash_num_elements(Z_ARR_P(&DDTRACE_G(additional_trace_meta))) > 0) {
-        zval *meta = zend_hash_str_find(Z_ARR_P(root), ZEND_STRL("meta"));
+        zval *meta = zend_hash_find(Z_ARR_P(root), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_META));
         if (!meta) {
             zval meta_zv;
             array_init(&meta_zv);
-            meta = zend_hash_str_add_new(Z_ARR_P(root), ZEND_STRL("meta"), &meta_zv);
+            meta = zend_hash_add_new(Z_ARR_P(root), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_META), &meta_zv);
         }
 
         zval *val;

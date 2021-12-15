@@ -296,28 +296,24 @@ typedef struct dd_error_info {
     zend_string *stack;
 } dd_error_info;
 
-static zend_string *dd_error_type(int code) {
-    const char *error_type = "{unknown error}";
+static zai_string_t dd_error_type(int code) {
 
     // mask off flags such as E_DONT_BAIL
     code &= E_ALL;
 
     switch (code) {
         case E_ERROR:
-            error_type = "E_ERROR";
-            break;
+            return ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_E_ERROR);
         case E_CORE_ERROR:
-            error_type = "E_CORE_ERROR";
-            break;
+            return ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_E_CORE_ERROR);
         case E_COMPILE_ERROR:
-            error_type = "E_COMPILE_ERROR";
-            break;
+            return ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_E_COMPILE_ERROR);
         case E_USER_ERROR:
-            error_type = "E_USER_ERROR";
-            break;
+            return ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_E_USER_ERROR);
+            
+        default:
+            return ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_E_UNKNOWN_ERROR);
     }
-
-    return zend_string_init(error_type, strlen(error_type), 0);
 }
 
 static zend_string *dd_fatal_error_stack(void) {
@@ -336,17 +332,17 @@ static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
 
     if (error.type) {
         zval tmp = ddtrace_zval_zstr(zend_string_copy(error.type));
-        zend_symtable_str_update(ht, ZEND_STRL("error.type"), &tmp);
+        zend_symtable_update(ht, ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_ERROR_TYPE), &tmp);
     }
 
     if (error.msg) {
         zval tmp = ddtrace_zval_zstr(zend_string_copy(error.msg));
-        zend_symtable_str_update(ht, ZEND_STRL("error.msg"), &tmp);
+        zend_symtable_update(ht, ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_ERROR_MSG), &tmp);
     }
 
     if (error.stack) {
         zval tmp = ddtrace_zval_zstr(zend_string_copy(error.stack));
-        zend_symtable_str_update(ht, ZEND_STRL("error.stack"), &tmp);
+        zend_symtable_update(ht, ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_ERROR_STACK), &tmp);
     }
 
     return error.type && error.msg ? SUCCESS : FAILURE;
@@ -417,8 +413,8 @@ static zend_string *dd_build_req_url() {
     const char *uri = NULL;
     int uri_len;
     zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
-    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
-        zval *req_uri = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("REQUEST_URI"));
+    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global(ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_SERVER))) {
+        zval *req_uri = zend_hash_find(Z_ARRVAL_P(_server), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_REQUEST_URI));
         if (req_uri && Z_TYPE_P(req_uri) == IS_STRING) {
             uri = Z_STRVAL_P(req_uri);
             uri_len = Z_STRLEN_P(req_uri);
@@ -434,11 +430,11 @@ static zend_string *dd_build_req_url() {
         }
     }
 
-    zend_bool is_https = zend_hash_str_exists(Z_ARRVAL_P(_server), ZEND_STRL("HTTPS"));
+    zend_bool is_https = zend_hash_exists(Z_ARRVAL_P(_server), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_HTTPS));
 
     zval *host_zv;
-    if ((!(host_zv = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("HTTP_HOST"))) &&
-         !(host_zv = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("SERVER_NAME")))) ||
+    if ((!(host_zv = zend_hash_find(Z_ARRVAL_P(_server), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_HTTP_HOST))) &&
+         !(host_zv = zend_hash_find(Z_ARRVAL_P(_server), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_SERVER_NAME)))) ||
         Z_TYPE_P(host_zv) != IS_STRING) {
         return ZSTR_EMPTY_ALLOC();
     }
@@ -455,7 +451,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {
         zval http_method;
         ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
-        zend_hash_str_add_new(Z_ARR_P(meta), ZEND_STRL("http.method"), &http_method);
+        zend_hash_add_new(Z_ARR_P(meta), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_HTTP_METHOD), &http_method);
 
         zend_string *http_url = dd_build_req_url();
         if (ZSTR_LEN(http_url)) {
@@ -477,20 +473,20 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     zval *prop_type = ddtrace_spandata_property_type(span);
     zval *prop_name = ddtrace_spandata_property_name(span);
     if (strcmp(sapi_module.name, "cli") == 0) {
-        ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
+        ZVAL_STR(prop_type, ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_CLI));
         if (SG(request_info).argc > 0) {
             ZVAL_STR(prop_name, php_basename(SG(request_info).argv[0], strlen(SG(request_info).argv[0]), NULL, 0));
         } else {
-            ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("cli.command"), 0));
+            ZVAL_STR(prop_name, ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_CLI_COMMAND));
         }
     } else {
-        ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("web"), 0));
-        ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("web.request"), 0));
+        ZVAL_STR(prop_type, ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_WEB));
+        ZVAL_STR(prop_name, ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_WEB_REQUEST));
     }
     zval *prop_service = ddtrace_spandata_property_service(span);
     ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
 
-    if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+    if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global(ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_SERVER))) {
         zend_string *headername;
         zval *headerval;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR(PG(http_globals)[TRACK_VARS_SERVER]), headername, headerval) {
@@ -558,7 +554,7 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
             add_assoc_str(meta, "http.status_code", zend_long_to_str(SG(sapi_headers).http_response_code));
             if (SG(sapi_headers).http_response_code >= 500) {
                 zval zv = {0}, *value;
-                if ((value = zend_hash_str_add(Z_ARR_P(meta), ZEND_STRL("error.type"), &zv))) {
+                if ((value = zend_hash_add(Z_ARR_P(meta), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_ERROR_TYPE), &zv))) {
                     ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
                 }
             }
@@ -606,8 +602,8 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
         }
     }
 
-    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg")) ||
-                      ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
+    zend_bool error = zend_hash_exists(Z_ARR_P(meta), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_ERROR_MSG)) ||
+                      zend_hash_exists(Z_ARR_P(meta), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_ERROR_TYPE));
     if (error) {
         add_assoc_long(el, "error", 1);
     }
@@ -656,7 +652,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     if (Z_TYPE_P(prop_name) > IS_NULL) {
         zval prop_name_as_string;
         ddtrace_convert_to_string(&prop_name_as_string, prop_name);
-        prop_name = zend_hash_str_update(Z_ARR_P(el), ZEND_STRL("name"), &prop_name_as_string);
+        prop_name = zend_hash_update(Z_ARR_P(el), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_NAME), &prop_name_as_string);
     }
 
     // SpanData::$resource defaults to SpanData::$name
@@ -707,7 +703,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
             }
         }
         ZEND_HASH_FOREACH_END();
-        metrics = zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_zv);
+        metrics = zend_hash_add_new(Z_ARR_P(el), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_METRICS), &metrics_zv);
     } else {
         metrics = NULL;
     }
@@ -716,7 +712,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
         if (!metrics) {
             zval metrics_array;
             array_init(&metrics_array);
-            metrics = zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_array);
+            metrics = zend_hash_add_new(Z_ARR_P(el), ZAI_STRING_KNOWN(ZAI_STRING_KNOWN_METRICS), &metrics_array);
         }
         add_assoc_double(metrics, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
     }

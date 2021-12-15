@@ -100,6 +100,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/properties/php5/properties.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
+      zend_abstract_interface/zai_string/string.c \
     "
   elif test $PHP_VERSION_ID -lt 70000; then
     dnl PHP 5.5 + PHP 5.6
@@ -149,6 +150,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/properties/php5/properties.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
+      zend_abstract_interface/zai_string/string.c \
     "
   elif test $PHP_VERSION_ID -lt 80000; then
     dnl PHP 7.x
@@ -202,6 +204,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php7/sandbox.c \
       zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
+      zend_abstract_interface/zai_string/string.c \
     "
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
@@ -256,6 +259,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/properties/php7-8/properties.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
       zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
+      zend_abstract_interface/zai_string/string.c \
     "
   fi
 

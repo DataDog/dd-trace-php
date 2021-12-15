@@ -1,14 +1,18 @@
-add_library(zai_string INTERFACE)
+add_library(zai_string string.c)
 
-target_include_directories(zai_string INTERFACE
+target_include_directories(zai_string PUBLIC
                                       $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
                                       $<INSTALL_INTERFACE:include>)
 
-target_compile_features(zai_string INTERFACE c_std_99)
+target_compile_features(zai_string PUBLIC c_std_99)
 
-target_link_libraries(zai_string INTERFACE "${PHP_LIB}")
+target_link_libraries(zai_string PUBLIC "${PHP_LIB}")
 
 add_library(Zai::string ALIAS zai_string)
+
+if(${BUILD_ZAI_TESTING})
+  add_subdirectory(tests)
+endif()
 
 # This copies the include files when `install` is ran
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/string.h

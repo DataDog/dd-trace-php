@@ -7,6 +7,8 @@
 #include "ext/version.h"
 #include "random.h"
 
+#include "zai_string/string.h"
+
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
 extern zend_class_entry *ddtrace_ce_fatal_error;

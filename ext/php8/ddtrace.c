@@ -417,6 +417,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    zai_string_minit();
+
     ddtrace_bgs_log_minit();
 
     ddtrace_dogstatsd_client_minit();
@@ -458,6 +460,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_engine_hooks_mshutdown();
 
     zai_config_mshutdown();
+
+    zai_string_mshutdown();
 
     return SUCCESS;
 }
