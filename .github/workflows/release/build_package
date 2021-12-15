@@ -57,9 +57,8 @@ function tarballs {
 
   echo $version > /dd-appsec-php/VERSION
   file_prefix="dd-appsec-php-$version"
-  if [[ "$build_type" == "package" ]]; then
-    git_hash="$(git rev-parse --short HEAD)"
-    file_prefix="dd-appsec-php-$version-$git_hash"
+  if [[ -n "$build_type" ]] && [[ "$build_type" != "release" ]]; then
+    file_prefix="$file_prefix-$build_type"
   fi
   tar -C / --exclude '**/*.debug' -czf "/out/$file_prefix-amd64.tar.gz" dd-appsec-php
 
