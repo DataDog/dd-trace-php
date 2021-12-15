@@ -93,6 +93,10 @@ Building again the container without `pcntl` enabled AND not even building the t
 
 Tests do not work on PHP 5 with openssl 1.0.2.
 
+## `ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt`
+
+Depends on an expired cert. Was fixed in [php-src/98175fc](https://github.com/php/php-src/commit/98175fc).
+
 ## `ext/ftp/tests`
 
 Disabled on versions less than 8.1, which switches to ephemeral ports.
