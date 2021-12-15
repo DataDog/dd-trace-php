@@ -167,6 +167,25 @@ static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, 
 
     if (found && (dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER)) {
         dd_load_deferred_integration(scope, &fname, &dispatch, dispatch_table);
+    } else if (!found && get_DD_TRACE_AUTO_INSTRUMENTATION_ENABLED()) {
+        zval wildcard;
+        ZVAL_STRINGL(&wildcard, "*", sizeof("*") - 1);
+        if (ddtrace_try_find_dispatch(NULL, &wildcard, &dispatch, &dispatch_table)) {
+            zval class_name, *cname = NULL;
+            if (scope) {
+                ZVAL_STR(&class_name, scope->name);
+                cname = &class_name;
+            }
+            ddtrace_trace(cname, &fname, &dispatch->callable, DDTRACE_DISPATCH_POSTHOOK);
+
+            dispatch = NULL;
+            if (!ddtrace_try_find_dispatch(scope, &fname, &dispatch, &dispatch_table)) {
+                ddtrace_log_err("Whoa. I just inserted the dispatch but now I cannot find it.");
+            }
+        } else {
+            ddtrace_log_err("Auto instrumentation enabled but no wildcard tracing closure found.");
+        }
+        zval_dtor(&wildcard);
     }
 
     if (dispatch_ptr != NULL) {
