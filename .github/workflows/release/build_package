@@ -5,6 +5,9 @@ set -x
 mkdir -p /pbuild
 cd /pbuild
 
+build_type=$1
+shift
+
 function prepare {
   local -r php_v=$1 # php dir or "helper"
 
@@ -53,12 +56,17 @@ function tarballs {
   mkdir -p /out
 
   echo $version > /dd-appsec-php/VERSION
-  tar -C / --exclude '**/*.debug' -czf /out/dd-appsec-php-$version-amd64.tar.gz dd-appsec-php
+  file_prefix="dd-appsec-php-$version"
+  if [[ "$build_type" == "package" ]]; then
+    git_hash="$(git rev-parse --short HEAD)"
+    file_prefix="dd-appsec-php-$version-$git_hash"
+  fi
+  tar -C / --exclude '**/*.debug' -czf "/out/$file_prefix-amd64.tar.gz" dd-appsec-php
 
   (
     cd /
     shopt -s globstar
-    tar -czf /out/dd-appsec-php-$version-amd64-debug.tar.gz dd-appsec-php/**/*.debug
+    tar -czf "/out/$file_prefix-amd64-debug.tar.gz" dd-appsec-php/**/*.debug
   )
 }
 

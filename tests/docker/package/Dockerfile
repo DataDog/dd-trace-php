@@ -14,7 +14,7 @@ ADD cmake /project/cmake/
 ADD third_party /project/third_party/
 ADD tests /project/tests/
 
-RUN /project/.github/workflows/release/build_package $(find /root/php -mindepth 1 -maxdepth 1 -type d)
+RUN /project/.github/workflows/release/build_package release $(find /root/php -mindepth 1 -maxdepth 1 -type d)
 
 FROM scratch
 COPY --from=build /out /out/
