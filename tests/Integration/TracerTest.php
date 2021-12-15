@@ -179,7 +179,6 @@ final class TracerTest extends BaseTestCase
             },
             __DIR__ . '/TracerTest_files/index.php',
             [
-                'DD_TRACE_NO_AUTOLOADER' => true,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
@@ -196,7 +195,6 @@ final class TracerTest extends BaseTestCase
             __DIR__ . '/TracerTest_files/index.php',
             [
                 'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => true,
-                'DD_TRACE_NO_AUTOLOADER' => true,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
@@ -213,7 +211,6 @@ final class TracerTest extends BaseTestCase
             __DIR__ . '/TracerTest_files/index.php',
             [
                 'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => false,
-                'DD_TRACE_NO_AUTOLOADER' => true,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
@@ -230,7 +227,6 @@ final class TracerTest extends BaseTestCase
             __DIR__ . '/TracerTest_files/index.php',
             [
                 'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => true,
-                'DD_TRACE_NO_AUTOLOADER' => true,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
@@ -460,7 +456,6 @@ final class TracerTest extends BaseTestCase
             [
                 'DD_SERVICE_MAPPING' => 'host-httpbin_integration:changed_service',
                 'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => true,
-                'DD_TRACE_NO_AUTOLOADER' => true,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
@@ -478,7 +473,6 @@ final class TracerTest extends BaseTestCase
             [
                 'DD_SERVICE_MAPPING' => 'host-127.0.0.1:changed_service',
                 'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => true,
-                'DD_TRACE_NO_AUTOLOADER' => true,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );

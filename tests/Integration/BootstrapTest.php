@@ -17,7 +17,6 @@ final class BootstrapTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_NO_AUTOLOADER' => '1',
             'DD_TRACE_SPANS_LIMIT' => '1',
         ]);
     }

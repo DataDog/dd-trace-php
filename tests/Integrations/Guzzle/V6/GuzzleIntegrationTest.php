@@ -337,7 +337,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             __DIR__ . '/guzzle_in_web_request.php',
             [
                 'DD_SERVICE' => 'top_level_app',
-                'DD_TRACE_NO_AUTOLOADER' => true,
             ]
         );
 

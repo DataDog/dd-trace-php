@@ -17,7 +17,6 @@ final class FrameworkNoAutoloadedTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'custom_no_autoloaded_app',
-            'DD_TRACE_NO_AUTOLOADER' => 'true',
         ]);
     }
 

@@ -23,7 +23,6 @@ class SyntheticsTest extends WebFrameworkTestCase
             'DD_PRIORITY_SAMPLING' => 'true',
             // Disabling distributed tracing will break Synthetic requests
             'DD_DISTRIBUTED_TRACING' => 'true',
-            'DD_TRACE_NO_AUTOLOADER' => 'true',
         ]);
     }
 
