@@ -800,18 +800,19 @@ function add_missing_ini_settings($iniFilePath, $settings)
         }
 
         // Formatting the setting to be added.
-        $description = implode(
-            "\n",
+        $description =
             is_string($setting['description'])
                 ? '; ' . $setting['description']
-                : array_map(
-                    function ($line) {
-                        return '; ' . $line;
-                    },
-                    $setting['description']
-                )
-        );
-        $setting = ($setting['commented'] ? ';' : '') . $setting['name'] . ' = ' . $settings['default'];
+                : implode(
+                    "\n",
+                    array_map(
+                        function ($line) {
+                            return '; ' . $line;
+                        },
+                        $setting['description']
+                    )
+                );
+        $setting = ($setting['commented'] ? ';' : '') . $setting['name'] . ' = ' . $setting['default'];
         $formattedMissingProperties .= "\n$description\n$setting\n";
     }
 
