@@ -16,7 +16,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
-
     const URL = 'http://httpbin_integration';
 
     public static function ddSetUpBeforeClass()

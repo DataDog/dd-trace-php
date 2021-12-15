@@ -7,7 +7,6 @@ use DDTrace\Tests\Common\BaseTestCase;
 
 final class UrlsTest extends BaseTestCase
 {
-
     /**
      * @dataProvider dataProviderSanitize
      * @param string $url
