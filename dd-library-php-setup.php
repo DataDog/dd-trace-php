@@ -12,10 +12,16 @@ const IS_DEBUG = 'Debug Build';
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
+const OPT_NO_TRACER = 'no-tracer';
 const OPT_TRACER_FILE = 'tracer-file';
 const OPT_TRACER_URL = 'tracer-url';
 const OPT_TRACER_VERSION = 'tracer-version';
+const OPT_NO_PROFILER = 'no-profiler';
+const OPT_PROFILER_FILE = 'profiler-file';
+const OPT_PROFILER_URL = 'profiler-url';
+const OPT_PROFILER_VERSION = 'profiler-version';
 const OPT_UNINSTALL = 'uninstall';
+const OPT_LATEST_VERSION = 'latest';
 
 function main()
 {
@@ -49,8 +55,18 @@ Options:
     --tracer-version <0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
     --tracer-url <url>          Install the tracing library from a url. If set --tracer-file is ignored.
     --tracer-file <file>        Install the tracing library from a local .tar.gz file.
+    --no-tracer                 Do not install the tracing extension.
+    --profiler-version <0.1.0>  Install a specific version of the profiling extension.
+                                If set --profiler-url and --profiler-file are ignored.
+    --profiler-url <url>        Install the profiling extension from a url. If set --profiler-file is ignored.
+    --profiler-file <file>      Install the profiling extension from a local .tar.gz file.
+    --no-profiler               Do not install the profiling extension.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
+
+Using "--tracer-version latest" or "--profiling-version latest" will download the
+latest releases. For each component, this will be implied if no version, url or
+file are given.
 
 EOD;
     exit(0);
@@ -58,15 +74,43 @@ EOD;
 
 function install($options)
 {
+    // Picking the right binaries to install the library
+    $selectedBinaries = require_binaries_or_exit($options);
+    $interactive = empty($options[OPT_PHP_BIN]);
+
+    install_tracer($options, $selectedBinaries);
+
+    echo "--------------------------------------------------\n";
+    echo "SUCCESS\n\n";
+    if ($interactive) {
+        echo "Run this script in a non interactive mode adding the following 'php-bin' options:\n";
+        $args = array_merge(
+            $_SERVER["argv"],
+            array_map(
+                function ($el) {
+                    return '--php-bin=' . $el;
+                },
+                array_keys($selectedBinaries)
+            )
+        );
+        echo "  php " . implode(" ", array_map("escapeshellarg", $args)) . "\n";
+    }
+}
+
+/**
+ * Installs the tracing extension to the provided PHP binaries.
+ *
+ * @param array $options
+ * @param array $selectedBinaries
+ * @return void
+ */
+function install_tracer($options, $selectedBinaries)
+{
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
     if (is_alpine()) {
         check_library_prerequisite_or_exit('libexecinfo');
     }
-
-    // Picking the right binaries to install the library
-    $selectedBinaries = require_binaries_or_exit($options);
-    $interactive = empty($options[OPT_PHP_BIN]);
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-library';
@@ -113,7 +157,7 @@ function install($options)
     // Actual installation
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
-        echo "Installing to binary: $binaryForLog\n";
+        echo "Installing tracing extension to binary: $binaryForLog\n";
 
         check_php_ext_prerequisite_or_exit($fullPath, 'json');
 
@@ -197,21 +241,75 @@ function install($options)
             echo "Installation to '$binaryForLog' was successful\n";
         }
     }
+}
 
-    echo "--------------------------------------------------\n";
-    echo "SUCCESS\n\n";
-    if ($interactive) {
-        echo "Run this script in a non interactive mode adding the following 'php-bin' options:\n";
-        $args = array_merge(
-            $_SERVER["argv"],
-            array_map(
-                function ($el) {
-                    return '--php-bin=' . $el;
-                },
-                array_keys($selectedBinaries)
-            )
-        );
-        echo "  php " . implode(" ", array_map("escapeshellarg", $args)) . "\n";
+
+/**
+ * Installs the profiling extension to the provided PHP binaries.
+ *
+ * @param array $options
+ * @param array $selectedBinaries
+ * @return void
+ */
+function install_profiler($options, $selectedBinaries)
+{
+    // Preparing clean tmp folder to extract files
+    $platform = is_alpine() ? 'linux-musl' : 'linux-gnu';
+    $defaultArchiveName = "datadog-profiling-x86_64-$platform";
+    $tmpDir = sys_get_temp_dir() . '/dd-library/profiler';
+    $tmpArchiveNameAndExt = "$tmpDir/$defaultArchiveName.tar.gz";
+    execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
+    execute_or_exit(
+        "Cannot clean '$tmpDir'",
+        "rm -rf " . escapeshellarg($tmpDir) . "/* "
+    );
+
+    // Retrieve and extract the archive to a tmp location
+    if (isset($options[OPT_PROFILER_FILE])) {
+        $tmpArchiveNameAndExt = $options[OPT_PROFILER_FILE];
+    } else {
+        $url = isset($options[OPT_PROFILER_URL])
+            ? $options[OPT_PROFILER_URL]
+            : "https://github.com/DataDog/dd-prof-php/releases/download/$tmpArchiveNameAndExt";
+        download($url, $tmpArchiveNameAndExt);
+    }
+    execute_or_exit(
+        "Cannot extract the archive",
+        "tar -xf " . escapeshellarg($tmpArchiveNameAndExt) . " -C " . escapeshellarg($tmpDir)
+    );
+
+    // Actual installation
+    foreach ($selectedBinaries as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Installing profiling extension to binary: $binaryForLog\n";
+
+        $phpProperties = ini_values($fullPath);
+
+        // Copying the extension
+        $extensionVersion = $phpProperties[PHP_API];
+        if (is_truthy($phpProperties[IS_DEBUG])) {
+            printf('Warning: profiling extension does not support debug builds. Skipping installation.');
+            continue;
+        } elseif (is_truthy(THREAD_SAFETY)) {
+            printf('Warning: profiling extension does not support ZTS builds. Skipping installation.');
+            continue;
+        }
+
+        $extensionFileName = 'ddprofile.so';
+        $extensionRealPath = "$tmpDir/$defaultArchiveName/lib/php/$extensionVersion/$extensionFileName";
+        if (!file_exists($extensionRealPath)) {
+            printf('Warning: current version of PHP not supported for profiling. Skipping profiler installation.');
+            continue;
+        }
+        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/' . $extensionFileName;
+
+        /* Move - rename() - instead of copy() since copying does a fopen() and copies to the stream itself, causing a
+         * segfault in the PHP process that is running and had loaded the old shared object file.
+         */
+        $tmpExtName = $extensionDestination . '.tmp';
+        copy($extensionRealPath, $tmpExtName);
+        rename($tmpExtName, $extensionDestination);
+        echo "Copied '$extensionRealPath' '$extensionDestination'\n";
     }
 }
 
@@ -391,6 +489,8 @@ function parse_validate_user_options()
                 'One and only one among --tracer-version, --tracer-url and --tracer-file must be provided'
             );
         }
+
+        // Tracer
         if (isset($options[OPT_TRACER_VERSION])) {
             if (is_array($options[OPT_TRACER_VERSION])) {
                 print_error_and_exit('Only one --tracer-version can be provided');
@@ -406,6 +506,28 @@ function parse_validate_user_options()
                 print_error_and_exit('Only one --tracer-file can be provided');
             }
             $normalizedOptions[OPT_TRACER_FILE] = $options[OPT_TRACER_FILE];
+        } else {
+            $normalizedOptions[OPT_TRACER_VERSION] = OPT_LATEST_VERSION;
+        }
+
+        // Profiler
+        if (isset($options[OPT_PROFILER_VERSION])) {
+            if (is_array($options[OPT_PROFILER_VERSION])) {
+                print_error_and_exit('Only one --profiler-version can be provided');
+            }
+            $normalizedOptions[OPT_PROFILER_VERSION] = $options[OPT_PROFILER_VERSION];
+        } elseif (isset($options[OPT_PROFILER_URL])) {
+            if (is_array($options[OPT_PROFILER_URL])) {
+                print_error_and_exit('Only one --profiler-url can be provided');
+            }
+            $normalizedOptions[OPT_PROFILER_URL] = $options[OPT_PROFILER_URL];
+        } elseif (isset($options[OPT_PROFILER_FILE])) {
+            if (is_array($options[OPT_PROFILER_FILE])) {
+                print_error_and_exit('Only one --profiler-file can be provided');
+            }
+            $normalizedOptions[OPT_PROFILER_FILE] = $options[OPT_PROFILER_FILE];
+        } else {
+            $normalizedOptions[OPT_PROFILER_VERSION] = OPT_LATEST_VERSION;
         }
     }
 
