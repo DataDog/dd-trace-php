@@ -1060,7 +1060,7 @@ function get_ini_settings($requestInitHookPath)
             'name' => 'datadog.trace.bgs_timeout',
             'default' => '5000',
             'commented' => true,
-            'description' => 'Set request timeout in milliseconds while while sending payloads to the agent',
+            'description' => 'Set request timeout in milliseconds while sending payloads to the agent',
         ],
         [
             'name' => 'datadog.trace.spans_limit',
