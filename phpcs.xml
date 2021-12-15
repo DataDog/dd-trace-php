@@ -16,6 +16,7 @@
         <severity>0</severity>
     </rule>
     <rule ref="Generic.Files.LineLength.TooLong">
+        <exclude-pattern>dd-library-php-setup.php</exclude-pattern>
         <exclude-pattern>tests/Integration/ErrorReporting/ErrorReportingTest.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/*</exclude-pattern>
     </rule>
