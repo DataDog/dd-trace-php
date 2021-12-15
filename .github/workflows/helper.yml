@@ -133,6 +133,8 @@ jobs:
       - name: Run fuzzer in nop mode
         run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
         working-directory: ${{ github.workspace }}
+        env:
+            LLVM_PROFILE_FILE: off.profraw
       - name: Generate corpus
         run: |
             rm -f tests/fuzzer/corpus/*
@@ -141,6 +143,8 @@ jobs:
       - name: Run fuzzer in raw mode
         run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
         working-directory: ${{ github.workspace }}
+        env:
+            LLVM_PROFILE_FILE: raw.profraw
       - name: Generate corpus
         run: |
             rm -f tests/fuzzer/corpus/*
@@ -149,8 +153,18 @@ jobs:
       - name: Run fuzzer in body mode
         run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
         working-directory: ${{ github.workspace }}
+        env:
+            LLVM_PROFILE_FILE: body.profraw
+      - name: Generate coverage
+        run: |
+            llvm-profdata-10 merge -sparse *.profraw -o default.profdata
+            llvm-cov-10 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > coverage.html
+            llvm-cov-10 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
+        working-directory: ${{ github.workspace }}
       - uses: actions/upload-artifact@v2
         if: always()
         with:
           name: Upload fuzzer results
-          path: ${{ github.workspace }}/tests/fuzzer/results/*
+          path: |
+              ${{ github.workspace }}/tests/fuzzer/results/*
+              ${{ github.workspace }}/coverage.html

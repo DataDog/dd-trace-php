@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
             msg.pid = 1923;
             msg.client_version = "1.2.3";
             msg.runtime_version = "7.4.2";
-            msg.rules_file = "third_party/appsec-event-rules/v2/build/recommended.json";
+            msg.rules_file = ".github/workflows/release/recommended.json";
 
             msgpack::packer<std::stringstream> packer(ss);
 
