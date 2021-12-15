@@ -69,6 +69,7 @@ test_legacy_installer_no_ext_json:
 test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
 test_first_install.sh \
+test_install_add_missing_ini_settings.sh \
 test_install_custom_installation_directory.sh \
 test_install_custom_installation_root.sh \
 test_install_non_root_user.sh \
