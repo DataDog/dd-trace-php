@@ -1,9 +1,10 @@
-name: Release
+name: Package
 
 on:
   push:
-    tags:
-      - v*
+    branches: [ master ]
+  workflow_dispatch:
+
 jobs:
   packages:
     runs-on: ubuntu-latest
@@ -69,9 +70,8 @@ jobs:
             -v $HOME/.hunter:/root/.hunter \
             -v /tmp/out:/out \
             toolchain \
-            /project/.github/workflows/release/build_package release \
+            /project/.github/workflows/release/build_package ${{ github.sha }} \
             8.1.0 8.0.11 7.4.24 7.3.31 7.2.34 7.1.33 7.0.33
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - uses: actions/upload-artifact@v2
         with:
-          files: /tmp/out/*.tar.gz
+          path: /tmp/out/*.tar.gz
