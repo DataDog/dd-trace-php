@@ -12,7 +12,7 @@ ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
 # Install using the php installer
 new_version="0.67.0"
-php dd-library-php-setup.php --php-bin php --tracer-version "${new_version}"
+php dd-library-php-setup.php --php-bin php --version "${new_version}"
 assert_ddtrace_version "${new_version}"
 
 # Uninstall
