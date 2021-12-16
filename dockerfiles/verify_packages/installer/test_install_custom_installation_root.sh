@@ -17,3 +17,5 @@ assert_file_exists /dd-library/${new_version}/dd-trace-sources/bridge/dd_wrap_au
 
 # Making sure a clean install to root / does not rm -rf everything
 assert_file_exists /usr/bin/tail
+
+assert_request_init_hook_exists

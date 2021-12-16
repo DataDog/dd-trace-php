@@ -41,6 +41,10 @@ assert_ddtrace_version() {
     fi
 }
 
+assert_request_init_hook_exists() {
+    assert_file_exists $(php -r 'echo ini_get("datadog.trace.request_init_hook");')
+}
+
 assert_file_exists() {
     file="${1}"
     if [ ! -f "${file}" ]; then
