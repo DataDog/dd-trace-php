@@ -12,8 +12,11 @@ if [ "$CIRCLECI" = "true" ]; then
     exit 0
 fi
 
+new_version="0.67.0"
+curl -L -o /tmp/downloaded.tar.gz "https://github.com/labbati/test-actions/releases/download/${new_version}/dd-library-php-x86_64-gnu.tar.gz"
+
 # Install using the php installer
-php dd-library-php-setup.php --php-bin php --file build/packages/*.tar.gz
+php dd-library-php-setup.php --php-bin php --file /tmp/downloaded.tar.gz
 
 # Just check installation, not the version as it is not deterministic.
 if [ -z "$(php -m | grep ddtrace)" ]; then
