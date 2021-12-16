@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  packages:
+  build-package:
     runs-on: ubuntu-latest
     env:
       PHP_HOMEDIR: /php
