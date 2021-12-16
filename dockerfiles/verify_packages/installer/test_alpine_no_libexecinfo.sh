@@ -8,7 +8,7 @@ set -e
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.65.1"
+new_version="0.67.0"
 
 set +e
 output=$(php dd-library-php-setup.php --php-bin php --tracer-version "${new_version}")
