@@ -1,5 +1,9 @@
 #include "string.h"
 
+#ifndef GC_FLAGS_SHIFT
+# define GC_FLAGS_SHIFT 8
+#endif
+
 zai_string_t* zai_strings_known;
 
 static zai_string_view zai_string_known_views[] = {
