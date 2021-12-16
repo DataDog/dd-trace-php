@@ -51,7 +51,11 @@ array(1) {
       string(9) "Foo error"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

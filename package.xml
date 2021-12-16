@@ -70,7 +70,6 @@
             <file name="bridge/_generated_api.php" role="php" />
             <file name="bridge/_generated_internal.php" role="php" />
             <file name="bridge/autoload.php" role="php" />
-            <file name="bridge/curl_inject.php" role="php" />
             <file name="bridge/dd_init.php" role="php" />
             <file name="bridge/dd_register_optional_deps_autoloader.php" role="php" />
             <file name="bridge/dd_wrap_autoloader.php" role="php" />
@@ -96,7 +95,6 @@
             <install as="datadog_trace/bridge/_generated_api.php" name="bridge/_generated_api.php" />
             <install as="datadog_trace/bridge/_generated_internal.php" name="bridge/_generated_internal.php" />
             <install as="datadog_trace/bridge/autoload.php" name="bridge/autoload.php" />
-            <install as="datadog_trace/bridge/curl_inject.php" name="bridge/curl_inject.php" />
             <install as="datadog_trace/bridge/dd_init.php" name="bridge/dd_init.php" />
             <install as="datadog_trace/bridge/dd_register_optional_deps_autoloader.php" name="bridge/dd_register_optional_deps_autoloader.php" />
             <install as="datadog_trace/bridge/dd_wrap_autoloader.php" name="bridge/dd_wrap_autoloader.php" />

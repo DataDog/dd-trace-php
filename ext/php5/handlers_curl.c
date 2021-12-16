@@ -6,6 +6,7 @@
 #include "ddtrace.h"
 #include "handlers_internal.h"
 #include "logging.h"
+#include "priority_sampling/priority_sampling.h"
 #include "random.h"
 
 // True global - only modify during MINIT/MSHUTDOWN
@@ -104,9 +105,9 @@ static void dd_inject_distributed_tracing_headers(zval *ch TSRMLS_DC) {
     }
 
     char *str;
-    int sampling_priority;
-    if (ddtrace_fetch_prioritySampling_from_root(&sampling_priority TSRMLS_CC)) {
-        spprintf(&str, 0, "x-datadog-sampling-priority: %d", sampling_priority);
+    long sampling_priority = ddtrace_fetch_prioritySampling_from_root(TSRMLS_C);
+    if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        spprintf(&str, 0, "x-datadog-sampling-priority: %ld", sampling_priority);
         add_next_index_string(headers, str, 0);
     }
     if (DDTRACE_G(trace_id)) {

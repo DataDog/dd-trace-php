@@ -15,7 +15,7 @@
 #define DDTRACE_AGENT_QUICK_TIMEOUT 500L
 #define DDTRACE_AGENT_QUICK_CONNECT_TIMEOUT 100L
 
-void ddtrace_startup_logging_first_rinit(void);
+void ddtrace_startup_logging_first_rinit(TSRMLS_D);
 void ddtrace_startup_diagnostics(HashTable *ht, bool quick);
 
 /* Returns a json-encoded string of config/diagnostic info; caller must free.

@@ -6,16 +6,11 @@ use DDTrace\Contracts\Scope as ScopeInterface;
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer as TracerInterface;
-use DDTrace\Encoders\MessagePack;
-use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Exceptions\UnsupportedFormat;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
-use DDTrace\Sampling\ConfigurableSampler;
-use DDTrace\Sampling\Sampler;
-use DDTrace\Transport\Http;
 use DDTrace\Transport\Internal;
 use DDTrace\Transport\Noop;
 use DDTrace\Transport\Noop as NoopTransport;
@@ -43,11 +38,6 @@ final class Tracer implements TracerInterface
      * @var Transport
      */
     private $transport;
-
-    /**
-     * @var Sampler
-     */
-    private $sampler;
 
     /**
      * @var Propagator[]
@@ -84,11 +74,6 @@ final class Tracer implements TracerInterface
     private $rootScope;
 
     /**
-     * @var string
-     */
-    private $prioritySampling = Sampling\PrioritySampling::UNKNOWN;
-
-    /**
      * @var string The user's service version, e.g. '1.2.3'
      */
     private $serviceVersion;
@@ -110,7 +95,6 @@ final class Tracer implements TracerInterface
         $this->propagators = $propagators ?: [
             Format::TEXT_MAP => $textMapPropagator,
             Format::HTTP_HEADERS => $textMapPropagator,
-            Format::CURL_HTTP_HEADERS => new CurlHeadersMap($this),
         ];
         $this->config = array_merge($this->config, $config);
         $this->reset();
@@ -133,7 +117,6 @@ final class Tracer implements TracerInterface
     public function reset()
     {
         $this->scopeManager = new ScopeManager();
-        $this->sampler = new ConfigurableSampler();
         $this->traces = [];
     }
 
@@ -310,7 +293,6 @@ final class Tracer implements TracerInterface
             throw UnsupportedFormat::forFormat($format);
         }
 
-        $this->setPrioritySampling($this->getPrioritySampling());
         $this->propagators[$format]->inject($spanContext, $carrier);
     }
 
@@ -346,9 +328,6 @@ final class Tracer implements TracerInterface
             ]);
         }
 
-        // At this time, for sure we need to enforce a decision on priority sampling.
-        // If the user has removed the priority sampling (e.g. due to directly assigning metrics), put it back.
-        $this->setPrioritySampling($this->getPrioritySampling());
         $this->transport->send($this);
     }
 
@@ -430,10 +409,9 @@ final class Tracer implements TracerInterface
         }
 
         $prioritySampling = $span->getContext()->getPropagatedPrioritySampling();
-        if (null === $prioritySampling) {
-            $prioritySampling = $this->sampler->getPrioritySampling($span);
+        if (null !== $prioritySampling) {
+            $this->setPrioritySampling($prioritySampling);
         }
-        $this->setPrioritySampling($prioritySampling);
     }
 
     /**
@@ -441,18 +419,8 @@ final class Tracer implements TracerInterface
      */
     public function setPrioritySampling($prioritySampling)
     {
-        $this->prioritySampling = $prioritySampling;
-
-        $rootSpan = $this->getSafeRootSpan();
-        if (null === $rootSpan) {
-            return;
-        }
-
-        if ($prioritySampling !== Sampling\PrioritySampling::UNKNOWN) {
-            $rootSpan->setMetric('_sampling_priority_v1', $prioritySampling);
-        } elseif (isset($rootSpan->metrics)) { // official API does not allow removal, so...
-            unset($rootSpan->metrics['_sampling_priority_v1']);
-        }
+        set_priority_sampling($prioritySampling);
+        set_priority_sampling($prioritySampling, true);
     }
 
     /**
@@ -460,12 +428,7 @@ final class Tracer implements TracerInterface
      */
     public function getPrioritySampling()
     {
-        // root span is source of truth for priority sampling (if it exists)
-        // @phpstan-ignore-next-line 'Undefined property $metrics' in an isset() check?! Must be a phpstan bug...
-        if (($rootSpan = $this->getSafeRootSpan()) && isset($rootSpan->metrics['_sampling_priority_v1'])) {
-            return $rootSpan->metrics['_sampling_priority_v1'];
-        }
-        return $this->prioritySampling;
+        return get_priority_sampling();
     }
 
     /**

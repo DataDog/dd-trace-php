@@ -124,11 +124,15 @@ array(5) {
       string(%d) "%d"
     }
     ["metrics"]=>
-    array(3) {
+    array(5) {
       ["foo"]=>
       float(1.2)
       ["bar"]=>
       float(25)
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
@@ -199,7 +203,11 @@ array(5) {
       string(%d) "%d"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
@@ -228,7 +236,11 @@ array(5) {
       string(%d) "%d"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

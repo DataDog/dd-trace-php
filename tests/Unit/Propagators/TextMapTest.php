@@ -38,6 +38,7 @@ final class TextMapTest extends BaseTestCase
             'x-datadog-trace-id' => $context->getTraceId(),
             'x-datadog-parent-id' => $context->getSpanId(),
             'ot-baggage-' . self::BAGGAGE_ITEM_KEY => self::BAGGAGE_ITEM_VALUE,
+            'x-datadog-sampling-priority' => 1,
         ], $carrier);
     }
 

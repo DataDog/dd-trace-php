@@ -8,8 +8,8 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include <json/json.h>
 #include <ext/standard/info.h>
-#include <ext/standard/php_string.h>
 
 #include "coms.h"
 #include "configuration.h"
@@ -54,7 +54,12 @@ static void _dd_add_assoc_array(HashTable *ht, const char *name, size_t name_len
 
 static void _dd_add_assoc_zstring(HashTable *ht, const char *name, size_t name_len, zend_string *str) {
     zval value;
-    ZVAL_STR(&value, str);
+    if (ZSTR_LEN(str) == 0) {
+        zend_string_release(str);
+        ZVAL_NULL(&value);
+    } else {
+        ZVAL_STR(&value, str);
+    }
     zend_hash_str_update(ht, name, name_len, &value);
 }
 
@@ -130,7 +135,7 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_bool(ht, ZEND_STRL("debug"), get_DD_TRACE_DEBUG());
     _dd_add_assoc_bool(ht, ZEND_STRL("analytics_enabled"), get_DD_TRACE_ANALYTICS_ENABLED());
     _dd_add_assoc_double(ht, ZEND_STRL("sample_rate"), get_DD_TRACE_SAMPLE_RATE());
-    _dd_add_assoc_zstring(ht, ZEND_STRL("sampling_rules"), zend_string_copy(get_DD_TRACE_SAMPLING_RULES()));
+    _dd_add_assoc_array(ht, ZEND_STRL("sampling_rules"), _dd_array_copy(get_DD_TRACE_SAMPLING_RULES()));
     // TODO Add integration-specific config: integration_<integration>_analytics_enabled,
     // integration_<integration>_sample_rate, integrations_loaded
     _dd_add_assoc_array(ht, ZEND_STRL("tags"), _dd_array_copy(get_DD_TAGS()));
@@ -301,116 +306,10 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     }
 }
 
-static void _dd_json_escape_string(smart_str *buf, const char *val, size_t len) {
-    // Empty strings are treated as null
-    if (len == 0) {
-        smart_str_appendl(buf, "null", 4);
-        return;
-    }
-
-    smart_str_alloc(buf, len + 2, 0);  // +2 for quotes
-    smart_str_appendc(buf, '"');
-
-    unsigned long pos = 0;
-    unsigned char c;
-    while (pos < len) {
-        c = val[pos++];
-        // @see http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf
-        switch (c) {
-            case '"':
-                smart_str_appendl(buf, "\\\"", 2);
-                break;
-            case '\\':
-                smart_str_appendl(buf, "\\\\", 2);
-                break;
-            // Ignoring case '/' as JSON will not be used in scripting contexts
-            case '\b':
-                smart_str_appendl(buf, "\\b", 2);
-                break;
-            case '\f':
-                smart_str_appendl(buf, "\\f", 2);
-                break;
-            case '\n':
-                smart_str_appendl(buf, "\\n", 2);
-                break;
-            case '\r':
-                smart_str_appendl(buf, "\\r", 2);
-                break;
-            case '\t':
-                smart_str_appendl(buf, "\\t", 2);
-                break;
-            default:
-                smart_str_appendc(buf, c);
-                break;
-        }
-    }
-
-    smart_str_appendc(buf, '"');
-}
-
 static void _dd_serialize_json(HashTable *ht, smart_str *buf) {
-    zend_string *key;
-    zval *val;
-    bool first_elem = true;
-    smart_str_appendc(buf, '{');
-    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, key, val) {
-        if (first_elem) {
-            first_elem = false;
-            smart_str_appendc(buf, '"');
-        } else {
-            smart_str_appendl(buf, ",\"", 2);
-        }
-        smart_str_appendl(buf, ZSTR_VAL(key), ZSTR_LEN(key));
-        smart_str_appendl(buf, "\":", 2);
-        switch (Z_TYPE_P(val)) {
-            case IS_STRING:
-                _dd_json_escape_string(buf, Z_STRVAL_P(val), Z_STRLEN_P(val));
-                break;
-            case IS_NULL:
-                smart_str_appendl(buf, "null", 4);
-                break;
-            case IS_DOUBLE: {
-                char *tmp;
-                int l = spprintf(&tmp, 0, "%f", Z_DVAL_P(val));
-                smart_str_appendl(buf, tmp, l);
-                efree(tmp);
-            } break;
-            case IS_LONG:
-                smart_str_append_long(buf, Z_LVAL_P(val));
-                break;
-            case IS_TRUE:
-                smart_str_appendl(buf, "true", 4);
-                break;
-            case IS_FALSE:
-                smart_str_appendl(buf, "false", 5);
-                break;
-            case IS_ARRAY:
-                smart_str_appendc(buf, '{');
-                zval *value;
-                bool first_value = true;
-                ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(val), key, value) {
-                    if (!first_value) {
-                        smart_str_appendc(buf, ',');
-                    }
-                    first_value = false;
-                    _dd_json_escape_string(buf, ZSTR_VAL(key), ZSTR_LEN(key));
-                    smart_str_appendc(buf, ':');
-                    if (Z_TYPE_P(value) == IS_STRING) {
-                        _dd_json_escape_string(buf, Z_STRVAL_P(value), Z_STRLEN_P(value));
-                    } else {
-                        smart_str_appendl(buf, "\"{unknown type}\"", 16);
-                    }
-                }
-                ZEND_HASH_FOREACH_END();
-                smart_str_appendc(buf, '}');
-                break;
-            default:
-                smart_str_appendl(buf, "\"{unknown type}\"", 16);
-                break;
-        }
-    }
-    ZEND_HASH_FOREACH_END();
-    smart_str_appendc(buf, '}');
+    zval zv;
+    ZVAL_ARR(&zv, ht);
+    zai_json_encode(buf, &zv, 0);
     smart_str_0(buf);
 }
 

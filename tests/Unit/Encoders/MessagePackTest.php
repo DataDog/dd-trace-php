@@ -45,7 +45,7 @@ final class MessagePackTest extends BaseTestCase
     public function testEncodeNoPrioritySampling()
     {
         $span = $this->tracer->startRootSpan('test_name')->getSpan();
-        $this->tracer->setPrioritySampling(null);
+        $this->tracer->setPrioritySampling(\DD_TRACE_PRIORITY_SAMPLING_UNSET);
         $span->finish();
 
         $encoder = new MessagePack();
@@ -67,7 +67,7 @@ final class MessagePackTest extends BaseTestCase
     public function testAlwaysContainsDefaultMetrics()
     {
         $span = $this->tracer->startRootSpan('test_name')->getSpan();
-        $this->tracer->setPrioritySampling(null);
+        $this->tracer->setPrioritySampling(\DD_TRACE_PRIORITY_SAMPLING_UNSET);
         $span->finish();
 
         $encoder = new MessagePack();

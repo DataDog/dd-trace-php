@@ -78,7 +78,11 @@ array(2) {
       string(%d) "%d"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
@@ -109,9 +113,13 @@ array(2) {
       string(2) "bb"
     }
     ["metrics"]=>
-    array(2) {
+    array(4) {
       ["cc"]=>
       float(0)
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

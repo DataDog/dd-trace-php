@@ -6,6 +6,7 @@
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
 #include "handlers_internal.h"
 #include "logging.h"
+#include "priority_sampling/priority_sampling.h"
 #include "span.h"
 
 // True global - only modify during MINIT/MSHUTDOWN
@@ -127,9 +128,10 @@ static int dd_inject_distributed_tracing_headers(zval *ch) {
         array_init(&headers);
     }
 
-    int sampling_priority;
-    if (ddtrace_fetch_prioritySampling_from_root(&sampling_priority)) {
-        add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-sampling-priority: %d", sampling_priority));
+    zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_root();
+    if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        add_next_index_str(&headers,
+                           zend_strpprintf(0, "x-datadog-sampling-priority: " ZEND_LONG_FMT, sampling_priority));
     }
     if (DDTRACE_G(trace_id)) {
         add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-trace-id: %" PRIu64, (DDTRACE_G(trace_id))));

@@ -28,8 +28,8 @@ enabled_cli: %s
 agent_url: "%s"
 debug: true
 analytics_enabled: false
-sample_rate: 1.0000
-sampling_rules: null
+sample_rate: 1
+sampling_rules: []
 tags: []
 service_mapping: []
 distributed_tracing_enabled: true

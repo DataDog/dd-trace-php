@@ -139,7 +139,7 @@ interface Tracer
     public function setPrioritySampling($prioritySampling);
 
     /**
-     * @return mixed
+     * @return int|null
      */
     public function getPrioritySampling();
 

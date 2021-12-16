@@ -41,6 +41,7 @@
 #include "integrations/integrations.h"
 #include "logging.h"
 #include "memory_limit.h"
+#include "priority_sampling/priority_sampling.h"
 #include "random.h"
 #include "request_hooks.h"
 #include "serializer.h"
@@ -208,6 +209,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_init, 0, 0, 1)
 ZEND_ARG_INFO(0, dir)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_get_priority_sampling, 0, 0, 0)
+ZEND_ARG_INFO(0, global)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_set_priority_sampling, 0, 0, 1)
+ZEND_ARG_INFO(0, priority)
+ZEND_ARG_INFO(0, global)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -313,52 +323,6 @@ static void dd_register_span_data_ce(void) {
     zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC);
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
-// SpanData::$name
-zval *ddtrace_spandata_property_name(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 0); }
-// SpanData::$resource
-zval *ddtrace_spandata_property_resource(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 1); }
-// SpanData::$service
-zval *ddtrace_spandata_property_service(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 2); }
-// SpanData::$type
-zval *ddtrace_spandata_property_type(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 3); }
-// SpanData::$meta
-zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 4); }
-// SpanData::$metrics
-zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 5); }
-// SpanData::$exception
-zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
-// SpanData::$parent
-zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 7); }
-#pragma GCC diagnostic pop
-
-bool ddtrace_fetch_prioritySampling_from_root(int *priority) {
-    zval *priority_zv;
-    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-
-    if (!root_span) {
-        return false;
-    }
-
-    while (root_span->next) {
-        root_span = root_span->next;
-    }
-
-    zval *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
-    ZVAL_DEREF(root_metrics);
-    if (Z_TYPE_P(root_metrics) != IS_ARRAY) {
-        return false;
-    }
-
-    if (!(priority_zv = zend_hash_str_find(Z_ARR_P(root_metrics), ZEND_STRL("_sampling_priority_v1")))) {
-        return false;
-    }
-
-    *priority = (int)zval_get_long(priority_zv);
-    return true;
-}
-
 /* DDTrace\FatalError */
 zend_class_entry *ddtrace_ce_fatal_error;
 
@@ -395,6 +359,18 @@ static void dd_read_distributed_tracing_ids(void);
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP", PRIORITY_SAMPLING_AUTO_KEEP,
+                           CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT", PRIORITY_SAMPLING_AUTO_REJECT,
+                           CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_KEEP", PRIORITY_SAMPLING_USER_KEEP,
+                           CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_REJECT", PRIORITY_SAMPLING_USER_REJECT,
+                           CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNKNOWN", DDTRACE_PRIORITY_SAMPLING_UNKNOWN,
+                           CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNSET", DDTRACE_PRIORITY_SAMPLING_UNSET,
+                           CONST_CS | CONST_PERSISTENT);
     REGISTER_INI_ENTRIES();
 
     // config initialization needs to be at the top
@@ -483,6 +459,7 @@ static void dd_initialize_request() {
 
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
+    DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
 
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rinit();
@@ -1472,18 +1449,14 @@ static PHP_FUNCTION(root_span) {
     if (!get_DD_TRACE_ENABLED()) {
         RETURN_NULL();
     }
-    if (!DDTRACE_G(open_spans_top)) {
+    if (!DDTRACE_G(root_span)) {
         if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
             ddtrace_push_root_span();  // ensure root span always exists, especially after serialization for testing
         } else {
             RETURN_NULL();
         }
     }
-    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-    while (root_span->next) {
-        root_span = root_span->next;
-    }
-    RETURN_OBJ_COPY(&root_span->span.std);
+    RETURN_OBJ_COPY(&DDTRACE_G(root_span)->span.std);
 }
 
 /* {{{ proto string DDTrace\start_span() */
@@ -1615,6 +1588,37 @@ static PHP_FUNCTION(dd_trace_compile_time_microseconds) {
     RETURN_LONG(ddtrace_compile_time_get());
 }
 
+static PHP_FUNCTION(set_priority_sampling) {
+    bool global = false;
+    zend_long priority;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "l|b", &priority, &global) == FAILURE) {
+        ddtrace_log_debug("Expected an integer and an optional boolean");
+        RETURN_FALSE;
+    }
+
+    if (global || !DDTRACE_G(root_span)) {
+        DDTRACE_G(default_priority_sampling) = priority;
+    } else {
+        ddtrace_set_prioritySampling_on_root(priority);
+    }
+}
+
+static PHP_FUNCTION(get_priority_sampling) {
+    zend_bool global = false;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "|b", &global) == FAILURE) {
+        ddtrace_log_debug("Expected an optional boolean");
+        RETURN_NULL();
+    }
+
+    if (global || !DDTRACE_G(root_span)) {
+        RETURN_LONG(DDTRACE_G(default_priority_sampling));
+    }
+
+    RETURN_LONG(ddtrace_fetch_prioritySampling_from_root());
+}
+
 static PHP_FUNCTION(startup_logs) {
     UNUSED(execute_data);
 
@@ -1672,6 +1676,8 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(hook_function, arginfo_ddtrace_hook_function),
     DDTRACE_NS_FE(hook_method, arginfo_ddtrace_hook_method),
     DDTRACE_NS_FE(startup_logs, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(get_priority_sampling, arginfo_get_priority_sampling),
+    DDTRACE_NS_FE(set_priority_sampling, arginfo_set_priority_sampling),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
@@ -1695,7 +1701,7 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
 void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
 
 void dd_read_distributed_tracing_ids(void) {
-    zend_string *trace_id_str, *parent_id_str;
+    zend_string *trace_id_str, *parent_id_str, *priority_str;
     bool success = true;
 
     if (zai_read_header_literal("X_DATADOG_TRACE_ID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
@@ -1722,5 +1728,9 @@ void dd_read_distributed_tracing_ids(void) {
     DDTRACE_G(dd_origin) = NULL;
     if (zai_read_header_literal("X_DATADOG_ORIGIN", &DDTRACE_G(dd_origin)) == ZAI_HEADER_SUCCESS) {
         GC_ADDREF(DDTRACE_G(dd_origin));
+    }
+
+    if (zai_read_header_literal("X_DATADOG_SAMPLING_PRIORITY", &priority_str) == ZAI_HEADER_SUCCESS) {
+        DDTRACE_G(default_priority_sampling) = strtol(ZSTR_VAL(priority_str), NULL, 10);
     }
 }

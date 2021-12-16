@@ -310,54 +310,6 @@ function ddtrace_config_autofinish_span_enabled()
 }
 
 /**
- * Returns the sampling rate provided by the user. Default: 1.0 (keep all).
- *
- * @return float
- */
-function ddtrace_config_sampling_rate()
-{
-    $deprecated = \_ddtrace_config_float(\ddtrace_config_read_env_or_ini('DD_SAMPLING_RATE'), 1.0, 0.0, 1.0);
-    return \_ddtrace_config_float(\ddtrace_config_read_env_or_ini('DD_TRACE_SAMPLE_RATE'), $deprecated, 0.0, 1.0);
-}
-
-/**
- * Returns the sampling rules defined for the current service.
- * Results are cached so it is perfectly fine to call this method multiple times.
- * The expected format for sampling rule env variable is:
- * - example: DD_TRACE_SAMPLING_RULES=[]
- *        --> sample rate is 100%
- * - example: DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.2}]
- *        --> sample rate is 20%
- * - example: DD_TRACE_SAMPLING_RULES=[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]
- *        --> sample rate is 20% except for spans of service starting with 'a' and with name 'b' where rate is 10%
- *
- * Note that 'service' and 'name' is optional when when omitted the '*' pattern is assumed.
- *
- * @return array
- */
-function ddtrace_config_sampling_rules()
-{
-    $json = \_ddtrace_config_json(\ddtrace_config_read_env_or_ini('DD_TRACE_SAMPLING_RULES'), []);
-    $normalized = [];
-    // We do a proper parsing here to make sure that once the sampling rules leave this method
-    // they are always properly defined.
-    foreach ($json as &$rule) {
-        if (!is_array($rule) || !isset($rule['sample_rate'])) {
-            continue;
-        }
-        $service = isset($rule['service']) ? strval($rule['service']) : '.*';
-        $name = isset($rule['name']) ? strval($rule['name']) : '.*';
-        $rate = isset($rule['sample_rate']) ? floatval($rule['sample_rate']) : 1.0;
-        $normalized[] = [
-            'service' => $service,
-            'name' => $name,
-            'sample_rate' => $rate,
-        ];
-    }
-    return $normalized;
-}
-
-/**
  * Returns the global tags to be set on all spans.
  */
 function ddtrace_config_global_tags()
