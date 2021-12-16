@@ -29,3 +29,4 @@ php dd-library-php-setup.php --php-bin php --version "${new_version}"
 assert_file_contains "${ini_file}" 'datadog.trace.request_init_hook'
 assert_file_contains "${ini_file}" 'datadog.version'
 
+assert_request_init_hook_exists

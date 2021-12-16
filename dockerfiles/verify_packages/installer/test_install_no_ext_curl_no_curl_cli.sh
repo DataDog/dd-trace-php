@@ -13,3 +13,5 @@ assert_no_ddtrace
 new_version="0.67.0"
 php dd-library-php-setup.php --php-bin php --version "${new_version}"
 assert_ddtrace_version "${new_version}"
+
+assert_request_init_hook_exists

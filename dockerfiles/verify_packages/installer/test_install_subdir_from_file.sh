@@ -27,3 +27,5 @@ else
 fi
 
 assert_file_exists /opt/datadog/dd-library/*/dd-trace-sources/bridge/dd_wrap_autoloader.php
+
+assert_request_init_hook_exists

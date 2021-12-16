@@ -14,3 +14,5 @@ php dd-library-php-setup.php --php-bin php --url "https://github.com/labbati/tes
 assert_ddtrace_version "${new_version}"
 
 assert_file_exists /opt/datadog/dd-library/${new_version}/dd-trace-sources/bridge/dd_wrap_autoloader.php
+
+assert_request_init_hook_exists

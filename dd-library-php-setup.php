@@ -100,17 +100,18 @@ function install($options)
     $releaseVersion = trim(file_get_contents("$tmpArchiveRoot/VERSION"));
 
     $installDir = $options[OPT_INSTALL_DIR] . '/' . $releaseVersion;
+    $installDirSrcDir = $installDir . '/dd-trace-sources';
     $installDirBridgeDir = $installDir . '/dd-trace-sources/bridge';
     $installDirWrapperPath = $installDirBridgeDir . '/dd_wrap_autoloader.php';
 
     // copying sources to the final destination
     execute_or_exit(
-        "Cannot create directory '$installDirBridgeDir'",
-        "mkdir -p " . escapeshellarg($installDirBridgeDir)
+        "Cannot create directory '$installDirSrcDir'",
+        "mkdir -p " . escapeshellarg($installDirSrcDir)
     );
     execute_or_exit(
-        "Cannot copy files from '$tmpBridgeDir' to '$installDirBridgeDir'",
-        "cp -r " . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirBridgeDir)
+        "Cannot copy files from '$tmpBridgeDir' to '$installDirSrcDir'",
+        "cp -r " . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSrcDir)
     );
     echo "Installed required source files to '$installDir'\n";
 

@@ -24,3 +24,5 @@ else
     echo "\nError: request init hook param has not been updated\n---\n$(php --ri ddtrace)\n---\n"
     exit 1
 fi
+
+assert_request_init_hook_exists

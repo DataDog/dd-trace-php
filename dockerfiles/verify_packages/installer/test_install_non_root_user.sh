@@ -25,8 +25,8 @@ else
 fi
 
 if [ -z "${output##*Cannot create directory \'/opt/datadog/dd-library/${new_version}/dd-trace-sources\'*}" ]; then
-    echo "Ok: Output contains - Cannot create directory '/opt/datadog/dd-library/${new_version}/add-trace-sources'"
+    echo "Ok: Output contains - Cannot create directory '/opt/datadog/dd-library/${new_version}/dd-trace-sources'"
 else
-    echo "Error: Output does not contain - Cannot create directory '/opt/datadog/dd-library/${new_version}/add-trace-sources'\n---\n${output}\n---\n"
+    echo "Error: Output does not contain - Cannot create directory '/opt/datadog/dd-library/${new_version}/dd-trace-sources'\n---\n${output}\n---\n"
     exit 1
 fi
