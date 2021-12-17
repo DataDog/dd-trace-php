@@ -293,6 +293,23 @@ $(PACKAGES_BUILD_DIR):
 	fpm -p /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) -t dir $(FPM_OPTS) $(FPM_FILES)
 	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).x86_64.tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
+BUNDLE_TMP_DIR := /tmp/dd-bundle
+BUNDLE_TMP_GNU_TRACER_DIR := $(BUNDLE_TMP_DIR)/x86_64-gnu/dd-library-php/tracer
+BUNDLE_TMP_MUSL_TRACER_DIR := $(BUNDLE_TMP_DIR)/x86_64-musl/dd-library-php/tracer
+bundle.tar.gz: #$(PACKAGES_BUILD_DIR)
+	mkdir -p $(BUNDLE_TMP_DIR)
+	set -euo pipefail; \
+	php_apis=(20100412 20121113 20131106 20151012 20160303 20170718 20180731 20190902 20200930 20210902); \
+	for php_api in "$${php_apis[@]}"; do \
+		mkdir -p $(BUNDLE_TMP_GNU_TRACER_DIR)/ext/$$php_api $(BUNDLE_TMP_MUSL_TRACER_DIR)/ext/$$php_api; \
+		cp ./extensions/ddtrace-$$php_api.so $(BUNDLE_TMP_GNU_TRACER_DIR)/ext/$$php_api/ddtrace.so \
+		cp ./extensions/ddtrace-$$php_api-zts.so $(BUNDLE_TMP_GNU_TRACER_DIR)/ext/$$php_api/ddtrace-zts.so \
+		cp ./extensions/ddtrace-$$php_api-debug.so $(BUNDLE_TMP_GNU_TRACER_DIR)/ext/$$php_api/ddtrace-debug.so \
+		cp ./extensions/ddtrace-$$php_api-alpine.so $(BUNDLE_TMP_MUSL_TRACER_DIR)/ext/$$php_api/ddtrace.so \
+	done; \
+	cp -r ./bridge $(BUNDLE_TMP_GNU_TRACER_DIR); \
+	cp -r ./bridge $(BUNDLE_TMP_MUSL_TRACER_DIR); \
+
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \
 	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
