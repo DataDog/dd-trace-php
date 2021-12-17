@@ -1,0 +1,43 @@
+name: 'Test'
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The release version'
+        required: true
+        default: 0.68.0
+      tracer_gnu_url:
+        description: 'Url to the GNU tracer bundle'
+        required: true
+        default: https://799850-119990860-gh.circle-artifacts.com/0/dd-library-php-x86_64-gnu.tar.gz
+      tracer_musl_url:
+        description: 'Url to the MUSL tracer bundle'
+        required: true
+        default: https://799850-119990860-gh.circle-artifacts.com/0/dd-library-php-x86_64-musl.tar.gz
+      profiler_url:
+        description: 'Url to the profiler bundle'
+        required: true
+        default: https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0-rc.2/datadog-profiling.tar.gz
+jobs:
+  Build-Final-Artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - run: chmod a+x ${GITHUB_WORKSPACE}/.github/workflows/generate-final-artifact.sh
+      - run: |
+              ${GITHUB_WORKSPACE}/.github/workflows/generate-final-artifact.sh \
+                ${{ github.event.inputs.version }} \
+                ${{ github.event.inputs.tracer_gnu_url }} \
+                ${{ github.event.inputs.tracer_musl_url }} \
+                ${{ github.event.inputs.profiler_url }} \
+      - name: Archive GNU production artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: dd-library-php-x86_64-gnu.tar.gz
+          path: dd-library-php-x86_64-gnu.tar.gz
+      - name: Archive musl production artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: dd-library-php-x86_64-musl.tar.gz
+          path: dd-library-php-x86_64-musl.tar.gz
