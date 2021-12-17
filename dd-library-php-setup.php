@@ -1,5 +1,7 @@
 <?php
 
+// Tests for the installer are in 'dockerfiles/verify_packages/installer'
+
 const INI_CONF = 'Scan this dir for additional .ini files';
 const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
@@ -163,7 +165,7 @@ function install($options)
                     "mkdir -p " . escapeshellarg($iniDir)
                 );
 
-                if (false === file_put_contents($iniFilePath, get_ini_template($installDirWrapperPath))) {
+                if (false === file_put_contents($iniFilePath, '')) {
                     print_error_and_exit("Cannot create INI file $iniFilePath");
                 }
                 echo "Created INI file '$iniFilePath'\n";
@@ -189,6 +191,9 @@ function install($options)
                     "sed -i 's@extension \?= \?\(.*\)@extension = ddtrace.so@g' " . escapeshellarg($iniFilePath)
                 );
             }
+
+            add_missing_ini_settings($iniFilePath, get_ini_settings($installDirWrapperPath));
+
             echo "Installation to '$binaryForLog' was successful\n";
         }
     }
@@ -775,136 +780,311 @@ function build_known_command_names_matrix()
     return array_unique($results);
 }
 
-function get_ini_template($requestInitHookPath)
+/**
+ * Adds ini entries that are not present in the provided ini file.
+ *
+ * @param string $iniFilePath
+ */
+function add_missing_ini_settings($iniFilePath, $settings)
+{
+    $iniFileContent = file_get_contents($iniFilePath);
+    $formattedMissingProperties = '';
+
+    foreach ($settings as $setting) {
+        $settingMightExist = 1 === preg_match(
+            '/' . str_replace('.', '\.', $setting['name']) . '\s?=\s?/',
+            $iniFileContent
+        );
+        if ($settingMightExist) {
+            continue;
+        }
+
+        // Formatting the setting to be added.
+        $description =
+            is_string($setting['description'])
+                ? '; ' . $setting['description']
+                : implode(
+                    "\n",
+                    array_map(
+                        function ($line) {
+                            return '; ' . $line;
+                        },
+                        $setting['description']
+                    )
+                );
+        $setting = ($setting['commented'] ? ';' : '') . $setting['name'] . ' = ' . $setting['default'];
+        $formattedMissingProperties .= "\n$description\n$setting\n";
+    }
+
+    if ($formattedMissingProperties !== '') {
+        if (false === file_put_contents($iniFilePath, $iniFileContent . $formattedMissingProperties)) {
+            print_error_and_exit("Cannot add additional settings to the INI file $iniFilePath");
+        }
+    }
+}
+
+/**
+ * Returns array of associative arrays with the following keys:
+ *   - name (string): the setting name;
+ *   - default (string): the default value;
+ *   - commented (bool): whether this setting should be commented or not when added;
+ *   - description (string|string[]): A string (or an array of strings, each representing a line) that describes
+ *                                    the setting.
+ *
+ * @param string $requestInitHookPath
+ * @return array
+ */
+function get_ini_settings($requestInitHookPath)
 {
     // phpcs:disable Generic.Files.LineLength.TooLong
-    return <<<EOD
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Required settings
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Enables or disables tracing (set by the installer, do not change it)
-extension = ddtrace.so
-
-; Path to the request init hook (set by the installer, do not change it)
-datadog.trace.request_init_hook = $requestInitHookPath
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Common settings
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Enables or disables tracing. On by default.
-;datadog.trace.enabled = On
-
-; Enables or disables debug mode.  When On logs are printed to the error_log.
-;datadog.trace.debug = Off
-
-; Enables startup logs, including diagnostic checks.
-;datadog.trace.startup_logs = On
-
-; Sets a custom service name for the application.
-;datadog.service = my_service
-
-; Sets a custom environment name for the application.
-;datadog.env = my_env
-
-; Sets a version for the user application, not the datadog php library.
-;datadog.version = 1.0.0
-
-; Configures the agent host and ports. If you need more flexibility use `datadog.trace.agent_url` instead.
-;datadog.agent_host = localhost
-;datadog.trace.agent_port = 8126
-;datadog.dogstatsd_port = 8125
-
-; When set, 'datadog.trace.agent_url' has priority over 'datadog.agent_host' and 'datadog.trace.agent_port'.
-;datadog.trace.agent_url = http://some.internal.host:6789
-
-; Sets the service name of spans generated for HTTP clients' requests to host-<hostname>.
-;datadog.trace.http_client_split_by_domain = Off
-
-; Configures URL to resource name normalization. For more details see:
-; https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#map-resource-names-to-normalized-uri
-; NOTE: Colons ',' in `datadog.trace.resource_uri_fragment_regex` are not supported.
-;datadog.trace.url_as_resource_names_enabled = On
-;datadog.trace.resource_uri_fragment_regex =
-;datadog.trace.resource_uri_mapping_incoming =
-;datadog.trace.resource_uri_mapping_outgoing =
-
-; Changes the default name of an APM integration. Rename one or more integrations at a time, for example:
-; "pdo:payments-db,mysqli:orders-db"
-;datadog.service_mapping =
-
-; Tags to be set on all spans, for example: "key1:value1,key2:value2".
-;datadog.tags =
-
-; The sampling rate for the trace. Valid values are between 0.0 and 1.0.
-;datadog.trace.sample_rate = 1.0
-
-; A JSON encoded string to configure the sampling rate.
-; Examples:
-;   - Set the sample rate to 20%: '[{"sample_rate": 0.2}]'.
-;   - Set the sample rate to 10% for services starting with ‘a’ and span name ‘b’ and set the sample rate to 20%
-;     for all other services: '[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]'
-; **Note** that the JSON object must be included in single quotes (') to avoid problems with escaping of the
-; double quote (") character.
-;datadog.trace.sampling_rules =
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CLI settings
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Enable or disable tracing of CLI scripts. Off by default.
-;datadog.trace.cli_enabled = Off
-
-; For long running processes, this setting has to be set to On
-;datadog.trace.auto_flush_enabled = Off
-
-; For long running processes, this setting has to be set to Off
-;datadog.trace.generate_root_span = On
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Integrations settings
-; For each integration (see https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#integration-names):
-;   - *_enabled: whether the integration is enabled.
-;   - *_analytics_enabled: whether analytics for the integration is enabled.
-;   - *_analytics_sample_rate: sampling rate for analyzed spans. Valid values are between 0.0 and 1.0.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;datadog.trace.<integration_name>_enabled = On
-;datadog.trace.<integration_name>_analytics_enabled = Off
-;datadog.trace.<integration_name>_analytics_sample_rate = 1.0
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Other settings
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Enables distributed tracing.
-;datadog.distributed_tracing = On
-
-; Global switch for trace analytics.
-;datadog.trace.analytics_enabled = Off
-
-; Set connection timeout in millisecodns while connecting to the agent.
-;datadog.trace.bgs_connect_timeout = 2000
-
-; Set request timeout in millisecodns while while sending payloads to the agent.
-;datadog.trace.bgs_timeout = 5000
-
-; Set the maximum number of spans generated per trace during a single request.
-;datadog.trace.spans_limit = 1000
-
-; Only for Linux. Set to `true` to retain capabilities on Datadog background threads when you change the effective
-; user ID. This option does not affect most setups, but some modules - to date Datadog is only aware of Apache’s
-; mod-ruid2 - may invoke `setuid()` or similar syscalls, leading to crashes or loss of functionality as it loses
-; capabilities.
-; **Note** Enabling this option may compromise security. This option, standalone, does not pose a security risk.
-; However, an attacker being able to exploit a vulnerability in PHP or web server may be able to escalate privileges
-; with relative ease, if the web server or PHP were started with full capabilities, as the background threads will
-; retain their original capabilities. Datadog recommends restricting the capabilities of the web server with the
-; setcap utility.
-;datadog.trace.retain_thread_capabilities = Off
-
-EOD;
+    return [
+        [
+            'name' => 'extension',
+            'default' => 'ddtrace.so',
+            'commented' => false,
+            'description' => 'Enables or disables tracing (set by the installer, do not change it)',
+        ],
+        [
+            'name' => 'datadog.trace.request_init_hook',
+            'default' => $requestInitHookPath,
+            'commented' => false,
+            'description' => 'Path to the request init hook (set by the installer, do not change it)',
+        ],
+        [
+            'name' => 'datadog.trace.enabled',
+            'default' => 'On',
+            'commented' => true,
+            'description' => 'Enables or disables tracing. On by default',
+        ],
+        [
+            'name' => 'datadog.trace.cli_enabled',
+            'default' => 'Off',
+            'commented' => true,
+            'description' => 'Enable or disable tracing of CLI scripts. Off by default',
+        ],
+        [
+            'name' => 'datadog.trace.auto_flush_enabled',
+            'default' => 'Off',
+            'commented' => true,
+            'description' => 'For long running processes, this setting has to be set to On',
+        ],
+        [
+            'name' => 'datadog.trace.generate_root_span',
+            'default' => 'On',
+            'commented' => true,
+            'description' => 'For long running processes, this setting has to be set to Off',
+        ],
+        [
+            'name' => 'datadog.trace.debug',
+            'default' => 'Off',
+            'commented' => true,
+            'description' => 'Enables or disables debug mode.  When On logs are printed to the error_log',
+        ],
+        [
+            'name' => 'datadog.trace.startup_logs',
+            'default' => 'On',
+            'commented' => true,
+            'description' => 'Enables startup logs, including diagnostic checks',
+        ],
+        [
+            'name' => 'datadog.service',
+            'default' => 'unnamed-php-service',
+            'commented' => true,
+            'description' => 'Sets a custom service name for the application',
+        ],
+        [
+            'name' => 'datadog.env',
+            'default' => 'my_env',
+            'commented' => true,
+            'description' => 'Sets a custom environment name for the application',
+        ],
+        [
+            'name' => 'datadog.version',
+            'default' => '1.0.0',
+            'commented' => true,
+            'description' => 'Sets a version for the user application, not the datadog php library',
+        ],
+        [
+            'name' => 'datadog.agent_host',
+            'default' => '127.0.0.1',
+            'commented' => true,
+            'description' => 'Configures the agent host. If you need more flexibility use `datadog.trace.agent_url` instead',
+        ],
+        [
+            'name' => 'datadog.trace.agent_port',
+            'default' => '8126',
+            'commented' => true,
+            'description' => 'Configures the agent port. If you need more flexibility use `datadog.trace.agent_url` instead',
+        ],
+        [
+            'name' => 'datadog.dogstatsd_port',
+            'default' => '8125',
+            'commented' => true,
+            'description' => 'Configures the dogstatsd agent port',
+        ],
+        [
+            'name' => 'datadog.trace.agent_url',
+            'default' => 'http://127.0.0.1:8126',
+            'commented' => true,
+            'description' => 'When set, `datadog.trace.agent_url` has priority over `datadog.agent_host` and `datadog.trace.agent_port`',
+        ],
+        [
+            'name' => 'datadog.trace.http_client_split_by_domain',
+            'default' => 'Off',
+            'commented' => true,
+            'description' => 'Sets the service name of spans generated for HTTP clients\' requests to host-<hostname>',
+        ],
+        [
+            'name' => 'datadog.trace.url_as_resource_names_enabled',
+            'default' => 'On',
+            'commented' => true,
+            'description' => [
+                'Enables URL to resource name normalization. For more details see:',
+                'https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#map-resource-names-to-normalized-uri',
+            ],
+        ],
+        [
+            'name' => 'datadog.trace.resource_uri_fragment_regex',
+            'default' => '',
+            'commented' => true,
+            'description' => [
+                'Configures obfuscation patterns based on regex. For more details see:',
+                'https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#map-resource-names-to-normalized-uri',
+            ],
+        ],
+        [
+            'name' => 'datadog.trace.resource_uri_mapping_incoming',
+            'default' => '',
+            'commented' => true,
+            'description' => [
+                'Configures obfuscation path fragments for incoming requests. For more details see:',
+                'https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#map-resource-names-to-normalized-uri',
+            ],
+        ],
+        [
+            'name' => 'datadog.trace.resource_uri_mapping_outgoing',
+            'default' => '',
+            'commented' => true,
+            'description' => [
+                'Configures obfuscation path fragments for outgoing requests. For more details see:',
+                'https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#map-resource-names-to-normalized-uri',
+            ],
+        ],
+        [
+            'name' => 'datadog.service_mapping',
+            'default' => '',
+            'commented' => true,
+            'description' => [
+                'Changes the default name of an APM integration. Rename one or more integrations at a time, for example:',
+                '"pdo:payments-db,mysqli:orders-db"',
+            ],
+        ],
+        [
+            'name' => 'datadog.tags',
+            'default' => '',
+            'commented' => true,
+            'description' => 'Tags to be set on all spans, for example: "key1:value1,key2:value2"',
+        ],
+        [
+            'name' => 'datadog.trace.sample_rate',
+            'default' => '1.0',
+            'commented' => true,
+            'description' => 'The sampling rate for the trace. Valid values are between 0.0 and 1.0',
+        ],
+        [
+            'name' => 'datadog.trace.sample_rate',
+            'default' => '1.0',
+            'commented' => true,
+            'description' => 'The sampling rate for the trace. Valid values are between 0.0 and 1.0',
+        ],
+        [
+            'name' => 'datadog.trace.sampling_rules',
+            'default' => '',
+            'commented' => true,
+            'description' => [
+                'A JSON encoded string to configure the sampling rate.',
+                'Examples:',
+                '  - Set the sample rate to 20%: \'[{"sample_rate": 0.2}]\'.',
+                '  - Set the sample rate to 10% for services starting with `a` and span name `b` and set the sample rate to 20%',
+                '    for all other services: \'[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]\'',
+                '**Note** that the JSON object must be included in single quotes (\') to avoid problems with escaping of the',
+                'double quote (") character.',
+            ],
+        ],
+        [
+            'name' => 'datadog.trace.<integration_name>_enabled',
+            'default' => 'On',
+            'commented' => true,
+            'description' => [
+                'Whether a specific integration is enabled.',
+                'Integrations names available at: see https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#integration-names',
+            ],
+        ],
+        [
+            'name' => 'datadog.trace.<integration_name>_analytics_enabled',
+            'default' => 'Off',
+            'commented' => true,
+            'description' => [
+                'Whether analytics for the integration is enabled.',
+                'Integrations names available at: see https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#integration-names',
+            ],
+        ],
+        [
+            'name' => 'datadog.trace.<integration_name>_analytics_sample_rate',
+            'default' => '1.0',
+            'commented' => true,
+            'description' => [
+                'Sampling rate for analyzed spans. Valid values are between 0.0 and 1.0.',
+                'Integrations names available at: see https://docs.datadoghq.com/tracing/setup_overview/setup/php/?tab=containers#integration-names',
+            ],
+        ],
+        [
+            'name' => 'datadog.distributed_tracing',
+            'default' => 'On',
+            'commented' => true,
+            'description' => 'Enables distributed tracing',
+        ],
+        [
+            'name' => 'datadog.trace.analytics_enabled',
+            'default' => 'Off',
+            'commented' => true,
+            'description' => 'Global switch for trace analytics',
+        ],
+        [
+            'name' => 'datadog.trace.bgs_connect_timeout',
+            'default' => '2000',
+            'commented' => true,
+            'description' => 'Set connection timeout in milliseconds while connecting to the agent',
+        ],
+        [
+            'name' => 'datadog.trace.bgs_timeout',
+            'default' => '5000',
+            'commented' => true,
+            'description' => 'Set request timeout in milliseconds while while sending payloads to the agent',
+        ],
+        [
+            'name' => 'datadog.trace.spans_limit',
+            'default' => '1000',
+            'commented' => true,
+            'description' => 'datadog.trace.spans_limit = 1000',
+        ],
+        [
+            'name' => 'datadog.trace.retain_thread_capabilities',
+            'default' => 'Off',
+            'commented' => true,
+            'description' => [
+                'Only for Linux. Set to `true` to retain capabilities on Datadog background threads when you change the effective',
+                'user ID. This option does not affect most setups, but some modules - to date Datadog is only aware of Apache`s',
+                'mod-ruid2 - may invoke `setuid()` or similar syscalls, leading to crashes or loss of functionality as it loses',
+                'capabilities.',
+                '**Note** Enabling this option may compromise security. This option, standalone, does not pose a security risk.',
+                'However, an attacker being able to exploit a vulnerability in PHP or web server may be able to escalate privileges',
+                'with relative ease, if the web server or PHP were started with full capabilities, as the background threads will',
+                'retain their original capabilities. Datadog recommends restricting the capabilities of the web server with the',
+                'setcap utility.',
+            ],
+        ],
+    ];
     // phpcs:enable Generic.Files.LineLength.TooLong
 }
 
