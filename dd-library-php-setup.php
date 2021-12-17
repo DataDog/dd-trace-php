@@ -258,8 +258,8 @@ function uninstall($options)
         }
 
         /* Actual uninstall
-         *  1) comment out extension=datadog-trace
-         *  2) remove datadog-trace
+         *  1) comment out extension=ddtrace.so
+         *  2) remove ddtrace.so
          */
         foreach ($iniFilePaths as $iniFilePath) {
             if (file_exists($iniFilePath)) {
