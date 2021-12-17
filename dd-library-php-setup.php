@@ -888,7 +888,7 @@ function get_ini_settings($requestInitHookPath)
         ],
         [
             'name' => 'datadog.service',
-            'default' => 'my_service',
+            'default' => 'unnamed-php-service',
             'commented' => true,
             'description' => 'Sets a custom service name for the application',
         ],
