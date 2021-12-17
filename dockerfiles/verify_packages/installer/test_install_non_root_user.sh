@@ -10,7 +10,7 @@ assert_no_ddtrace
 useradd -m datadog -p datadog
 usermod -a -G datadog datadog
 
-new_version="0.67.0"
+new_version="0.68.0"
 
 set +e
 output=$(su datadog -c "php /app/dd-library-php-setup.php --version ${new_version} --php-bin php")

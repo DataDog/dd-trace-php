@@ -8,7 +8,7 @@ set -e
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.67.0"
+new_version="0.68.0"
 
 # Verify that wrong installation dir (e.g. /) does not delete all files in root
 php dd-library-php-setup.php --php-bin php --version "${new_version}" --install-dir /

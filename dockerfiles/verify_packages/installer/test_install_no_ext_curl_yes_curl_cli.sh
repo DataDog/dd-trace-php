@@ -10,7 +10,7 @@ apk add php7 php7-json libcurl libexecinfo curl
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.67.0"
+new_version="0.68.0"
 php dd-library-php-setup.php --php-bin php --version "${new_version}"
 assert_ddtrace_version "${new_version}"
 

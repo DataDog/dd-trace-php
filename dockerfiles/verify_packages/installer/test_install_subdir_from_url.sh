@@ -8,7 +8,7 @@ set -e
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.67.0"
+new_version="0.68.0"
 php dd-library-php-setup.php --php-bin php --url "https://github.com/labbati/test-actions/releases/download/${new_version}/dd-library-php-x86_64-gnu.tar.gz"
 
 assert_ddtrace_version "${new_version}"
