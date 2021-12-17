@@ -812,7 +812,7 @@ function get_ini_settings($requestInitHookPath)
     return [
         [
             'name' => 'extension',
-            'default' => 'datadog-trace.so',
+            'default' => 'ddtrace.so',
             'commented' => false,
             'description' => 'Enables or disables tracing (set by the installer, do not change it)',
         ],
