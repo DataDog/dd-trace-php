@@ -4,6 +4,7 @@ Distributed tracing headers propagate with curl_multi_exec() after curl_copy_han
 <?php if (PHP_VERSION_ID < 50616) die('skip: PHP < 5.6.16 has a separate test due to bug #71523'); ?>
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
+<?php if (getenv("USE_ZEND_ALLOC") === "0") die("skip: test spuriously fails under valgrind"); ?>
 --INI--
 ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--

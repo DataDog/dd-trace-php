@@ -4,6 +4,7 @@
 <?php if (PHP_VERSION_ID >= 50616) die('skip: PHP >= 5.6.16 is not affected by bug #71523'); ?>
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
+<?php if (getenv("USE_ZEND_ALLOC") === "0") die("skip: test spuriously fails under valgrind"); ?>
 --INI--
 ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
