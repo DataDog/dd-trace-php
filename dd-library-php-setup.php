@@ -185,8 +185,7 @@ function install($options)
                  */
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@extension \?= \?\(.*\)@extension = datadog-trace.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    "sed -i 's@extension \?= \?\(.*\)@extension = ddtrace.so@g' " . escapeshellarg($iniFilePath)
                 );
             }
 
