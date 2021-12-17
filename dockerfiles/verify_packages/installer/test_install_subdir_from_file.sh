@@ -12,7 +12,7 @@ if [ "$CIRCLECI" = "true" ]; then
     exit 0
 fi
 
-new_version="0.67.0"
+new_version="0.68.0"
 curl -L -o /tmp/downloaded.tar.gz "https://github.com/labbati/test-actions/releases/download/${new_version}/dd-library-php-x86_64-gnu.tar.gz"
 
 # Install using the php installer
