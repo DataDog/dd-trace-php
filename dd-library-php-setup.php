@@ -920,7 +920,7 @@ function get_ini_settings($requestInitHookPath)
             'name' => 'datadog.dogstatsd_port',
             'default' => '8125',
             'commented' => true,
-            'description' => 'Configures the dogstatsd agent port. If you need more flexibility use `datadog.trace.agent_url` instead',
+            'description' => 'Configures the dogstatsd agent port',
         ],
         [
             'name' => 'datadog.trace.agent_url',
