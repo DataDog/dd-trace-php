@@ -136,7 +136,7 @@ function install($options)
         }
 
         // Tracer
-        $extensionRealPath = "$tmpArchiveTracerRoot/ext/$extensionVersion/datadog-trace$extensionSuffix.so" ;
+        $extensionRealPath = "$tmpArchiveTracerRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so" ;
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
