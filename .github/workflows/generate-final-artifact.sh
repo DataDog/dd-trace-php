@@ -58,6 +58,16 @@ do
     cp $tmp_folder_profiler/datadog-profiling/x86_64-linux-musl/lib/php/$version/datadog-profiling.so $tmp_folder_final/x86_64-musl/dd-library-php/profiler/ext/$version/datadog-profiling.so
 done
 
+# Licenses
+cp \
+    $tmp_folder_profiler/datadog-profiling/x86_64-linux-gnu/LICENSE* \
+    $tmp_folder_profiler/datadog-profiling/x86_64-linux-gnu/NOTICE* \
+    $tmp_folder_final_gnu/dd-library-php/profiler
+cp \
+    $tmp_folder_profiler/datadog-profiling/x86_64-linux-musl/LICENSE* \
+    $tmp_folder_profiler/datadog-profiling/x86_64-linux-musl/NOTICE* \
+    $tmp_folder_final_musl/dd-library-php/profiler
+
 ########################
 # Final archives
 ########################

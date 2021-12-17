@@ -17,7 +17,7 @@ on:
       profiler_url:
         description: 'Url to the profiler bundle'
         required: true
-        default: https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0-rc.2/datadog-profiling.tar.gz
+        default: https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0-rc.3/datadog-profiling.tar.gz
 jobs:
   Build-Final-Artifact:
     runs-on: ubuntu-latest
