@@ -13,3 +13,5 @@ php dd-library-php-setup.php --php-bin php --version "${new_version}"
 assert_ddtrace_version "${new_version}"
 
 assert_request_init_hook_exists
+
+# Profiler installed but disabled

@@ -814,7 +814,7 @@ function get_php_major_minor($binary)
 {
     return execute_or_exit(
         "Cannot read PHP version",
-        "$binary 'echo PHP_MAJOR_VERSION . \' \' . PGP_MINOR_VERSION'"
+        "$binary -r \"echo PHP_MAJOR_VERSION . ' ' . PHP_MINOR_VERSION;\""
     );
 }
 
