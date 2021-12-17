@@ -100,18 +100,18 @@ function install($options)
     $releaseVersion = trim(file_get_contents("$tmpArchiveRoot/VERSION"));
 
     $installDir = $options[OPT_INSTALL_DIR] . '/' . $releaseVersion;
-    $installDirSrcDir = $installDir . '/dd-trace-sources';
-    $installDirBridgeDir = $installDir . '/dd-trace-sources/bridge';
+    $installDirSourcesDir = $installDir . '/dd-trace-sources';
+    $installDirBridgeDir = $installDirSourcesDir . '/bridge';
     $installDirWrapperPath = $installDirBridgeDir . '/dd_wrap_autoloader.php';
 
     // copying sources to the final destination
     execute_or_exit(
-        "Cannot create directory '$installDirSrcDir'",
-        "mkdir -p " . escapeshellarg($installDirSrcDir)
+        "Cannot create directory '$installDirSourcesDir'",
+        "mkdir -p " . escapeshellarg($installDirSourcesDir)
     );
     execute_or_exit(
-        "Cannot copy files from '$tmpBridgeDir' to '$installDirSrcDir'",
-        "cp -r " . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSrcDir)
+        "Cannot copy files from '$tmpBridgeDir' to '$installDirSourcesDir'",
+        "cp -r " . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSourcesDir)
     );
     echo "Installed required source files to '$installDir'\n";
 
@@ -137,7 +137,7 @@ function install($options)
 
         // Tracer
         $extensionRealPath = "$tmpArchiveTracerRoot/ext/$extensionVersion/datadog-trace$extensionSuffix.so" ;
-        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-trace.so';
+        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Writing the ini file
@@ -216,8 +216,8 @@ function install($options)
 /**
  * Copies an extension's file to a destination using copy+rename to avoid segfault if the file is loaded by php.
  *
- * @param mixed $source
- * @param mixed $destination
+ * @param string $source
+ * @param string $destination
  * @return void
  */
 function safe_copy_extension($source, $destination)
@@ -241,7 +241,7 @@ function uninstall($options)
 
         $phpProperties = ini_values($fullPath);
 
-        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-trace.so';
+        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
 
         // Writing the ini file
         $iniFileName = '98-ddtrace.ini';
