@@ -197,7 +197,8 @@ function install($options)
                  */
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' " . escapeshellarg($iniFilePath)
+                    "sed -i 's@extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
+                        . escapeshellarg($iniFilePath)
                 );
             }
 
@@ -205,10 +206,13 @@ function install($options)
 
             // Enabling profiler
             if (is_truthy($options[OPT_ENABLE_PROFILING])) {
+                // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' " . escapeshellarg($iniFilePath)
+                    "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' "
+                        . escapeshellarg($iniFilePath)
                 );
+                // phpcs:enable Generic.Files.LineLength.TooLong
             }
 
             echo "Installation to '$binaryForLog' was successful\n";
@@ -260,7 +264,10 @@ function uninstall($options)
 
         $phpProperties = ini_values($fullPath);
 
-        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
+        $extensionDestinations = [
+            $phpProperties[EXTENSION_DIR] . '/ddtrace.so',
+            $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so',
+        ];
 
         // Writing the ini file
         $iniFileName = '98-ddtrace.ini';
@@ -284,15 +291,25 @@ function uninstall($options)
         foreach ($iniFilePaths as $iniFilePath) {
             if (file_exists($iniFilePath)) {
                 execute_or_exit(
-                    "Impossible to disable ddtrace from '$iniFilePath'. Disable it manually.",
+                    "Impossible to disable PHP modules from '$iniFilePath'. You can disable them manually.",
                     "sed -i 's@^extension \?=@;extension =@g' " . escapeshellarg($iniFilePath)
                 );
-                echo "Disabled ddtrace in INI file '$iniFilePath'. "
+                execute_or_exit(
+                    "Impossible to disable Zend modules from '$iniFilePath'. You can disable them manually.",
+                    "sed -i 's@^zend_extension \?=@;zend_extension =@g' " . escapeshellarg($iniFilePath)
+                );
+                echo "Disabled all modules in INI file '$iniFilePath'. "
                     . "The file has not been removed to preserve custom settings.\n";
             }
         }
-        if (file_exists($extensionDestination) && false === unlink($extensionDestination)) {
-            print_warning("Error while removing $extensionDestination. It can be manually removed.");
+        $errors = false;
+        foreach ($extensionDestinations as $extensionDestination) {
+            if (file_exists($extensionDestination) && false === unlink($extensionDestination)) {
+                print_warning("Error while removing $extensionDestination. It can be manually removed.");
+                $errors = true;
+            }
+        }
+        if ($errors) {
             echo "Uninstall from '$binaryForLog' was completed with warnings\n";
         } else {
             echo "Uninstall from '$binaryForLog' was successful\n";
