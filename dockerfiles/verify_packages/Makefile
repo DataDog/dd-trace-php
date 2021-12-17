@@ -78,6 +78,8 @@ test_install_non_root_user.sh \
 test_install_subdir_from_file.sh \
 test_install_subdir_from_url.sh \
 test_install_subdir_from_version.sh \
+test_profiler_install_disabled.sh \
+test_profiler_install_enabled.sh \
 test_uninstall.sh \
 test_upgrade_from_legacy.sh \
 	:

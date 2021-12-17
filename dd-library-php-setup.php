@@ -146,10 +146,9 @@ function install($options)
 
         // Profiler
         $shouldInstallProfiler = in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0']);
-        $shouldEnableProfiler = false;
         if ($shouldInstallProfiler) {
             $profilerExtensionRealPath = "$tmpArchiveProfilerRoot/ext/$extensionVersion/datadog-profiling.so";
-            $profilerExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddprofiling.so';
+            $profilerExtensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so';
             safe_copy_extension($profilerExtensionRealPath, $profilerExtensionDestination);
         }
 
@@ -198,11 +197,19 @@ function install($options)
                  */
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@extension \?= \?\(.*\)@extension = ddtrace.so@g' " . escapeshellarg($iniFilePath)
+                    "sed -i 's@extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' " . escapeshellarg($iniFilePath)
                 );
             }
 
             add_missing_ini_settings($iniFilePath, get_ini_settings($installDirWrapperPath));
+
+            // Enabling profiler
+            if (is_truthy($options[OPT_ENABLE_PROFILING])) {
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' " . escapeshellarg($iniFilePath)
+                );
+            }
 
             echo "Installation to '$binaryForLog' was successful\n";
         }
@@ -399,6 +406,7 @@ function parse_validate_user_options()
         OPT_VERSION . ':',
         OPT_INSTALL_DIR . ':',
         OPT_UNINSTALL,
+        OPT_ENABLE_PROFILING,
     ];
     $options = getopt($shortOptions, $longOptions);
 
@@ -448,6 +456,8 @@ function parse_validate_user_options()
         ? rtrim($options[OPT_INSTALL_DIR], '/')
         : '/opt/datadog';
     $normalizedOptions[OPT_INSTALL_DIR] =  $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
+
+    $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
 
     return $normalizedOptions;
 }
@@ -814,7 +824,7 @@ function get_php_major_minor($binary)
 {
     return execute_or_exit(
         "Cannot read PHP version",
-        "$binary -r \"echo PHP_MAJOR_VERSION . ' ' . PHP_MINOR_VERSION;\""
+        "$binary -r \"echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;\""
     );
 }
 

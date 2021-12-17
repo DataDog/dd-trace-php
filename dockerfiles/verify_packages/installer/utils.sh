@@ -31,12 +31,31 @@ assert_no_ddtrace() {
     echo "Ok: ddtrace is not installed"
 }
 
+assert_no_profiler() {
+    output="$(php -v)"
+    if [ -z "${output##*datadog-profiling*}" ]; then
+        echo "---\nError: profiler should not be installed\n---\n${1}\n---\n"
+        exit 1
+    fi
+    echo "Ok: profiler is not installed"
+}
+
 assert_ddtrace_version() {
     output="$(php -v)"
     if [ -z "${output##*ddtrace v${1}*}" ]; then
         echo "---\nOk: ddtrace version '${1}' is correctly installed\n---\n${output}\n---\n"
     else
-        echo "---\nError: Wrong version. Expected: ${1}\n---\n${output}\n---\n"
+        echo "---\nError: Wrong ddtrace version. Expected: ${1}\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_profiler_version() {
+    output="$(php -v)"
+    if [ -z "${output##*datadog-profiling v${1}*}" ]; then
+        echo "---\nOk: datadog-profiling version '${1}' is correctly installed\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong datadog-profiling version. Expected: ${1}\n---\n${output}\n---\n"
         exit 1
     fi
 }
@@ -65,4 +84,8 @@ install_legacy_ddtrace() {
 
 get_php_conf_dir() {
     php -i | grep -i 'scan this dir for additional .ini files' | awk '{print $NF}'
+}
+
+get_php_extension_dir() {
+    php -i | grep -i '^extension_dir' | awk '{print $NF}'
 }
