@@ -74,8 +74,8 @@ function install($options)
     $tmpDir = sys_get_temp_dir() . '/dd-install';
     $tmpDirTarGz = $tmpDir . "/dd-library-php-x86_64-$platform.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
-    $tmpArchiveTracerRoot = $tmpDir . '/dd-library-php/tracer';
-    $tmpBridgeDir = $tmpArchiveTracerRoot . '/bridge';
+    $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
+    $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
     execute_or_exit(
         "Cannot clean '$tmpDir'",
@@ -135,8 +135,8 @@ function install($options)
             $extensionSuffix = '-zts';
         }
 
-        // Tracer
-        $extensionRealPath = "$tmpArchiveTracerRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so" ;
+        // Trace
+        $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so" ;
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
@@ -281,7 +281,7 @@ function uninstall($options)
 }
 
 /**
- * Returns a list of php binaries where the tracer will be installed. If not explicitly provided by the CLI options,
+ * Returns a list of php binaries where the library will be installed. If not explicitly provided by the CLI options,
  * then the list is retrieved using an interactive session.
  *
  * @param array $options
