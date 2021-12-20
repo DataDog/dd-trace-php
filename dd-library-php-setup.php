@@ -88,8 +88,9 @@ function install($options)
     } else {
         $url = isset($options[OPT_URL])
             ? $options[OPT_URL]
-            : "https://github.com/labbati/test-actions/releases/download/" .
-                $options[OPT_VERSION] . "/dd-library-php-x86_64-linux-$platform.tar.gz";
+            : "https://811553-119990860-gh.circle-artifacts.com/0/dd-library-php-x86_64-linux-$platform.tar.gz";
+            // : "https://github.com/DataDog/dd-trace-php/releases/download/" .
+            //     $options[OPT_VERSION] . "/dd-library-php-x86_64-linux-$platform.tar.gz";
         download($url, $tmpDirTarGz);
     }
     execute_or_exit(

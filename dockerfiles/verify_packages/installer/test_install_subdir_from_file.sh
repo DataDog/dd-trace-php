@@ -13,7 +13,8 @@ if [ "$CIRCLECI" = "true" ]; then
 fi
 
 new_version="0.68.0"
-curl -L -o /tmp/downloaded.tar.gz "https://github.com/labbati/test-actions/releases/download/${new_version}/dd-library-php-x86_64-gnu.tar.gz"
+curl -L -o /tmp/downloaded.tar.gz "https://811553-119990860-gh.circle-artifacts.com/0/dd-library-php-x86_64-linux-gnu.tar.gz"
+# curl -L -o /tmp/downloaded.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/${new_version}/dd-library-php-x86_64-gnu.tar.gz"
 
 # Install using the php installer
 php dd-library-php-setup.php --php-bin php --file /tmp/downloaded.tar.gz

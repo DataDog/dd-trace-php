@@ -9,7 +9,8 @@ assert_no_ddtrace
 
 # Install using the php installer
 new_version="0.68.0"
-php dd-library-php-setup.php --php-bin php --url "https://github.com/labbati/test-actions/releases/download/${new_version}/dd-library-php-x86_64-gnu.tar.gz"
+php dd-library-php-setup.php --php-bin php --url "https://811553-119990860-gh.circle-artifacts.com/0/dd-library-php-x86_64-linux-gnu.tar.gz"
+# php dd-library-php-setup.php --php-bin php --url "https://github.com/DataDog/dd-trace-php/releases/download/${new_version}/dd-library-php-x86_64-gnu.tar.gz"
 
 assert_ddtrace_version "${new_version}"
 
