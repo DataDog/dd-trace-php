@@ -76,7 +76,7 @@ function install($options)
     $tmpDirTarGz = $tmpDir . "/dd-library-php-x86_64-linux-$platform.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
-    $tmpArchiveProfilerRoot = $tmpDir . '/dd-library-php/profiler';
+    $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
     execute_or_exit(
@@ -144,12 +144,12 @@ function install($options)
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
-        // Profiler
-        $shouldInstallProfiler = in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0']);
-        if ($shouldInstallProfiler) {
-            $profilerExtensionRealPath = "$tmpArchiveProfilerRoot/ext/$extensionVersion/datadog-profiling.so";
-            $profilerExtensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so';
-            safe_copy_extension($profilerExtensionRealPath, $profilerExtensionDestination);
+        // Profiling
+        $shouldInstallProfiling = in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0']);
+        if ($shouldInstallProfiling) {
+            $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling.so";
+            $profilingExtensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so';
+            safe_copy_extension($profilingExtensionRealPath, $profilingExtensionDestination);
         }
 
         // Writing the ini file
@@ -204,7 +204,7 @@ function install($options)
 
             add_missing_ini_settings($iniFilePath, get_ini_settings($installDirWrapperPath));
 
-            // Enabling profiler
+            // Enabling profiling
             if (is_truthy($options[OPT_ENABLE_PROFILING])) {
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
