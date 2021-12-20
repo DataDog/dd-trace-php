@@ -315,8 +315,8 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	cp -r ./bridge $(BUNDLE_TMP_MUSL_TRACER_DIR); \
 	echo "$(VERSION)" > $(BUNDLE_TMP_GNU_LIBRARY_DIR)/VERSION; \
 	echo "$(VERSION)" > $(BUNDLE_TMP_MUSL_LIBRARY_DIR)/VERSION; \
-	tar -czvf $(PACKAGES_BUILD_DIR)/dd-library-php-x86_64-gnu.tar.gz -C $(BUNDLE_TMP_GNU_DIR) .; \
-	tar -czvf $(PACKAGES_BUILD_DIR)/dd-library-php-x86_64-musl.tar.gz -C $(BUNDLE_TMP_MUSL_DIR) .;
+	tar -czvf $(PACKAGES_BUILD_DIR)/dd-library-php-x86_64-linux-gnu.tar.gz -C $(BUNDLE_TMP_GNU_DIR) .; \
+	tar -czvf $(PACKAGES_BUILD_DIR)/dd-library-php-x86_64-linux-musl.tar.gz -C $(BUNDLE_TMP_MUSL_DIR) .;
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \
