@@ -87,8 +87,7 @@ test_upgrade_from_legacy.sh \
 
 test_fpm.sh \
 	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-fpm bash
-	#sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
