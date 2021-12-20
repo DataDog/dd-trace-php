@@ -841,7 +841,7 @@ function get_php_major_minor($binary)
 {
     return execute_or_exit(
         "Cannot read PHP version",
-        "$binary -v | grep -Po 'PHP \K[0-9]+\.[0-9]+'"
+        "$binary -v | grep -oE 'PHP [[:digit:]]+.[[:digit:]]+' | awk '{print \$NF}'"
     );
 }
 
