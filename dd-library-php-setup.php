@@ -72,7 +72,7 @@ function install($options)
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-install';
-    $tmpDirTarGz = $tmpDir . "/dd-library-php-x86_64-$platform.tar.gz";
+    $tmpDirTarGz = $tmpDir . "/dd-library-php-x86_64-linux-$platform.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
@@ -89,7 +89,7 @@ function install($options)
         $url = isset($options[OPT_URL])
             ? $options[OPT_URL]
             : "https://github.com/labbati/test-actions/releases/download/" .
-                $options[OPT_VERSION] . "/dd-library-php-x86_64-$platform.tar.gz";
+                $options[OPT_VERSION] . "/dd-library-php-x86_64-linux-$platform.tar.gz";
         download($url, $tmpDirTarGz);
     }
     execute_or_exit(
