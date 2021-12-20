@@ -5,19 +5,15 @@ on:
       version:
         description: 'The release version'
         required: true
-        default: 0.68.0
-      tracer_gnu_url:
-        description: 'Url to the GNU tracer bundle'
+      trace_gnu_url:
+        description: 'Url to the GNU trace bundle'
         required: true
-        default: https://799850-119990860-gh.circle-artifacts.com/0/dd-library-php-x86_64-gnu.tar.gz
-      tracer_musl_url:
-        description: 'Url to the MUSL tracer bundle'
+      trace_musl_url:
+        description: 'Url to the MUSL trace bundle'
         required: true
-        default: https://799850-119990860-gh.circle-artifacts.com/0/dd-library-php-x86_64-musl.tar.gz
-      profiler_url:
-        description: 'Url to the profiler bundle'
+      profiling_url:
+        description: 'Url to the profiling bundle'
         required: true
-        default: https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0-rc.3/datadog-profiling.tar.gz
 jobs:
   Build-Final-Artifact:
     runs-on: ubuntu-latest
@@ -28,16 +24,16 @@ jobs:
       - run: |
               ${GITHUB_WORKSPACE}/.github/workflows/generate-final-artifact.sh \
                 ${{ github.event.inputs.version }} \
-                ${{ github.event.inputs.tracer_gnu_url }} \
-                ${{ github.event.inputs.tracer_musl_url }} \
-                ${{ github.event.inputs.profiler_url }} \
+                ${{ github.event.inputs.trace_gnu_url }} \
+                ${{ github.event.inputs.trace_musl_url }} \
+                ${{ github.event.inputs.profiling_url }}
       - name: Archive GNU production artifact
         uses: actions/upload-artifact@v2
         with:
-          name: dd-library-php-x86_64-gnu.tar.gz
-          path: dd-library-php-x86_64-gnu.tar.gz
+          name: dd-library-php-x86_64-linux-gnu.tar.gz
+          path: dd-library-php-x86_64-linux-gnu.tar.gz
       - name: Archive musl production artifact
         uses: actions/upload-artifact@v2
         with:
-          name: dd-library-php-x86_64-musl.tar.gz
-          path: dd-library-php-x86_64-musl.tar.gz
+          name: dd-library-php-x86_64-linux-musl.tar.gz
+          path: dd-library-php-x86_64-linux-musl.tar.gz
