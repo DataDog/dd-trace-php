@@ -22,8 +22,8 @@ mkdir -p $tmp_folder_final_musl
 ########################
 tmp_folder_trace=$tmp_folder/trace
 mkdir -p $tmp_folder_trace
-tmp_folder_final_gnu_trace=$tmp_folder_final_gnu/trace
-tmp_folder_final_musl_trace=$tmp_folder_final_musl/trace
+tmp_folder_final_gnu_trace=$tmp_folder_final_gnu/dd-library-php/trace
+tmp_folder_final_musl_trace=$tmp_folder_final_musl/dd-library-php/trace
 
 php_apis=(20100412 20121113 20131106 20151012 20160303 20170718 20180731 20190902 20200930 20210902);
 for php_api in "${php_apis[@]}"; do
