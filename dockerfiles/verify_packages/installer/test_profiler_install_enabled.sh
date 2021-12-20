@@ -5,7 +5,7 @@ set -e
 . "$(dirname ${0})/utils.sh"
 
 # Initially no ddtrace
-# assert_no_ddtrace
+assert_no_ddtrace
 
 # Install using the php installer
 new_version="0.68.0"
