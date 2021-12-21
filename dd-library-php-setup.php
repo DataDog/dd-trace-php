@@ -198,7 +198,7 @@ function install($options)
     echo "--------------------------------------------------\n";
     echo "SUCCESS\n\n";
     if ($interactive) {
-        echo "Run this script in a non interactive mode adding the following 'php-bin' options:\n";
+        echo "To run this script in a non interactive mode, use the following options:\n";
         $args = array_merge(
             $_SERVER["argv"],
             array_map(
