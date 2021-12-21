@@ -12,9 +12,9 @@ const IS_DEBUG = 'Debug Build';
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
-const OPT_TRACER_FILE = 'tracer-file';
-const OPT_TRACER_URL = 'tracer-url';
-const OPT_TRACER_VERSION = 'tracer-version';
+const OPT_FILE = 'file';
+const OPT_URL = 'url';
+const OPT_VERSION = 'version';
 const OPT_UNINSTALL = 'uninstall';
 
 function main()
@@ -31,33 +31,34 @@ function main()
     }
 }
 
-function print_help_and_exit()
+function print_help()
 {
     echo <<<EOD
 
 Usage:
     Interactive
-        php get-dd-trace.php --tracer-version x.y.z ...
+        php get-dd-trace.php --version x.y.z ...
     Non-Interactive
-        php get-dd-trace.php --tracer-version x.y.z --php-bin php ...
-        php get-dd-trace.php --tracer-version x.y.z --php-bin php --php-bin /usr/local/sbin/php-fpm ...
+        php get-dd-trace.php --version x.y.z --php-bin php ...
+        php get-dd-trace.php --version x.y.z --php-bin php --php-bin /usr/local/sbin/php-fpm ...
 
 Options:
     -h, --help                  Print this help text and exit
     --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search
                                 paths. The option can be provided multiple times.
-    --tracer-version <0.1.2>    Install a specific version. If set --tracer-url and --tracer-file are ignored.
-    --tracer-url <url>          Install the tracing library from a url. If set --tracer-file is ignored.
-    --tracer-file <file>        Install the tracing library from a local .tar.gz file.
+    --version <0.1.2>    Install a specific version. If set --url and --file are ignored.
+    --url <url>          Install the tracing library from a url. If set --file is ignored.
+    --file <file>        Install the tracing library from a local .tar.gz file.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
 
 EOD;
-    exit(0);
 }
 
 function install($options)
 {
+    $platform = is_alpine() ? 'musl' : 'gnu';
+
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
     if (is_alpine()) {
@@ -69,10 +70,11 @@ function install($options)
     $interactive = empty($options[OPT_PHP_BIN]);
 
     // Preparing clean tmp folder to extract files
-    $tmpDir = sys_get_temp_dir() . '/dd-library';
-    $tmpDirTarGz = $tmpDir . '/dd-trace-php.tar.gz';
-    $tmpSourcesDir = $tmpDir . '/opt/datadog-php/dd-trace-sources';
-    $tmpExtensionsDir = $tmpDir . '/opt/datadog-php/extensions';
+    $tmpDir = sys_get_temp_dir() . '/dd-install';
+    $tmpDirTarGz = $tmpDir . "/dd-library-php-x86_64-linux-$platform.tar.gz";
+    $tmpArchiveRoot = $tmpDir . '/dd-library-php';
+    $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
+    $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
     execute_or_exit(
         "Cannot clean '$tmpDir'",
@@ -80,14 +82,13 @@ function install($options)
     );
 
     // Retrieve and extract the archive to a tmp location
-    if (isset($options[OPT_TRACER_FILE])) {
-        $tmpDirTarGz = $options[OPT_TRACER_FILE];
+    if (isset($options[OPT_FILE])) {
+        $tmpDirTarGz = $options[OPT_FILE];
     } else {
-        $url = isset($options[OPT_TRACER_URL])
-            ? $options[OPT_TRACER_URL]
+        $url = isset($options[OPT_URL])
+            ? $options[OPT_URL]
             : "https://github.com/DataDog/dd-trace-php/releases/download/" .
-            $options[OPT_TRACER_VERSION] . "/datadog-php-tracer-" .
-            $options[OPT_TRACER_VERSION] . ".x86_64.tar.gz";
+                $options[OPT_VERSION] . "/dd-library-php-x86_64-linux-$platform.tar.gz";
         download($url, $tmpDirTarGz);
     }
     execute_or_exit(
@@ -95,9 +96,12 @@ function install($options)
         "tar -xf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir)
     );
 
-    $installDir = $options[OPT_INSTALL_DIR] . '/' . extract_version_subdir_path($options, $tmpDir, $tmpSourcesDir);
+    $releaseVersion = trim(file_get_contents("$tmpArchiveRoot/VERSION"));
+
+    $installDir = $options[OPT_INSTALL_DIR] . '/' . $releaseVersion;
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
-    $installDirWrapperPath = $installDirSourcesDir . '/bridge/dd_wrap_autoloader.php';
+    $installDirBridgeDir = $installDirSourcesDir . '/bridge';
+    $installDirWrapperPath = $installDirBridgeDir . '/dd_wrap_autoloader.php';
 
     // copying sources to the final destination
     execute_or_exit(
@@ -105,8 +109,8 @@ function install($options)
         "mkdir -p " . escapeshellarg($installDirSourcesDir)
     );
     execute_or_exit(
-        "Cannot copy files from '$tmpSourcesDir' to '$installDirSourcesDir'",
-        "cp -r " . escapeshellarg("$tmpSourcesDir") . "/* " . escapeshellarg($installDirSourcesDir)
+        "Cannot copy files from '$tmpBridgeDir' to '$installDirSourcesDir'",
+        "cp -r " . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSourcesDir)
     );
     echo "Installed required source files to '$installDir'\n";
 
@@ -124,24 +128,16 @@ function install($options)
 
         // Suffix (zts/debug/alpine)
         $extensionSuffix = '';
-        if (is_alpine()) {
-            $extensionSuffix = '-alpine';
-        } elseif (is_truthy($phpProperties[IS_DEBUG])) {
+        if (is_truthy($phpProperties[IS_DEBUG])) {
             $extensionSuffix = '-debug';
         } elseif (is_truthy(THREAD_SAFETY)) {
             $extensionSuffix = '-zts';
         }
-        $extensionRealPath = $tmpExtensionsDir . '/ddtrace-' . $extensionVersion . $extensionSuffix . '.so';
-        $extensionFileName = 'ddtrace.so';
-        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/' . $extensionFileName;
 
-        /* Move - rename() - instead of copy() since copying does a fopen() and copies to the stream itself, causing a
-         * segfault in the PHP process that is running and had loaded the old shared object file.
-         */
-        $tmpExtName = $extensionDestination . '.tmp';
-        copy($extensionRealPath, $tmpExtName);
-        rename($tmpExtName, $extensionDestination);
-        echo "Copied '$extensionRealPath' '$extensionDestination'\n";
+        // Trace
+        $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so" ;
+        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
+        safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Writing the ini file
         $iniFileName = '98-ddtrace.ini';
@@ -201,7 +197,7 @@ function install($options)
     echo "--------------------------------------------------\n";
     echo "SUCCESS\n\n";
     if ($interactive) {
-        echo "Run this script in a non interactive mode adding the following 'php-bin' options:\n";
+        echo "To run this script in a non interactive mode, use the following options:\n";
         $args = array_merge(
             $_SERVER["argv"],
             array_map(
@@ -213,6 +209,24 @@ function install($options)
         );
         echo "  php " . implode(" ", array_map("escapeshellarg", $args)) . "\n";
     }
+}
+
+/**
+ * Copies an extension's file to a destination using copy+rename to avoid segfault if the file is loaded by php.
+ *
+ * @param string $source
+ * @param string $destination
+ * @return void
+ */
+function safe_copy_extension($source, $destination)
+{
+    /* Move - rename() - instead of copy() since copying does a fopen() and copies to the stream itself, causing a
+    * segfault in the PHP process that is running and had loaded the old shared object file.
+    */
+    $tmpName = $destination . '.tmp';
+    copy($source, $tmpName);
+    rename($tmpName, $destination);
+    echo "Copied '$source' to '$destination'\n";
 }
 
 function uninstall($options)
@@ -266,7 +280,7 @@ function uninstall($options)
 }
 
 /**
- * Returns a list of php binaries where the tracer will be installed. If not explicitly provided by the CLI options,
+ * Returns a list of php binaries where the library will be installed. If not explicitly provided by the CLI options,
  * then the list is retrieved using an interactive session.
  *
  * @param array $options
@@ -366,9 +380,9 @@ function parse_validate_user_options()
     $longOptions = [
         OPT_HELP,
         OPT_PHP_BIN . ':',
-        OPT_TRACER_FILE . ':',
-        OPT_TRACER_URL . ':',
-        OPT_TRACER_VERSION . ':',
+        OPT_FILE . ':',
+        OPT_URL . ':',
+        OPT_VERSION . ':',
         OPT_INSTALL_DIR . ':',
         OPT_UNINSTALL,
     ];
@@ -376,7 +390,8 @@ function parse_validate_user_options()
 
     // Help and exit
     if (key_exists('h', $options) || key_exists(OPT_HELP, $options)) {
-        print_help_and_exit();
+        print_help();
+        exit(0);
     }
 
     $normalizedOptions = [];
@@ -384,28 +399,26 @@ function parse_validate_user_options()
     $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]) ? true : false;
 
     if (!$normalizedOptions[OPT_UNINSTALL]) {
-        // One and only one among --tracer-version, --tracer-url and --tracer-file must be provided
-        $installables = array_intersect([OPT_TRACER_VERSION, OPT_TRACER_URL, OPT_TRACER_FILE], array_keys($options));
+        // One and only one among --version, --url and --file must be provided
+        $installables = array_intersect([OPT_VERSION, OPT_URL, OPT_FILE], array_keys($options));
         if (count($installables) !== 1) {
-            print_error_and_exit(
-                'One and only one among --tracer-version, --tracer-url and --tracer-file must be provided'
-            );
+            print_error_and_exit('One and only one among --version, --url and --file must be provided', true);
         }
-        if (isset($options[OPT_TRACER_VERSION])) {
-            if (is_array($options[OPT_TRACER_VERSION])) {
-                print_error_and_exit('Only one --tracer-version can be provided');
+        if (isset($options[OPT_VERSION])) {
+            if (is_array($options[OPT_VERSION])) {
+                print_error_and_exit('Only one --version can be provided', true);
             }
-            $normalizedOptions[OPT_TRACER_VERSION] = $options[OPT_TRACER_VERSION];
-        } elseif (isset($options[OPT_TRACER_URL])) {
-            if (is_array($options[OPT_TRACER_URL])) {
-                print_error_and_exit('Only one --tracer-url can be provided');
+            $normalizedOptions[OPT_VERSION] = $options[OPT_VERSION];
+        } elseif (isset($options[OPT_URL])) {
+            if (is_array($options[OPT_URL])) {
+                print_error_and_exit('Only one --url can be provided', true);
             }
-            $normalizedOptions[OPT_TRACER_URL] = $options[OPT_TRACER_URL];
-        } elseif (isset($options[OPT_TRACER_FILE])) {
-            if (is_array($options[OPT_TRACER_FILE])) {
-                print_error_and_exit('Only one --tracer-file can be provided');
+            $normalizedOptions[OPT_URL] = $options[OPT_URL];
+        } elseif (isset($options[OPT_FILE])) {
+            if (is_array($options[OPT_FILE])) {
+                print_error_and_exit('Only one --file can be provided', true);
             }
-            $normalizedOptions[OPT_TRACER_FILE] = $options[OPT_TRACER_FILE];
+            $normalizedOptions[OPT_FILE] = $options[OPT_FILE];
         }
     }
 
@@ -425,58 +438,18 @@ function parse_validate_user_options()
     return $normalizedOptions;
 }
 
-function print_error_and_exit($message)
+function print_error_and_exit($message, $printHelp = false)
 {
     echo "ERROR: $message\n";
+    if ($printHelp) {
+        print_help();
+    }
     exit(1);
 }
 
 function print_warning($message)
 {
     echo "WARNING: $message\n";
-}
-
-/**
- * Attempts to extract the version number of the installed tracer.
- *
- * @param array $options
- * @param mixed string $extractArchiveRoot
- * @param mixed string $extractedSourcesRoot
- * @return string
- */
-function extract_version_subdir_path($options, $extractArchiveRoot, $extractedSourcesRoot)
-{
-    /* We apply the following decision making algorithm
-     *   1) if --tracer-version is provided, we use it
-     *   2) if a VERSION file exists at the archive root, we use it
-     *   3) if sources are provided, we parse src/DDTrace/Tracer.php
-     *   4) fallback to YYYY.MM.DD-HH.mm
-     */
-
-    // 1)
-    if (isset($options[OPT_TRACER_VERSION])) {
-        return trim($options[OPT_TRACER_VERSION]);
-    }
-
-    // 2)
-    $versionFile = $extractArchiveRoot . '/VERSION';
-    if (is_readable($versionFile)) {
-        return trim(file_get_contents($versionFile));
-    }
-
-    // 3)
-    $ddtracerFile = "$extractedSourcesRoot/src/DDTrace/Tracer.php";
-    if (is_readable($ddtracerFile)) {
-        $content = file_get_contents($ddtracerFile);
-        $matches = array();
-        preg_match("(const VERSION = '([^']+(?<!-nightly))';)", $content, $matches);
-        if (isset($matches[1])) {
-            return trim($matches[1]);
-        }
-    }
-
-    // 4)
-    return date("Y.m.d-H.i");
 }
 
 /**
@@ -1060,7 +1033,7 @@ function get_ini_settings($requestInitHookPath)
             'name' => 'datadog.trace.bgs_timeout',
             'default' => '5000',
             'commented' => true,
-            'description' => 'Set request timeout in milliseconds while while sending payloads to the agent',
+            'description' => 'Set request timeout in milliseconds while sending payloads to the agent',
         ],
         [
             'name' => 'datadog.trace.spans_limit',
