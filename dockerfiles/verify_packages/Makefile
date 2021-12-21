@@ -85,6 +85,15 @@ test_upgrade_from_legacy.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
+test_first_install_php_debug.sh \
+test_first_install_php_debugzts.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
+
+test_first_install_php_zts.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
+
 test_fpm.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)

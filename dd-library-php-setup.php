@@ -127,6 +127,9 @@ function install($options)
         check_php_ext_prerequisite_or_exit($fullPath, 'json');
 
         $phpProperties = ini_values($fullPath);
+        if (is_truthy($phpProperties[THREAD_SAFETY]) && is_truthy($phpProperties[IS_DEBUG])) {
+            print_error_and_exit('(ZTS DEBUG) builds of PHP are currently not supported');
+        }
 
         // Copying the extension
         $extensionVersion = $phpProperties[PHP_API];
@@ -135,7 +138,7 @@ function install($options)
         $extensionSuffix = '';
         if (is_truthy($phpProperties[IS_DEBUG])) {
             $extensionSuffix = '-debug';
-        } elseif (is_truthy(THREAD_SAFETY)) {
+        } elseif (is_truthy($phpProperties[THREAD_SAFETY])) {
             $extensionSuffix = '-zts';
         }
 
@@ -145,7 +148,11 @@ function install($options)
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Profiling
-        $shouldInstallProfiling = in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0']);
+        $shouldInstallProfiling =
+            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0'])
+            && !is_truthy($phpProperties[THREAD_SAFETY])
+            && !is_truthy($phpProperties[IS_DEBUG]);
+
         if ($shouldInstallProfiling) {
             $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling.so";
             $profilingExtensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so';
@@ -205,7 +212,7 @@ function install($options)
             add_missing_ini_settings($iniFilePath, get_ini_settings($installDirWrapperPath));
 
             // Enabling profiling
-            if (is_truthy($options[OPT_ENABLE_PROFILING])) {
+            if ($shouldInstallProfiling && is_truthy($options[OPT_ENABLE_PROFILING])) {
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
