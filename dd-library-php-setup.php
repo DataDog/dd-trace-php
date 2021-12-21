@@ -31,7 +31,7 @@ function main()
     }
 }
 
-function print_help_and_exit()
+function print_help()
 {
     echo <<<EOD
 
@@ -53,7 +53,6 @@ Options:
     --uninstall                 Uninstall the library from the specified binaries
 
 EOD;
-    exit(0);
 }
 
 function install($options)
@@ -392,7 +391,8 @@ function parse_validate_user_options()
 
     // Help and exit
     if (key_exists('h', $options) || key_exists(OPT_HELP, $options)) {
-        print_help_and_exit();
+        print_help();
+        exit(0);
     }
 
     $normalizedOptions = [];
@@ -403,23 +403,21 @@ function parse_validate_user_options()
         // One and only one among --version, --url and --file must be provided
         $installables = array_intersect([OPT_VERSION, OPT_URL, OPT_FILE], array_keys($options));
         if (count($installables) !== 1) {
-            print_error_and_exit(
-                'One and only one among --version, --url and --file must be provided'
-            );
+            print_error_and_exit('One and only one among --version, --url and --file must be provided', true);
         }
         if (isset($options[OPT_VERSION])) {
             if (is_array($options[OPT_VERSION])) {
-                print_error_and_exit('Only one --version can be provided');
+                print_error_and_exit('Only one --version can be provided', true);
             }
             $normalizedOptions[OPT_VERSION] = $options[OPT_VERSION];
         } elseif (isset($options[OPT_URL])) {
             if (is_array($options[OPT_URL])) {
-                print_error_and_exit('Only one --url can be provided');
+                print_error_and_exit('Only one --url can be provided', true);
             }
             $normalizedOptions[OPT_URL] = $options[OPT_URL];
         } elseif (isset($options[OPT_FILE])) {
             if (is_array($options[OPT_FILE])) {
-                print_error_and_exit('Only one --file can be provided');
+                print_error_and_exit('Only one --file can be provided', true);
             }
             $normalizedOptions[OPT_FILE] = $options[OPT_FILE];
         }
@@ -441,9 +439,12 @@ function parse_validate_user_options()
     return $normalizedOptions;
 }
 
-function print_error_and_exit($message)
+function print_error_and_exit($message, $printHelp = false)
 {
     echo "ERROR: $message\n";
+    if ($printHelp) {
+        print_help();
+    }
     exit(1);
 }
 
