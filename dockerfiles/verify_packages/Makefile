@@ -78,10 +78,25 @@ test_install_non_root_user.sh \
 test_install_subdir_from_file.sh \
 test_install_subdir_from_url.sh \
 test_install_subdir_from_version.sh \
+test_profiler_install_disabled.sh \
+test_profiler_install_enabled.sh \
 test_uninstall.sh \
 test_upgrade_from_legacy.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+
+test_first_install_php_debug.sh \
+test_first_install_php_debugzts.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
+
+test_first_install_php_zts.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
+
+test_fpm.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
