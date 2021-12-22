@@ -40,7 +40,7 @@ class PredisIntegration extends Integration
 
         \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
             $span->name = 'Predis.Client.__construct';
-            $span->type = Type::CACHE;
+            $span->type = Type::REDIS;
             $span->resource = 'Predis.Client.__construct';
             PredisIntegration::storeConnectionMetaAndService($this, $args);
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
@@ -48,14 +48,14 @@ class PredisIntegration extends Integration
 
         \DDTrace\trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
             $span->name = 'Predis.Client.connect';
-            $span->type = Type::CACHE;
+            $span->type = Type::REDIS;
             $span->resource = 'Predis.Client.connect';
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
             $span->name = 'Predis.Client.executeCommand';
-            $span->type = Type::CACHE;
+            $span->type = Type::REDIS;
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
 
@@ -78,7 +78,7 @@ class PredisIntegration extends Integration
 
         \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) use ($integration) {
             $span->name = 'Predis.Client.executeRaw';
-            $span->type = Type::CACHE;
+            $span->type = Type::REDIS;
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
 
@@ -102,7 +102,7 @@ class PredisIntegration extends Integration
             \DDTrace\trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
                 $span->name = 'Predis.Pipeline.executePipeline';
                 $span->resource = $span->name;
-                $span->type = Type::CACHE;
+                $span->type = Type::REDIS;
                 PredisIntegration::setMetaAndServiceFromConnection($this, $span);
             });
         } else {
@@ -113,7 +113,7 @@ class PredisIntegration extends Integration
                     'prehook' => function (SpanData $span, $args) {
                         $span->name = 'Predis.Pipeline.executePipeline';
                         $span->resource = $span->name;
-                        $span->type = Type::CACHE;
+                        $span->type = Type::REDIS;
                         PredisIntegration::setMetaAndServiceFromConnection($this, $span);
                         if (\count($args) < 2) {
                             return;
