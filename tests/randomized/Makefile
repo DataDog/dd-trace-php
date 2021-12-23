@@ -56,14 +56,14 @@ library.local:
 	@cp ../../build/packages/dd-library-php-x86_64-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz
 
 library.download:
-	@echo "Downloading tracer at url: $(LIBRARY_TEST_URL)"
+	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
 	@curl --silent -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "$(LIBRARY_TEST_URL)"
 	@echo "Done"
 
 library.version:
-	@echo "Downloading tracer version: $(LIBRARY_VERSION)"
+	@echo "Downloading library version: $(LIBRARY_VERSION)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
 	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-x86_64-linux-gnu.tar.gz"
