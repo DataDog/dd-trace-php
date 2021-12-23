@@ -40,11 +40,12 @@ services:
       core: 99999999999
     privileged: true
     volumes:
+      - {{project_root}}:/dd-trace-php
       - ./app:/var/www/html
       - ./www.php-fpm.conf:/etc/php-fpm.d/www.conf
       - ./www.apache.conf:/etc/httpd/conf.d/www.conf
       - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
-      - ../.tracer-versions:/tmp/tracer-versions
+      - ../.library-versions:/tmp/library-versions
       - ../.results/{{identifier}}/:/results/
       - ../.results/{{identifier}}/nginx:/var/log/nginx
       - ../.results/{{identifier}}/php-fpm:/var/log/php-fpm

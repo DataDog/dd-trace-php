@@ -4,8 +4,11 @@ set -e
 
 # Install the tracers
 if [ "${INSTALL_MODE}" == "package" ]; then
-    tar -xf /tmp/tracer-versions/ddtrace-test.tar.gz -C /
-    sh /opt/datadog-php/bin/post-install.sh
+    php \
+        /dd-trace-php/dd-library-php-setup.php \
+            --php-bin=all \
+            --enable-profiling \
+            --file=/tmp/library-versions/dd-library-php-x86_64-linux-gnu.tar.gz
 elif [ "${INSTALL_MODE}" == "pecl" ]; then
     echo "PECL installation mode not supported yet"
     exit 1
@@ -13,6 +16,8 @@ else
     echo "Unknown installation mode"
     exit 1
 fi
+
+php -v
 
 # Start PHP-FPM
 echo "Starting PHP-FPM"

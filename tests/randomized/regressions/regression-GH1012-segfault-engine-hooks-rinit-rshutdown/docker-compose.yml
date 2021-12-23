@@ -35,7 +35,7 @@ services:
       - MYSQL_DATABASE=test
 
   php-test:
-    image: datadog/dd-trace-ci:php-randomizedtests-centos7-7.3
+    image: datadog/dd-trace-ci:php-randomizedtests-dev-centos7-7.3
     ulimits:
       core: 99999999999
     privileged: true
@@ -44,7 +44,7 @@ services:
       - ./www.php-fpm.conf:/etc/php-fpm.d/www.conf
       - ./www.apache.conf:/etc/httpd/conf.d/www.conf
       - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
-      - ../.tracer-versions:/tmp/tracer-versions
+      - ../.library-versions:/tmp/library-versions
       - ../.results/regression-GH1012-segfault-engine-hooks-rinit-rshutdown/:/results/
       - ../.results/regression-GH1012-segfault-engine-hooks-rinit-rshutdown/nginx:/var/log/nginx
       - ../.results/regression-GH1012-segfault-engine-hooks-rinit-rshutdown/php-fpm:/var/log/php-fpm
