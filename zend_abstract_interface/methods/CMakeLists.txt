@@ -1,4 +1,10 @@
-add_library(zai_methods "${PHP_VERSION_DIRECTORY}/methods.c")
+if(PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
+  set(PHP_METHODS_VERSION_DIRECTORY "php7-8")
+else()
+  set(PHP_METHODS_VERSION_DIRECTORY "${PHP_VERSION_DIRECTORY}")
+endif()
+
+add_library(zai_methods "${PHP_METHODS_VERSION_DIRECTORY}/methods.c")
 
 target_include_directories(zai_methods PUBLIC
                                        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>

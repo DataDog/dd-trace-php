@@ -10,6 +10,7 @@
 #include "../zai_sapi_io.h"
 
 #define DEFAULT_INI        \
+    "date.timezone=UTC\n"  \
     "html_errors=0\n"      \
     "implicit_flush=1\n"   \
     "output_buffering=0\n" \
