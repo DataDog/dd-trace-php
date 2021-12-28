@@ -98,6 +98,7 @@ add_subdirectory(env)
 add_subdirectory(exceptions)
 add_subdirectory(config)
 add_subdirectory(json)
+add_subdirectory(symbols)
 if(PHP_VERSION_DIRECTORY STREQUAL "php5")
   # TODO Support PHP 7 & PHP 8
   add_subdirectory(methods)
