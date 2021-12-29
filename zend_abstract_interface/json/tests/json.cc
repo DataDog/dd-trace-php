@@ -70,6 +70,11 @@ TEST_CASE("json bindings fail when no json extension loaded", "[zai_json]" SHARE
     zai_module.php_ini_ignore = 1;
     REQUIRE(zai_sapi_minit());
 
+#if PHP_VERSION_ID >= 70000
+    REQUIRE(!zend_hash_str_exists(&module_registry, "json", sizeof("json")-1));
+#else
+    REQUIRE(!zend_hash_exists(&module_registry, "json", sizeof("json")));
+#endif
     REQUIRE(zai_json_setup_bindings() == false);
 
     zai_sapi_mshutdown();
@@ -98,9 +103,14 @@ TEST_CASE("json bindings fail when no json symbols resolve", "[zai_json]" SHARED
     REQUIRE(zai_sapi_sinit());
     // Disable all shared extensions
     zai_module.php_ini_ignore = 1;
-    REQUIRE(zai_sapi_minit());
+    zai_sapi_extension = fake_json_ext;
 
-    REQUIRE(zend_startup_module(&fake_json_ext) == SUCCESS);
+    REQUIRE(zai_sapi_minit());
+#if PHP_VERSION_ID >= 70000
+    REQUIRE(zend_hash_str_exists(&module_registry, "json", sizeof("json")-1));
+#else
+    REQUIRE(zend_hash_exists(&module_registry, "json", sizeof("json")));
+#endif
     REQUIRE(zai_json_setup_bindings() == false);
 
     zai_sapi_mshutdown();
