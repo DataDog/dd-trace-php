@@ -27,4 +27,7 @@ void zai_sapi_ini_entries_free(char **entries);
  */
 ssize_t zai_sapi_ini_entries_realloc_append(char **entries, size_t entries_len, const char *key, const char *value);
 
+/* Will return false if ZAI_SAPI_PHP_INI_IGNORE env variable is a falsy value */
+bool zai_sapi_php_ini_ignore(void);
+
 #endif  // ZAI_SAPI_INI_H

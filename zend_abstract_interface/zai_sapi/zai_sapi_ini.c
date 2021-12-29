@@ -44,3 +44,15 @@ ssize_t zai_sapi_ini_entries_realloc_append(char **entries, size_t entries_len, 
 
     return (written_len != append_len) ? -1 : (ssize_t)(entries_len + append_len);
 }
+
+bool zai_sapi_php_ini_ignore(void) {
+    const char *env = getenv("ZAI_SAPI_PHP_INI_IGNORE");
+    if (env) {
+        size_t len = strlen(env);
+        if (len == 1) return *env != '0';
+        if (len == 2) return strcasecmp("no", env) != 0;
+        if (len == 3) return strcasecmp("off", env) != 0;
+        if (len == 4) return strcasecmp("false", env) != 0;
+    }
+    return true;
+}
