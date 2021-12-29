@@ -117,6 +117,16 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-5.4.45.tar.gz
         phpSha256Hash: 25bc4723955f4e352935258002af14a14a9810b491a19400d76fcdfa9d04b28f
 
+  php-5.4-shared-ext:
+    image: datadog/dd-trace-ci:php-5.4-shared-ext
+    build:
+      context: ./php-5.4
+      dockerfile: Dockerfile_shared_ext
+      args:
+        phpVersion: 5.4
+        phpTarGzUrl: https://www.php.net/distributions/php-5.4.45.tar.gz
+        phpSha256Hash: 25bc4723955f4e352935258002af14a14a9810b491a19400d76fcdfa9d04b28f
+
   php-master:
     image: datadog/dd-trace-ci:php-master_buster
     build:

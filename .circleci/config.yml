@@ -1310,6 +1310,75 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+  ZaiSharedExts:
+    working_directory: ~/datadog
+    parameters:
+      php_version:
+        type: string
+    docker:
+      - image: datadog/dd-trace-ci:php-<< parameters.php_version >>-shared-ext
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Switch PHP to nts
+          command: |
+            switch-php nts
+
+      # Starting in PHP 8.0, ext/json is a core extension
+      - when:
+          condition:
+            or:
+              - equal: [ "5.4", << parameters.php_version >> ]
+              - equal: [ "5.5", << parameters.php_version >> ]
+              - equal: [ "5.6", << parameters.php_version >> ]
+              - equal: [ "7.0", << parameters.php_version >> ]
+              - equal: [ "7.1", << parameters.php_version >> ]
+              - equal: [ "7.2", << parameters.php_version >> ]
+              - equal: [ "7.3", << parameters.php_version >> ]
+              - equal: [ "7.4", << parameters.php_version >> ]
+          steps:
+            - run:
+                name: Ensure ext/json is loaded as shared lib
+                command: |
+                  if php --ri=json &> /dev/null
+                  then
+                    echo 'ext/json is enabled but should not be installed'
+                    exit 1
+                  fi
+                  echo "extension=json.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/json.ini
+
+      - run:
+          name: Ensure ext/curl is loaded as shared lib
+          command: |
+            if php --ri=curl &> /dev/null
+            then
+              echo 'ext/curl is enabled but should not be installed'
+              exit 1
+            fi
+            echo "extension=curl.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/curl.ini
+      - run:
+          name: Build and test Zend Abstract Interface (nts)
+          command: |
+            mkdir -p /tmp/build/zai-nts
+            cd /tmp/build/zai-nts
+            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_ZAI_TESTING=ON \
+              -DPHP_CONFIG=$(which php-config) \
+              -DRUN_SHARED_EXTS_TESTS=1 \
+              ~/datadog/zend_abstract_interface
+            make -j all
+            ZAI_SAPI_PHP_INI_IGNORE=0 make test
+            grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            cp --parents /tmp/build/zai-*/Testing/Temporary/LastTest.log /tmp/artifacts/
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   compile_alpine:
     working_directory: ~/datadog
     parameters:
@@ -1504,6 +1573,18 @@ workflows:
                 - "3.20.1"
               catch2_version:
                 - "2.13.5"
+
+  zend_abstract_interface_shared_exts:
+    jobs:
+      - "Prepare Code"
+      - ZaiSharedExts:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_version:
+                - "5.4"
+                - "7.4"
+                - "8.0"
 
   build_packages:
     jobs:

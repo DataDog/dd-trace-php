@@ -68,7 +68,7 @@ struct zai_config_memoized_entry_s {
 // Memoizes config entries to default values
 // Adds INI defs
 // env_to_ini can be NULL to disable INI support
-void zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
+bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
                       int module_number);
 // dtors all pzvals and name maps
 // Caller must call UNREGISTER_INI_ENTRIES() after this if using env_to_ini

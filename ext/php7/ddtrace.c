@@ -418,7 +418,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     REGISTER_INI_ENTRIES();
 
     // config initialization needs to be at the top
-    ddtrace_config_minit(module_number);
+    if (!ddtrace_config_minit(module_number)) {
+        return FAILURE;
+    }
     dd_disable_if_incompatible_sapi_detected();
     atomic_init(&ddtrace_warn_legacy_api, 1);
 

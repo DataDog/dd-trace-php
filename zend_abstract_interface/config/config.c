@@ -1,12 +1,11 @@
 #include "./config.h"
 
 #include <assert.h>
+#include <json/json.h>
 #include <main/php.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <json/json.h>
 
 #if PHP_VERSION_ID < 70000
 #define ZVAL_UNDEF(z)  \
@@ -121,12 +120,13 @@ static void zai_config_entries_init(zai_config_entry entries[], zai_config_id en
     }
 }
 
-void zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
+bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
                       int module_number) {
-    if (!entries || !entries_count) return;
-    zai_json_setup_bindings();
+    if (!entries || !entries_count) return false;
+    if (!zai_json_setup_bindings()) return false;
     zai_config_entries_init(entries, entries_count);
     zai_config_ini_minit(env_to_ini, module_number);
+    return true;
 }
 
 static void zai_config_dtor_memoized_zvals(void) {
