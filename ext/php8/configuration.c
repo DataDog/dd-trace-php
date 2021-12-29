@@ -99,14 +99,18 @@ static void dd_ini_env_to_ini_name(const zai_string_view env_name, zai_config_na
     ini_name->ptr[ini_name->len] = '\0';
 }
 
-void ddtrace_config_minit(int module_number) {
-    zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
-                     module_number);
+bool ddtrace_config_minit(int module_number) {
+    if (!zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
+                          module_number)) {
+        ddtrace_log_err("Unable to load configuration; likely due to json symbols failing to resolve.");
+        return false;
+    }
     // We immediately initialize inis at MINIT, so that we can use a select few values already at minit.
     // Note that we are not calling zai_config_rinit(), i.e. the get_...() functions will not work.
     // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
     zai_config_first_time_rinit();
+    return true;
 }
 
 void ddtrace_config_first_rinit() {

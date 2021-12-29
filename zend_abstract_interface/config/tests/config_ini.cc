@@ -40,7 +40,9 @@ static PHP_MINIT_FUNCTION(zai_config_ini) {
         EXT_CFG_ALIASED_ENTRY(INI_BAR_ALIASED_STRING, STRING, "0", aliases_string),
         EXT_CFG_ENTRY(INI_BAZ_MAP_EMPTY, MAP, ""),
     };
-    zai_config_minit(entries, (sizeof entries / sizeof entries[0]), ext_ini_env_to_ini_name, module_number);
+    if (!zai_config_minit(entries, (sizeof entries / sizeof entries[0]), ext_ini_env_to_ini_name, module_number)) {
+        return FAILURE;
+    }
     return SUCCESS;
 }
 

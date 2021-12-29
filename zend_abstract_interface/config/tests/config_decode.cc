@@ -268,7 +268,7 @@ TEST_CASE("decode set", "[zai_config_decode]") {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
-    zai_json_setup_bindings();
+    REQUIRE(zai_json_setup_bindings());
 
     zval value;
     bool ret;
@@ -331,7 +331,7 @@ TEST_CASE("decode json", "[zai_config_decode]") {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
-    zai_json_setup_bindings();
+    REQUIRE(zai_json_setup_bindings());
 
     // ---
 

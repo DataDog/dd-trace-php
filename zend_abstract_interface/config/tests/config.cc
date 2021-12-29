@@ -32,7 +32,9 @@ static PHP_MINIT_FUNCTION(zai_config_env) {
         EXT_CFG_ALIASED_ENTRY(BAR_ALIASED_INT, INT, "0", aliases_int),
         EXT_CFG_ENTRY(BAZ_MAP_EMPTY, MAP, ""),
     };
-    zai_config_minit(entries, (sizeof entries / sizeof entries[0]), NULL, 0);
+    if (!zai_config_minit(entries, (sizeof entries / sizeof entries[0]), NULL, 0)) {
+        return FAILURE;
+    }
     return SUCCESS;
 }
 
