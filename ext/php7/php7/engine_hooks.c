@@ -200,6 +200,10 @@ static bool dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
 static bool dd_should_trace_call(zend_execute_data *call, ddtrace_dispatch_t **dispatch) {
     zend_function *fbc = call->func;
 
+    if (!PG(modules_activated)) {
+        return false;
+    }
+
     if (!get_DD_TRACE_ENABLED()) {
         return false;
     }

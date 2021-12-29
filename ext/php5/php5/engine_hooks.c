@@ -311,6 +311,10 @@ static int dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
 }
 
 static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zend_function *fbc TSRMLS_DC) {
+    if (!PG(modules_activated)) {
+        return false;
+    }
+
     if (!get_DD_TRACE_ENABLED() || DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
         return false;
     }

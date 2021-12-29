@@ -738,6 +738,11 @@ static void dd_observer_end_handler(zend_execute_data *execute_data, zval *retva
 
 zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *execute_data) {
     zend_function *fbc = EX(func);
+
+    if (!PG(modules_activated)) {
+        return (zend_observer_fcall_handlers){NULL, NULL};
+    }
+
     if (!get_DD_TRACE_ENABLED() || ddtrace_op_array_extension == 0 || fbc->common.type != ZEND_USER_FUNCTION) {
         return (zend_observer_fcall_handlers){NULL, NULL};
     }
