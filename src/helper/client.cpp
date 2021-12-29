@@ -83,22 +83,23 @@ bool client::handle_command(const network::client_init::request &command)
         command.pid, command.client_version, command.runtime_version,
         command.settings);
 
-    auto &&rules_file = command.settings.rules_file.empty()
-                            ? engine_pool::default_rules_file()
-                            : command.settings.rules_file;
-
-    DD_STDLOG(DD_STDLOG_STARTUP_BEGAN, rules_file);
+    auto &&settings = command.settings;
+    DD_STDLOG(DD_STDLOG_STARTUP_BEGAN, settings.rules_file_or_default());
 
     std::vector<std::string> errors;
     bool has_errors = false;
     try {
-        engine_ = engine_pool_->create_engine(command.settings);
+        engine_ = engine_pool_->create_engine(settings);
     } catch (std::system_error &e) {
-        DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND, rules_file);
+        // TODO: logging should happen at WAF impl
+        DD_STDLOG(
+            DD_STDLOG_RULES_FILE_NOT_FOUND, settings.rules_file_or_default());
         errors.emplace_back(e.what());
         has_errors = true;
     } catch (std::exception &e) {
-        DD_STDLOG(DD_STDLOG_RULES_FILE_INVALID, rules_file, e.what());
+        // TODO: logging should happen at WAF impl
+        DD_STDLOG(DD_STDLOG_RULES_FILE_INVALID,
+            settings.rules_file_or_default(), e.what());
         errors.emplace_back(e.what());
         has_errors = true;
     }

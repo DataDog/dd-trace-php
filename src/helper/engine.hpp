@@ -33,35 +33,6 @@ class engine : std::enable_shared_from_this<engine> {
     engine() = default;
 
 public:
-    static constexpr int default_waf_timeout_ms = 10;
-
-    struct settings {
-        std::string rules_file;
-        std::uint64_t waf_timeout_ms = default_waf_timeout_ms;
-
-        bool operator==(const settings &oth) const noexcept
-        {
-            return rules_file == oth.rules_file &&
-                   waf_timeout_ms == oth.waf_timeout_ms;
-        }
-
-        friend auto &operator<<(std::ostream &os, const settings &c)
-        {
-            return os << "{rules_file=" << c.rules_file
-                      << ", waf_timeout_ms=" << c.waf_timeout_ms << "}";
-        }
-
-        struct settings_hash {
-            std::size_t operator()(const settings &s) const noexcept
-            {
-                auto h1 = std::hash<decltype(rules_file)>{}(s.rules_file);
-                auto h2 =
-                    std::hash<decltype(waf_timeout_ms)>{}(s.waf_timeout_ms);
-                return h1 ^ h2;
-            }
-        };
-    };
-
     using subscription_map =
         std::map<std::string_view, std::vector<subscriber::ptr>>;
 

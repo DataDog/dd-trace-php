@@ -51,8 +51,9 @@ public:
 
     listener::ptr get_listener() override;
 
-    static instance::ptr from_file(
-        std::string_view rule_file, std::uint64_t waf_timeout_ms);
+    static instance::ptr from_settings(const client_settings &settings);
+
+    // testing only
     static instance::ptr from_string(
         std::string_view rule, std::uint64_t waf_timeout_ms);
 

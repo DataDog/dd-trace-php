@@ -3,6 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#include "client_settings.hpp"
 #include "common.hpp"
 #include <boost/algorithm/string/predicate.hpp>
 #include <engine_pool.hpp>
@@ -13,7 +14,7 @@ namespace dds {
 
 TEST(EnginePoolTest, DefaultRulesFile)
 {
-    auto path = engine_pool::default_rules_file();
+    auto path = client_settings::default_rules_file();
     EXPECT_TRUE(algo::ends_with(path, "/etc/dd-appsec/recommended.json"));
 }
 

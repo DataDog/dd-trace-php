@@ -320,11 +320,10 @@ std::vector<std::string_view> instance::get_subscriptions()
     return output;
 }
 
-instance::ptr instance::from_file(
-    std::string_view rule_file, std::uint64_t waf_timeout_ms)
+instance::ptr instance::from_settings(const client_settings &settings)
 {
-    dds::parameter param = parse_file(rule_file);
-    return std::make_shared<instance>(param, waf_timeout_ms);
+    dds::parameter param = parse_file(settings.rules_file_or_default());
+    return std::make_shared<instance>(param, settings.waf_timeout_ms);
 }
 
 instance::ptr instance::from_string(

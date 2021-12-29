@@ -6,6 +6,7 @@
 #ifndef SUBSCRIBER_BASE_HPP
 #define SUBSCRIBER_BASE_HPP
 
+#include "../client_settings.hpp"
 #include "../parameter.hpp"
 #include "../result.hpp"
 #include <memory>
@@ -32,7 +33,6 @@ public:
         virtual result call(parameter &data) = 0;
     };
 
-    subscriber() = default;
     subscriber(const subscriber &) = delete;
     subscriber &operator=(const subscriber &) = delete;
     subscriber(subscriber &&) = delete;
@@ -42,6 +42,9 @@ public:
 
     virtual std::vector<std::string_view> get_subscriptions() = 0;
     virtual listener::ptr get_listener() = 0;
+
+protected:
+    subscriber() = default;
 };
 
 } // namespace dds
