@@ -11,6 +11,7 @@ DD_TRACE_DEBUG=1
 HTTP_X_DATADOG_ORIGIN=phpt-test
 --FILE--
 <?php
+include 'curl_helper.inc';
 include 'distributed_tracing.inc';
 
 DDTrace\trace_function('doMulti', function (\DDTrace\SpanData $span) {
@@ -53,9 +54,14 @@ function doMulti($url)
     curl_multi_add_handle($mh, $ch3);
 
     do {
-        curl_multi_exec($mh, $active);
+        $status = curl_multi_exec($mh, $active);
         curl_multi_select($mh);
-    } while ($active > 0);
+    } while ($active > 0 && $status === CURLM_OK);
+
+    show_curl_multi_error_on_fail($status);
+    show_curl_error_on_fail($ch1);
+    show_curl_error_on_fail($ch2);
+    show_curl_error_on_fail($ch3);
 
     dumpHeaders($ch1);
     dumpHeaders($ch2);
