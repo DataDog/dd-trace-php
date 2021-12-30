@@ -17,6 +17,8 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 HTTP_X_DATADOG_ORIGIN=phpt-test
 --FILE--
 <?php
+include 'curl_helper.inc';
+
 DDTrace\trace_function('curl_exec', function (\DDTrace\SpanData $span) {
     $span->name = 'curl_exec';
 });
@@ -47,7 +49,9 @@ if (false === $res) {
 
 $responses = [];
 $responses[] = curl_exec($ch);
+show_curl_error_on_fail($ch);
 $responses[] = curl_exec($ch);
+show_curl_error_on_fail($ch);
 curl_close($ch);
 
 include 'distributed_tracing.inc';
