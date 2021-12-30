@@ -49,35 +49,11 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    ### Added
-    - Bring priority sampling to internal #1366
-    - SpanData::$parent property #1369
-    - Add queue and channel components #1388
-    - Add log component #1390
-    - Add arena component #1391
-    - Add stack sample component #1392
-    - Add uuid component #1393
-    - Add time component #1394, #1408
-    - Add profiler installation #1422
-    - Zai/json #1378, #1397
-    - Add Code Coverage #1389
-
-    ### Changed
-    - (PHP 8) Migrate ObjectKVStore to WeakMap internally #1362
-    - Adjust components #1387
-    - Export only specific symbols #1407
-    - Sanitize user information from urls #1396
-    - Split INI setting in installer so they can be added separately when missing #1415
-    - Use the new targz bundle format with the new PHP installer #1421
-    - Have both legacy and new installer to fail when json PHP extension is not enabled #1410
-
     ### Fixed
-    - Fix Laravel unnamed route with caching and domain specification #1364
-    - Fix http.url of internal root span #1360
-    - Add small framework to stress test our internal API with bogus inputs #1365
-    - PDOIntegration::parseDSN fails to parse some DSN #1373
-    - Fix constructor of OpenTracing wrapper when no Datadog tracer is provided #1406 - thanks @OGKevin for the reproduction case
-    - Fix parsing of urls without schema into host name #1385
+    - Do not diagnostics when ddtrace is disabled #1434
+    - Fix json symbol address resolving logic #1432
+    - Disable tracing when PHP is executed during RINIT #1429
+    - Change Predis integration type to "redis" #1427
     </notes>
     <contents>
         <dir name="/">
