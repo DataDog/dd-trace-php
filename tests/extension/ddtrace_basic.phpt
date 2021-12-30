@@ -2,6 +2,13 @@
 ddtrace integration — basic test
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--SKIPIF--
+<?php
+// on CI, the 5 minute timeout is sometimes exceeded
+if (key_exists('CI', $_ENV) && $_ENV['CI'] === 'true') {
+    require __DIR__ . "/inc/no_valgrind.php";
+}
+?>
 --INI--
 extension=ddtrace.so
 ddappsec.log_file=/tmp/php_appsec_test.log
