@@ -5,7 +5,7 @@ Distributed tracing headers propagate with curl_exec()
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --FILE--
 <?php
-
+include 'curl_helper.inc';
 include 'distributed_tracing.inc';
 
 function query_headers() {
@@ -15,6 +15,7 @@ function query_headers() {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
+    show_curl_error_on_fail($ch);
     curl_close($ch);
     return dt_decode_headers_from_httpbin($response);
 }
