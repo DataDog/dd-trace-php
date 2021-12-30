@@ -45,6 +45,11 @@ class Helper {
         return $helper;
     }
 
+    static function createInitedRun($responses, $opts = array()) {
+        $responses = array_merge([['ok', phpversion('ddappsec')]], $responses);
+        return self::createRun($responses, $opts);
+    }
+
     function run($responses, $continuous = false) {
         $esc_resp = "";
         foreach ($responses as $response) {

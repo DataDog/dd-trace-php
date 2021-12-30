@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "version.hpp"
 #include <msgpack.hpp>
 #include <network/broker.hpp>
 #include <network/socket.hpp>
@@ -31,11 +32,15 @@ void pack_str(msgpack::packer<std::stringstream> &p, const char *str)
     p.pack_str(l);
     p.pack_str_body(str, l);
 }
-
 void pack_str(msgpack::packer<std::stringstream> &p, const std::string str)
 {
     p.pack_str(str.size());
-    p.pack_str_body(str.c_str(), str.size());
+    p.pack_str_body(&str[0], str.size());
+}
+void pack_str(msgpack::packer<std::stringstream> &p, const std::string_view str)
+{
+    p.pack_str(str.size());
+    p.pack_str_body(str.data(), str.size());
 }
 } // namespace
 
@@ -68,8 +73,9 @@ TEST(BrokerTest, BrokerSendClientInit)
 
     std::stringstream ss;
     msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(2);
+    packer.pack_array(3);
     pack_str(packer, "ok");
+    pack_str(packer, dds::php_ddappsec_version);
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");

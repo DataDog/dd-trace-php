@@ -12,7 +12,7 @@ use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,root_span_get_meta}
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createRun([['ok'], ['record', '[{"found":"attack"}]']], ['continuous' => true]);
+$helper = Helper::createInitedRun([['record', '[{"found":"attack"}]']], ['continuous' => true]);
 
 echo "root_span_get_meta (should fail: no root span):\n";
 var_dump(root_span_get_meta());

@@ -20,7 +20,7 @@ use const datadog\appsec\testing\log_level\DEBUG;
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createRun([['ok']], ['continuous' => true]);
+$helper = Helper::createInitedRun([['ok']], ['continuous' => true]);
 
 mlog(DEBUG, "Call rinit");
 echo "rinit\n";

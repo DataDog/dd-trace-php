@@ -12,6 +12,7 @@
 #include <optional>
 #include <type_traits>
 #include <typeinfo>
+#include <version.hpp>
 
 using stream_packer = msgpack::packer<std::stringstream>;
 
@@ -98,9 +99,10 @@ struct client_init {
         static constexpr response_id id = response_id::client_init;
 
         std::string status;
+        std::string version{dds::php_ddappsec_version};
         std::vector<std::string> errors;
 
-        MSGPACK_DEFINE(status, errors);
+        MSGPACK_DEFINE(status, version, errors);
     };
 };
 

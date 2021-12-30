@@ -43,7 +43,7 @@ $helper_args = implode(' ', array_merge(
         '-d', 'display_errors=1',
         '-d', 'error_reporting=2147483647',
         __DIR__ . "/inc/helper_invocation.php",
-        '--'
+        phpversion('ddappsec')
     )));
 set_helper_extra_args($helper_args);
 

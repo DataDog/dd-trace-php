@@ -28,8 +28,7 @@ print_r(root_span_get_meta());
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createRun([
-    ['ok'],
+$helper = Helper::createInitedRun([
     ['record', ['{"found":"attack"}','{"another":"attack"}']],
     ['record', ['{"yet another":"attack"}']],
 ], ['continuous' => true]);
