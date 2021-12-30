@@ -6,7 +6,6 @@ fi
 ${PHP_SRC_DIR}/configure \
     --enable-option-checking=fatal \
     --enable-cgi \
-    --enable-embed \
     --enable-fpm \
     --enable-ftp \
     --enable-mbstring \
