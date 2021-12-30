@@ -12,7 +12,7 @@
 // note: only call this if ddtrace_config_trace_enabled() returns true
 bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_name);
 
-void ddtrace_config_minit(int module_number);
+bool ddtrace_config_minit(int module_number);
 void ddtrace_config_first_rinit();
 
 extern bool runtime_config_first_init;

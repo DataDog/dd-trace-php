@@ -342,7 +342,7 @@ static void zai_config_persist_zval(zval *in) {
 static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, bool persistent) {
     ZAI_TSRMLS_FETCH();
 
-    zai_json_decode(decoded_value, (char *)value.ptr, (int)value.len, true, 20 ZAI_TSRMLS_CC);
+    zai_json_decode_assoc(decoded_value, (char *)value.ptr, (int)value.len, 20 ZAI_TSRMLS_CC);
 
     if (Z_TYPE_P(decoded_value) != IS_ARRAY) {
         zval_dtor(decoded_value);

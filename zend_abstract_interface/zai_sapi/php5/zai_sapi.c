@@ -10,6 +10,7 @@
 #include "../zai_sapi_io.h"
 
 #define DEFAULT_INI        \
+    "date.timezone=UTC\n"  \
     "html_errors=0\n"      \
     "implicit_flush=1\n"   \
     "output_buffering=0\n" \
@@ -166,7 +167,7 @@ bool zai_sapi_sinit(void) {
      * This will prevent inadvertently loading any extensions that we did not
      * intend to. It also gives us a consistent clean slate of INI settings.
      */
-    zai_module.php_ini_ignore = 1;
+    zai_module.php_ini_ignore = zai_sapi_php_ini_ignore() ? 1 : 0;
 
     /* Show phpinfo()/module info as plain text. */
     zai_module.phpinfo_as_text = 1;

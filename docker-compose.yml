@@ -50,6 +50,7 @@ services:
   '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
   # --- Buster ---
   '5.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_buster' }
+  '5.4-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4-shared-ext' }
   '5.5-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_buster' }
   '5.6-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_buster' }
   '7.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }

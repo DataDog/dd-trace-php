@@ -480,7 +480,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     REGISTER_INI_ENTRIES();
 
     // config initialization needs to be at the top
-    ddtrace_config_minit(module_number);
+    if (!ddtrace_config_minit(module_number)) {
+        return FAILURE;
+    }
     dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
     atomic_init(&ddtrace_warn_legacy_api, 1);
 
@@ -807,7 +809,9 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     _dd_info_tracer_config();
     php_info_print_table_end();
 
-    _dd_info_diagnostics_table(TSRMLS_C);
+    if (!DDTRACE_G(disable)) {
+        _dd_info_diagnostics_table(TSRMLS_C);
+    }
 
     DISPLAY_INI_ENTRIES();
 }
