@@ -31,8 +31,7 @@ static inline zval *ddtrace_spandata_property_type(ddtrace_span_t *span) {
 }
 static inline zend_array *ddtrace_spandata_property_force_array(zval *zv) {
     ZVAL_DEREF(zv);
-    if (Z_TYPE_P(zv) != IS_ARRAY)
-    {
+    if (Z_TYPE_P(zv) != IS_ARRAY) {
         zval garbage;
         ZVAL_COPY_VALUE(&garbage, zv);
         array_init(zv);

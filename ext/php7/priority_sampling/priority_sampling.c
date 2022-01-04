@@ -61,7 +61,8 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
 
         zval sample_rate_zv;
         ZVAL_DOUBLE(&sample_rate_zv, sample_rate);
-        zend_hash_str_update(ddtrace_spandata_property_metrics(&span->span), "_dd.rule_psr", sizeof("_dd.rule_psr") - 1, &sample_rate_zv);
+        zend_hash_str_update(ddtrace_spandata_property_metrics(&span->span), "_dd.rule_psr", sizeof("_dd.rule_psr") - 1,
+                             &sample_rate_zv);
 
         bool sampling = (double)genrand64_int64() < sample_rate * (double)~0ULL;
 
@@ -74,7 +75,8 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
 
     zval priority_zv;
     ZVAL_LONG(&priority_zv, priority);
-    zend_hash_str_update(ddtrace_spandata_property_metrics(&span->span), "_sampling_priority_v1", sizeof("_sampling_priority_v1") - 1, &priority_zv);
+    zend_hash_str_update(ddtrace_spandata_property_metrics(&span->span), "_sampling_priority_v1",
+                         sizeof("_sampling_priority_v1") - 1, &priority_zv);
 }
 
 zend_long ddtrace_fetch_prioritySampling_from_root(void) {
