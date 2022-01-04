@@ -1227,7 +1227,6 @@ jobs:
               echo 'catch2 already installed'
               exit 0
             fi
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
             cd /tmp
             curl -OL https://github.com/catchorg/Catch2/archive/v<< parameters.catch2_version >>.tar.gz
             mkdir catch2
