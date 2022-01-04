@@ -276,8 +276,8 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
     zend_object_std_init(&span_fci->span.std, class_type);
     span_fci->span.std.handlers = &ddtrace_span_data_handlers;
-    array_init(ddtrace_spandata_property_meta(&span_fci->span));
-    array_init(ddtrace_spandata_property_metrics(&span_fci->span));
+    array_init(ddtrace_spandata_property_meta_zval(&span_fci->span));
+    array_init(ddtrace_spandata_property_metrics_zval(&span_fci->span));
     return &span_fci->span.std;
 }
 

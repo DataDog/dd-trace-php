@@ -29,11 +29,27 @@ static inline zval *ddtrace_spandata_property_service(ddtrace_span_t *span) {
 static inline zval *ddtrace_spandata_property_type(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 3);
 }
-static inline zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) {
+static inline zend_array *ddtrace_spandata_property_force_array(zval *zv) {
+    ZVAL_DEREF(zv);
+    if (Z_TYPE_P(zv) != IS_ARRAY) {
+        zval garbage;
+        ZVAL_COPY_VALUE(&garbage, zv);
+        array_init(zv);
+        zval_ptr_dtor(&garbage);
+    }
+    return Z_ARR_P(zv);
+}
+static inline zval *ddtrace_spandata_property_meta_zval(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 4);
 }
-static inline zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) {
+static inline zend_array *ddtrace_spandata_property_meta(ddtrace_span_t *span) {
+    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_meta_zval(span));
+}
+static inline zval *ddtrace_spandata_property_metrics_zval(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 5);
+}
+static inline zend_array *ddtrace_spandata_property_metrics(ddtrace_span_t *span) {
+    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_metrics_zval(span));
 }
 static inline zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 6);
