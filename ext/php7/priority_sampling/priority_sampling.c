@@ -59,7 +59,10 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
         }
         ZEND_HASH_FOREACH_END();
 
-        add_assoc_double_ex(ddtrace_spandata_property_metrics(&span->span), ZEND_STRL("_dd.rule_psr"), sample_rate);
+        zval sample_rate_zv;
+        ZVAL_DOUBLE(&sample_rate_zv, sample_rate);
+        zend_hash_str_update(ddtrace_spandata_property_metrics(&span->span), "_dd.rule_psr", sizeof("_dd.rule_psr") - 1,
+                             &sample_rate_zv);
 
         bool sampling = (double)genrand64_int64() < sample_rate * (double)~0ULL;
 
@@ -69,7 +72,11 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
             priority = sampling ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
         }
     }
-    add_assoc_long_ex(ddtrace_spandata_property_metrics(&span->span), ZEND_STRL("_sampling_priority_v1"), priority);
+
+    zval priority_zv;
+    ZVAL_LONG(&priority_zv, priority);
+    zend_hash_str_update(ddtrace_spandata_property_metrics(&span->span), "_sampling_priority_v1",
+                         sizeof("_sampling_priority_v1") - 1, &priority_zv);
 }
 
 zend_long ddtrace_fetch_prioritySampling_from_root(void) {
@@ -83,20 +90,14 @@ zend_long ddtrace_fetch_prioritySampling_from_root(void) {
         return DDTRACE_G(default_priority_sampling);
     }
 
-    zval *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
-    ZVAL_DEREF(root_metrics);
-    if (Z_TYPE_P(root_metrics) != IS_ARRAY) {
-        zval_ptr_dtor(root_metrics);
-        array_init(root_metrics);
-    }
-
-    if (!(priority_zv = zend_hash_str_find(Z_ARR_P(root_metrics), ZEND_STRL("_sampling_priority_v1")))) {
+    zend_array *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
+    if (!(priority_zv = zend_hash_str_find(root_metrics, ZEND_STRL("_sampling_priority_v1")))) {
         if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
             return DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
         }
 
         dd_decide_on_sampling(root_span);
-        priority_zv = zend_hash_str_find(Z_ARR_P(root_metrics), ZEND_STRL("_sampling_priority_v1"));
+        priority_zv = zend_hash_str_find(root_metrics, ZEND_STRL("_sampling_priority_v1"));
     }
 
     return zval_get_long(priority_zv);
@@ -109,18 +110,12 @@ void ddtrace_set_prioritySampling_on_root(zend_long priority) {
         return;
     }
 
-    zval *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
-    ZVAL_DEREF(root_metrics);
-    if (Z_TYPE_P(root_metrics) != IS_ARRAY) {
-        zval_ptr_dtor(root_metrics);
-        array_init(root_metrics);
-    }
-
+    zend_array *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
     if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN || priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-        zend_hash_str_del(Z_ARR_P(root_metrics), ZEND_STRL("_sampling_priority_v1"));
+        zend_hash_str_del(root_metrics, ZEND_STRL("_sampling_priority_v1"));
     } else {
         zval zv;
         ZVAL_LONG(&zv, priority);
-        zend_hash_str_update(Z_ARR_P(root_metrics), "_sampling_priority_v1", sizeof("_sampling_priority_v1") - 1, &zv);
+        zend_hash_str_update(root_metrics, "_sampling_priority_v1", sizeof("_sampling_priority_v1") - 1, &zv);
     }
 }
