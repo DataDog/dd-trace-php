@@ -23,6 +23,7 @@ function generate_garbage()
         "DDTrace\hook_method",
         "call_function",
         [],
+        ["nonempty" => new stdClass()],
         new stdClass(),
         function () {
             ob_start();
@@ -84,7 +85,8 @@ function runOneIteration()
             return DDTrace\active_span();
         },
     ];
-    $props = (new ReflectionClass('DDTrace\SpanData'))->getProperties();
+    $props = array_filter((new ReflectionClass('DDTrace\SpanData'))->getProperties(),
+        function($p) { return $p->name != "parent"; });
 
     shuffle($functions);
     foreach ($functions as $function) {

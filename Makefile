@@ -918,6 +918,10 @@ API_TESTS_ROOT := ./tests/api
 test_api_unit: composer.lock global_test_run_dependencies
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
 
+# Just test it does not crash, i.e. the exit code
+test_internal_api_randomized: $(SO_FILE)
+	php -ddatadog.trace.cli_enabled=1 -d extension=$(SO_FILE) tests/internal-api-stress-test.php 2>/dev/null
+
 composer.lock: composer.json
 	$(Q) composer update
 

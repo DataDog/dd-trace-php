@@ -2062,6 +2062,7 @@ workflows:
                 - test_api_unit
                 - test_c2php
                 - test_c_disabled
+                - test_internal_api_randomized
       - coverage:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -2092,6 +2093,7 @@ workflows:
               make_target:
                 - test_c_asan
                 - test_with_init_hook_asan
+                - test_internal_api_randomized
 
       - integration:
           requires: [ 'Prepare Code' ]
