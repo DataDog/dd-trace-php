@@ -37,6 +37,7 @@ static inline zend_array *ddtrace_spandata_property_force_array(zval *zv) {
         array_init(zv);
         zval_ptr_dtor(&garbage);
     }
+    SEPARATE_ARRAY(zv);
     return Z_ARR_P(zv);
 }
 static inline zval *ddtrace_spandata_property_meta_zval(ddtrace_span_t *span) {
