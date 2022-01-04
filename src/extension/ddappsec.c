@@ -14,7 +14,6 @@
 #include <sys/types.h>
 
 #include <stdatomic.h>
-#include <zend_string.h>
 
 #include "commands/client_init.h"
 #include "commands/request_init.h"
@@ -23,6 +22,7 @@
 #include "dddefs.h"
 #include "ddtrace.h"
 #include "helper_process.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "network.h"
 #include "php_compat.h"
@@ -90,6 +90,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_trace_startup();
     dd_request_abort_startup();
     dd_tags_startup();
+    dd_ip_extraction_startup();
 
     return SUCCESS;
 }
