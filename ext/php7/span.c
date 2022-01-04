@@ -102,12 +102,7 @@ DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
         return false;
     }
 
-    zval *meta = ddtrace_spandata_property_meta(&root->span);
-    if (Z_TYPE_P(meta) != IS_ARRAY) {
-        return false;
-    }
-
-    return zend_hash_add(Z_ARR_P(meta), tag, value) != NULL;
+    return zend_hash_add(ddtrace_spandata_property_meta(&root->span), tag, value) != NULL;
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
