@@ -103,6 +103,10 @@ add_subdirectory(functions)
 add_subdirectory(env)
 add_subdirectory(exceptions)
 add_subdirectory(config)
+if(PHP_VERSION_DIRECTORY STREQUAL "php8")
+  # TODO Support PHP 5 & 7
+  add_subdirectory(function_call_interceptor)
+endif()
 add_subdirectory(json)
 if(PHP_VERSION_DIRECTORY STREQUAL "php5")
   # TODO Support PHP 7 & PHP 8
