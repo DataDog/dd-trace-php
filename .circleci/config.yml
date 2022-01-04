@@ -1218,6 +1218,7 @@ jobs:
             cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
             sudo mkdir -p /opt/cmake/<< parameters.cmake_version >>
             cd /opt/cmake/<< parameters.cmake_version >> && sudo tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz --strip 1
+            PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
       - run:
           name: Install Catch2
           command: |
@@ -1235,78 +1236,68 @@ jobs:
             cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2
             cmake --build build/ --target install
 
-      # Builds that support ASan
-      - when:
-          condition:
-            or:
-              - equal: [ "7.4", << parameters.php_version >> ]
-              - equal: [ "8.0", << parameters.php_version >> ]
-              - equal: [ "8.1", << parameters.php_version >> ]
-          steps:
-            - run:
-                name: Build and test Zend Abstract Interface (nts, debug, debug-zts-asan)
-                command: |
-                  export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-                  for phpBuild in nts debug debug-zts-asan
-                  do
-                    switch-php ${phpBuild}
-                    mkdir -p /tmp/build/zai-${phpBuild}
-                    cd /tmp/build/zai-${phpBuild}
-                    toolchain=""
-                    if [ "${phpBuild}" = "debug-zts-asan" ]
-                    then
-                      toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-                    fi
-                    CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-                      ${toolchain} \
-                      -DCMAKE_BUILD_TYPE=Debug \
-                      -DBUILD_ZAI_TESTING=ON \
-                      -DPHP_CONFIG=$(which php-config) \
-                      ~/datadog/zend_abstract_interface
-                    make -j all
-                    make test
-                    grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
-                  done
+      - run:
+          name: ZAI SAPI (build, test, & install on all PHP builds)
+          command: |
+            for phpBuild in $(ls /opt/php)
+            do
+              switch-php ${phpBuild}
+              toolchain=""
+              if [ "${phpBuild}" = "debug-zts-asan" ]
+              then
+                toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+              fi
+              mkdir -p /tmp/build/zai-sapi-${phpBuild}
+              cd /tmp/build/zai-sapi-${phpBuild}
+              CMAKE_PREFIX_PATH=/opt/catch2 \
+              cmake \
+                ${toolchain} \
+                -DCMAKE_INSTALL_PREFIX=/opt/zai_sapi/${phpBuild} \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DBUILD_ZAI_SAPI_TESTING=ON \
+                -DPHP_CONFIG=$(which php-config) \
+                ~/datadog/zai_sapi
+              make -j all
+              make test
+              grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+              make install
+            done
 
-      # Builds that do not support ASan
-      - when:
-          condition:
-            or:
-              - equal: [ "5.4", << parameters.php_version >> ]
-              - equal: [ "5.5", << parameters.php_version >> ]
-              - equal: [ "5.6", << parameters.php_version >> ]
-              - equal: [ "7.0", << parameters.php_version >> ]
-              - equal: [ "7.1", << parameters.php_version >> ]
-              - equal: [ "7.2", << parameters.php_version >> ]
-              - equal: [ "7.3", << parameters.php_version >> ]
-          steps:
-            - run:
-                name: Build and test Zend Abstract Interface (nts, debug, debug-zts)
-                command: |
-                  export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-                  for phpBuild in nts debug debug-zts
-                  do
-                    switch-php ${phpBuild}
-                    mkdir -p /tmp/build/zai-${phpBuild}
-                    cd /tmp/build/zai-${phpBuild}
-                    CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-                      -DCMAKE_BUILD_TYPE=Debug \
-                      -DBUILD_ZAI_TESTING=ON \
-                      -DPHP_CONFIG=$(which php-config) \
-                      ~/datadog/zend_abstract_interface
-                    make -j all
-                    make test
-                    grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
-                  done
+      - run:
+          name: Zend Abstract Interface (build & test on all PHP builds)
+          command: |
+            for phpBuild in $(ls /opt/php)
+            do
+              switch-php ${phpBuild}
+              toolchain=""
+              if [ "${phpBuild}" = "debug-zts-asan" ]
+              then
+                toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+              fi
+              mkdir -p /tmp/build/zai-${phpBuild}
+              cd /tmp/build/zai-${phpBuild}
+              CMAKE_PREFIX_PATH=/opt/catch2 \
+              ZaiSapi_ROOT=/opt/zai_sapi/${phpBuild} \
+              cmake \
+                ${toolchain} \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DBUILD_ZAI_TESTING=ON \
+                -DPHP_CONFIG=$(which php-config) \
+                ~/datadog/zend_abstract_interface
+              make -j all
+              make test
+              grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+            done
 
       - run:
           name: Build and test Zend Abstract Interface (debug + UBSan)
           command: |
             switch-php debug
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
             mkdir -p /tmp/build/zai-debug-ubsan
             cd /tmp/build/zai-debug-ubsan
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+            CMAKE_PREFIX_PATH=/opt/catch2 \
+            ZaiSapi_ROOT=/opt/zai_sapi/debug \
+            cmake \
               -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
@@ -1337,6 +1328,21 @@ jobs:
           name: Switch PHP to nts
           command: |
             switch-php nts
+
+      - run:
+          name: ZAI SAPI (build & install on nts)
+          command: |
+            mkdir -p /tmp/build/zai-sapi-nts
+            cd /tmp/build/zai-sapi-nts
+            CMAKE_PREFIX_PATH=/opt/catch2 \
+            cmake \
+              -DCMAKE_INSTALL_PREFIX=/opt/zai_sapi/nts \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_ZAI_SAPI_TESTING=ON \
+              -DPHP_CONFIG=$(which php-config) \
+              ~/datadog/zai_sapi
+            make -j all
+            make install
 
       # Starting in PHP 8.0, ext/json is a core extension
       - when:
@@ -1375,7 +1381,9 @@ jobs:
           command: |
             mkdir -p /tmp/build/zai-nts
             cd /tmp/build/zai-nts
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+            CMAKE_PREFIX_PATH=/opt/catch2 \
+            ZaiSapi_ROOT=/opt/zai_sapi/nts \
+            cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
               -DPHP_CONFIG=$(which php-config) \
@@ -1583,7 +1591,7 @@ workflows:
                 - "8.0"
                 - "8.1"
               cmake_version:
-                - "3.18.3"
+                - "3.19.7"
                 - "3.20.1"
               catch2_version:
                 - "2.13.5"
