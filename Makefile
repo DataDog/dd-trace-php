@@ -171,7 +171,9 @@ build_zai:
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	CMAKE_PREFIX_PATH=/opt/catch2 \
+	ZaiSapi_ROOT=$(ZAI_SAPI_INSTALL_DIR) \
+	cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
@@ -182,7 +184,9 @@ build_zai_asan:
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DBUILD_ZAI_ASAN=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	CMAKE_PREFIX_PATH=/opt/catch2 \
+	ZaiSapi_ROOT=$(ZAI_SAPI_INSTALL_DIR) \
+	cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DBUILD_ZAI_ASAN=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) clean $(MAKEFLAGS); \
 	$(MAKE) $(MAKEFLAGS); \
 	)
@@ -195,7 +199,7 @@ build_zai_coverage: install_zai_sapi
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
-	ZaiSapi_ROOT=$(ZAI_SAPI_BUILD_DIR)/opt \
+	ZaiSapi_ROOT=$(ZAI_SAPI_INSTALL_DIR) \
 	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
