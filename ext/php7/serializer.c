@@ -288,7 +288,7 @@ static ZEND_RESULT_CODE ddtrace_exception_to_meta(zend_object *exception, void *
 
     previous = ZAI_EXCEPTION_PROPERTY(exception_root, ZEND_STR_PREVIOUS);
     while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
-            instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
+           instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
         Z_UNPROTECT_RECURSION_P(previous);
         previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
     }
