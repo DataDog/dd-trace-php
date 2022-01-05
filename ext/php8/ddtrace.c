@@ -417,6 +417,13 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     UNREGISTER_INI_ENTRIES();
 
+    /* prevent unloading ddtrace, extension shutdown is called later */
+    zval *ddtrace_module_zv = zend_hash_str_find(&module_registry, ZEND_STRL("ddtrace"));
+    if (ddtrace_module_zv) {
+        zend_module_entry *ddtrace_module = Z_PTR_P(ddtrace_module_zv);
+        ddtrace_module->handle = NULL;
+    }
+
     if (DDTRACE_G(disable) == 1) {
         zai_config_mshutdown();
         return SUCCESS;

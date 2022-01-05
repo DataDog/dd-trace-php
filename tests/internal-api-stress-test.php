@@ -91,16 +91,16 @@ function runOneIteration()
     shuffle($functions);
     foreach ($functions as $function) {
         $garbages = generate_garbage();
-        $e = new Exception("");
-        $exceptionClass = new ReflectionClass("Exception");
+        $ex = new Exception("");
+        $exceptionClass = new ReflectionClass($ex);
         foreach ($exceptionClass->getProperties() as $prop) {
             $prop->setAccessible(true);
             try {
-                $prop->setValue($e, rand(1, 5) == 1 ? $e : $garbages[array_rand($garbages)]);
+                $prop->setValue($ex, rand(1, 5) == 1 ? $ex : $garbages[array_rand($garbages)]);
             } catch (TypeError $e) {
             }
         }
-        $garbages[] = $e;
+        $garbages[] = $ex;
         foreach (array_slice($return_span, 0, rand(0, count($return_span))) as $spanreturner) {
             $span = $spanreturner();
             foreach ($props as $prop) {
