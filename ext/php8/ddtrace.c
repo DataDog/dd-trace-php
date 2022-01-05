@@ -50,6 +50,7 @@
 #include "startup_logging.h"
 
 bool ddtrace_has_excluded_module;
+static zend_module_entry *ddtrace_module;
 
 atomic_int ddtrace_warn_legacy_api;
 
@@ -373,6 +374,11 @@ static PHP_MINIT_FUNCTION(ddtrace) {
                            CONST_CS | CONST_PERSISTENT);
     REGISTER_INI_ENTRIES();
 
+    zval *ddtrace_module_zv = zend_hash_str_find(&module_registry, ZEND_STRL("ddtrace"));
+    if (ddtrace_module_zv) {
+        ddtrace_module = Z_PTR_P(ddtrace_module_zv);
+    }
+
     // config initialization needs to be at the top
     if (!ddtrace_config_minit(module_number)) {
         return FAILURE;
@@ -418,9 +424,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNREGISTER_INI_ENTRIES();
 
     /* prevent unloading ddtrace, extension shutdown is called later */
-    zval *ddtrace_module_zv = zend_hash_str_find(&module_registry, ZEND_STRL("ddtrace"));
-    if (ddtrace_module_zv) {
-        zend_module_entry *ddtrace_module = Z_PTR_P(ddtrace_module_zv);
+    if (ddtrace_module) {
         ddtrace_module->handle = NULL;
     }
 
