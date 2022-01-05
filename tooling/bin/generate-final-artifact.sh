@@ -49,26 +49,39 @@ tar -xf $tmp_folder_profiling_archive -C $tmp_folder_profiling
 php_apis=(20160303 20170718 20180731 20190902 20200930)
 for version in "${php_apis[@]}"
 do
-    mkdir -p $tmp_folder_final/x86_64-linux-gnu/dd-library-php/profiling/ext/$version $tmp_folder_final/x86_64-linux-musl/dd-library-php/profiling/ext/$version
-    cp $tmp_folder_profiling/datadog-profiling/x86_64-linux-gnu/lib/php/$version/datadog-profiling.so $tmp_folder_final/x86_64-linux-gnu/dd-library-php/profiling/ext/$version/datadog-profiling.so
-    cp $tmp_folder_profiling/datadog-profiling/x86_64-linux-musl/lib/php/$version/datadog-profiling.so $tmp_folder_final/x86_64-linux-musl/dd-library-php/profiling/ext/$version/datadog-profiling.so
+    mkdir -v -p \
+        $tmp_folder_final/x86_64-linux-gnu/dd-library-php/profiling/ext/$version \
+        $tmp_folder_final/x86_64-linux-musl/dd-library-php/profiling/ext/$version
+
+    cp -v \
+        $tmp_folder_profiling/datadog-profiling/x86_64-linux-gnu/lib/php/$version/datadog-profiling.so \
+        $tmp_folder_final/x86_64-linux-gnu/dd-library-php/profiling/ext/$version/datadog-profiling.so
+
+    cp -v \
+        $tmp_folder_profiling/datadog-profiling/x86_64-linux-musl/lib/php/$version/datadog-profiling.so \
+        $tmp_folder_final/x86_64-linux-musl/dd-library-php/profiling/ext/$version/datadog-profiling.so
 done
 
 # Licenses
-cp \
+cp -v \
     $tmp_folder_profiling/datadog-profiling/x86_64-linux-gnu/LICENSE* \
     $tmp_folder_profiling/datadog-profiling/x86_64-linux-gnu/NOTICE* \
-    $tmp_folder_final_gnu/dd-library-php/profiling
-cp \
+    $tmp_folder_final_gnu/dd-library-php/profiling/
+
+cp -v \
     $tmp_folder_profiling/datadog-profiling/x86_64-linux-musl/LICENSE* \
     $tmp_folder_profiling/datadog-profiling/x86_64-linux-musl/NOTICE* \
-    $tmp_folder_final_musl/dd-library-php/profiling
+    $tmp_folder_final_musl/dd-library-php/profiling/
 
 ########################
 # Final archives
 ########################
 echo "$release_version" > ${tmp_folder_final_gnu}/dd-library-php/VERSION
-tar -czvf ${packages_build_dir}/dd-library-php-x86_64-linux-gnu.tar.gz -C ${tmp_folder_final_gnu} .
+tar -czv \
+    -f ${packages_build_dir}/dd-library-php-x86_64-linux-gnu.tar.gz \
+    -C ${tmp_folder_final_gnu} .
 
 echo "$release_version" > ${tmp_folder_final_musl}/dd-library-php/VERSION
-tar -czvf ${packages_build_dir}/dd-library-php-x86_64-linux-musl.tar.gz -C ${tmp_folder_final_musl} .
+tar -czv \
+    -f ${packages_build_dir}/dd-library-php-x86_64-linux-musl.tar.gz \
+    -C ${tmp_folder_final_musl} .
