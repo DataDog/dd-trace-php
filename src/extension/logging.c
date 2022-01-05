@@ -178,39 +178,39 @@ static dd_result _do_dd_log_init() // guarded by mutex
     return dd_success;
 }
 
-static dd_log_level_t _dd_log_level_from_str(const char *nullable log_level)
+static int _dd_log_level_from_str(const char *nullable log_level)
 {
     if (log_level == NULL) {
         goto err;
     }
 
     size_t len = strlen((const char *)log_level);
-    if (STR_CONS_EQ(log_level, len, "off")) {
+    if (dd_string_equals_lc(log_level, len, ZEND_STRL("off"))) {
         return dd_log_off;
     }
-    if (STR_CONS_EQ(log_level, len, "error")) {
-        return dd_log_error;
-    }
-    if (STR_CONS_EQ(log_level, len, "fatal")) {
+    if (dd_string_equals_lc(log_level, len, ZEND_STRL("fatal"))) {
         return dd_log_fatal;
     }
-    if (STR_CONS_EQ(log_level, len, "warning") ||
-        STR_CONS_EQ(log_level, len, "warn")) {
+    if (dd_string_equals_lc(log_level, len, ZEND_STRL("error"))) {
+        return dd_log_error;
+    }
+    if (dd_string_equals_lc(log_level, len, ZEND_STRL("warning")) ||
+        dd_string_equals_lc(log_level, len, ZEND_STRL("warn"))) {
         return dd_log_warning;
     }
-    if (STR_CONS_EQ(log_level, len, "info")) {
+    if (dd_string_equals_lc(log_level, len, ZEND_STRL("info"))) {
         return dd_log_info;
     }
-    if (STR_CONS_EQ(log_level, len, "debug")) {
+    if (dd_string_equals_lc(log_level, len, ZEND_STRL("debug"))) {
         return dd_log_debug;
     }
-    if (STR_CONS_EQ(log_level, len, "trace")) {
+    if (dd_string_equals_lc(log_level, len, ZEND_STRL("trace"))) {
         return dd_log_trace;
     }
 
 err:
     /* Fallback on a reasonable log level */
-    return dd_log_error;
+    return -1;
 }
 
 static const char *nonnull _dd_log_level_to_str(dd_log_level_t log_level)
@@ -472,8 +472,12 @@ static ZEND_INI_MH(_on_update_log_level)
     }
 
     char *str_value = ZSTR_VAL(new_value);
-    dd_log_level = _dd_log_level_from_str(str_value);
+    int level = _dd_log_level_from_str(str_value);
+    if (level == -1) {
+        return FAILURE;
+    }
 
+    dd_log_level = level;
     return SUCCESS;
 }
 static ZEND_INI_MH(_on_update_log_file)
