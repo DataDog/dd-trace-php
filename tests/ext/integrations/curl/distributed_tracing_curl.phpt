@@ -46,6 +46,6 @@ The to be propagated tag 'extreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 bool(true)
-string(14) "encoding_error"
+string(8) "max_size"
 Done.
 No finished traces to be sent to the agent

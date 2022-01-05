@@ -456,7 +456,7 @@ static zend_string *dd_build_req_url() {
 void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
 
-    zend_hash_copy(Z_ARR_P(meta), &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
+    zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
 
     zval pid;
     ZVAL_LONG(&pid, (long)getpid());

@@ -30,6 +30,8 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
         }
         // we skip invalid tags without = within
         if (*header == ',') {
+            ddtrace_log_debugf("Found x-datadog-tags header without key-separating equals character; raw input: %.*s",
+                               ZSTR_LEN(headerstr), ZSTR_VAL(headerstr));
             tagstart = ++header;
         }
     }
@@ -42,23 +44,37 @@ zend_string *ddtrace_format_propagated_tags(void) {
 
     zend_array *tags = &DDTRACE_G(root_span_tags_preset);
     if (DDTRACE_G(root_span)) {
-        zval *meta = ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span);
-        ZVAL_DEREF(meta);
-        if (Z_TYPE_P(meta) == IS_ARRAY) {
-            tags = Z_ARRVAL_P(meta);
-        }
+        tags = ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span);
     }
 
     smart_str taglist = {0};
 
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
-        zval *tag = zend_hash_find(tags, tagname);
+        zval *tag = zend_hash_find(tags, tagname), error_zv = {0};
         if (tag) {
             zend_string *str = ddtrace_convert_to_str(tag);
 
+            for (char *cur = ZSTR_VAL(tagname), *end = cur + ZSTR_LEN(tagname); cur < end; ++cur) {
+                if (*cur < 0x20 || *cur > 0x7E || *cur == '=' || *cur == ',') {
+                    ddtrace_log_errf("The to be propagated tag name '%s' is invalid and is thus dropped.",
+                                     ZSTR_VAL(tagname));
+                    ZVAL_STRING(&error_zv, "encoding_error");
+                    goto error;
+                }
+            }
+
+            for (char *cur = ZSTR_VAL(str), *end = cur + ZSTR_LEN(str); cur < end; ++cur) {
+                if (*cur < 0x20 || *cur > 0x7E || *cur == ',') {
+                    ddtrace_log_errf("The to be propagated tag '%s=%.*s' value is invalid and is thus dropped.",
+                                     ZSTR_VAL(tagname), ZSTR_LEN(str), ZSTR_VAL(str));
+                    ZVAL_STRING(&error_zv, "encoding_error");
+                    goto error;
+                }
+            }
+
             if ((taglist.s ? ZSTR_LEN(taglist.s) : 0) + ZSTR_LEN(tagname) + ZSTR_LEN(str) + 2 <=
-                (size_t)get_DD_TRACE_MAX_PROPAGATED_TAGS_LENGTH()) {
+                (size_t)get_DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH()) {
                 if (taglist.s) {
                     smart_str_appendc(&taglist, ',');
                 }
@@ -69,18 +85,18 @@ zend_string *ddtrace_format_propagated_tags(void) {
                 ddtrace_log_errf(
                     "The to be propagated tag '%s=%.*s' is too long and exceeds the maximum limit of " ZEND_LONG_FMT
                     " characters and is thus dropped.",
-                    ZSTR_VAL(tagname), ZSTR_LEN(str), ZSTR_VAL(str), get_DD_TRACE_MAX_PROPAGATED_TAGS_LENGTH());
-
-                zval *meta = ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span);
-                ZVAL_DEREF(meta);
-                if (Z_TYPE_P(meta) != IS_ARRAY) {
-                    zval_ptr_dtor(meta);
-                    array_init(meta);
-                }
-                SEPARATE_ARRAY(meta);
-                add_assoc_string_ex(meta, ZEND_STRL("_dd.propagation_error"), "encoding_error");
+                    ZSTR_VAL(tagname), ZSTR_LEN(str), ZSTR_VAL(str), get_DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH());
+                ZVAL_STRING(&error_zv, "max_size");
             }
+
+            error:
             zend_string_release(str);
+
+            if (!Z_ISUNDEF(error_zv)) {
+                zend_hash_str_update(tags, "_dd.propagation_error", sizeof("_dd.propagation_error") - 1, &error_zv);
+                smart_str_free(&taglist);
+                return NULL;
+            }
         }
     }
     ZEND_HASH_FOREACH_END();

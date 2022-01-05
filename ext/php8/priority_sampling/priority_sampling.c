@@ -19,13 +19,7 @@ enum dd_sampling_mechanism {
 
 static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci *deciding_span,
                                         enum dd_sampling_mechanism mechanism) {
-    zval *meta = ddtrace_spandata_property_meta(&span->span);
-    ZVAL_DEREF(meta);
-    if (Z_TYPE_P(meta) != IS_ARRAY) {
-        zval_ptr_dtor(meta);
-        array_init(meta);
-    }
-    SEPARATE_ARRAY(meta);
+    zend_array *meta = ddtrace_spandata_property_meta(&span->span);
 
     zval *current_services_zv =
         zend_hash_str_find(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.upstream_services"));
@@ -35,9 +29,10 @@ static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci
     if (DDTRACE_G(propagated_priority_sampling) == sampling_priority ||
         sampling_priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
         if (current_services) {
-            add_assoc_str_ex(meta, ZEND_STRL("_dd.p.upstream_services"), zend_string_copy(current_services));
+            zval_addref_p(current_services_zv);
+            zend_hash_str_update(meta, ZEND_STRL("_dd.p.upstream_services"), current_services_zv);
         } else {
-            zend_hash_str_del(Z_ARR_P(meta), ZEND_STRL("_dd.p.upstream_services"));
+            zend_hash_str_del(meta, ZEND_STRL("_dd.p.upstream_services"));
         }
         return;
     }
@@ -49,17 +44,16 @@ static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci
     }
 
     char sampling_rate[7] = {0};
-    zval *metrics = ddtrace_spandata_property_metrics(&span->span), *sample_rate;
-    ZVAL_DEREF(metrics);
-    if (Z_TYPE_P(metrics) == IS_ARRAY &&
-        (sample_rate = zend_hash_str_find(Z_ARR_P(metrics), ZEND_STRL("_dd.rule_psr")))) {
+    zend_array *metrics = ddtrace_spandata_property_metrics(&span->span);
+    zval *sample_rate, new_services;
+    if ((sample_rate = zend_hash_str_find(metrics, ZEND_STRL("_dd.rule_psr")))) {
         snprintf(sampling_rate, 6, "%f", Z_DVAL_P(sample_rate));
     }
 
-    zend_string *new_services =
+    ZVAL_STR(&new_services,
         zend_strpprintf(0, "%s%s%s|%d|%d|%s", ZSTR_VAL(current_services), ZSTR_LEN(current_services) ? ";" : "",
-                        ZSTR_VAL(b64_servicename), (int)sampling_priority, mechanism, sampling_rate);
-    add_assoc_str_ex(meta, ZEND_STRL("_dd.p.upstream_services"), new_services);
+                        ZSTR_VAL(b64_servicename), (int)sampling_priority, mechanism, sampling_rate));
+    zend_hash_str_update(meta, ZEND_STRL("_dd.p.upstream_services"), &new_services);
 
     zend_string_release(servicename);
     zend_string_release(b64_servicename);
