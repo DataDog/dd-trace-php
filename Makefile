@@ -297,7 +297,7 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR) \
-		https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0-rc.5/datadog-profiling.tar.gz
+		https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0-rc.6/datadog-profiling.tar.gz
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \

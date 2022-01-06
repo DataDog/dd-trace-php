@@ -49,11 +49,13 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
+    ### Changed
+    - Clean up generate-final-artifact.sh #1442
+
     ### Fixed
-    - Do not diagnostics when ddtrace is disabled #1434
-    - Fix json symbol address resolving logic #1432
-    - Disable tracing when PHP is executed during RINIT #1429
-    - Change Predis integration type to "redis" #1427
+    - Replace direct access of meta/metrics zvals by safe array access in most places #1440
+    - Always separate meta and metrics arrays on access #1441
+    - Bump profiling to v0.3.0-rc.6 (fixes some linking bugs) #1444
     </notes>
     <contents>
         <dir name="/">
