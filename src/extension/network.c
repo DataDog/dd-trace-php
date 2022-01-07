@@ -351,7 +351,7 @@ static dd_result _check_credentials(struct cmsghdr *cmsgp)
     mlog(dd_log_debug, "Helper's process credentials are correct");
     return dd_success;
 }
-#else // no SO_PEERCRED
+#else // no SO_PASSCRED
 dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
     size_t *nonnull data_len)
 {
