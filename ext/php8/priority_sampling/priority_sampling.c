@@ -28,7 +28,7 @@ static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci
     zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_root();
     if (DDTRACE_G(propagated_priority_sampling) == sampling_priority ||
         sampling_priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-        if (current_services) {
+        if (ZSTR_LEN(current_services)) {
             zval_addref_p(current_services_zv);
             zend_hash_str_update(meta, ZEND_STRL("_dd.p.upstream_services"), current_services_zv);
         } else {
@@ -51,8 +51,8 @@ static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci
     }
 
     ZVAL_STR(&new_services,
-        zend_strpprintf(0, "%s%s%s|%d|%d|%s", ZSTR_VAL(current_services), ZSTR_LEN(current_services) ? ";" : "",
-                        ZSTR_VAL(b64_servicename), (int)sampling_priority, mechanism, sampling_rate));
+             zend_strpprintf(0, "%s%s%s|%d|%d|%s", ZSTR_VAL(current_services), ZSTR_LEN(current_services) ? ";" : "",
+                             ZSTR_VAL(b64_servicename), (int)sampling_priority, mechanism, sampling_rate));
     zend_hash_str_update(meta, ZEND_STRL("_dd.p.upstream_services"), &new_services);
 
     zend_string_release(servicename);

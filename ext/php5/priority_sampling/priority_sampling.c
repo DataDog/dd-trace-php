@@ -35,7 +35,7 @@ static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci
     long sampling_priority = ddtrace_fetch_prioritySampling_from_root(TSRMLS_C);
     if (DDTRACE_G(propagated_priority_sampling) == sampling_priority ||
         sampling_priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-        if (current_services) {
+        if (strlen(current_services)) {
             add_assoc_string(meta, "_dd.p.upstream_services", current_services, 1);
         } else {
             zend_hash_del(Z_ARRVAL_P(meta), "_dd.p.upstream_services", sizeof("_dd.p.upstream_services"));

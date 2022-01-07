@@ -2,7 +2,6 @@
 #define DDTRACE_TRACER_TAG_PROPAGATION_H
 
 #include <php.h>
-
 #include <zai_string/string.h>
 
 void ddtrace_add_tracer_tags_from_header(zai_string_view *headerstr TSRMLS_DC);

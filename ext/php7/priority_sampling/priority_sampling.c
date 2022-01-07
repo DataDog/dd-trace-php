@@ -28,9 +28,10 @@ static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci
     zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_root();
     if (DDTRACE_G(propagated_priority_sampling) == sampling_priority ||
         sampling_priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-        if (current_services) {
+        if (ZSTR_LEN(current_services)) {
             zval_addref_p(current_services_zv);
-            zend_hash_str_update(meta, "_dd.p.upstream_services", sizeof("_dd.p.upstream_services") - 1, current_services_zv);
+            zend_hash_str_update(meta, "_dd.p.upstream_services", sizeof("_dd.p.upstream_services") - 1,
+                                 current_services_zv);
         } else {
             zend_hash_str_del(meta, ZEND_STRL("_dd.p.upstream_services"));
         }

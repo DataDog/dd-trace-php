@@ -66,7 +66,10 @@ zai_string_view ddtrace_format_propagated_tags(TSRMLS_D) {
     uint klen;
     ulong kidx;
 
-    for (zend_hash_internal_pointer_reset_ex(&DDTRACE_G(propagated_root_span_tags), &pos); zend_hash_get_current_key_ex(&DDTRACE_G(propagated_root_span_tags), (char **)&key, (uint *)&klen, &kidx, 0, &pos) == HASH_KEY_IS_STRING; zend_hash_move_forward_ex(&DDTRACE_G(propagated_root_span_tags), &pos)) {
+    for (zend_hash_internal_pointer_reset_ex(&DDTRACE_G(propagated_root_span_tags), &pos);
+         zend_hash_get_current_key_ex(&DDTRACE_G(propagated_root_span_tags), (char **)&key, (uint *)&klen, &kidx, 0,
+                                      &pos) == HASH_KEY_IS_STRING;
+         zend_hash_move_forward_ex(&DDTRACE_G(propagated_root_span_tags), &pos)) {
         zval **tag;
 
         if (zend_hash_find(tags, key, klen, (void **)&tag) == SUCCESS) {
@@ -84,8 +87,8 @@ zai_string_view ddtrace_format_propagated_tags(TSRMLS_D) {
 
             for (char *cur = Z_STRVAL(str), *end = cur + Z_STRLEN(str); cur < end; ++cur) {
                 if (*cur < 0x20 || *cur > 0x7E || *cur == ',') {
-                    ddtrace_log_errf("The to be propagated tag '%s=%.*s' value is invalid and is thus dropped.",
-                                     key, Z_STRLEN(str), Z_STRVAL(str));
+                    ddtrace_log_errf("The to be propagated tag '%s=%.*s' value is invalid and is thus dropped.", key,
+                                     Z_STRLEN(str), Z_STRVAL(str));
                     error = "encoding_error";
                     goto error;
                 }
@@ -107,14 +110,15 @@ zai_string_view ddtrace_format_propagated_tags(TSRMLS_D) {
                 error = "max_size";
             }
 
-            error:
+        error:
             zval_dtor(&str);
 
             if (error) {
                 zval *error_zv;
                 MAKE_STD_ZVAL(error_zv);
                 ZVAL_STRING(error_zv, error, 1);
-                zend_hash_update(tags, "_dd.propagation_error", sizeof("_dd.propagation_error"), (void *) &error_zv, sizeof(zval *), NULL);
+                zend_hash_update(tags, "_dd.propagation_error", sizeof("_dd.propagation_error"), (void *)&error_zv,
+                                 sizeof(zval *), NULL);
             }
         }
     }

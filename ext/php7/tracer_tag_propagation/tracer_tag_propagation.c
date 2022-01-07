@@ -89,7 +89,7 @@ zend_string *ddtrace_format_propagated_tags(void) {
                 ZVAL_STRING(&error_zv, "max_size");
             }
 
-            error:
+        error:
             zend_string_release(str);
 
             if (!Z_ISUNDEF(error_zv)) {

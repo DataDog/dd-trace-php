@@ -67,7 +67,7 @@ zend_string *ddtrace_format_propagated_tags(void) {
             for (char *cur = ZSTR_VAL(str), *end = cur + ZSTR_LEN(str); cur < end; ++cur) {
                 if (*cur < 0x20 || *cur > 0x7E || *cur == ',') {
                     ddtrace_log_errf("The to be propagated tag '%s=%.*s' value is invalid and is thus dropped.",
-                            ZSTR_VAL(tagname), ZSTR_LEN(str), ZSTR_VAL(str));
+                                     ZSTR_VAL(tagname), ZSTR_LEN(str), ZSTR_VAL(str));
                     ZVAL_STRING(&error_zv, "encoding_error");
                     goto error;
                 }
@@ -90,7 +90,7 @@ zend_string *ddtrace_format_propagated_tags(void) {
                 ZVAL_STRING(&error_zv, "max_size");
             }
 
-            error:
+        error:
             zend_string_release(str);
 
             if (!Z_ISUNDEF(error_zv)) {
