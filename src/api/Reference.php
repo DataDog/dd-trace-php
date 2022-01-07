@@ -1,11 +1,11 @@
 <?php
 
+namespace DDTrace;
+
 /**
  * Ported from opentracing/opentracing
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Reference.php
  */
-
-namespace DDTrace;
 
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;

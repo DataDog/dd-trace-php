@@ -44,10 +44,6 @@ class AutoInstrumentationTest extends BaseTestCase
             // the extension win over classes from composer. An anticipation of what will happen on 0.46+.
             ['composer_with_ddtrace_dependency', $currentTracerVersion, true],
 
-            // We want to make sure that users can safely declare a dependency in the latest version of our
-            // tracer in composer even if not required.
-            ['composer_with_local_code_dependency', $currentTracerVersion, true],
-
             // Symfony 3.3 has a loader Symfony\Component\Config\Resource\ClassExistenceResource which registers a
             // private method as the actual class loader. Because of https://github.com/DataDog/dd-trace-php/issues/224
             // we do not support this scenario, yet. As a result, we have to make sure that the workaround we applied

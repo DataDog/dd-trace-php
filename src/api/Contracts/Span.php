@@ -1,11 +1,11 @@
 <?php
 
+namespace DDTrace\Contracts;
+
 /**
  * Ported from opentracing/opentracing
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Span.php
  */
-
-namespace DDTrace\Contracts;
 
 interface Span
 {

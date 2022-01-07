@@ -1,11 +1,11 @@
 <?php
 
+namespace DDTrace\Contracts;
+
 /**
  * Ported from opentracing/opentracing
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/ScopeManager.php
  */
-
-namespace DDTrace\Contracts;
 
 /**
  * Keeps track of the current active `Span`.

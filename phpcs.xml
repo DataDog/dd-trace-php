@@ -10,6 +10,11 @@
         <severity>0</severity>
     </rule>
 
+    <!-- class preloader does not work otherwise -->
+    <rule ref="PSR12.Files.FileHeader.IncorrectOrder">
+        <severity>0</severity>
+    </rule>
+
     <rule ref="Generic.Commenting.Todo"/>
     <rule ref="Generic.Commenting.Fixme"/>
     <rule ref="Generic.Commenting.DocComment.MissingShort">
@@ -25,7 +30,7 @@
     </rule>
     <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
         <exclude-pattern>*/Span.php</exclude-pattern>
-        <exclude-pattern>src/DDTrace/Integrations/MongoDB/MongoDBIntegration.php</exclude-pattern>
+        <exclude-pattern>src/Integrations/Integrations/MongoDB/MongoDBIntegration.php</exclude-pattern>
         <exclude-pattern>tests/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
@@ -33,6 +38,8 @@
         <exclude-pattern>build/packages/*</exclude-pattern>
         <exclude-pattern>datadog-setup.php</exclude-pattern>
         <exclude-pattern>examples/long-running/long-running-script.php</exclude-pattern>
+        <exclude-pattern>src/api/GlobalTracer.php</exclude-pattern>
+        <exclude-pattern>src/DDTrace/Tracer.php</exclude-pattern>
         <exclude-pattern>tests/api/bootstrap.php</exclude-pattern>
         <exclude-pattern>tests/bootstrap.php</exclude-pattern>
         <exclude-pattern>tests/Composer/app/preload.ddtrace.php</exclude-pattern>
@@ -56,7 +63,9 @@
     <exclude-pattern>*/tests/stubs/*</exclude-pattern>
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>bridge/_generated_api.php</exclude-pattern>
-    <exclude-pattern>bridge/_generated_internal.php</exclude-pattern>
+    <exclude-pattern>bridge/_generated_integrations.php</exclude-pattern>
+    <exclude-pattern>bridge/_generated_tracer.php</exclude-pattern>
+    <exclude-pattern>bridge/_generated_tracer_api.php</exclude-pattern>
     <exclude-pattern>bridge/dd_register_optional_deps_autoloader.php</exclude-pattern>
     <exclude-pattern>dockerfiles/*</exclude-pattern>
     <exclude-pattern>playground*.php</exclude-pattern>
