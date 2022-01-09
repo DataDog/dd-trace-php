@@ -55,11 +55,9 @@ array(2) {
       string(7) "datadog"
     }
     ["metrics"]=>
-    array(3) {
-      ["_dd.rule_psr"]=>
-      float(1)
+    array(2) {
       ["_sampling_priority_v1"]=>
-      float(1)
+      float(3)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
