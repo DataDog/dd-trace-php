@@ -1,6 +1,6 @@
 <?php
 function get_filename() {
-	return ini_get('ddappsec.log_file');
+	return ini_get('datadog.appsec.log_file');
 }
 function log_contents() {
 	return file_get_contents(get_filename());

@@ -2,8 +2,8 @@
 Record response from request_init and ancillary tags in root span
 --INI--
 extension=ddtrace.so
-ddappsec.log_file=/tmp/php_appsec_test.log
-ddappsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=debug
 --SKIPIF--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';

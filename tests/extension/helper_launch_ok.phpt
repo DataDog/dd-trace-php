@@ -11,10 +11,10 @@ check_extension('pcntl');
 check_extension('sockets');
 ?>
 --INI--
-ddappsec.helper_log_file=/tmp/helper_test.log
-ddappsec.helper_launch=1
-ddappsec.log_file=/tmp/php_appsec_test.log
-ddappsec.log_level=debug
+datadog.appsec.helper_log_file=/tmp/helper_test.log
+datadog.appsec.helper_launch=1
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=debug
 --FILE--
 <?php
 use function datadog\appsec\testing\{set_helper_path,set_helper_extra_args,is_connected_to_helper,helper_mgr_acquire_conn};

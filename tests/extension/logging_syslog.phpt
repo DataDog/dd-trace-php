@@ -2,7 +2,7 @@
 Logging to syslog (basic test)
 --INI--
 error_reporting=2147483647
-ddappsec.log_file=syslog
+datadog.appsec.log_file=syslog
 --FILE--
 <?php
 use function datadog\appsec\testing\mlog;

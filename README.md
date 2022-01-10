@@ -48,7 +48,7 @@ After the installation has been completed, the AppSec extension will be loaded b
 
 To enable the extension using `ini` settings, find the extension's `ini` file, which can usually be found in  `/etc/php/<version>/xxx/conf.d/98-ddappsec.ini` but may differ depending on your installation. Consult the top of the output of `phpinfo()` to identify the directory that is scanned for `.ini` files, if any. Once the settings file has been found, locate, uncomment and set the following variable:
 ```
-ddappsec.enabled = true
+datadog.appsec.enabled = true
 ```
 To enable the extension using the environment, make sure `DD_APPSEC_ENABLED=true` is exported on the environment of the PHP runtime. Exporting this environment variable to the runtime will depend on your installation.
 

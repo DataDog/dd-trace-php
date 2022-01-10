@@ -2,7 +2,7 @@
 Logging to a specific file: bad path
 --INI--
 error_reporting=2147483647
-ddappsec.log_file=/bad/path/appseclog.txt
+datadog.appsec.log_file=/bad/path/appseclog.txt
 --FILE--
 <?php
 use function datadog\appsec\testing\mlog;

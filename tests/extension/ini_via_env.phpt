@@ -4,7 +4,7 @@ Settings made via ENV variables
 DD_APPSEC_LOG_FILE=/dev/null
 --FILE--
 <?php
-var_dump(ini_get("ddappsec.log_file"));
+var_dump(ini_get("datadog.appsec.log_file"));
 ?>
 --EXPECT--
 string(9) "/dev/null"
