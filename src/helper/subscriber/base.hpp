@@ -33,12 +33,14 @@ public:
         virtual result call(parameter &data) = 0;
     };
 
+    subscriber() = default;
+    virtual ~subscriber() = default;
+
     subscriber(const subscriber &) = delete;
     subscriber &operator=(const subscriber &) = delete;
     subscriber(subscriber &&) = delete;
     subscriber &operator=(subscriber &&) = delete;
 
-    virtual ~subscriber() = default;
 
     virtual std::vector<std::string_view> get_subscriptions() = 0;
     virtual listener::ptr get_listener() = 0;
