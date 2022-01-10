@@ -184,7 +184,7 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
         span_fci->dispatch = NULL;
     }
 
-    if (DDTRACE_G(span_ids_top) == NULL) {
+    if (DDTRACE_G(open_spans_top) == NULL) {
         // Enforce a sampling decision here
         ddtrace_fetch_prioritySampling_from_root();
 

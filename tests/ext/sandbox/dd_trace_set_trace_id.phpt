@@ -44,6 +44,6 @@ Parent ID: 100
 *Flushed spans*
 int(2)
 Name: array_sum
-Span ID: 11788048577503494824
-Trace ID: 11788048577503494824
+Span ID: 13874630024467741450
+Trace ID: 13874630024467741450
 Parent ID: (empty)
