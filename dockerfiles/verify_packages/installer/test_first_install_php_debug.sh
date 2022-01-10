@@ -10,9 +10,8 @@ switch-php debug
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.68.0"
-php dd-library-php-setup.php --php-bin php --enable-profiling --version "${new_version}"
-assert_ddtrace_version "${new_version}"
+php build/packages/dd-library-php-x86_64-linux-gnu.php --php-bin php
+assert_current_ddtrace_version
 
 assert_request_init_hook_exists
 

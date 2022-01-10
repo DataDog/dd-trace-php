@@ -13,10 +13,10 @@ const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
 const OPT_FILE = 'file';
-const OPT_URL = 'url';
-const OPT_VERSION = 'version';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
+
+define("BUNDLED_INSTALLATION", filesize(__FILE__) > __COMPILER_HALT_OFFSET__ + 1);
 
 function main()
 {
@@ -47,20 +47,21 @@ Options:
     -h, --help                  Print this help text and exit
     --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search
                                 paths. The option can be provided multiple times.
-    --version <0.1.2>           Install a specific version. If set --url and --file are ignored.
-    --url <url>                 Install the tracing library from a url. If set --file is ignored.
-    --file <file>               Install the tracing library from a local .tar.gz file.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
     --enable-profiling          Enable the BETA profiling module.
 
 EOD;
+    if (!BUNDLED_INSTALLATION) {
+        echo <<<EOD
+    --file <file>               Install the tracing library from a local .tar.gz file.
+
+EOD;
+    }
 }
 
 function install($options)
 {
-    $platform = is_alpine() ? 'musl' : 'gnu';
-
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
     if (is_alpine()) {
@@ -73,7 +74,6 @@ function install($options)
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-install';
-    $tmpDirTarGz = $tmpDir . "/dd-library-php-x86_64-linux-$platform.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
@@ -85,19 +85,19 @@ function install($options)
     );
 
     // Retrieve and extract the archive to a tmp location
-    if (isset($options[OPT_FILE])) {
-        $tmpDirTarGz = $options[OPT_FILE];
+    if (BUNDLED_INSTALLATION) {
+        $dataOffset = __COMPILER_HALT_OFFSET__ + 2;
+        execute_or_exit(
+            "Cannot extract the archive",
+            "tail -c +$dataOffset " . escapeshellarg(__FILE__) . " | tar -xzf - -C " . escapeshellarg($tmpDir)
+        );
     } else {
-        $url = isset($options[OPT_URL])
-            ? $options[OPT_URL]
-            : "https://github.com/DataDog/dd-trace-php/releases/download/" .
-                $options[OPT_VERSION] . "/dd-library-php-x86_64-linux-$platform.tar.gz";
-        download($url, $tmpDirTarGz);
+        $tmpDirTarGz = $options[OPT_FILE];
+        execute_or_exit(
+            "Cannot extract the archive",
+            "tar -xzf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir)
+        );
     }
-    execute_or_exit(
-        "Cannot extract the archive",
-        "tar -xf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir)
-    );
 
     $releaseVersion = trim(file_get_contents("$tmpArchiveRoot/VERSION"));
 
@@ -425,13 +425,13 @@ function parse_validate_user_options()
     $longOptions = [
         OPT_HELP,
         OPT_PHP_BIN . ':',
-        OPT_FILE . ':',
-        OPT_URL . ':',
-        OPT_VERSION . ':',
         OPT_INSTALL_DIR . ':',
         OPT_UNINSTALL,
         OPT_ENABLE_PROFILING,
     ];
+    if (!BUNDLED_INSTALLATION) {
+        $longOptions[] = OPT_FILE . ':';
+    }
     $options = getopt($shortOptions, $longOptions);
 
     // Help and exit
@@ -444,27 +444,15 @@ function parse_validate_user_options()
 
     $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]) ? true : false;
 
-    if (!$normalizedOptions[OPT_UNINSTALL]) {
+    if (!$normalizedOptions[OPT_UNINSTALL] && !BUNDLED_INSTALLATION) {
         // One and only one among --version, --url and --file must be provided
-        $installables = array_intersect([OPT_VERSION, OPT_URL, OPT_FILE], array_keys($options));
-        if (count($installables) !== 1) {
-            print_error_and_exit('One and only one among --version, --url and --file must be provided', true);
-        }
-        if (isset($options[OPT_VERSION])) {
-            if (is_array($options[OPT_VERSION])) {
-                print_error_and_exit('Only one --version can be provided', true);
-            }
-            $normalizedOptions[OPT_VERSION] = $options[OPT_VERSION];
-        } elseif (isset($options[OPT_URL])) {
-            if (is_array($options[OPT_URL])) {
-                print_error_and_exit('Only one --url can be provided', true);
-            }
-            $normalizedOptions[OPT_URL] = $options[OPT_URL];
-        } elseif (isset($options[OPT_FILE])) {
+        if (isset($options[OPT_FILE])) {
             if (is_array($options[OPT_FILE])) {
                 print_error_and_exit('Only one --file can be provided', true);
             }
             $normalizedOptions[OPT_FILE] = $options[OPT_FILE];
+        } else {
+            print_error_and_exit('--file must be provided', true);
         }
     }
 
@@ -557,114 +545,6 @@ function execute_or_exit($exitMessage, $command)
     }
 
     return $lastLine;
-}
-
-/**
- * Downloads the library applying a number of fallback mechanisms if specific libraries/binaries are not available.
- *
- * @param string $url
- * @param string $destination
- */
-function download($url, $destination)
-{
-    echo "Downloading installable archive from $url.\n";
-    echo "This operation might take a while.\n";
-
-    $okMessage = "\nDownload completed\n\n";
-
-    /* We try the following options, mostly to provide progress report, if possible:
-     *   1) `ext-curl` (with progress report); if 'ext-curl' is not installed...
-     *   2) `curl` from CLI (it shows progress); if `curl` is not installed...
-     *   3) `file_get_contents()` (no progress report); if `allow_url_fopen=0`...
-     *   4) exit with errror
-     */
-
-    // ext-curl
-    if (extension_loaded('curl')) {
-        if (false === $fp = fopen($destination, 'w+')) {
-            print_error_and_exit("Error while opening target file '$destination' for writing\n");
-        }
-        global $progress_counter;
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 50);
-        curl_setopt($ch, CURLOPT_FILE, $fp);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'on_download_progress');
-        curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-        $progress_counter = 0;
-        $return = curl_exec($ch);
-        curl_close($ch);
-        fclose($fp);
-
-        if (false !== $return) {
-            echo $okMessage;
-            return;
-        }
-        // Otherwise we attempt other methods
-    }
-
-    // curl
-    $statusCode = 0;
-    $output = [];
-    if (false !== exec('curl --version', $output, $statusCode) && $statusCode === 0) {
-        $curlInvocationStatusCode = 0;
-        system(
-            'curl -L --output ' . escapeshellarg($destination) . ' ' . escapeshellarg($url),
-            $curlInvocationStatusCode
-        );
-
-        if ($curlInvocationStatusCode === 0) {
-            echo $okMessage;
-            return;
-        }
-        // Otherwise we attempt other methods
-    }
-
-    // file_get_contents
-    if (is_truthy(ini_get('allow_url_fopen'))) {
-        if (false === file_put_contents($destination, file_get_contents($url))) {
-            print_error_and_exit("Error while downloading the installable archive from $url\n");
-        }
-
-        echo $okMessage;
-        return;
-    }
-
-    echo "Error: Cannot download the installable archive.\n";
-    echo "  One of the following prerequisites must be satisfied:\n";
-    echo "    - PHP ext-curl extension is installed\n";
-    echo "    - curl CLI command is available\n";
-    echo "    - the INI setting 'allow_url_fopen=1'\n";
-
-    exit(1);
-}
-
-/**
- * Progress callback as specified by the ext-curl documentation.
- *   see: https://www.php.net/manual/en/function.curl-setopt.php#:~:text=CURLOPT_PROGRESSFUNCTION
- *
- * @return int
- */
-function on_download_progress($curlHandle, $download_size, $downloaded)
-{
-    global $progress_counter;
-
-    if ($download_size === 0) {
-        return 0;
-    }
-    $ratio = $downloaded / $download_size;
-    if ($ratio == 1) {
-        return 0;
-    }
-
-    // Max 20 dots to show progress
-    if ($ratio >= ($progress_counter + (1 / 20))) {
-        $progress_counter = $ratio;
-        echo ".";
-    }
-
-    flush();
-    return 0;
 }
 
 /**
@@ -1132,3 +1012,5 @@ function get_supported_php_versions()
 }
 
 main();
+
+__halt_compiler();

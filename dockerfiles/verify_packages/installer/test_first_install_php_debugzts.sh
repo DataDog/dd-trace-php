@@ -10,10 +10,8 @@ switch-php debug-zts-asan
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.68.0"
-
 set +e
-output=$(php dd-library-php-setup.php --php-bin php --enable-profiling --version "${new_version}")
+output=$(php build/packages/dd-library-php-x86_64-linux-gnu.php --php-bin php --enable-profiling)
 exit_status=$?
 set -e
 

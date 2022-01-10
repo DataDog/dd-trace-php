@@ -11,9 +11,8 @@ extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
 # Install using the php installer
-new_version="0.68.0"
-php dd-library-php-setup.php --php-bin php --enable-profiling --version "${new_version}"
-assert_ddtrace_version "${new_version}"
+php build/packages/dd-library-php-x86_64-linux-gnu.php --php-bin php --enable-profiling
+assert_current_ddtrace_version
 assert_profiler_version "0.3.0"
 
 # Uninstall

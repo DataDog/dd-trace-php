@@ -9,11 +9,8 @@ apk add php7 curl libexecinfo
 # Initially no ddtrace
 assert_no_ddtrace
 
-# Install using the php installer
-new_version="0.68.0"
-
 set +e
-output=$(php dd-library-php-setup.php --php-bin php --version "${new_version}")
+output=$(php build/packages/dd-library-php-x86_64-linux-musl.php --php-bin php)
 exit_status=$?
 set -e
 

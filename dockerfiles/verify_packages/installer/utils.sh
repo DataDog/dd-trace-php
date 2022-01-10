@@ -50,6 +50,14 @@ assert_ddtrace_version() {
     fi
 }
 
+ddtrace_current_version() {
+  awk -F\' '/const VERSION/ {print $2}' < src/DDTrace/Tracer.php
+}
+
+assert_current_ddtrace_version() {
+    assert_ddtrace_version "$(ddtrace_current_version)"
+}
+
 assert_profiler_version() {
     output="$(php -v)"
     if [ -z "${output##*datadog-profiling v${1}*}" ]; then

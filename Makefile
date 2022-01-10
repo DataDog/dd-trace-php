@@ -330,13 +330,17 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR) \
 		https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0-rc.6/datadog-profiling.tar.gz
+php_installer: bundle.tar.gz
+	for ARCHIVE in $(PACKAGES_BUILD_DIR)/dd-library-php-*.tar.gz; do \
+		cat dd-library-php-setup.php "$${ARCHIVE}" > "$${ARCHIVE//.tar.gz/.php}"; \
+	done
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \
 	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
-packages: .apk .rpm .deb .tar.gz bundle.tar.gz
+packages: .apk .rpm .deb .tar.gz bundle.tar.gz php_installer
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
 verify_version:
