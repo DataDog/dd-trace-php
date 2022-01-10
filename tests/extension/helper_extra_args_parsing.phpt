@@ -1,5 +1,5 @@
 --TEST--
-Parsing of ddappsec.helper_extra_flags
+Parsing of datadog.appsec.helper_extra_flags
 --INI--
 --FILE--
 <?php
@@ -137,30 +137,30 @@ With errors
 
 bar':
 
-Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] ddappsec.helper_extra_args has unmatched quotes: bar' in %s on line %d
+Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] datadog.appsec.helper_extra_args has unmatched quotes: bar' in %s on line %d
 array(0) {
 }
 
 bar":
 
-Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] ddappsec.helper_extra_args has unmatched quotes: bar" in %s on line %d
+Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] datadog.appsec.helper_extra_args has unmatched quotes: bar" in %s on line %d
 array(0) {
 }
 
 'bar:
 
-Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] ddappsec.helper_extra_args has unmatched quotes: 'bar in %s on line %d
+Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] datadog.appsec.helper_extra_args has unmatched quotes: 'bar in %s on line %d
 array(0) {
 }
 
 "bar:
 
-Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] ddappsec.helper_extra_args has unmatched quotes: "bar in %s on line %d
+Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] datadog.appsec.helper_extra_args has unmatched quotes: "bar in %s on line %d
 array(0) {
 }
 
 bar\:
 
-Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] ddappsec.helper_extra_args has an unpaired \ at the end: bar\ in %s on line %d
+Warning: datadog\appsec\testing\get_helper_argv(): [ddappsec] datadog.appsec.helper_extra_args has an unpaired \ at the end: bar\ in %s on line %d
 array(0) {
 }
