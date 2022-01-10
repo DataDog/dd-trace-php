@@ -4,8 +4,8 @@ ddtrace integration — basic test
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --INI--
 extension=ddtrace.so
-ddappsec.log_file=/tmp/php_appsec_test.log
-ddappsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=debug
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,mlog};

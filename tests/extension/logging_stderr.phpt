@@ -2,7 +2,7 @@
 Logging to stderr
 --INI--
 error_reporting=2147483647
-ddappsec.log_file=stderr
+datadog.appsec.log_file=stderr
 --FILE--
 <?php
 use function datadog\appsec\testing\{mlog,fdclose};

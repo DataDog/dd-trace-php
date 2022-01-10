@@ -2,7 +2,7 @@
 Logging with PHP error reporting: user error handler is ignored
 --INI--
 error_reporting=2147483647
-ddappsec.log_file=php_error_reporting
+datadog.appsec.log_file=php_error_reporting
 --FILE--
 <?php
 use function datadog\appsec\testing\mlog;

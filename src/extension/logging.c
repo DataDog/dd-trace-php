@@ -484,7 +484,7 @@ static ZEND_INI_MH(_on_update_log_file)
     }
     if (_log_strategy != log_use_nothing && ZSTR_VAL(new_value) != _log_file) {
         php_error_docref(
-            NULL, E_WARNING, "Cannot change ddappsec.log_file anymore");
+            NULL, E_WARNING, "Cannot change datadog.appsec.log_file anymore");
         return FAILURE; // change not possible already
     }
 

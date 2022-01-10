@@ -2,8 +2,8 @@
 Test ddtrace_root_span_add_tag
 --INI--
 extension=ddtrace.so
-ddappsec.log_file=/tmp/php_appsec_test.log
-ddappsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=debug
 --ENV--
 DD_ENV=staging
 DD_VERSION=0.42.69
