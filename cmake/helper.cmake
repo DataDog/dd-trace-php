@@ -1,6 +1,8 @@
 hunter_add_package(Boost COMPONENTS system)
 find_package(Boost CONFIG REQUIRED COMPONENTS system)
 
+configure_file(src/helper/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/helper/version.hpp)
+
 set(HELPER_SOURCE_DIR src/helper)
 set(HELPER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/helper)
 

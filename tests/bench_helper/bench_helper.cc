@@ -115,6 +115,23 @@ static const std::string default_payload_sh{"req_shutdown.msgpack"}; // NOLINT
 static constexpr std::uint64_t waf_timeout_ms = 10;
 static constexpr int max_simultaneous_connects = 5;
 
+namespace mpack {
+std::string read_string(mpack_reader_t *r, mpack_tag_t tag)
+{
+    if (tag.type != mpack_type_str) {
+        r->error = mpack_error_data;
+        return {};
+    }
+
+    std::string res_str(static_cast<size_t>(tag.v.l), '\0');
+    mpack_read_utf8(r, &res_str[0], tag.v.l);
+    if (mpack_reader_error(r) != mpack_ok) {
+        return {};
+    }
+    return res_str;
+}
+} // namespace mpack
+
 // avoid blowing off the backlog of the socket, esp at startup
 class ConnectionLimiter {
 public:
@@ -358,7 +375,12 @@ void Benchmark::client_notify(std::chrono::microseconds req_duration)
 void Client::run()
 {
     SPDLOG_DEBUG("C#{} Doing client_init", id_);
-    do_client_init();
+    try {
+        do_client_init();
+    } catch (const std::exception &e) {
+        SPDLOG_ERROR("C#{} Error during client_init: {}", id_, e.what());
+        throw;
+    }
     SPDLOG_DEBUG("C#{} client_init done", id_);
     while (requests_left_-- > 0) {
         auto start{std::chrono::steady_clock::now()};
@@ -429,16 +451,32 @@ void Client::do_client_init()
     // read
     {
         SPDLOG_DEBUG("C#{} Reading client_init message response", id_);
-        // we read the error array that should be after the status
-        auto log_error = [this](mpack_reader_t *r, const std::string &status,
-                             uint32_t num_elements) {
+        // we read the error array and version that should be after the status
+        auto handle_resp = [this](mpack_reader_t *r, const std::string &status,
+                               uint32_t num_elements) {
+            mpack_tag_t tag;
+
+            if (num_elements < 3) {
+                throw std::runtime_error{
+                    "Expected response to have at least 3 elements; has " +
+                    std::to_string(num_elements)};
+            }
+
+            tag = mpack_read_tag(r);
+            std::string version_str{mpack::read_string(r, tag)};
+            if (mpack_reader_error(r) != mpack_ok) {
+                return;
+            }
+            spdlog::default_logger_raw()->log(
+                spdlog::source_loc{__FILE__, __LINE__, "do_client_init"},
+                spdlog::level::debug, "C#{} Reported helper version is {}", id_,
+                version_str);
+
+            // if ok, we should have no error messages
             if (status == "ok") {
                 return;
             }
-            if (num_elements < 2) {
-                return;
-            }
-            mpack_tag_t tag = mpack_read_tag(r);
+            tag = mpack_read_tag(r);
             if (tag.type != mpack_type_array) {
                 r->error = mpack_error_data;
                 return;
@@ -447,23 +485,18 @@ void Client::do_client_init()
                 return;
             }
             tag = mpack_read_tag(r);
-            if (tag.type != mpack_type_str) {
-                r->error = mpack_error_data;
-                return;
-            }
-            std::string res_str(static_cast<size_t>(tag.v.l), '\0');
-            mpack_read_utf8(r, &res_str[0], tag.v.l);
+            std::string err_str{mpack::read_string(r, tag)};
             if (mpack_reader_error(r) != mpack_ok) {
                 return;
             }
             spdlog::default_logger_raw()->log(
                 spdlog::source_loc{__FILE__, __LINE__, "do_client_init"},
                 spdlog::level::err, "C#{} Error message for client_init is: {}",
-                id_, res_str);
+                id_, err_str);
         };
 
-        std::string resp{read_helper_response(std::move(log_error))};
-        SPDLOG_DEBUG("C#{} client_init response:", id_, resp);
+        std::string resp{read_helper_response(std::move(handle_resp))};
+        SPDLOG_DEBUG("C#{} client_init response: {}", id_, resp);
         if (resp != "ok") {
             throw std::runtime_error{"client_init response was not ok"};
         }
@@ -572,11 +605,6 @@ std::string Client::read_helper_response(Function &&f)
             throw std::runtime_error{"expected array at root"};
         }
         num_elements = root.v.n;
-        if (num_elements != 2) {
-            throw std::runtime_error{
-                "expected root array to have 2 elements; has " +
-                std::to_string(num_elements)};
-        }
     }
 
     {

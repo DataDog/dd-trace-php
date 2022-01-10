@@ -77,7 +77,10 @@ fread($cstream, $len);
 fwrite(STDERR, "read remaining data");
 
 fflush(STDERR);
+$version = $argv[1];
 $data = "dds\0" .
-	"\x04\x00\x00\x00" . // 3 in little-endian
-	"\x91\xa2ok"; // ["ok"] in msgpack
+	chr(4 + 1 + strlen($version)) . "\x00\x00\x00" . // length in little-endian
+	"\x92\xa2ok" . // ["ok", <>] in msgpack
+	chr(0xA0 + strlen($version)) . $version; // "$version" in msgpack
+
 fwrite($cstream, $data);

@@ -8,7 +8,7 @@ use function datadog\appsec\testing\{rinit,rshutdown};
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createRun([['ok'], ['ok']]);
+$helper = Helper::createInitedRun([['ok']]);
 
 var_dump($_POST);
 var_dump(rinit());
