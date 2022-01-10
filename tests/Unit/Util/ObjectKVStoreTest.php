@@ -4,9 +4,28 @@ namespace DDTrace\Tests\Unit\Util;
 
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Util\ObjectKVStore;
+use Exception;
+
+function throwing_autoloader($class)
+{
+    throw new Exception('This autoloader should never be triggered');
+}
 
 final class ObjectKVStoreTest extends BaseTestCase
 {
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        // Required to test compatibility with autoloaders that throw, since ObjectKVStore uses class_exists().
+        \spl_autoload_register('DDTrace\Tests\Unit\Util\throwing_autoloader');
+    }
+
+    protected function ddTearDown()
+    {
+        parent::ddTearDown();
+        \spl_autoload_unregister('DDTrace\Tests\Unit\Util\throwing_autoloader');
+    }
+
     public function testPutGet()
     {
         $instance = new \stdClass();
