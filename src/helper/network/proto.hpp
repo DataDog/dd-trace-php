@@ -77,7 +77,6 @@ struct client_init {
     struct request : base_request {
         static constexpr const char *name = "client_init";
         static constexpr request_id id = request_id::client_init;
-        static constexpr std::uint64_t default_waf_timeout_ms = 10;
 
         unsigned pid{0};
         std::string client_version;
