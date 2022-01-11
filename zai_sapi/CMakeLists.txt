@@ -111,6 +111,7 @@ install(
   FILES ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi.h
         ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_extension.h
         ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_functions.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_test.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_ini.h
         ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_io.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zai_sapi)
