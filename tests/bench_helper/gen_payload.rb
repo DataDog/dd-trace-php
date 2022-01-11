@@ -1,6 +1,6 @@
 require 'msgpack'
 
-SIZE = 10240
+SIZE = 4090
 
 payload = {
   'server.request.body': {
@@ -42,3 +42,12 @@ payload = {
 }
 
 File.write 'arachni.msgpack', payload.to_msgpack
+
+payload = {
+    'server.response.status': '200',
+    'server.response.headers.no_cookies': {
+      'My-Cookie': [ 'My Cookie Value' ]
+    }
+}
+
+File.write 'req_shutdown.msgpack', payload.to_msgpack

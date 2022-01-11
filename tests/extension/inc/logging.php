@@ -10,7 +10,7 @@ function match_log() {
 	foreach ($regexes as $r) {
 		$message_in_log = preg_match($r, log_contents()) === 1;
 		if ($message_in_log) {
-			echo "found message in log matching $r";
+			echo "found message in log matching $r\n";
 			return;
 		}
 	}

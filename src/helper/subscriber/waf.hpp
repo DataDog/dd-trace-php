@@ -6,6 +6,7 @@
 #ifndef WAF_HPP
 #define WAF_HPP
 
+#include <chrono>
 #include <ddwaf.h>
 #include <spdlog/spdlog.h>
 #include <string>
@@ -22,25 +23,24 @@ void initialise_logging(spdlog::level::level_enum level);
 class instance : public dds::subscriber {
 public:
     using ptr = std::shared_ptr<instance>;
-
     class listener : public dds::subscriber::listener {
     public:
-        listener() = default;
+        listener(ddwaf_context ctx, std::chrono::microseconds waf_timeout);
         listener(const listener &) = delete;
         listener &operator=(const listener &) = delete;
         listener(listener &&) noexcept;
-        explicit listener(ddwaf_context ctx);
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        dds::result call(dds::parameter &data, unsigned timeout) override;
+        dds::result call(dds::parameter &data) override;
 
     protected:
         ddwaf_context handle_{};
+        std::chrono::microseconds waf_timeout_;
     };
 
     // NOLINTNEXTLINE(google-runtime-references)
-    explicit instance(dds::parameter &rule);
+    instance(dds::parameter &rule, std::uint64_t waf_timeout_ms);
     instance(const instance &) = delete;
     instance &operator=(const instance &) = delete;
     instance(instance &&) noexcept;
@@ -51,11 +51,15 @@ public:
 
     listener::ptr get_listener() override;
 
-    static instance::ptr from_file(std::string_view rule_file);
-    static instance::ptr from_string(std::string_view rule);
+    static instance::ptr from_settings(const client_settings &settings);
+
+    // testing only
+    static instance::ptr from_string(
+        std::string_view rule, std::uint64_t waf_timeout_ms);
 
 protected:
     ddwaf_handle handle_{nullptr};
+    std::chrono::microseconds waf_timeout_;
 };
 
 parameter parse_file(std::string_view filename);

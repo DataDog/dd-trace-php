@@ -191,12 +191,16 @@ void initialise_logging(spdlog::level::level_enum level)
     ddwaf_set_log_cb(log_cb, spdlog_level_to_ddwaf(level));
 }
 
-instance::listener::listener(ddwaf_context ctx) : handle_(ctx) {}
+instance::listener::listener(
+    ddwaf_context ctx, std::chrono::microseconds waf_timeout)
+    : handle_{ctx}, waf_timeout_{waf_timeout}
+{}
 
 instance::listener::listener(instance::listener &&other) noexcept
-    : handle_(other.handle_)
+    : handle_{other.handle_}, waf_timeout_{other.waf_timeout_}
 {
     other.handle_ = nullptr;
+    other.waf_timeout_ = {};
 }
 
 instance::listener &instance::listener::operator=(listener &&other) noexcept
@@ -213,14 +217,14 @@ instance::listener::~listener()
     }
 }
 
-dds::result instance::listener::call(dds::parameter &data, unsigned timeout)
+dds::result instance::listener::call(dds::parameter &data)
 {
     DD_STDLOG(DD_STDLOG_BEFORE_WAF);
 
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
-        code = ddwaf_run(handle_, data.ptr(), &res, timeout);
+        code = ddwaf_run(handle_, data.ptr(), &res, waf_timeout_.count());
     };
 
     if (spdlog::should_log(spdlog::level::debug)) {
@@ -267,7 +271,10 @@ dds::result instance::listener::call(dds::parameter &data, unsigned timeout)
     return dds::result{dds::result::code::ok};
 }
 
-instance::instance(parameter &rule) : handle_(ddwaf_init(rule.ptr(), nullptr))
+instance::instance(parameter &rule, std::uint64_t waf_timeout_ms)
+    : handle_{ddwaf_init(rule.ptr(), nullptr)}, waf_timeout_{
+                                                    std::chrono::milliseconds{
+                                                        waf_timeout_ms}}
 {
     rule.free();
     if (handle_ == nullptr) {
@@ -275,9 +282,11 @@ instance::instance(parameter &rule) : handle_(ddwaf_init(rule.ptr(), nullptr))
     }
 }
 
-instance::instance(instance &&other) noexcept : handle_(other.handle_)
+instance::instance(instance &&other) noexcept
+    : handle_{other.handle_}, waf_timeout_{other.waf_timeout_}
 {
     other.handle_ = nullptr;
+    other.waf_timeout_ = {};
 }
 
 instance &instance::operator=(instance &&other) noexcept
@@ -297,7 +306,8 @@ instance::~instance()
 
 instance::listener::ptr instance::get_listener()
 {
-    return listener::ptr(new listener(ddwaf_context_init(handle_, nullptr)));
+    return listener::ptr(
+        new listener(ddwaf_context_init(handle_, nullptr), waf_timeout_));
 }
 
 std::vector<std::string_view> instance::get_subscriptions()
@@ -310,16 +320,17 @@ std::vector<std::string_view> instance::get_subscriptions()
     return output;
 }
 
-instance::ptr instance::from_file(std::string_view rule_file)
+instance::ptr instance::from_settings(const client_settings &settings)
 {
-    dds::parameter param = parse_file(rule_file);
-    return std::make_shared<instance>(param);
+    dds::parameter param = parse_file(settings.rules_file_or_default());
+    return std::make_shared<instance>(param, settings.waf_timeout_ms);
 }
 
-instance::ptr instance::from_string(std::string_view rule)
+instance::ptr instance::from_string(
+    std::string_view rule, std::uint64_t waf_timeout_ms)
 {
     dds::parameter param = parse_string(rule);
-    return std::make_shared<instance>(param);
+    return std::make_shared<instance>(param, waf_timeout_ms);
 }
 
 parameter parse_string(std::string_view config)

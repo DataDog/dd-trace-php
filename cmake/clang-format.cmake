@@ -12,7 +12,7 @@ if(DD_APPSEC_BUILD_HELPER)
 endif()
 
 if(DD_APPSEC_BUILD_EXTENSION)
-    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c tests/helper/*.h)
+    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c tests/helper/*.h tests/bench_helper/*.cc)
     list(APPEND FILE_LIST ${EXTENSION_FILES})
 endif()
 

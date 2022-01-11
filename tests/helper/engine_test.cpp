@@ -18,7 +18,7 @@ class listener : public dds::subscriber::listener {
 public:
     typedef std::shared_ptr<dds::mock::listener> ptr;
 
-    MOCK_METHOD2(call, dds::result(dds::parameter &, unsigned));
+    MOCK_METHOD1(call, dds::result(dds::parameter &));
 };
 
 class subscriber : public dds::subscriber {
@@ -46,7 +46,7 @@ TEST(EngineTest, SingleSubscriptor)
     auto e{engine::create()};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_, _))
+    EXPECT_CALL(*listener, call(_))
         .WillRepeatedly(Return(result(result::code::block)));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
@@ -78,13 +78,13 @@ TEST(EngineTest, MultipleSubscriptors)
 {
     auto e{engine::create()};
     mock::listener::ptr blocker = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*blocker, call(_, _))
+    EXPECT_CALL(*blocker, call(_))
         .WillRepeatedly(Return(result(result::code::block)));
     mock::listener::ptr recorder = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*recorder, call(_, _))
+    EXPECT_CALL(*recorder, call(_))
         .WillRepeatedly(Return(result(result::code::record)));
     mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_, _))
+    EXPECT_CALL(*ignorer, call(_))
         .WillRepeatedly(Return(result(result::code::ok)));
 
     mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
@@ -169,7 +169,7 @@ TEST(EngineTest, StatefulSubscriptor)
     auto e{engine::create()};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_, _))
+    EXPECT_CALL(*listener, call(_))
         .Times(6)
         .WillOnce(Return(result(result::code::ok)))
         .WillOnce(Return(result(result::code::ok)))
@@ -229,7 +229,7 @@ TEST(EngineTest, StatefulSubscriptor)
 TEST(EngineTest, WafSubscriptorBasic)
 {
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule));
+    e->subscribe(waf::instance::from_string(waf_rule, 100));
 
     auto ctx = e->get_context();
 
@@ -251,7 +251,7 @@ TEST(EngineTest, WafSubscriptorBasic)
 TEST(EngineTest, WafSubscriptorInvalidParam)
 {
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule));
+    e->subscribe(waf::instance::from_string(waf_rule, 100));
 
     auto ctx = e->get_context();
 
@@ -263,7 +263,7 @@ TEST(EngineTest, WafSubscriptorInvalidParam)
 TEST(EngineTest, WafSubscriptorTimeout)
 {
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule));
+    e->subscribe(waf::instance::from_string(waf_rule, 0));
 
     auto ctx = e->get_context();
 
@@ -271,7 +271,7 @@ TEST(EngineTest, WafSubscriptorTimeout)
     p.add("arg1", parameter("string 1"sv));
     p.add("arg2", parameter("string 3"sv));
 
-    auto res = ctx.publish(std::move(p), 0);
+    auto res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, dds::result::code::ok);
 }
 

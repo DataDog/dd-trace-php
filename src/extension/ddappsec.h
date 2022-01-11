@@ -25,6 +25,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
     bool skip_rshutdown;
     const char *nonnull rules_file;
     const char *nonnull extra_headers;
+    long waf_timeout_ms;
 ZEND_END_MODULE_GLOBALS(ddappsec)
 // clang-format on
 

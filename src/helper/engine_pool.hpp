@@ -15,12 +15,11 @@ namespace dds {
 
 class engine_pool {
 public:
-    static const std::string &default_rules_file();
-
-    std::shared_ptr<engine> load_file(std::string rules_path);
+    std::shared_ptr<engine> create_engine(const client_settings &settings);
 
 protected:
-    using cache_t = std::unordered_map<std::string, std::weak_ptr<engine>>;
+    using cache_t = std::unordered_map<client_settings, std::weak_ptr<engine>,
+        client_settings::settings_hash>;
 
     void cleanup_cache(); // mutex_ must be held when calling this
 

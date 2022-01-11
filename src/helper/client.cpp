@@ -6,6 +6,7 @@
 #include "client.hpp"
 
 #include "exception.hpp"
+#include "msgpack/object.h"
 #include "network/proto.hpp"
 #include "std_logging.hpp"
 #include <chrono>
@@ -78,26 +79,27 @@ bool handle_message(client &client, const network::base_broker &broker,
 bool client::handle_command(const network::client_init::request &command)
 {
     SPDLOG_DEBUG("Got client_id with pid={}, client_version={}, "
-                 "runtime_version={}, rules_file={}",
+                 "runtime_version={}, settings={}",
         command.pid, command.client_version, command.runtime_version,
-        command.rules_file);
+        command.settings);
 
-    auto &&rules_file = command.rules_file.empty()
-                            ? engine_pool::default_rules_file()
-                            : command.rules_file;
-
-    DD_STDLOG(DD_STDLOG_STARTUP_BEGAN, rules_file);
+    auto &&settings = command.settings;
+    DD_STDLOG(DD_STDLOG_STARTUP_BEGAN, settings.rules_file_or_default());
 
     std::vector<std::string> errors;
     bool has_errors = false;
     try {
-        engine_ = engine_pool_->load_file(rules_file);
+        engine_ = engine_pool_->create_engine(settings);
     } catch (std::system_error &e) {
-        DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND, rules_file);
+        // TODO: logging should happen at WAF impl
+        DD_STDLOG(
+            DD_STDLOG_RULES_FILE_NOT_FOUND, settings.rules_file_or_default());
         errors.emplace_back(e.what());
         has_errors = true;
     } catch (std::exception &e) {
-        DD_STDLOG(DD_STDLOG_RULES_FILE_INVALID, rules_file, e.what());
+        // TODO: logging should happen at WAF impl
+        DD_STDLOG(DD_STDLOG_RULES_FILE_INVALID,
+            settings.rules_file_or_default(), e.what());
         errors.emplace_back(e.what());
         has_errors = true;
     }

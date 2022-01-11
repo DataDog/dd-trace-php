@@ -5,12 +5,14 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "client_settings.hpp"
 #include "msgpack_helpers.hpp"
 #include <iostream>
 #include <msgpack.hpp>
 #include <optional>
 #include <type_traits>
 #include <typeinfo>
+#include <version.hpp>
 
 using stream_packer = msgpack::packer<std::stringstream>;
 
@@ -80,7 +82,7 @@ struct client_init {
         unsigned pid{0};
         std::string client_version;
         std::string runtime_version;
-        std::string rules_file;
+        client_settings settings;
 
         request() = default;
         request(const request &) = delete;
@@ -89,16 +91,17 @@ struct client_init {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(pid, client_version, runtime_version, rules_file);
+        MSGPACK_DEFINE(pid, client_version, runtime_version, settings);
     };
 
     struct response : base_response_generic<response> {
         static constexpr response_id id = response_id::client_init;
 
         std::string status;
+        std::string version{dds::php_ddappsec_version};
         std::vector<std::string> errors;
 
-        MSGPACK_DEFINE(status, errors);
+        MSGPACK_DEFINE(status, version, errors);
     };
 };
 
