@@ -123,17 +123,23 @@ class YiiIntegration extends Integration
                     $route = $this->module->requestedRoute;
                     $namedParams = [$route];
                     $placeholders = [$route];
+                    $placeholder = '__dd_route_param';
                     if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
                         foreach ($args[1] as $param => $unused) {
                             $namedParams[$param] = ":{$param}";
-                            $placeholders[$param] = '?';
+                            $placeholders[$param] = $placeholder;
                         }
                     }
 
-                    $routePath = \urldecode(Url::toRoute($namedParams));
+                    $routePath = \DDTrace\Private_\util_url_sanitize(\urldecode(Url::toRoute($namedParams)));
                     $rootSpan->meta['app.route.path'] = $routePath;
 
-                    $resourceName = \urldecode(Url::toRoute($placeholders));
+                    error_log('Url to route: ' . var_export(\urldecode(Url::toRoute($placeholders)), true));
+                    $resourceName = \str_replace(
+                        $placeholder,
+                        '?',
+                        \DDTrace\Private_\util_url_sanitize(\urldecode(Url::toRoute($placeholders)))
+                    );
                     $rootSpan->resource = "{$_SERVER['REQUEST_METHOD']} {$resourceName}";
                 }
             }

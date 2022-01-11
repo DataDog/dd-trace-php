@@ -25,7 +25,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
     public function testGet()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $spec  = GetSpec::create('homes get', '/homes/new-york/new-york/manhattan');
+            $spec  = GetSpec::create('homes get', '/homes/new-york/new-york/manhattan?should_be=removed');
             $this->call($spec);
         });
 
