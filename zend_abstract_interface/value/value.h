@@ -11,9 +11,9 @@
 #if PHP_VERSION_ID < 70000
 // clang-format off
 static zval zai_value_null = {
+    .refcount__gc = 2,
     .type         = IS_NULL,
     .is_ref__gc   = 0,
-    .refcount__gc = 2
 };
 // clang-format on
 #endif
