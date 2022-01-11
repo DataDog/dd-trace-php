@@ -41,7 +41,6 @@ public:
     subscriber(subscriber &&) = delete;
     subscriber &operator=(subscriber &&) = delete;
 
-
     virtual std::vector<std::string_view> get_subscriptions() = 0;
     virtual listener::ptr get_listener() = 0;
 };

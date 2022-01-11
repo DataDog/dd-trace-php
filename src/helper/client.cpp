@@ -84,7 +84,7 @@ bool client::handle_command(const network::client_init::request &command)
         command.settings);
 
     auto &&settings = command.settings;
-    DD_STDLOG(DD_STDLOG_STARTUP_BEGAN, settings.rules_file_or_default());
+    DD_STDLOG(DD_STDLOG_STARTUP);
 
     std::vector<std::string> errors;
     bool has_errors = false;
@@ -119,6 +119,10 @@ bool client::handle_command(const network::client_init::request &command)
         has_errors = true;
     }
 
+    if (has_errors) {
+        DD_STDLOG(DD_LOG_STARTUP_ERROR);
+    }
+
     return !has_errors;
 }
 
@@ -150,7 +154,7 @@ bool client::handle_command(network::request_init::request &command)
         return false;
     } catch (const std::exception &e) {
         // Uncertain what the issue is... lets be cautious
-        SPDLOG_ERROR(e.what());
+        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
         return false;
     }
 
@@ -181,6 +185,11 @@ bool client::handle_command(network::request_shutdown::request &command)
         if (res.value == result::code::record) {
             response.verdict = "record";
             response.triggers = std::move(res.data);
+            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
+        } else if (res.value == result::code::block) {
+            response.verdict = "block";
+            response.triggers = std::move(res.data);
+            DD_STDLOG(DD_STDLOG_ATTACK_BLOCKED);
         } else {
             response.verdict = "ok";
         }
@@ -191,7 +200,7 @@ bool client::handle_command(network::request_shutdown::request &command)
         return false;
     } catch (const std::exception &e) {
         // Uncertain what the issue is... lets be cautious
-        SPDLOG_ERROR(e.what());
+        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
         return false;
     }
 

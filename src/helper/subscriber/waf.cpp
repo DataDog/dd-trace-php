@@ -219,8 +219,6 @@ instance::listener::~listener()
 
 dds::result instance::listener::call(dds::parameter &data)
 {
-    DD_STDLOG(DD_STDLOG_BEFORE_WAF);
-
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
@@ -234,12 +232,10 @@ dds::result instance::listener::call(dds::parameter &data)
         run_waf();
 
         auto elapsed = std::chrono::steady_clock::now() - start;
-        DD_STDLOG(DD_STDLOG_AFTER_WAF,
+        DD_STDLOG(DD_STDLOG_AFTER_WAF, res.data ? res.data : "(no data)",
             std::chrono::duration_cast<
                 std::chrono::duration<double, std::milli>>(elapsed)
                 .count());
-
-        DD_STDLOG(DD_STDLOG_RESULT_WAF, res.data ? res.data : "(no data)");
     } else {
         run_waf();
     }

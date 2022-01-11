@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "engine_pool.hpp"
+#include "std_logging.hpp"
 #include "subscriber/waf.hpp"
 
 #include <mutex>
@@ -31,11 +32,17 @@ std::shared_ptr<engine> engine_pool::create_engine(
 
     // no cache hit
 
-    // may throw std::exception
-    subscriber::ptr waf = waf::instance::from_settings(settings);
-
     std::shared_ptr engine_ptr{engine::create()};
-    engine_ptr->subscribe(waf);
+    auto &&rules_path = settings.rules_file_or_default();
+    try {
+        SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);
+        // may throw std::exception
+        subscriber::ptr waf = waf::instance::from_settings(settings);
+        engine_ptr->subscribe(waf);
+    } catch (...) {
+        DD_STDLOG(DD_STDLOG_WAF_INIT_FAILED, rules_path);
+        throw;
+    }
 
     cache_.emplace(settings, engine_ptr);
     last_engine_ = engine_ptr;
