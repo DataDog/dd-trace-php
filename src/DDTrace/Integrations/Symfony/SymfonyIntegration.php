@@ -156,8 +156,9 @@ class SymfonyIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] =
-                    $request->getUriForPath($request->getPathInfo());
+                $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize(
+                    $request->getUriForPath($request->getPathInfo())
+                );
                 if (isset($response)) {
                     $integration->symfonyRequestSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }

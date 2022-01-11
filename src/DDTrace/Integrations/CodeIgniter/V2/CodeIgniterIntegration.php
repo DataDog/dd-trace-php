@@ -79,7 +79,7 @@ class CodeIgniterIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $this->load->helper('url');
-                $rootSpan->meta[Tag::HTTP_URL] = base_url(uri_string());
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize(base_url(uri_string()));
                 $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
             }
         );
@@ -103,7 +103,7 @@ class CodeIgniterIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $this->load->helper('url');
-                $rootSpan->meta[Tag::HTTP_URL] = base_url(uri_string());
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize(base_url(uri_string()));
                 $rootSpan->meta['app.endpoint'] = "{$class}::_remap";
             }
         );

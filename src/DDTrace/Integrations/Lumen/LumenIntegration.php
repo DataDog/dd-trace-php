@@ -55,7 +55,7 @@ class LumenIntegration extends Integration
                 $rootSpan->name = 'lumen.request';
                 $rootSpan->service = $appName;
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
-                $rootSpan->meta[Tag::HTTP_URL] = $request->getUri();
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize($request->getUri());
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 return false;
             }

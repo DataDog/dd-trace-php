@@ -92,7 +92,7 @@ class LaravelIntegration extends Integration
 
                 $rootSpan->meta['laravel.route.name'] = $routeName;
                 $rootSpan->meta['laravel.route.action'] = $route->getActionName();
-                $rootSpan->meta[Tag::HTTP_URL] = $request->url();
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize($request->url());
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
             }
         );
