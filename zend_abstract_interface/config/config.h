@@ -17,7 +17,7 @@ typedef uint16_t zai_config_id;
 
 #include "config_ini.h"
 
-#define ZAI_CONFIG_ENTRIES_COUNT_MAX 120
+#define ZAI_CONFIG_ENTRIES_COUNT_MAX 128
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
 #define ZAI_CONFIG_NAME_BUFSIZ 60
 

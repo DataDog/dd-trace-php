@@ -12,10 +12,12 @@ $root = \DDTrace\root_span();
 \DDTrace\get_priority_sampling();
 
 if (!isset($root->metrics["_dd.rule_psr"])) {
-    echo "OK";
+    echo "OK\n";
 } else {
     echo "metrics[_dd.rule_psr] = {$root->metrics["_dd.rule_psr"]}\n";
 }
+echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
 ?>
 --EXPECT--
 OK
+_dd.p.upstream_services = MDExLXByZXNldC5waHA|-1|4|

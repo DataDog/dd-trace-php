@@ -8,6 +8,7 @@
 #include "logging.h"
 #include "priority_sampling/priority_sampling.h"
 #include "random.h"
+#include "tracer_tag_propagation/tracer_tag_propagation.h"
 
 // True global - only modify during MINIT/MSHUTDOWN
 bool dd_ext_curl_loaded = false;
@@ -109,6 +110,12 @@ static void dd_inject_distributed_tracing_headers(zval *ch TSRMLS_DC) {
     if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         spprintf(&str, 0, "x-datadog-sampling-priority: %ld", sampling_priority);
         add_next_index_string(headers, str, 0);
+    }
+    zai_string_view propagated_tags = ddtrace_format_propagated_tags(TSRMLS_C);
+    if (propagated_tags.ptr) {
+        spprintf(&str, 0, "x-datadog-tags: %s", propagated_tags.ptr);
+        add_next_index_string(headers, str, 0);
+        efree((char *)propagated_tags.ptr);
     }
     if (DDTRACE_G(trace_id)) {
         spprintf(&str, 0, "x-datadog-trace-id: %" PRIu64, DDTRACE_G(trace_id));

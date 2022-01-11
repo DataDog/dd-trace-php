@@ -464,6 +464,9 @@ static smart_str dd_build_req_url(TSRMLS_D) {
 void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
     zval *meta = ddtrace_spandata_property_meta(span);
 
+    zend_hash_copy(Z_ARRVAL_P(meta), &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref, NULL,
+                   sizeof(zval *));
+
     add_assoc_long(meta, "system.pid", (long)getpid());
 
     const char *method = SG(request_info).request_method;

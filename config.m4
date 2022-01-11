@@ -85,6 +85,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/signals.c \
       ext/php5/span.c \
       ext/php5/startup_logging.c \
+      ext/php5/tracer_tag_propagation/tracer_tag_propagation.c \
     "
 
     ZAI_SOURCES="\
@@ -135,6 +136,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/signals.c \
       ext/php5/span.c \
       ext/php5/startup_logging.c \
+      ext/php5/tracer_tag_propagation/tracer_tag_propagation.c \
     "
 
     ZAI_SOURCES="\
@@ -190,6 +192,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/signals.c \
       ext/php7/span.c \
       ext/php7/startup_logging.c \
+      ext/php7/tracer_tag_propagation/tracer_tag_propagation.c \
     "
 
     ZAI_SOURCES="\
@@ -244,6 +247,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/signals.c \
       ext/php8/span.c \
       ext/php8/startup_logging.c \
+      ext/php8/tracer_tag_propagation/tracer_tag_propagation.c \
       ext/php8/weakrefs.c \
     "
 
@@ -340,6 +344,7 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/php5_4])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/priority_sampling])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/tracer_tag_propagation])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php5/integrations])
   elif test $PHP_VERSION_ID -lt 70000; then
@@ -348,6 +353,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/php5])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/priority_sampling])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/tracer_tag_propagation])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php5/integrations])
   elif test $PHP_VERSION_ID -lt 80000; then
@@ -356,6 +362,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/php7])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/priority_sampling])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/tracer_tag_propagation])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php7/integrations])
   elif test $PHP_VERSION_ID -lt 90000; then
@@ -364,6 +371,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/php8])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/priority_sampling])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/tracer_tag_propagation])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php8/integrations])
   fi

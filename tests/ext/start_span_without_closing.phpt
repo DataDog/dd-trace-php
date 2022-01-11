@@ -44,9 +44,11 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
+      ["_dd.p.upstream_services"]=>
+      string(50) "c3RhcnRfc3Bhbl93aXRob3V0X2Nsb3NpbmcucGhw|1|1|1.000"
     }
     ["metrics"]=>
     array(3) {

@@ -48,6 +48,7 @@
 #include "signals.h"
 #include "span.h"
 #include "startup_logging.h"
+#include "tracer_tag_propagation/tracer_tag_propagation.h"
 
 bool ddtrace_has_excluded_module;
 
@@ -462,6 +463,9 @@ static void dd_initialize_request() {
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+    DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+    zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, shhhht, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, shhhht, ZVAL_PTR_DTOR, 0);
 
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rinit();
@@ -526,6 +530,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 static void dd_clean_globals() {
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     zend_array_destroy(DDTRACE_G(additional_global_tags));
+    zend_hash_destroy(&DDTRACE_G(root_span_tags_preset));
+    zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
 
     if (DDTRACE_G(dd_origin)) {
@@ -1705,7 +1711,7 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
 void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
 
 void dd_read_distributed_tracing_ids(void) {
-    zend_string *trace_id_str, *parent_id_str, *priority_str;
+    zend_string *trace_id_str, *parent_id_str, *priority_str, *propagated_tags;
     bool success = true;
 
     if (zai_read_header_literal("X_DATADOG_TRACE_ID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
@@ -1735,6 +1741,11 @@ void dd_read_distributed_tracing_ids(void) {
     }
 
     if (zai_read_header_literal("X_DATADOG_SAMPLING_PRIORITY", &priority_str) == ZAI_HEADER_SUCCESS) {
-        DDTRACE_G(default_priority_sampling) = strtol(ZSTR_VAL(priority_str), NULL, 10);
+        DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) =
+            strtol(ZSTR_VAL(priority_str), NULL, 10);
+    }
+
+    if (zai_read_header_literal("X_DATADOG_TAGS", &propagated_tags) == ZAI_HEADER_SUCCESS) {
+        ddtrace_add_tracer_tags_from_header(propagated_tags);
     }
 }

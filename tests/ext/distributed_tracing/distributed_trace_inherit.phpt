@@ -4,6 +4,8 @@ Transmit distributed header information to spans
 HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
+HTTP_X_DATADOG_SAMPLING_PRIORITY=3
+HTTP_X_DATADOG_TAGS=custom_tag=inherited,dropped,other_tag=also,drop
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -42,18 +44,20 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(4) {
+      ["custom_tag"]=>
+      string(9) "inherited"
+      ["other_tag"]=>
+      string(4) "also"
       ["system.pid"]=>
       string(%d) "%d"
       ["_dd.origin"]=>
       string(7) "datadog"
     }
     ["metrics"]=>
-    array(3) {
-      ["_dd.rule_psr"]=>
-      float(1)
+    array(2) {
       ["_sampling_priority_v1"]=>
-      float(1)
+      float(3)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

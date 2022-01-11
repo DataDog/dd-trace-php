@@ -86,6 +86,7 @@ extern bool runtime_config_first_init;
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                   \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                               \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                           \
+    CONFIG(INT, DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH, "512")                                                  \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                       \
     CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_TIMEOUT_VAL),                            \
            .ini_change = zai_config_system_ini_change)                                                        \
