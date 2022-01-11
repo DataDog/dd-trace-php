@@ -435,6 +435,11 @@ static smart_str dd_build_req_url(TSRMLS_D) {
         return url_str;
     }
 
+    char *question_mark = strchr(uri, '?');
+    if (question_mark) {
+        uri_len = question_mark - uri;
+    }
+
     zend_bool is_https = zend_hash_exists(Z_ARRVAL_P(_server), ZEND_STRS("HTTPS"));
 
     zval **host_zv;

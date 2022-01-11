@@ -441,6 +441,11 @@ static zend_string *dd_build_req_url() {
         }
     }
 
+    char *question_mark = strchr(uri, '?');
+    if (question_mark) {
+        uri_len = question_mark - uri;
+    }
+
     zend_bool is_https = zend_hash_str_exists(Z_ARRVAL_P(_server), ZEND_STRL("HTTPS"));
 
     zval *host_zv;
