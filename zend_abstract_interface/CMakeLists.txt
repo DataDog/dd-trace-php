@@ -99,6 +99,8 @@ if(NOT TARGET ZaiSapi::ZaiSapi)
   message(FATAL_ERROR "ZAI SAPI is required but not found")
 endif()
 
+add_subdirectory(value)
+
 add_subdirectory(functions)
 add_subdirectory(env)
 add_subdirectory(exceptions)
