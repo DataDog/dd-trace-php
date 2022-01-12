@@ -172,11 +172,23 @@ class LaravelIntegration extends Integration
             }
         );
 
+        // renderException is since Symfony 4.4, use "renderThrowable()" instead
+        // Used by Laravel < v7.0
         \DDTrace\hook_method(
             'Symfony\Component\Console\Application',
             'renderException',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
                 $integration->setError($rootSpan, $args[0]);
+            }
+        );
+
+        // Used by Laravel > v7.0
+        // More details: https://github.com/laravel/framework/commit/f81b6ed01fb60580ade8c7fb4386aff4cb4d7719
+        \DDTrace\hook_method(
+            'Symfony\Component\Console\Application',
+            'renderThrowable',
+            function ($This, $scope, $args) use ($rootSpan) {
+                $rootSpan->setError($args[0]);
             }
         );
 
