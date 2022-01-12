@@ -46,7 +46,7 @@ static char *zs_read_cookies(TSRMLS_D) {
     return NULL;
 }
 
-void (*zai_sapi_register_custom_server_variables)(zval *track_vars_server_array TSRMLS_DC) = NULL;
+void (*zai_sapi_register_custom_server_variables)(zval *track_vars_server_array TSRMLS_DC);
 
 static void zs_register_variables(zval *track_vars_array TSRMLS_DC) {
     php_import_environment_variables(track_vars_array TSRMLS_CC);
@@ -174,6 +174,9 @@ bool zai_sapi_sinit(void) {
 
     /* Reset the additional module global. */
     zai_sapi_reset_extension_global();
+
+    /* Reset custom server variable registration callback */
+    zai_sapi_register_custom_server_variables = NULL;
 
     return true;
 }
