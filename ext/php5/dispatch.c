@@ -147,6 +147,9 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
     dispatch.options = options;
 
     if (ddtrace_dispatch_store(overridable_lookup, &dispatch)) {
+        if (class_name == NULL && Z_STRLEN_P(function_name) == 1 && *Z_STRVAL_P(function_name) == '*') {
+            DDTRACE_G(wildcard_added) = 1;
+        }
         return true;
     } else {
         ddtrace_dispatch_dtor(&dispatch);

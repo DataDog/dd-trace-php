@@ -331,7 +331,32 @@ static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zend_function *fbc TSRMLS
     fname = &zv;
     ZVAL_STRING(fname, fbc->common.function_name, 0);
 
-    return ddtrace_find_dispatch(fbc->common.scope ? EG(called_scope) : NULL, fname TSRMLS_CC);
+    zend_class_entry *scope = fbc->common.scope ? EG(called_scope) : NULL;
+    ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, fname TSRMLS_CC);
+    if (!dispatch && DDTRACE_G(wildcard_added) && get_DD_TRACE_AUTO_INSTRUMENTATION_ENABLED()) {
+        zval *wildcard;
+        MAKE_STD_ZVAL(wildcard);
+        ZVAL_STRINGL(wildcard, "*", sizeof("*") - 1, 1);
+        if ((dispatch = ddtrace_find_dispatch(NULL, wildcard TSRMLS_CC))) {
+            zval *cname = NULL;
+            if (scope) {
+                MAKE_STD_ZVAL(cname);
+                ZVAL_STRINGL(cname, scope->name, scope->name_length, 1);
+            }
+            ddtrace_trace(cname, fname, &dispatch->callable, DDTRACE_DISPATCH_POSTHOOK TSRMLS_CC);
+            if (cname) {
+                zval_ptr_dtor(&cname);
+            }
+
+            if (!(dispatch = ddtrace_find_dispatch(scope, fname TSRMLS_CC))) {
+                ddtrace_log_err("Whoa. I just inserted the dispatch but now I cannot find it.");
+            }
+        } else {
+            ddtrace_log_err("Auto instrumentation enabled but no wildcard tracing closure found.");
+        }
+        zval_ptr_dtor(&wildcard);
+    }
+    return dispatch;
 }
 
 static bool dd_should_trace_dispatch(ddtrace_dispatch_t *dispatch TSRMLS_DC) {

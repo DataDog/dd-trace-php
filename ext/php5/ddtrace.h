@@ -94,6 +94,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *dd_origin;
 
     char *cgroup_file;
+    bool wildcard_added;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
