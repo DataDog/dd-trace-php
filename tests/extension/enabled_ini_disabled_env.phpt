@@ -11,4 +11,4 @@ datadog.appsec.enabled=true
 var_dump(ini_get("datadog.appsec.enabled"));
 ?>
 --EXPECTF--
-string(1) "1"
+string(5) "false"
