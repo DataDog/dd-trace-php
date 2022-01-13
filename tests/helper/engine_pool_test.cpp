@@ -3,6 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#include "client_settings.hpp"
 #include "common.hpp"
 #include <boost/algorithm/string/predicate.hpp>
 #include <engine_pool.hpp>
@@ -13,7 +14,7 @@ namespace dds {
 
 TEST(EnginePoolTest, DefaultRulesFile)
 {
-    auto path = engine_pool::default_rules_file();
+    auto path = client_settings::default_rules_file();
     EXPECT_TRUE(algo::ends_with(path, "/etc/dd-appsec/recommended.json"));
 }
 
@@ -25,11 +26,11 @@ TEST(EnginePoolTest, LoadRulesOK)
 {
     engine_pool_exp pool;
     auto fn = create_sample_rules_ok();
-    auto engine = pool.load_file(fn);
+    auto engine = pool.create_engine({fn, 42});
     EXPECT_EQ(pool.get_cache().size(), 1);
 
     // loading again should take from the cache
-    auto engine2 = pool.load_file(fn);
+    auto engine2 = pool.create_engine({fn, 42});
     EXPECT_EQ(pool.get_cache().size(), 1);
 
     // destroying the engines should expire the cache ptr
@@ -46,20 +47,31 @@ TEST(EnginePoolTest, LoadRulesOK)
 
     // loading another file should cleanup the cache
     fn = create_sample_rules_ok();
-    auto engine3 = pool.load_file(fn);
+    auto engine3 = pool.create_engine({fn, 42});
     ASSERT_TRUE(weak_ptr.expired());
     EXPECT_EQ(pool.get_cache().size(), 1);
+
+    // another timeout should result in another engine
+    auto engine4 = pool.create_engine({fn, 24});
+    EXPECT_EQ(pool.get_cache().size(), 2);
 }
 
 TEST(EnginePoolTest, LoadRulesFileNotFound)
 {
     engine_pool_exp pool;
     EXPECT_THROW(
-        { pool.load_file("/file/that/does/not/exist"); }, std::runtime_error);
+        {
+            pool.create_engine({"/file/that/does/not/exist", 42});
+        },
+        std::runtime_error);
 }
 TEST(EnginePoolTest, BadRulesFile)
 {
     engine_pool_exp pool;
-    EXPECT_THROW({ pool.load_file("/dev/null"); }, dds::parsing_error);
+    EXPECT_THROW(
+        {
+            pool.create_engine({"/dev/null", 42});
+        },
+        dds::parsing_error);
 }
 } // namespace dds

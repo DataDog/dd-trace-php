@@ -2,7 +2,7 @@
 Logging with PHP error reporting
 --INI--
 error_reporting=2147483647
-ddappsec.log_file=php_error_reporting
+datadog.appsec.log_file=php_error_reporting
 --FILE--
 <?php
 use function datadog\appsec\testing\mlog;
@@ -18,31 +18,31 @@ function print_all_levels() {
 }
 
 echo "All levels\n";
-ini_set('ddappsec.log_level', 'trace');
+ini_set('datadog.appsec.log_level', 'trace');
 print_all_levels();
 
 echo "Debug\n";
-ini_set('ddappsec.log_level', 'debug');
+ini_set('datadog.appsec.log_level', 'debug');
 print_all_levels();
 
 echo "Info\n";
-ini_set('ddappsec.log_level', 'info');
+ini_set('datadog.appsec.log_level', 'info');
 print_all_levels();
 
 echo "Warning\n";
-ini_set('ddappsec.log_level', 'warning');
+ini_set('datadog.appsec.log_level', 'warning');
 print_all_levels();
 
 echo "Error\n";
-ini_set('ddappsec.log_level', 'error');
+ini_set('datadog.appsec.log_level', 'error');
 print_all_levels();
 
 echo "Fatal\n";
-ini_set('ddappsec.log_level', 'fatal');
+ini_set('datadog.appsec.log_level', 'fatal');
 print_all_levels();
 
 echo "OFF\n";
-ini_set('ddappsec.log_level', 'off');
+ini_set('datadog.appsec.log_level', 'off');
 print_all_levels();
 
 ?>

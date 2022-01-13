@@ -80,12 +80,12 @@ static ZEND_INI_MH(_on_update_config_string);
 
 // clang-format off
 static const zend_ini_entry_def ini_entries[] = {
-    PHP_INI_ENTRY("ddappsec.helper_launch", "1", PHP_INI_SYSTEM, _on_update_launch_flag)
-    PHP_INI_ENTRY1_EX("ddappsec.helper_path", DD_BASE("bin/ddappsec-helper"), PHP_INI_SYSTEM, _on_update_config_string, (void*)0, NULL)
-    PHP_INI_ENTRY1_EX("ddappsec.helper_socket_path", "/tmp/ddappsec.sock", PHP_INI_SYSTEM, _on_update_config_string, (void*)1, NULL)
-    PHP_INI_ENTRY1_EX("ddappsec.helper_lock_path", "/tmp/ddappsec.lock", PHP_INI_SYSTEM, _on_update_config_string, (void*)2, NULL)
-    PHP_INI_ENTRY1_EX("ddappsec.helper_log_file", "/dev/null", PHP_INI_SYSTEM, _on_update_config_string, (void*)3, NULL)
-    PHP_INI_ENTRY1_EX("ddappsec.helper_extra_args", "", PHP_INI_SYSTEM, _on_update_config_string, (void*)4, NULL)
+    PHP_INI_ENTRY("datadog.appsec.helper_launch", "1", PHP_INI_SYSTEM, _on_update_launch_flag)
+    PHP_INI_ENTRY1_EX("datadog.appsec.helper_path", DD_BASE("bin/ddappsec-helper"), PHP_INI_SYSTEM, _on_update_config_string, (void*)0, NULL)
+    PHP_INI_ENTRY1_EX("datadog.appsec.helper_socket_path", "/tmp/ddappsec.sock", PHP_INI_SYSTEM, _on_update_config_string, (void*)1, NULL)
+    PHP_INI_ENTRY1_EX("datadog.appsec.helper_lock_path", "/tmp/ddappsec.lock", PHP_INI_SYSTEM, _on_update_config_string, (void*)2, NULL)
+    PHP_INI_ENTRY1_EX("datadog.appsec.helper_log_file", "/dev/null", PHP_INI_SYSTEM, _on_update_config_string, (void*)3, NULL)
+    PHP_INI_ENTRY1_EX("datadog.appsec.helper_extra_args", "", PHP_INI_SYSTEM, _on_update_config_string, (void*)4, NULL)
     {0}
 };
 // clang-format on
@@ -245,8 +245,8 @@ static dd_result _launch_helper_daemon(int lock_fd);
 static bool _maybe_launch_helper()
 {
     if (!_launch_helper) {
-        mlog(dd_log_debug,
-            "Will not try to launch daemon due to ini ddappsec.launch_helper");
+        mlog(dd_log_debug, "Will not try to launch daemon due to ini "
+                           "datadog.appsec.launch_helper");
         return false;
     }
 
@@ -448,7 +448,7 @@ static int /* fd */ _open_socket_for_helper()
     sockaddr.sun_family = AF_UNIX;
     if (strlen(_config.socket_path) >= sizeof(sockaddr.sun_path) - 1) {
         mlog(dd_log_error,
-            "The value of ddappsec.socket_path (%s) is "
+            "The value of datadog.appsec.socket_path (%s) is "
             "longer than the max size (%zu)",
             _config.socket_path, sizeof(sockaddr.sun_path) - 1);
         return -1;
@@ -581,7 +581,8 @@ static char **nullable _split_params(
 
     if (escaped) {
         mlog(dd_log_warning,
-            "ddappsec.helper_extra_args has an unpaired \\ at the end: %s",
+            "datadog.appsec.helper_extra_args has an unpaired \\ at the end: "
+            "%s",
             orig_params_str);
         efree(ret);
         efree(params_buffer);
@@ -589,7 +590,7 @@ static char **nullable _split_params(
     }
     if (state == single_quoted || state == double_quoted) {
         mlog(dd_log_warning,
-            "ddappsec.helper_extra_args has unmatched quotes: %s",
+            "datadog.appsec.helper_extra_args has unmatched quotes: %s",
             orig_params_str);
         efree(ret);
         efree(params_buffer);
@@ -700,7 +701,7 @@ static ATTR_NO_RETURN void _continue_in_intermediate_process(
     }
 
     /* open stdin, stdout /dev/null and stderr as dup of log_fd (typically
-     * /dev/null too, generally the value of ddappsec.helper_log_file */
+     * /dev/null too, generally the value of datadog.appsec.helper_log_file */
     int fd0 = open("/dev/null", O_RDWR); // NOLINT
     int fd1 = dup(0);                    // NOLINT
     int fd2 = dup2(log_fd, 2);
@@ -855,7 +856,7 @@ static ZEND_INI_MH(_on_update_config_string)
         return FAILURE;
     }
     if (!ZSTR_VAL(new_value)[0] && !zend_string_equals_literal(entry->name,
-                                       "ddappsec.helper_extra_args")) {
+                                       "datadog.appsec.helper_extra_args")) {
         return FAILURE;
     }
 

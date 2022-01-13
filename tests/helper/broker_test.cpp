@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "version.hpp"
 #include <msgpack.hpp>
 #include <network/broker.hpp>
 #include <network/socket.hpp>
@@ -31,11 +32,15 @@ void pack_str(msgpack::packer<std::stringstream> &p, const char *str)
     p.pack_str(l);
     p.pack_str_body(str, l);
 }
-
 void pack_str(msgpack::packer<std::stringstream> &p, const std::string str)
 {
     p.pack_str(str.size());
-    p.pack_str_body(str.c_str(), str.size());
+    p.pack_str_body(&str[0], str.size());
+}
+void pack_str(msgpack::packer<std::stringstream> &p, const std::string_view str)
+{
+    p.pack_str(str.size());
+    p.pack_str_body(str.data(), str.size());
 }
 } // namespace
 
@@ -68,8 +73,9 @@ TEST(BrokerTest, BrokerSendClientInit)
 
     std::stringstream ss;
     msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(2);
+    packer.pack_array(3);
     pack_str(packer, "ok");
+    pack_str(packer, dds::php_ddappsec_version);
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");
@@ -164,7 +170,11 @@ TEST(BrokerTest, BrokerRecvClientInit)
     packer.pack_unsigned_int(20);
     pack_str(packer, "one");
     pack_str(packer, "two");
+    packer.pack_map(2);
+    pack_str(packer, "rules_file");
     pack_str(packer, "three");
+    pack_str(packer, "waf_timeout_ms");
+    packer.pack_uint64(42ul);
     const std::string &expected_data = ss.str();
 
     network::header_t h{"dds", (uint32_t)expected_data.size()};
@@ -181,7 +191,8 @@ TEST(BrokerTest, BrokerRecvClientInit)
     EXPECT_EQ(command.pid, 20);
     EXPECT_STREQ(command.client_version.c_str(), "one");
     EXPECT_STREQ(command.runtime_version.c_str(), "two");
-    EXPECT_STREQ(command.rules_file.c_str(), "three");
+    EXPECT_EQ(command.settings.rules_file, std::string{"three"});
+    EXPECT_EQ(command.settings.waf_timeout_ms, 42ul);
 }
 
 TEST(BrokerTest, BrokerRecvRequestInit)

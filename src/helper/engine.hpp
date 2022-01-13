@@ -12,6 +12,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <spdlog/fmt/ostr.h>
 #include <string>
 #include <vector>
 
@@ -32,8 +33,6 @@ class engine : std::enable_shared_from_this<engine> {
     engine() = default;
 
 public:
-    static constexpr int default_timeout = 10000; /* microseconds */
-
     using subscription_map =
         std::map<std::string_view, std::vector<subscriber::ptr>>;
 
@@ -51,7 +50,7 @@ public:
         context &operator=(context &&) = delete;
         ~context();
 
-        result publish(parameter &&param, unsigned timeout = default_timeout);
+        result publish(parameter &&param);
 
     protected:
         std::vector<parameter> prev_published_params_;

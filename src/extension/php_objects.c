@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "php_objects.h"
+#include "attributes.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "php_compat.h"
@@ -37,12 +38,25 @@ dd_result dd_phpobj_reg_ini(const zend_ini_entry_def *entries)
     return res == FAILURE ? dd_error : dd_success;
 }
 
-#define NAME_PREFIX "ddappsec."
+#define NAME_PREFIX "datadog.appsec."
 #define NAME_PREFIX_LEN (sizeof(NAME_PREFIX) - 1)
 #define ENV_NAME_PREFIX "DD_APPSEC_"
 #define ENV_NAME_PREFIX_LEN (sizeof(ENV_NAME_PREFIX) - 1)
 
+#define ZEND_INI_MH_PASSTHRU entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage
 static zend_string *nullable _fetch_from_env(const char *name, size_t name_len);
+static ZEND_INI_MH(_on_modify_wrapper);
+struct entry_ex {
+    ZEND_INI_MH((*orig_on_modify));
+    const char *hardcoded_def;
+    uint16_t hardcoded_def_len;
+    bool has_env;
+    char _padding[5]; // NOLINT ensure padding is initialized to zeros
+};
+_Static_assert(sizeof(struct entry_ex) == 24, "Size is 24"); // NOLINT
+_Static_assert(offsetof(zend_string, val) % _Alignof(struct entry_ex) == 0,
+    "val offset of zend_string is compatible with alignment of entry_ex");
+
 void dd_phpobj_reg_ini_env(const dd_ini_setting *sett)
 {
     size_t name_len = NAME_PREFIX_LEN + sett->name_suff_len;
@@ -54,6 +68,15 @@ void dd_phpobj_reg_ini_env(const dd_ini_setting *sett)
     zend_string *env_def =
         _fetch_from_env(sett->name_suff, sett->name_suff_len);
 
+    zend_string *entry_ex_fake_str = zend_string_init_interned(
+        (char *)&(struct entry_ex){
+            .orig_on_modify = sett->on_modify,
+            .hardcoded_def = sett->default_value,
+            .hardcoded_def_len = sett->default_value_len,
+            .has_env = env_def ? true : false,
+        },
+        sizeof(struct entry_ex), 1);
+
     const zend_ini_entry_def defs[] = {
         {
             .name = name,
@@ -63,9 +86,10 @@ void dd_phpobj_reg_ini_env(const dd_ini_setting *sett)
             .value_length =
                 env_def ? ZSTR_LEN(env_def) : (uint32_t)sett->default_value_len,
 
-            .on_modify = sett->on_modify,
+            .on_modify = _on_modify_wrapper,
             .mh_arg1 = (void *)(uintptr_t)sett->field_offset,
             .mh_arg2 = sett->global_variable,
+            .mh_arg3 = ZSTR_VAL(entry_ex_fake_str),
         },
         {0}};
 
@@ -104,6 +128,49 @@ static zend_string *nullable _fetch_from_env(const char *name, size_t name_len)
         return NULL;
     }
     return zend_string_init(res, strlen(res), 0);
+}
+
+static ZEND_INI_MH(_on_modify_wrapper)
+{
+    // env values have priority, except we still allow runtime overrides
+    // this may be surprising, but it's what the tracer does
+
+    struct entry_ex *eex = mh_arg3;
+
+    if (!eex->has_env /* no env value, no limitations */ ||
+        // runtime changes are still allowed
+        stage != ZEND_INI_STAGE_STARTUP) {
+        return eex->orig_on_modify(ZEND_INI_MH_PASSTHRU);
+    }
+    // else we have env value and we're at startup stage
+
+    if (entry->value) {
+        // if we have a value, we're either in the beginning of a new thread
+        // or the value came from the the ini_def default (the env value)
+        // in both cases we allow
+        // see zend_register_ini_entries
+        int res = eex->orig_on_modify(ZEND_INI_MH_PASSTHRU);
+        if (UNEXPECTED(res == FAILURE)) {
+            // if this fails though, we're in a bit of a problem. It means
+            // that the env value is no good. We retry with the hardcoded
+            // default, which should always work
+            if (EXPECTED(entry->value)) {
+                zend_string_release(entry->value);
+            }
+            entry->value = zend_string_init_interned(
+                eex->hardcoded_def, eex->hardcoded_def_len, 1);
+            new_value = entry->value; // modify argument variable
+            res = eex->orig_on_modify(ZEND_INI_MH_PASSTHRU);
+            UNUSED(res);
+            assert(res == SUCCESS);
+            return FAILURE;
+        }
+    }
+
+    // else our env value was overriden by ini settings. we don't allow that
+    // so we return FAILURE so that we run next with the ini_entry_def default,
+    // i.e, the env value
+    return FAILURE;
 }
 
 void dd_phpobj_reg_long_const(

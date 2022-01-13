@@ -11,108 +11,125 @@
 #define DD_STDLOG(...)                                                         \
     SPDLOG_LOGGER_CALL(spdlog::default_logger_raw(), __VA_ARGS__)
 
-/* Startup 1 [CRITICAL]
- * A fatal failure upon startup that's not covered by C2 */
+/* Startup [ERROR] DDAS-0001-01
+ * If the AppSec library could not start because of an unexpected error. */
 // NOLINTNEXTLINE
-#define STDLOG_STARTUP_FATAL_FAILURE_OTHER                                     \
-    dd_log_fatal,                                                              \
-        "AppSec could not start because of an unexpected error. Please "       \
-        "contact support at https://docs.datadoghq.com/help/ for help. Error " \
-        "details: %s"
+#define DD_LOG_STARTUP_ERROR                                                   \
+    spdlog::level::err,                                                        \
+        "DDAS-0001-01: AppSec could not start because of an unexpected "       \
+        "error. No security activities will be collected. Please contact "     \
+        "support at https://docs.datadoghq.com/help/ for help"
 
-/* Startup 2 [CRITICAL]
- * A fatal failure caused by incompatibility of libddwaf with the runtime.
- * Comment: This cannot happen because the liddwaf (in the helper) is provided
- * for the same environments as the extension itself */
+/* Startup [ERROR] DDAS-0001-02
+ * If the AppSec library could not start because of an unsupported environment.
+ * Comment: if the environment is unsupported either we don't know about it
+ * or the helper/extension shouldn't even be able to run. */
 
-/* Startup 3 [INFO]
- * AppSec library starting.
- * Comment: libddwaf version is included in the spec, but it is not knowable
- * before connecting to the helper.
- */
-// NOLINTNEXTLINE
-#define DD_STDLOG_STARTUP_BEGAN                                                \
-    spdlog::level::info, "AppSec starting with the following configuration: "  \
-                         "{{ rules_file_path: {} }}"
+/* Startup [ERROR] DDAS-0001-03
+ * Install time issue preventing AppSec from starting.
+ * Comment: perhaps relevant to the extension if the helper can't be found,
+ * otherwise not relevant. */
 
-/* Rules Loading 1 [CRITICAL]
+/* Startup [ERROR] DDAS-0003-01
  * Rules file not found */
 // NOLINTNEXTLINE
 #define DD_STDLOG_RULES_FILE_NOT_FOUND                                         \
-    spdlog::level::critical,                                                   \
-        "AppSec could not find the rules file in path {}. AppSec will not "    \
-        "run any protections in this application."
+    spdlog::level::err,                                                        \
+        "DDAS-0003-01: AppSec could not read the rule file {}. Reason: rules " \
+        "file not found. AppSec will not run any protections in this "         \
+        "application"
 
-/* Rules Loading 2 [CRITICAL]
- * Rules file was found but was invalid. Second placeholder is the reason */
+/* Startup [ERROR] DDAS-0003-02
+ * Rules file invalid */
 // NOLINTNEXTLINE
 #define DD_STDLOG_RULES_FILE_INVALID                                           \
-    spdlog::level::critical,                                                   \
-        "AppSec could not read the rule file {} as it was invalid: {}. "       \
-        "AppSec will not run any protections in this application."
+    spdlog::level::err, "DDAS-0003-02: AppSec could not read the rule file "   \
+                        "{}. Reason: invalid "                                 \
+                        "file format. AppSec will not run any protections in " \
+                        "this application"
 
-/* Rules Loading 3 [ERROR]
- * Some rules in the file are invalid and at least one is valid.
- * First placeholder is the file path, second placeholder has the form
- * <rule name 1>: <reason 1>[, <rule name 2>:...]
- * Comment: WAF does not provide this information */
+/* Startup [ERROR] DDAS-0003-03
+ * All rules are invalid
+ * Comment: we can't know at this at this point, all we can know is that the
+ * WAF failed to initialise. */
 
-/* Rules Loading 4 [INFO]
- * Describes how many rules were loaded.
- * Comment: presumably this refers to the successful rules.
- *          WAF doesn't provide this information */
+/* Request [ERROR] DDAS-0004-00
+ * Failed to analyse request. */
+// NOLINTNEXTLINE
+#define DD_STDLOG_REQUEST_ANALYSIS_FAILED                                      \
+    spdlog::level::err,                                                        \
+        "DDAS-0004-00: AppSec failed to process request. Error details: {}"
 
-/* Rules Loading 5 [DEBUG]
- * Describes the rules that were loaded and their addresses.
- * Comment: WAF doesn't provide this information */
+/* Reload [WARNING] DDAS-0005-00
+ * WAF initialization failed. */
+// NOLINTNEXTLINE
+#define DD_STDLOG_WAF_INIT_FAILED                                              \
+    spdlog::level::warn, "DDAS-0005-00: WAF initialization failed. Some "      \
+                         "rules are invalid in {}"
 
-/* Instrumentation Gateway 1 [DEBUG]
- * Address is pushed to the IG.
- * Comment: The concept of IG is a bit fuzzy here in PHP, but we issue this
- * every time we provide a value for an address
- */
+/* Startup [WARNING] DDAS-0006-00
+ * Used framework is not supported by AppSec.
+ * Comment: not relevant to our implementation of AppSec. */
+
+/* Reload [DEBUG] DDAS-0007-00
+ * Loading rules. */
+// NOLINTNEXTLINE
+#define DD_STDLOG_RULE_LOADED                                                  \
+    spdlog::level::debug "DDAS-0007-00: Loaded rule: {} on addresses {}"
+
+/* Reload [DEBUG] DDAS-0008-00
+ * Address is pushed to the IG. */
 // NOLINTNEXTLINE
 #define DD_STDLOG_IG_DATA_PUSHED                                               \
-    spdlog::level::debug, "Pushing address {} to the Instrumentation Gateway."
+    spdlog::level::debug,                                                      \
+        "DDAS-0008-00: Pushing address {} to the Instrumentation Gateway"
 
-/* Instrumentation Gateway 2 [DEBUG]
- * A set of addresses triggers the execution of a rule.
- * Comment: IG does not provide this information */
+/* Reload [DEBUG] DDAS-0009-00
+ * Matching rules for an available set of addresses.
+ * Comment: information not available. */
 
-/* WAF 1 [INFO → DEBUG]
- * Comment: Wilful spec violation: moved to debug */
-// NOLINTNEXTLINE
-#define DD_STDLOG_BEFORE_WAF spdlog::level::debug, "Executing AppSec In-App WAF"
-
-/* WAF 2 [DEBUG]
+/* Request [DEBUG] DDAS-0010-00
  * Calling the WAF */
 // NOLINTNEXTLINE
 #define DD_STDLOG_CALLING_WAF                                                  \
-    spdlog::level::debug, "Executing AppSec In-App WAF with parameters: {}"
+    spdlog::level::debug,                                                      \
+        "DDAS-0010-00: Executing AppSec In-App WAF with parameters: {}"
 
-/* WAF 3 [DEBUG]
+/* Request [DEBUG] DDAS-0011-00
  * After calling WAF */
 // NOLINTNEXTLINE
 #define DD_STDLOG_AFTER_WAF                                                    \
-    spdlog::level::debug, "Executing AppSec In-App WAF finished. Took {} ms."
+    spdlog::level::debug,                                                      \
+        "DDAS-0011-00: AppSec In-App WAF returned: {}. Took {} ms"
 
-/* WAF 4 [DEBUG]
- * Result of calling the WAF */
+/* Request [DEBUG] DDAS-0012-01
+ * Attack detected.
+ * Comment: Requires parsing... so this is a version without data*/
 // NOLINTNEXTLINE
-#define DD_STDLOG_RESULT_WAF                                                   \
-    spdlog::level::debug, "AppSec In-App WAF returned: {}"
+#define DD_STDLOG_ATTACK_DETECTED                                              \
+    spdlog::level::debug, "DDAS-0012-01: Detected an attack"
 
-/* Rule outcome and blocking
- * Comment: not implemented because it would require parsing the WAF result */
+/* Request [DEBUG] DDAS-0012-02
+ * Attack detected and blocked.
+ * Comment: Requires parsing... so this is a version without data*/
+// NOLINTNEXTLINE
+#define DD_STDLOG_ATTACK_BLOCKED                                               \
+    spdlog::level::debug, "DDAS-0012-01: Blocked attack"
 
-/* Exception 1 [DEBUG]
- * Exception in rule execution.
- * Comment: requires rule name, which is not available */
+/* Request [DEBUG] DDAS-0013-00
+ * Exceeded WAF limit*/
+// NOLINTNEXTLINE
+#define DD_STDLOG_EXCEEDED_WAF_LIMITS                                          \
+    spdlog::level::debug, "DDAS-0013-00: Reached WAF limits. Request "         \
+                          "partially analyzed because of "                     \
+                          "maxElements/maxDepth was exceeded"
 
-/* Exception 2 [DEBUG]
- * Exception outside rule execution.
- * Comment: more specific error messages exist */
+/* Startup [INFO] DDAS-0014-00
+ * AppSec started */
+// NOLINTNEXTLINE
+#define DD_STDLOG_STARTUP                                                      \
+    spdlog::level::info, "DDAS-0014-00: AppSec has started"
 
-/* Data reporting messages: not relevant with span in-band reporting */
-
-// NOLINTEND
+/* Reload [INFO] DDAS-0015-00
+ * Loading rules
+ * Comment: can't know how many rules were loaded yet. */

@@ -14,7 +14,6 @@
 #include <sys/types.h>
 
 #include <stdatomic.h>
-#include <zend_string.h>
 
 #include "commands/client_init.h"
 #include "commands/request_init.h"
@@ -23,6 +22,7 @@
 #include "dddefs.h"
 #include "ddtrace.h"
 #include "helper_process.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "network.h"
 #include "php_compat.h"
@@ -90,6 +90,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_trace_startup();
     dd_request_abort_startup();
     dd_tags_startup();
+    dd_ip_extraction_startup();
 
     return SUCCESS;
 }
@@ -266,6 +267,7 @@ static void _register_ini_entries()
         DD_INI_ENV("enabled_on_cli", "0", PHP_INI_SYSTEM, _on_update_appsec_enabled_on_cli),
         DD_INI_ENV_GLOB("block", "1", PHP_INI_SYSTEM, OnUpdateBool, block, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("rules_path", "", PHP_INI_SYSTEM, OnUpdateString, rules_file, zend_ddappsec_globals, ddappsec_globals),
+        DD_INI_ENV_GLOB("waf_timeout", "10", PHP_INI_SYSTEM, OnUpdateLongGEZero, waf_timeout_ms, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("extra_headers", "", PHP_INI_SYSTEM, OnUpdateString, extra_headers, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("testing", "0", PHP_INI_SYSTEM, OnUpdateBool, testing, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("testing_abort_rinit", "0", PHP_INI_SYSTEM, OnUpdateBool, testing_abort_rinit, zend_ddappsec_globals, ddappsec_globals),
@@ -279,7 +281,7 @@ static void _register_ini_entries()
 static ZEND_INI_MH(_on_update_appsec_enabled)
 {
     ZEND_INI_MH_UNUSED();
-    // handle ddappsec.enabled
+    // handle datadog.appsec.enabled
     bool is_cli =
         strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
     if (is_cli) {
@@ -294,7 +296,7 @@ static ZEND_INI_MH(_on_update_appsec_enabled)
 static ZEND_INI_MH(_on_update_appsec_enabled_on_cli)
 {
     ZEND_INI_MH_UNUSED();
-    // handle ddappsec.enabled.cli
+    // handle datadog.appsec.enabled.cli
     bool is_cli =
         strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
     if (!is_cli) {

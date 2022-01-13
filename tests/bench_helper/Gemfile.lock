@@ -1,12 +1,18 @@
 GEM
   remote: http://rubygems.org/
   specs:
+    io-console (0.5.9)
+    irb (1.4.1)
+      reline (>= 0.3.0)
     msgpack (1.4.2)
+    reline (0.3.0)
+      io-console (~> 0.5)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
+  irb
   msgpack
 
 BUNDLED WITH

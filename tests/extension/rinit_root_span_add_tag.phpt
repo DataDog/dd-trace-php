@@ -2,8 +2,8 @@
 Test ddtrace_root_span_add_tag
 --INI--
 extension=ddtrace.so
-ddappsec.log_file=/tmp/php_appsec_test.log
-ddappsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=debug
 --ENV--
 DD_ENV=staging
 DD_VERSION=0.42.69
@@ -28,7 +28,7 @@ use const datadog\appsec\testing\log_level\DEBUG;
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createRun([['ok']], ['continuous' => true]);
+$helper = Helper::createInitedRun([['ok']], ['continuous' => true]);
 
 var_dump(rinit());
 $helper->get_commands();

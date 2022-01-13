@@ -31,7 +31,7 @@ engine::context::~context()
     for (auto &param : prev_published_params_) { param.free(); }
 }
 
-result engine::context::publish(parameter &&param, unsigned timeout)
+result engine::context::publish(parameter &&param)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
@@ -67,7 +67,7 @@ result engine::context::publish(parameter &&param, unsigned timeout)
             it = listeners_.emplace(sub, sub->get_listener()).first;
         }
         try {
-            auto call_res = it->second->call(data, timeout);
+            auto call_res = it->second->call(data);
             if (call_res.value > res.value) {
                 res = std::move(call_res);
             }

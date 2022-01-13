@@ -2,10 +2,17 @@
 ddtrace integration — basic test
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--SKIPIF--
+<?php
+// on CI, the 5 minute timeout is sometimes exceeded
+if (key_exists('CI', $_ENV) && $_ENV['CI'] === 'true') {
+    require __DIR__ . "/inc/no_valgrind.php";
+}
+?>
 --INI--
 extension=ddtrace.so
-ddappsec.log_file=/tmp/php_appsec_test.log
-ddappsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=debug
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,mlog};
@@ -13,7 +20,7 @@ use const datadog\appsec\testing\log_level\DEBUG;
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createRun([['ok']], ['continuous' => true]);
+$helper = Helper::createInitedRun([['ok']], ['continuous' => true]);
 
 mlog(DEBUG, "Call rinit");
 echo "rinit\n";

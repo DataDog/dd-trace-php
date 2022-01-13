@@ -4,15 +4,15 @@ test request recording failure due to no root span available
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --INI--
 extension=ddtrace.so
-ddappsec.log_file=/tmp/php_appsec_test.log
-ddappsec.log_level=debug
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=debug
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,root_span_get_meta};
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createRun([['ok'], ['record', '[{"found":"attack"}]']], ['continuous' => true]);
+$helper = Helper::createInitedRun([['record', '[{"found":"attack"}]']], ['continuous' => true]);
 
 echo "root_span_get_meta (should fail: no root span):\n";
 var_dump(root_span_get_meta());
