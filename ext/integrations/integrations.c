@@ -196,6 +196,9 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PREDIS, "Predis\\Client", "__construct",
                                          "DDTrace\\Integrations\\Predis\\PredisIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PREDIS, "Revolt\\EventLoop", "setDriver",
+                                         "DDTrace\\Integrations\\Revolt\\RevoltIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ROADRUNNER, "Spiral\\RoadRunner\\Http\\HttpWorker", "waitRequest",
                                          "DDTrace\\Integrations\\Roadrunner\\RoadrunnerIntegration");
 

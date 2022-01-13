@@ -25,6 +25,7 @@
     INTEGRATION(PDO, "pdo")                     \
     INTEGRATION(PHPREDIS, "phpredis")           \
     INTEGRATION(PREDIS, "predis")               \
+    INTEGRATION(REVOLT, "revolt")               \
     INTEGRATION(ROADRUNNER, "roadrunner")       \
     INTEGRATION(SLIM, "slim")                   \
     INTEGRATION(SYMFONY, "symfony")             \

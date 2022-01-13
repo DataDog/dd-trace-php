@@ -61,7 +61,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan->service = \ddtrace_config_app_name('roadrunner');
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
-                $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
+                $activeSpan->meta[Tag::COMPONENT] = RevoltIntegration::NAME;
                 $activeSpan->meta[Tag::SPAN_KIND] = 'server';
                 $integration->addTraceAnalyticsIfEnabled($activeSpan);
                 if ($exception) {
@@ -113,7 +113,7 @@ class RoadrunnerIntegration extends Integration
                     $headerList = $args[2];
 
                     $activeSpan->meta["http.status_code"] = $status;
-                    $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
+                    $activeSpan->meta[Tag::COMPONENT] = RevoltIntegration::NAME;
                     $allowedHeaders = \dd_trace_env_config("DD_TRACE_HEADER_TAGS");
                     foreach ($headerList as $header => $headers) {
                         $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($header));
