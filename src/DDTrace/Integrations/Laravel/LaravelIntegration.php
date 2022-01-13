@@ -187,8 +187,8 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Symfony\Component\Console\Application',
             'renderThrowable',
-            function ($This, $scope, $args) use ($rootSpan) {
-                $rootSpan->setError($args[0]);
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $integration->setError($rootSpan, $args[0]);
             }
         );
 
