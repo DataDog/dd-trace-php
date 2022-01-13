@@ -167,6 +167,30 @@ test_zai_sapi: build_zai_sapi
 install_zai_sapi: build_zai_sapi
 	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) install;
 
+build_zai_sapi_asan:
+	( \
+	mkdir -p "$(ZAI_SAPI_BUILD_DIR)" "$(ZAI_SAPI_INSTALL_DIR)"; \
+	cd $(ZAI_SAPI_BUILD_DIR); \
+	CMAKE_PREFIX_PATH=/opt/catch2 \
+	cmake \
+		-DCMAKE_INSTALL_PREFIX=$(ZAI_SAPI_INSTALL_DIR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DBUILD_ZAI_SAPI_TESTING=$(ZAI_SAPI_BUILD_TESTS) \
+		-DBUILD_ZAI_SAPI_ASAN=ON \
+		-DPHP_CONFIG=$(shell which php-config) \
+	$(PROJECT_ROOT)/zai_sapi; \
+	$(MAKE) $(MAKEFLAGS); \
+	)
+
+test_zai_sapi_asan: build_zai_sapi_asan
+	( \
+	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) test; \
+	! grep -e "=== Total .* memory leaks detected ===" $(ZAI_SAPI_BUILD_DIR)/Testing/Temporary/LastTest.log; \
+	)
+
+install_zai_sapi_asan: build_zai_sapi_asan
+	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) install;
+
 build_zai:
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
