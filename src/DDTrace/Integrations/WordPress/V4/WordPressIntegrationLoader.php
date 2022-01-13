@@ -2,12 +2,8 @@
 
 namespace DDTrace\Integrations\WordPress\V4;
 
-use DDTrace\Contracts\Scope;
-use DDTrace\GlobalTracer;
-use DDTrace\Http\Urls;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
-use DDTrace\Contracts\Span;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -15,30 +11,25 @@ use DDTrace\Type;
 class WordPressIntegrationLoader
 {
     /**
-     * @var Span
+     * @var SpanData
      */
     public $rootSpan;
 
     public function load(WordPressIntegration $integration)
     {
-        $scope = GlobalTracer::get()->getRootScope();
-        if (!$scope instanceof Scope) {
+        $this->rootSpan = \DDTrace\root_span();
+        if (!$this->rootSpan) {
             return Integration::NOT_LOADED;
         }
-        $this->rootSpan = $scope->getSpan();
         // Overwrite the default web integration
-        $integration->addTraceAnalyticsIfEnabledLegacy($this->rootSpan);
-        $this->rootSpan->overwriteOperationName('wordpress.request');
+        $integration->addTraceAnalyticsIfEnabled($this->rootSpan);
+        $this->rootSpan->name = 'wordpress.request';
         $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
-        $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);
+        $this->rootSpan->service = $service;
         if ('cli' !== PHP_SAPI) {
             $normalizedPath = \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
-            $this->rootSpan->setTag(
-                Tag::RESOURCE_NAME,
-                $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath,
-                true
-            );
-            $this->rootSpan->setTag(Tag::HTTP_URL, home_url(add_query_arg($_GET)));
+            $this->rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
+            $this->rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize(home_url(add_query_arg($_GET)));
         }
 
         // Core
