@@ -49,60 +49,16 @@ extern "C" {
     "[" __ZAI_SAPI_TEST_CASE_SUITE "]" __ZAI_SAPI_TEST_CASE_TAGS /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_BARE(char *suite, char *description, block_t code) */
-#define ZAI_SAPI_TEST_CASE_BARE(suite, description, code)                    \
+#define ZAI_SAPI_TEST_CASE_BARE(suite, description, ...)                     \
     TEST_CASE(ZAI_SAPI_TEST_CASE_TAG(                                        \
         suite, description, ZAI_SAPI_TEST_TAGS_NONE)) {                      \
-        { code }                                                             \
+        { __VA_ARGS__ }                                                      \
     } /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_WITH_TAGS_BARE(char *suite, char *description, char *tags, block_t code) */
-#define ZAI_SAPI_TEST_CASE_WITH_TAGS_BARE(suite, description, tags, code)    \
+#define ZAI_SAPI_TEST_CASE_WITH_TAGS_BARE(suite, description, tags, ...)     \
     TEST_CASE(ZAI_SAPI_TEST_CASE_TAG(suite, description, tags)) {            \
-        { code }                                                             \
-    } /* }}} */
-
-/* {{{ private void ZAI_SAPI_TEST_CASE_IMPL(
-                        char *suite,
-                        char *description,
-                        char *tags,
-                        char *stub,
-                        block_t prologue,
-                        callable_t begin,
-                        block_t code,
-                        callable_t end) */
-#define ZAI_SAPI_TEST_CASE_IMPL(                                         \
-    __ZAI_SAPI_TEST_CASE_SUITE,                                          \
-    __ZAI_SAPI_TEST_CASE_DESCRIPTION,                                    \
-    __ZAI_SAPI_TEST_CASE_TAGS,                                           \
-    __ZAI_SAPI_TEST_CASE_STUB,                                           \
-    __ZAI_SAPI_TEST_CASE_PROLOGUE,                                       \
-    __ZAI_SAPI_TEST_CASE_BEGIN,                                          \
-    __ZAI_SAPI_TEST_CASE_CODE,                                           \
-    __ZAI_SAPI_TEST_CASE_END)                                            \
-    TEST_CASE(ZAI_SAPI_TEST_CASE_TAG(                                    \
-        __ZAI_SAPI_TEST_CASE_SUITE,                                      \
-        __ZAI_SAPI_TEST_CASE_DESCRIPTION,                                \
-        __ZAI_SAPI_TEST_CASE_TAGS)) {                                    \
-        REQUIRE(zai_sapi_sinit());                                       \
-        __ZAI_SAPI_TEST_CASE_PROLOGUE                                    \
-        REQUIRE(zai_sapi_minit());                                       \
-        REQUIRE(zai_sapi_rinit());                                       \
-        ZAI_SAPI_TSRMLS_FETCH();                                         \
-        __ZAI_SAPI_TEST_CASE_BEGIN()                                     \
-        if (__ZAI_SAPI_TEST_CASE_STUB) {                                 \
-            bool zai_sapi_test_case_stub_included = true;                \
-            zend_try {                                                   \
-                zai_sapi_test_case_stub_included =                       \
-                    zai_sapi_execute_script(                             \
-                        __ZAI_SAPI_TEST_CASE_STUB);                      \
-            } zend_catch {                                               \
-                zai_sapi_test_case_stub_included = false;                \
-            } zend_end_try();                                            \
-            REQUIRE(zai_sapi_test_case_stub_included);                   \
-        }                                                                \
-        { __ZAI_SAPI_TEST_CASE_CODE }                                    \
-        __ZAI_SAPI_TEST_CASE_END()                                       \
-        zai_sapi_spindown();                                             \
+        { __VA_ARGS__ }                                                      \
     } /* }}} */
 
 /* {{{ private bailout handling */
@@ -127,164 +83,208 @@ extern "C" {
     REQUIRE(zai_sapi_test_case_with_bailout);
 /* }}} */
 
+/* {{{ private void ZAI_SAPI_TEST_CASE_IMPL(
+                        char *suite,
+                        char *description,
+                        char *tags,
+                        char *stub,
+                        block_t prologue,
+                        callable_t begin,
+                        callable_t end,
+                        block_t code) */
+#define ZAI_SAPI_TEST_CASE_IMPL(                                         \
+    __ZAI_SAPI_TEST_CASE_SUITE,                                          \
+    __ZAI_SAPI_TEST_CASE_DESCRIPTION,                                    \
+    __ZAI_SAPI_TEST_CASE_TAGS,                                           \
+    __ZAI_SAPI_TEST_CASE_STUB,                                           \
+    __ZAI_SAPI_TEST_CASE_PROLOGUE,                                       \
+    __ZAI_SAPI_TEST_CASE_BEGIN,                                          \
+    __ZAI_SAPI_TEST_CASE_END,                                            \
+    ...)                                                                 \
+    TEST_CASE(ZAI_SAPI_TEST_CASE_TAG(                                    \
+        __ZAI_SAPI_TEST_CASE_SUITE,                                      \
+        __ZAI_SAPI_TEST_CASE_DESCRIPTION,                                \
+        __ZAI_SAPI_TEST_CASE_TAGS)) {                                    \
+        REQUIRE(zai_sapi_sinit());                                       \
+        __ZAI_SAPI_TEST_CASE_PROLOGUE                                    \
+        REQUIRE(zai_sapi_minit());                                       \
+        REQUIRE(zai_sapi_rinit());                                       \
+        ZAI_SAPI_TSRMLS_FETCH();                                         \
+        __ZAI_SAPI_TEST_CASE_BEGIN()                                     \
+        if (__ZAI_SAPI_TEST_CASE_STUB) {                                 \
+            bool zai_sapi_test_case_stub_included = true;                \
+            zend_try {                                                   \
+                zai_sapi_test_case_stub_included =                       \
+                    zai_sapi_execute_script(                             \
+                        __ZAI_SAPI_TEST_CASE_STUB);                      \
+            } zend_catch {                                               \
+                zai_sapi_test_case_stub_included = false;                \
+            } zend_end_try();                                            \
+            REQUIRE(zai_sapi_test_case_stub_included);                   \
+        }                                                                \
+        { __VA_ARGS__ }                                                  \
+        __ZAI_SAPI_TEST_CASE_END()                                       \
+        zai_sapi_spindown();                                             \
+    } /* }}} */
+
 /* {{{ public void ZAI_SAPI_TEST_CASE(char *suite, char *description, block_t code) */
-#define ZAI_SAPI_TEST_CASE(suite, description, code)                     \
+#define ZAI_SAPI_TEST_CASE(suite, description, ...)                      \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 ZAI_SAPI_TEST_TAGS_NONE,                                 \
                 ZAI_SAPI_TEST_STUB_NONE,                                 \
                 ZAI_SAPI_TEST_PROLOGUE_NONE,                             \
             __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN,                  \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END,                    \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_WITH_TAGS(char *suite, char *description, char *tags, block_t code) */
-#define ZAI_SAPI_TEST_CASE_WITH_TAGS(suite, description, tags, code)     \
+#define ZAI_SAPI_TEST_CASE_WITH_TAGS(suite, description, tags, ...)      \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 tags,                                                    \
                 ZAI_SAPI_TEST_STUB_NONE,                                 \
                 ZAI_SAPI_TEST_PROLOGUE_NONE,                             \
             __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN,                  \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END,                    \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_WITH_STUB(char *suite, char *description, char *stub, block_t code) */
-#define ZAI_SAPI_TEST_CASE_WITH_STUB(suite, description, stub, code)     \
+#define ZAI_SAPI_TEST_CASE_WITH_STUB(suite, description, stub, ...)      \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 ZAI_SAPI_TEST_TAGS_NONE,                                 \
                 stub,                                                    \
                 ZAI_SAPI_TEST_PROLOGUE_NONE,                             \
             __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN,                  \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END,                    \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_STUB(char *suite, char *description, char *tags, char *stub, block_t code) */
-#define ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_STUB(suite, description, tags, stub, code) \
+#define ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_STUB(suite, description, tags, stub, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 tags,                                                    \
                 stub,                                                    \
                 ZAI_SAPI_TEST_PROLOGUE_NONE,                             \
             __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN,                  \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END,                    \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_BAILING_CASE(char *suite, char *description, block_t code) */
-#define ZAI_SAPI_TEST_BAILING_CASE(suite, description, code)             \
+#define ZAI_SAPI_TEST_BAILING_CASE(suite, description, ...)              \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 ZAI_SAPI_TEST_TAGS_NONE,                                 \
                 ZAI_SAPI_TEST_STUB_NONE,                                 \
                 ZAI_SAPI_TEST_PROLOGUE_NONE,                             \
             __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN,                     \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END,                       \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS(char *suite, char *description, char *tags, block_t code) */
-#define ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS(suite, description, tags, code) \
+#define ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS(suite, description, tags, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 tags,                                                    \
                 ZAI_SAPI_TEST_STUB_NONE,                                 \
                 ZAI_SAPI_TEST_PROLOGUE_NONE,                             \
             __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN,                     \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END,                       \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_BAILING_CASE_WITH_STUB(char *suite, char *description, char *stub, block_t code) */
-#define ZAI_SAPI_TEST_BAILING_CASE_WITH_STUB(suite, description, stub, code) \
+#define ZAI_SAPI_TEST_BAILING_CASE_WITH_STUB(suite, description, stub, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 ZAI_SAPI_TEST_TAGS_NONE,                                 \
                 stub,                                                    \
                 ZAI_SAPI_TEST_PROLOGUE_NONE,                             \
             __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN,                     \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END,                       \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_STUB(char *suite, char *description, char *tags, char *stub, block_t code) */
-#define ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_STUB(suite, description, tags, stub, code) \
+#define ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_STUB(suite, description, tags, stub, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 tags,                                                    \
                 stub,                                                    \
                 ZAI_SAPI_TEST_PROLOGUE_NONE,                             \
             __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN,                     \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END,                       \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_WITH_PROLOGUE(char *suite, char *description, block_t prologue, block_t code) */
-#define ZAI_SAPI_TEST_CASE_WITH_PROLOGUE(suite, description, prologue, code) \
+#define ZAI_SAPI_TEST_CASE_WITH_PROLOGUE(suite, description, prologue, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 ZAI_SAPI_TEST_TAGS_NONE,                                 \
                 ZAI_SAPI_TEST_STUB_NONE,                                 \
                 prologue,                                                \
             __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN,                  \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END,                    \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_PROLOGUE(char *suite, char *description, char *tags, block_t prologue, block_t code) */
-#define ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_PROLOGUE(suite, description, tags, prologue, code) \
+#define ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_PROLOGUE(suite, description, tags, prologue, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 tags,                                                    \
                 ZAI_SAPI_TEST_STUB_NONE,                                 \
                 prologue,                                                \
             __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN,                  \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END,                    \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE(char *suite, char *description, char *stub, block_t prologue, block_t code) */
-#define ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE(suite, description, stub, prologue, code) \
+#define ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE(suite, description, stub, prologue, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 ZAI_SAPI_TEST_TAGS_NONE,                                 \
                 stub,                                                    \
                 prologue,                                                \
             __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN,                  \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END,                    \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_STUB_WITH_PROLOGUE(char *suite, char *description, char *tags, char *stub, block_t prologue, block_t code) */
-#define ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_STUB_WITH_PROLOGUE(suite, description, tags, stub, prologue, code) \
+#define ZAI_SAPI_TEST_CASE_WITH_TAGS_WITH_STUB_WITH_PROLOGUE(suite, description, tags, stub, prologue, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 tags,                                                    \
                 stub,                                                    \
                 prologue,                                                \
             __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN,                  \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END,                    \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_BAILING_CASE_WITH_PROLOGUE(char *suite, char *description, block_t prologue, block_t code) */
-#define ZAI_SAPI_TEST_BAILING_CASE_WITH_PROLOGUE(suite, description, prologue, code) \
+#define ZAI_SAPI_TEST_BAILING_CASE_WITH_PROLOGUE(suite, description, prologue, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 ZAI_SAPI_TEST_TAGS_NONE,                                 \
                 ZAI_SAPI_TEST_STUB_NONE,                                 \
                 prologue,                                                \
             __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN,                     \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END,                       \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_PROLOGUE(char *suite, char *description, char *tags, block_t prologue, block_t code) */
-#define ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_PROLOGUE(suite, description, tags, prologue, code) \
+#define ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_PROLOGUE(suite, description, tags, prologue, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 tags,                                                    \
                 ZAI_SAPI_TEST_STUB_NONE,                                 \
                 prologue,                                                \
             __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN,                     \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END,                       \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_BAILING_CASE_WITH_STUB_WITH_PROLOGUE(char *suite, char *description, char *stub, block_t prologue, block_t code) */
-#define ZAI_SAPI_TEST_BAILING_CASE_WITH_STUB_WITH_PROLOGUE(suite, description, stub, prologue, code) \
+#define ZAI_SAPI_TEST_BAILING_CASE_WITH_STUB_WITH_PROLOGUE(suite, description, stub, prologue, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 ZAI_SAPI_TEST_TAGS_NONE,                                 \
                 stub,                                                    \
                 prologue,                                                \
             __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN,                     \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END,                       \
+            __VA_ARGS__) /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_STUB_WITH_PROLOGUE(char *suite, char *description, char *tags, char *stub, block_t prologue, block_t code) */
-#define ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_STUB_WITH_PROLOGUE(suite, description, tags, stub, prologue, code) \
+#define ZAI_SAPI_TEST_BAILING_CASE_WITH_TAGS_WITH_STUB_WITH_PROLOGUE(suite, description, tags, stub, prologue, ...) \
             ZAI_SAPI_TEST_CASE_IMPL(suite, description,                  \
                 tags,                                                    \
                 stub,                                                    \
                 prologue,                                                \
             __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN,                     \
-                code,                                                    \
-            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END) /* }}} */
+            __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END,                       \
+            __VA_ARGS__) /* }}} */
 // clang-format on
 #endif
