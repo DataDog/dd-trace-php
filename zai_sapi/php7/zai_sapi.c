@@ -100,7 +100,7 @@ sapi_module_struct zai_module = {
     NULL, /* unblock_interruptions   */
 #endif
     NULL, /* default_post_reader     */
-    NULL, /* treat_data              */
+    php_default_treat_data, /* treat_data */
     NULL, /* executable_location     */
     0,    /* php_ini_ignore          */
     0,    /* php_ini_ignore_cwd      */
