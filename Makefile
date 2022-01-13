@@ -861,7 +861,7 @@ test_web_laravel_58: global_test_run_dependencies
 	$(call run_tests,--testsuite=laravel-58-test)
 test_web_laravel_8x: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
-	$(call run_tests,tests/Integrations/Laravel/V8_x)
+	$(call run_tests,--testsuite=laravel-8x-test)
 test_web_lumen_52: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
 	$(call run_tests,tests/Integrations/Lumen/V5_2)
