@@ -158,9 +158,9 @@ jobs:
             LLVM_PROFILE_FILE: body.profraw
       - name: Generate coverage
         run: |
-            llvm-profdata-10 merge -sparse *.profraw -o default.profdata
-            llvm-cov-10 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > coverage.html
-            llvm-cov-10 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
+            llvm-profdata-13 merge -sparse *.profraw -o default.profdata
+            llvm-cov-13 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > coverage.html
+            llvm-cov-13 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
         working-directory: ${{ github.workspace }}
       - uses: actions/upload-artifact@v2
         if: always()
