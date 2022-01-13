@@ -8,16 +8,14 @@ extern "C" {
 #include "zai_sapi/zai_sapi_extension.h"
 }
 
-#include <catch2/catch.hpp>
-#include <cstdio>
-#include <cstring>
+#include "zai_tests_common.hpp"
 
 /************************* zai_config_decode_value() **************************/
 
-TEST_CASE("decode bool", "[zai_config_decode]") {
+ZAI_SAPI_TEST_CASE_BARE("config/decode", "bool", {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
     zval value;
     bool ret;
@@ -64,19 +62,19 @@ TEST_CASE("decode bool", "[zai_config_decode]") {
 
     // ---
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
     zai_sapi_spindown();
-}
+})
 
 typedef struct expected_double_s {
     zai_string_view name;
     double value;
 } expected_double;
 
-TEST_CASE("decode double", "[zai_config_decode]") {
+ZAI_SAPI_TEST_CASE_BARE("config/decode", "double", {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
     zval value;
     bool ret;
@@ -125,19 +123,19 @@ TEST_CASE("decode double", "[zai_config_decode]") {
 
     // ---
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
     zai_sapi_spindown();
-}
+})
 
 typedef struct expected_int_s {
     zai_string_view name;
     int value;
 } expected_int;
 
-TEST_CASE("decode int", "[zai_config_decode]") {
+ZAI_SAPI_TEST_CASE_BARE("config/decode", "int", {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
     zval value;
     bool ret;
@@ -186,9 +184,9 @@ TEST_CASE("decode int", "[zai_config_decode]") {
 
     // ---
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
     zai_sapi_spindown();
-}
+})
 
 typedef struct expected_map_s {
     zai_string_view name;
@@ -196,10 +194,10 @@ typedef struct expected_map_s {
     const char *value[3];
 } expected_map;
 
-TEST_CASE("decode map", "[zai_config_decode]") {
+ZAI_SAPI_TEST_CASE_BARE("config/decode", "map", {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
     zval value;
     bool ret;
@@ -254,9 +252,9 @@ TEST_CASE("decode map", "[zai_config_decode]") {
 
     // ---
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
     zai_sapi_spindown();
-}
+})
 
 typedef struct expected_set_s {
     zai_string_view name;
@@ -264,10 +262,10 @@ typedef struct expected_set_s {
 } expected_set;
 
 
-TEST_CASE("decode set", "[zai_config_decode]") {
+ZAI_SAPI_TEST_CASE_BARE("config/decode", "set", {
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
     REQUIRE(zai_json_setup_bindings());
 
     zval value;
@@ -317,20 +315,20 @@ TEST_CASE("decode set", "[zai_config_decode]") {
 
     // ---
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
     zai_sapi_spindown();
-}
+})
 
 // we deliberately do not test the json implementation, but just the basic invocation and conversion to persistent
 // and also the handling of error cases
-TEST_CASE("decode json", "[zai_config_decode]") {
+ZAI_SAPI_TEST_CASE_BARE("config/decode", "json", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_JSON;
 
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
     REQUIRE(zai_json_setup_bindings());
 
     // ---
@@ -356,7 +354,7 @@ TEST_CASE("decode json", "[zai_config_decode]") {
 
     // ---
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
     zai_sapi_spindown();
 
     // execute after zend_MM free
@@ -369,6 +367,6 @@ TEST_CASE("decode json", "[zai_config_decode]") {
     REQUIRE(zend_hash_num_elements(Z_ARRVAL(value)) == 4);
     zend_hash_destroy(Z_ARRVAL(value));
     free(Z_ARRVAL(value));
-}
+})
 
 /******************* zai_config_decode_value() (persistent) *******************/
