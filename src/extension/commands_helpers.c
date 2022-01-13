@@ -171,31 +171,11 @@ static inline dd_result _omsg_send(dd_conn *nonnull conn, dd_omsg *nonnull omsg)
     return dd_conn_sendv(conn, &omsg->iovecs);
 }
 
-#ifdef SO_PASSCRED
 static inline dd_result _omsg_send_cred(
     dd_conn *nonnull conn, dd_omsg *nonnull omsg)
 {
-    // set SO_PASSCRED before sending the message. This is to try to
-    // ensure that the helper does not send a response ahead of our having
-    // had the chance to set SO_PASSCRED before calling recvmsg(), resulting in
-    // the credentials received having the overflowuid
-    int res = setsockopt(
-        conn->socket, SOL_SOCKET, SO_PASSCRED, &(int){1}, sizeof(int));
-    if (res == -1) {
-        mlog_err(
-            dd_log_warning, "Call to setsockopt to get credentials failed");
-        return dd_error;
-    }
-
-    return dd_conn_sendv(conn, &omsg->iovecs);
+    return dd_conn_sendv_cred(conn, &omsg->iovecs);
 }
-#else
-static inline dd_result _omsg_send_cred(
-    dd_conn *nonnull conn, dd_omsg *nonnull omsg)
-{
-    return _omsg_send(conn, omsg);
-}
-#endif
 
 // incoming
 static inline dd_result _dd_imsg_recv(
