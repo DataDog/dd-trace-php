@@ -2,71 +2,54 @@ extern "C" {
 #include "zai_sapi/zai_sapi.h"
 }
 
-#include <catch2/catch.hpp>
+#include "zai_sapi/testing/catch2.hpp"
 
 /**************************** Zai\trigger_error() ****************************/
 
-TEST_CASE("trigger_error: E_CORE_ERROR", "[zai_sapi_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
+ZAI_SAPI_TEST_CASE("zai_sapi/functions", "trigger_error: E_CORE_ERROR", {
+    bool bailed = false;
 
-    ZAI_SAPI_BAILOUT_EXPECTED_OPEN()
-    zai_sapi_execute_script("./stubs/trigger_error_E_CORE_ERROR.php");
-    ZAI_SAPI_BAILOUT_EXPECTED_CLOSE()
+    // clang-format off
+    zend_try {
+        zai_sapi_execute_script("./stubs/trigger_error_E_CORE_ERROR.php");
+    } zend_catch {
+        bailed = true;
+    } zend_end_try();
+    // clang-format on
 
+    REQUIRE(bailed);
     REQUIRE(zai_sapi_last_error_eq(E_CORE_ERROR, "My E_CORE_ERROR"));
+})
 
-    zai_sapi_spindown();
-}
+ZAI_SAPI_TEST_CASE("zai_sapi/functions", "trigger_error: E_ERROR", {
+    bool bailed = false;
 
-TEST_CASE("trigger_error: E_ERROR", "[zai_sapi_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
+    // clang-format off
+    zend_try {
+        zai_sapi_execute_script("./stubs/trigger_error_E_ERROR.php");
+    } zend_catch {
+        bailed = true;
+    } zend_end_try();
+    // clang-format on
 
-    ZAI_SAPI_BAILOUT_EXPECTED_OPEN()
-    zai_sapi_execute_script("./stubs/trigger_error_E_ERROR.php");
-    ZAI_SAPI_BAILOUT_EXPECTED_CLOSE()
-
+    REQUIRE(bailed);
     REQUIRE(zai_sapi_last_error_eq(E_ERROR, "My E_ERROR"));
+})
 
-    zai_sapi_spindown();
-}
-
-TEST_CASE("trigger_error: E_NOTICE", "[zai_sapi_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
-
-    REQUIRE(zai_sapi_execute_script("./stubs/trigger_error_E_NOTICE.php"));
-
+ZAI_SAPI_TEST_CASE_WITH_STUB(
+    "zai_sapi/functions", "trigger_error: E_NOTICE",
+    "./stubs/trigger_error_E_NOTICE.php", {
     REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "My E_NOTICE"));
+})
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
-}
-
-TEST_CASE("trigger_error: E_WARNING", "[zai_sapi_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
-
-    REQUIRE(zai_sapi_execute_script("./stubs/trigger_error_E_WARNING.php"));
-
+ZAI_SAPI_TEST_CASE_WITH_STUB(
+    "zai_sapi/functions", "trigger_error: E_WARNING",
+    "./stubs/trigger_error_E_WARNING.php", {
     REQUIRE(zai_sapi_last_error_eq(E_WARNING, "My E_WARNING"));
+})
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
-}
-
-TEST_CASE("trigger_error: invalid error type returns NULL", "[zai_sapi_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
-
-    REQUIRE(zai_sapi_execute_script("./stubs/trigger_error_invalid.php"));
-
+ZAI_SAPI_TEST_CASE_WITH_STUB(
+    "zai_sapi/functions", "trigger_error: invalid error type returns NULL",
+    "./stubs/trigger_error_invalid.php", {
     REQUIRE(zai_sapi_last_error_is_empty());
-
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
-}
+})
