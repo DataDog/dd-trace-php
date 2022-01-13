@@ -104,6 +104,10 @@ if(${BUILD_ZAI_SAPI_TESTING})
 
   enable_testing()
   add_subdirectory(tests)
+
+  install(
+    FILES ${CMAKE_CURRENT_SOURCE_DIR}/testing/catch2.hpp
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zai_sapi/testing)
 endif()
 
 # Copy the include files on install
@@ -111,7 +115,6 @@ install(
   FILES ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi.h
         ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_extension.h
         ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_functions.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_test.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_ini.h
         ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_io.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zai_sapi)

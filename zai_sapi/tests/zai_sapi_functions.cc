@@ -2,7 +2,7 @@ extern "C" {
 #include "zai_sapi/zai_sapi.h"
 }
 
-#include "zai_sapi/zai_sapi_test.hpp"
+#include "zai_sapi/testing/catch2.hpp"
 
 /**************************** Zai\trigger_error() ****************************/
 

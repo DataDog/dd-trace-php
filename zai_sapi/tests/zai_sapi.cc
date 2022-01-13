@@ -1,4 +1,4 @@
-#include "zai_sapi/zai_sapi_test.hpp"
+#include "zai_sapi/testing/catch2.hpp"
 #include <cstring>
 
 ZAI_SAPI_TEST_CASE("zai_sapi/compile", "eval", {

@@ -2,7 +2,7 @@ extern "C" {
 #include "zai_sapi/zai_sapi_io.h"
 }
 
-#include "zai_sapi/zai_sapi_test.hpp"
+#include "zai_sapi/testing/catch2.hpp"
 #include <cstring>
 
 /************************* zai_sapi_io_write_stdout *************************/

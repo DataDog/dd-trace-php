@@ -31,7 +31,7 @@
 *    Errors in stubs will cause the test to fail
 */
 extern "C" {
-#include "zai_sapi.h"
+#include "../zai_sapi.h"
 }
 
 #include <catch2/catch.hpp>
