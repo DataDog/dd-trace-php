@@ -46,6 +46,7 @@
     INTEGRATION(PSR18, "psr18")                                                                                          \
     INTEGRATION(RATCHET, "ratchet")                                                                                      \
     INTEGRATION(REACTPROMISE, "reactpromise")                                                                            \
+    INTEGRATION(REVOLT, "revolt")                                                                                        \
     INTEGRATION(ROADRUNNER, "roadrunner")                                                                                \
     INTEGRATION(SQLSRV, "sqlsrv")                                                                                        \
     INTEGRATION(SLIM, "slim")                                                                                            \

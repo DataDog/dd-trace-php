@@ -1,0 +1,6 @@
+{
+  "require": {
+    "revolt/event-loop": "^1",
+    "phpunit/phpunit": "^9"
+  }
+}
