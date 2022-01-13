@@ -68,12 +68,14 @@ int main(int argc, char **argv)
     acceptor = acceptor_ptr.get();
     dds::runner runner(config, std::move(acceptor_ptr));
 
-    auto runner_thread([&runner]{ runner.run(); });
+    std::thread runner_thread([&runner]{ runner.run(); });
 
     int result =  LLVMFuzzerRunDriver(&argc, &argv, LLVMFuzzerTestOneInput);
 
     runner.exit();
     acceptor->exit();
+
+    runner_thread.join();
 
     return result;
 }
