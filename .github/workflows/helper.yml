@@ -48,6 +48,7 @@ jobs:
         working-directory: ${{ github.workspace }}/build
       - name: Generate coverage report
         run: |
+          sudo apt-get update
           sudo apt-get install -y gcovr
           gcovr -f '.*src/helper/.*' -x -d -o coverage.xml
       - name: Submit coverage
