@@ -48,6 +48,14 @@ extern "C" {
 #define ZAI_SAPI_TEST_STUB_NONE     NULL
 #define ZAI_SAPI_TEST_PROLOGUE_NONE {}
 
+/* {{{ ZAI_SAPI_TEST_CASE_NO_ASAN will hide a test when running under ASAN */
+#ifdef __SANITIZE_ADDRESS__
+# define ZAI_SAPI_TEST_CASE_NO_ASAN "[!hide]"
+#else
+# define ZAI_SAPI_TEST_CASE_NO_ASAN ""
+#endif
+/* }}} */
+
 /* {{{ private void ZAI_SAPI_TEST_CASE_TAG(char *suite, char *description, char *tags) */
 #define ZAI_SAPI_TEST_CASE_TAG(\
         __ZAI_SAPI_TEST_CASE_SUITE,                                       \
@@ -71,17 +79,21 @@ extern "C" {
 
 /* {{{ Test Case Bailout Handling */
 #define ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()    \
-    bool zai_sapi_test_case_without_bailout = true;   \
+{                                                     \
+    volatile bool                                     \
+        zai_sapi_test_case_without_bailout = true;    \
     zend_first_try {
 
 #define ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()      \
     } zend_catch {                                    \
         zai_sapi_test_case_without_bailout = false;   \
     } zend_end_try();                                 \
-    REQUIRE(zai_sapi_test_case_without_bailout);
+    REQUIRE(zai_sapi_test_case_without_bailout);      \
+}
 
 #define ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()       \
-    bool zai_sapi_test_case_with_bailout = false;     \
+    volatile bool                                     \
+        zai_sapi_test_case_with_bailout = false;      \
     zend_first_try {
 
 #define ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()         \
@@ -96,7 +108,8 @@ extern "C" {
 /* {{{ public void ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT(block_t code) */
 #define ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT(...)       \
 {                                                     \
-  bool zai_sapi_test_code_without_bailout = true;     \
+  volatile bool                                       \
+    zai_sapi_test_code_without_bailout = true;        \
                                                       \
   zend_try {                                          \
     { __VA_ARGS__ }                                   \
@@ -105,12 +118,17 @@ extern "C" {
   } zend_end_try();                                   \
                                                       \
   REQUIRE(zai_sapi_test_code_without_bailout);        \
+                                                      \
+  if (!zai_sapi_test_code_without_bailout) {          \
+    goto __ZAI_SAPI_TEST_CASE_SHUTDOWN;               \
+  }                                                   \
 } /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CODE_WITH_BAILOUT(block_t code) */
 #define ZAI_SAPI_TEST_CODE_WITH_BAILOUT(...)          \
 {                                                     \
-  bool zai_sapi_test_code_with_bailout = false;       \
+  volatile bool                                       \
+    zai_sapi_test_code_with_bailout = false;          \
                                                       \
   zend_try {                                          \
     { __VA_ARGS__ }                                   \
@@ -119,6 +137,10 @@ extern "C" {
   } zend_end_try();                                   \
                                                       \
   REQUIRE(zai_sapi_test_code_with_bailout);           \
+                                                      \
+  if (!zai_sapi_test_code_with_bailout) {             \
+    goto __ZAI_SAPI_TEST_CASE_SHUTDOWN;               \
+  }                                                   \
 } /* }}} */
 
 /* }}} */
@@ -152,8 +174,9 @@ extern "C" {
         ZAI_SAPI_TSRMLS_FETCH();                                         \
         __ZAI_SAPI_TEST_CASE_BEGIN()                                     \
         if (__ZAI_SAPI_TEST_CASE_STUB) {                                 \
-            bool zai_sapi_test_case_stub_included = true;                \
-            zend_try {                                                   \
+            volatile bool                                                \
+                zai_sapi_test_case_stub_included = true;                 \
+            zend_first_try {                                             \
                 zai_sapi_test_case_stub_included =                       \
                     zai_sapi_execute_script(                             \
                         __ZAI_SAPI_TEST_CASE_STUB);                      \
@@ -161,10 +184,16 @@ extern "C" {
                 zai_sapi_test_case_stub_included = false;                \
             } zend_end_try();                                            \
             REQUIRE(zai_sapi_test_case_stub_included);                   \
+            if (!zai_sapi_test_case_stub_included) {                     \
+                goto __ZAI_SAPI_TEST_CASE_SHUTDOWN;                      \
+            }                                                            \
         }                                                                \
         { __VA_ARGS__ }                                                  \
         __ZAI_SAPI_TEST_CASE_END()                                       \
-        zai_sapi_spindown();                                             \
+        __ZAI_SAPI_TEST_CASE_SHUTDOWN:                                   \
+        zai_sapi_rshutdown();                                            \
+        zai_sapi_mshutdown();                                            \
+        zai_sapi_sshutdown();                                            \
     } /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE(char *suite, char *description, block_t code) */
