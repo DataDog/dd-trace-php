@@ -240,7 +240,7 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors (PHP 5)", {
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
         ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
-            zend_error(error_type, "Foo throwable non-fatal error"); 
+            zend_error(error_type, "Foo throwable non-fatal error");
         });
 
         REQUIRE(zai_sapi_last_error_eq(error_type, "Foo throwable non-fatal error"));
