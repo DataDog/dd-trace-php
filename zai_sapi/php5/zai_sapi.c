@@ -104,22 +104,22 @@ sapi_module_struct zai_module = {
     NULL,                  /* Get request time */
     NULL,                  /* Child terminate */
 
-    NULL, /* php_ini_path_override   */
-    NULL, /* block_interruptions     */
-    NULL, /* unblock_interruptions   */
-    NULL, /* default_post_reader     */
-    NULL, /* treat_data              */
-    NULL, /* executable_location     */
-    0,    /* php_ini_ignore          */
-    0,    /* php_ini_ignore_cwd      */
-    NULL, /* get_fd                  */
-    NULL, /* force_http_10           */
-    NULL, /* get_target_uid          */
-    NULL, /* get_target_gid          */
-    NULL, /* input_filter            */
-    NULL, /* ini_defaults            */
-    0,    /* phpinfo_as_text;        */
-    NULL, /* ini_entries;            */
+    NULL,                   /* php_ini_path_override   */
+    NULL,                   /* block_interruptions     */
+    NULL,                   /* unblock_interruptions   */
+    NULL,                   /* default_post_reader     */
+    php_default_treat_data, /* treat_data */
+    NULL,                   /* executable_location     */
+    0,                      /* php_ini_ignore          */
+    0,                      /* php_ini_ignore_cwd      */
+    NULL,                   /* get_fd                  */
+    NULL,                   /* force_http_10           */
+    NULL,                   /* get_target_uid          */
+    NULL,                   /* get_target_gid          */
+    NULL,                   /* input_filter            */
+    NULL,                   /* ini_defaults            */
+    0,                      /* phpinfo_as_text;        */
+    NULL,                   /* ini_entries;            */
 
     zai_sapi_functions, /* additional_functions */
 
