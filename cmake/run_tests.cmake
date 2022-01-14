@@ -49,8 +49,6 @@ if(DD_APPSEC_BUILD_HELPER)
     ExternalProject_Get_property(proj_event_rules SOURCE_DIR)
     set(EVENT_RULES_SOURCE_DIR ${SOURCE_DIR})
     add_custom_target(ex_apache_mod
-        # TODO we assume libphp?.so is for PHP 7 and that it's in the directory
-        # where build_dev_php.sh puts it
         COMMAND ${CMAKE_SOURCE_DIR}/examples/apache_mod/start.sh
         .
         ${PHP_APACHE_MODULE}
@@ -60,6 +58,17 @@ if(DD_APPSEC_BUILD_HELPER)
         ${EVENT_RULES_SOURCE_DIR}/v2/build/recommended.json
         WORKING_DIRECTORY ${CMAKE_BUILD_DIR})
     add_dependencies(ex_apache_mod proj_event_rules)
+
+    add_custom_target(ex_apache_fpm
+        COMMAND ${CMAKE_SOURCE_DIR}/examples/apache_fpm/start.sh
+        .
+        ${PHP_BIN_DIR}/../sbin
+        $<TARGET_FILE:extension>
+        $<TARGET_FILE:tracer>
+        $<TARGET_FILE:ddappsec-helper>
+        ${EVENT_RULES_SOURCE_DIR}/v2/build/recommended.json
+        WORKING_DIRECTORY ${CMAKE_BUILD_DIR})
+    add_dependencies(ex_apache_fpm proj_event_rules)
 endif()
 
 # vim: set et:

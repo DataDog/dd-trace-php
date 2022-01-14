@@ -80,5 +80,13 @@ protected:
     const std::string what_;
 };
 
+class client_disconnect : public std::exception {
+public:
+    [[nodiscard]] const char *what() const noexcept override
+    {
+        return "client_disconnect";
+    }
+};
+
 } // namespace dds
 #endif

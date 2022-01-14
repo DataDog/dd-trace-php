@@ -28,6 +28,7 @@ enum comm_type {
 typedef struct _dd_conn dd_conn;
 
 dd_result dd_conn_sendv(dd_conn *nonnull conn, zend_llist *nonnull iovecs);
+dd_result dd_conn_sendv_cred(dd_conn *nonnull conn, zend_llist *nonnull iovecs);
 dd_result dd_conn_recv(dd_conn *nonnull conn, char *nullable *nonnull data, size_t *nonnull data_len);
 dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data, size_t *nonnull data_len);
 

@@ -19,6 +19,8 @@ static inline ATTR_WARN_UNUSED mpack_error_t _omsg_finish(
 static inline void _omsg_destroy(dd_omsg *nonnull omsg);
 static inline dd_result _omsg_send(
     dd_conn *nonnull conn, dd_omsg *nonnull omsg);
+static inline dd_result _omsg_send_cred(
+    dd_conn *nonnull conn, dd_omsg *nonnull omsg);
 
 typedef struct _dd_imsg {
     char *unspecnull _data;
@@ -63,7 +65,11 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
             return dd_error;
         }
 
-        res = _omsg_send(conn, &omsg);
+        if (check_cred) {
+            res = _omsg_send_cred(conn, &omsg);
+        } else {
+            res = _omsg_send(conn, &omsg);
+        }
         _omsg_destroy(&omsg);
         if (res) {
             mlog(dd_log_warning, "Error sending message for command %.*s: %s",
@@ -163,6 +169,12 @@ static inline void _omsg_destroy(dd_omsg *nonnull omsg)
 static inline dd_result _omsg_send(dd_conn *nonnull conn, dd_omsg *nonnull omsg)
 {
     return dd_conn_sendv(conn, &omsg->iovecs);
+}
+
+static inline dd_result _omsg_send_cred(
+    dd_conn *nonnull conn, dd_omsg *nonnull omsg)
+{
+    return dd_conn_sendv_cred(conn, &omsg->iovecs);
 }
 
 // incoming

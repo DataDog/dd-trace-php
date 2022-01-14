@@ -30,6 +30,9 @@ request broker::recv(std::chrono::milliseconds initial_timeout) const
     header_t h;
     std::size_t res = // NOLINTNEXTLINE
         socket_->recv(reinterpret_cast<char *>(&h), sizeof(header_t));
+    if (res == 0UL) {
+        throw client_disconnect{};
+    }
     if (res != sizeof(header_t)) {
         // The sender probably closed the socket
         throw std::length_error(

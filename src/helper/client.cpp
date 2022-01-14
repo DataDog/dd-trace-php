@@ -67,6 +67,8 @@ bool handle_message(client &client, const network::base_broker &broker,
     try {
         auto msg = broker.recv(initial_timeout);
         return maybe_exec_cmd_M<Ms...>(client, msg);
+    } catch (const client_disconnect &) {
+        SPDLOG_INFO("Client has disconnected");
     } catch (const std::exception &e) {
         SPDLOG_WARN(e.what());
     }

@@ -168,6 +168,29 @@ dd_result dd_conn_sendv(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
 
     return dd_success;
 }
+#ifdef SO_PASSCRED
+dd_result dd_conn_sendv_cred(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
+{
+    // set SO_PASSCRED before sending the message. This is to try to
+    // ensure that the helper does not send a response ahead of our having
+    // had the chance to set SO_PASSCRED before calling recvmsg(), resulting in
+    // the credentials received having the overflowuid
+    int res = setsockopt(
+        conn->socket, SOL_SOCKET, SO_PASSCRED, &(int){1}, sizeof(int));
+    if (res == -1) {
+        mlog_err(
+            dd_log_warning, "Call to setsockopt to get credentials failed");
+        return dd_error;
+    }
+
+    return dd_conn_sendv(conn, iovecs);
+}
+#else // no SO_PASSCRED
+dd_result dd_conn_sendv_cred(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
+{
+    return dd_conn_sendv(conn, iovecs);
+}
+#endif
 
 static dd_result _recv_message_body(int sock, char *nullable *nonnull data,
     size_t *nonnull data_len, size_t expected_size);
@@ -252,14 +275,6 @@ dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
 {
     if (conn == NULL || conn->socket <= 0 || data == NULL) {
         mlog(dd_log_warning, "Invalid arguments. Bug");
-        return dd_error;
-    }
-
-    int res = setsockopt(
-        conn->socket, SOL_SOCKET, SO_PASSCRED, &(int){1}, sizeof(int));
-    if (res == -1) {
-        mlog_err(
-            dd_log_warning, "Call to setsockopt to get credentials failed");
         return dd_error;
     }
 
@@ -351,7 +366,7 @@ static dd_result _check_credentials(struct cmsghdr *cmsgp)
     mlog(dd_log_debug, "Helper's process credentials are correct");
     return dd_success;
 }
-#else // no SO_PEERCRED
+#else // no SO_PASSCRED
 dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
     size_t *nonnull data_len)
 {
