@@ -109,6 +109,30 @@ public:
                zai_sapi_rinit();
     }
 
+    void zai_sapi_rshutdown() {
+        ::zai_sapi_rshutdown();
+
+        stage &= ~ZAI_SAPI_TEST_CASE_STAGE_REQUEST;
+    }
+
+    void zai_sapi_mshutdown() {
+        ::zai_sapi_mshutdown();
+
+        stage &= ~ZAI_SAPI_TEST_CASE_STAGE_PREFORK;
+    }
+
+    void zai_sapi_sshutdown() {
+        ::zai_sapi_sshutdown();
+
+        stage &= ~ZAI_SAPI_TEST_CASE_STAGE_PROLOGUE;
+    }
+
+    void zai_sapi_spindown() {
+        zai_sapi_rshutdown();
+        zai_sapi_mshutdown();
+        zai_sapi_sshutdown();
+    }
+
     virtual ~ZaiSapiTestCaseFixture() {
         if (stage & ZAI_SAPI_TEST_CASE_STAGE_REQUEST) {
             zai_sapi_rshutdown();
