@@ -73,14 +73,6 @@ set_target_properties(ZaiSapi PROPERTIES VERSION ${PROJECT_VERSION})
 
 add_library(ZaiSapi::ZaiSapi ALIAS ZaiSapi)
 
-option(BUILD_ZAI_SAPI_ASAN "Enable ASAN" OFF)
-if(${BUILD_ZAI_ASAN})
-  set(CMAKE_C_FLAGS
-      "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
-  set(CMAKE_CXX_FLAGS
-      "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
-endif()
-
 option(BUILD_ZAI_SAPI_TESTING "Enable ZAI SAPI tests" OFF)
 if(${BUILD_ZAI_SAPI_TESTING})
 
