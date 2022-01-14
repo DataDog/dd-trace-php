@@ -1,17 +1,16 @@
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0.0)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0.0)
     add_executable(ddappsec_helper_fuzzer ${HELPER_SOURCE} main.cpp mutators.cpp)
     set_target_properties(ddappsec_helper_fuzzer PROPERTIES COMPILE_FLAGS "-fsanitize=fuzzer-no-link,address,leak -fprofile-instr-generate -fcoverage-mapping")
     set_target_properties(ddappsec_helper_fuzzer PROPERTIES LINK_FLAGS "-fsanitize=fuzzer-no-link,address,leak -fprofile-instr-generate -fcoverage-mapping")
     target_include_directories(ddappsec_helper_fuzzer PRIVATE ${HELPER_INCLUDE_DIR})
 
-    # Extract major version
-    string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" VERSION_MATCH ${CMAKE_CXX_COMPILER_VERSION})
-    set(CXX_VERSION ${CMAKE_CXX_COMPILER_VERSION})
-    set(CXX_MAJOR ${CMAKE_MATCH_1})
+    execute_process(
+        COMMAND bash -c "${CMAKE_CXX_COMPILER} -print-runtime-dir"
+        OUTPUT_VARIABLE LLVM_RUNTIME_DIR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
 
-    message("/usr/lib/llvm-${CXX_MAJOR}/lib/clang/${CXX_VERSION}/lib/linux/")
-    target_link_directories(ddappsec_helper_fuzzer PRIVATE 
-        "/usr/lib/llvm-${CXX_MAJOR}/lib/clang/${CXX_VERSION}/lib/linux/")
+    target_link_directories(ddappsec_helper_fuzzer PRIVATE ${LLVM_RUNTIME_DIR})
     target_link_libraries(ddappsec_helper_fuzzer
         PRIVATE libddwaf_objects pthread spdlog msgpack_c lib_rapidjson Boost::system libclang_rt.fuzzer_no_main-x86_64.a)
 
