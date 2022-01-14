@@ -211,10 +211,10 @@ build_zai_asan:
 	CMAKE_PREFIX_PATH=/opt/catch2 \
 	ZaiSapi_ROOT=$(ZAI_SAPI_INSTALL_DIR) \
 	cmake \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DBUILD_ZAI_TESTING=ON \
-        -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake \
-        -DPHP_CONFIG=$(shell which php-config) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DBUILD_ZAI_TESTING=ON \
+		-DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake \
+		-DPHP_CONFIG=$(shell which php-config) \
 	$(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) clean $(MAKEFLAGS); \
 	$(MAKE) $(MAKEFLAGS); \
