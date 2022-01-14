@@ -279,7 +279,7 @@ clean_components:
 	rm -rf $(COMPONENTS_BUILD_DIR)
 
 dist_clean:
-	rm -rf $(BUILD_DIR) $(ZAI_BUILD_DIR) $(COMPONENTS_BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(ZAI_SAPI_BUILD_DIR) $(ZAI_BUILD_DIR) $(COMPONENTS_BUILD_DIR)
 
 clean:
 	if [[ -f "$(BUILD_DIR)/Makefile" ]]; then $(MAKE) -C $(BUILD_DIR) clean; fi
