@@ -96,7 +96,7 @@ ZAI_SAPI_TEST_CASE("sandbox/exception", "state: throw exception (userland)", {
         zai_sapi_execute_script("./stubs/throw_exception.php");
     });
 #else
-    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+    ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
         zai_sapi_execute_script("./stubs/throw_exception.php");
     });
 #endif
