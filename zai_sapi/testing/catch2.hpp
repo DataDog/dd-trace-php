@@ -147,7 +147,7 @@ public:
         }
     }
 
-public:
+private:
     unsigned int stage;
 };
 
