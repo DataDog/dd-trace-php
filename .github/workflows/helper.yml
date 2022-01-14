@@ -111,15 +111,16 @@ jobs:
             ~/.hunter
           key: ${{ runner.os }}-helper
       - name: Install clang
-        run: sudo apt-get install clang
+        run: |
+          sudo .github/workflows/scripts/llvm.sh 13
       - name: Generate Build Scripts
         run: |
             mkdir build
             cd build
             cmake .. -DCMAKE_BUILD_TYPE=Debug  -DDD_APPSEC_BUILD_EXTENSION=OFF
         env:
-            CXX: clang++
-            CC: clang
+            CXX: clang++-13
+            CC: clang-13
       - name: Build
         run: make -j $(nproc) ddappsec_helper_fuzzer corpus_generator
         working-directory: ${{ github.workspace }}/build
@@ -158,9 +159,9 @@ jobs:
             LLVM_PROFILE_FILE: body.profraw
       - name: Generate coverage
         run: |
-            llvm-profdata-10 merge -sparse *.profraw -o default.profdata
-            llvm-cov-10 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > coverage.html
-            llvm-cov-10 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
+            llvm-profdata-13 merge -sparse *.profraw -o default.profdata
+            llvm-cov-13 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > coverage.html
+            llvm-cov-13 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
         working-directory: ${{ github.workspace }}
       - uses: actions/upload-artifact@v2
         if: always()

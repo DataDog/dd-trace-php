@@ -11,29 +11,35 @@
 #include "network.hpp"
 #include <iostream>
 
-std::thread runner_thread;
-std::unique_ptr<dds::runner> runner;
 dds::fuzzer::acceptor *acceptor;
-dds::config::config config;
 std::function<decltype(RawMutator)> mutator;
-auto logger = spdlog::stderr_color_mt("ddappsec");
 
-void exit_handler()
-{
-    runner->exit();
-    acceptor->exit();
-
-    runner_thread.join();
-
-    runner.reset(nullptr);
-}
+extern "C" int LLVMFuzzerRunDriver(int *argc, char ***argv,
+                  int (*UserCb)(const uint8_t *Data, size_t Size));
 
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv)
 {
-    std::atexit(exit_handler);
+    return 0;
+}
 
-    config = dds::config::config(*argc, *argv);
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* bytes, size_t size)
+{
+    acceptor->push_socket(std::make_unique<dds::fuzzer::raw_socket>(bytes, size));
+    return 0;
+}
 
+// The custom mutator:
+extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
+                                          size_t MaxSize, unsigned int Seed)
+{
+    return mutator(Data, Size, MaxSize, Seed);
+}
+
+int main(int argc, char **argv)
+{
+    dds::config::config config(argc, argv);
+
+    auto logger = spdlog::stderr_color_mt("ddappsec");
     spdlog::set_default_logger(logger);
     logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e][%l][%t] %v");
     spdlog::set_level(
@@ -60,27 +66,16 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv)
 
     auto acceptor_ptr = std::make_unique<dds::fuzzer::acceptor>();
     acceptor = acceptor_ptr.get();
-    runner = std::make_unique<dds::runner>(config, std::move(acceptor_ptr));
+    dds::runner runner(config, std::move(acceptor_ptr));
 
-    runner_thread = std::move(std::thread([]() {
-        runner->run(); 
-    }));
+    std::thread runner_thread([&runner]{ runner.run(); });
 
-    return 0;
-}
+    int result =  LLVMFuzzerRunDriver(&argc, &argv, LLVMFuzzerTestOneInput);
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* bytes, size_t size)
-{
-    acceptor->push_socket(std::make_unique<dds::fuzzer::raw_socket>(bytes, size));
+    runner.exit();
+    acceptor->exit();
 
-    // TODO: configurable rate-limit and sequential mode
+    runner_thread.join();
 
-    return 0;
-}
-
-// The custom mutator:
-extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
-                                          size_t MaxSize, unsigned int Seed)
-{
-    return mutator(Data, Size, MaxSize, Seed);
+    return result;
 }
