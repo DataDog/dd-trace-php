@@ -110,9 +110,9 @@ public:
     }
 
     void zai_sapi_rshutdown() {
-        ::zai_sapi_rshutdown();
-
         stage &= ~ZAI_SAPI_TEST_CASE_STAGE_REQUEST;
+
+        ::zai_sapi_rshutdown();
     }
 
     void zai_sapi_mshutdown() {
