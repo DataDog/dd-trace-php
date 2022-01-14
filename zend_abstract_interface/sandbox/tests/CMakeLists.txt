@@ -1,4 +1,4 @@
-add_executable(sandbox sandbox.cc)
+add_executable(sandbox error.cc exception.cc sandbox.cc)
 
 target_link_libraries(sandbox PUBLIC catch2_main ZaiSapi::ZaiSapi Zai::Sandbox)
 

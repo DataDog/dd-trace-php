@@ -6,29 +6,26 @@ extern "C" {
 #include "zai_compat.h"
 }
 
-#include <catch2/catch.hpp>
+#include "zai_sapi/testing/catch2.hpp"
 #include <cstdlib>
 #include <cstring>
 
-#ifndef RUN_SHARED_EXTS_TESTS
-#define SHARED_EXTS_ONLY "[.]"
-#else
-#define SHARED_EXTS_ONLY
-#endif
+#define TEST_BODY(...)                           \
+{                                                \
+    REQUIRE(zai_sapi_sinit());                   \
+    REQUIRE(zai_sapi_minit());                   \
+    REQUIRE(zai_json_setup_bindings());          \
+    REQUIRE(zai_sapi_rinit());                   \
+    ZAI_SAPI_TSRMLS_FETCH();                     \
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()   \
+    { __VA_ARGS__ }                              \
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()     \
+    zai_sapi_spindown();                         \
+}
 
-#define TEST(name, code) TEST_CASE(name, "[zai_json]") { \
-        REQUIRE(zai_sapi_sinit()); \
-        REQUIRE(zai_sapi_minit()); \
-        REQUIRE(zai_json_setup_bindings()); \
-        REQUIRE(zai_sapi_rinit()); \
-        ZAI_SAPI_TSRMLS_FETCH(); \
-        ZAI_SAPI_ABORT_ON_BAILOUT_OPEN() \
-        { code } \
-        ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE() \
-        zai_sapi_spindown(); \
-    }
+#define TEST_JSON(description, ...) ZAI_SAPI_TEST_CASE_BARE("json", description, TEST_BODY(__VA_ARGS__))
 
-TEST("encode", {
+TEST_JSON("encode", {
     smart_str buf = {0};
     zval val;
 
@@ -41,7 +38,7 @@ TEST("encode", {
     smart_str_free(&buf);
 })
 
-TEST("decode", {
+TEST_JSON("decode", {
     smart_str buf = {0};
     zval val;
 
@@ -64,22 +61,44 @@ TEST("decode", {
 
 // ext/json cannot be loaded as a shared extension on PHP 8
 #if PHP_VERSION_ID < 80000
-TEST_CASE("json bindings fail when no json extension loaded", "[zai_json]" SHARED_EXTS_ONLY) {
-    REQUIRE(zai_sapi_sinit());
+
+#ifndef RUN_SHARED_EXTS_TESTS
+#define ZAI_SAPI_TEST_CASE_TAGS "[.]"
+#else
+#define ZAI_SAPI_TEST_CASE_TAGS
+#endif
+
+#define TEST_BODY_SHARED(setup, ...)      \
+{                                         \
+    REQUIRE(zai_sapi_sinit());            \
+    {                                     \
+        setup                             \
+    }                                     \
+    REQUIRE(zai_sapi_minit());            \
+    {                                     \
+        __VA_ARGS__                       \
+    }                                     \
+    zai_sapi_mshutdown();                 \
+    zai_sapi_sshutdown();                 \
+}
+
+#define TEST_JSON_SHARED(description, setup, ...) \
+    ZAI_SAPI_TEST_CASE_WITH_TAGS_BARE(            \
+        "json", description,                      \
+        ZAI_SAPI_TEST_CASE_TAGS,                  \
+    TEST_BODY_SHARED(setup, __VA_ARGS__))
+
+TEST_JSON_SHARED("bindings fail when no json extension loaded", {
     // Disable all shared extensions
     zai_module.php_ini_ignore = 1;
-    REQUIRE(zai_sapi_minit());
-
+},{
 #if PHP_VERSION_ID >= 70000
     REQUIRE(!zend_hash_str_exists(&module_registry, "json", sizeof("json")-1));
 #else
     REQUIRE(!zend_hash_exists(&module_registry, "json", sizeof("json")));
 #endif
     REQUIRE(zai_json_setup_bindings() == false);
-
-    zai_sapi_mshutdown();
-    zai_sapi_sshutdown();
-}
+})
 
 /* A fake extension called "json" to simulate the condition where ext/json is
  * loaded as a shared library but the symbol addresses did not resolve.
@@ -99,21 +118,16 @@ static zend_module_entry fake_json_ext = {
 };
 // clang-format on
 
-TEST_CASE("json bindings fail when no json symbols resolve", "[zai_json]" SHARED_EXTS_ONLY) {
-    REQUIRE(zai_sapi_sinit());
+TEST_JSON_SHARED("bindings fail when no json symbols resolve", {
     // Disable all shared extensions
     zai_module.php_ini_ignore = 1;
     zai_sapi_extension = fake_json_ext;
-
-    REQUIRE(zai_sapi_minit());
+},{
 #if PHP_VERSION_ID >= 70000
     REQUIRE(zend_hash_str_exists(&module_registry, "json", sizeof("json")-1));
 #else
     REQUIRE(zend_hash_exists(&module_registry, "json", sizeof("json")));
 #endif
     REQUIRE(zai_json_setup_bindings() == false);
-
-    zai_sapi_mshutdown();
-    zai_sapi_sshutdown();
-}
+})
 #endif

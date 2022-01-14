@@ -13,11 +13,11 @@ static inline bool zval_string_equals(zval *value, const char *str) {
     {                              \
         REQUIRE(zai_sapi_rinit()); \
         ZAI_SAPI_TSRMLS_FETCH();   \
-        ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+        ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
-#define REQUEST_END()                 \
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE() \
-    zai_sapi_rshutdown();             \
+#define REQUEST_END()                        \
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END() \
+    zai_sapi_rshutdown();                    \
     }
 
 #if PHP_VERSION_ID < 70000

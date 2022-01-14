@@ -7,9 +7,7 @@ extern "C" {
 #include "zai_sapi/zai_sapi_extension.h"
 }
 
-#include <catch2/catch.hpp>
-#include <cstdio>
-#include <cstring>
+#include "zai_tests_common.hpp"
 
 typedef enum {
     EXT_CFG_INI_FOO_BOOL,
@@ -46,17 +44,21 @@ static PHP_MINIT_FUNCTION(zai_config_ini) {
     return SUCCESS;
 }
 
-/********************* zai_config_get_value() (from INI) **********************/
+#undef TEST_BODY
+#define TEST_BODY(ini, ...)    \
+{                              \
+    REQUIRE(zai_sapi_sinit()); \
+    ext_zai_config_ctor(&zai_sapi_extension, PHP_MINIT(zai_config_ini)); \
+    { ini }                    \
+    REQUIRE(zai_sapi_minit()); \
+    { __VA_ARGS__ }            \
+    zai_sapi_mshutdown();      \
+    zai_sapi_sshutdown();      \
+}
 
-#define TEST_INI(name, ini, code) TEST_CASE(name, "[zai_config_ini]") { \
-        REQUIRE(zai_sapi_sinit()); \
-        ext_zai_config_ctor(&zai_sapi_extension, PHP_MINIT(zai_config_ini)); \
-        { ini } \
-        REQUIRE(zai_sapi_minit()); \
-        { code } \
-        zai_sapi_mshutdown(); \
-        zai_sapi_sshutdown(); \
-    }
+#define TEST_INI(description, ini, ...) ZAI_SAPI_TEST_CASE_BARE("config/ini", description, TEST_BODY(ini, __VA_ARGS__))
+
+/********************* zai_config_get_value() (from INI) **********************/
 
 static bool zai_config_set_runtime_ini(const char *name, size_t name_len, const char *value, size_t value_len, int stage) {
 #if PHP_VERSION_ID < 70000
