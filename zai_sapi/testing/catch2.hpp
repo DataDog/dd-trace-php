@@ -116,15 +116,15 @@ public:
     }
 
     void zai_sapi_mshutdown() {
-        ::zai_sapi_mshutdown();
-
         stage &= ~ZAI_SAPI_TEST_CASE_STAGE_PREFORK;
+
+        ::zai_sapi_mshutdown();
     }
 
     void zai_sapi_sshutdown() {
-        ::zai_sapi_sshutdown();
-
         stage &= ~ZAI_SAPI_TEST_CASE_STAGE_PROLOGUE;
+
+        ::zai_sapi_sshutdown();
     }
 
     void zai_sapi_spindown() {
