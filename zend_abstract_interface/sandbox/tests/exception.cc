@@ -25,9 +25,9 @@ ZAI_SAPI_TEST_CASE("sandbox/exception", "state: throw exception", {
 
     zend_class_entry *ce;
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    ce = zai_sapi_throw_exception("Foo exception");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        ce = zai_sapi_throw_exception("Foo exception");
+    });
 
     REQUIRE(zai_sapi_unhandled_exception_eq(ce, "Foo exception"));
 
@@ -55,9 +55,9 @@ ZAI_SAPI_TEST_CASE("sandbox/exception", "state: existing unhandled exception", {
 
     zend_class_entry *ce;
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    ce = zai_sapi_throw_exception("Foo exception");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        ce = zai_sapi_throw_exception("Foo exception");
+    })
 
     REQUIRE(zai_sapi_unhandled_exception_eq(ce, "Foo exception"));
 
@@ -92,13 +92,13 @@ ZAI_SAPI_TEST_CASE("sandbox/exception", "state: throw exception (userland)", {
      *
      * https://github.com/php/php-src/blob/php-8.0.0/Zend/zend_exceptions.c#L976-L978
      */
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zai_sapi_execute_script("./stubs/throw_exception.php");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zai_sapi_execute_script("./stubs/throw_exception.php");
+    });
 #else
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-    zai_sapi_execute_script("./stubs/throw_exception.php");
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT(}
+        zai_sapi_execute_script("./stubs/throw_exception.php");
+    });
 #endif
 
     /* TODO The exception thrown in userland is handled and freed before the
@@ -158,9 +158,9 @@ ZAI_SAPI_TEST_CASE_BARE("sandbox/exception", "zend_throw_exception_hook called o
 
     zend_class_entry *ce;
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
     ce = zai_sapi_throw_exception("Foo exception");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
 
     REQUIRE(zai_sapi_unhandled_exception_eq(ce, "Foo exception"));
     REQUIRE(zai_throw_exception_hook_calls_count == 2);
@@ -191,9 +191,9 @@ ZAI_SAPI_TEST_CASE("sandbox/exception", "throw exception", {
 
     zend_class_entry *ce;
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    ce = zai_sapi_throw_exception("Foo exception");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        ce = zai_sapi_throw_exception("Foo exception");
+    });
 
     REQUIRE(zai_sapi_unhandled_exception_eq(ce, "Foo exception"));
 
@@ -212,9 +212,9 @@ ZAI_SAPI_TEST_CASE("sandbox/exception", "existing unhandled exception", {
     REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
 
     zend_class_entry *orig_exception_ce;
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    orig_exception_ce = zai_sapi_throw_exception("Original exception");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        orig_exception_ce = zai_sapi_throw_exception("Original exception");
+    });
     REQUIRE(zai_sapi_unhandled_exception_eq(orig_exception_ce, "Original exception"));
 
     zai_sandbox sandbox;
@@ -225,9 +225,9 @@ ZAI_SAPI_TEST_CASE("sandbox/exception", "existing unhandled exception", {
 
         zend_class_entry *ce;
 
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-        ce = zai_sapi_throw_exception("Foo exception");
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+            ce = zai_sapi_throw_exception("Foo exception");
+        });
 
         REQUIRE(zai_sapi_unhandled_exception_eq(ce, "Foo exception"));
     }
@@ -250,13 +250,13 @@ ZAI_SAPI_TEST_CASE("sandbox/exception", "throw exception (userland)", {
 
 #if PHP_VERSION_ID >= 80000
     /* Uncaught exceptions have a clean shutdown in PHP 8. */
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zai_sapi_execute_script("./stubs/throw_exception.php");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zai_sapi_execute_script("./stubs/throw_exception.php");
+    });
 #else
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-    zai_sapi_execute_script("./stubs/throw_exception.php");
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
+        zai_sapi_execute_script("./stubs/throw_exception.php");
+    });
 #endif
 
     /* TODO See comment from "exception state: throw exception (userland)". */

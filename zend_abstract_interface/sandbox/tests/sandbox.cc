@@ -20,10 +20,10 @@ ZAI_SAPI_TEST_CASE("sandbox", "sandbox: exception & error", {
 
     zend_class_entry *ce;
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    ce = zai_sapi_throw_exception("Foo exception");
-    zend_error(E_NOTICE, "Foo non-fatal error");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        ce = zai_sapi_throw_exception("Foo exception");
+        zend_error(E_NOTICE, "Foo non-fatal error");
+    });
 
     REQUIRE(zai_sapi_unhandled_exception_eq(ce, "Foo exception"));
     REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "Foo non-fatal error"));
@@ -42,10 +42,10 @@ ZAI_SAPI_TEST_CASE("sandbox", "sandbox: existing exception & existing error", {
 
     zend_class_entry *orig_exception_ce;
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zend_error(E_WARNING, "Original non-fatal error");
-    orig_exception_ce = zai_sapi_throw_exception("Original exception");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zend_error(E_WARNING, "Original non-fatal error");
+        orig_exception_ce = zai_sapi_throw_exception("Original exception");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_WARNING, "Original non-fatal error"));
     REQUIRE(zai_sapi_unhandled_exception_eq(orig_exception_ce, "Original exception"));
@@ -58,10 +58,10 @@ ZAI_SAPI_TEST_CASE("sandbox", "sandbox: existing exception & existing error", {
 
         zend_class_entry *ce;
 
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-        zend_error(E_NOTICE, "Foo non-fatal error");
-        ce = zai_sapi_throw_exception("Foo exception");
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+            zend_error(E_NOTICE, "Foo non-fatal error");
+            ce = zai_sapi_throw_exception("Foo exception");
+        });
 
         REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "Foo non-fatal error"));
         REQUIRE(zai_sapi_unhandled_exception_eq(ce, "Foo exception"));

@@ -56,9 +56,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "fatal errors", {
 
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-        __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-        zend_error(error_type, "Foo fatal error");
-        __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
+            zend_error(error_type, "Foo fatal error");
+        });
 
         REQUIRE(zai_sapi_last_error_eq(error_type, "Foo fatal error"));
 
@@ -69,9 +69,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "fatal errors", {
 })
 
 ZAI_SAPI_TEST_CASE("sandbox/error", "fatal errors restore to existing error", {
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zend_error(E_WARNING, "Original non-fatal error");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zend_error(E_WARNING, "Original non-fatal error");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_WARNING, "Original non-fatal error"));
 
@@ -81,9 +81,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "fatal errors restore to existing error", {
 
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-        __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-        zend_error(error_type, "Foo fatal error");
-        __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
+            zend_error(error_type, "Foo fatal error");
+        });
 
         REQUIRE(zai_sapi_last_error_eq(error_type, "Foo fatal error"));
 
@@ -102,9 +102,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "non-fatal errors", {
 
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-        zend_error(error_type, "Foo non-fatal error");
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+            zend_error(error_type, "Foo non-fatal error");
+        });
 
         REQUIRE(zai_sapi_last_error_eq(error_type, "Foo non-fatal error"));
 
@@ -115,9 +115,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "non-fatal errors", {
 })
 
 ZAI_SAPI_TEST_CASE("sandbox/error", "non-fatal errors restore to existing error", {
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zend_error(E_NOTICE, "Original non-fatal error");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zend_error(E_NOTICE, "Original non-fatal error");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "Original non-fatal error"));
 
@@ -127,9 +127,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "non-fatal errors restore to existing error"
 
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-        zend_error(error_type, "Foo non-fatal error");
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+            zend_error(error_type, "Foo non-fatal error");
+        });
 
         REQUIRE(zai_sapi_last_error_eq(error_type, "Foo non-fatal error"));
 
@@ -147,9 +147,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "fatal-error (userland)", {
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-    zai_sapi_execute_script("./stubs/trigger_error_E_ERROR.php");
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
+        zai_sapi_execute_script("./stubs/trigger_error_E_ERROR.php");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_ERROR, "My E_ERROR"));
 
@@ -164,9 +164,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "non-fatal error (userland)", {
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    REQUIRE(zai_sapi_execute_script("./stubs/trigger_error_E_NOTICE.php"));
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        REQUIRE(zai_sapi_execute_script("./stubs/trigger_error_E_NOTICE.php"));
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "My E_NOTICE"));
 
@@ -190,9 +190,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors (PHP 7+)", {
 
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-        __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-        zend_error(error_type, "Foo throwable non-fatal error");
-        __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
+            zend_error(error_type, "Foo throwable non-fatal error");
+        });
 
         REQUIRE(zai_sapi_last_error_eq(E_ERROR, "Uncaught Exception: Foo throwable non-fatal error in [no active file]:0\nStack trace:\n#0 {main}\n  thrown"));
 
@@ -203,9 +203,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors (PHP 7+)", {
 })
 
 ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors restore to existing error (PHP 7+)", {
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zend_error(E_WARNING, "Original non-fatal error");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zend_error(E_WARNING, "Original non-fatal error");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_WARNING, "Original non-fatal error"));
 
@@ -215,9 +215,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors restore to exist
 
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-        __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-        zend_error(error_type, "Foo throwable non-fatal error");
-        __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
+            zend_error(error_type, "Foo throwable non-fatal error");
+        });
 
         REQUIRE(zai_sapi_last_error_eq(E_ERROR, "Uncaught Exception: Foo throwable non-fatal error in [no active file]:0\nStack trace:\n#0 {main}\n  thrown"));
 
@@ -239,9 +239,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors (PHP 5)", {
 
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-        zend_error(error_type, "Foo throwable non-fatal error");
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+            zend_error(error_type, "Foo throwable non-fatal error"); 
+        });
 
         REQUIRE(zai_sapi_last_error_eq(error_type, "Foo throwable non-fatal error"));
 
@@ -252,9 +252,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors (PHP 5)", {
 })
 
 ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors restore to existing error (PHP 5)", {
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zend_error(E_WARNING, "Original non-fatal error");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zend_error(E_WARNING, "Original non-fatal error");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_WARNING, "Original non-fatal error"));
 
@@ -264,9 +264,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "throwable non-fatal errors restore to exist
 
         REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-        zend_error(error_type, "Foo throwable non-fatal error");
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+        ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+            zend_error(error_type, "Foo throwable non-fatal error");
+        });
 
         REQUIRE(zai_sapi_last_error_eq(error_type, "Foo throwable non-fatal error"));
 
@@ -280,9 +280,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "fatal error (userland)", {
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
 
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-    zai_sapi_execute_script("./stubs/trigger_error_E_ERROR.php");
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
+        zai_sapi_execute_script("./stubs/trigger_error_E_ERROR.php");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_ERROR, "My E_ERROR"));
 
@@ -292,18 +292,18 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "fatal error (userland)", {
 })
 
 ZAI_SAPI_TEST_CASE("sandbox/error", "fatal error with existing error (userland)", {
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zend_error(E_NOTICE, "Original non-fatal error");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zend_error(E_NOTICE, "Original non-fatal error");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "Original non-fatal error"));
 
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
 
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()
-    zai_sapi_execute_script("./stubs/trigger_error_E_ERROR.php");
-    __ZAI_SAPI_TEST_CASE_WITH_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITH_BAILOUT({
+        zai_sapi_execute_script("./stubs/trigger_error_E_ERROR.php");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_ERROR, "My E_ERROR"));
 
@@ -316,9 +316,9 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "non-fatal error (userland)", {
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zai_sapi_execute_script("./stubs/trigger_error_E_NOTICE.php");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zai_sapi_execute_script("./stubs/trigger_error_E_NOTICE.php");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "My E_NOTICE"));
 
@@ -328,22 +328,20 @@ ZAI_SAPI_TEST_CASE("sandbox/error", "non-fatal error (userland)", {
 })
 
 ZAI_SAPI_TEST_CASE("sandbox/error", "non-fatal error with existing error (userland)", {
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    zend_error(E_WARNING, "Original non-fatal error");
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
+        zend_error(E_WARNING, "Original non-fatal error");
+    });
 
     REQUIRE(zai_sapi_last_error_eq(E_WARNING, "Original non-fatal error"));
 
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
 
-    {
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
+    ZAI_SAPI_TEST_CODE_WITHOUT_BAILOUT({
         zai_sapi_execute_script("./stubs/trigger_error_E_NOTICE.php");
-        __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    });
 
-        REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "My E_NOTICE"));
-    }
+    REQUIRE(zai_sapi_last_error_eq(E_NOTICE, "My E_NOTICE"));
 
     zai_sandbox_close(&sandbox);
 

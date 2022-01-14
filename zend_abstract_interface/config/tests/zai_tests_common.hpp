@@ -31,17 +31,13 @@ static PHP_MINIT_FUNCTION(zai_config_env) {
     return SUCCESS;
 }
 
-#define TEST_BODY(...)         \
-{                              \
-    REQUIRE(zai_sapi_sinit()); \
+#define ZAI_CONFIG_TEST_BODY(...)         \
+{                                         \
+    REQUIRE(zai_sapi_sinit());            \
     ext_zai_config_ctor(&zai_sapi_extension, PHP_MINIT(zai_config_env)); \
-    REQUIRE(zai_sapi_minit()); \
-    { __VA_ARGS__ }            \
-    zai_sapi_mshutdown();      \
-    zai_sapi_sshutdown();      \
+    REQUIRE(zai_sapi_minit());            \
+    { __VA_ARGS__ }                       \
+    zai_sapi_mshutdown();                 \
+    zai_sapi_sshutdown();                 \
 }
-
-#define TEST_DEFAULT(description, ...) ZAI_SAPI_TEST_CASE_BARE("config/default", description, TEST_BODY(__VA_ARGS__))
-#define TEST_ENV(description, ...)     ZAI_SAPI_TEST_CASE_BARE("config/env", description, TEST_BODY(__VA_ARGS__))
-#define TEST_ID(description, ...)      ZAI_SAPI_TEST_CASE_BARE("config/id", description, TEST_BODY(__VA_ARGS__))
 #endif

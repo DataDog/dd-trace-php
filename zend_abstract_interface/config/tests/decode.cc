@@ -12,11 +12,7 @@ extern "C" {
 
 /************************* zai_config_decode_value() **************************/
 
-ZAI_SAPI_TEST_CASE_BARE("config/decode", "bool", {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-
+ZAI_SAPI_TEST_CASE("config/decode", "bool", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_BOOL;
@@ -59,11 +55,6 @@ ZAI_SAPI_TEST_CASE_BARE("config/decode", "bool", {
         REQUIRE(ret == true);
         REQUIRE(ZVAL_IS_FALSE(&value));
     }
-
-    // ---
-
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
-    zai_sapi_spindown();
 })
 
 typedef struct expected_double_s {
@@ -71,11 +62,7 @@ typedef struct expected_double_s {
     double value;
 } expected_double;
 
-ZAI_SAPI_TEST_CASE_BARE("config/decode", "double", {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-
+ZAI_SAPI_TEST_CASE("config/decode", "double", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_DOUBLE;
@@ -120,11 +107,6 @@ ZAI_SAPI_TEST_CASE_BARE("config/decode", "double", {
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
     }
-
-    // ---
-
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
-    zai_sapi_spindown();
 })
 
 typedef struct expected_int_s {
@@ -132,11 +114,7 @@ typedef struct expected_int_s {
     int value;
 } expected_int;
 
-ZAI_SAPI_TEST_CASE_BARE("config/decode", "int", {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-
+ZAI_SAPI_TEST_CASE("config/decode", "int", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_INT;
@@ -181,11 +159,6 @@ ZAI_SAPI_TEST_CASE_BARE("config/decode", "int", {
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
     }
-
-    // ---
-
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
-    zai_sapi_spindown();
 })
 
 typedef struct expected_map_s {
@@ -194,11 +167,7 @@ typedef struct expected_map_s {
     const char *value[3];
 } expected_map;
 
-ZAI_SAPI_TEST_CASE_BARE("config/decode", "map", {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-
+ZAI_SAPI_TEST_CASE("config/decode", "map", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_MAP;
@@ -249,11 +218,6 @@ ZAI_SAPI_TEST_CASE_BARE("config/decode", "map", {
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
     }
-
-    // ---
-
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
-    zai_sapi_spindown();
 })
 
 typedef struct expected_set_s {
@@ -262,12 +226,7 @@ typedef struct expected_set_s {
 } expected_set;
 
 
-ZAI_SAPI_TEST_CASE_BARE("config/decode", "set", {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    REQUIRE(zai_json_setup_bindings());
-
+ZAI_SAPI_TEST_CASE("config/decode", "set", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_SET;
@@ -312,11 +271,6 @@ ZAI_SAPI_TEST_CASE_BARE("config/decode", "set", {
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
     }
-
-    // ---
-
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
-    zai_sapi_spindown();
 })
 
 // we deliberately do not test the json implementation, but just the basic invocation and conversion to persistent
@@ -328,7 +282,7 @@ ZAI_SAPI_TEST_CASE_BARE("config/decode", "json", {
 
     REQUIRE(zai_sapi_spinup());
     ZAI_SAPI_TSRMLS_FETCH();
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
     REQUIRE(zai_json_setup_bindings());
 
     // ---
@@ -354,7 +308,7 @@ ZAI_SAPI_TEST_CASE_BARE("config/decode", "json", {
 
     // ---
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
     zai_sapi_spindown();
 
     // execute after zend_MM free

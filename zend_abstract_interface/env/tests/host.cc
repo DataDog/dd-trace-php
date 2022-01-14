@@ -82,7 +82,7 @@ ZAI_SAPI_TEST_CASE_BARE("env/host", "outside request context", {
     REQUIRE(zai_sapi_sinit());
     REQUIRE(zai_sapi_minit());
     ZAI_SAPI_TSRMLS_FETCH();
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
     REQUIRE_SETENV("FOO", "bar");
 
@@ -92,7 +92,7 @@ ZAI_SAPI_TEST_CASE_BARE("env/host", "outside request context", {
     REQUIRE(res == ZAI_ENV_NOT_READY);
     REQUIRE_BUF_EQ("", buf);
 
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
     zai_sapi_mshutdown();
     zai_sapi_sshutdown();
 })

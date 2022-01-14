@@ -9,6 +9,8 @@ extern "C" {
 
 #include "zai_tests_common.hpp"
 
+#define TEST_ID(description, ...)      ZAI_SAPI_TEST_CASE_BARE("config/id", description, ZAI_CONFIG_TEST_BODY(__VA_ARGS__))
+
 /************************ config/id *************************/
 
 TEST_ID("bool", {

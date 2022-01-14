@@ -17,9 +17,9 @@ extern "C" {
     REQUIRE(zai_json_setup_bindings());          \
     REQUIRE(zai_sapi_rinit());                   \
     ZAI_SAPI_TSRMLS_FETCH();                     \
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN() \
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()   \
     { __VA_ARGS__ }                              \
-    __ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()   \
+    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()     \
     zai_sapi_spindown();                         \
 }
 

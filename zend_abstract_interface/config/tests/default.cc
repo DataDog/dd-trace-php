@@ -9,6 +9,8 @@ extern "C" {
 
 #include "zai_tests_common.hpp"
 
+#define TEST_DEFAULT(description, ...) ZAI_SAPI_TEST_CASE_BARE("config/default", description, ZAI_CONFIG_TEST_BODY(__VA_ARGS__))
+
 TEST_DEFAULT("bool", {
     REQUEST_BEGIN()
 
