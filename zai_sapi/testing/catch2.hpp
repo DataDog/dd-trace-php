@@ -43,6 +43,7 @@ extern "C" {
 }
 
 #include <catch2/catch.hpp>
+
 // clang-format off
 #define ZAI_SAPI_TEST_TAGS_NONE     ""
 #define ZAI_SAPI_TEST_STUB_NONE     NULL
@@ -120,10 +121,6 @@ extern "C" {
   } zend_end_try();                                   \
                                                       \
   REQUIRE(zai_sapi_test_code_without_bailout);        \
-                                                      \
-  if (!zai_sapi_test_code_without_bailout) {          \
-    goto __ZAI_SAPI_TEST_CASE_SHUTDOWN;               \
-  }                                                   \
 } /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CODE_WITH_BAILOUT(block_t code) */
@@ -139,13 +136,49 @@ extern "C" {
   } zend_end_try();                                   \
                                                       \
   REQUIRE(zai_sapi_test_code_with_bailout);           \
-                                                      \
-  if (!zai_sapi_test_code_with_bailout) {             \
-    goto __ZAI_SAPI_TEST_CASE_SHUTDOWN;               \
-  }                                                   \
 } /* }}} */
 
 /* }}} */
+
+/* {{{ Test Case Fixing
+    We fix non bare tests to keep the runtime stable
+    Keeping the runtime stable in bare tests is down to you ...
+*/
+typedef enum {
+    ZAI_SAPI_TEST_CASE_STAGE_INITIAL =  0b000,
+    ZAI_SAPI_TEST_CASE_STAGE_PROLOGUE = 0b001,
+    ZAI_SAPI_TEST_CASE_STAGE_PREFORK =  0b010,
+    ZAI_SAPI_TEST_CASE_STAGE_REQUEST =  0b100
+} ZaiSapiTestCaseStage;
+
+class ZaiSapiTestCaseFixture {
+public:
+    ZaiSapiTestCaseFixture() {
+       stage = ZAI_SAPI_TEST_CASE_STAGE_INITIAL;
+    }
+
+    virtual ~ZaiSapiTestCaseFixture() {
+        if (stage & ZAI_SAPI_TEST_CASE_STAGE_REQUEST) {
+            zai_sapi_rshutdown();
+        }
+
+        if (stage & ZAI_SAPI_TEST_CASE_STAGE_PREFORK) {
+            zai_sapi_mshutdown();
+        }
+
+        if (stage & ZAI_SAPI_TEST_CASE_STAGE_PROLOGUE) {
+            zai_sapi_sshutdown();
+        }
+    }
+
+public:
+    unsigned int stage;
+};
+
+#define ZAI_SAPI_TEST_CASE_DECL(...) \
+    TEST_CASE_METHOD(                \
+        ZaiSapiTestCaseFixture,      \
+        ZAI_SAPI_TEST_CASE_TAG(__VA_ARGS__)) /* }}} */
 
 /* {{{ private void ZAI_SAPI_TEST_CASE_IMPL(
                         char *suite,
@@ -165,14 +198,17 @@ extern "C" {
     __ZAI_SAPI_TEST_CASE_BEGIN,                                          \
     __ZAI_SAPI_TEST_CASE_END,                                            \
     ...)                                                                 \
-    TEST_CASE(ZAI_SAPI_TEST_CASE_TAG(                                    \
+    ZAI_SAPI_TEST_CASE_DECL(                                             \
         __ZAI_SAPI_TEST_CASE_SUITE,                                      \
         __ZAI_SAPI_TEST_CASE_DESCRIPTION,                                \
-        __ZAI_SAPI_TEST_CASE_TAGS)) {                                    \
+        __ZAI_SAPI_TEST_CASE_TAGS) {                                     \
         REQUIRE(zai_sapi_sinit());                                       \
+        stage |= ZAI_SAPI_TEST_CASE_STAGE_PROLOGUE;                      \
         __ZAI_SAPI_TEST_CASE_PROLOGUE                                    \
         REQUIRE(zai_sapi_minit());                                       \
+        stage |= ZAI_SAPI_TEST_CASE_STAGE_PREFORK;                       \
         REQUIRE(zai_sapi_rinit());                                       \
+        stage |= ZAI_SAPI_TEST_CASE_STAGE_REQUEST;                       \
         ZAI_SAPI_TSRMLS_FETCH();                                         \
         __ZAI_SAPI_TEST_CASE_BEGIN()                                     \
         if (__ZAI_SAPI_TEST_CASE_STUB) {                                 \
@@ -186,16 +222,9 @@ extern "C" {
                 zai_sapi_test_case_stub_included = false;                \
             } zend_end_try();                                            \
             REQUIRE(zai_sapi_test_case_stub_included);                   \
-            if (!zai_sapi_test_case_stub_included) {                     \
-                goto __ZAI_SAPI_TEST_CASE_SHUTDOWN;                      \
-            }                                                            \
         }                                                                \
         { __VA_ARGS__ }                                                  \
         __ZAI_SAPI_TEST_CASE_END()                                       \
-        __ZAI_SAPI_TEST_CASE_SHUTDOWN:                                   \
-        zai_sapi_rshutdown();                                            \
-        zai_sapi_mshutdown();                                            \
-        zai_sapi_sshutdown();                                            \
     } /* }}} */
 
 /* {{{ public void ZAI_SAPI_TEST_CASE(char *suite, char *description, block_t code) */
