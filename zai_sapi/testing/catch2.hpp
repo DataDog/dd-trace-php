@@ -48,11 +48,11 @@ extern "C" {
 #define ZAI_SAPI_TEST_STUB_NONE     NULL
 #define ZAI_SAPI_TEST_PROLOGUE_NONE {}
 
-/* {{{ ZAI_SAPI_TEST_TAG_NO_ASAN will hide a test when running under ASAN */
+/* {{{ ZAI_SAPI_TEST_TAG_NO_ASAN will hide a test when running under ASAN and always tag with [no-asan] */
 #ifdef __SANITIZE_ADDRESS__
-# define ZAI_SAPI_TEST_TAG_NO_ASAN "[!hide]"
+# define ZAI_SAPI_TEST_TAG_NO_ASAN   "[no-asan][!hide]"
 #else
-# define ZAI_SAPI_TEST_TAG_NO_ASAN ""
+# define ZAI_SAPI_TEST_TAG_NO_ASAN   "[no-asan]"
 #endif
 /* }}} */
 
@@ -92,6 +92,7 @@ extern "C" {
 }
 
 #define ZAI_SAPI_TEST_CASE_WITH_BAILOUT_BEGIN()       \
+{                                                     \
     volatile bool                                     \
         zai_sapi_test_case_with_bailout = false;      \
     zend_first_try {
@@ -100,7 +101,8 @@ extern "C" {
     } zend_catch {                                    \
         zai_sapi_test_case_with_bailout = true;       \
     } zend_end_try();                                 \
-    REQUIRE(zai_sapi_test_case_with_bailout);
+    REQUIRE(zai_sapi_test_case_with_bailout);         \
+}
 /* }}} */
 
 /* {{{ Test Code Bailout Handling */
