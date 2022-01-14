@@ -103,6 +103,7 @@ jobs:
       - name: Generate coverage report
         if: matrix.cfg.coverage == 'true'
         run: |
+          sudo apt-get update
           sudo apt-get install -y gcovr
           gcovr -f '.*src/extension/.*' -x -d -o coverage.xml
       - name: Submit coverage
