@@ -5,7 +5,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
     target_include_directories(ddappsec_helper_fuzzer PRIVATE ${HELPER_INCLUDE_DIR})
 
     execute_process(
-        COMMAND bash -c "${CMAKE_CXX_COMPILER} -print-runtime-dir"
+        COMMAND ${CMAKE_CXX_COMPILER} -print-runtime-dir
         OUTPUT_VARIABLE LLVM_RUNTIME_DIR
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
