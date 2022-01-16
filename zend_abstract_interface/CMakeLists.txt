@@ -86,9 +86,9 @@ else()
   message(FATAL_ERROR "Unsupported PHP version '${PHP_VERSION_ID}'.")
 endif()
 
-find_package(ZaiSapi 0.1.0 REQUIRED)
-if(NOT TARGET ZaiSapi::ZaiSapi)
-  message(FATAL_ERROR "ZAI SAPI is required but not found")
+find_package(Tea 0.1.0 REQUIRED)
+if(NOT TARGET Tea::Tea)
+  message(FATAL_ERROR "TEA is required but not found")
 endif()
 
 add_subdirectory(value)

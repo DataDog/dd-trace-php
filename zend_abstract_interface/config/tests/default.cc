@@ -2,14 +2,14 @@ extern "C" {
 #include "config_test_helpers.h"
 
 #include "config/config.h"
-#include "zai_sapi/zai_sapi.h"
-#include "zai_sapi/zai_sapi_extension.h"
+#include "tea/sapi.h"
+#include "tea/extension.h"
 #include "ext_zai_config.h"
 }
 
 #include "zai_tests_common.hpp"
 
-#define TEST_DEFAULT(description, ...) ZAI_SAPI_TEST_CASE_BARE("config/default", description, ZAI_CONFIG_TEST_BODY(__VA_ARGS__))
+#define TEST_DEFAULT(description, ...) TEA_TEST_CASE_BARE("config/default", description, ZAI_CONFIG_TEST_BODY(__VA_ARGS__))
 
 TEST_DEFAULT("bool", {
     REQUEST_BEGIN()

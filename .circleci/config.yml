@@ -1236,7 +1236,7 @@ jobs:
             cmake --build build/ --target install
 
       - run:
-          name: ZAI SAPI (build, test, & install on all PHP builds)
+          name: TEA (build, test, & install on all PHP builds)
           command: |
             for phpBuild in $(ls /opt/php)
             do
@@ -1246,16 +1246,16 @@ jobs:
               then
                 toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
               fi
-              mkdir -p /tmp/build/zai-sapi-${phpBuild}
-              cd /tmp/build/zai-sapi-${phpBuild}
+              mkdir -p /tmp/build/tea-${phpBuild}
+              cd /tmp/build/tea-${phpBuild}
               CMAKE_PREFIX_PATH=/opt/catch2 \
               cmake \
                 ${toolchain} \
-                -DCMAKE_INSTALL_PREFIX=/opt/zai_sapi/${phpBuild} \
+                -DCMAKE_INSTALL_PREFIX=/opt/tea/${phpBuild} \
                 -DCMAKE_BUILD_TYPE=Debug \
-                -DBUILD_ZAI_SAPI_TESTING=ON \
+                -DBUILD_TEA_TESTING=ON \
                 -DPHP_CONFIG=$(which php-config) \
-                ~/datadog/zai_sapi
+                ~/datadog/tea
               make -j all
               make test
               grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
@@ -1276,7 +1276,7 @@ jobs:
               mkdir -p /tmp/build/zai-${phpBuild}
               cd /tmp/build/zai-${phpBuild}
               CMAKE_PREFIX_PATH=/opt/catch2 \
-              ZaiSapi_ROOT=/opt/zai_sapi/${phpBuild} \
+              Tea_ROOT=/opt/tea/${phpBuild} \
               cmake \
                 ${toolchain} \
                 -DCMAKE_BUILD_TYPE=Debug \
@@ -1295,7 +1295,7 @@ jobs:
             mkdir -p /tmp/build/zai-debug-ubsan
             cd /tmp/build/zai-debug-ubsan
             CMAKE_PREFIX_PATH=/opt/catch2 \
-            ZaiSapi_ROOT=/opt/zai_sapi/debug \
+            Tea_ROOT=/opt/tea/debug \
             cmake \
               -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
               -DCMAKE_BUILD_TYPE=Debug \
@@ -1329,17 +1329,17 @@ jobs:
             switch-php nts
 
       - run:
-          name: ZAI SAPI (build & install on nts)
+          name: TEA (build & install on nts)
           command: |
-            mkdir -p /tmp/build/zai-sapi-nts
-            cd /tmp/build/zai-sapi-nts
+            mkdir -p /tmp/build/tea-nts
+            cd /tmp/build/tea-nts
             CMAKE_PREFIX_PATH=/opt/catch2 \
             cmake \
-              -DCMAKE_INSTALL_PREFIX=/opt/zai_sapi/nts \
+              -DCMAKE_INSTALL_PREFIX=/opt/tea/nts \
               -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_ZAI_SAPI_TESTING=ON \
+              -DBUILD_TEA_TESTING=ON \
               -DPHP_CONFIG=$(which php-config) \
-              ~/datadog/zai_sapi
+              ~/datadog/tea
             make -j all
             make install
 
@@ -1381,7 +1381,7 @@ jobs:
             mkdir -p /tmp/build/zai-nts
             cd /tmp/build/zai-nts
             CMAKE_PREFIX_PATH=/opt/catch2 \
-            ZaiSapi_ROOT=/opt/zai_sapi/nts \
+            Tea_ROOT=/opt/tea/nts \
             cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
@@ -1389,7 +1389,7 @@ jobs:
               -DRUN_SHARED_EXTS_TESTS=1 \
               ~/datadog/zend_abstract_interface
             make -j all
-            ZAI_SAPI_PHP_INI_IGNORE=0 make test
+            TEA_INI_IGNORE=0 make test
             grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 
       - run:

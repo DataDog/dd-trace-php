@@ -1,14 +1,17 @@
 extern "C" {
-#include "functions/functions.h"
-#include "zai_sapi/zai_sapi.h"
+#include "../functions.h"
+#include "tea/sapi.h"
+#include "tea/frame.h"
+#include "tea/error.h"
+#include "tea/exceptions.h"
 }
 
 #include <catch2/catch.hpp>
 #include <cstring>
 
 #define REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE()            \
-    REQUIRE(false == zai_sapi_unhandled_exception_exists()); \
-    REQUIRE(zai_sapi_last_error_is_empty())
+    REQUIRE(false == tea_exception_exists(TEA_TSRMLS_C)); \
+    REQUIRE(tea_error_is_empty(TEA_TSRMLS_C))
 
 #ifndef NDEBUG
 #define SKIP_TEST_IN_DEBUG_MODE "[.]"
@@ -41,9 +44,9 @@ int zend_hash_next_index_insert(HashTable *ht, zval *zv) {
 /************************* zai_call_function_literal() ************************/
 
 TEST_CASE("call function: int args (internal)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval min = zval_used_for_init;
     zval max = zval_used_for_init;
@@ -61,14 +64,14 @@ TEST_CASE("call function: int args (internal)", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function: array arg (internal)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval arg = zval_used_for_init;
     array_init(&arg);
@@ -92,16 +95,16 @@ TEST_CASE("call function: array arg (internal)", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function: int arg (userland)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/basic.php"));
+    REQUIRE(tea_execute_script("./stubs/basic.php" TEA_TSRMLS_CC));
 
     zval arg = zval_used_for_init;
     ZVAL_LONG(&arg, 42);
@@ -117,16 +120,16 @@ TEST_CASE("call function: int arg (userland)", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function: bool arg (userland)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/basic.php"));
+    REQUIRE(tea_execute_script("./stubs/basic.php" TEA_TSRMLS_CC));
 
     zval arg = zval_used_for_init;
     ZVAL_TRUE(&arg);
@@ -141,16 +144,16 @@ TEST_CASE("call function: bool arg (userland)", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function: string arg (userland)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/basic.php"));
+    REQUIRE(tea_execute_script("./stubs/basic.php" TEA_TSRMLS_CC));
 
     zval arg = zval_used_for_init;
     ZVAL_STRING(&arg, "foo string");
@@ -167,14 +170,14 @@ TEST_CASE("call function: string arg (userland)", "[zai_functions]") {
     zval_ptr_dtor(RETPTR);
     zval_dtor(&arg);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function: NULL arg", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = {0}, *retval = &retzv;
     bool result = zai_call_function_literal("array_sum", RETPTR, NULL);
@@ -185,14 +188,14 @@ TEST_CASE("call function: NULL arg", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function: NULL args after refcounted arg", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval arg = zval_used_for_init;
     ZVAL_STRING(&arg, "foo string");
@@ -207,14 +210,14 @@ TEST_CASE("call function: NULL args after refcounted arg", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function: more than MAX_ARGS", "[zai_functions]" SKIP_TEST_IN_DEBUG_MODE) {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval arg = zval_used_for_init;
     ZVAL_STRING(&arg, "foo string");
@@ -229,16 +232,16 @@ TEST_CASE("call function: more than MAX_ARGS", "[zai_functions]" SKIP_TEST_IN_DE
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 /***************** zai_call_function_literal() (without args) *****************/
 
 TEST_CASE("call function no args: (internal)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = {0}, *retval = &retzv;
     // mt_rand()
@@ -250,16 +253,16 @@ TEST_CASE("call function no args: (internal)", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function no args: (userland)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/basic.php"));
+    REQUIRE(tea_execute_script("./stubs/basic.php" TEA_TSRMLS_CC));
 
     zval retzv = {0}, *retval = &retzv;
     // Zai\Functions\Test\returns_true()
@@ -271,14 +274,14 @@ TEST_CASE("call function no args: (userland)", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function no args: does not exist", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = {0}, *retval = &retzv;
     // Foo\iDoNotExist()
@@ -290,14 +293,14 @@ TEST_CASE("call function no args: does not exist", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function no args: root-scope prefix", "[zai_functions]" SKIP_TEST_IN_DEBUG_MODE) {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = {0}, *retval = &retzv;
     bool result = zai_call_function_literal("\\mt_rand", RETPTR);
@@ -308,14 +311,14 @@ TEST_CASE("call function no args: root-scope prefix", "[zai_functions]" SKIP_TES
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function no args: wrong case", "[zai_functions]" SKIP_TEST_IN_DEBUG_MODE) {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = {0}, *retval = &retzv;
     bool result = zai_call_function_literal("MT_RAND", RETPTR);
@@ -326,8 +329,8 @@ TEST_CASE("call function no args: wrong case", "[zai_functions]" SKIP_TEST_IN_DE
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 #if PHP_VERSION_ID >= 70000
@@ -336,20 +339,20 @@ TEST_CASE("call function no args: wrong case", "[zai_functions]" SKIP_TEST_IN_DE
  * This test is disabled on PHP5 as it there only is threated like a trivial function call emitting a warning
  */
 TEST_CASE("call function no args: disable_functions INI", "[zai_functions]") {
-    REQUIRE(zai_sapi_sinit());
+    REQUIRE(tea_sapi_sinit());
 
-    REQUIRE(zai_sapi_append_system_ini_entry("disable_functions", "mt_rand"));
+    REQUIRE(tea_sapi_append_system_ini_entry("disable_functions", "mt_rand"));
 
-    REQUIRE(zai_sapi_minit());
-    REQUIRE(zai_sapi_rinit());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_minit());
+    REQUIRE(tea_sapi_rinit());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     /* Add a fake base/main frame to prevent the uncaught exception from
      * bubbling all the way up and raising a fatal error (zend_bailout).
      */
     zend_execute_data fake_frame;
-    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
 
     zval retzv = {0}, *retval = &retzv;
     // mt_rand()
@@ -359,25 +362,25 @@ TEST_CASE("call function no args: disable_functions INI", "[zai_functions]") {
     REQUIRE(result == false);
     REQUIRE(Z_TYPE_P(retval) == IS_UNDEF);
 
-    zai_sapi_fake_frame_pop(&fake_frame);
+    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 #endif
 
 TEST_CASE("call function no args: throws exception (userland)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/basic.php"));
+    REQUIRE(tea_execute_script("./stubs/basic.php" TEA_TSRMLS_CC));
 
     /* Add a fake base/main frame to prevent the uncaught exception from
      * bubbling all the way up and raising a fatal error (zend_bailout).
      */
     zend_execute_data fake_frame;
-    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
 
     zval retzv = {0}, *retval = &retzv;
     // Zai\Functions\Test\throws_exception()
@@ -389,32 +392,32 @@ TEST_CASE("call function no args: throws exception (userland)", "[zai_functions]
 
     zval_ptr_dtor(RETPTR);
 
-    zai_sapi_fake_frame_pop(&fake_frame);
+    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function no args: NULL retval", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     bool result = zai_call_function_literal("mt_rand", NULL);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     REQUIRE(result == false);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 /**************************** zai_call_function() *****************************/
 
 TEST_CASE("call function: int args (non-literal function name)", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval min = zval_used_for_init;
     zval max = zval_used_for_init;
@@ -432,14 +435,14 @@ TEST_CASE("call function: int args (non-literal function name)", "[zai_functions
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function no args: NULL name", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = {0}, *retval = &retzv;
     bool result = zai_call_function(NULL, 42, RETPTR);
@@ -450,14 +453,14 @@ TEST_CASE("call function no args: NULL name", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call function no args: zero-len name", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = {0}, *retval = &retzv;
     bool result = zai_call_function("mt_rand", 0, RETPTR);
@@ -468,16 +471,16 @@ TEST_CASE("call function no args: zero-len name", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 /*************************** zai_call_function_ex() ****************************/
 
 TEST_CASE("call function: -1 args", "[zai_functions]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval arg = zval_used_for_init;
     ZVAL_STRING(&arg, "foo string");
@@ -492,6 +495,6 @@ TEST_CASE("call function: -1 args", "[zai_functions]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }

@@ -5,9 +5,9 @@ SHELL := /bin/bash
 BUILD_SUFFIX := extension
 BUILD_DIR := $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
 ZAI_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_zai
-ZAI_SAPI_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_zai_sapi
-ZAI_SAPI_INSTALL_DIR := $(ZAI_SAPI_BUILD_DIR)/opt
-ZAI_SAPI_BUILD_TESTS := ON
+TEA_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_tea
+TEA_INSTALL_DIR := $(TEA_BUILD_DIR)/opt
+TEA_BUILD_TESTS := ON
 COMPONENTS_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_components
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
@@ -144,59 +144,86 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
-build_zai_sapi:
+build_tea:
 	( \
-	mkdir -p "$(ZAI_SAPI_BUILD_DIR)" "$(ZAI_SAPI_INSTALL_DIR)"; \
-	cd $(ZAI_SAPI_BUILD_DIR); \
+	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+	cd $(TEA_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
 	cmake \
-		-DCMAKE_INSTALL_PREFIX=$(ZAI_SAPI_INSTALL_DIR) \
+		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
 		-DCMAKE_BUILD_TYPE=Debug \
-		-DBUILD_ZAI_SAPI_TESTING=$(ZAI_SAPI_BUILD_TESTS) \
+		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
 		-DPHP_CONFIG=$(shell which php-config) \
-	$(PROJECT_ROOT)/zai_sapi; \
+	$(PROJECT_ROOT)/tea; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
-test_zai_sapi: build_zai_sapi
+test_tea: build_tea
 	( \
-	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) test; \
-	! grep -e "=== Total .* memory leaks detected ===" $(ZAI_SAPI_BUILD_DIR)/Testing/Temporary/LastTest.log; \
+	$(MAKE) -C $(TEA_BUILD_DIR) test; \
+	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
-install_zai_sapi: build_zai_sapi
-	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) install;
+install_tea: build_tea
+	$(MAKE) -C $(TEA_BUILD_DIR) install;
 
-build_zai_sapi_asan:
+build_tea_asan:
 	( \
-	mkdir -p "$(ZAI_SAPI_BUILD_DIR)" "$(ZAI_SAPI_INSTALL_DIR)"; \
-	cd $(ZAI_SAPI_BUILD_DIR); \
+	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+	cd $(TEA_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
 	cmake \
-		-DCMAKE_INSTALL_PREFIX=$(ZAI_SAPI_INSTALL_DIR) \
+		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
 		-DCMAKE_BUILD_TYPE=Debug \
-		-DBUILD_ZAI_SAPI_TESTING=$(ZAI_SAPI_BUILD_TESTS) \
+		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
 		-DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake \
 		-DPHP_CONFIG=$(shell which php-config) \
-	$(PROJECT_ROOT)/zai_sapi; \
+	$(PROJECT_ROOT)/tea; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
-test_zai_sapi_asan: build_zai_sapi_asan
+test_tea_asan: build_tea_asan
 	( \
-	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) test; \
-	! grep -e "=== Total .* memory leaks detected ===" $(ZAI_SAPI_BUILD_DIR)/Testing/Temporary/LastTest.log; \
+	$(MAKE) -C $(TEA_BUILD_DIR) test; \
+	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
-install_zai_sapi_asan: build_zai_sapi_asan
-	$(MAKE) -C $(ZAI_SAPI_BUILD_DIR) install;
+install_tea_asan: build_tea_asan
+	$(MAKE) -C $(TEA_BUILD_DIR) install;
 
-build_zai:
+build_tea_coverage:
+	( \
+	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+	cd $(TEA_BUILD_DIR); \
+	CMAKE_PREFIX_PATH=/opt/catch2 \
+	cmake \
+		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
+		-DCMAKE_C_FLAGS="-O0 --coverage" \
+		-DPHP_CONFIG=$(shell which php-config) \
+	$(PROJECT_ROOT)/tea; \
+	$(MAKE) $(MAKEFLAGS); \
+	)
+
+test_tea_coverage: build_tea_coverage
+	( \
+	$(MAKE) -C $(TEA_BUILD_DIR) test; \
+	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
+	)
+
+install_tea_coverage: build_tea_coverage
+	$(MAKE) -C $(TEA_BUILD_DIR) install;
+
+clean_tea:
+	rm -rf $(TEA_BUILD_DIR)
+
+build_zai: install_tea
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
-	ZaiSapi_ROOT=$(ZAI_SAPI_INSTALL_DIR) \
+	Tea_ROOT=$(TEA_INSTALL_DIR) \
 	cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
@@ -204,12 +231,12 @@ build_zai:
 test_zai: build_zai
 	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
 
-build_zai_asan:
+build_zai_asan: install_tea_asan
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
-	ZaiSapi_ROOT=$(ZAI_SAPI_INSTALL_DIR) \
+	Tea_ROOT=$(TEA_INSTALL_DIR) \
 	cmake \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DBUILD_ZAI_TESTING=ON \
@@ -223,12 +250,12 @@ build_zai_asan:
 test_zai_asan: build_zai_asan
 	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
 
-build_zai_coverage: install_zai_sapi
+build_zai_coverage: install_tea_coverage
 	( \
 	mkdir -p "$(ZAI_BUILD_DIR)"; \
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
-	ZaiSapi_ROOT=$(ZAI_SAPI_INSTALL_DIR) \
+	Tea_ROOT=$(TEA_INSTALL_DIR) \
 	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
@@ -273,13 +300,13 @@ test_coverage_output:
 		--prefix $(PROJECT_ROOT) \
 		$(PROJECT_ROOT)/tmp/coverage.info
 
-test_coverage: dist_clean test_components_coverage test_zai_coverage test_c_coverage test_coverage_collect test_coverage_output
+test_coverage: dist_clean test_components_coverage test_tea_coverage test_zai_coverage test_c_coverage test_coverage_collect test_coverage_output
 
 clean_components:
 	rm -rf $(COMPONENTS_BUILD_DIR)
 
 dist_clean:
-	rm -rf $(BUILD_DIR) $(ZAI_SAPI_BUILD_DIR) $(ZAI_BUILD_DIR) $(COMPONENTS_BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(TEA_BUILD_DIR) $(ZAI_BUILD_DIR) $(COMPONENTS_BUILD_DIR)
 
 clean:
 	if [[ -f "$(BUILD_DIR)/Makefile" ]]; then $(MAKE) -C $(BUILD_DIR) clean; fi

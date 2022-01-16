@@ -1,29 +1,29 @@
 extern "C" {
 #include "json/json.h"
-#include "zai_sapi/zai_sapi.h"
-#include "zai_sapi/zai_sapi_extension.h"
+#include "tea/sapi.h"
+#include "tea/extension.h"
 
 #include "zai_compat.h"
 }
 
-#include "zai_sapi/testing/catch2.hpp"
+#include "tea/testing/catch2.hpp"
 #include <cstdlib>
 #include <cstring>
 
 #define TEST_BODY(...)                           \
 {                                                \
-    REQUIRE(zai_sapi_sinit());                   \
-    REQUIRE(zai_sapi_minit());                   \
+    REQUIRE(tea_sapi_sinit());                   \
+    REQUIRE(tea_sapi_minit());                   \
     REQUIRE(zai_json_setup_bindings());          \
-    REQUIRE(zai_sapi_rinit());                   \
-    ZAI_SAPI_TSRMLS_FETCH();                     \
-    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()   \
+    REQUIRE(tea_sapi_rinit());                   \
+    TEA_TSRMLS_FETCH();                     \
+    TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()   \
     { __VA_ARGS__ }                              \
-    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()     \
-    zai_sapi_spindown();                         \
+    TEA_TEST_CASE_WITHOUT_BAILOUT_END()     \
+    tea_sapi_spindown();                         \
 }
 
-#define TEST_JSON(description, ...) ZAI_SAPI_TEST_CASE_BARE("json", description, TEST_BODY(__VA_ARGS__))
+#define TEST_JSON(description, ...) TEA_TEST_CASE_BARE("json", description, TEST_BODY(__VA_ARGS__))
 
 TEST_JSON("encode", {
     smart_str buf = {0};
@@ -63,34 +63,34 @@ TEST_JSON("decode", {
 #if PHP_VERSION_ID < 80000
 
 #ifndef RUN_SHARED_EXTS_TESTS
-#define ZAI_SAPI_TEST_CASE_TAGS "[.]"
+#define TEA_TEST_CASE_TAGS "[.]"
 #else
-#define ZAI_SAPI_TEST_CASE_TAGS
+#define TEA_TEST_CASE_TAGS
 #endif
 
 #define TEST_BODY_SHARED(setup, ...)      \
 {                                         \
-    REQUIRE(zai_sapi_sinit());            \
+    REQUIRE(tea_sapi_sinit());            \
     {                                     \
         setup                             \
     }                                     \
-    REQUIRE(zai_sapi_minit());            \
+    REQUIRE(tea_sapi_minit());            \
     {                                     \
         __VA_ARGS__                       \
     }                                     \
-    zai_sapi_mshutdown();                 \
-    zai_sapi_sshutdown();                 \
+    tea_sapi_mshutdown();                 \
+    tea_sapi_sshutdown();                 \
 }
 
 #define TEST_JSON_SHARED(description, setup, ...) \
-    ZAI_SAPI_TEST_CASE_WITH_TAGS_BARE(            \
+    TEA_TEST_CASE_WITH_TAGS_BARE(            \
         "json", description,                      \
-        ZAI_SAPI_TEST_CASE_TAGS,                  \
+        TEA_TEST_CASE_TAGS,                  \
     TEST_BODY_SHARED(setup, __VA_ARGS__))
 
 TEST_JSON_SHARED("bindings fail when no json extension loaded", {
     // Disable all shared extensions
-    zai_module.php_ini_ignore = 1;
+    tea_sapi_module.php_ini_ignore = 1;
 },{
 #if PHP_VERSION_ID >= 70000
     REQUIRE(!zend_hash_str_exists(&module_registry, "json", sizeof("json")-1));
@@ -100,28 +100,11 @@ TEST_JSON_SHARED("bindings fail when no json extension loaded", {
     REQUIRE(zai_json_setup_bindings() == false);
 })
 
-/* A fake extension called "json" to simulate the condition where ext/json is
- * loaded as a shared library but the symbol addresses did not resolve.
- */
-// clang-format off
-static zend_module_entry fake_json_ext = {
-    STANDARD_MODULE_HEADER,
-    "json",
-    NULL,  // Functions
-    NULL,  // MINIT
-    NULL,  // MSHUTDOWN
-    NULL,  // RINIT
-    NULL,  // RSHUTDOWN
-    NULL,  // Info function
-    PHP_VERSION,
-    STANDARD_MODULE_PROPERTIES
-};
-// clang-format on
-
 TEST_JSON_SHARED("bindings fail when no json symbols resolve", {
     // Disable all shared extensions
-    zai_module.php_ini_ignore = 1;
-    zai_sapi_extension = fake_json_ext;
+    tea_sapi_module.php_ini_ignore = 1;
+    // Simulate condition where json is loaded as an extension but symbols cannot be resolved
+    tea_extension_name("json", sizeof("json")-1);
 },{
 #if PHP_VERSION_ID >= 70000
     REQUIRE(zend_hash_str_exists(&module_registry, "json", sizeof("json")-1));

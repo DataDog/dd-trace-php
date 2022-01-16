@@ -1,7 +1,7 @@
 #ifndef CONFIG_TEST_HELPERS_H
 #define CONFIG_TEST_HELPERS_H
 
-#include "zai_sapi/zai_sapi.h"
+#include "tea/sapi.h"
 
 static inline bool zval_string_equals(zval *value, const char *str) {
     return Z_STRLEN_P(value) == strlen(str) && !strcmp(Z_STRVAL_P(value), str);
@@ -11,13 +11,13 @@ static inline bool zval_string_equals(zval *value, const char *str) {
 
 #define REQUEST_BEGIN()            \
     {                              \
-        REQUIRE(zai_sapi_rinit()); \
-        ZAI_SAPI_TSRMLS_FETCH();   \
-        ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
+        REQUIRE(tea_sapi_rinit()); \
+        TEA_TSRMLS_FETCH();        \
+        TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
-#define REQUEST_END()                        \
-    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END() \
-    zai_sapi_rshutdown();                    \
+#define REQUEST_END()                   \
+    TEA_TEST_CASE_WITHOUT_BAILOUT_END() \
+    tea_sapi_rshutdown();               \
     }
 
 #if PHP_VERSION_ID < 70000

@@ -1,6 +1,6 @@
 #ifndef HAVE_ENV_TESTS_COMMON_HPP
 #define HAVE_ENV_TESTS_COMMON_HPP
-#include "zai_sapi/testing/catch2.hpp"
+#include "tea/testing/catch2.hpp"
 #include <cstdlib>
 #include <cstring>
 

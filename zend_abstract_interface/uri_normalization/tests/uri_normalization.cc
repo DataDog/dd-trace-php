@@ -1,10 +1,10 @@
 extern "C" {
 #include "uri_normalization/uri_normalization.h"
-#include "zai_sapi/zai_sapi.h"
-#include "zai_sapi/zai_sapi_extension.h"
+#include "tea/sapi.h"
+#include "tea/extension.h"
 }
 
-#include "zai_sapi/testing/catch2.hpp"
+#include "tea/testing/catch2.hpp"
 #include <cstdlib>
 #include <cstring>
 
@@ -46,7 +46,7 @@ static inline void zend_string_release(zai_string_view str) {
 }
 
 #define TEST_URI_NORMALIZATION(description, path, output, ...) \
-    ZAI_SAPI_TEST_CASE("uri_normalization", description,       \
+    TEA_TEST_CASE("uri_normalization", description,       \
         TEST_BODY(output, path, __VA_ARGS__))
 
 TEST_URI_NORMALIZATION("default replacement test: trivial_path_unmodified", "/trivial/path", "/trivial/path", { })
