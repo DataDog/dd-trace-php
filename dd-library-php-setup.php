@@ -18,7 +18,7 @@ const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
 
 // How should we bump this in the release process?
-const RELEASE_VERSION = '0.68.2';
+const RELEASE_VERSION = '1.0.0-nightly';
 
 function main()
 {
