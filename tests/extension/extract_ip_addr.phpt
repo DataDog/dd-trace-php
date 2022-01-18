@@ -36,6 +36,7 @@ test('x_forwarded', 'for=127.0.0.1, FOR=1.1.1.1');
 test('x_forwarded', 'for="\"foobar";proto=http,FOR="1.1.1.1"');
 test('x_forwarded', 'for="8.8.8.8:2222",');
 test('x_forwarded', 'for="8.8.8.8'); // quote not closed
+test('x_forwarded', 'far="8.8.8.8",for=4.4.4.4;');
 //\datadog\appsec\testing\stop_for_debugger();
 test('x_forwarded', '   for=127.0.0.1,for= for=,for=;"for = for="" ,; for=8.8.8.8;');
 
@@ -129,6 +130,9 @@ string(7) "8.8.8.8"
 
 x_forwarded: for="8.8.8.8
 NULL
+
+x_forwarded: far="8.8.8.8",for=4.4.4.4;
+string(7) "4.4.4.4"
 
 x_forwarded:    for=127.0.0.1,for= for=,for=;"for = for="" ,; for=8.8.8.8;
 string(7) "8.8.8.8"

@@ -334,8 +334,8 @@ static bool _parse_forwarded(zend_string *nonnull zvalue, ipaddr *nonnull out)
                     if (succ && !_is_private(out)) {
                         return true;
                     }
-                    state = between;
                 }
+                state = between;
             } else if (*r == '\\') {
                 r++;
             }
