@@ -2,7 +2,7 @@
 #define HAVE_ZAI_SYMBOLS_API_CALL_H
 // clang-format off
 static inline bool zai_symbol_call(
-                        zai_symbol_scope_t scope_type, void *scope, 
+                        zai_symbol_scope_t scope_type, void *scope,
                         zai_symbol_function_t function_type, void *function,
                         zval **rv ZAI_TSRMLS_DC,
                         uint32_t argc, ...) {
@@ -33,7 +33,7 @@ static inline bool zai_symbol_call_known(
 }
 
 static inline bool zai_symbol_call_named(
-                    zai_symbol_scope_t scope_type, void *scope, 
+                    zai_symbol_scope_t scope_type, void *scope,
                     zai_string_view *function,
                     zval **rv ZAI_TSRMLS_DC,
                     uint32_t argc, ...) {
@@ -104,7 +104,7 @@ static inline bool zai_symbol_call_method_literal(zval *zv, const char *fn, size
 }
 
 static inline bool zai_symbol_call_literal(
-                    const char *fn, size_t fnl, 
+                    const char *fn, size_t fnl,
                     zval **rv ZAI_TSRMLS_DC,
                     uint32_t argc, ...) {
     zai_string_view vfn =
@@ -122,7 +122,7 @@ static inline bool zai_symbol_call_literal(
 
 static inline bool zai_symbol_call_literal_ns(
                     const char *ns, size_t nsl,
-                    const char *fn, size_t fnl, 
+                    const char *fn, size_t fnl,
                     zval **rv ZAI_TSRMLS_DC,
                     uint32_t argc, ...) {
     zai_string_view vns =

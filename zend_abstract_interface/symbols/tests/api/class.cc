@@ -11,4 +11,4 @@ ZAI_SAPI_TEST_CASE_WITH_STUB("symbol/api/class", "literal, exists", "./stubs/loo
 
 ZAI_SAPI_TEST_CASE_WITH_STUB("symbol/api/class", "literal ns, exists", "./stubs/lookup/class/Stub.php", {
     REQUIRE(zai_symbol_lookup_class_literal_ns(ZEND_STRL("DDTraceTesting"), ZEND_STRL("Stub") ZAI_TSRMLS_CC));
-})      
+})

@@ -90,7 +90,7 @@ ZAI_SAPI_TEST_CASE("symbol/call/internal", "named (macro)", {
     REQUIRE(Z_LVAL_P(result) == 6);
 
     ZAI_VALUE_DTOR(param);
-    ZAI_VALUE_DTOR(result);   
+    ZAI_VALUE_DTOR(result);
 })
 
 ZAI_SAPI_TEST_CASE("symbol/call/internal", "known (macro)", {
@@ -114,5 +114,5 @@ ZAI_SAPI_TEST_CASE("symbol/call/internal", "known (macro)", {
     REQUIRE(Z_LVAL_P(result) == 6);
 
     ZAI_VALUE_DTOR(param);
-    ZAI_VALUE_DTOR(result);   
+    ZAI_VALUE_DTOR(result);
 })
