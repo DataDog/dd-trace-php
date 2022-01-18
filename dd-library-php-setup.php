@@ -17,12 +17,11 @@ const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
 
 // Urls are updated by teh build script
-const RELEASE_URL_GNU = '@gnu_url@';
-const RELEASE_URL_MUSL = '@musl_url@';
+const RELEASE_VERSION = '@release_version@';
 
 // Supported platforms
-const PLATFORM_X86_LINUX_MUSL = 'x86_64-linux-musl';
 const PLATFORM_X86_LINUX_GNU = 'x86_64-linux-gnu';
+const PLATFORM_X86_LINUX_MUSL = 'x86_64-linux-musl';
 
 function main()
 {
@@ -96,8 +95,8 @@ function install($options)
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
         $url = ($platform === PLATFORM_X86_LINUX_MUSL)
-            ? RELEASE_URL_MUSL
-            : RELEASE_URL_GNU;
+            ? 'https://github.com/DataDog/dd-trace-php/releases/download/' . RELEASE_VERSION . '/dd-library-php-x86_64-linux-musl.tar.gz'
+            : 'https://github.com/DataDog/dd-trace-php/releases/download/' . RELEASE_VERSION . '/dd-library-php-x86_64-linux-gnu.tar.gz';
         download($url, $tmpDirTarGz);
         unset($version);
     }

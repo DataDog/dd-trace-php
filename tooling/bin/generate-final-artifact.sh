@@ -85,3 +85,12 @@ echo "$release_version" > ${tmp_folder_final_musl}/dd-library-php/VERSION
 tar -czv \
     -f ${packages_build_dir}/dd-library-php-x86_64-linux-musl.tar.gz \
     -C ${tmp_folder_final_musl} .
+
+########################
+# Installers
+########################
+supported_platforms=(x86_64-linux-gnu x86_64-linux-musl)
+for supported_platform in "${supported_platforms[@]}";
+do
+    sed "s|@release_version@|${release_version}|g" ./dd-library-php-setup.php > "${packages_build_dir}/datadog-setup-${supported_platform}.php"
+done;
