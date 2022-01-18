@@ -94,11 +94,8 @@ function install($options)
         print_warning('--' . OPT_FILE . ' option is intended for internal usage and can be removed without notice');
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
-        $url = ($platform === PLATFORM_X86_LINUX_MUSL)
-            ? ('https://github.com/DataDog/dd-trace-php/releases/download/'
-                    . RELEASE_VERSION . '/dd-library-php-x86_64-linux-musl.tar.gz')
-            : ('https://github.com/DataDog/dd-trace-php/releases/download/'
-                    . RELEASE_VERSION . '/dd-library-php-x86_64-linux-gnu.tar.gz');
+        $version = RELEASE_VERSION;
+        $url = "https://github.com/DataDog/dd-trace-php/releases/download/{$version}/dd-library-php-{$platform}.tar.gz";
         download($url, $tmpDirTarGz);
         unset($version);
     }
