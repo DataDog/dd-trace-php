@@ -360,6 +360,9 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR) \
 		$(PROFILING_RELEASE_URL)
+	bash ./tooling/bin/generate-installers.sh \
+		$(VERSION) \
+		$(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \
