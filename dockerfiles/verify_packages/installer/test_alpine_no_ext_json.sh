@@ -13,7 +13,7 @@ assert_no_ddtrace
 new_version="0.68.0"
 
 set +e
-output=$(php dd-library-php-setup.php --php-bin php --version "${new_version}")
+output=$(php datadog-setup.php --php-bin php --version "${new_version}")
 exit_status=$?
 set -e
 

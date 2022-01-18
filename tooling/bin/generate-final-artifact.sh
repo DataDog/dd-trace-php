@@ -92,5 +92,5 @@ tar -czv \
 supported_platforms=(x86_64-linux-gnu x86_64-linux-musl)
 for supported_platform in "${supported_platforms[@]}";
 do
-    sed "s|@release_version@|${release_version}|g" ./dd-library-php-setup.php > "${packages_build_dir}/datadog-setup-${supported_platform}.php"
+    sed "s|@release_version@|${release_version}|g" ./datadog-setup.php > "${packages_build_dir}/datadog-setup-${supported_platform}.php"
 done;
