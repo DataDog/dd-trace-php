@@ -100,8 +100,8 @@ test_fpm.sh \
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
 test_first_install_alpine.sh \
-test_install_no_ext_curl_no_curl_cli.sh \
-test_install_no_ext_curl_yes_curl_cli.sh \
+test_alpine_install_no_ext_curl_no_curl_cli.sh \
+test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
 
