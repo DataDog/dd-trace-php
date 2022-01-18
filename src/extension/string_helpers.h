@@ -19,6 +19,7 @@
 
 #define LSTRLEN(str) (sizeof(str "") - 1)
 #define LSTRARG(str) (str ""), LSTRLEN(str)
+#define LSTRLEN_MAX(a, b) (LSTRLEN(a) > LSTRLEN(b) ? LSTRLEN(a) : LSTRLEN(b))
 
 bool dd_string_starts_with_lc(const char *nonnull s, size_t len,
     const char *nonnull cmp_lc, size_t cmp_lc_len);

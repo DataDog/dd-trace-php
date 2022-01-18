@@ -11,10 +11,11 @@ class Helper {
     private $lock_path;
 
     function __construct($opts = array()) {
-        $sock_path = key_exists('sock_path', $opts) ? $opts['sock_path'] : ini_get('datadog.appsec.helper_socket_path');
+        $runtime_path = key_exists('runtime_path', $opts) ? $opts['runtime_path'] : ini_get('datadog.appsec.helper_runtime_path');
+        $sock_path = $runtime_path . "/ddappsec_" . phpversion('ddappsec') . ".sock";
         $received_pipe = key_exists('received_pipe', $opts) ? $opts['received_pipe'] : true;
         $this->mock_helper_path = key_exists('mock_helper_path', $opts) ? $opts['mock_helper_path'] : getenv('MOCK_HELPER_BINARY');
-        $this->lock_path = key_exists('lock_path', $opts) ? $opts['lock_path'] : ini_get('datadog.appsec.helper_lock_path');
+        $this->lock_path = $runtime_path . "/ddappsec_" . phpversion('ddappsec') . ".lock";
         $descriptors = array(
             0 => array("pipe", "r"),
             1 => array("file", STDOUT_PATH, "w+"),

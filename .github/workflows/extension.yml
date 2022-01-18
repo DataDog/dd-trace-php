@@ -67,14 +67,15 @@ jobs:
           sudo .github/workflows/scripts/llvm.sh 13
           sudo apt-get install -y clang-tidy-13 clang-format-13
       - name: Add repository for PHP debug symbols
-        if: matrix.cfg.os == 'ubuntu-latest' && matrix.cfg.valgrind == 'true'
+        if: matrix.cfg.os == 'ubuntu-latest'
         run: |
           echo deb http://ppa.launchpad.net/ondrej/php/ubuntu $(lsb_release -cs) main main/debug | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
       - name: Install required packages
         if: matrix.cfg.os == 'ubuntu-latest'
         run: |
-          sudo apt-get install -y \
+          sudo apt --fix-broken install
+          sudo apt-get install -y libpcre3 libpcre3-dev \
           libcurl4-openssl-dev $(if [[ "${{ matrix.cfg.valgrind }}" = true ]]; then \
             echo valgrind php${{ matrix.cfg.version }}-cli php${{ matrix.cfg.version }}-cli-dbgsym \
             php${{ matrix.cfg.version }}-cgi php${{ matrix.cfg.version }}-cgi-dbgsym; fi)

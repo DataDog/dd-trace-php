@@ -32,30 +32,32 @@ class Apache2FpmTests implements CommonTests {
 
     @Test
     void 'php-fpm -i uses enabled_on_cli'() {
-        ExecResult res = CONTAINER.execInContainer(
+        ExecResult res = CONTAINER.execInContainer('mkdir', '/tmp/cli/')
+
+        res = CONTAINER.execInContainer(
                 'bash', '-c',
                 'php-fpm -d extension=ddtrace.so -d extension=ddappsec.so ' +
                         '-d datadog.appsec.enabled=1 ' +
-                        '-d datadog.appsec.helper_socket_path=/tmp/foo.sock ' +
-                        '-d datadog.appsec.helper_lock_path=/tmp/foo.lock ' +
+                        '-d datadog.appsec.helper_runtime_path=/tmp/cli ' +
                         '-i')
         if (res.exitCode != 0) {
             throw new AssertionError("Failed executing php-fpm -i: $res.stderr")
         }
-        res = CONTAINER.execInContainer('test', '-S', '/tmp/foo.sock')
+        res = CONTAINER.execInContainer('/bin/bash', '-c', 
+            'test $(find /tmp/cli/ -maxdepth 1 -type s -name \'ddappsec_*.sock\' | wc -l) -eq 1')
         assert res.exitCode != 0
 
         res = CONTAINER.execInContainer(
                 'bash', '-c',
                 'php-fpm -d extension=ddtrace.so -d extension=ddappsec.so ' +
                         '-d datadog.appsec.enabled_on_cli=1 ' +
-                        '-d datadog.appsec.helper_socket_path=/tmp/foo.sock ' +
-                        '-d datadog.appsec.helper_lock_path=/tmp/foo.lock ' +
+                        '-d datadog.appsec.helper_runtime_path=/tmp/cli ' +
                         '-i')
         if (res.exitCode != 0) {
             throw new AssertionError("Failed executing php-fpm -i: $res.stderr")
         }
-        res = CONTAINER.execInContainer('test', '-S', '/tmp/foo.sock')
+        res = CONTAINER.execInContainer('/bin/bash', '-c', 
+            'test $(find /tmp/cli/ -maxdepth 1 -type s -name \'ddappsec_*.sock\' | wc -l) -eq 1')
         assert res.exitCode == 0
     }
 }
