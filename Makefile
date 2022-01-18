@@ -17,7 +17,7 @@ PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
-PROFILER_RELEASE_URL := 'update_profiling_release_url_here'
+PROFILING_RELEASE_URL := 'update_profiling_release_url_here'
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -359,7 +359,7 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR) \
-		$(PROFILER_RELEASE_URL)
+		$(PROFILING_RELEASE_URL)
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \

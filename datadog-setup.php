@@ -16,7 +16,7 @@ const OPT_FILE = 'file';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
 
-// Urls are updated by teh build script
+// Release version is set while generating the final release files
 const RELEASE_VERSION = '@release_version@';
 
 // Supported platforms
