@@ -52,7 +52,29 @@ TEST(ClientTest, ClientInit)
     EXPECT_STREQ(res.status.c_str(), "ok");
 }
 
-TEST(ClientTest, ClientInitFail)
+TEST(ClientTest, ClientInitResponseFail)
+{
+    auto epool = std::make_shared<engine_pool>();
+    auto broker = new mock::broker();
+
+    client c(epool, std::unique_ptr<mock::broker>(broker));
+
+    auto fn = create_sample_rules_ok();
+
+    network::client_init::request msg;
+    msg.pid = 1729;
+    msg.runtime_version = "1.0";
+    msg.client_version = "2.0";
+    msg.settings.rules_file = fn;
+
+    network::request req(std::move(msg));
+    EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+    EXPECT_CALL(*broker, send(_)).WillOnce(Return(false));
+
+    EXPECT_FALSE(c.run_client_init());
+}
+
+TEST(ClientTest, ClientInitMissingRuleFile)
 {
     auto epool = std::make_shared<engine_pool>();
     auto broker = new mock::broker();
@@ -75,6 +97,80 @@ TEST(ClientTest, ClientInitFail)
         .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
 
     EXPECT_FALSE(c.run_client_init());
+    EXPECT_STREQ(res.status.c_str(), "fail");
+}
+
+TEST(ClientTest, ClientInitInvalidRuleFileFormat)
+{
+    auto epool = std::make_shared<engine_pool>();
+    auto broker = new mock::broker();
+
+    client c(epool, std::unique_ptr<mock::broker>(broker));
+
+    char tmpl[] = "/tmp/test_ddappsec_XXXXXX";
+    int fd = mkstemp(tmpl);
+    std::FILE *tmpf = fdopen(fd, "wb+");
+    std::string data = "this is an invalid rule file";
+    std::fwrite(data.c_str(), data.size(), 1, tmpf);
+    std::fclose(tmpf);
+
+    network::client_init::request msg;
+    msg.pid = 1729;
+    msg.runtime_version = "1.0";
+    msg.client_version = "2.0";
+    msg.settings.rules_file = tmpl;
+
+    network::request req(std::move(msg));
+
+    network::client_init::response res;
+    EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+    EXPECT_CALL(*broker, send(_))
+        .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
+
+    EXPECT_FALSE(c.run_client_init());
+    EXPECT_STREQ(res.status.c_str(), "fail");
+}
+
+TEST(ClientTest, ClientInitAfterClientInit)
+{
+    auto epool = std::make_shared<engine_pool>();
+    auto broker = new mock::broker();
+
+    client c(epool, std::unique_ptr<mock::broker>(broker));
+
+    auto fn = create_sample_rules_ok();
+
+    {
+        network::client_init::request msg;
+        msg.pid = 1729;
+        msg.runtime_version = "1.0";
+        msg.client_version = "2.0";
+        msg.settings.rules_file = fn;
+
+        network::request req(std::move(msg));
+
+        network::client_init::response res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker, send(_))
+            .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_client_init());
+        EXPECT_STREQ(res.status.c_str(), "ok");
+    }
+
+    {
+        network::client_init::request msg;
+        msg.pid = 1729;
+        msg.runtime_version = "1.0";
+        msg.client_version = "2.0";
+        msg.settings.rules_file = fn;
+
+        network::request req(std::move(msg));
+
+        network::client_init::response res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_FALSE(c.run_request());
+    }
 }
 
 TEST(ClientTest, ClientInitBrokerThrows)
@@ -114,6 +210,47 @@ TEST(ClientTest, ClientInitBrokerThrows)
         network::client_init::response res;
         EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
         EXPECT_CALL(*broker, send(_)).WillOnce(Throw(std::exception()));
+
+        EXPECT_FALSE(c.run_client_init());
+    }
+
+    {
+        network::client_init::request msg;
+        msg.pid = 1729;
+        msg.runtime_version = "1.0";
+        msg.client_version = "2.0";
+        msg.settings.rules_file = fn;
+
+        network::request req(std::move(msg));
+
+        network::client_init::response res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker, send(_)).WillOnce(Throw(24));
+
+        EXPECT_FALSE(c.run_client_init());
+    }
+}
+
+TEST(ClientTest, RequestInitOnClientInit)
+{
+    auto epool = std::make_shared<engine_pool>();
+    auto broker = new mock::broker();
+
+    client c(epool, std::unique_ptr<mock::broker>(broker));
+
+    auto fn = create_sample_rules_ok();
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+        msg.data.add("server.request.headers.no_cookies",
+            parameter("acunetix-product"sv));
+
+        network::request req(std::move(msg));
+
+        network::request_init::response res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
 
         EXPECT_FALSE(c.run_client_init());
     }
@@ -351,6 +488,67 @@ TEST(ClientTest, RequestShutdown)
         EXPECT_TRUE(c.run_request());
         EXPECT_STREQ(res.verdict.c_str(), "record");
         EXPECT_EQ(res.triggers.size(), 1);
+    }
+}
+
+TEST(ClientTest, RequestShutdownInvalidData)
+{
+    auto epool = std::make_shared<engine_pool>();
+    auto broker = new mock::broker();
+
+    client c(epool, std::unique_ptr<mock::broker>(broker));
+
+    // Client Init
+    {
+        auto fn = create_sample_rules_ok();
+        network::client_init::request msg;
+        msg.pid = 1729;
+        msg.runtime_version = "1.0";
+        msg.client_version = "2.0";
+        msg.settings.rules_file = fn;
+
+        network::request req(std::move(msg));
+
+        network::client_init::response res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker, send(_))
+            .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_client_init());
+        EXPECT_STREQ(res.status.c_str(), "ok");
+    }
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+        msg.data.add(
+            "server.request.headers.no_cookies", parameter("Arachni"sv));
+
+        network::request req(std::move(msg));
+
+        network::request_init::response res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker, send(_))
+            .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_STREQ(res.verdict.c_str(), "ok");
+        EXPECT_EQ(res.triggers.size(), 0);
+    }
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+        msg.data = parameter::array();
+
+        network::request req(std::move(msg));
+
+        network::request_shutdown::response res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker, send(_)).Times(0);
+
+        EXPECT_FALSE(c.run_request());
     }
 }
 

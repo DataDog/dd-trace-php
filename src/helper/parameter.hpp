@@ -67,7 +67,10 @@ public:
     {
         return (type & (DDWAF_OBJ_MAP | DDWAF_OBJ_ARRAY)) != 0;
     }
-
+    [[nodiscard]] bool is_valid() const noexcept
+    {
+        return type != DDWAF_OBJ_INVALID;
+    }
     ddwaf_object *ptr() noexcept;
 
     [[nodiscard]] std::string debug_str() const noexcept;

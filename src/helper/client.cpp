@@ -39,7 +39,7 @@ bool maybe_exec_cmd_M(client &client, network::request &msg)
 
     try {
         return client.handle_command(msg.as<M>());
-    } catch (const msgpack::type_error &e) {
+    } catch (const std::bad_cast &e) {
         SPDLOG_WARN("invalid client message for command type {}: {}",
             msg.method, e.what());
     } catch (const std::exception &e) {
@@ -70,7 +70,7 @@ bool handle_message(client &client, const network::base_broker &broker,
     } catch (const client_disconnect &) {
         SPDLOG_INFO("Client has disconnected");
     } catch (const std::exception &e) {
-        SPDLOG_WARN(e.what());
+        SPDLOG_WARN("Failed to handle message: {}", e.what());
     }
 
     return false;

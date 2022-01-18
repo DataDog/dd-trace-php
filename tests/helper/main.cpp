@@ -5,6 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
 #include <gtest/gtest.h>
+#include <spdlog/spdlog.h>
+#include "spdlog/sinks/basic_file_sink.h"
 
 std::string create_sample_rules_ok()
 {
@@ -88,6 +90,10 @@ std::string create_sample_rules_ok()
 
 int main(int argc, char **argv)
 {
+    auto logger = spdlog::basic_logger_mt("ddappsec", "/tmp/helper-test.log");
+    spdlog::set_default_logger(logger);
+    spdlog::set_level(spdlog::level::trace);
+
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

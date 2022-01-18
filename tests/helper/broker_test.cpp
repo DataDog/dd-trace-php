@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include <exception.hpp>
 #include "version.hpp"
 #include <msgpack.hpp>
 #include <network/broker.hpp>
@@ -66,7 +67,7 @@ ACTION_P(CopyString, param)
     memcpy(arg0, str.c_str(), str.size());
 }
 
-TEST(BrokerTest, BrokerSendClientInit)
+TEST(BrokerTest, SendClientInit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -97,7 +98,7 @@ TEST(BrokerTest, BrokerSendClientInit)
     EXPECT_STREQ(expected_data.c_str(), buffer.c_str());
 }
 
-TEST(BrokerTest, BrokerSendRequestInit)
+TEST(BrokerTest, SendRequestInit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -127,7 +128,7 @@ TEST(BrokerTest, BrokerSendRequestInit)
     EXPECT_STREQ(expected_data.c_str(), buffer.c_str());
 }
 
-TEST(BrokerTest, BrokerSendRequestShutdown)
+TEST(BrokerTest, SendRequestShutdown)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -157,7 +158,7 @@ TEST(BrokerTest, BrokerSendRequestShutdown)
     EXPECT_STREQ(expected_data.c_str(), buffer.c_str());
 }
 
-TEST(BrokerTest, BrokerRecvClientInit)
+TEST(BrokerTest, RecvClientInit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -195,7 +196,7 @@ TEST(BrokerTest, BrokerRecvClientInit)
     EXPECT_EQ(command.settings.waf_timeout_ms, 42ul);
 }
 
-TEST(BrokerTest, BrokerRecvRequestInit)
+TEST(BrokerTest, RecvRequestInit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -232,7 +233,7 @@ TEST(BrokerTest, BrokerRecvRequestInit)
     command.data.free();
 }
 
-TEST(BrokerTest, BrokerRecvRequestShutdown)
+TEST(BrokerTest, RecvRequestShutdown)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -265,7 +266,76 @@ TEST(BrokerTest, BrokerRecvRequestShutdown)
     command.data.free();
 }
 
-TEST(BrokerTest, BrokerParsingStringLimit)
+TEST(BrokerTest, NoBytesForHeader)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    EXPECT_CALL(*socket, recv(_, _))
+        .WillOnce(Return(2));
+
+    network::request request;
+    EXPECT_THROW(
+        request = broker.recv(std::chrono::milliseconds(100)), std::length_error);
+}
+
+TEST(BrokerTest, NoBytesForBody)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    network::header_t h{"dds", (uint32_t)64};
+    EXPECT_CALL(*socket, recv(_, _))
+        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
+        .WillOnce(Return(4));
+
+    network::request request;
+    EXPECT_THROW(
+        request = broker.recv(std::chrono::milliseconds(100)), std::length_error);
+}
+
+TEST(BrokerTest, InvalidMsgpack)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    std::string expected_data("notamsgpack");
+
+    network::header_t h{"dds", (uint32_t)expected_data.size()};
+    EXPECT_CALL(*socket, recv(_, _))
+        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
+        .WillOnce(
+            DoAll(CopyString(&expected_data), Return(expected_data.size())));
+
+    network::request request;
+    EXPECT_THROW(
+        request = broker.recv(std::chrono::milliseconds(100)), std::bad_cast);
+}
+
+TEST(BrokerTest, InvalidRequest)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    std::stringstream ss;
+    msgpack::packer<std::stringstream> packer(ss);
+    packer.pack_map(1);
+    pack_str(packer, "request_init");
+    pack_str(packer, "request_shutdown");
+    const std::string &expected_data = ss.str();
+
+    network::header_t h{"dds", (uint32_t)expected_data.size()};
+    EXPECT_CALL(*socket, recv(_, _))
+        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
+        .WillOnce(
+            DoAll(CopyString(&expected_data), Return(expected_data.size())));
+
+    network::request request;
+    EXPECT_THROW(
+        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
+}
+
+TEST(BrokerTest, ParsingStringLimit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -289,10 +359,10 @@ TEST(BrokerTest, BrokerParsingStringLimit)
 
     network::request request;
     EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), std::bad_cast);
+        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
 }
 
-TEST(BrokerTest, BrokerParsingMapLimit)
+TEST(BrokerTest, ParsingMapLimit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -318,10 +388,10 @@ TEST(BrokerTest, BrokerParsingMapLimit)
 
     network::request request;
     EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), std::bad_cast);
+        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
 }
 
-TEST(BrokerTest, BrokerParsingArrayLimit)
+TEST(BrokerTest, ParsingArrayLimit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -348,10 +418,10 @@ TEST(BrokerTest, BrokerParsingArrayLimit)
 
     network::request request;
     EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), std::bad_cast);
+        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
 }
 
-TEST(BrokerTest, BrokerParsingDepthLimit)
+TEST(BrokerTest, ParsingDepthLimit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -378,10 +448,10 @@ TEST(BrokerTest, BrokerParsingDepthLimit)
 
     network::request request;
     EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), std::bad_cast);
+        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
 }
 
-TEST(BrokerTest, BrokerParsingBinLimit)
+TEST(BrokerTest, ParsingBinLimit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -406,10 +476,10 @@ TEST(BrokerTest, BrokerParsingBinLimit)
 
     network::request request;
     EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), std::bad_cast);
+        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
 }
 
-TEST(BrokerTest, BrokerParsingExtLimit)
+TEST(BrokerTest, ParsingExtLimit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
@@ -434,10 +504,10 @@ TEST(BrokerTest, BrokerParsingExtLimit)
 
     network::request request;
     EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), std::bad_cast);
+        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
 }
 
-TEST(BrokerTest, BrokerParsingBodyLimit)
+TEST(BrokerTest, ParsingBodyLimit)
 {
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};

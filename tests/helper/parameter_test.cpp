@@ -15,6 +15,7 @@ TEST(ParameterTest, EmptyConstructor)
 {
     parameter p;
     EXPECT_EQ(p.type, DDWAF_OBJ_INVALID);
+    EXPECT_FALSE(p.is_valid());
     p.free();
 }
 
@@ -24,6 +25,7 @@ TEST(ParameterTest, UintMaxConstructor)
     parameter p(value);
     EXPECT_EQ(p.type, DDWAF_OBJ_STRING);
     EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_FALSE(p[0].is_valid());
 
     std::stringstream ss;
     ss << value;
@@ -37,6 +39,7 @@ TEST(ParameterTest, UintMinConstructor)
     parameter p(value);
     EXPECT_EQ(p.type, DDWAF_OBJ_STRING);
     EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_FALSE(p[0].is_valid());
 
     std::stringstream ss;
     ss << value;
@@ -50,11 +53,13 @@ TEST(ParameterTest, IntMaxConstructor)
     parameter p(value);
     EXPECT_EQ(p.type, DDWAF_OBJ_STRING);
     EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_FALSE(p[0].is_valid());
 
     std::stringstream ss;
     ss << value;
     EXPECT_TRUE(p.stringValue == ss.str());
     p.free();
+    
 }
 
 TEST(ParameterTest, IntMinConstructor)
@@ -63,6 +68,7 @@ TEST(ParameterTest, IntMinConstructor)
     parameter p(value);
     EXPECT_EQ(p.type, DDWAF_OBJ_STRING);
     EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_FALSE(p[0].is_valid());
 
     std::stringstream ss;
     ss << value;
@@ -76,6 +82,7 @@ TEST(ParameterTest, StringConstructor)
     parameter p(value);
     EXPECT_EQ(p.type, DDWAF_OBJ_STRING);
     EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_FALSE(p[0].is_valid());
 
     EXPECT_TRUE(p.stringValue == value);
     p.free();
@@ -86,6 +93,7 @@ TEST(ParameterTest, StringViewConstructor)
     parameter p("thisisastring"sv);
     EXPECT_EQ(p.type, DDWAF_OBJ_STRING);
     EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_FALSE(p[0].is_valid());
 
     EXPECT_TRUE(p.stringValue == "thisisastring"sv);
     p.free();
@@ -99,7 +107,7 @@ TEST(ParameterTest, MoveConstructor)
     EXPECT_EQ(pcopy.type, DDWAF_OBJ_STRING);
     EXPECT_STREQ(pcopy.stringValue, "thisisastring");
 
-    EXPECT_EQ(p.type, DDWAF_OBJ_INVALID);
+    EXPECT_FALSE(p.is_valid());
     pcopy.free();
 }
 
@@ -124,21 +132,34 @@ TEST(ParameterTest, Map)
 {
     parameter p = parameter::map();
     EXPECT_EQ(p.type, DDWAF_OBJ_MAP);
-    EXPECT_EQ(p.nbEntries, 0);
+    EXPECT_EQ(p.size(), 0);
 
-    EXPECT_TRUE(p.add("key", parameter("value"sv)));
-    EXPECT_EQ(p.nbEntries, 1);
+    EXPECT_TRUE(p.add("key0", parameter("value"sv)));
+    EXPECT_STREQ(p[0].key().data(), "key0");
+    EXPECT_EQ(p.size(), 1);
 
-    EXPECT_TRUE(p.add("key", parameter("value"sv)));
-    EXPECT_EQ(p.nbEntries, 2);
+    EXPECT_TRUE(p.add("key1", parameter("value"sv)));
+    EXPECT_STREQ(p[1].key().data(), "key1");
+    EXPECT_EQ(p.size(), 2);
 
-    EXPECT_TRUE(p.add("key", parameter("value"sv)));
-    EXPECT_EQ(p.nbEntries, 3);
+    EXPECT_TRUE(p.add("key2", parameter("value"sv)));
+    EXPECT_STREQ(p[2].key().data(), "key2");
+    EXPECT_EQ(p.size(), 3);
 
-    EXPECT_TRUE(p.add("key", parameter("value"sv)));
-    EXPECT_EQ(p.nbEntries, 4);
+    EXPECT_TRUE(p.add("key3", parameter("value"sv)));
+    EXPECT_STREQ(p[3].key().data(), "key3");
+    EXPECT_EQ(p.size(), 4);
+
+    // const ref test
+    auto v = parameter("value"sv);
+    EXPECT_TRUE(p.add("key4", v));
+    EXPECT_STREQ(p[4].key().data(), "key4");
+    EXPECT_EQ(p.size(), 5);
 
     EXPECT_FALSE(p.add(parameter("value"sv)));
+    EXPECT_FALSE(p.add(v));
+
+    EXPECT_STREQ(std::string_view(p).data(), nullptr);
 
     p.free();
 }
@@ -147,22 +168,29 @@ TEST(ParameterTest, Array)
 {
     parameter p = parameter::array();
     EXPECT_EQ(p.type, DDWAF_OBJ_ARRAY);
-    EXPECT_EQ(p.nbEntries, 0);
+    EXPECT_EQ(p.size(), 0);
 
     EXPECT_TRUE(p.add(parameter("value"sv)));
-    EXPECT_EQ(p.nbEntries, 1);
+    EXPECT_EQ(p.size(), 1);
 
     EXPECT_TRUE(p.add(parameter("value"sv)));
-    EXPECT_EQ(p.nbEntries, 2);
+    EXPECT_EQ(p.size(), 2);
 
     EXPECT_TRUE(p.add(parameter("value"sv)));
-    EXPECT_EQ(p.nbEntries, 3);
+    EXPECT_EQ(p.size(), 3);
 
     EXPECT_TRUE(p.add(parameter("value"sv)));
-    EXPECT_EQ(p.nbEntries, 4);
+    EXPECT_EQ(p.size(), 4);
+
+    // const ref test
+    auto v = parameter("value"sv);
+    EXPECT_TRUE(p.add(v));
+    EXPECT_EQ(p.size(), 5);
 
     EXPECT_FALSE(p.add("key", parameter("value"sv)));
+    EXPECT_FALSE(p.add("key", v));
 
+    EXPECT_STREQ(std::string_view(p).data(), nullptr);
     p.free();
 }
 

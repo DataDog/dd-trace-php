@@ -8,20 +8,22 @@
 
 namespace dds {
 
+namespace {
+template<typename T, size_t size>
+size_t vsize(T(&)[size]){return size;}
+}
+
 TEST(ConfigTest, ValidConstruction)
 {
-    int argc = 3;
     char *argv[] = {const_cast<char *>("tester"), const_cast<char *>("--key"),
         const_cast<char *>("value"), nullptr};
-    EXPECT_NO_THROW(config::config(argc, argv));
+    EXPECT_NO_THROW(config::config(vsize(argv) - 1, argv));
 }
 
 TEST(ConfigTest, NonNullTerminatedListConstruction)
 {
-    int argc = 2;
     char *argv[] = {const_cast<char *>("a"), const_cast<char *>("b")};
-
-    EXPECT_NO_THROW(config::config(argc, argv));
+    EXPECT_NO_THROW(config::config(vsize(argv), argv));
 }
 
 TEST(ConfigTest, TestDefaultKeys)
@@ -34,14 +36,13 @@ TEST(ConfigTest, TestDefaultKeys)
 
 TEST(ConfigTest, TestDefaultOverride)
 {
-    int argc = 7;
     char *argv[] = {const_cast<char *>("tester"),
         const_cast<char *>("--lock_path"), const_cast<char *>("unknown"),
         const_cast<char *>("--socket_path"), const_cast<char *>("unknown"),
         const_cast<char *>("--log_level"), const_cast<char *>("unknown"),
         nullptr};
 
-    config::config cfg(argc, argv);
+    config::config cfg(vsize(argv) - 1, argv);
     EXPECT_TRUE(cfg.get<std::string_view>("lock_path") == "unknown");
     EXPECT_TRUE(cfg.get<std::string_view>("socket_path") == "unknown");
     EXPECT_TRUE(cfg.get<std::string_view>("log_level") == "unknown");
@@ -55,16 +56,15 @@ TEST(ConfigTest, TestInvalidKeys)
 
 TEST(ConfigTest, TestKeyValue)
 {
-    int argc = 7;
     char *argv[] = {const_cast<char *>("tester"), const_cast<char *>("--a_key"),
         const_cast<char *>("a_value"), const_cast<char *>("--b_key"),
-        const_cast<char *>("b_value"), const_cast<char *>("--c_key"),
-        const_cast<char *>("c_value"), nullptr};
+        const_cast<char *>("b_value"), const_cast<char *>("--c_key=c_value"),
+        nullptr};
 
-    config::config cfg(argc, argv);
+    config::config cfg(vsize(argv) - 1, argv);
     EXPECT_TRUE(cfg.get<std::string_view>("a_key") == "a_value");
     EXPECT_TRUE(cfg.get<std::string_view>("b_key") == "b_value");
-    EXPECT_TRUE(cfg.get<std::string_view>("c_key") == "c_value");
+    EXPECT_TRUE(cfg.get<std::string>("c_key") == "c_value");
 }
 
 TEST(ConfigTest, TestModifiers)
