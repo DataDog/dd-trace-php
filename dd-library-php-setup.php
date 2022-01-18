@@ -17,8 +17,13 @@ const OPT_URL = 'url';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
 
-// How should we bump this in the release process?
-const RELEASE_VERSION = '1.0.0-nightly';
+// Urls are updated by teh build script
+const RELEASE_URL_GNU = '@gnu_url@';
+const RELEASE_URL_MUSL = '@musl_url@';
+
+// Supported platforms
+const PLATFORM_X86_LINUX_MUSL = 'x86_64-linux-musl';
+const PLATFORM_X86_LINUX_GNU = 'x86_64-linux-gnu';
 
 function main()
 {
@@ -49,8 +54,6 @@ Options:
     -h, --help                  Print this help text and exit
     --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search
                                 paths. The option can be provided multiple times.
-    --url <url>                 Install the tracing library from a url. If set --file is ignored.
-    --file <file>               Install the tracing library from a local .tar.gz file.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
     --enable-profiling          Enable the BETA profiling module.
@@ -60,7 +63,7 @@ EOD;
 
 function install($options)
 {
-    $platform = is_alpine() ? 'x86_64-linux-musl' : 'x86_64-linux-gnu';
+    $platform = is_alpine() ? PLATFORM_X86_LINUX_MUSL : PLATFORM_X86_LINUX_GNU;
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
@@ -80,6 +83,9 @@ function install($options)
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
+    register_shutdown_function(function () use ($tmpDir) {
+        execute_or_exit("Cannot remove temporary directory '$tmpDir'", "rm -rf " . escapeshellarg($tmpDir));
+    });
     execute_or_exit(
         "Cannot clean '$tmpDir'",
         "rm -rf " . escapeshellarg($tmpDir) . "/* "
@@ -87,12 +93,17 @@ function install($options)
 
     // Retrieve and extract the archive to a tmp location
     if (isset($options[OPT_FILE])) {
+        print_warning('--' . OPT_FILE . ' option is intended for internal usage and can be removed without notice');
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
-        $version = RELEASE_VERSION;
-        $url = isset($options[OPT_URL])
-            ? $options[OPT_URL]
-            : "https://github.com/DataDog/dd-trace-php/releases/download/{$version}/dd-library-php-{$platform}.tar.gz";
+        if (isset($options[OPT_URL])) {
+            print_warning('--' . OPT_URL . ' option is intended for internal usage and can be removed without notice');
+            $url = $options[OPT_URL];
+        } else {
+            $url = ($platform === PLATFORM_X86_LINUX_MUSL)
+                ? RELEASE_URL_MUSL
+                : RELEASE_URL_GNU;
+        }
         download($url, $tmpDirTarGz);
         unset($version);
     }
@@ -102,11 +113,6 @@ function install($options)
     );
 
     $releaseVersion = trim(file_get_contents("$tmpArchiveRoot/VERSION"));
-    if ($releaseVersion !== RELEASE_VERSION) {
-        $expected = RELEASE_VERSION;
-        $actual = $releaseVersion;
-        print_error_and_exit("Expected version '{$expected}', found '{$actual}'.");
-    }
 
     $installDir = $options[OPT_INSTALL_DIR] . '/' . $releaseVersion;
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
