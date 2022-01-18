@@ -448,11 +448,6 @@ function parse_validate_user_options()
     $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]) ? true : false;
 
     if (!$normalizedOptions[OPT_UNINSTALL]) {
-        // Only one --file can be provided.
-        $installables = array_intersect([OPT_FILE], array_keys($options));
-        if (count($installables) > 1) {
-            print_error_and_exit('Only one --file must be provided', true);
-        }
         if (isset($options[OPT_FILE])) {
             if (is_array($options[OPT_FILE])) {
                 print_error_and_exit('Only one --file can be provided', true);
