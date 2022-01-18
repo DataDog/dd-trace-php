@@ -13,7 +13,6 @@ const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
 const OPT_FILE = 'file';
-const OPT_URL = 'url';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
 
@@ -96,14 +95,9 @@ function install($options)
         print_warning('--' . OPT_FILE . ' option is intended for internal usage and can be removed without notice');
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
-        if (isset($options[OPT_URL])) {
-            print_warning('--' . OPT_URL . ' option is intended for internal usage and can be removed without notice');
-            $url = $options[OPT_URL];
-        } else {
-            $url = ($platform === PLATFORM_X86_LINUX_MUSL)
-                ? RELEASE_URL_MUSL
-                : RELEASE_URL_GNU;
-        }
+        $url = ($platform === PLATFORM_X86_LINUX_MUSL)
+            ? RELEASE_URL_MUSL
+            : RELEASE_URL_GNU;
         download($url, $tmpDirTarGz);
         unset($version);
     }
@@ -439,7 +433,6 @@ function parse_validate_user_options()
         OPT_HELP,
         OPT_PHP_BIN . ':',
         OPT_FILE . ':',
-        OPT_URL . ':',
         OPT_INSTALL_DIR . ':',
         OPT_UNINSTALL,
         OPT_ENABLE_PROFILING,
@@ -457,17 +450,12 @@ function parse_validate_user_options()
     $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]) ? true : false;
 
     if (!$normalizedOptions[OPT_UNINSTALL]) {
-        // Only one of --url and --file may be provided.
-        $installables = array_intersect([OPT_URL, OPT_FILE], array_keys($options));
+        // Only one --file can be provided.
+        $installables = array_intersect([OPT_FILE], array_keys($options));
         if (count($installables) > 1) {
-            print_error_and_exit('Only one of --url and --file must be provided', true);
+            print_error_and_exit('Only one --file must be provided', true);
         }
-        if (isset($options[OPT_URL])) {
-            if (is_array($options[OPT_URL])) {
-                print_error_and_exit('Only one --url can be provided', true);
-            }
-            $normalizedOptions[OPT_URL] = $options[OPT_URL];
-        } elseif (isset($options[OPT_FILE])) {
+        if (isset($options[OPT_FILE])) {
             if (is_array($options[OPT_FILE])) {
                 print_error_and_exit('Only one --file can be provided', true);
             }
