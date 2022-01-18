@@ -18,6 +18,5 @@ return [
     __DIR__ . '/../src/DDTrace/Propagators/TextMap.php',
     __DIR__ . '/../src/DDTrace/Http/Request.php',
     __DIR__ . '/../src/DDTrace/ScopeManager.php',
-    __DIR__ . '/../src/DDTrace/Obfuscation.php',
     __DIR__ . '/../src/DDTrace/Tracer.php',
 ];

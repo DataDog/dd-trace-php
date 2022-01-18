@@ -37,4 +37,5 @@ return [
     __DIR__ . '/../src/Integrations/Util/ObjectKVStore.php',
     __DIR__ . '/../src/Integrations/Util/ArrayKVStore.php',
     __DIR__ . '/../src/Integrations/Util/Normalizer.php',
+    __DIR__ . '/../src/Integrations/Obfuscation.php',
 ];
