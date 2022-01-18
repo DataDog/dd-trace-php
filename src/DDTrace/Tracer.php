@@ -373,7 +373,7 @@ final class Tracer implements TracerInterface
         // Normalized URL as the resource name
         $resourceName = $_SERVER['REQUEST_METHOD'];
         if (isset($_SERVER['REQUEST_URI'])) {
-            $resourceName .= ' ' . \DDtrace\Util\Normalizer::uriNormalizeIncomingPath($_SERVER['REQUEST_URI']);
+            $resourceName .= ' ' . \DDTrace\Util\Normalizer::uriNormalizeIncomingPath($_SERVER['REQUEST_URI']);
         }
         $span->setTag(Tag::RESOURCE_NAME, $resourceName, true);
     }
@@ -468,7 +468,3 @@ final class Tracer implements TracerInterface
         return count($this->traces);
     }
 }
-
-// In case we are using the internal API, ensure that a span is present
-/** @phpstan-ignore-next-line */
-Bootstrap::tracerOnce();

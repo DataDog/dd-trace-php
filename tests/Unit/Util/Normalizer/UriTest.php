@@ -35,11 +35,11 @@ class UriTest extends BaseTestCase
         ]);
         $this->assertSame(
             '/user/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/user/123/nested/path')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/user/123/nested/path')
         );
         $this->assertSame(
             '/user/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/user/123/nested/path')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/user/123/nested/path')
         );
     }
 
@@ -54,11 +54,11 @@ class UriTest extends BaseTestCase
         ]);
         $this->assertSame(
             '/user/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/user/123/nested/path')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/user/123/nested/path')
         );
         $this->assertSame(
             '/user/?/nested/path',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/user/123/nested/path')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/user/123/nested/path')
         );
 
         // When DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING is also set
@@ -70,11 +70,11 @@ class UriTest extends BaseTestCase
         ]);
         $this->assertSame(
             '/user/?/nested/path',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/user/123/nested/path')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/user/123/nested/path')
         );
         $this->assertSame(
             '/user/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/user/123/nested/path')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/user/123/nested/path')
         );
 
         // When DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX is also set
@@ -86,11 +86,11 @@ class UriTest extends BaseTestCase
         ]);
         $this->assertSame(
             '/user/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/user/123/nested/path')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/user/123/nested/path')
         );
         $this->assertSame(
             '/user/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/user/123/nested/path')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/user/123/nested/path')
         );
     }
 
@@ -99,11 +99,11 @@ class UriTest extends BaseTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=before/*']);
         $this->assertSame(
             '/before/something/after',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/before/something/after')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/before/something/after')
         );
         $this->assertSame(
             '/before/?/after',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/before/something/after')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/before/something/after')
         );
     }
 
@@ -112,11 +112,11 @@ class UriTest extends BaseTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=before/*']);
         $this->assertSame(
             '/before/something/after',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/before/something/after')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/before/something/after')
         );
         $this->assertSame(
             '/before/?/after',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/before/something/after')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/before/something/after')
         );
     }
 
@@ -125,7 +125,7 @@ class UriTest extends BaseTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=no_asterisk,']);
         $this->assertSame(
             '/no_asterisk/?/after',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/no_asterisk/123/after')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/no_asterisk/123/after')
         );
     }
 
@@ -134,7 +134,7 @@ class UriTest extends BaseTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=no_asterisk,']);
         $this->assertSame(
             '/no_asterisk/?/after',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/no_asterisk/123/after')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/no_asterisk/123/after')
         );
     }
 
@@ -143,7 +143,7 @@ class UriTest extends BaseTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=name/*']);
         $this->assertSame(
             '/numeric/?/name/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/numeric/123/name/some_name')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/numeric/123/name/some_name')
         );
     }
 
@@ -152,7 +152,7 @@ class UriTest extends BaseTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=name/*']);
         $this->assertSame(
             '/numeric/?/name/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/numeric/123/name/some_name')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/numeric/123/name/some_name')
         );
     }
 
@@ -161,7 +161,7 @@ class UriTest extends BaseTestCase
      */
     public function testDefaultPathFragmentsNormalizationIncoming($uri, $expected)
     {
-        $this->assertSame(\DDtrace\Util\Normalizer::uriNormalizeIncomingPath($uri), $expected);
+        $this->assertSame(\DDTrace\Util\Normalizer::uriNormalizeIncomingPath($uri), $expected);
     }
 
     /**
@@ -169,7 +169,7 @@ class UriTest extends BaseTestCase
      */
     public function testDefaultPathFragmentsNormalizationOutgoing($uri, $expected)
     {
-        $this->assertSame(\DDtrace\Util\Normalizer::uriNormalizeOutgoingPath($uri), $expected);
+        $this->assertSame(\DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($uri), $expected);
     }
 
     public function defaultPathNormalizationScenarios()
@@ -215,11 +215,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/name/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/name/some_name')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/name/some_name')
         );
         $this->assertSame(
             '/int/?/name/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/name/some_name')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/name/some_name')
         );
     }
 
@@ -231,11 +231,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/name/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/name/some_name')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/name/some_name')
         );
         $this->assertSame(
             '/name/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/name/some_name')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/name/some_name')
         );
     }
 
@@ -247,11 +247,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/name/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/name/some_name')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/name/some_name')
         );
         $this->assertSame(
             '/name/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/name/some_name')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/name/some_name')
         );
     }
 
@@ -263,11 +263,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/name/?/age/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/name/some_name/age/other')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/name/some_name/age/other')
         );
         $this->assertSame(
             '/name/?/age/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/name/some_name/age/other')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/name/some_name/age/other')
         );
     }
 
@@ -279,11 +279,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123')
         );
         $this->assertSame(
             '/int/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123')
         );
     }
 
@@ -295,11 +295,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/valid')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/valid')
         );
         $this->assertSame(
             '/int/?/path/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/valid')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/valid')
         );
     }
 
@@ -307,11 +307,11 @@ class UriTest extends BaseTestCase
     {
         $this->assertSame(
             '/int/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('int/123')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('int/123')
         );
         $this->assertSame(
             '/int/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('int/123')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('int/123')
         );
     }
 
@@ -319,11 +319,11 @@ class UriTest extends BaseTestCase
     {
         $this->assertSame(
             '/int/?/',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/')
         );
         $this->assertSame(
             '/int/?/',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/')
         );
     }
 
@@ -336,11 +336,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?/int/?/path/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/one/int/456/path/two')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/one/int/456/path/two')
         );
         $this->assertSame(
             '/int/?/path/?/int/?/path/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/one/int/456/path/two')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/one/int/456/path/two')
         );
     }
 
@@ -353,11 +353,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?-something/path/two-else',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/one-something/path/two-else')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/one-something/path/two-else')
         );
         $this->assertSame(
             '/int/?/path/?-something/path/two-else',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/one-something/path/two-else')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/one-something/path/two-else')
         );
     }
 
@@ -370,11 +370,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?/?/then/something/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/one/two/then/something/else')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/one/two/then/something/else')
         );
         $this->assertSame(
             '/int/?/path/?/?/then/something/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/one/two/then/something/else')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/one/two/then/something/else')
         );
     }
 
@@ -387,11 +387,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?-something/else',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/one-something/else')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/path/one-something/else')
         );
         $this->assertSame(
             '/int/?/path/?-something/else',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/one-something/else')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/path/one-something/else')
         );
     }
 
@@ -405,11 +405,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             'http://example.com/int/?/path/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('http://example.com/int/123/path/abc/nested/some')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('http://example.com/int/123/path/abc/nested/some')
         );
         $this->assertSame(
             'http://example.com/int/?/path/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('http://example.com/int/123/path/abc/nested/some')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('http://example.com/int/123/path/abc/nested/some')
         );
     }
 
@@ -423,11 +423,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             'https://example.com/int/?/path/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('https://example.com/int/123/path/abc/nested/some')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('https://example.com/int/123/path/abc/nested/some')
         );
         $this->assertSame(
             'https://example.com/int/?/path/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('https://example.com/int/123/path/abc/nested/some')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('https://example.com/int/123/path/abc/nested/some')
         );
     }
 
@@ -444,13 +444,13 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             "$rfc3986CompliantScheme://example.com/int/?/path/?/nested/?",
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath(
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath(
                 "$rfc3986CompliantScheme://example.com/int/123/path/abc/nested/some"
             )
         );
         $this->assertSame(
             "$rfc3986CompliantScheme://example.com/int/?/path/?/nested/?",
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath(
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath(
                 "$rfc3986CompliantScheme://example.com/int/123/path/abc/nested/some"
             )
         );
@@ -466,11 +466,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             'http://example.com:8888/int/?/path/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('http://example.com:8888/int/123/path/abc/nested/some')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('http://example.com:8888/int/123/path/abc/nested/some')
         );
         $this->assertSame(
             'http://example.com:8888/int/?/path/?/nested/?',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('http://example.com:8888/int/123/path/abc/nested/some')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('http://example.com:8888/int/123/path/abc/nested/some')
         );
     }
 
@@ -483,11 +483,11 @@ class UriTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/nested/some',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/nested/some')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/nested/some')
         );
         $this->assertSame(
             '/int/?/nested/some',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/nested/some')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/nested/some')
         );
     }
 
@@ -495,11 +495,11 @@ class UriTest extends BaseTestCase
     {
         $this->assertSame(
             '/int/?/nested/some',
-            \DDtrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/nested/some?key=value')
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123/nested/some?key=value')
         );
         $this->assertSame(
             '/int/?/nested/some',
-            \DDtrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/nested/some?key=value')
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/nested/some?key=value')
         );
     }
 

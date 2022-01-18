@@ -4,6 +4,9 @@ namespace DDTrace\Util;
 
 use DDTrace\Http\Urls;
 
+/**
+ * @internal This class may be changed any time (private API) and shall not be relied on in consumer code.
+ */
 class Normalizer
 {
     private static function getDefaultUriPathNormalizeRegexes()

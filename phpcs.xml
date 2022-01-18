@@ -34,7 +34,7 @@
         <exclude-pattern>tests/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
-        <exclude-pattern>bridge/dd_init.php</exclude-pattern>
+        <exclude-pattern>bridge/autoload.php</exclude-pattern>
         <exclude-pattern>build/packages/*</exclude-pattern>
         <exclude-pattern>datadog-setup.php</exclude-pattern>
         <exclude-pattern>examples/long-running/long-running-script.php</exclude-pattern>
