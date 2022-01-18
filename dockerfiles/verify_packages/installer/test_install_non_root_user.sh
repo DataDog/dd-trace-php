@@ -14,7 +14,7 @@ new_version="0.68.0"
 generate_installers "${new_version}"
 
 set +e
-output=$(su datadog -c "php /app/build/packages/datadog-setup-x86_64-linux-gnu.php --php-bin php")
+output=$(su datadog -c "php /app/build/packages/datadog-setup.php --php-bin php")
 exit_status=$?
 set -e
 

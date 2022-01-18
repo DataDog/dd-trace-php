@@ -13,11 +13,11 @@ ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 # Install using the php installer
 new_version="0.68.0"
 generate_installers "${new_version}"
-php ./build/packages/datadog-setup-x86_64-linux-gnu.php --php-bin php-fpm
+php ./build/packages/datadog-setup.php --php-bin php-fpm
 assert_ddtrace_version "${new_version}"
 
 # Uninstall
-php ./build/packages/datadog-setup-x86_64-linux-gnu.php --php-bin php-fpm --uninstall
+php ./build/packages/datadog-setup.php --php-bin php-fpm --uninstall
 assert_no_ddtrace
 
 # The .so file should be removed

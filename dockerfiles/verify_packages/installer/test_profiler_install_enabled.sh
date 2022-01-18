@@ -10,7 +10,7 @@ assert_no_ddtrace
 # Install using the php installer
 new_version="0.68.0"
 generate_installers "${new_version}"
-php ./build/packages/datadog-setup-x86_64-linux-gnu.php --php-bin php --enable-profiling
+php ./build/packages/datadog-setup.php --php-bin php --enable-profiling
 assert_ddtrace_version "${new_version}"
 
 assert_file_exists "$(get_php_extension_dir)"/datadog-profiling.so
