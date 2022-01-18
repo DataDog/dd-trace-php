@@ -8,14 +8,6 @@
  *  - properties (class, object)
  *  - locals (function static, frame)
  *
- * for caller convenience (avoiding casts), the following helpers are provided:
- *
- *  - zai_symbol_lookup_class
- *  - zai_symbol_lookup_function
- *  - zai_symbol_lookup_constant
- *  - zai_symbol_lookup_property
- *  - zai_symbol_lookup_local
-
  * zai_symbol_call is a single interface for invocation
  *
  * zai_symbol_new is a single interface for object construction
@@ -63,50 +55,11 @@ void* zai_symbol_lookup(
         zai_symbol_scope_t scope_type, void *scope,
         zai_string_view *name ZAI_TSRMLS_DC);
 
-static inline zend_class_entry* zai_symbol_lookup_class(
-    zai_symbol_scope_t scope_type, void *scope,
-    zai_string_view *name ZAI_TSRMLS_DC) {
-    return (zend_class_entry*)
-        zai_symbol_lookup(
-            ZAI_SYMBOL_TYPE_CLASS,
-            scope_type, scope, name ZAI_TSRMLS_CC);
-}
-
-static inline zend_function* zai_symbol_lookup_function(
-    zai_symbol_scope_t scope_type, void *scope,
-    zai_string_view *name ZAI_TSRMLS_DC) {
-    return (zend_function*)
-        zai_symbol_lookup(
-            ZAI_SYMBOL_TYPE_FUNCTION,
-            scope_type, scope, name ZAI_TSRMLS_CC);
-}
-
-static inline zval* zai_symbol_lookup_constant(
-    zai_symbol_scope_t scope_type, void *scope,
-    zai_string_view *name ZAI_TSRMLS_DC) {
-    return (zval*)
-        zai_symbol_lookup(
-            ZAI_SYMBOL_TYPE_CONSTANT,
-            scope_type, scope, name ZAI_TSRMLS_CC);
-}
-
-static inline zval* zai_symbol_lookup_property(
-    zai_symbol_scope_t scope_type, void *scope,
-    zai_string_view *name ZAI_TSRMLS_DC) {
-    return (zval*)
-        zai_symbol_lookup(
-            ZAI_SYMBOL_TYPE_PROPERTY,
-            scope_type, scope, name ZAI_TSRMLS_CC);
-}
-
-static inline zval* zai_symbol_lookup_local(
-    zai_symbol_scope_t scope_type, void *scope,
-    zai_string_view *name ZAI_TSRMLS_DC) {
-    return (zval*)
-        zai_symbol_lookup(
-            ZAI_SYMBOL_TYPE_LOCAL,
-            scope_type, scope, name ZAI_TSRMLS_CC);
-}
+#include "api/class.h"
+#include "api/function.h"
+#include "api/constant.h"
+#include "api/property.h"
+#include "api/local.h"
 
 /* CALL */
 typedef enum {
@@ -116,11 +69,13 @@ typedef enum {
     ZAI_SYMBOL_FUNCTION_NAMED,
 } zai_symbol_function_t;
 
-bool zai_symbol_call(
+bool zai_symbol_call_impl(
     zai_symbol_scope_t scope_type, void *scope,
     zai_symbol_function_t function_type, void *function,
     zval **rv ZAI_TSRMLS_DC,
-    uint32_t argc, ...);
+    uint32_t argc, va_list *args);
+
+#include "api/call.h"
 
 bool zai_symbol_new(zval *zv, zend_class_entry *ce ZAI_TSRMLS_DC, uint32_t argc, ...);
 // clang-format on

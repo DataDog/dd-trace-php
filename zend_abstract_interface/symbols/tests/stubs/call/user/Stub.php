@@ -76,6 +76,8 @@ namespace DDTraceTesting {
     function stub($param) {
         return strlen($param);
     }
+    
+    function noargs() {}
 }
 
 namespace {

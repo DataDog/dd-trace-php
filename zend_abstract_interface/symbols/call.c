@@ -4,26 +4,6 @@
 #include <sandbox/sandbox.h>
 #include <zai_assert/zai_assert.h>
 
-// clang-format off
-static bool zai_symbol_call_impl(
-    zai_symbol_scope_t scope_type, void *scope,
-    zai_symbol_function_t function_type, void *function,
-    zval **rv ZAI_TSRMLS_DC,
-    uint32_t argc, va_list *args);
-// clang-format on
-
-bool zai_symbol_call(zai_symbol_scope_t scope_type, void *scope, zai_symbol_function_t function_type, void *function,
-                     zval **rv ZAI_TSRMLS_DC, uint32_t argc, ...) {
-    bool result;
-
-    va_list args;
-    va_start(args, argc);
-    result = zai_symbol_call_impl(scope_type, scope, function_type, function, rv ZAI_TSRMLS_CC, argc, &args);
-    va_end(args);
-
-    return result;
-}
-
 static inline void zai_symbol_call_argv(zend_fcall_info *fci, uint32_t argc, va_list *args ZAI_TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
     fci->params = emalloc(argc * sizeof(zval **));
@@ -41,7 +21,7 @@ static inline void zai_symbol_call_argv(zend_fcall_info *fci, uint32_t argc, va_
     fci->param_count = argc;
 }
 
-static bool zai_symbol_call_impl(
+bool zai_symbol_call_impl(
     // clang-format off
     zai_symbol_scope_t scope_type, void *scope,
     zai_symbol_function_t function_type, void *function,

@@ -21,6 +21,10 @@ install(
   FILES ${CMAKE_CURRENT_SOURCE_DIR}/symbols.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/symbols/)
 
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/api
+  DESTINATION ${CMAKE_INSTAL_INCLUDEDIR}/symbols/api)
+
 target_link_libraries(zai_zend_abstract_interface INTERFACE zai_symbols)
 
 install(TARGETS zai_symbols EXPORT ZendAbstractInterfaceTargets)
