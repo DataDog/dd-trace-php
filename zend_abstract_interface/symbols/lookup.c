@@ -308,11 +308,11 @@ static inline zval* zai_symbol_lookup_property_impl(
 
             zval *property = (zval*) zai_symbol_lookup_table(obj->properties, *name, false, false ZAI_TSRMLS_CC);
 
-#if PHP_VERSION_ID < 70000
             if (!property) {
                 return NULL;
             }
 
+#if PHP_VERSION_ID < 70000
             return *(zval**) property;
 #else
             ZVAL_DEREF(property);
