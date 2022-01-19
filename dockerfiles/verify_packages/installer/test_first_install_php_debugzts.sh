@@ -4,6 +4,9 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
+# Fixing permissions, as this test is run in our own custom image using circleci as the executor
+sudo chmod a+w ./build/packages/*
+
 switch-php debug-zts-asan
 
 # Initially no ddtrace

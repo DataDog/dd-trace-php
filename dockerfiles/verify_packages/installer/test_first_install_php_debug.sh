@@ -6,6 +6,9 @@ set -e
 
 switch-php debug
 
+# Fixing permissions, as this test is run in our own custom image using circleci as the executor
+sudo chmod a+w ./build/packages/*
+
 # Initially no ddtrace
 assert_no_ddtrace
 
