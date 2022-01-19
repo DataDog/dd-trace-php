@@ -105,9 +105,7 @@ static inline zai_string_view zai_symbol_lookup_key(zai_string_view *namespace, 
     }
 
     if (lower) {
-        for (uint32_t c = vns.len ? vns.len + 1 : 0;
-                      c < rv.len;
-                      c++) {
+        for (uint32_t c = vns.len; c < rv.len; c++) {
             CHAR_AT(c) = tolower(CHAR_AT(c));
         }
     }
@@ -317,6 +315,8 @@ static inline zval* zai_symbol_lookup_property_impl(
 
             return *(zval**) property;
 #else
+            ZVAL_DEREF(property);
+
             return (zval*) property;
 #endif
         }
@@ -352,6 +352,8 @@ static inline zval* zai_symbol_lookup_property_impl(
             property = Z_INDIRECT_P(property);
         }
 
+        ZVAL_DEREF(property);
+
         return property;
 #endif
     }
@@ -365,7 +367,11 @@ static inline zval* zai_symbol_lookup_property_impl(
         return obj->properties_table[info->offset];
     }
 #else
-    return OBJ_PROP(Z_OBJ_P((zval*)scope), info->offset);
+    zval *property = OBJ_PROP(Z_OBJ_P((zval*)scope), info->offset);
+
+    ZVAL_DEREF(property);
+
+    return property;
 #endif
 }
 
