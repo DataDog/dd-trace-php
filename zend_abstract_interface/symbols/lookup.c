@@ -117,6 +117,24 @@ static inline zai_string_view zai_symbol_lookup_key(zai_string_view *namespace, 
     return rv;
 }
 
+static inline zval* zai_symbol_lookup_return_zval(zval *zv) {
+    if (!zv) {
+        return NULL;
+    }
+
+#if PHP_VERSION_ID < 70000
+    return *(zval**) zv;
+#else
+    while (Z_TYPE_P(zv) == IS_INDIRECT) {
+        zv = Z_INDIRECT_P(zv);
+    }
+
+    ZVAL_DEREF(zv);
+
+    return zv;
+#endif
+}
+
 static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t scope_type, void *scope, zai_string_view *name ZAI_TSRMLS_DC) {
     void *result = NULL;
 
@@ -305,20 +323,12 @@ static inline zval* zai_symbol_lookup_property_impl(
 #else
             zend_object *obj = Z_OBJ_P((zval*) scope);
 #endif
+            zval *property = (zval*)
+                zai_symbol_lookup_table(
+                    obj->properties, *name,
+                    false, false ZAI_TSRMLS_CC);
 
-            zval *property = (zval*) zai_symbol_lookup_table(obj->properties, *name, false, false ZAI_TSRMLS_CC);
-
-            if (!property) {
-                return NULL;
-            }
-
-#if PHP_VERSION_ID < 70000
-            return *(zval**) property;
-#else
-            ZVAL_DEREF(property);
-
-            return property;
-#endif
+            return zai_symbol_lookup_return_zval(property);
         }
         return NULL;
     }
@@ -345,16 +355,7 @@ static inline zval* zai_symbol_lookup_property_impl(
             zend_class_init_statics(ce);
         }
 #endif
-
-        zval *property = CE_STATIC_MEMBERS(ce) + info->offset;
-
-        while (Z_TYPE_P(property) == IS_INDIRECT) {
-            property = Z_INDIRECT_P(property);
-        }
-
-        ZVAL_DEREF(property);
-
-        return property;
+        return zai_symbol_lookup_return_zval(CE_STATIC_MEMBERS(ce) + info->offset);
 #endif
     }
 
@@ -367,11 +368,7 @@ static inline zval* zai_symbol_lookup_property_impl(
         return obj->properties_table[info->offset];
     }
 #else
-    zval *property = OBJ_PROP(Z_OBJ_P((zval*)scope), info->offset);
-
-    ZVAL_DEREF(property);
-
-    return property;
+    return zai_symbol_lookup_return_zval(OBJ_PROP(Z_OBJ_P((zval*)scope), info->offset));
 #endif
 }
 
@@ -397,13 +394,7 @@ static inline zval* zai_symbol_lookup_local_frame(zend_execute_data *ex, zai_str
         }
     }
 
-    if (!local) {
-        return NULL;
-    }
-
-    ZVAL_DEREF(local);
-
-    return local;
+    return zai_symbol_lookup_return_zval(local);
 #else
     zval **local = NULL;
     zend_execute_data *frame = EG(current_execute_data);
@@ -444,19 +435,12 @@ static inline zval* zai_symbol_lookup_local_static(zend_function *function, zai_
     HashTable *table = function->op_array.static_variables;
 #endif
 
-    zval *var = (zval*) zai_symbol_lookup_table(table, *name, false, false ZAI_TSRMLS_CC);
+    zval *var = (zval*)
+        zai_symbol_lookup_table(
+            table, *name,
+            false, false ZAI_TSRMLS_CC);
 
-    if (!var) {
-        return NULL;
-    }
-
-#if PHP_VERSION_ID >= 70000
-    ZVAL_DEREF(var);
-
-    return var;
-#else
-    return *(zval**) var;
-#endif
+    return zai_symbol_lookup_return_zval(var);
 }
 
 static inline zval* zai_symbol_lookup_local_impl(
