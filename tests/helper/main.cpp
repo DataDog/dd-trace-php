@@ -4,9 +4,9 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "spdlog/sinks/basic_file_sink.h"
 #include <gtest/gtest.h>
 #include <spdlog/spdlog.h>
-#include "spdlog/sinks/basic_file_sink.h"
 
 std::string create_sample_rules_ok()
 {

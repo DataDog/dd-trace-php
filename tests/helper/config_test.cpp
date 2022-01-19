@@ -9,9 +9,11 @@
 namespace dds {
 
 namespace {
-template<typename T, size_t size>
-size_t vsize(T(&)[size]){return size;}
+template <typename T, size_t size> constexpr size_t vsize(T (&)[size])
+{
+    return size;
 }
+} // namespace
 
 TEST(ConfigTest, ValidConstruction)
 {

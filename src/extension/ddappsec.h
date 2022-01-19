@@ -22,6 +22,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
     bool block;
     bool testing;
     bool testing_abort_rinit;
+    bool testing_raw_body;
     bool skip_rshutdown;
     const char *nonnull rules_file;
     const char *nonnull extra_headers;

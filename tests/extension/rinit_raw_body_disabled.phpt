@@ -1,7 +1,7 @@
 --TEST--
-request_init delivers $_POST and $_FILES data of multipart request
+Raw body is not sent when testing_raw_body is disabled
 --INI--
-datadog.appsec.testing_raw_body=1
+datadog.appsec.testing_raw_body=0
 --POST_RAW--
 Content-Type: multipart/form-data; boundary=---------------------------20896060251896012921717172737
 -----------------------------20896060251896012921717172737
@@ -40,7 +40,8 @@ function p($n) {
 p('server.request.body');
 p('server.request.body.filenames');
 p('server.request.body.files_field_names');
-p('server.request.body.raw');
+
+var_dump(array_key_exists('server.request.body.raw', $c[1][1][0]));
 
 ?>
 --EXPECT--
@@ -64,5 +65,4 @@ array(2) {
   [1]=>
   string(1) "0"
 }
-server.request.body.raw:
-string(0) ""
+bool(false)

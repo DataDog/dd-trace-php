@@ -59,7 +59,6 @@ TEST(ParameterTest, IntMaxConstructor)
     ss << value;
     EXPECT_TRUE(p.stringValue == ss.str());
     p.free();
-    
 }
 
 TEST(ParameterTest, IntMinConstructor)

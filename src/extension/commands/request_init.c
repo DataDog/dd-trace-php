@@ -46,8 +46,13 @@ static dd_result _request_pack(
 {
     UNUSED(ctx);
 
-#define REQUEST_INIT_MAP_NUM_ENTRIES 10
-    mpack_start_map(w, REQUEST_INIT_MAP_NUM_ENTRIES);
+    bool send_raw_body = DDAPPSEC_G(testing) && DDAPPSEC_G(testing_raw_body);
+#define REQUEST_INIT_MAP_NUM_ENTRIES 9
+    if (send_raw_body) {
+        mpack_start_map(w, REQUEST_INIT_MAP_NUM_ENTRIES + 1);
+    } else {
+        mpack_start_map(w, REQUEST_INIT_MAP_NUM_ENTRIES);
+    }
 
     // Pack data from SAPI request_info
     sapi_request_info *request_info = &SG(request_info);
@@ -87,25 +92,25 @@ static dd_result _request_pack(
         w, dd_php_get_autoglobal(TRACK_VARS_POST, ZEND_STRL("_POST")));
 
     // 7.
-    dd_mpack_write_lstr(w, "server.request.body.raw");
-    {
+    dd_mpack_write_lstr(w, "server.request.body.filenames");
+    _pack_filenames(w);
+
+    // 8.
+    dd_mpack_write_lstr(w, "server.request.body.files_field_names");
+    _pack_files_field_names(w);
+
+    // 9.
+    dd_mpack_write_lstr(w, "server.request.path_params");
+    _pack_path_params(w, request_uri);
+
+    // 10.
+    if (send_raw_body) {
+        dd_mpack_write_lstr(w, "server.request.body.raw");
         zend_string *nonnull req_body =
             dd_request_body_buffered(DD_MAX_REQ_BODY_TO_BUFFER);
         dd_mpack_write_zstr(w, req_body);
         zend_string_release(req_body);
     }
-
-    // 8.
-    dd_mpack_write_lstr(w, "server.request.body.filenames");
-    _pack_filenames(w);
-
-    // 9.
-    dd_mpack_write_lstr(w, "server.request.body.files_field_names");
-    _pack_files_field_names(w);
-
-    // 10.
-    dd_mpack_write_lstr(w, "server.request.path_params");
-    _pack_path_params(w, request_uri);
 
     mpack_finish_map(w);
 

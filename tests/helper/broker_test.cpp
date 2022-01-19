@@ -4,8 +4,8 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
-#include <exception.hpp>
 #include "version.hpp"
+#include <exception.hpp>
 #include <msgpack.hpp>
 #include <network/broker.hpp>
 #include <network/socket.hpp>
@@ -271,12 +271,11 @@ TEST(BrokerTest, NoBytesForHeader)
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
 
-    EXPECT_CALL(*socket, recv(_, _))
-        .WillOnce(Return(2));
+    EXPECT_CALL(*socket, recv(_, _)).WillOnce(Return(2));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), std::length_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        std::length_error);
 }
 
 TEST(BrokerTest, NoBytesForBody)
@@ -290,8 +289,8 @@ TEST(BrokerTest, NoBytesForBody)
         .WillOnce(Return(4));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), std::length_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        std::length_error);
 }
 
 TEST(BrokerTest, InvalidMsgpack)
@@ -331,8 +330,8 @@ TEST(BrokerTest, InvalidRequest)
             DoAll(CopyString(&expected_data), Return(expected_data.size())));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        msgpack::type_error);
 }
 
 TEST(BrokerTest, ParsingStringLimit)
@@ -358,8 +357,8 @@ TEST(BrokerTest, ParsingStringLimit)
             DoAll(CopyString(&expected_data), Return(expected_data.size())));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        msgpack::type_error);
 }
 
 TEST(BrokerTest, ParsingMapLimit)
@@ -387,8 +386,8 @@ TEST(BrokerTest, ParsingMapLimit)
             DoAll(CopyString(&expected_data), Return(expected_data.size())));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        msgpack::type_error);
 }
 
 TEST(BrokerTest, ParsingArrayLimit)
@@ -417,8 +416,8 @@ TEST(BrokerTest, ParsingArrayLimit)
             DoAll(CopyString(&expected_data), Return(expected_data.size())));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        msgpack::type_error);
 }
 
 TEST(BrokerTest, ParsingDepthLimit)
@@ -447,8 +446,8 @@ TEST(BrokerTest, ParsingDepthLimit)
             DoAll(CopyString(&expected_data), Return(expected_data.size())));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        msgpack::type_error);
 }
 
 TEST(BrokerTest, ParsingBinLimit)
@@ -475,8 +474,8 @@ TEST(BrokerTest, ParsingBinLimit)
             DoAll(CopyString(&expected_data), Return(expected_data.size())));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        msgpack::type_error);
 }
 
 TEST(BrokerTest, ParsingExtLimit)
@@ -503,8 +502,8 @@ TEST(BrokerTest, ParsingExtLimit)
             DoAll(CopyString(&expected_data), Return(expected_data.size())));
 
     network::request request;
-    EXPECT_THROW(
-        request = broker.recv(std::chrono::milliseconds(100)), msgpack::type_error);
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        msgpack::type_error);
 }
 
 TEST(BrokerTest, ParsingBodyLimit)

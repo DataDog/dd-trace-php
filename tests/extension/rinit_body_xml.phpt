@@ -1,5 +1,7 @@
 --TEST--
 request_init data on XML data
+--INI--
+datadog.appsec.testing_raw_body=1
 --POST_RAW--
 <foo/>
 --ENV--

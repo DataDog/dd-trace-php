@@ -1,5 +1,7 @@
 --TEST--
 request_init data on x-www-form-urlencoded data
+--INI--
+datadog.appsec.testing_raw_body=1
 --POST--
 a[]=1&a[]=2&a[a]=3&a[-1]=4&a[2][]=5
 --FILE--
