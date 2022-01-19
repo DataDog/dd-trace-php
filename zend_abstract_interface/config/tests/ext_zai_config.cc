@@ -2,7 +2,8 @@ extern "C" {
 #include "ext_zai_config.h"
 
 #include "config/config.h"
-#include "zai_sapi/zai_sapi.h"
+#include "tea/sapi.h"
+#include "tea/extension.h"
 }
 
 #include <atomic>
@@ -74,11 +75,12 @@ static PHP_RSHUTDOWN_FUNCTION(zai_config) {
     return result;
 }
 
-void ext_zai_config_ctor(zend_module_entry *module, ext_zai_config_minit_fn orig_minit) {
+void ext_zai_config_ctor(ext_zai_config_minit_fn orig_minit) {
     ext_zai_config_pre_rinit = NULL;
     ext_orig_minit = orig_minit;
-    module->module_startup_func = PHP_MINIT(zai_config);
-    module->module_shutdown_func = PHP_MSHUTDOWN(zai_config);
-    module->request_startup_func = PHP_RINIT(zai_config);
-    module->request_shutdown_func = PHP_RSHUTDOWN(zai_config);
+
+    tea_extension_minit(PHP_MINIT(zai_config));
+    tea_extension_rinit(PHP_RINIT(zai_config));
+    tea_extension_rshutdown(PHP_RSHUTDOWN(zai_config));
+    tea_extension_mshutdown(PHP_MSHUTDOWN(zai_config));
 }

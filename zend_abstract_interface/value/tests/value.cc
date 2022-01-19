@@ -1,11 +1,11 @@
 extern "C" {
 #include "value/value.h"
-#include "zai_sapi/zai_sapi.h"
+#include "tea/sapi.h"
 }
 
-#include "zai_sapi/testing/catch2.hpp"
+#include "tea/testing/catch2.hpp"
 
-ZAI_SAPI_TEST_CASE("value", "scalar", {
+TEA_TEST_CASE("value", "scalar", {
     zval *value;
 
     ZAI_VALUE_MAKE(value);
@@ -17,7 +17,7 @@ ZAI_SAPI_TEST_CASE("value", "scalar", {
     ZAI_VALUE_DTOR(value);
 })
 
-ZAI_SAPI_TEST_CASE("value", "string", {
+TEA_TEST_CASE("value", "string", {
     zval *value;
 
     ZAI_VALUE_MAKE(value);

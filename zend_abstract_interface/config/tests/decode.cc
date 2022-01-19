@@ -4,15 +4,15 @@ extern "C" {
 #include "config/config_decode.h"
 #include "ext_zai_config.h"
 #include "json/json.h"
-#include "zai_sapi/zai_sapi.h"
-#include "zai_sapi/zai_sapi_extension.h"
+#include "tea/sapi.h"
+#include "tea/extension.h"
 }
 
 #include "zai_tests_common.hpp"
 
 /************************* zai_config_decode_value() **************************/
 
-ZAI_SAPI_TEST_CASE("config/decode", "bool", {
+TEA_TEST_CASE("config/decode", "bool", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_BOOL;
@@ -62,7 +62,7 @@ typedef struct expected_double_s {
     double value;
 } expected_double;
 
-ZAI_SAPI_TEST_CASE("config/decode", "double", {
+TEA_TEST_CASE("config/decode", "double", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_DOUBLE;
@@ -114,7 +114,7 @@ typedef struct expected_int_s {
     int value;
 } expected_int;
 
-ZAI_SAPI_TEST_CASE("config/decode", "int", {
+TEA_TEST_CASE("config/decode", "int", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_INT;
@@ -167,7 +167,7 @@ typedef struct expected_map_s {
     const char *value[3];
 } expected_map;
 
-ZAI_SAPI_TEST_CASE("config/decode", "map", {
+TEA_TEST_CASE("config/decode", "map", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_MAP;
@@ -226,7 +226,7 @@ typedef struct expected_set_s {
 } expected_set;
 
 
-ZAI_SAPI_TEST_CASE("config/decode", "set", {
+TEA_TEST_CASE("config/decode", "set", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_SET;
@@ -275,14 +275,14 @@ ZAI_SAPI_TEST_CASE("config/decode", "set", {
 
 // we deliberately do not test the json implementation, but just the basic invocation and conversion to persistent
 // and also the handling of error cases
-ZAI_SAPI_TEST_CASE_BARE("config/decode", "json", {
+TEA_TEST_CASE_BARE("config/decode", "json", {
     zval value;
     bool ret;
     zai_config_type type = ZAI_CONFIG_TYPE_JSON;
 
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
     REQUIRE(zai_json_setup_bindings());
 
     // ---
@@ -308,8 +308,8 @@ ZAI_SAPI_TEST_CASE_BARE("config/decode", "json", {
 
     // ---
 
-    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
-    zai_sapi_spindown();
+    TEA_TEST_CASE_WITHOUT_BAILOUT_END()
+    tea_sapi_spindown();
 
     // execute after zend_MM free
     REQUIRE(ret == true);

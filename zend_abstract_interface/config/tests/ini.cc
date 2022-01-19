@@ -3,8 +3,8 @@ extern "C" {
 
 #include "config/config.h"
 #include "ext_zai_config.h"
-#include "zai_sapi/zai_sapi.h"
-#include "zai_sapi/zai_sapi_extension.h"
+#include "tea/sapi.h"
+#include "tea/extension.h"
 }
 
 #include "zai_tests_common.hpp"
@@ -47,16 +47,16 @@ static PHP_MINIT_FUNCTION(zai_config_ini) {
 #undef TEST_BODY
 #define TEST_BODY(ini, ...)    \
 {                              \
-    REQUIRE(zai_sapi_sinit()); \
-    ext_zai_config_ctor(&zai_sapi_extension, PHP_MINIT(zai_config_ini)); \
+    REQUIRE(tea_sapi_sinit()); \
+    ext_zai_config_ctor(PHP_MINIT(zai_config_ini)); \
     { ini }                    \
-    REQUIRE(zai_sapi_minit()); \
+    REQUIRE(tea_sapi_minit()); \
     { __VA_ARGS__ }            \
-    zai_sapi_mshutdown();      \
-    zai_sapi_sshutdown();      \
+    tea_sapi_mshutdown();      \
+    tea_sapi_sshutdown();      \
 }
 
-#define TEST_INI(description, ini, ...) ZAI_SAPI_TEST_CASE_BARE("config/ini", description, TEST_BODY(ini, __VA_ARGS__))
+#define TEST_INI(description, ini, ...) TEA_TEST_CASE_BARE("config/ini", description, TEST_BODY(ini, __VA_ARGS__))
 
 /********************* zai_config_get_value() (from INI) **********************/
 
@@ -108,7 +108,7 @@ TEST_INI("bool INI: default value", {}, {
 })
 
 TEST_INI("bool INI: system value", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_FOO_BOOL", "0"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_BOOL", "0"));
 }, {
     REQUEST_BEGIN()
 
@@ -146,7 +146,7 @@ TEST_INI("double INI: default value", {}, {
 })
 
 TEST_INI("double INI: system value", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_FOO_DOUBLE", "4.2"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_DOUBLE", "4.2"));
 }, {
     REQUEST_BEGIN()
 
@@ -186,7 +186,7 @@ TEST_INI("int INI: default value", {}, {
 })
 
 TEST_INI("int INI: system value", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_FOO_INT", "1337"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_INT", "1337"));
 }, {
     REQUEST_BEGIN()
 
@@ -228,7 +228,7 @@ TEST_INI("map INI: default value", {}, {
 })
 
 TEST_INI("map INI: system value", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_FOO_MAP", "type:system"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_MAP", "type:system"));
 }, {
     REQUEST_BEGIN()
 
@@ -270,7 +270,7 @@ TEST_INI("string INI: default value", {}, {
 })
 
 TEST_INI("string INI: system value", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_FOO_STRING", "system string"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_STRING", "system string"));
 }, {
     REQUEST_BEGIN()
 
@@ -333,7 +333,7 @@ TEST_INI("INI: invalid perdir value", {}, {
 /********************* zai_config_get_value() (ini aliases + env precendence) **********************/
 
 TEST_INI("env overrides system INI", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_STRING", "system string"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_STRING", "system string"));
 }, {
     REQUIRE_SETENV("INI_BAR_ALIASED_STRING_OLD", "1");
 
@@ -354,7 +354,7 @@ TEST_INI("env overrides system INI", {
 })
 
 TEST_INI("system INI reflected in all aliases", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_STRING", "system string"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_STRING", "system string"));
 }, {
     REQUEST_BEGIN()
 
@@ -375,7 +375,7 @@ TEST_INI("system INI reflected in all aliases", {
 })
 
 TEST_INI("runtime INI update reflected in all aliases", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_STRING", "system string"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_STRING", "system string"));
 }, {
     REQUEST_BEGIN()
 
@@ -446,7 +446,7 @@ void ini_perdir_set_int_alias() {
 }
 
 TEST_INI("perdir INI setting reflected in all aliases", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_INT", "0"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_INT", "0"));
 }, {
     ext_zai_config_pre_rinit = ini_perdir_set_int_alias;
 
@@ -481,7 +481,7 @@ void ini_perdir_set_invalid_int_alias() {
 }
 
 TEST_INI("invalid perdir INI setting ignored", {
-    REQUIRE(zai_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_INT", "0"));
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_INT", "0"));
 }, {
     ext_zai_config_pre_rinit = ini_perdir_set_invalid_int_alias;
 

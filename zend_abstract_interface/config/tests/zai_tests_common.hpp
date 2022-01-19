@@ -1,6 +1,6 @@
 #ifndef HAVE_ZAI_TESTS_COMMON_HPP
 #define HAVE_ZAI_TESTS_COMMON_HPP
-#include "zai_sapi/testing/catch2.hpp"
+#include "tea/testing/catch2.hpp"
 #include <cstdio>
 #include <cstring>
 
@@ -33,11 +33,11 @@ static PHP_MINIT_FUNCTION(zai_config_env) {
 
 #define ZAI_CONFIG_TEST_BODY(...)         \
 {                                         \
-    REQUIRE(zai_sapi_sinit());            \
-    ext_zai_config_ctor(&zai_sapi_extension, PHP_MINIT(zai_config_env)); \
-    REQUIRE(zai_sapi_minit());            \
+    REQUIRE(tea_sapi_sinit());            \
+    ext_zai_config_ctor(PHP_MINIT(zai_config_env)); \
+    REQUIRE(tea_sapi_minit());            \
     { __VA_ARGS__ }                       \
-    zai_sapi_mshutdown();                 \
-    zai_sapi_sshutdown();                 \
+    tea_sapi_mshutdown();                 \
+    tea_sapi_sshutdown();                 \
 }
 #endif

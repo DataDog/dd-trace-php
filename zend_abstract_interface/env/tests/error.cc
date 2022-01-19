@@ -1,13 +1,13 @@
 extern "C" {
 #include "env/env.h"
-#include "zai_sapi/zai_sapi.h"
-#include "zai_sapi/zai_sapi_extension.h"
+#include "tea/sapi.h"
+#include "tea/extension.h"
 }
 
 #include "zai_tests_common.hpp"
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/error", "NULL name", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/error", "NULL name", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_UNSETENV("FOO");
 
@@ -20,8 +20,8 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/error", "NULL name", {
     REQUIRE_BUF_EQ("", buf);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/error", "zero name len", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/error", "zero name len", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_UNSETENV("FOO");
 
@@ -32,8 +32,8 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/error", "zero name len", {
     REQUIRE_BUF_EQ("", buf);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/error", "NULL buffer", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/error", "NULL buffer", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_UNSETENV("FOO");
 
@@ -44,8 +44,8 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/error", "NULL buffer", {
     REQUIRE(res == ZAI_ENV_ERROR);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/error", "zero buffer size", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/error", "zero buffer size", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_UNSETENV("FOO");
 

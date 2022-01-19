@@ -1,5 +1,5 @@
 extern "C" {
-#include "zai_sapi/zai_sapi.h"
+#include "tea/sapi.h"
 #include "properties/properties.h"
 #include "functions/functions.h"
 }
@@ -8,13 +8,13 @@ extern "C" {
 #include <cstring>
 
 #define TEST(name, code) TEST_CASE(name, "[zai properties]") { \
-        REQUIRE(zai_sapi_spinup()); \
-        ZAI_SAPI_TSRMLS_FETCH(); \
-        ZAI_SAPI_ABORT_ON_BAILOUT_OPEN() \
-        REQUIRE(zai_sapi_execute_script("./stubs/classes.php")); \
+        REQUIRE(tea_sapi_spinup()); \
+        TEA_TSRMLS_FETCH(); \
+        TEA_ABORT_ON_BAILOUT_OPEN() \
+        REQUIRE(tea_execute_script("./stubs/classes.php" TEA_TSRMLS_CC)); \
         { code } \
-        ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE() \
-        zai_sapi_spindown(); \
+        TEA_ABORT_ON_BAILOUT_CLOSE() \
+        tea_sapi_spindown(); \
     }
 
 static inline bool zval_string_equals(zval *value, const char *str) {

@@ -2,7 +2,7 @@
 #define EXT_ZAI_CONFIG_H
 
 #include "config/config.h"
-#include "zai_sapi/zai_sapi.h"
+#include "tea/sapi.h"
 
 #define EXT_CFG_ENTRY(name, type, default) ZAI_CONFIG_ENTRY(EXT_CFG_##name, name, type, default)
 #define EXT_CFG_ALIASED_ENTRY(name, type, default, aliases) \
@@ -16,6 +16,6 @@ typedef zend_result (*ext_zai_config_minit_fn)(INIT_FUNC_ARGS);
 
 extern void (*ext_zai_config_pre_rinit)();
 
-void ext_zai_config_ctor(zend_module_entry *module, ext_zai_config_minit_fn orig_minit);
+void ext_zai_config_ctor(ext_zai_config_minit_fn orig_minit);
 
 #endif  // EXT_ZAI_CONFIG_H

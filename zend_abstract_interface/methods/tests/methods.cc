@@ -1,15 +1,18 @@
 extern "C" {
 #include "methods/methods.h"
-#include "zai_sapi/zai_sapi.h"
+#include "tea/sapi.h"
+#include "tea/frame.h"
+#include "tea/error.h"
+#include "tea/exceptions.h"
 }
 
 #include <catch2/catch.hpp>
 #include <cstring>
 #include <ext/spl/spl_dllist.h> // For 'SplDoublyLinkedList' class entry
 
-#define REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE()            \
-    REQUIRE(false == zai_sapi_unhandled_exception_exists()); \
-    REQUIRE(zai_sapi_last_error_is_empty())
+#define REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE()         \
+    REQUIRE(false == tea_exception_exists(TEA_TSRMLS_C)); \
+    REQUIRE(tea_error_is_empty(TEA_TSRMLS_C))
 
 #ifndef NDEBUG
 #define SKIP_TEST_IN_DEBUG_MODE "[.]"
@@ -67,123 +70,123 @@ static zval *zai_instantiate_object_from_ce(zend_class_entry *ce) {
 /************************** zai_class_lookup_literal() ************************/
 
 TEST_CASE("class lookup: (internal)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("spldoublylinkedlist");
 
     REQUIRE(ce == spl_ce_SplDoublyLinkedList);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("class lookup: (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
 
     REQUIRE(ce != NULL);
     REQUIRE(strcmp("Zai\\Methods\\Test", ce->name) == 0);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("class lookup: root-scope prefix", "[zai_methods]" SKIP_TEST_IN_DEBUG_MODE) {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("\\spldoublylinkedlist");
 
     REQUIRE(ce == NULL);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("class lookup: wrong case", "[zai_methods]" SKIP_TEST_IN_DEBUG_MODE) {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("SplDoublyLinkedList");
 
     REQUIRE(ce == NULL);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("class lookup: disable_classes INI", "[zai_methods]") {
-    REQUIRE(zai_sapi_sinit());
-    REQUIRE(zai_sapi_append_system_ini_entry("disable_classes", "SplDoublyLinkedList"));
-    REQUIRE((zai_sapi_minit() && zai_sapi_rinit()));
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_sinit());
+    REQUIRE(tea_sapi_append_system_ini_entry("disable_classes", "SplDoublyLinkedList"));
+    REQUIRE((tea_sapi_minit() && tea_sapi_rinit()));
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("spldoublylinkedlist");
     REQUIRE(ce == spl_ce_SplDoublyLinkedList);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
     zval *obj = zai_instantiate_object_from_ce(spl_ce_SplDoublyLinkedList);
-    REQUIRE(zai_sapi_last_error_eq(E_WARNING, "SplDoublyLinkedList() has been disabled for security reasons"));
+    REQUIRE(tea_error_eq(E_WARNING, "SplDoublyLinkedList() has been disabled for security reasons" TEA_TSRMLS_CC));
     zval_ptr_dtor(&obj);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("class lookup: outside of request context", "[zai_methods]") {
-    REQUIRE((zai_sapi_sinit() && zai_sapi_minit()));
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE((tea_sapi_sinit() && tea_sapi_minit()));
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("spldoublylinkedlist");
     REQUIRE(ce == spl_ce_SplDoublyLinkedList);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_mshutdown();
-    zai_sapi_sshutdown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_mshutdown();
+    tea_sapi_sshutdown();
 }
 
 TEST_CASE("class lookup: NULL class name", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_ex(NULL, 42 ZAI_TSRMLS_CC);
 
     REQUIRE(ce == NULL);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("class lookup: 0 class len", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_ex("spldoublylinkedlist", 0 ZAI_TSRMLS_CC);
 
     REQUIRE(ce == NULL);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 /************************* zai_call_method_literal() **************************/
 
 TEST_CASE("call method: (internal)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval *obj = zai_instantiate_object_from_ce(spl_ce_SplDoublyLinkedList);
     zval retzv = zval_used_for_init, *retval = &retzv;
@@ -197,14 +200,14 @@ TEST_CASE("call method: (internal)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: int args (internal)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("datetime");
     REQUIRE((ce != NULL && "ext/date required"));
@@ -228,16 +231,16 @@ TEST_CASE("call method: int args (internal)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -253,16 +256,16 @@ TEST_CASE("call method: (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: int args (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -282,16 +285,16 @@ TEST_CASE("call method: int args (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: string args (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -312,16 +315,16 @@ TEST_CASE("call method: string args (userland)", "[zai_methods]") {
     zval_dtor(&arg);
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: more than MAX_ARGS", "[zai_methods]" SKIP_TEST_IN_DEBUG_MODE) {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -340,14 +343,14 @@ TEST_CASE("call method: more than MAX_ARGS", "[zai_methods]" SKIP_TEST_IN_DEBUG_
     zval_dtor(&arg);
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: does not exist on object (internal)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval *obj = zai_instantiate_object_from_ce(spl_ce_SplDoublyLinkedList);
     zval retzv = zval_used_for_init, *retval = &retzv;
@@ -361,16 +364,16 @@ TEST_CASE("call method: does not exist on object (internal)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: does not exist on object (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -386,16 +389,16 @@ TEST_CASE("call method: does not exist on object (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: accesses $this (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -411,16 +414,16 @@ TEST_CASE("call method: accesses $this (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: throws exception (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/ExceptionTest.php"));
+    REQUIRE(tea_execute_script("./stubs/ExceptionTest.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\exceptiontest");
     REQUIRE(ce != NULL);
 
@@ -428,7 +431,7 @@ TEST_CASE("call method: throws exception (userland)", "[zai_methods]") {
      * bubbling all the way up and raising a fatal error (zend_bailout).
      */
     zend_execute_data fake_frame;
-    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
 
     zval *obj = zai_instantiate_object_from_ce(ce);
     zval retzv = zval_used_for_init, *retval = &retzv;
@@ -442,24 +445,24 @@ TEST_CASE("call method: throws exception (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    zai_sapi_fake_frame_pop(&fake_frame);
+    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: throws exception with active frame (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/ExceptionTest.php"));
+    REQUIRE(tea_execute_script("./stubs/ExceptionTest.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\exceptiontest");
     REQUIRE(ce != NULL);
 
     /* Simulate an active execution context. */
     zend_execute_data fake_frame;
-    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
 
     zval *obj = zai_instantiate_object_from_ce(ce);
     zval retzv = zval_used_for_init, *retval = &retzv;
@@ -473,16 +476,16 @@ TEST_CASE("call method: throws exception with active frame (userland)", "[zai_me
 
     zval_ptr_dtor(RETPTR);
 
-    zai_sapi_fake_frame_pop(&fake_frame);
+    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: non-object", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval *nonobj = NULL;
     MAKE_STD_ZVAL(nonobj);
@@ -499,14 +502,14 @@ TEST_CASE("call method: non-object", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: NULL object", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = zval_used_for_init, *retval = &retzv;
     // {NULL}::count()
@@ -518,14 +521,14 @@ TEST_CASE("call method: NULL object", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: NULL method name", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval *obj = zai_instantiate_object_from_ce(spl_ce_SplDoublyLinkedList);
     zval retzv = zval_used_for_init, *retval = &retzv;
@@ -539,14 +542,14 @@ TEST_CASE("call method: NULL method name", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: 0 len method name", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval *obj = zai_instantiate_object_from_ce(spl_ce_SplDoublyLinkedList);
     zval retzv = zval_used_for_init, *retval = &retzv;
@@ -560,14 +563,14 @@ TEST_CASE("call method: 0 len method name", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: static method (internal)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("datetime");
     REQUIRE((ce != NULL && "ext/date required"));
@@ -584,16 +587,16 @@ TEST_CASE("call method: static method (internal)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call method: static method (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -610,16 +613,16 @@ TEST_CASE("call method: static method (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 /********************** zai_call_static_method_literal() **********************/
 
 TEST_CASE("call static method: (internal)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("datetime");
     REQUIRE((ce != NULL && "ext/date required"));
@@ -634,16 +637,16 @@ TEST_CASE("call static method: (internal)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -658,16 +661,16 @@ TEST_CASE("call static method: (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: call method on retval (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -693,14 +696,14 @@ TEST_CASE("call static method: call method on retval (userland)", "[zai_methods]
     zval_ptr_dtor(&retval_true);
     zval_ptr_dtor(&retval_self);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: outside of request context", "[zai_methods]") {
-    REQUIRE((zai_sapi_sinit() && zai_sapi_minit()));
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE((tea_sapi_sinit() && tea_sapi_minit()));
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("datetime");
     REQUIRE((ce != NULL && "ext/date required"));
@@ -715,15 +718,15 @@ TEST_CASE("call static method: outside of request context", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_mshutdown();
-    zai_sapi_sshutdown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_mshutdown();
+    tea_sapi_sshutdown();
 }
 
 TEST_CASE("call static method: does not exist on class (internal)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zend_class_entry *ce = zai_class_lookup_literal("datetime");
     REQUIRE((ce != NULL && "ext/date required"));
@@ -738,16 +741,16 @@ TEST_CASE("call static method: does not exist on class (internal)", "[zai_method
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: does not exist on class (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -761,16 +764,16 @@ TEST_CASE("call static method: does not exist on class (userland)", "[zai_method
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: throws exception (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/ExceptionTest.php"));
+    REQUIRE(tea_execute_script("./stubs/ExceptionTest.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\exceptiontest");
     REQUIRE(ce != NULL);
 
@@ -778,7 +781,7 @@ TEST_CASE("call static method: throws exception (userland)", "[zai_methods]") {
      * bubbling all the way up and raising a fatal error (zend_bailout).
      */
     zend_execute_data fake_frame;
-    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
 
     zval *obj = zai_instantiate_object_from_ce(ce);
     zval retzv = zval_used_for_init, *retval = &retzv;
@@ -792,24 +795,24 @@ TEST_CASE("call static method: throws exception (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    zai_sapi_fake_frame_pop(&fake_frame);
+    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: throws exception with active frame (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/ExceptionTest.php"));
+    REQUIRE(tea_execute_script("./stubs/ExceptionTest.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\exceptiontest");
     REQUIRE(ce != NULL);
 
     /* Simulate an active execution context. */
     zend_execute_data fake_frame;
-    REQUIRE(zai_sapi_fake_frame_push(&fake_frame));
+    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
 
     zval *obj = zai_instantiate_object_from_ce(ce);
     zval retzv = zval_used_for_init, *retval = &retzv;
@@ -823,16 +826,16 @@ TEST_CASE("call static method: throws exception with active frame (userland)", "
 
     zval_ptr_dtor(RETPTR);
 
-    zai_sapi_fake_frame_pop(&fake_frame);
+    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: NULL ce", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = zval_used_for_init, *retval = &retzv;
     bool result = zai_call_static_method_literal(NULL, "count", RETPTR);
@@ -843,14 +846,14 @@ TEST_CASE("call static method: NULL ce", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: non-static method (internal)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
     zval retzv = zval_used_for_init, *retval = &retzv;
     /* This call will fail because SplDoublyLinkedList::count() is not marked
@@ -866,16 +869,16 @@ TEST_CASE("call static method: non-static method (internal)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: non-static method (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\test");
     REQUIRE(ce != NULL);
 
@@ -894,25 +897,25 @@ TEST_CASE("call static method: non-static method (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: non-static method that accesses $this (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
 
     zend_class_entry *ce;
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
-    REQUIRE(zai_sapi_execute_script("./stubs/Test.php"));
+    TEA_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_execute_script("./stubs/Test.php" TEA_TSRMLS_CC));
     ce = zai_class_lookup_literal("zai\\methods\\test");
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
+    TEA_ABORT_ON_BAILOUT_CLOSE()
     REQUIRE(ce != NULL);
 
     /* Since this call causes a fatal error, we expect the zend_bailout to
      * bubble up after closing the sandbox.
      */
-    ZAI_SAPI_BAILOUT_EXPECTED_OPEN()
+    TEA_BAILOUT_EXPECTED_OPEN()
     zval retzv = zval_used_for_init, *retval = &retzv;
     /* Although the compiler marks this non-static userland method
      * Zai\Methods\Test::usesThis() with ZEND_ACC_ALLOW_STATIC, the call will
@@ -921,19 +924,19 @@ TEST_CASE("call static method: non-static method that accesses $this (userland)"
      * https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_execute.c#L460-L506
      */
     (void)zai_call_static_method_literal(ce, "usesthis", RETPTR);
-    ZAI_SAPI_BAILOUT_EXPECTED_CLOSE()
+    TEA_BAILOUT_EXPECTED_CLOSE()
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-    zai_sapi_spindown();
+    tea_sapi_spindown();
 }
 
 TEST_CASE("call static method: abstract method (userland)", "[zai_methods]") {
-    REQUIRE(zai_sapi_spinup());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+    REQUIRE(tea_sapi_spinup());
+    TEA_TSRMLS_FETCH();
+    TEA_ABORT_ON_BAILOUT_OPEN()
 
-    REQUIRE(zai_sapi_execute_script("./stubs/AbstractTest.php"));
+    REQUIRE(tea_execute_script("./stubs/AbstractTest.php" TEA_TSRMLS_CC));
     zend_class_entry *ce = zai_class_lookup_literal("zai\\methods\\abstracttest");
     REQUIRE(ce != NULL);
 
@@ -947,6 +950,6 @@ TEST_CASE("call static method: abstract method (userland)", "[zai_methods]") {
 
     zval_ptr_dtor(RETPTR);
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    zai_sapi_spindown();
+    TEA_ABORT_ON_BAILOUT_CLOSE()
+    tea_sapi_spindown();
 }

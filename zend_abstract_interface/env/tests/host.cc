@@ -1,13 +1,13 @@
 extern "C" {
 #include "env/env.h"
-#include "zai_sapi/zai_sapi.h"
-#include "zai_sapi/zai_sapi_extension.h"
+#include "tea/sapi.h"
+#include "tea/extension.h"
 }
 
 #include "zai_tests_common.hpp"
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "non-empty string", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/host", "non-empty string", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_SETENV("FOO", "bar");
 
@@ -18,8 +18,8 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "non-empty string", {
     REQUIRE_BUF_EQ("bar", buf);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_SETENV("FOO", "");
 
@@ -30,8 +30,8 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
     REQUIRE_BUF_EQ("", buf);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "not set", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/host", "not set", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_UNSETENV("FOO");
 
@@ -42,8 +42,8 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "not set", {
     REQUIRE_BUF_EQ("", buf);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "max buffer size", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/host", "max buffer size", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_SETENV("FOO", "bar");
 
@@ -54,8 +54,8 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "max buffer size", {
     REQUIRE_BUF_EQ("bar", buf);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too small", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too small", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_SETENV("FOO", "bar");
 
@@ -66,8 +66,8 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too small", {
     REQUIRE_BUF_EQ("", buf);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too big", {
-    REQUIRE(zai_module.getenv == NULL);
+TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too big", {
+    REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_SETENV("FOO", "bar");
 
@@ -78,11 +78,11 @@ ZAI_SAPI_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too big", {
     REQUIRE_BUF_EQ("", buf);
 })
 
-ZAI_SAPI_TEST_CASE_BARE("env/host", "outside request context", {
-    REQUIRE(zai_sapi_sinit());
-    REQUIRE(zai_sapi_minit());
-    ZAI_SAPI_TSRMLS_FETCH();
-    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
+TEA_TEST_CASE_BARE("env/host", "outside request context", {
+    REQUIRE(tea_sapi_sinit());
+    REQUIRE(tea_sapi_minit());
+    TEA_TSRMLS_FETCH();
+    TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
     REQUIRE_SETENV("FOO", "bar");
 
@@ -92,7 +92,7 @@ ZAI_SAPI_TEST_CASE_BARE("env/host", "outside request context", {
     REQUIRE(res == ZAI_ENV_NOT_READY);
     REQUIRE_BUF_EQ("", buf);
 
-    ZAI_SAPI_TEST_CASE_WITHOUT_BAILOUT_END()
-    zai_sapi_mshutdown();
-    zai_sapi_sshutdown();
+    TEA_TEST_CASE_WITHOUT_BAILOUT_END()
+    tea_sapi_mshutdown();
+    tea_sapi_sshutdown();
 })
