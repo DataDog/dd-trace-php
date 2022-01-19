@@ -1,12 +1,9 @@
 extern "C" {
 #include "sandbox/sandbox.h"
-#include "tea/sapi.h"
 #include "tea/frame.h"
 #include "tea/error.h"
 #include "tea/exceptions.h"
 }
-
-#include <catch2/catch.hpp>
 
 #include "zai_tests_common.hpp"
 

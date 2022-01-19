@@ -1,6 +1,7 @@
 #ifndef HAVE_ZAI_TESTS_COMMON_HPP
 #define HAVE_ZAI_TESTS_COMMON_HPP
 #include "tea/testing/catch2.hpp"
+#include "tea/extension.h"
 #include <cstdio>
 #include <cstring>
 

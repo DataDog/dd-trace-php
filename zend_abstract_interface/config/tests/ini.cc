@@ -3,8 +3,6 @@ extern "C" {
 
 #include "config/config.h"
 #include "ext_zai_config.h"
-#include "tea/sapi.h"
-#include "tea/extension.h"
 }
 
 #include "zai_tests_common.hpp"
@@ -62,8 +60,8 @@ static PHP_MINIT_FUNCTION(zai_config_ini) {
 
 static bool zai_config_set_runtime_ini(const char *name, size_t name_len, const char *value, size_t value_len, int stage) {
 #if PHP_VERSION_ID < 70000
-    TSRMLS_FETCH();
-    return zend_alter_ini_entry_ex((char *) name, name_len + 1, (char *) value, value_len, PHP_INI_USER, stage, /* force_change */ 0 TSRMLS_CC) == SUCCESS;
+    TEA_TSRMLS_FETCH();
+    return zend_alter_ini_entry_ex((char *) name, name_len + 1, (char *) value, value_len, PHP_INI_USER, stage, /* force_change */ 0 TEA_TSRMLS_CC) == SUCCESS;
 #else
     zend_string *zs_name = zend_string_init(name, name_len, /* persistent */ 0);
     zend_string *zs_value = zend_string_init(value, value_len, /* persistent */ 0);

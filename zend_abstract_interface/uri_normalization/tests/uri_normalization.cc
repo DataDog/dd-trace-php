@@ -1,7 +1,5 @@
 extern "C" {
 #include "uri_normalization/uri_normalization.h"
-#include "tea/sapi.h"
-#include "tea/extension.h"
 }
 
 #include "tea/testing/catch2.hpp"

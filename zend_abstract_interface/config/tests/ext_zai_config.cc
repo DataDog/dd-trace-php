@@ -1,8 +1,6 @@
 extern "C" {
 #include "ext_zai_config.h"
-
 #include "config/config.h"
-#include "tea/sapi.h"
 #include "tea/extension.h"
 }
 

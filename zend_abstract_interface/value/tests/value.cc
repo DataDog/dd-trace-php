@@ -1,6 +1,5 @@
 extern "C" {
 #include "value/value.h"
-#include "tea/sapi.h"
 }
 
 #include "tea/testing/catch2.hpp"
