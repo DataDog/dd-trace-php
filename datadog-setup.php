@@ -13,10 +13,15 @@ const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
 const OPT_FILE = 'file';
-const OPT_URL = 'url';
-const OPT_VERSION = 'version';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
+
+// Release version is set while generating the final release files
+const RELEASE_VERSION = '@release_version@';
+
+// Supported platforms
+const PLATFORM_X86_LINUX_GNU = 'x86_64-linux-gnu';
+const PLATFORM_X86_LINUX_MUSL = 'x86_64-linux-musl';
 
 function main()
 {
@@ -38,18 +43,15 @@ function print_help()
 
 Usage:
     Interactive
-        php get-dd-trace.php --version x.y.z ...
+        php get-dd-trace.php x.y.z ...
     Non-Interactive
-        php get-dd-trace.php --version x.y.z --php-bin php ...
-        php get-dd-trace.php --version x.y.z --php-bin php --php-bin /usr/local/sbin/php-fpm ...
+        php get-dd-trace.php x.y.z --php-bin php ...
+        php get-dd-trace.php x.y.z --php-bin php --php-bin /usr/local/sbin/php-fpm ...
 
 Options:
     -h, --help                  Print this help text and exit
     --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search
                                 paths. The option can be provided multiple times.
-    --version <0.1.2>           Install a specific version. If set --url and --file are ignored.
-    --url <url>                 Install the tracing library from a url. If set --file is ignored.
-    --file <file>               Install the tracing library from a local .tar.gz file.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
     --enable-profiling          Enable the BETA profiling module.
@@ -59,7 +61,7 @@ EOD;
 
 function install($options)
 {
-    $platform = is_alpine() ? 'musl' : 'gnu';
+    $platform = is_alpine() ? PLATFORM_X86_LINUX_MUSL : PLATFORM_X86_LINUX_GNU;
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
@@ -73,12 +75,15 @@ function install($options)
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-install';
-    $tmpDirTarGz = $tmpDir . "/dd-library-php-x86_64-linux-$platform.tar.gz";
+    $tmpDirTarGz = $tmpDir . "/dd-library-php-{$platform}.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
+    register_shutdown_function(function () use ($tmpDir) {
+        execute_or_exit("Cannot remove temporary directory '$tmpDir'", "rm -rf " . escapeshellarg($tmpDir));
+    });
     execute_or_exit(
         "Cannot clean '$tmpDir'",
         "rm -rf " . escapeshellarg($tmpDir) . "/* "
@@ -86,13 +91,13 @@ function install($options)
 
     // Retrieve and extract the archive to a tmp location
     if (isset($options[OPT_FILE])) {
+        print_warning('--' . OPT_FILE . ' option is intended for internal usage and can be removed without notice');
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
-        $url = isset($options[OPT_URL])
-            ? $options[OPT_URL]
-            : "https://github.com/DataDog/dd-trace-php/releases/download/" .
-                $options[OPT_VERSION] . "/dd-library-php-x86_64-linux-$platform.tar.gz";
+        $version = RELEASE_VERSION;
+        $url = "https://github.com/DataDog/dd-trace-php/releases/download/{$version}/dd-library-php-{$platform}.tar.gz";
         download($url, $tmpDirTarGz);
+        unset($version);
     }
     execute_or_exit(
         "Cannot extract the archive",
@@ -426,8 +431,6 @@ function parse_validate_user_options()
         OPT_HELP,
         OPT_PHP_BIN . ':',
         OPT_FILE . ':',
-        OPT_URL . ':',
-        OPT_VERSION . ':',
         OPT_INSTALL_DIR . ':',
         OPT_UNINSTALL,
         OPT_ENABLE_PROFILING,
@@ -445,22 +448,7 @@ function parse_validate_user_options()
     $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]) ? true : false;
 
     if (!$normalizedOptions[OPT_UNINSTALL]) {
-        // One and only one among --version, --url and --file must be provided
-        $installables = array_intersect([OPT_VERSION, OPT_URL, OPT_FILE], array_keys($options));
-        if (count($installables) !== 1) {
-            print_error_and_exit('One and only one among --version, --url and --file must be provided', true);
-        }
-        if (isset($options[OPT_VERSION])) {
-            if (is_array($options[OPT_VERSION])) {
-                print_error_and_exit('Only one --version can be provided', true);
-            }
-            $normalizedOptions[OPT_VERSION] = $options[OPT_VERSION];
-        } elseif (isset($options[OPT_URL])) {
-            if (is_array($options[OPT_URL])) {
-                print_error_and_exit('Only one --url can be provided', true);
-            }
-            $normalizedOptions[OPT_URL] = $options[OPT_URL];
-        } elseif (isset($options[OPT_FILE])) {
+        if (isset($options[OPT_FILE])) {
             if (is_array($options[OPT_FILE])) {
                 print_error_and_exit('Only one --file can be provided', true);
             }

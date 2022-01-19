@@ -16,7 +16,8 @@ ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
-VERSION:=$(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
+VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
+PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0/datadog-profiling.tar.gz
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -385,7 +386,10 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR) \
-		https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0-rc.6/datadog-profiling.tar.gz
+		$(PROFILING_RELEASE_URL)
+	bash ./tooling/bin/generate-installers.sh \
+		$(VERSION) \
+		$(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \

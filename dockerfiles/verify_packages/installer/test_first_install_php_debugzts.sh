@@ -4,6 +4,9 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
+# Fixing permissions, as this test is run in our own custom image using circleci as the executor
+sudo chmod a+w ./build/packages/*
+
 switch-php debug-zts-asan
 
 # Initially no ddtrace
@@ -11,9 +14,10 @@ assert_no_ddtrace
 
 # Install using the php installer
 new_version="0.68.0"
+generate_installers "${new_version}"
 
 set +e
-output=$(php dd-library-php-setup.php --php-bin php --enable-profiling --version "${new_version}")
+output=$(php ./build/packages/datadog-setup.php --php-bin php --enable-profiling)
 exit_status=$?
 set -e
 

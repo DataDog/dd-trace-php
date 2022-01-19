@@ -951,6 +951,11 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
+          # In order to hard-code the proper version required in tests, we need to regenerate the 'released' installer
+          # scripts which are saved to build/packages
+          name: Let testing images to write to build/packages dir
+          command: chmod a+w build/packages
+      - run:
           name: Run tests
           command: make -C dockerfiles/verify_packages test_installer
 

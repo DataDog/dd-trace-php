@@ -12,12 +12,13 @@ ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
 # Install using the php installer
 new_version="0.68.0"
-php dd-library-php-setup.php --php-bin php --enable-profiling --version "${new_version}"
+generate_installers "${new_version}"
+php ./build/packages/datadog-setup.php --php-bin php --enable-profiling
 assert_ddtrace_version "${new_version}"
 assert_profiler_version "0.3.0"
 
 # Uninstall
-php dd-library-php-setup.php --php-bin php --uninstall
+php ./build/packages/datadog-setup.php --php-bin php --uninstall
 assert_no_ddtrace
 assert_no_profiler
 

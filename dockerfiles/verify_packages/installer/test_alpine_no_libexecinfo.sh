@@ -9,9 +9,10 @@ assert_no_ddtrace
 
 # Install using the php installer
 new_version="0.68.0"
+generate_installers "${new_version}"
 
 set +e
-output=$(php dd-library-php-setup.php --php-bin php --version "${new_version}")
+output=$(php ./build/packages/datadog-setup.php --php-bin php)
 exit_status=$?
 set -e
 

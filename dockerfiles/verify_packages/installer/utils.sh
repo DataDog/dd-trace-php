@@ -89,3 +89,8 @@ get_php_conf_dir() {
 get_php_extension_dir() {
     php -i | grep -i '^extension_dir' | awk '{print $NF}'
 }
+
+generate_installers() {
+    version="${1}"
+    sh $(pwd)/tooling/bin/generate-installers.sh ${version} $(pwd)/build/packages
+}

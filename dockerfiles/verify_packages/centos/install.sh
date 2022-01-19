@@ -44,7 +44,7 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
     rpm -ivh $(pwd)/build/packages/*.rpm
 else
     echo "Installing dd-trace-php using the new PHP installer"
-    php dd-library-php-setup.php --file $(pwd)/build/packages/dd-library-php-x86_64-linux-gnu.tar.gz --php-bin all
+    php datadog-setup.php --file $(pwd)/build/packages/dd-library-php-x86_64-linux-gnu.tar.gz --php-bin all
 fi
 
 # Starting services
