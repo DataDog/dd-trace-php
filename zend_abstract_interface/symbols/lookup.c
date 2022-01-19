@@ -95,7 +95,7 @@ static inline zai_string_view zai_symbol_lookup_key(zai_string_view *namespace, 
             CHAR_AT(c) = tolower(CHAR_AT(c));
         }
 
-        memcpy(&CHAR_AT(vns.len), "\\", 1);
+        CHAR_AT(vns.len) = '\\';
         memcpy(&CHAR_AT(vns.len + 1), vn.ptr, vn.len);
     } else {
         rv.len = vn.len;
@@ -306,7 +306,7 @@ static inline zval* zai_symbol_lookup_property_impl(
             zend_object *obj = Z_OBJ_P((zval*) scope);
 #endif
 
-            void *property = zai_symbol_lookup_table(obj->properties, *name, false, false ZAI_TSRMLS_CC);
+            zval *property = (zval*) zai_symbol_lookup_table(obj->properties, *name, false, false ZAI_TSRMLS_CC);
 
 #if PHP_VERSION_ID < 70000
             if (!property) {
@@ -317,7 +317,7 @@ static inline zval* zai_symbol_lookup_property_impl(
 #else
             ZVAL_DEREF(property);
 
-            return (zval*) property;
+            return property;
 #endif
         }
         return NULL;
