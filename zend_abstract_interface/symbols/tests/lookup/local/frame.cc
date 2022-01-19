@@ -1,10 +1,7 @@
 extern "C" {
 #include "value/value.h"
 #include "symbols/symbols.h"
-#include "zai_sapi/zai_sapi.h"
-#include "zai_sapi/zai_sapi_extension.h"
-
-#include "zai_compat.h"
+#include "tea/extension.h"
 
 static zval* ddtrace_testing_frame_result;
 
@@ -25,7 +22,7 @@ static PHP_FUNCTION(ddtrace_testing_frame_intercept) {
     zval* result = (zval*) zai_symbol_lookup(
         ZAI_SYMBOL_TYPE_LOCAL,
         ZAI_SYMBOL_SCOPE_FRAME,
-        frame, &name ZAI_TSRMLS_CC);
+        frame, &name TEA_TSRMLS_CC);
 
     ZAI_VALUE_COPY(ddtrace_testing_frame_result, result);
 
@@ -36,34 +33,21 @@ static zend_function_entry ddtrace_testing_frame_extension_functions[] = {
     PHP_FE(ddtrace_testing_frame_intercept, ddtrace_testing_frame_intercept_arginfo)
     PHP_FE_END
 };
-
-static zend_module_entry ddtrace_testing_frame_extension = {
-    STANDARD_MODULE_HEADER,
-    "DDTraceTestingSymbolsLocalFrame",
-    ddtrace_testing_frame_extension_functions,  // Functions
-    NULL,  // MINIT
-    NULL,  // MSHUTDOWN
-    NULL,  // RINIT
-    NULL,  // RSHUTDOWN
-    NULL,  // Info function
-    PHP_VERSION,
-    STANDARD_MODULE_PROPERTIES
-};
 // clang-format on
 }
 
-#include "zai_sapi/testing/catch2.hpp"
+#include "tea/testing/catch2.hpp"
 #include <cstdlib>
 #include <cstring>
 
-ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "scalar", "./stubs/lookup/local/frame/Stub.php", {
-    zai_module.php_ini_ignore = 1;
-    zai_sapi_extension = ddtrace_testing_frame_extension;
+TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "scalar", "./stubs/lookup/local/frame/Stub.php", {
+    tea_sapi_module.php_ini_ignore = 1;
+    tea_extension_functions(ddtrace_testing_frame_extension_functions);
 },{
     zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
     zai_string_view cn = ZAI_STRL_VIEW("Stub");
 
-    zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn ZAI_TSRMLS_CC);
+    zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn TEA_TSRMLS_CC);
 
     REQUIRE(ce);
 
@@ -77,9 +61,9 @@ ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "scalar"
     ZAI_VALUE_INIT(result);
 
     zai_string_view name = ZAI_STRL_VIEW("scalar");
-    zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
+    zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name TEA_TSRMLS_CC);
 
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result ZAI_TSRMLS_CC, 0));
+    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result TEA_TSRMLS_CC, 0));
 
     REQUIRE(Z_TYPE_P(ddtrace_testing_frame_result) == IS_LONG);
 
@@ -87,14 +71,14 @@ ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "scalar"
     ZAI_VALUE_DTOR(ddtrace_testing_frame_result);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "refcounted", "./stubs/lookup/local/frame/Stub.php", {
-    zai_module.php_ini_ignore = 1;
-    zai_sapi_extension = ddtrace_testing_frame_extension;
+TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "refcounted", "./stubs/lookup/local/frame/Stub.php", {
+    tea_sapi_module.php_ini_ignore = 1;
+    tea_extension_functions(ddtrace_testing_frame_extension_functions);
 },{
     zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
     zai_string_view cn = ZAI_STRL_VIEW("Stub");
 
-    zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn ZAI_TSRMLS_CC);
+    zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn TEA_TSRMLS_CC);
 
     REQUIRE(ce);
 
@@ -108,9 +92,9 @@ ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "refcoun
     ZAI_VALUE_INIT(result);
 
     zai_string_view name = ZAI_STRL_VIEW("refcounted");
-    zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
+    zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name TEA_TSRMLS_CC);
 
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result ZAI_TSRMLS_CC, 0));
+    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result TEA_TSRMLS_CC, 0));
 
     REQUIRE(Z_TYPE_P(ddtrace_testing_frame_result) == IS_OBJECT);
 
@@ -118,14 +102,14 @@ ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "refcoun
     ZAI_VALUE_DTOR(ddtrace_testing_frame_result);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "reference", "./stubs/lookup/local/frame/Stub.php", {
-    zai_module.php_ini_ignore = 1;
-    zai_sapi_extension = ddtrace_testing_frame_extension;
+TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "reference", "./stubs/lookup/local/frame/Stub.php", {
+    tea_sapi_module.php_ini_ignore = 1;
+    tea_extension_functions(ddtrace_testing_frame_extension_functions);
 },{
     zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
     zai_string_view cn = ZAI_STRL_VIEW("Stub");
 
-    zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn ZAI_TSRMLS_CC);
+    zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn TEA_TSRMLS_CC);
 
     REQUIRE(ce);
 
@@ -139,9 +123,9 @@ ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "referen
     ZAI_VALUE_INIT(result);
 
     zai_string_view name = ZAI_STRL_VIEW("reference");
-    zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
+    zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name TEA_TSRMLS_CC);
 
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result ZAI_TSRMLS_CC, 0));
+    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result TEA_TSRMLS_CC, 0));
 
     REQUIRE(Z_TYPE_P(ddtrace_testing_frame_result) == IS_OBJECT);
 
@@ -149,14 +133,14 @@ ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "referen
     ZAI_VALUE_DTOR(ddtrace_testing_frame_result);
 })
 
-ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "param", "./stubs/lookup/local/frame/Stub.php", {
-    zai_module.php_ini_ignore = 1;
-    zai_sapi_extension = ddtrace_testing_frame_extension;
+TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "param", "./stubs/lookup/local/frame/Stub.php", {
+    tea_sapi_module.php_ini_ignore = 1;
+    tea_extension_functions(ddtrace_testing_frame_extension_functions);
 },{
     zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
     zai_string_view cn = ZAI_STRL_VIEW("Stub");
 
-    zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn ZAI_TSRMLS_CC);
+    zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn TEA_TSRMLS_CC);
 
     REQUIRE(ce);
 
@@ -175,9 +159,9 @@ ZAI_SAPI_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "param",
     ZVAL_LONG(param, 42);
 
     zai_string_view name = ZAI_STRL_VIEW("param");
-    zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
+    zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name TEA_TSRMLS_CC);
 
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result ZAI_TSRMLS_CC, 1, &param));
+    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result TEA_TSRMLS_CC, 1, &param));
 
     REQUIRE(Z_TYPE_P(ddtrace_testing_frame_result) == IS_LONG);
 

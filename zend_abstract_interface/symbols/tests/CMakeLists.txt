@@ -13,7 +13,7 @@ add_executable(symbols
     api/property.cc
     api/call.cc)
 
-target_link_libraries(symbols PUBLIC catch2_main ZaiSapi::ZaiSapi Zai::Value Zai::Symbols)
+target_link_libraries(symbols PUBLIC catch2_main Tea::Tea Zai::Value Zai::Symbols)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/stubs
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
