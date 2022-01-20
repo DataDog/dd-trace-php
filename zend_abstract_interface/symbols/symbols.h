@@ -67,6 +67,8 @@ typedef enum {
     ZAI_SYMBOL_FUNCTION_KNOWN,
     /* The function parameter is zai_string_view* */
     ZAI_SYMBOL_FUNCTION_NAMED,
+    /* The function parameter is zval* Z_TYPE_P IS_OBJECT, instanceof zend_ce_closure */
+    ZAI_SYMBOL_FUNCTION_CLOSURE,
 } zai_symbol_function_t;
 
 bool zai_symbol_call_impl(
