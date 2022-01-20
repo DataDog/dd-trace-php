@@ -81,21 +81,24 @@ cp -v \
 tmp_folder_appsec="$tmp_folder/appsec"
 tmp_folder_appsec_nondebug="$tmp_folder_appsec/nondebug"
 tmp_folder_appsec_debug="$tmp_folder_appsec/debug"
-rm -rf "$tmp_folder_appsec"
-mkdir -p "$tmp_folder_appsec_debug" "$tmp_folder_appsec_nondebug"
 tmp_folder_final_gnu_appsec=$tmp_folder_final_gnu/dd-library-php/appsec
 tmp_folder_final_musl_appsec=$tmp_folder_final_musl/dd-library-php/appsec
 
-# Non debug
+# Starting from a clean directory
+rm -rf "$tmp_folder_appsec"
+mkdir -p "$tmp_folder_appsec_debug" "$tmp_folder_appsec_nondebug"
+
+# Downloading Non debug archive
 tmp_folder_appsec_archive_nondebug="$tmp_folder/appsec/nondebug.tar.gz"
 curl -L --output "$tmp_folder_appsec_archive_nondebug" "$appsec_url_nondebug"
 tar -xf "$tmp_folder_appsec_archive_nondebug" -C $tmp_folder_appsec_nondebug
 
-# Debug
+# Downloading Debug archive
 tmp_folder_appsec_archive_debug="$tmp_folder/appsec/debug.tar.gz"
 curl -L --output "$tmp_folder_appsec_archive_debug" "$appsec_url_debug"
 tar -xf "$tmp_folder_appsec_archive_debug" -C $tmp_folder_appsec_debug
 
+# Extensions
 php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902);
 for php_api in "${php_apis[@]}"; do
     mkdir -p \
@@ -104,28 +107,56 @@ for php_api in "${php_apis[@]}"; do
 
     # Appsec does not differentiate between gnu and musl
     #    non-zts
-    cp "$tmp_folder_appsec_nondebug/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so" "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec.so"
-    cp "$tmp_folder_appsec_nondebug/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so" "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec.so"
-    cp "$tmp_folder_appsec_debug/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so.debug" "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-debug.so"
-    cp "$tmp_folder_appsec_debug/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so.debug" "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-debug.so"
+    cp \
+        "$tmp_folder_appsec_nondebug/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so" \
+        "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec.so"
+    cp \
+        "$tmp_folder_appsec_nondebug/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so" \
+        "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec.so"
+    cp \
+        "$tmp_folder_appsec_debug/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so.debug" \
+        "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-debug.so"
+    cp \
+        "$tmp_folder_appsec_debug/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so.debug" \
+        "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-debug.so"
     #    zts
-    cp "$tmp_folder_appsec_nondebug/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so" "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-zts.so"
-    cp "$tmp_folder_appsec_nondebug/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so" "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts.so"
-    cp "$tmp_folder_appsec_debug/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so.debug" "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-zts-debug.so"
-    cp "$tmp_folder_appsec_debug/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so.debug" "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts-debug.so"
+    cp \
+        "$tmp_folder_appsec_nondebug/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so" \
+        "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-zts.so"
+    cp \
+        "$tmp_folder_appsec_nondebug/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so" \
+        "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts.so"
+    cp \
+        "$tmp_folder_appsec_debug/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so.debug" \
+        "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-zts-debug.so"
+    cp \
+        "$tmp_folder_appsec_debug/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so.debug" \
+        "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts-debug.so"
 done
 
 # Helper
 mkdir -p "${tmp_folder_final_gnu_appsec}/bin" "${tmp_folder_final_musl_appsec}/bin"
-cp "$tmp_folder_appsec_nondebug/dd-appsec-php/bin/ddappsec-helper" "${tmp_folder_final_gnu_appsec}/bin/ddappsec-helper"
-cp "$tmp_folder_appsec_nondebug/dd-appsec-php/bin/ddappsec-helper" "${tmp_folder_final_musl_appsec}/bin/ddappsec-helper"
-cp "$tmp_folder_appsec_debug/dd-appsec-php/bin/ddappsec-helper.debug" "${tmp_folder_final_gnu_appsec}/bin/ddappsec-helper.debug"
-cp "$tmp_folder_appsec_debug/dd-appsec-php/bin/ddappsec-helper.debug" "${tmp_folder_final_musl_appsec}/bin/ddappsec-helper.debug"
+cp \
+    "$tmp_folder_appsec_nondebug/dd-appsec-php/bin/ddappsec-helper" \
+    "${tmp_folder_final_gnu_appsec}/bin/ddappsec-helper"
+cp \
+    "$tmp_folder_appsec_nondebug/dd-appsec-php/bin/ddappsec-helper" \
+    "${tmp_folder_final_musl_appsec}/bin/ddappsec-helper"
+cp \
+    "$tmp_folder_appsec_debug/dd-appsec-php/bin/ddappsec-helper.debug" \
+    "${tmp_folder_final_gnu_appsec}/bin/ddappsec-helper.debug"
+cp \
+    "$tmp_folder_appsec_debug/dd-appsec-php/bin/ddappsec-helper.debug" \
+    "${tmp_folder_final_musl_appsec}/bin/ddappsec-helper.debug"
 
 # Recommended rules
 mkdir -p "${tmp_folder_final_gnu_appsec}/etc" "${tmp_folder_final_musl_appsec}/etc"
-cp "$tmp_folder_appsec_nondebug/dd-appsec-php/etc/dd-appsec/recommended.json" "${tmp_folder_final_gnu_appsec}/etc/recommended.json"
-cp "$tmp_folder_appsec_nondebug/dd-appsec-php/etc/dd-appsec/recommended.json" "${tmp_folder_final_musl_appsec}/etc/recommended.json"
+cp \
+    "$tmp_folder_appsec_nondebug/dd-appsec-php/etc/dd-appsec/recommended.json" \
+    "${tmp_folder_final_gnu_appsec}/etc/recommended.json"
+cp \
+    "$tmp_folder_appsec_nondebug/dd-appsec-php/etc/dd-appsec/recommended.json" \
+    "${tmp_folder_final_musl_appsec}/etc/recommended.json"
 
 ########################
 # Final archives
