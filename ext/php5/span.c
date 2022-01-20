@@ -211,6 +211,11 @@ void ddtrace_drop_top_open_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
+
+    if (DDTRACE_G(open_spans_top) == NULL) {
+        DDTRACE_G(root_span) = NULL;
+    }
+
     zend_objects_store_del_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
 }
 

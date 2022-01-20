@@ -206,6 +206,11 @@ void ddtrace_drop_top_open_span(void) {
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id();
+
+    if (DDTRACE_G(open_spans_top) == NULL) {
+        DDTRACE_G(root_span) = NULL;
+    }
+
     OBJ_RELEASE(&span_fci->span.std);
 }
 
