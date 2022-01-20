@@ -18,6 +18,8 @@ PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0/datadog-profiling.tar.gz
+APPSEC_RELEASE_NONDEBUG_URL := https://github.com/labbati/test-actions/releases/download/appsec/dd-appsec-php-0.1.0-amd64.tar.gz
+APPSEC_RELEASE_DEBUG_URL := https://github.com/labbati/test-actions/releases/download/appsec/dd-appsec-php-0.1.0-amd64-debug.tar.gz
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -386,7 +388,9 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR) \
-		$(PROFILING_RELEASE_URL)
+		$(PROFILING_RELEASE_URL) \
+		$(APPSEC_RELEASE_NONDEBUG_URL) \
+		$(APPSEC_RELEASE_DEBUG_URL)
 	bash ./tooling/bin/generate-installers.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
