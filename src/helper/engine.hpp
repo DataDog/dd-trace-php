@@ -5,8 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #ifndef ENGINE_HPP
 #define ENGINE_HPP
+#include "client_settings.hpp"
 #include "config.hpp"
 #include "parameter.hpp"
+#include "rate_limit.hpp"
 #include "result.hpp"
 #include "subscriber/base.hpp"
 #include <iostream>
@@ -30,8 +32,6 @@ namespace dds {
  *    - subscription: the mapping between an address and a subscriber.
  **/
 class engine : std::enable_shared_from_this<engine> {
-    engine() = default;
-
 public:
     using subscription_map =
         std::map<std::string_view, std::vector<subscriber::ptr>>;
@@ -41,8 +41,8 @@ public:
     // store a shared_ptr to the engine
     class context {
     public:
-        explicit context(const engine &engine)
-            : subscriptions_(engine.subscriptions_)
+        explicit context(engine &engine)
+            : subscriptions_(engine.subscriptions_), limiter_(engine.limiter_)
         {}
         context(const context &) = delete;
         context &operator=(const context &) = delete;
@@ -56,15 +56,23 @@ public:
         std::vector<parameter> prev_published_params_;
         std::map<subscriber::ptr, subscriber::listener::ptr> listeners_;
         const subscription_map &subscriptions_;
+        rate_limiter &limiter_;
     };
 
-    static auto create() { return std::shared_ptr<engine>(new engine()); }
+    static auto create(
+        uint32_t trace_rate_limit = client_settings::default_trace_rate_limit)
+    {
+        return std::shared_ptr<engine>(new engine(trace_rate_limit));
+    }
 
     context get_context() { return context{*this}; }
     void subscribe(const subscriber::ptr &sub);
 
 protected:
+    explicit engine(uint32_t trace_rate_limit) : limiter_(trace_rate_limit) {}
+
     subscription_map subscriptions_;
+    rate_limiter limiter_;
 };
 
 } // namespace dds

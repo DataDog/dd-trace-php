@@ -31,8 +31,7 @@ std::shared_ptr<engine> engine_pool::create_engine(
     }
 
     // no cache hit
-
-    std::shared_ptr engine_ptr{engine::create()};
+    std::shared_ptr engine_ptr{engine::create(settings.trace_rate_limit)};
     auto &&rules_path = settings.rules_file_or_default();
     try {
         SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);

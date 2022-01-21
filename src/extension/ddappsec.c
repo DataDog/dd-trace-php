@@ -258,6 +258,7 @@ __thread void *unspecnull TSRMLS_CACHE = NULL;
 
 static ZEND_INI_MH(_on_update_appsec_enabled);
 static ZEND_INI_MH(_on_update_appsec_enabled_on_cli);
+static ZEND_INI_MH(_on_update_unsigned);
 
 static void _register_ini_entries()
 {
@@ -268,6 +269,7 @@ static void _register_ini_entries()
         DD_INI_ENV_GLOB("block", "0", PHP_INI_SYSTEM, OnUpdateBool, block, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("rules_path", "", PHP_INI_SYSTEM, OnUpdateString, rules_file, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("waf_timeout", "10", PHP_INI_SYSTEM, OnUpdateLongGEZero, waf_timeout_ms, zend_ddappsec_globals, ddappsec_globals),
+        DD_INI_ENV_GLOB("trace_rate_limit", "100", PHP_INI_SYSTEM, _on_update_unsigned, trace_rate_limit, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("extra_headers", "", PHP_INI_SYSTEM, OnUpdateString, extra_headers, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("testing", "0", PHP_INI_SYSTEM, OnUpdateBool, testing, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("testing_abort_rinit", "0", PHP_INI_SYSTEM, OnUpdateBool, testing_abort_rinit, zend_ddappsec_globals, ddappsec_globals),
@@ -306,6 +308,32 @@ static ZEND_INI_MH(_on_update_appsec_enabled_on_cli)
 
     bool bvalue = (bool)zend_ini_parse_bool(new_value);
     DDAPPSEC_NOCACHE_G(enabled) = bvalue;
+    return SUCCESS;
+}
+
+static ZEND_INI_MH(_on_update_unsigned)
+{
+    ZEND_INI_MH_UNUSED();
+
+    char *endptr = NULL;
+#define BASE 10
+    long ini_value = strtol(ZSTR_VAL(new_value), &endptr, BASE);
+
+    // If there is any error parsing, don't set the value.
+    if (endptr == ZSTR_VAL(new_value) || *endptr != '\0') {
+        return FAILURE;
+    }
+
+    if (ini_value < 0) {
+        // If we have a negative value, assume the rate limit is disabled
+        ini_value = 0;
+    } else if (ini_value > UINT32_MAX) {
+        // Limit the value to 32 bit max
+        ini_value = UINT32_MAX;
+    }
+
+    unsigned *val = &DDAPPSEC_NOCACHE_G(trace_rate_limit);
+    *val = ini_value;
     return SUCCESS;
 }
 

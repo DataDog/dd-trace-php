@@ -39,7 +39,7 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, PHP_DDAPPSEC_VERSION);
     dd_mpack_write_lstr(w, PHP_VERSION);
 
-    mpack_start_map(w, 2);
+    mpack_start_map(w, 3);
     {
         dd_mpack_write_lstr(w, "rules_file");
         const char *rules_file = DDAPPSEC_G(rules_file);
@@ -54,6 +54,9 @@ static dd_result _pack_command(
     }
     dd_mpack_write_lstr(w, "waf_timeout_ms");
     mpack_write(w, (uint64_t)DDAPPSEC_G(waf_timeout_ms));
+
+    dd_mpack_write_lstr(w, "trace_rate_limit");
+    mpack_write(w, (uint32_t)DDAPPSEC_G(trace_rate_limit));
     mpack_finish_map(w);
 
     return dd_success;

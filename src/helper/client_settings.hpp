@@ -19,9 +19,11 @@ namespace dds {
  * possibly when creating the subscriber listeners on every request */
 struct client_settings {
     static constexpr int default_waf_timeout_ms = 10;
+    static constexpr int default_trace_rate_limit = 100;
 
     std::string rules_file;
     std::uint64_t waf_timeout_ms = default_waf_timeout_ms;
+    std::uint32_t trace_rate_limit = default_trace_rate_limit;
 
     static const std::string &default_rules_file();
 
@@ -34,18 +36,20 @@ struct client_settings {
         return rules_file;
     }
 
-    MSGPACK_DEFINE_MAP(rules_file, waf_timeout_ms);
+    MSGPACK_DEFINE_MAP(rules_file, waf_timeout_ms, trace_rate_limit);
 
     bool operator==(const client_settings &oth) const noexcept
     {
         return rules_file == oth.rules_file &&
-               waf_timeout_ms == oth.waf_timeout_ms;
+               waf_timeout_ms == oth.waf_timeout_ms &&
+               trace_rate_limit == oth.trace_rate_limit;
     }
 
     friend auto &operator<<(std::ostream &os, const client_settings &c)
     {
         return os << "{rules_file=" << c.rules_file
-                  << ", waf_timeout_ms=" << c.waf_timeout_ms << "}";
+                  << ", waf_timeout_ms=" << c.waf_timeout_ms
+                  << ", trace_rate_limit=" << c.trace_rate_limit << "}";
     }
 
     struct settings_hash {
@@ -53,7 +57,9 @@ struct client_settings {
         {
             auto h1 = std::hash<decltype(rules_file)>{}(s.rules_file);
             auto h2 = std::hash<decltype(waf_timeout_ms)>{}(s.waf_timeout_ms);
-            return h1 ^ h2;
+            auto h3 =
+                std::hash<decltype(trace_rate_limit)>{}(s.trace_rate_limit);
+            return h1 ^ h2 ^ h3;
         }
     };
 };

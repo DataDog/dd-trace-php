@@ -76,6 +76,10 @@ result engine::context::publish(parameter &&param)
         }
     }
 
+    if (res.value != result::code::ok && !limiter_.allow()) {
+        return result{result::code::ok};
+    }
+
     return res;
 }
 
