@@ -274,8 +274,10 @@ static zend_object_value ddtrace_span_data_clone_obj(zval *old_zv TSRMLS_DC) {
 }
 
 static void ddtrace_span_data_readonly(zval *object, zval *member, zval *value, const zend_literal *key TSRMLS_DC) {
-    if ((Z_TYPE_P(member) == IS_STRING) && (Z_STRLEN_P(member) == sizeof("parent") - 1) &&
-        (SUCCESS == memcmp(Z_STRVAL_P(member), "parent", sizeof("parent") - 1))) {
+    if (Z_TYPE_P(member) == IS_STRING &&
+        ((Z_STRLEN_P(member) == sizeof("parent") - 1 &&
+          SUCCESS == memcmp(Z_STRVAL_P(member), "parent", sizeof("parent") - 1)) ||
+         (Z_STRLEN_P(member) == sizeof("id") - 1 && SUCCESS == memcmp(Z_STRVAL_P(member), "id", sizeof("id") - 1)))) {
         zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Cannot modify readonly property %s::$%s", Z_OBJCE_P(object)->name,
                                 Z_STRVAL_P(member));
         return;
@@ -328,6 +330,7 @@ static void dd_register_span_data_ce(TSRMLS_D) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "id", sizeof("id") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static zval *OBJ_PROP_NUM(zend_object *obj, uint32_t offset) {
@@ -391,8 +394,9 @@ zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
 zval **ddtrace_spandata_property_exception_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 6); }
 // SpanData::$parent
-zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 7); }
 zval **ddtrace_spandata_property_parent_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 7); }
+// SpanData::$id
+zval **ddtrace_spandata_property_id_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 8); }
 
 static zend_object_handlers ddtrace_fatal_error_handlers;
 /* The goal is to mimic zend_default_exception_new_ex except for adding
@@ -1736,6 +1740,16 @@ static PHP_FUNCTION(current_context) {
         add_assoc_stringl_ex(return_value, "env", sizeof("env"), (char *)env.ptr, env.len, 1);
     } else {
         add_assoc_null_ex(return_value, "env", sizeof("env"));
+    }
+
+    if (DDTRACE_G(dd_origin)) {
+        add_assoc_string_ex(return_value, ZEND_STRS("distributed_tracing_origin"), DDTRACE_G(dd_origin), 1);
+    }
+
+    if (DDTRACE_G(distributed_parent_trace_id)) {
+        char *parent_id;
+        spprintf(&parent_id, DD_TRACE_MAX_ID_LEN, "%" PRIu64, DDTRACE_G(distributed_parent_trace_id));
+        add_assoc_string_ex(return_value, ZEND_STRS("distributed_tracing_parent_id"), parent_id, 0);
     }
 }
 

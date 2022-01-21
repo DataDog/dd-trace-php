@@ -22,7 +22,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (6) {
+object(DDTrace\SpanData)#%d (7) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -39,8 +39,10 @@ object(DDTrace\SpanData)#%d (6) {
   ["metrics"]=>
   array(0) {
   }
+  ["id"]=>
+  string(%d) "%d"
 }
-object(DDTrace\SpanData)#%d (6) {
+object(DDTrace\SpanData)#%d (7) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -57,6 +59,8 @@ object(DDTrace\SpanData)#%d (6) {
   ["metrics"]=>
   array(0) {
   }
+  ["id"]=>
+  string(%d) "%d"
 }
 array(1) {
   [0]=>

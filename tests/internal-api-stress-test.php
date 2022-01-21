@@ -89,7 +89,7 @@ function runOneIteration()
     $props = array_filter(
         (new ReflectionClass('DDTrace\SpanData'))->getProperties(),
         function ($p) {
-            return $p->name != "parent";
+            return $p->name != "parent" && $p->name != "id";
         }
     );
 

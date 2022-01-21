@@ -9,7 +9,7 @@ use DDTrace\Type;
     $span->type = Type::CLI;
 
     $span->meta['extracted_trace_id'] = \DDTrace\trace_id();
-    $span->meta['extracted_span_id'] = \dd_trace_peek_span_id();
+    $span->meta['extracted_span_id'] = \DDTrace\active_span()->id;
 });
 
 \DDTrace\trace_function('internal_span', function (SpanData $span) {
@@ -17,7 +17,7 @@ use DDTrace\Type;
     $span->type = Type::CLI;
 
     $span->meta['extracted_trace_id'] = \DDTrace\trace_id();
-    $span->meta['extracted_span_id'] = \dd_trace_peek_span_id();
+    $span->meta['extracted_span_id'] = \DDTrace\active_span()->id;
 });
 
 function internal_span()

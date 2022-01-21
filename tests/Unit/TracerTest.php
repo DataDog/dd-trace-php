@@ -34,6 +34,7 @@ final class TracerTest extends BaseTestCase
 
     protected function ddTearDown()
     {
+        \dd_trace_serialize_closed_spans();
         parent::ddTearDown();
         self::putenv('DD_TRACE_REPORT_HOSTNAME');
         self::putenv('DD_AUTOFINISH_SPANS');
@@ -166,6 +167,8 @@ final class TracerTest extends BaseTestCase
 
     public function testPrioritySamplingInheritedFromDistributedTracingContext()
     {
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+
         $distributedTracingContext = new SpanContext('', '', '', [], true);
         $distributedTracingContext->setPropagatedPrioritySampling(PrioritySampling::USER_REJECT);
         $tracer = new Tracer(new DebugTransport());
@@ -175,13 +178,19 @@ final class TracerTest extends BaseTestCase
         // We need to flush as priority sampling is lazily evaluated at inject time or flush time.
         $tracer->flush();
         $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
+
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
 
     public function testSpanStartedAtRootCanBeAccessedLater()
     {
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
         $this->assertSame($scope, $tracer->getRootScope());
+
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
 
     public function testFlushAddsHostnameToRootSpanWhenEnabled()
@@ -219,9 +228,6 @@ final class TracerTest extends BaseTestCase
     {
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
         dd_trace_internal_fn('ddtrace_reload_config');
-
-        // Clear existing internal spans
-        \dd_trace_serialize_closed_spans();
 
         \DDTrace\trace_function(__NAMESPACE__ . '\\baz', function () {
             // Do nothing

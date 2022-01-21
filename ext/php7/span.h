@@ -17,7 +17,7 @@ struct ddtrace_dispatch_t;
 
 struct ddtrace_span_t {
     zend_object std;
-    zval properties_table_placeholder[7];
+    zval properties_table_placeholder[8];
     uint64_t trace_id;
     uint64_t parent_id;
     uint64_t span_id;

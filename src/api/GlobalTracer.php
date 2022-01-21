@@ -46,10 +46,7 @@ final class GlobalTracer
         // Ensure that, when trying to use the legacy API, our Tracer is also loaded
         if (\extension_loaded('ddtrace') && function_exists('ddtrace_legacy_tracer_autoloading_possible')) {
             /** @phpstan-ignore-next-line */
-            Bootstrap::tracerOnce();
-            if (null !== self::$instance) {
-                return self::$instance;
-            }
+            return self::$instance = new Tracer();
         }
 
         return self::$instance = NoopTracer::create();

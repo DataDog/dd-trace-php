@@ -9,6 +9,7 @@ use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer;
 use DDTrace\SpanContext;
 
+/** @deprecated Obsoleted by moving related code to internal. */
 final class TextMap implements Propagator
 {
     use LoggingTrait;

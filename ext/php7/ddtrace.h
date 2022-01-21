@@ -58,6 +58,7 @@ static inline zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) {
 static inline zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 7);
 }
+static inline zval *ddtrace_spandata_property_id(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 8); }
 #pragma GCC diagnostic pop
 
 bool ddtrace_tracer_is_limited(void);
