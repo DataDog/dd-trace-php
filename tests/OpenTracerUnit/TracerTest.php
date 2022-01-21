@@ -203,6 +203,8 @@ final class TracerTest extends BaseTestCase
 
     public function testOTSpanContextAsParent()
     {
+        $this->markTestIncomplete("We currently do not support setting trace id from custom distributed tracing");
+
         GlobalTracer::set(Tracer::make());
 
         $tracer = GlobalTracer::get();

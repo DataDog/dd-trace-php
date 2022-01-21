@@ -418,6 +418,8 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span) {
         }
     }
     ZEND_HASH_FOREACH_END();
+
+    ZVAL_STR(ddtrace_spandata_property_id(span), zend_strpprintf(DD_TRACE_MAX_ID_LEN, "%" PRIu64, span->span_id));
 }
 
 static const char *dd_get_req_uri() {

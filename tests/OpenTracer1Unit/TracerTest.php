@@ -198,6 +198,8 @@ final class TracerTest extends BaseTestCase
 
     public function testOTSpanContextAsParent()
     {
+        $this->markTestIncomplete("We currently do not support setting trace id from custom distributed tracing");
+
         GlobalTracer::set(Tracer::make());
 
         $tracer = GlobalTracer::get();
@@ -292,8 +294,6 @@ JSON;
 
     public function testUnfinishedSpansAreNotSentOnFlush()
     {
-        dd_trace_serialize_closed_spans();
-
         $transport = new DebugTransport();
         $tracer = Tracer::make($transport);
         $tracer->startActiveSpan('root');

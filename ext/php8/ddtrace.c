@@ -263,7 +263,7 @@ static void ddtrace_span_data_free_storage(zend_object *object) {
 }
 
 static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member, zval *value, void **cache_slot) {
-    if (zend_string_equals_literal(member, "parent")) {
+    if (zend_string_equals_literal(member, "parent") || zend_string_equals_literal(member, "id")) {
         zend_throw_error(zend_ce_error, "Cannot modify readonly property %s::$%s", ZSTR_VAL(object->ce->name),
                          ZSTR_VAL(member));
         return &EG(uninitialized_zval);
@@ -322,6 +322,7 @@ static void dd_register_span_data_ce(void) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(ddtrace_ce_span_data, "id", sizeof("id") - 1, ZEND_ACC_PUBLIC);
 }
 
 /* DDTrace\FatalError */
@@ -1566,6 +1567,15 @@ static PHP_FUNCTION(current_context) {
         ZVAL_NULL(&zv);
     }
     add_assoc_zval_ex(return_value, ZEND_STRL("env"), &zv);
+
+    if (DDTRACE_G(dd_origin)) {
+        add_assoc_str_ex(return_value, ZEND_STRL("distributed_tracing_origin"), zend_string_copy(DDTRACE_G(dd_origin)));
+    }
+
+    if (DDTRACE_G(distributed_parent_trace_id)) {
+        add_assoc_str_ex(return_value, ZEND_STRL("distributed_tracing_parent_id"),
+                         zend_strpprintf(DD_TRACE_MAX_ID_LEN, "%" PRIu64, DDTRACE_G(distributed_parent_trace_id)));
+    }
 }
 
 /* {{{ proto string dd_trace_closed_spans_count() */
