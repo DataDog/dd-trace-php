@@ -313,21 +313,6 @@ TEA_TEST_CASE("sandbox/error", "fatal error with existing error (userland)", {
     REQUIRE(tea_error_eq(E_NOTICE, "Original non-fatal error" TEA_TSRMLS_CC));
 })
 
-TEA_TEST_CASE("sandbox/error", "non-fatal error (userland)", {
-    zai_sandbox sandbox;
-    zai_sandbox_open(&sandbox);
-
-    TEA_TEST_CODE_WITHOUT_BAILOUT({
-        tea_execute_script("./stubs/trigger_error_E_NOTICE.php" TEA_TSRMLS_CC);
-    });
-
-    REQUIRE(tea_error_eq(E_NOTICE, "My E_NOTICE" TEA_TSRMLS_CC));
-
-    zai_sandbox_close(&sandbox);
-
-    REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
-})
-
 TEA_TEST_CASE("sandbox/error", "non-fatal error with existing error (userland)", {
     TEA_TEST_CODE_WITHOUT_BAILOUT({
         zend_error(E_WARNING, "Original non-fatal error");
