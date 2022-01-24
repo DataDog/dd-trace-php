@@ -21,11 +21,18 @@ PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/downloa
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
+RUN_TESTS_IS_PARALLEL := $(shell test $(shell php-config --vernum) -gt 70399 && echo 1 || echo 0)
+
+ifeq ($(RUN_TESTS_IS_PARALLEL), 1)
+RUN_TESTS_EXTRA_ARGS := -j$(shell nproc)
+else
 RUN_TESTS_EXTRA_ARGS :=
+endif
+
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -68,7 +75,7 @@ $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure)
 
 $(SO_FILE): $(C_FILES) $(BUILD_DIR)/Makefile
-	$(Q) $(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
+	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)"
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
@@ -245,7 +252,7 @@ build_zai_asan: install_tea_asan
 		-DPHP_CONFIG=$(shell which php-config) \
 	$(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) clean $(MAKEFLAGS); \
-	$(MAKE) $(MAKEFLAGS); \
+	$(MAKE) -j $(MAKEFLAGS); \
 	)
 
 test_zai_asan: build_zai_asan
