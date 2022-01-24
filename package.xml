@@ -49,25 +49,16 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    **Breaking changes**:
-    * Query string is now not included in `http.url` in Nette integration and in generic web frameworks tracing.
+    ### Breaking changes
+    - Query string is now not included in `http.url` in Nette integration and in generic web frameworks tracing.
 
     ### Added
     - Implement x-datadog-tag propagation and _dd.p.upstream_services #1405
-    - Implement ZAI Value interface #1453
-    - Implement ZAI SAPI test harness (catch2) #1455
-    - Implement ZAI SAPI test fixture (catch2) #1458
-    - Refactor ZAI SAPI into Tea SAPI, brings various improvements #1462
-    - Implement ZAI Symbols interface #1452
-    - Address Sanitizer check for ZAI SAPI - 1459
 
     ### Changed
-    - ZAI methods on PHP 5: Args and retval #1401
-    - Move ZAI SAPI to root directory #1411 #1443
     - Get rid of ini-ignoring and redundant checking of ddtrace being enabled #1448
     - Strip query string from http.url in generic web tracing #1454
     - Use internal root spans in Integrations in place of using the legacy API #1383
-    - Migrate ZAI tests to use ZAI SAPI harness #1457
     - Hard-code version in installer, remove --url option, rename it #1463
     - Remove generator support on PHP 7 #1464
 
@@ -75,7 +66,18 @@
     - Ensure a proper sampling decision is also evaluated when distributed tracing is used #1450
     - Fix ObjectKVStore compatibility with throwing autoloaders #1451
     - Properly report error for artisan command in Laravel 7+ #1456 (thank you @ls-paul-julien-vauthier)
-    - Fix ZaiSapi_ROOT path in Makefile (#1443)
+
+    ### Internal changes
+    - Migrate ZAI tests to use ZAI SAPI harness #1457
+    - Move ZAI SAPI to root directory #1411 #1443
+    - ZAI methods on PHP 5: Args and retval #1401
+    - Implement ZAI Value interface #1453
+    - Implement ZAI SAPI test harness (catch2) #1455
+    - Implement ZAI SAPI test fixture (catch2) #1458
+    - Refactor ZAI SAPI into Tea SAPI, brings various improvements #1462
+    - Implement ZAI Symbols interface #1452
+    - Address Sanitizer check for ZAI SAPI - 1459
+    - Fix ZaiSapi_ROOT path in Makefile #1443
     </notes>
     <contents>
         <dir name="/">
