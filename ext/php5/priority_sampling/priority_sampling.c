@@ -5,6 +5,7 @@
 #include <ext/pcre/php_pcre.h>
 #include <ext/standard/base64.h>
 
+#include "../compat_string.h"
 #include "../configuration.h"
 #include "../span.h"
 
@@ -45,12 +46,17 @@ static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci
 
     zval *service = ddtrace_spandata_property_service(&deciding_span->span);
 
+    zval service_string;
+    ddtrace_convert_to_string(&service_string, service TSRMLS_CC);
+
     int b64_servicename_length = 0;
     unsigned char *b64_servicename =
-        php_base64_encode((unsigned char *)Z_STRVAL_P(service), Z_STRLEN_P(service), &b64_servicename_length);
+        php_base64_encode((unsigned char *)Z_STRVAL(service_string), Z_STRLEN(service_string), &b64_servicename_length);
     while (b64_servicename_length > 0 && b64_servicename[b64_servicename_length - 1] == '=') {
         b64_servicename[--b64_servicename_length] = 0;  // remove padding
     }
+
+    zval_dtor(&service_string);
 
     char sampling_rate[7] = {0};
     zval *metrics = ddtrace_spandata_property_metrics(&span->span), **sample_rate;
