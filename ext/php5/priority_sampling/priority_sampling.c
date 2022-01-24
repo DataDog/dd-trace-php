@@ -51,8 +51,8 @@ static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci
     ddtrace_convert_to_string(service_string, service TSRMLS_CC);
 
     int b64_servicename_length = 0;
-    unsigned char *b64_servicename =
-        php_base64_encode((unsigned char *)Z_STRVAL_P(service_string), Z_STRLEN_P(service_string), &b64_servicename_length);
+    unsigned char *b64_servicename = php_base64_encode((unsigned char *)Z_STRVAL_P(service_string),
+                                                       Z_STRLEN_P(service_string), &b64_servicename_length);
     while (b64_servicename_length > 0 && b64_servicename[b64_servicename_length - 1] == '=') {
         b64_servicename[--b64_servicename_length] = 0;  // remove padding
     }
