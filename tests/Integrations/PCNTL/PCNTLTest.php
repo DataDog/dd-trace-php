@@ -63,6 +63,7 @@ final class PCNTLTest extends IntegrationTestCase
             [__DIR__ . '/scripts/short-running-multiple-nested.php'],
             [__DIR__ . '/scripts/long-running-autoflush.php'],
             [__DIR__ . '/scripts/long-running-manual-flush.php'],
+            [__DIR__ . '/scripts/access-tracer-after-fork.php'],
         ];
     }
 
@@ -78,6 +79,25 @@ final class PCNTLTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('synthetic.php'),
+        ]);
+    }
+
+    public function testAccessingTracerAfterForkIsUnproblematic()
+    {
+        list($output, $traces) = $this->inCliWithOutput(
+            __DIR__ . '/scripts/access-tracer-after-fork.php',
+            [
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
+            ]
+        );
+
+        $this->assertSame("", $output);
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('access-tracer-after-fork.php')->withChildren(
+                SpanAssertion::exists('parent')
+            ),
         ]);
     }
 
