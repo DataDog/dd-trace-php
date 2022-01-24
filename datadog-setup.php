@@ -217,13 +217,18 @@ function install($options)
             add_missing_ini_settings($iniFilePath, get_ini_settings($installDirWrapperPath));
 
             // Enabling profiling
-            if ($shouldInstallProfiling && is_truthy($options[OPT_ENABLE_PROFILING])) {
+            if (is_truthy($options[OPT_ENABLE_PROFILING])) {
                 // phpcs:disable Generic.Files.LineLength.TooLong
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' "
-                        . escapeshellarg($iniFilePath)
-                );
+                if ($shouldInstallProfiling) {
+                    execute_or_exit(
+                        'Impossible to update the INI settings file.',
+                        "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' "
+                            . escapeshellarg($iniFilePath)
+                    );
+                } else {
+                    $enable_profiling = OPT_ENABLE_PROFILING;
+                    print_error_and_exit("Option --{$enable_profiling} was provided, but it is not supported on this PHP build or version.\n");
+                }
                 // phpcs:enable Generic.Files.LineLength.TooLong
             }
 
