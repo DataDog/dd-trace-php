@@ -23,26 +23,6 @@
  *
  */
 
-#if PHP_VERSION_ID >= 50400
-#define ZAI_SYMBOL_CALL_ZE2
-#endif
-
-#if PHP_VERSION_ID >= 70000
-#define ZAI_SYMBOL_CALL_ZE3
-#endif
-
-#if PHP_VERSION_ID >= 80000
-#define ZAI_SYMBOL_CALL_ZE4
-#endif
-
-#if defined(ZEND_MAP_PTR_INIT)
-#define ZAI_SYMBOL_CALL_MAP
-#endif
-
-#if PHP_VERSION_ID < 70300
-#define ZAI_SYMBOL_CALL_FCC_INITIALIZE
-#endif
-
 /* {{{ private arena code */
 typedef struct {
     char *base;
@@ -60,13 +40,13 @@ static inline void zai_symbol_call_arena_create(zai_symbol_call_arena_t *arena, 
     if (fbc->type == ZEND_USER_FUNCTION) {
         zai_symbol_call_arena_size += ZEND_MM_ALIGNED_SIZE(sizeof(zend_op_array));
 
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
         zai_symbol_call_arena_size += ZEND_MM_ALIGNED_SIZE(fbc->op_array.cache_size);
-#elif defined(ZAI_SYMBOL_CALL_ZE2)
+#elif PHP_VERSION_ID >= 50400
         zai_symbol_call_arena_size += ZEND_MM_ALIGNED_SIZE(fbc->op_array.last_cache_slot * sizeof(void *));
 #endif
 
-#if defined(ZAI_SYMBOL_CALL_MAP)
+#if PHP_VERSION_ID >= 70400
         zai_symbol_call_arena_size += ZEND_MM_ALIGNED_SIZE(sizeof(void *));
 #endif
     } else {
@@ -76,7 +56,7 @@ static inline void zai_symbol_call_arena_create(zai_symbol_call_arena_t *arena, 
     }
 
     if (argc) {
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
         zai_symbol_call_arena_size += ZEND_MM_ALIGNED_SIZE(sizeof(zval) * argc);
 #else
         zai_symbol_call_arena_size += ZEND_MM_ALIGNED_SIZE(sizeof(zval **) * argc);
@@ -123,7 +103,7 @@ static inline void zai_symbol_call_arena_release(zai_symbol_call_arena_t *arena)
 /* {{{ private call code */
 static inline void zai_symbol_call_argv(zai_symbol_call_arena_t *arena, zend_fcall_info *fci, uint32_t argc,
                                         va_list *args) {
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
     size_t zai_symbol_call_argv_size = sizeof(zval) * argc;
 #else
     size_t zai_symbol_call_argv_size = sizeof(zval **) * argc;
@@ -134,7 +114,7 @@ static inline void zai_symbol_call_argv(zai_symbol_call_arena_t *arena, zend_fca
     for (uint32_t arg = 0; arg < argc; arg++) {
         zval **param = va_arg(*args, zval **);
 
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
         ZVAL_COPY_VALUE(&fci->params[arg], *param);
 #else
         fci->params[arg] = param;
@@ -154,11 +134,9 @@ static inline zend_function *zai_symbol_call_init_internal(zai_symbol_call_arena
 
     memcpy(allocated, function, sizeof(zend_internal_function));
 
-#if defined(ZEND_ACC_NEVER_CACHE)
     /* should this function ever find it's way to an
         INIT, it would be terrible if it were cached */
     allocated->fn_flags |= ZEND_ACC_NEVER_CACHE;
-#endif
 
     /* scope this copied function */
     allocated->scope = scope;
@@ -170,13 +148,13 @@ static inline zend_function *zai_symbol_call_init_user(zai_symbol_call_arena_t *
                                                        zend_class_entry *scope) {
     size_t zai_symbol_call_init_size = sizeof(zend_op_array);
 
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
     zai_symbol_call_init_size += ops->cache_size;
-#elif defined(ZAI_SYMBOL_CALL_ZE2)
+#elif PHP_VERSION_ID >= 50400
     zai_symbol_call_init_size += ops->last_cache_slot * sizeof(void *);
 #endif
 
-#if defined(ZAI_SYMBOL_CALL_MAP)
+#if PHP_VERSION_ID >= 70400
     zai_symbol_call_init_size += sizeof(void *);
 #endif
 
@@ -184,11 +162,11 @@ static inline zend_function *zai_symbol_call_init_user(zai_symbol_call_arena_t *
 
     memcpy(allocated, ops, sizeof(zend_op_array));
 
-#if defined(ZAI_SYMBOL_CALL_ZE2)
+#if PHP_VERSION_ID >= 50400
     /* get run time cache address */
     void *rtc = (void **)(allocated + 1);
 
-#if defined(ZAI_SYMBOL_CALL_MAP)
+#if PHP_VERSION_ID >= 70400
     /* initialize cache address ptr, uses sizeof(void*) */
     ZEND_MAP_PTR_INIT(allocated->run_time_cache, rtc);
 
@@ -197,37 +175,33 @@ static inline zend_function *zai_symbol_call_init_user(zai_symbol_call_arena_t *
 
     /* map cache address */
     ZEND_MAP_PTR_SET(allocated->run_time_cache, rtc);
+
+    /* the cache is on the heap, however, we are going to free it */
+    allocated->fn_flags &= ~ZEND_ACC_HEAP_RT_CACHE;
 #else
     /* set cache address */
     allocated->run_time_cache = rtc;
-#endif
+#endif /* if PHP_VERSION_ID >= 70400 */
 
     /* zero run time cache */
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
     memset(rtc, 0, allocated->cache_size);
 #else
     memset(rtc, 0, allocated->last_cache_slot * sizeof(void *));
-#endif
+#endif /* if PHP_VERSION_ID >= 70000 */
 
-#endif /* if defined(ZAI_SYMBOL_CALL_ZE2) */
+#endif /* if PHP_VERSION_ID >= 50400 */
 
-    /* the cache is on the heap, however, we are going to free it */
-#if defined(ZEND_ACC_HEAP_RT_CACHE)
-    allocated->fn_flags &= ~ZEND_ACC_HEAP_RT_CACHE;
-#endif
-
-#if defined(ZEND_ACC_IMMUTABLE)
+#if PHP_VERSION_ID >= 70300
     allocated->fn_flags &= ~ZEND_ACC_IMMUTABLE;
 #endif
 
     /* no longer a real closure object */
     allocated->fn_flags &= ~ZEND_ACC_CLOSURE;
 
-#if defined(ZEND_ACC_NEVER_CACHE)
     /* should this function ever find it's way to an
         INIT, it would be terrible if it were cached */
     allocated->fn_flags |= ZEND_ACC_NEVER_CACHE;
-#endif
 
     /* scope this copied function */
     allocated->scope = scope;
@@ -256,13 +230,13 @@ bool zai_symbol_call_impl(
     zend_fcall_info_cache fcc = empty_fcall_info_cache;
 
     fci.size = sizeof(zend_fcall_info);
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
     fci.retval = *rv;
 #else
     fci.retval_ptr_ptr = rv;
 #endif
 
-#if defined(ZAI_SYMBOL_CALL_FCC_INITIALIZE)
+#if PHP_VERSION_ID < 70300
     fcc.initialized = 1;
 #endif
 
@@ -273,7 +247,7 @@ bool zai_symbol_call_impl(
 
         case ZAI_SYMBOL_SCOPE_OBJECT: {
             fcc.called_scope = Z_OBJCE_P((zval *)scope);
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
             fci.object = fcc.object = Z_OBJ_P((zval *)scope);
 #else
             fci.object_ptr = fcc.object_ptr = (zval *)scope;
@@ -305,7 +279,7 @@ bool zai_symbol_call_impl(
             break;
 
         case ZAI_SYMBOL_FUNCTION_CLOSURE:
-#if defined(ZAI_SYMBOL_CALL_ZE4)
+#if PHP_VERSION_ID >= 80000
             fcc.function_handler = (zend_function *)zend_get_closure_method_def(Z_OBJ_P((zval *)function));
 #else
             fcc.function_handler = (zend_function *)zend_get_closure_method_def((zval *)function ZAI_TSRMLS_CC);
@@ -316,7 +290,7 @@ bool zai_symbol_call_impl(
 
                 if (object && Z_TYPE_P(object) == IS_OBJECT) {
                     fcc.called_scope = Z_OBJCE_P(object);
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
                     fci.object = fcc.object = Z_OBJ_P(object);
 #else
                     fci.object_ptr = fcc.object_ptr = object;
@@ -411,7 +385,7 @@ bool zai_symbol_new(zval *zv, zend_class_entry *ce ZAI_TSRMLS_DC, uint32_t argc,
             argc, &args);
         // clang-format on
 
-#if defined(ZAI_SYMBOL_CALL_ZE3)
+#if PHP_VERSION_ID >= 70000
         zval_ptr_dtor(rv);
 #else
         zval_ptr_dtor(&rv);
