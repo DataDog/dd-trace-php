@@ -69,7 +69,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliShortRunningTracingWhenEnabled()
     {
-        $traces = $this->inCli(
+        list($traces) = $this->inCli(
             __DIR__ . '/scripts/synthetic.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -84,12 +84,15 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testAccessingTracerAfterForkIsUnproblematic()
     {
-        list($output, $traces) = $this->inCliWithOutput(
+        list($traces, $output) = $this->inCli(
             __DIR__ . '/scripts/access-tracer-after-fork.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ]
+            ],
+            [],
+            "",
+            true
         );
 
         $this->assertSame("", $output);
@@ -103,7 +106,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliShortRunningMainSpanAreGenerateBeforeAndAfter()
     {
-        $traces = $this->inCli(
+        list($traces) = $this->inCli(
             __DIR__ . '/scripts/short-running.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -122,7 +125,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliShortRunningMultipleForks()
     {
-        $traces = $this->inCli(
+        list($traces) = $this->inCli(
             __DIR__ . '/scripts/short-running-multiple.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -145,7 +148,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliShortRunningMultipleNestedForks()
     {
-        $traces = $this->inCli(
+        list($traces) = $this->inCli(
             __DIR__ . '/scripts/short-running-multiple-nested.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',

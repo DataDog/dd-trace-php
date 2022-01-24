@@ -175,23 +175,15 @@ trait TracerTestTrait
     /**
      * This method executes a single script with the provided configuration.
      */
-    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '')
+    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false)
     {
         $this->resetRequestDumper();
-        $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments);
-        return $this->parseTracesFromDumpedData();
-    }
-
-    /**
-     * This method executes a single script with the provided configuration.
-     */
-    public function inCliWithOutput($scriptPath, $customEnvs = [], $customInis = [], $arguments = '')
-    {
-        $this->resetRequestDumper();
-        return [
-            $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, true),
-            $this->parseTracesFromDumpedData(),
-        ];
+        $output = $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, $withOutput);
+        $out = [$this->parseTracesFromDumpedData()];
+        if ($withOutput) {
+            $out[] = $output;
+        }
+        return $out;
     }
 
     public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false)
