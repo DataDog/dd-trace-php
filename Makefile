@@ -153,75 +153,90 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	)
 
 build_tea:
+	$(Q) test -f $(TEA_BUILD_DIR)/.built || \
 	( \
-	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
-	cd $(TEA_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 \
-	cmake \
-		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-		-DPHP_CONFIG=$(shell which php-config) \
-	$(PROJECT_ROOT)/tea; \
-	$(MAKE) $(MAKEFLAGS); \
+		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+		cd $(TEA_BUILD_DIR); \
+		CMAKE_PREFIX_PATH=/opt/catch2 \
+		cmake \
+			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
+			-DCMAKE_BUILD_TYPE=Debug \
+			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
+			-DPHP_CONFIG=$(shell which php-config) \
+		$(PROJECT_ROOT)/tea; \
+		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built; \
 	)
 
-test_tea: build_tea
+test_tea: clean_tea build_tea
 	( \
 	$(MAKE) -C $(TEA_BUILD_DIR) test; \
 	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
 install_tea: build_tea
-	$(MAKE) -C $(TEA_BUILD_DIR) install;
-
-build_tea_asan:
+	$(Q) test -f $(TEA_BUILD_DIR)/.installed || \
 	( \
-	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
-	cd $(TEA_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 \
-	cmake \
-		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-		-DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake \
-		-DPHP_CONFIG=$(shell which php-config) \
-	$(PROJECT_ROOT)/tea; \
-	$(MAKE) $(MAKEFLAGS); \
+		$(MAKE) -C $(TEA_BUILD_DIR) install; \
+		touch $(TEA_BUILD_DIR)/.installed; \
 	)
 
-test_tea_asan: build_tea_asan
+build_tea_asan:
+	$(Q) test -f $(TEA_BUILD_DIR)/.built.asan || \
+	( \
+		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+		cd $(TEA_BUILD_DIR); \
+		CMAKE_PREFIX_PATH=/opt/catch2 \
+		cmake \
+			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
+			-DCMAKE_BUILD_TYPE=Debug \
+			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
+			-DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake \
+			-DPHP_CONFIG=$(shell which php-config) \
+		$(PROJECT_ROOT)/tea; \
+		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.asan; \
+	)
+
+test_tea_asan: clean_tea build_tea_asan
 	( \
 	$(MAKE) -C $(TEA_BUILD_DIR) test; \
 	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
 install_tea_asan: build_tea_asan
-	$(MAKE) -C $(TEA_BUILD_DIR) install;
-
-build_tea_coverage:
+	$(Q) test -f $(TEA_BUILD_DIR)/.installed.asan || \
 	( \
-	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
-	cd $(TEA_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 \
-	cmake \
-		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-		-DCMAKE_C_FLAGS="-O0 --coverage" \
-		-DPHP_CONFIG=$(shell which php-config) \
-	$(PROJECT_ROOT)/tea; \
-	$(MAKE) $(MAKEFLAGS); \
+		$(MAKE) -C $(TEA_BUILD_DIR) install; \
+		touch $(TEA_BUILD_DIR)/.installed.asan; \
 	)
 
-test_tea_coverage: build_tea_coverage
+build_tea_coverage:
+	$(Q) test -f $(TEA_BUILD_DIR)/.built.coverage || \
+	( \
+		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+		cd $(TEA_BUILD_DIR); \
+		CMAKE_PREFIX_PATH=/opt/catch2 \
+		cmake \
+			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
+			-DCMAKE_BUILD_TYPE=Debug \
+			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
+			-DCMAKE_C_FLAGS="-O0 --coverage" \
+			-DPHP_CONFIG=$(shell which php-config) \
+		$(PROJECT_ROOT)/tea; \
+		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.coverage; \
+	)
+
+test_tea_coverage: clean_tea build_tea_coverage
 	( \
 	$(MAKE) -C $(TEA_BUILD_DIR) test; \
 	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
 install_tea_coverage: build_tea_coverage
-	$(MAKE) -C $(TEA_BUILD_DIR) install;
+	$(Q) test -f $(TEA_BUILD_DIR)/.installed.coverage || \
+	( \
+		$(MAKE) -C $(TEA_BUILD_DIR) install; \
+		touch $(TEA_BUILD_DIR)/.installed.coverage; \
+	)
 
 clean_tea:
 	rm -rf $(TEA_BUILD_DIR)
