@@ -163,10 +163,10 @@ cp \
 ########################
 echo "$release_version" > ${tmp_folder_final_gnu}/dd-library-php/VERSION
 tar -czv \
-    -f ${packages_build_dir}/dd-library-php-x86_64-linux-gnu.tar.gz \
+    -f ${packages_build_dir}/dd-library-php-${release_version}-x86_64-linux-gnu.tar.gz \
     -C ${tmp_folder_final_gnu} .
 
 echo "$release_version" > ${tmp_folder_final_musl}/dd-library-php/VERSION
 tar -czv \
-    -f ${packages_build_dir}/dd-library-php-x86_64-linux-musl.tar.gz \
+    -f ${packages_build_dir}/dd-library-php-${release_version}-x86_64-linux-musl.tar.gz \
     -C ${tmp_folder_final_musl} .
