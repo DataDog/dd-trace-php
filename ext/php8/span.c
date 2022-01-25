@@ -27,12 +27,17 @@ void ddtrace_init_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
+static void dd_drop_span(ddtrace_span_fci *span) {
+    span->span.duration = -1ull;
+    span->next = NULL;
+    OBJ_RELEASE(&span->span.std);
+}
+
 static void _free_span_stack(ddtrace_span_fci *span_fci) {
     while (span_fci != NULL) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
-        tmp->next = NULL;
-        OBJ_RELEASE(&tmp->span.std);
+        dd_drop_span(tmp);
     }
 }
 
@@ -211,7 +216,7 @@ void ddtrace_drop_top_open_span(void) {
         DDTRACE_G(root_span) = NULL;
     }
 
-    OBJ_RELEASE(&span_fci->span.std);
+    dd_drop_span(span_fci);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized) {

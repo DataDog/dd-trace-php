@@ -327,7 +327,7 @@ static void dd_execute_tracing_posthook(zend_op_array *op_array TSRMLS_DC) {
 
     if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         dd_tracing_posthook_impl(fbc, span_fci, actual_retval TSRMLS_CC);
-    } else if (get_DD_TRACE_DEBUG() && !span_fci->span.duration) {
+    } else if (get_DD_TRACE_DEBUG() && (span_fci->span.duration == 0 || span_fci->span.duration == -1ull)) {
         // todo: update to Classname::Methodname format
         const char *fname = Z_STRVAL(dispatch->function_name);
         ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
@@ -589,7 +589,7 @@ static void dd_internal_tracing_posthook(zend_execute_data *execute_data, int re
 
     if (ddtrace_has_top_internal_span(span_fci TSRMLS_CC)) {
         dd_tracing_posthook_impl(fbc, span_fci, return_value TSRMLS_CC);
-    } else if (get_DD_TRACE_DEBUG() && !span_fci->span.duration) {
+    } else if (get_DD_TRACE_DEBUG() && (span_fci->span.duration == 0 || span_fci->span.duration == -1ull)) {
         // todo: update to Classname::Methodname format
         const char *fname = Z_STRVAL(dispatch->function_name);
         ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
