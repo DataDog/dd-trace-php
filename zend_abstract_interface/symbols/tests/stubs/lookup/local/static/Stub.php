@@ -4,32 +4,31 @@ namespace DDTraceTesting;
 class Stub {
 
     public static function scalar() {
-        static $var;
-
-        if (!$var) {
-            $var = 42;
-        }
+        self::target(42);
     }
 
     public static function refcounted() {
-        static $var;
-
-        if (!$var) {
-            $var = new self();
-        }
+        self::target(new self());
     }
 
     public static function reference() {
-        static $var, $bar;
+        static $var;
 
-        if (!$bar) {
-            $bar = new self();
-        }
- 
-        if (!$var) {
-            /* will not survive call boundary */
-            $var = &$bar;
-        }
+        $var = new self();
+
+        self::targetWithReference($var);
+    }
+
+    public static function target($value) {
+        static $var;
+
+        $var = $value;
+    }
+
+    public static function targetWithReference(&$value) {
+        static $var;
+
+        $var = &$value;
     }
 }
 ?>

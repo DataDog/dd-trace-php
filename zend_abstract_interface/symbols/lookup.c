@@ -34,7 +34,7 @@ static inline bool zai_symbol_update(zend_class_entry *ce ZAI_TSRMLS_DC) {
     return false;
 }
 
-static inline void *zai_symbol_lookup_table(HashTable *table, zai_string_view key, bool ncase, bool pointer ZAI_TSRMLS_DC) {
+static inline void *zai_symbol_lookup_table(HashTable *table, zai_string_view key, bool ncase, bool pointer) {
 #if PHP_VERSION_ID >= 70000
     zval *result = zend_hash_str_find(table, key.ptr, key.len);
 #else
@@ -67,6 +67,8 @@ static inline void *zai_symbol_lookup_table(HashTable *table, zai_string_view ke
     } else {
         return result;
     }
+#else
+    (void) pointer;
 #endif
     return result;
 }
@@ -78,7 +80,7 @@ static inline zai_string_view zai_symbol_lookup_clean(zai_string_view view) {
     return (zai_string_view){ .ptr = view.ptr + 1, .len = view.len - 1 };
 }
 
-static inline zai_string_view zai_symbol_lookup_key(zai_string_view *namespace, zai_string_view *name, bool lower ZAI_TSRMLS_DC) {
+static inline zai_string_view zai_symbol_lookup_key(zai_string_view *namespace, zai_string_view *name, bool lower) {
     zai_string_view rv;
     zai_string_view vns     = zai_symbol_lookup_clean(*namespace);
     zai_string_view vn      = zai_symbol_lookup_clean(*name);
@@ -143,17 +145,17 @@ static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t 
             result = zai_symbol_lookup_table(
                 EG(class_table),
                 zai_symbol_lookup_clean(*name),
-                true, true ZAI_TSRMLS_CC);
+                true, true);
         } break;
 
         case ZAI_SYMBOL_SCOPE_NAMESPACE: {
-            zai_string_view key = zai_symbol_lookup_key(scope, name, true ZAI_TSRMLS_CC);
+            zai_string_view key = zai_symbol_lookup_key(scope, name, true);
 
             if (key.ptr) {
                 result = zai_symbol_lookup_table(
                     EG(class_table),
                     key,
-                    false, true ZAI_TSRMLS_CC);
+                    false, true);
 
                 pefree((char*) key.ptr, 1);
             }
@@ -171,7 +173,6 @@ static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t 
 }
 
 static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t scope_type, void *scope, zai_string_view *name ZAI_TSRMLS_DC) {
-    zend_function *result;
     HashTable *table = NULL;
     zai_string_view key = *name;
 
@@ -185,7 +186,7 @@ static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t 
             break;
 
         case ZAI_SYMBOL_SCOPE_NAMESPACE:
-            key = zai_symbol_lookup_key(scope, name, true ZAI_TSRMLS_CC);
+            key = zai_symbol_lookup_key(scope, name, true);
             /* intentional fall through */
 
         case ZAI_SYMBOL_SCOPE_GLOBAL:
@@ -200,7 +201,7 @@ static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t 
     zend_function *function = zai_symbol_lookup_table(
         table,
         key.ptr == name->ptr ? zai_symbol_lookup_clean(key) : key,
-        scope_type != ZAI_SYMBOL_SCOPE_NAMESPACE, true ZAI_TSRMLS_CC);
+        scope_type != ZAI_SYMBOL_SCOPE_NAMESPACE, true);
 
     if (key.ptr != name->ptr) {
         pefree((char*) key.ptr, 1);
@@ -213,13 +214,13 @@ static inline zval* zai_symbol_lookup_constant_global(zai_symbol_scope_t scope_t
     zai_string_view key = *name;
 
     if (scope_type == ZAI_SYMBOL_SCOPE_NAMESPACE) {
-        key = zai_symbol_lookup_key(scope, name, false ZAI_TSRMLS_CC);
+        key = zai_symbol_lookup_key(scope, name, false);
     }
 
     zend_constant *constant = zai_symbol_lookup_table(
         EG(zend_constants),
         key.ptr == name->ptr ? zai_symbol_lookup_clean(key) : key,
-        false, true ZAI_TSRMLS_CC);
+        false, true);
 
     if (key.ptr != name->ptr) {
         pefree((char*) key.ptr, 1);
@@ -243,6 +244,8 @@ static inline zval* zai_symbol_lookup_constant_class(zai_symbol_scope_t scope_ty
         case ZAI_SYMBOL_SCOPE_OBJECT:
             ce = Z_OBJCE_P((zval*) scope);
         break;
+
+        default: { /* unreachable */ }
     }
 
     if (!zai_symbol_update(ce ZAI_TSRMLS_CC)) {
@@ -250,7 +253,7 @@ static inline zval* zai_symbol_lookup_constant_class(zai_symbol_scope_t scope_ty
     }
 
 #if PHP_VERSION_ID >= 70100
-    zend_class_constant *constant = zai_symbol_lookup_table(&ce->constants_table, *name, false, true ZAI_TSRMLS_CC);
+    zend_class_constant *constant = zai_symbol_lookup_table(&ce->constants_table, *name, false, true);
 
     if (!constant) {
         return NULL;
@@ -258,7 +261,7 @@ static inline zval* zai_symbol_lookup_constant_class(zai_symbol_scope_t scope_ty
 
     return &constant->value;
 #elif PHP_VERSION_ID >= 70000
-    zval *constant = zai_symbol_lookup_table(&ce->constants_table, *name, false, false ZAI_TSRMLS_CC);
+    zval *constant = zai_symbol_lookup_table(&ce->constants_table, *name, false, false);
 
     if (!constant) {
         return NULL;
@@ -266,7 +269,7 @@ static inline zval* zai_symbol_lookup_constant_class(zai_symbol_scope_t scope_ty
 
     return constant;
 #else
-    zval **constant = zai_symbol_lookup_table(&ce->constants_table, *name, false, false ZAI_TSRMLS_CC);
+    zval **constant = zai_symbol_lookup_table(&ce->constants_table, *name, false, false);
 
     if (!constant) {
         return NULL;
@@ -314,7 +317,7 @@ static inline zval* zai_symbol_lookup_property_impl(
             return NULL;
     }
 
-    info = zai_symbol_lookup_table(&ce->properties_info, *name, false, true ZAI_TSRMLS_CC);
+    info = zai_symbol_lookup_table(&ce->properties_info, *name, false, true);
 
     if (!info) {
         if (scope_type == ZAI_SYMBOL_SCOPE_OBJECT) {
@@ -325,8 +328,9 @@ static inline zval* zai_symbol_lookup_property_impl(
 #endif
             zval *property = (zval*)
                 zai_symbol_lookup_table(
-                    obj->properties, *name,
-                    false, false ZAI_TSRMLS_CC);
+                    obj->properties,
+                    *name,
+                    false, false);
 
             return zai_symbol_lookup_return_zval(property);
         }
@@ -385,7 +389,7 @@ static inline zval* zai_symbol_lookup_local_frame(zend_execute_data *ex, zai_str
 
 #if PHP_VERSION_ID >= 70000
     zval *local = NULL;
-    for (uint32_t var = 0; var < function->op_array.last_var; var++) {
+    for (int var = 0; var < function->op_array.last_var; var++) {
         zend_string *match = function->op_array.vars[var];
 
         if ((name->len == ZSTR_LEN(match)) && (memcmp(name->ptr, ZSTR_VAL(match), name->len) == SUCCESS)) {
@@ -402,7 +406,7 @@ static inline zval* zai_symbol_lookup_local_frame(zend_execute_data *ex, zai_str
     for (int var = 0; var < function->op_array.last_var; var++) {
         zend_compiled_variable *match = &function->op_array.vars[var];
 
-        if ((name->len == match->name_len) && (memcmp(name->ptr, match->name, name->len) == SUCCESS)) {
+        if ((name->len == (size_t) match->name_len) && (memcmp(name->ptr, match->name, name->len) == SUCCESS)) {
 #ifdef EX_CV_NUM
             local = *EX_CV_NUM(frame, var);
 #else
@@ -420,7 +424,7 @@ static inline zval* zai_symbol_lookup_local_frame(zend_execute_data *ex, zai_str
 #endif
 }
 
-static inline zval* zai_symbol_lookup_local_static(zend_function *function, zai_string_view *name ZAI_TSRMLS_DC) {
+static inline zval* zai_symbol_lookup_local_static(zend_function *function, zai_string_view *name) {
     if (function->type != ZEND_USER_FUNCTION || !function->op_array.static_variables) {
         return NULL;
     }
@@ -437,8 +441,9 @@ static inline zval* zai_symbol_lookup_local_static(zend_function *function, zai_
 
     zval *var = (zval*)
         zai_symbol_lookup_table(
-            table, *name,
-            false, false ZAI_TSRMLS_CC);
+            table,
+            *name,
+            false, false);
 
     return zai_symbol_lookup_return_zval(var);
 }
@@ -451,7 +456,7 @@ static inline zval* zai_symbol_lookup_local_impl(
             return zai_symbol_lookup_local_frame(scope, name ZAI_TSRMLS_CC);
 
         case ZAI_SYMBOL_SCOPE_STATIC:
-            return zai_symbol_lookup_local_static(scope, name ZAI_TSRMLS_CC);
+            return zai_symbol_lookup_local_static(scope, name);
 
         default:
             assert(0 && "local lookup may only be performed in frame and static scopes");
@@ -476,5 +481,7 @@ void* zai_symbol_lookup(zai_symbol_type_t symbol_type, zai_symbol_scope_t scope_
         case ZAI_SYMBOL_TYPE_LOCAL:
             return zai_symbol_lookup_local_impl(scope_type, scope, name ZAI_TSRMLS_CC);
     }
+
+    return NULL;
 }
 // clang-format on
