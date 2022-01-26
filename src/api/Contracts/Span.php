@@ -117,7 +117,7 @@ interface Span
      * updated and the error.Error() string is included with a default tag key.
      * If the Span has been finished, it will not be modified by this method.
      *
-     * @param \Throwable|\Exception|bool|string|null $error
+     * @param \Throwable|\Exception|bool|null $error
      * @throws \InvalidArgumentException
      */
     public function setError($error);
