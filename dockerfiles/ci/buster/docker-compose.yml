@@ -13,8 +13,8 @@ services:
       context: ./php-8.1
       args:
         phpVersion: 8.1
-        phpTarGzUrl: https://downloads.php.net/~ramsey/php-8.1.0RC4.tar.gz
-        phpSha256Hash: 6e4e0bba242149ac467ed9624f0b34d482dc53bf85aff2790a7b695fe91459ea
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.2.tar.gz
+        phpSha256Hash: 9992409c0543e0c8e89914f7307e1485a08c057091146e4731565b59065f8bde
 
   php-8.0:
     image: datadog/dd-trace-ci:php-8.0_buster

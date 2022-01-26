@@ -12,8 +12,6 @@
         "symfony/process": "<5",
         "g1a/composer-test-scenarios": "~3.0"
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
     "extra": {
         "scenarios": {
             "elasticsearch1": {
@@ -75,7 +73,7 @@
             },
             "predis1": {
                 "require": {
-                    "predis/predis": "v1.1.x-dev#5004f5d6fc3c2fd33480d0646757c49e373076e4 as 1.1.8"
+                    "predis/predis": "^1.1"
                 },
                 "scenario-options": {
                     "create-lockfile": false
