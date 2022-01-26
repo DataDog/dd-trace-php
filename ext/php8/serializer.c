@@ -14,7 +14,6 @@
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
-#include <properties/properties.h>
 
 #include "arrays.h"
 #include "compat_string.h"

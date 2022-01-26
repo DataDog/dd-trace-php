@@ -18,7 +18,7 @@ typedef zai_string_view header_string;
 typedef zend_string *header_string;
 #endif
 
-static void define_server_value(zval *arr ZAI_TSRMLS_DC) {
+static void define_server_value(zval *arr TEA_TSRMLS_DC) {
     add_assoc_string(arr, "HTTP_MY_HEADER", (char *) "Datadog");
 }
 
@@ -50,8 +50,8 @@ TEA_TEST_CASE_WITH_PROLOGUE("headers", "reading undefined header value", {
 
 TEA_TEST_CASE("headers", "erroneous read_header input", {
     header_string header;
-    REQUIRE(zai_read_header({ 1, nullptr }, &header ZAI_TSRMLS_CC) == ZAI_HEADER_ERROR);
-    REQUIRE(zai_read_header({ 0, "" }, &header ZAI_TSRMLS_CC) == ZAI_HEADER_ERROR);
+    REQUIRE(zai_read_header({ 1, nullptr }, &header TEA_TSRMLS_CC) == ZAI_HEADER_ERROR);
+    REQUIRE(zai_read_header({ 0, "" }, &header TEA_TSRMLS_CC) == ZAI_HEADER_ERROR);
     REQUIRE(zai_read_header_literal("abc", nullptr) == ZAI_HEADER_ERROR);
 })
 

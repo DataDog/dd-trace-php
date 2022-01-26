@@ -2,7 +2,6 @@
 #define EXT_ZAI_CONFIG_H
 
 #include "config/config.h"
-#include "tea/sapi.h"
 
 #define EXT_CFG_ENTRY(name, type, default) ZAI_CONFIG_ENTRY(EXT_CFG_##name, name, type, default)
 #define EXT_CFG_ALIASED_ENTRY(name, type, default, aliases) \
