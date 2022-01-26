@@ -65,8 +65,12 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
 
     size_t position = atomic_fetch_add(&stack->position, size_to_alloc);
     if ((position + size_to_alloc) > stack->size) {
-        // allocation failed
+        // No room to allocate the payload
         atomic_fetch_sub(&stack->refcount, 1);
+        // Note: if we realize that the current payload doesn't fit into this stack, the stack remains unusable
+        // because `payload` will be at this point always > `stack->size`.
+        // As a consequence a few large payloads can invalidate soon stacks, and small payloads that
+        // could easily fit in any stack would have to find another stack.
         return ENOMEM;
     }
 
@@ -319,15 +323,12 @@ bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_
 }
 
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) {
-    if (!data || size > DDTRACE_COMS_STACK_MAX_SIZE) {
+    // Note: payloads of size DDTRACE_COMS_STACK_MAX_SIZE are not storable as in addition to the payload we also have to
+    // store the size and the group_id: see _dd_store_data(). However, this is an acceptable approximation to avoid
+    // duplicating the same logic that we already have in _dd_store_data() or to add indirection adding a new function
+    // only to calculate the total size.
+    if (!data || size > DDTRACE_COMS_STACK_MAX_SIZE || size == 0) {
         return false;
-    }
-
-    if (size == 0) {
-        size = strlen(data);
-        if (size == 0) {
-            return false;
-        }
     }
 
     uint32_t store_result = _dd_store_data(group_id, data, size);
@@ -874,7 +875,6 @@ static void *_dd_writer_loop(void *_) {
     do {
         atomic_fetch_add(&writer->writer_cycle, 1);
         uint32_t interval = atomic_load(&writer->flush_interval);
-        // fprintf(stderr, "interval %lu\n", interval);
         if (interval > 0) {
             struct timespec wait_deadline = _dd_deadline_in_ms(interval);
             if (writer->thread) {
