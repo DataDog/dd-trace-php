@@ -97,6 +97,14 @@ test_fpm.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
 
+test_profiler_install_unsupported.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
+
+test_profiler_install_unsupported_debug.sh \
+	:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
+
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
 test_first_install_alpine.sh \

@@ -17,7 +17,7 @@ new_version="0.68.0"
 generate_installers "${new_version}"
 
 set +e
-output=$(php ./build/packages/datadog-setup.php --php-bin php --enable-profiling)
+output=$(php ./build/packages/datadog-setup.php --php-bin php)
 exit_status=$?
 set -e
 

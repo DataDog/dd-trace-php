@@ -92,5 +92,12 @@ get_php_extension_dir() {
 
 generate_installers() {
     version="${1}"
-    sh $(pwd)/tooling/bin/generate-installers.sh ${version} $(pwd)/build/packages
+    sh "$(pwd)/tooling/bin/generate-installers.sh" "${version}" "$(pwd)/build/packages"
+}
+
+dashed_print() {
+    echo "---"
+    for line in "$@" ; do
+        printf '%s\n---\n' "$line"
+    done
 }
