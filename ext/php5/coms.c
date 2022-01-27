@@ -828,9 +828,7 @@ static void _dd_signal_data_processed(struct _writer_loop_data_t *writer) {
 #define TIMEOUT_SIG SIGPROF
 #endif
 
-static void _dd_writer_loop_cleanup(void *ctx) {
-    _dd_signal_writer_finished((struct _writer_loop_data_t *)ctx);
-}
+static void _dd_writer_loop_cleanup(void *ctx) { _dd_signal_writer_finished((struct _writer_loop_data_t *)ctx); }
 
 static void *_dd_writer_loop(void *_) {
     UNUSED(_);
