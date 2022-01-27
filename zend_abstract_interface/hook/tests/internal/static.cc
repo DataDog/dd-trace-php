@@ -16,7 +16,7 @@ extern "C" {
     typedef struct {
         uint32_t u;
     } zai_hook_test_dynamic_t;
-    
+
     typedef struct {
         uint32_t u;
     } zai_hook_test_fixed_t;
@@ -76,7 +76,7 @@ HOOK_TEST_CASE("continue", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        &zai_hook_test_fixed_first, 
+        &zai_hook_test_fixed_first,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     zval *result;
@@ -84,7 +84,7 @@ HOOK_TEST_CASE("continue", {
 
     CHECK(zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
@@ -103,7 +103,7 @@ HOOK_TEST_CASE("stop", {
 
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
@@ -115,7 +115,7 @@ HOOK_TEST_CASE("stop", {
 
     CHECK(!zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
@@ -134,16 +134,16 @@ HOOK_TEST_CASE("multiple continue", {
 
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
         &zai_hook_test_fixed_first,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
-        
+
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
@@ -155,7 +155,7 @@ HOOK_TEST_CASE("multiple continue", {
 
     CHECK(zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 2);
@@ -174,16 +174,16 @@ HOOK_TEST_CASE("multiple stop", {
 
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
         &zai_hook_test_fixed_first,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
-        
+
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
@@ -195,7 +195,7 @@ HOOK_TEST_CASE("multiple stop", {
 
     CHECK(!zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
