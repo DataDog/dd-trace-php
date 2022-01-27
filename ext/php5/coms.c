@@ -1087,13 +1087,19 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
         int rv = pthread_cond_timedwait(&writer->thread->writer_shutdown_signal_condition,
                                         &writer->thread->writer_shutdown_signal_mutex, &deadline);
         if (rv == SUCCESS || rv == ETIMEDOUT) {
-            /* if this is not a fork, and timeout has been reached,
-                the thread needs to be cancelled and joined as this
-                is the last opportunity to join */
-            if (rv == ETIMEDOUT && !_dd_has_pid_changed()) {
-                pthread_cancel(writer->thread->self);
+            if (rv == SUCCESS) {
+                /* signalled, the writer thread finished */
+                should_join = true;
+            } else if (rv == ETIMEDOUT) {
+                /* if this is not a fork, and timeout has been reached,
+                    the thread needs to be cancelled and joined as this
+                    is the last opportunity to join */
+                if (!_dd_has_pid_changed()) {
+                    pthread_cancel(writer->thread->self);
+
+                    should_join = true;
+                }
             }
-            should_join = true;
         }
     } else {
         should_join = true;
