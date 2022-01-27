@@ -54,6 +54,7 @@ static zai_string_view zai_hook_test_target = ZAI_STRL_VIEW("phpversion");
         }                                                       \
         zend_execute_internal =                                 \
             zai_hook_test_execute_internal;                     \
+        TEA_TSRMLS_FETCH();                                     \
         { statics }                                             \
         REQUIRE(tea_sapi_rinit());                              \
         REQUIRE(zai_hook_rinit());                              \

@@ -47,6 +47,7 @@ static inline void zai_hook_copy(zai_hook_t *hook ZAI_TSRMLS_DC) {
 
 #if PHP_VERSION_ID < 70000
 static void zai_hook_destroy(zai_hook_t *hook) {
+    ZAI_TSRMLS_FETCH();
 #else
 static void zai_hook_destroy(zval *zv) {
     zai_hook_t *hook = Z_PTR_P(zv);
@@ -174,7 +175,7 @@ static inline HashTable *zai_hook_find(zend_execute_data *ex) {
 } /* }}} */
 
 /* {{{ */
-bool zai_hook_installed(zend_execute_data *ex ZAI_TSRMLS_CC) {
+bool zai_hook_installed(zend_execute_data *ex) {
     return zend_hash_index_exists(&zai_hook_resolved, zai_hook_frame_address(ex));
 }
 /* }}} */
@@ -311,6 +312,8 @@ bool zai_hook_minit(void) {
 }
 
 bool zai_hook_rinit(void) {
+    ZAI_TSRMLS_FETCH();
+
     zai_hook_reserved = 0;
 
     zend_hash_init(&zai_hook_request, 8, NULL, (dtor_func_t)zai_hook_destroy, 1);
@@ -323,7 +326,7 @@ bool zai_hook_rinit(void) {
             continue;
         }
 
-        zai_hook_copy(inherited);
+        zai_hook_copy(inherited ZAI_TSRMLS_CC);
     });
 
     zend_hash_init(&zai_hook_resolved, 8, NULL, (dtor_func_t)zai_hook_resolved_destroy, 1);
@@ -392,7 +395,7 @@ bool zai_hook_install(
     }
 
     if (type == ZAI_HOOK_USER) {
-        zai_hook_copy_u(hook);
+        zai_hook_copy_u(hook ZAI_TSRMLS_CC);
     }
 
     return true;

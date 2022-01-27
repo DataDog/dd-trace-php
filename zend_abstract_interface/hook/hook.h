@@ -107,7 +107,7 @@ static inline bool zai_hook_install_user(
 } /* }}} */
 
 /* {{{ zai_hook_installed shall return true if there are installs for this frame */
-bool zai_hook_installed(zend_execute_data *ex ZAI_TSRMLS_CC); /* }}} */
+bool zai_hook_installed(zend_execute_data *ex); /* }}} */
 
 /* {{{ zai_hook_continue shall execute begin handlers and return false if
         the caller should bail out (one of the handlers returned false) */
