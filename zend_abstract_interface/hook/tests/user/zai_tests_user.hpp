@@ -7,7 +7,7 @@ extern "C" {
 #include <hook/hook.h>
 #include <value/value.h>
 #include <tea/extension.h>
-    
+
     static zval* zai_hook_test_execute_ex_return(zend_execute_data *ex  TEA_TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
         return (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) ? *EG(return_value_ptr_ptr) : &zval_used_for_init;
