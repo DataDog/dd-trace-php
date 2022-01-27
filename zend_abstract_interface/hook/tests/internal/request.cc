@@ -16,7 +16,7 @@ extern "C" {
     typedef struct {
         uint32_t u;
     } zai_hook_test_dynamic_t;
-    
+
     typedef struct {
         uint32_t u;
     } zai_hook_test_fixed_t;
@@ -77,17 +77,17 @@ HOOK_TEST_CASE("continue", { /* no static */ }, {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        &zai_hook_test_fixed_first, 
+        &zai_hook_test_fixed_first,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     zval *result;
     ZAI_VALUE_INIT(result);
-    
+
     zai_hook_resolve(TEA_TSRMLS_C);
 
     CHECK(zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
@@ -106,7 +106,7 @@ HOOK_TEST_CASE("stop", { /* no static */ }, {
 
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
@@ -115,12 +115,12 @@ HOOK_TEST_CASE("stop", { /* no static */ }, {
 }, {
     zval *result;
     ZAI_VALUE_INIT(result);
-    
+
     zai_hook_resolve(TEA_TSRMLS_C);
 
     CHECK(!zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
@@ -139,16 +139,16 @@ HOOK_TEST_CASE("multiple continue", { /* no static */ }, {
 
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
         &zai_hook_test_fixed_first,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
-        
+
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
@@ -157,12 +157,12 @@ HOOK_TEST_CASE("multiple continue", { /* no static */ }, {
 }, {
     zval *result;
     ZAI_VALUE_INIT(result);
-    
+
     zai_hook_resolve(TEA_TSRMLS_C);
 
     CHECK(zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 2);
@@ -181,16 +181,16 @@ HOOK_TEST_CASE("multiple stop", { /* no static */ }, {
 
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
         &zai_hook_test_fixed_first,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
-        
+
     REQUIRE(zai_hook_install(
         ZAI_HOOK_INTERNAL,
-        ZAI_STRING_EMPTY, 
+        ZAI_STRING_EMPTY,
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
@@ -199,12 +199,12 @@ HOOK_TEST_CASE("multiple stop", { /* no static */ }, {
 }, {
     zval *result;
     ZAI_VALUE_INIT(result);
-    
+
     zai_hook_resolve(TEA_TSRMLS_C);
 
     CHECK(!zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
@@ -227,7 +227,7 @@ HOOK_TEST_CASE("continue with static", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        &zai_hook_test_fixed_first, 
+        &zai_hook_test_fixed_first,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     REQUIRE(zai_hook_install(
@@ -236,17 +236,17 @@ HOOK_TEST_CASE("continue with static", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        &zai_hook_test_fixed_second, 
+        &zai_hook_test_fixed_second,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     zval *result;
     ZAI_VALUE_INIT(result);
-    
+
     zai_hook_resolve(TEA_TSRMLS_C);
 
     CHECK(zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 2);
@@ -269,7 +269,7 @@ HOOK_TEST_CASE("stop with static", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        &zai_hook_test_fixed_first, 
+        &zai_hook_test_fixed_first,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     REQUIRE(zai_hook_install(
@@ -278,7 +278,7 @@ HOOK_TEST_CASE("stop with static", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        &zai_hook_test_fixed_second, 
+        &zai_hook_test_fixed_second,
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     zval *result;
@@ -288,13 +288,13 @@ HOOK_TEST_CASE("stop with static", {
 
     CHECK(!zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
     CHECK(zai_hook_test_end_check == 2);
 
-    CHECK(zai_hook_test_begin_dynamic == zai_hook_test_end_dynamic);
+    CHECK(zai_hook_test_begin_dynamic != zai_hook_test_end_dynamic);
 
     CHECK(zai_hook_test_begin_fixed == &zai_hook_test_fixed_first);
     CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_second);

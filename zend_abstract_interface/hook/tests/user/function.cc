@@ -66,7 +66,7 @@ HOOK_TEST_CASE("continue", "./stubs/function/Stub.php", {
 
     CHECK(zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
@@ -83,7 +83,7 @@ HOOK_TEST_CASE("stop", "./stubs/function/Stub.php", {
 
     CHECK(!zai_symbol_call(
         ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target, 
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
         &result TEA_TSRMLS_CC, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
