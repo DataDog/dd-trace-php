@@ -182,6 +182,27 @@ final class TracerTest extends BaseTestCase
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
 
+    public function testTracingContextInheritedFromDistributedTracingContext()
+    {
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+
+        $distributedTracingContext = new SpanContext('1234', '4321', '', [], true);
+        $distributedTracingContext->origin = "datadog";
+        $tracer = new Tracer(new DebugTransport());
+        $span = $tracer->startRootSpan(self::OPERATION_NAME, [
+            'child_of' => $distributedTracingContext,
+        ])->getSpan();
+        $context = \DDTrace\current_context();
+        $this->assertSame("1234", $span->getTraceId());
+        $this->assertSame("4321", $span->getParentId());
+        $this->assertSame("datadog", $span->getContext()->origin);
+        $this->assertSame("1234", $context["trace_id"]);
+        $this->assertSame("4321", $context["distributed_tracing_parent_id"]);
+        $this->assertSame("datadog", $context["distributed_tracing_origin"]);
+
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
+    }
+
     public function testSpanStartedAtRootCanBeAccessedLater()
     {
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');

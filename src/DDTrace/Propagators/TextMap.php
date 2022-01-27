@@ -9,7 +9,6 @@ use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer;
 use DDTrace\SpanContext;
 
-/** @deprecated Obsoleted by moving related code to internal. */
 final class TextMap implements Propagator
 {
     use LoggingTrait;
@@ -74,39 +73,10 @@ final class TextMap implements Propagator
             return null;
         }
 
-        if (!$this->setDistributedTraceTraceId($traceId)) {
-            return null;
-        }
-
         $spanContext = new SpanContext($traceId, $spanId ?: '', null, $baggageItems, true);
         $this->extractPrioritySampling($spanContext, $carrier);
         $this->extractOrigin($spanContext, $carrier);
         return $spanContext;
-    }
-
-    /**
-     * Set the distributed trace's trace ID for internal spans
-     *
-     * @param string $traceId
-     * @return bool
-     */
-    private function setDistributedTraceTraceId($traceId)
-    {
-        if (!$traceId) {
-            return false;
-        }
-        if (\dd_trace_set_trace_id($traceId)) {
-            return true;
-        }
-        if (\ddtrace_config_debug_enabled()) {
-            self::logDebug(
-                'Error parsing distributed trace trace ID: {id}; ignoring.',
-                [
-                    'id' => $traceId,
-                ]
-            );
-        }
-        return false;
     }
 
     /**

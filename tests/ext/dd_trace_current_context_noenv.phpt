@@ -15,7 +15,7 @@ if (strcmp($context['span_id'], strval(\dd_trace_peek_span_id())) !== 0) {
 
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
   ["trace_id"]=>
   string(%d) "%d"
   ["span_id"]=>
@@ -24,4 +24,7 @@ array(4) {
   NULL
   ["env"]=>
   NULL
+  ["distributed_tracing_propagated_tags"]=>
+  array(0) {
+  }
 }
