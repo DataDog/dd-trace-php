@@ -829,14 +829,7 @@ static void _dd_signal_data_processed(struct _writer_loop_data_t *writer) {
 #endif
 
 static void _dd_writer_loop_cleanup(void *ctx) {
-    struct _writer_loop_data_t *writer = (struct _writer_loop_data_t *)ctx;
-
-    curl_slist_free_all(writer->headers);
-    writer->headers = NULL;
-
-    curl_easy_cleanup(writer->curl);
-    _dd_coms_stack_shutdown();
-    _dd_signal_writer_finished(writer);
+    _dd_signal_writer_finished((struct _writer_loop_data_t *)ctx);
 }
 
 static void *_dd_writer_loop(void *_) {
@@ -935,6 +928,12 @@ static void *_dd_writer_loop(void *_) {
 
         _dd_signal_data_processed(writer);
     } while (running);
+
+    curl_slist_free_all(writer->headers);
+    writer->headers = NULL;
+
+    curl_easy_cleanup(writer->curl);
+    _dd_coms_stack_shutdown();
 
     pthread_cleanup_pop(1);
 
