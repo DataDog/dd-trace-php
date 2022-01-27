@@ -62,7 +62,9 @@ static void zai_hook_destroy(zval *zv) {
 
     zai_hook_string_release(hook->function);
 
+#if PHP_VERSION_ID >= 70000
     pefree(hook, 1);
+#endif
 }
 
 #if PHP_VERSION_ID < 70000
@@ -74,7 +76,9 @@ static void zai_hook_resolved_destroy(zval *zv) {
 
     zend_hash_destroy(hooks);
 
+#if PHP_VERSION_ID >= 70000
     pefree(hooks, 1);
+#endif
 }
 
 /* {{{ */
