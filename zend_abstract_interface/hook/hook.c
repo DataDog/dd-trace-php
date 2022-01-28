@@ -344,7 +344,7 @@ void zai_hook_rshutdown(void) {
 
 void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 
-//clang-format off
+// clang-format off
 
 static inline bool zai_hook_install_verify(zai_hook_type_t type, zai_hook_begin begin, zai_hook_end end, zai_hook_aux aux, size_t dynamic ZAI_TSRMLS_DC) {
     if (type == ZAI_HOOK_USER) {
@@ -378,7 +378,13 @@ static inline bool zai_hook_install_verify(zai_hook_type_t type, zai_hook_begin 
 }
 
 /* {{{ */
-bool zai_hook_install_resolved(zai_hook_type_t type, zai_hook_begin begin, zai_hook_end end, zai_hook_aux aux, size_t dynamic, zend_function *function ZAI_TSRMLS_DC) {
+bool zai_hook_install_resolved(
+        zai_hook_type_t type,
+        zai_hook_begin begin,
+        zai_hook_end end,
+        zai_hook_aux aux,
+        size_t dynamic,
+        zend_function *function ZAI_TSRMLS_DC) {
     if (!PG(modules_activated)) {
         /* not allowed: can only do resolved install during request */
         return false;
@@ -421,8 +427,14 @@ bool zai_hook_install_resolved(zai_hook_type_t type, zai_hook_begin begin, zai_h
 } /* }}} */
 
 /* {{{ */
-bool zai_hook_install(zai_hook_type_t type, zai_string_view scope, zai_string_view function, zai_hook_begin begin,
-                      zai_hook_end end, zai_hook_aux aux, size_t dynamic ZAI_TSRMLS_DC) {
+bool zai_hook_install(
+        zai_hook_type_t type,
+        zai_string_view scope,
+        zai_string_view function,
+        zai_hook_begin begin,
+        zai_hook_end end,
+        zai_hook_aux aux,
+        size_t dynamic ZAI_TSRMLS_DC) {
 
     if (!zai_hook_install_verify(type, begin, end, aux, dynamic ZAI_TSRMLS_CC)) {
         return false;
