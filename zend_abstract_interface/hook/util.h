@@ -62,7 +62,6 @@ static inline bool zai_hook_resolved_table(zend_ulong address, HashTable **resol
         }
         // clang-format on
         return true;
-
     }
 
     return true;
