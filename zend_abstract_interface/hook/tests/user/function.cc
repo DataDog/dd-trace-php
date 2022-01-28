@@ -7,10 +7,6 @@ extern "C" {
 #include "zai_tests_user.hpp"
 
 extern "C" {
-    static void ddtrace_testing_hook_auxiliary(zval *auxiliary) {
-
-    }
-
     static PHP_FUNCTION(ddtrace_testing_hook_function) {
         zval *function,
              *begin,
