@@ -12,15 +12,19 @@ typedef struct {
     zai_hook_string_t* function;
     zai_hook_begin     begin;
     zai_hook_end       end;
-    void*              fixed;
+    zai_hook_aux       aux;
     size_t             dynamic;
-    size_t             offset;
+    struct {
+        size_t         auxiliary;
+        size_t         dynamic;
+    } offset;
 } zai_hook_t; /* }}} */
 
 // clang-format on
 
-/* {{{ private reserved counter */
-__thread size_t zai_hook_reserved; /* }}} */
+/* {{{ private reserved counters */
+__thread size_t zai_hook_dynamic_size;
+__thread size_t zai_hook_auxiliary_size; /* }}} */
 
 /* {{{ private tables */
 static HashTable zai_hook_static;
@@ -29,7 +33,8 @@ __thread HashTable zai_hook_request;
 
 __thread HashTable zai_hook_resolved; /* }}} */
 
-/* {{{ some inlines need private tables above */
+/* {{{ some inlines need private access */
+#include <hook/memory.h>
 #include <hook/util.h> /* }}} */
 
 /* {{{ */
@@ -145,9 +150,25 @@ static int zai_hook_resolve_impl(zval *zv ZAI_TSRMLS_DC) {
         return ZEND_HASH_APPLY_KEEP;
     }
 
-    resolved->offset = zai_hook_reserved;
+    // clang-format off
+    if (resolved->aux.type == ZAI_HOOK_USER) {
+        /* user aux input requires reservation */
+        resolved->offset.auxiliary =
+            zai_hook_auxiliary_size;
 
-    zai_hook_reserved += resolved->dynamic;
+        zai_hook_auxiliary_size +=
+            ZEND_MM_ALIGNED_SIZE(sizeof(zval));
+    }
+
+    if (resolved->dynamic) {
+        /* internal install may require dynamic reservation */
+        resolved->offset.dynamic =
+            zai_hook_dynamic_size;
+
+        zai_hook_dynamic_size +=
+            ZEND_MM_ALIGNED_SIZE(resolved->dynamic);
+    }
+    // clang-format on
 
     zai_hook_copy(resolved ZAI_TSRMLS_CC);
 
@@ -181,46 +202,43 @@ bool zai_hook_installed(zend_execute_data *ex) {
 /* }}} */
 
 /* {{{ */
-bool zai_hook_continue(zend_execute_data *ex, void **reserved ZAI_TSRMLS_DC) {
+bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory ZAI_TSRMLS_DC) {
     HashTable *hooks = zai_hook_find(ex);
 
     if (!hooks || zend_hash_num_elements(hooks) == 0) {
         return true;
     }
 
-    if (zai_hook_reserved) {
-        *reserved = pemalloc(zai_hook_reserved, 1);
-
-        memset(*reserved, 0, zai_hook_reserved);
-    }
+    zai_hook_memory_allocate(memory);
 
     zval *This = zai_hook_this(ex);
 
     zai_hook_t *hook;
+    // clang-format off
     ZAI_HOOK_FOREACH(hooks, hook, {
+        if (hook->begin.type == ZAI_HOOK_UNUSED) {
+            continue;
+        }
+
         switch (hook->type) {
             case ZAI_HOOK_INTERNAL:
-                if (!hook->begin.i) {
-                    continue;
-                }
-
-                void *dynamic = NULL;
-
-                if (hook->dynamic) {
-                    dynamic = (((char *)*reserved) + hook->offset);
-                }
-
-                if (!hook->begin.i(ex, hook->fixed, dynamic ZAI_TSRMLS_CC)) {
+                if (!hook->begin.u.i(
+                        ex,
+                        zai_hook_memory_auxiliary(memory, hook),
+                        zai_hook_memory_dynamic(memory, hook) ZAI_TSRMLS_CC)) {
                     goto __zai_hook_finish;
                 }
                 break;
 
             case ZAI_HOOK_USER: {
-                if (Z_TYPE(hook->begin.u) != IS_OBJECT) {
-                    continue;
+                zval *auxiliary = zai_hook_memory_auxiliary(memory, hook);
+
+                if (auxiliary) {
+                    hook->aux.u.u(auxiliary);
+                } else {
+                    ZAI_VALUE_INIT(auxiliary);
                 }
 
-                // clang-format off
                 zval *rvu;
                 ZAI_VALUE_INIT(rvu);
                 zai_symbol_call(
@@ -228,9 +246,9 @@ bool zai_hook_continue(zend_execute_data *ex, void **reserved ZAI_TSRMLS_DC) {
                         ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL,
                     This ?
                         This : NULL,
-                    ZAI_SYMBOL_FUNCTION_CLOSURE, &hook->begin.u,
-                    &rvu ZAI_TSRMLS_CC, 0);
-                // clang-format on
+                    ZAI_SYMBOL_FUNCTION_CLOSURE, &hook->begin.u.u,
+                    &rvu ZAI_TSRMLS_CC, 1, &auxiliary);
+
                 bool stop = zai_hook_returned_false(rvu);
                 ZAI_VALUE_DTOR(rvu);
 
@@ -238,18 +256,21 @@ bool zai_hook_continue(zend_execute_data *ex, void **reserved ZAI_TSRMLS_DC) {
                     goto __zai_hook_finish;
                 }
             } break;
+
+            default: { /* unreachable */ }
         }
     });
+    // clang-format on
 
     return true;
 
 __zai_hook_finish:
-    zai_hook_finish(ex, NULL, reserved ZAI_TSRMLS_CC);
+    zai_hook_finish(ex, NULL, memory ZAI_TSRMLS_CC);
     return false;
 } /* }}} */
 
 /* {{{ */
-void zai_hook_finish(zend_execute_data *ex, zval *rv, void **reserved ZAI_TSRMLS_DC) {
+void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory ZAI_TSRMLS_DC) {
     HashTable *hooks = zai_hook_find(ex);
 
     if (!hooks || zend_hash_num_elements(hooks) == 0) {
@@ -259,50 +280,50 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, void **reserved ZAI_TSRMLS
     zval *This = zai_hook_this(ex);
 
     zai_hook_t *hook;
+    // clang-format off
     ZAI_HOOK_FOREACH(hooks, hook, {
+        if (hook->end.type == ZAI_HOOK_UNUSED) {
+            continue;
+        }
+
         switch (hook->type) {
             case ZAI_HOOK_INTERNAL:
-                if (!hook->end.i) {
-                    continue;
-                }
-
-                void *dynamic = NULL;
-
-                if (hook->dynamic) {
-                    dynamic = (((char *)*reserved) + hook->offset);
-                }
-
-                hook->end.i(ex, rv, hook->fixed, dynamic ZAI_TSRMLS_CC);
+                hook->end.u.i(
+                    ex, rv,
+                    zai_hook_memory_auxiliary(memory, hook),
+                    zai_hook_memory_dynamic(memory, hook) ZAI_TSRMLS_CC);
                 break;
 
             case ZAI_HOOK_USER: {
-                if (Z_TYPE(hook->end.u) != IS_OBJECT) {
-                    continue;
+                zval *auxiliary = zai_hook_memory_auxiliary(memory, hook);
+
+                if (!auxiliary) {
+                    ZAI_VALUE_INIT(auxiliary);
                 }
 
                 zval *rvu;
-                // clang-format off
                 ZAI_VALUE_INIT(rvu);
                 zai_symbol_call(
                     This ?
                         ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL,
                     This ?
                         This : NULL,
-                    ZAI_SYMBOL_FUNCTION_CLOSURE, &hook->end.u,
+                    ZAI_SYMBOL_FUNCTION_CLOSURE, &hook->end.u.u,
                     &rvu ZAI_TSRMLS_CC,
                         rv != NULL ?
-                            1 : 0,
+                            2 : 1,
+                        &auxiliary,
                         rv != NULL ?
                             &rv : NULL);
-                // clang-format on
                 ZAI_VALUE_DTOR(rvu);
             } break;
+
+            default: { /* unreachable */ }
         }
     });
+    // clang-format on
 
-    if (*reserved) {
-        pefree(*reserved, 1);
-    }
+    zai_hook_memory_free(memory);
 } /* }}} */
 
 /* {{{ */
@@ -314,7 +335,8 @@ bool zai_hook_minit(void) {
 bool zai_hook_rinit(void) {
     ZAI_TSRMLS_FETCH();
 
-    zai_hook_reserved = 0;
+    zai_hook_auxiliary_size = 0;
+    zai_hook_dynamic_size = 0;
 
     zend_hash_init(&zai_hook_request, 8, NULL, (dtor_func_t)zai_hook_destroy, 1);
 
@@ -346,39 +368,49 @@ void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 //clang-format off
 
 /* {{{ */
-bool zai_hook_install(
-        zai_hook_type_t type,
-        zai_string_view scope,
-        zai_string_view function,
-        zai_hook_begin begin,
-        zai_hook_end end,
-        void *fixed, size_t dynamic ZAI_TSRMLS_DC) {
+bool zai_hook_install(zai_hook_type_t type, zai_string_view scope, zai_string_view function, zai_hook_begin begin,
+                      zai_hook_end end, zai_hook_aux aux, size_t dynamic ZAI_TSRMLS_DC) {
     if (type == ZAI_HOOK_USER) {
         if (!PG(modules_activated)) {
-            /* not allowed */
+            /* not allowed: cannot install user hooks before request */
             return false;
         }
 
-        if (fixed || dynamic) {
-            /* not allowed */
+        if (dynamic) {
+            /* not allowed: user hooks may not use dynamic memory */
             return false;
         }
     }
 
+    if ((begin.type != ZAI_HOOK_UNUSED) && (type != begin.type)) {
+        /* not allowed: begin type may only be unused or match hook type */
+        return false;
+    }
+
+    if ((end.type != ZAI_HOOK_UNUSED) && (type != end.type)) {
+        /* not allowed: end type may only be unused or match hook type */
+        return false;
+    }
+
+    if ((aux.type != ZAI_HOOK_UNUSED) && (type != aux.type)) {
+        /* not allowed: aux type may only be unused or match hook type */
+        return false;
+    }
+
     if (!function.len) {
-        /* not allowed */
+        /* not allowed: target must be known */
         return false;
     }
 
     zai_hook_t install = {
-        .type     = type,
-        .scope    = zai_hook_string_from(&scope),
+        .type = type,
+        .scope = zai_hook_string_from(&scope),
         .function = zai_hook_string_from(&function),
-        .begin    = begin,
-        .end      = end,
-        .fixed    = fixed,
-        .dynamic  = dynamic,
-        .offset   = 0,
+        .begin = begin,
+        .end = end,
+        .aux = aux,
+        .dynamic = dynamic,
+        .offset = {0, 0},
     };
 
     HashTable *table = zai_hook_install_table(ZAI_TSRMLS_C);

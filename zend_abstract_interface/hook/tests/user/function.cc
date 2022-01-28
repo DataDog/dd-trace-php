@@ -7,6 +7,10 @@ extern "C" {
 #include "zai_tests_user.hpp"
 
 extern "C" {
+    static void ddtrace_testing_hook_auxiliary(zval *auxiliary) {
+
+    }
+
     static PHP_FUNCTION(ddtrace_testing_hook_function) {
         zval *function,
              *begin,
@@ -23,7 +27,9 @@ extern "C" {
             ZAI_STRING_EMPTY,
             fn,
             ZAI_HOOK_BEGIN_USER(*begin),
-            ZAI_HOOK_END_USER(*end), NULL, 0 ZAI_TSRMLS_CC);
+            ZAI_HOOK_END_USER(*end),
+            ZAI_HOOK_UNUSED(aux),
+            0 ZAI_TSRMLS_CC);
     }
 
     ZEND_BEGIN_ARG_INFO_EX(ddtrace_testing_hook_function_arginfo, 0, 0, 2)

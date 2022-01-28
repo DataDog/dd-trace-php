@@ -47,38 +47,38 @@ static inline HashTable *zai_hook_install_table(ZAI_TSRMLS_D) {
 
 /* {{{ */
 static inline void zai_hook_copy_u(zai_hook_t *hook ZAI_TSRMLS_DC) {
-    if (Z_TYPE(hook->begin.u) == IS_OBJECT) {
+    if (hook->begin.type != ZAI_HOOK_UNUSED) {
 #if PHP_VERSION_ID < 70000
-        zend_objects_store_add_ref_by_handle(Z_OBJ_HANDLE(hook->begin.u) ZAI_TSRMLS_CC);
+        zend_objects_store_add_ref_by_handle(Z_OBJ_HANDLE(hook->begin.u.u) ZAI_TSRMLS_CC);
 #else
-        Z_ADDREF(hook->begin.u);
+        Z_ADDREF(hook->begin.u.u);
 #endif
     }
 
-    if (Z_TYPE(hook->end.u) == IS_OBJECT) {
+    if (hook->end.type != ZAI_HOOK_UNUSED) {
 #if PHP_VERSION_ID < 70000
-        zend_objects_store_add_ref_by_handle(Z_OBJ_HANDLE(hook->end.u) ZAI_TSRMLS_CC);
+        zend_objects_store_add_ref_by_handle(Z_OBJ_HANDLE(hook->end.u.u) ZAI_TSRMLS_CC);
 #else
-        Z_ADDREF(hook->end.u);
+        Z_ADDREF(hook->end.u.u);
 #endif
     }
 } /* }}} */
 
 /* {{{ */
 static inline void zai_hook_destroy_u(zai_hook_t *hook ZAI_TSRMLS_DC) {
-    if (Z_TYPE(hook->begin.u) == IS_OBJECT) {
+    if (hook->begin.type != ZAI_HOOK_UNUSED) {
 #if PHP_VERSION_ID < 70000
-        zend_objects_store_del_ref_by_handle(Z_OBJ_HANDLE(hook->begin.u) ZAI_TSRMLS_CC);
+        zend_objects_store_del_ref_by_handle(Z_OBJ_HANDLE(hook->begin.u.u) ZAI_TSRMLS_CC);
 #else
-        zval_dtor(&hook->begin.u);
+        zval_dtor(&hook->begin.u.u);
 #endif
     }
 
-    if (Z_TYPE(hook->end.u) == IS_OBJECT) {
+    if (hook->end.type != ZAI_HOOK_UNUSED) {
 #if PHP_VERSION_ID < 70000
-        zend_objects_store_del_ref_by_handle(Z_OBJ_HANDLE(hook->end.u) ZAI_TSRMLS_CC);
+        zend_objects_store_del_ref_by_handle(Z_OBJ_HANDLE(hook->end.u.u) ZAI_TSRMLS_CC);
 #else
-        zval_dtor(&hook->end.u);
+        zval_dtor(&hook->end.u.u);
 #endif
     }
 } /* }}} */
