@@ -137,7 +137,7 @@ static int zai_hook_resolve_impl(zval *zv ZAI_TSRMLS_DC) {
 
     HashTable *table;
 
-    if (!zai_hook_resolved_table(zai_hook_install_address(function), &table)) {
+    if (!zai_hook_resolved_table(zai_hook_install_address(function), &table ZAI_TSRMLS_CC)) {
         return ZEND_HASH_APPLY_KEEP;
     }
 
