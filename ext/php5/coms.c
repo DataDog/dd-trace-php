@@ -828,6 +828,8 @@ static void _dd_signal_data_processed(struct _writer_loop_data_t *writer) {
 #define TIMEOUT_SIG SIGPROF
 #endif
 
+static void _dd_writer_loop_cleanup(void *ctx) { _dd_signal_writer_finished((struct _writer_loop_data_t *)ctx); }
+
 static void *_dd_writer_loop(void *_) {
     UNUSED(_);
     /* This thread must not handle signals intended for the PHP threads.
@@ -868,6 +870,8 @@ static void *_dd_writer_loop(void *_) {
         syscall(SYS_capset, &caphdrp, &capdatap);
     }
 #endif
+
+    pthread_cleanup_push(_dd_writer_loop_cleanup, writer);
 
     bool running = true;
     _dd_signal_writer_started(writer);
@@ -927,7 +931,9 @@ static void *_dd_writer_loop(void *_) {
 
     curl_easy_cleanup(writer->curl);
     _dd_coms_stack_shutdown();
-    _dd_signal_writer_finished(writer);
+
+    pthread_cleanup_pop(1);
+
     return NULL;
 }
 
@@ -1077,8 +1083,20 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
 
         int rv = pthread_cond_timedwait(&writer->thread->writer_shutdown_signal_condition,
                                         &writer->thread->writer_shutdown_signal_mutex, &deadline);
-        if (rv == 0) {
-            should_join = true;
+        if (rv == SUCCESS || rv == ETIMEDOUT) {
+            if (rv == SUCCESS) {
+                /* signalled, the writer thread finished */
+                should_join = true;
+            } else if (rv == ETIMEDOUT) {
+                /* if this is not a fork, and timeout has been reached,
+                    the thread needs to be cancelled and joined as this
+                    is the last opportunity to join */
+                if (!_dd_has_pid_changed()) {
+                    pthread_cancel(writer->thread->self);
+
+                    should_join = true;
+                }
+            }
         }
     } else {
         should_join = true;
