@@ -675,7 +675,7 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
 
     zend_bool error = zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg")) ||
                       zend_hash_exists(Z_ARRVAL_P(meta), "error.type", sizeof("error.type"));
-    if (error) {
+    if (error && !zend_hash_exists(Z_ARRVAL_P(meta), ZEND_STRS("error"))) {
         add_assoc_long(el, "error", 1);
     }
 

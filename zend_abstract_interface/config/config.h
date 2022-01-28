@@ -19,7 +19,7 @@ typedef uint16_t zai_config_id;
 
 #define ZAI_CONFIG_ENTRIES_COUNT_MAX 128
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
-#define ZAI_CONFIG_NAME_BUFSIZ 60
+#define ZAI_CONFIG_NAME_BUFSIZ 70
 
 #define ZAI_CONFIG_ENTRY(_id, _name, _type, default, ...)                          \
     {                                                                              \

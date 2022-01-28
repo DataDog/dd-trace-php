@@ -80,6 +80,7 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                               \
     CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                               \
     CONFIG(BOOL, DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST, "false")                                                \
+    CONFIG(BOOL, DD_TRACE_DATABASE_NO_ERROR_ON_CONNECTION_RETRY_SUCCESS, "true")                              \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                 \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                           \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                     \
