@@ -14,23 +14,6 @@ final class ScopeManager implements ScopeManagerInterface
     private $scopes = [];
 
     /**
-     * Represents the current request root span. In case of distributed tracing, this represents the request root span.
-     *
-     * @var ScopeInterface[]
-     */
-    private $hostRootScopes = [];
-
-    /**
-     * @var SpanContext
-     */
-    private $rootContext;
-
-    public function __construct(SpanContext $rootContext = null)
-    {
-        $this->rootContext = $rootContext;
-    }
-
-    /**
      * {@inheritdoc}
      * @param Span|SpanInterface $span
      */
@@ -42,11 +25,7 @@ final class ScopeManager implements ScopeManagerInterface
             $span->ddtrace_scope_activated = true;
         }
 
-        $this->scopes[count($this->scopes)] = $scope;
-
-        if ($span->getContext()->isHostRoot()) {
-            $this->hostRootScopes[] = $scope;
-        }
+        $this->scopes[$span->getContext()->getSpanId()] = $scope;
 
         return $scope;
     }
@@ -56,83 +35,63 @@ final class ScopeManager implements ScopeManagerInterface
      */
     public function getActive()
     {
-        $this->getTopScope();
-        for ($i = count($this->scopes) - 1; $i >= 0; --$i) {
-            $scope = $this->scopes[$i];
-            $span = $scope->getSpan();
-            if (!($span instanceof Span) || !isset($span->ddtrace_scope_activated) || $span->ddtrace_scope_activated) {
-                return $scope;
-            }
+        $span = active_span();
+
+        // No active span ==> no active scope
+        if ($span === null) {
+            return null;
         }
-        return null;
+
+        // Active span is either from legacy or has already been wrapped from internal
+        $spanId = $span->id;
+        if (\array_key_exists($spanId, $this->scopes)) {
+            return $this->scopes[$spanId];
+        }
+
+        // This is the first time a scope is returned for the currently active span. We keep track of it to return
+        // the same object for multiple calls.
+        return $this->scopes[$spanId] = $this->newScopeForInternalSpan($span);
+    }
+
+    private function newScopeForInternalSpan($span)
+    {
+        // ... generate a scope from the internal span ...
+        return null; // actually this will be a Scope()
     }
 
     public function deactivate(Scope $scope)
     {
-        $i = array_search($scope, $this->scopes, true);
-
-        if (false === $i) {
+        $span = $scope->getSpan();
+        if ($span === null) {
             return;
         }
 
-        array_splice($this->scopes, $i, 1);
+        $spanId = $span->getContext()->getSpanId();
+        if (!\array_key_exists($spanId, $this->scopes)) {
+            return;
+        }
 
-        $span = $scope->getSpan();
         if ($span instanceof Span && isset($span->ddtrace_scope_activated)) {
             $span->ddtrace_scope_activated = false;
         }
+
+        unset($this->scopes[$spanId]);
     }
 
     public function getPrimaryRoot()
     {
-        $this->getTopScope(); // ensure active
-        return reset($this->scopes) ?: null;
-    }
+        $rootSpan = root_span();
 
-    public function getTopScope()
-    {
-        $topScope = null; // shut up, phpstan
-
-        for ($i = count($this->scopes) - 1; $i >= 0; --$i) {
-            $topScope = $this->scopes[$i];
-            if ($topScope->getSpan()->isFinished()) {
-                unset($this->scopes[$i]);
-            } else {
-                break;
-            }
+        if ($rootSpan === null) {
+            return null;
         }
 
-        if (empty($this->scopes)) {
-            if ($internalRootSpan = root_span()) {
-                if ($this->rootContext) {
-                    $traceId = $this->rootContext->traceId;
-                    $parentId = $this->rootContext->spanId;
-                } else {
-                    $traceId = trace_id();
-                    $parentId = null;
-                }
-                $context = new SpanContext($traceId, $internalRootSpan->id, $parentId, []);
-                $context->parentContext = $this->rootContext;
-                $topScope = $this->scopes[0] = new Scope($this, new Span($internalRootSpan, $context), false);
-            } else {
-                return null;
-            }
+        $rootSpanId = $rootSpan->id;
+        if (\array_key_exists($rootSpanId, $this->scopes)) {
+            return $this->scopes[$rootSpanId];
         }
 
-        $currentSpanId = $topScope->getSpan()->getSpanId();
-        $newScopes = [];
-        for ($span = active_span(); $span->id != $currentSpanId; $span = $span->parent) {
-            $scope = new Scope($this, new Span($span, new SpanContext(trace_id(), $span->id, $span->parent->id)), true);
-            $newScopes[] = $scope;
-        }
-        foreach (array_reverse($newScopes) as $scope) {
-            // it's a DDTrace\SpanContext in any case, but phpstan doesn't know this
-            // @phpstan-ignore-next-line
-            $scope->getSpan()->getContext()->parentContext = end($this->scopes)->getSpan()->getContext();
-            $this->scopes[count($this->scopes)] = $scope;
-        }
-
-        return $newScopes ? $newScopes[0] : $topScope;
+        return $this->scopes[$rootSpanId] = $this->newScopeForInternalSpan($rootSpan);
     }
 
     /**
@@ -140,8 +99,6 @@ final class ScopeManager implements ScopeManagerInterface
      */
     public function close()
     {
-        foreach ($this->hostRootScopes as $scope) {
-            $scope->close();
-        }
+        // What is the purpose of this method is unclear
     }
 }

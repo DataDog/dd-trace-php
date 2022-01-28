@@ -77,11 +77,6 @@ final class Tracer implements TracerInterface
     private $environment;
 
     /**
-     * @var SpanContext|null Contains a possible distributed tracing context
-     */
-    private $rootContext;
-
-    /**
      * @param Transport $transport
      * @param Propagator[] $propagators
      * @param array $config
@@ -101,15 +96,6 @@ final class Tracer implements TracerInterface
         $this->serviceVersion = \ddtrace_config_service_version();
         $this->environment = \ddtrace_config_env();
 
-        $context = current_context();
-        if (isset($context["distributed_tracing_parent_id"])) {
-            $parentId = $context["distributed_tracing_parent_id"];
-            $this->rootContext = new SpanContext($context["trace_id"], $parentId, null, [], true);
-            if (isset($context["distributed_tracing_origin"])) {
-                $this->rootContext->origin = $context["distributed_tracing_origin"];
-            }
-        }
-
         $this->reset();
     }
 
@@ -123,7 +109,7 @@ final class Tracer implements TracerInterface
      */
     public function reset()
     {
-        $this->scopeManager = new ScopeManager($this->rootContext);
+        $this->scopeManager = new ScopeManager();
     }
 
     /**
@@ -218,12 +204,13 @@ final class Tracer implements TracerInterface
             $options = StartSpanOptions::create($options);
         }
 
-        if (!root_span() && !$options->getReferences() && $this->rootContext) {
-            $options = $options->withParent($this->rootContext);
+        if (!root_span() && !$options->getReferences()) {
+            $rootContext = // ... recreate it from output of `trace_context()`.
+            $options = $options->withParent($rootContext);
         }
 
         $parentService = null;
-        if (($activeScope = $this->scopeManager->getTopScope()) !== null) {
+        if (($activeScope = $this->scopeManager->getActive()) !== null) {
             $activeSpan = $activeScope->getSpan();
             $tags = $options->getTags();
             if (!array_key_exists(Tag::SERVICE_NAME, $tags)) {
