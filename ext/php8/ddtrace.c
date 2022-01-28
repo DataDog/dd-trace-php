@@ -1593,8 +1593,15 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
     zend_string *trace_id_str, *parent_id_str, *origin = NULL;
     zval *tags = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|S!z!", &trace_id_str, &parent_id_str, &origin, &tags) != SUCCESS || (tags && Z_TYPE_P(tags) > IS_FALSE && Z_TYPE_P(tags) != IS_ARRAY && Z_TYPE_P(tags) != IS_STRING)) {
-        ddtrace_log_debug("unexpected parameter. expecting string trace id and string parent id and possibly string origin and string or array propagated tags");
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "SS|S!z!", &trace_id_str, &parent_id_str,
+                                 &origin, &tags) != SUCCESS ||
+        (tags && Z_TYPE_P(tags) > IS_FALSE && Z_TYPE_P(tags) != IS_ARRAY && Z_TYPE_P(tags) != IS_STRING)) {
+        ddtrace_log_debug(
+            "unexpected parameter. expecting string trace id and string parent id and possibly string origin and string or array propagated tags");
+        RETURN_FALSE;
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
         RETURN_FALSE;
     }
 
@@ -1604,29 +1611,25 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
     }
 
     uint64_t old_trace_id = DDTRACE_G(trace_id);
-    if (trace_id_str) {
-        zval trace_zv;
-        ZVAL_STR(&trace_zv, trace_id_str);
-        if (ZSTR_LEN(trace_id_str) == 1 && ZSTR_VAL(trace_id_str)[0] == '0') {
-            DDTRACE_G(trace_id) = 0;
-        } else if (!ddtrace_set_userland_trace_id(&trace_zv)) {
-            RETURN_FALSE;
-        }
+    zval trace_zv;
+    ZVAL_STR(&trace_zv, trace_id_str);
+    if (ZSTR_LEN(trace_id_str) == 1 && ZSTR_VAL(trace_id_str)[0] == '0') {
+        DDTRACE_G(trace_id) = 0;
+    } else if (!ddtrace_set_userland_trace_id(&trace_zv)) {
+        RETURN_FALSE;
     }
 
-    if (parent_id_str) {
-        zval parent_zv;
-        ZVAL_STR(&parent_zv, parent_id_str);
-        uint64_t last_id = ddtrace_pop_span_id();
-        if (ZSTR_LEN(parent_id_str) == 1 && ZSTR_VAL(parent_id_str)[0] == '0') {
-            DDTRACE_G(distributed_parent_trace_id) = 0;
-        } else if (ddtrace_push_userland_span_id(&parent_zv)) {
-            DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
-        } else {
-            ddtrace_push_span_id(last_id);
-            DDTRACE_G(trace_id) = old_trace_id;
-            RETURN_FALSE;
-        }
+    zval parent_zv;
+    ZVAL_STR(&parent_zv, parent_id_str);
+    uint64_t last_id = ddtrace_pop_span_id();
+    if (ZSTR_LEN(parent_id_str) == 1 && ZSTR_VAL(parent_id_str)[0] == '0') {
+        DDTRACE_G(distributed_parent_trace_id) = 0;
+    } else if (ddtrace_push_userland_span_id(&parent_zv)) {
+        DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
+    } else {
+        ddtrace_push_span_id(last_id);
+        DDTRACE_G(trace_id) = old_trace_id;
+        RETURN_FALSE;
     }
 
     if (origin) {

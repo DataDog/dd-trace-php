@@ -10,7 +10,18 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+static void dd_clean_old_tags() {
+    zend_string *tagname;
+    ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
+        zend_hash_del(&DDTRACE_G(root_span_tags_preset), tagname);
+    }
+    ZEND_HASH_FOREACH_END();
+    zend_hash_clean(&DDTRACE_G(propagated_root_span_tags));
+}
+
 void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
+    dd_clean_old_tags();
+
     char *header = ZSTR_VAL(headerstr), *headerend = header + ZSTR_LEN(headerstr);
 
     for (char *tagstart = header; header < headerend; ++header) {
@@ -35,6 +46,37 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
             tagstart = ++header;
         }
     }
+}
+
+void ddtrace_add_tracer_tags_from_array(zend_array *array) {
+    dd_clean_old_tags();
+
+    zend_string *tagname;
+    zval *tag;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(array, tagname, tag) {
+        if (tagname) {
+            zval tagstr;
+            ddtrace_convert_to_string(&tagstr, tag);
+            zend_hash_update(&DDTRACE_G(root_span_tags_preset), tagname, &tagstr);
+            zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), tagname);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
+zval ddtrace_get_propagated_tags(void) {
+    zval zv;
+    array_init(&zv);
+    zend_string *tagname;
+    ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
+        zval *tag;
+        if ((tag = zend_hash_find(&DDTRACE_G(root_span_tags_preset), tagname))) {
+            Z_TRY_ADDREF_P(tag);
+            zend_hash_add(Z_ARR(zv), tagname, tag);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return zv;
 }
 
 zend_string *ddtrace_format_propagated_tags(void) {

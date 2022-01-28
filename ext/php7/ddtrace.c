@@ -196,6 +196,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_close_span, 0, 0, 0)
 ZEND_ARG_INFO(0, finish_time)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_set_distributed_tracing_context, 0, 0, 2)
+ZEND_ARG_INFO(0, trace_id)
+ZEND_ARG_INFO(0, parent_id)
+ZEND_ARG_INFO(0, origin)
+ZEND_ARG_INFO(0, tags)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_add_global_tag, 0, 0, 2)
 ZEND_ARG_INFO(0, key)
 ZEND_ARG_INFO(0, value)
@@ -1636,6 +1643,71 @@ static PHP_FUNCTION(current_context) {
         add_assoc_str_ex(return_value, ZEND_STRL("distributed_tracing_parent_id"),
                          zend_strpprintf(DD_TRACE_MAX_ID_LEN, "%" PRIu64, DDTRACE_G(distributed_parent_trace_id)));
     }
+
+    zval tags = ddtrace_get_propagated_tags();
+    add_assoc_zval_ex(return_value, ZEND_STRL("distributed_tracing_propagated_tags"), &tags);
+}
+
+/* {{{ proto bool set_distributed_tracing_context() */
+static PHP_FUNCTION(set_distributed_tracing_context) {
+    zend_string *trace_id_str, *parent_id_str, *origin = NULL;
+    zval *tags = NULL;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "SS|S!z!", &trace_id_str, &parent_id_str,
+                                 &origin, &tags) != SUCCESS ||
+        (tags && Z_TYPE_P(tags) > IS_FALSE && Z_TYPE_P(tags) != IS_ARRAY && Z_TYPE_P(tags) != IS_STRING)) {
+        ddtrace_log_debug(
+            "unexpected parameter. expecting string trace id and string parent id and possibly string origin and string or array propagated tags");
+        RETURN_FALSE;
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_FALSE;
+    }
+
+    if (DDTRACE_G(open_spans_top)) {
+        ddtrace_log_debug("Cannot set the distributed tracing context when there are active spans");
+        RETURN_FALSE;
+    }
+
+    uint64_t old_trace_id = DDTRACE_G(trace_id);
+    zval trace_zv;
+    ZVAL_STR(&trace_zv, trace_id_str);
+    if (ZSTR_LEN(trace_id_str) == 1 && ZSTR_VAL(trace_id_str)[0] == '0') {
+        DDTRACE_G(trace_id) = 0;
+    } else if (!ddtrace_set_userland_trace_id(&trace_zv)) {
+        RETURN_FALSE;
+    }
+
+    zval parent_zv;
+    ZVAL_STR(&parent_zv, parent_id_str);
+    uint64_t last_id = ddtrace_pop_span_id();
+    if (ZSTR_LEN(parent_id_str) == 1 && ZSTR_VAL(parent_id_str)[0] == '0') {
+        DDTRACE_G(distributed_parent_trace_id) = 0;
+    } else if (ddtrace_push_userland_span_id(&parent_zv)) {
+        DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
+    } else {
+        ddtrace_push_span_id(last_id);
+        DDTRACE_G(trace_id) = old_trace_id;
+        RETURN_FALSE;
+    }
+
+    if (origin) {
+        if (DDTRACE_G(dd_origin)) {
+            zend_string_release(DDTRACE_G(dd_origin));
+        }
+        DDTRACE_G(dd_origin) = ZSTR_LEN(origin) ? zend_string_copy(origin) : NULL;
+    }
+
+    if (tags) {
+        if (Z_TYPE_P(tags) == IS_STRING) {
+            ddtrace_add_tracer_tags_from_header(Z_STR_P(tags));
+        } else if (Z_TYPE_P(tags) == IS_ARRAY) {
+            ddtrace_add_tracer_tags_from_array(Z_ARR_P(tags));
+        }
+    }
+
+    RETURN_TRUE;
 }
 
 /* {{{ proto string dd_trace_closed_spans_count() */
@@ -1727,9 +1799,10 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(root_span, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_NS_FE(trace_id, arginfo_ddtrace_void),
     DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
-    DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
+    DDTRACE_NS_FE(set_distributed_tracing_context, arginfo_dd_trace_set_distributed_tracing_context),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),
