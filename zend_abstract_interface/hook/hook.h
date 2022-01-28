@@ -105,6 +105,7 @@ typedef struct {
     ZAI_HOOK_USED(INTERNAL, aux, i, pointer)
 /* }}} */
 
+/* {{{ zai_hook_install may be executed after minit and during request */
 bool zai_hook_install(
         zai_hook_type_t type,
         zai_string_view scope,
@@ -112,7 +113,19 @@ bool zai_hook_install(
         zai_hook_begin  begin,
         zai_hook_end    end,
         zai_hook_aux    aux,
-        size_t dynamic ZAI_TSRMLS_DC);
+        size_t dynamic ZAI_TSRMLS_DC); /* }}} */
+
+/* {{{ zai_hook_install_resolved may only be executed during request
+        this API requires no symbol names, or resolution, it may be used
+        to associate a hook with anonymous symbols
+        ie. generators, closures, fibers */
+bool zai_hook_install_resolved(
+        zai_hook_type_t type,
+        zai_hook_begin  begin,
+        zai_hook_end    end,
+        zai_hook_aux    aux,
+        size_t dynamic,
+        zend_function *function ZAI_TSRMLS_DC); /* }}} */
 
 /* {{{ zai_hook_installed shall return true if there are installs for this frame */
 bool zai_hook_installed(zend_execute_data *ex); /* }}} */

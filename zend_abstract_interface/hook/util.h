@@ -46,6 +46,29 @@ static inline HashTable *zai_hook_install_table(ZAI_TSRMLS_D) {
 } /* }}} */
 
 /* {{{ */
+static inline bool zai_hook_resolved_table(zend_ulong address, HashTable **resolved ZAI_TSRMLS_DC) {
+    if (!zai_hook_table_find(&zai_hook_resolved, address, resolved)) {
+        HashTable resolving;
+
+        zend_hash_init(&resolving, 8, NULL, (dtor_func_t)zai_hook_destroy, 1);
+
+        // clang-format off
+        if (!zai_hook_table_insert_at(
+                &zai_hook_resolved, address,
+                &resolving, sizeof(HashTable), (void **)resolved)) {
+            zend_hash_destroy(&resolving);
+
+            return false;
+        }
+        // clang-format on
+        return true;
+
+    }
+
+    return true;
+} /* }}} */
+
+/* {{{ */
 static inline void zai_hook_copy_u(zai_hook_t *hook ZAI_TSRMLS_DC) {
     if (hook->begin.type != ZAI_HOOK_UNUSED) {
 #if PHP_VERSION_ID < 70000

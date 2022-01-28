@@ -47,6 +47,28 @@ static inline void *zai_hook_memory_dynamic(zai_hook_memory_t *memory, zai_hook_
     return (char *)(((char *)memory->dynamic) + hook->offset.dynamic);
 }
 
+static inline void zai_hook_memory_reserve(zai_hook_t *hook) {
+    // clang-format off
+    if (hook->aux.type == ZAI_HOOK_USER) {
+        /* user aux input requires reservation */
+        hook->offset.auxiliary =
+            zai_hook_auxiliary_size;
+
+        zai_hook_auxiliary_size +=
+            ZEND_MM_ALIGNED_SIZE(sizeof(zval));
+    }
+
+    if (hook->dynamic) {
+        /* internal install may require dynamic reservation */
+        hook->offset.dynamic =
+            zai_hook_dynamic_size;
+
+        zai_hook_dynamic_size +=
+            ZEND_MM_ALIGNED_SIZE(hook->dynamic);
+    }
+    // clang-format on
+}
+
 static inline void zai_hook_memory_free(zai_hook_memory_t *memory) {
     if (zai_hook_auxiliary_size) {
         for (size_t offset = 0; offset < (zai_hook_auxiliary_size / ZEND_MM_ALIGNED_SIZE(sizeof(zval))); offset++) {
