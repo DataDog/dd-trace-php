@@ -236,7 +236,7 @@ bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory ZAI_TSRM
                 if (auxiliary) {
                     hook->aux.u.u(auxiliary);
                 } else {
-                    ZAI_VALUE_INIT(auxiliary);
+                    auxiliary = &EG(uninitialized_zval);
                 }
 
                 zval *rvu;
@@ -298,7 +298,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory 
                 zval *auxiliary = zai_hook_memory_auxiliary(memory, hook);
 
                 if (!auxiliary) {
-                    ZAI_VALUE_INIT(auxiliary);
+                    auxiliary = &EG(uninitialized_zval);
                 }
 
                 zval *rvu;
