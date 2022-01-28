@@ -19,11 +19,11 @@ extern "C" {
     static void (*zend_execute_ex_function)(zend_execute_data *ex TEA_TSRMLS_DC);
 
     static void zai_hook_test_execute_ex(zend_execute_data *ex TEA_TSRMLS_DC) {
-        void *reserved = NULL;
+        zai_hook_memory_t memory;
 
         zai_hook_resolve(TEA_TSRMLS_C);
 
-        if (!zai_hook_continue(ex, &reserved TEA_TSRMLS_CC)) {
+        if (!zai_hook_continue(ex, &memory TEA_TSRMLS_CC)) {
             zend_bailout();
         }
 
@@ -31,7 +31,7 @@ extern "C" {
 
         zai_hook_finish(ex,
             zai_hook_test_execute_ex_return(ex TEA_TSRMLS_CC),
-            &reserved TEA_TSRMLS_CC);
+            &memory TEA_TSRMLS_CC);
     }
 
     static inline void zai_hook_test_reset(bool rv) {

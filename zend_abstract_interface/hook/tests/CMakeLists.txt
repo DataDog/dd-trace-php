@@ -1,9 +1,11 @@
 add_executable(internal 
     internal/static.cc
-    internal/request.cc)
+##    internal/request.cc
+)
 
 add_executable(user
-    user/function.cc)
+    user/function.cc
+)
 
 target_link_libraries(internal PUBLIC catch2_main Tea::Tea Zai::Value Zai::Symbols Zai::Hook)
 target_link_libraries(user PUBLIC catch2_main Tea::Tea Zai::Value Zai::Symbols Zai::Hook)
