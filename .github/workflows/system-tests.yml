@@ -5,8 +5,6 @@ on:
     workflows: ["Package"]
     types:
       - completed
-  push:
-    branches: [ cbeauchesne/system-tests ]
   workflow_dispatch:
 
 jobs:
