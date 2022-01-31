@@ -5,6 +5,7 @@ on:
     workflows: ["Package"]
     types:
       - completed
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
