@@ -85,11 +85,11 @@ assert_request_init_hook_exists() {
 
 assert_file_exists() {
     file="${1}"
-    if [ ! -f "${file}" ]; then
+    if [ -f "${file}" ]; then
+        echo "Ok: File '${file}' exists\n"
+    else
         echo "Error: File '${file}' does not exist\n"
         exit 1
-    else
-        echo "Ok: File '${file}' exists\n"
     fi
 }
 

@@ -260,19 +260,32 @@ function install($options)
                             . escapeshellarg($iniFilePath)
                     );
                 } else {
-                    $enable_profiling = OPT_ENABLE_PROFILING;
-                    print_error_and_exit("Option --{$enable_profiling} was provided, but it is not supported on this PHP build or version.\n");
+                    $enableProfiling = OPT_ENABLE_PROFILING;
+                    print_error_and_exit("Option --{$enableProfiling} was provided, but it is not supported on this PHP build or version.\n");
                 }
                 // phpcs:enable Generic.Files.LineLength.TooLong
             }
 
             // Enabling appsec
             if ($shouldInstallAppsec && is_truthy($options[OPT_ENABLE_APPSEC])) {
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
-                        . escapeshellarg($iniFilePath)
-                );
+                if ($shouldInstallAppsec) {
+                    // Appsec crashes with missing symbols if tracing is not loaded
+                    execute_or_exit(
+                        'Impossible to update the INI settings file.',
+                        "sed -i 's@ \?; \?extension \?= \?ddtrace.so@extension = ddtrace.so@g' "
+                            . escapeshellarg($iniFilePath)
+                    );
+                    execute_or_exit(
+                        'Impossible to update the INI settings file.',
+                        "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
+                            . escapeshellarg($iniFilePath)
+                    );
+                } else {
+                    $enableAppsec = OPT_ENABLE_APPSEC;
+                    // phpcs:disable Generic.Files.LineLength.TooLong
+                    print_error_and_exit("Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
+                    // phpcs:enable Generic.Files.LineLength.TooLong
+                }
             }
 
             echo "Installation to '$binaryForLog' was successful\n";
@@ -327,6 +340,7 @@ function uninstall($options)
         $extensionDestinations = [
             $phpProperties[EXTENSION_DIR] . '/ddtrace.so',
             $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so',
+            $phpProperties[EXTENSION_DIR] . '/ddappsec.so',
         ];
 
         // Writing the ini file

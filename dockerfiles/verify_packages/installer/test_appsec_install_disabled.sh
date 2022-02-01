@@ -16,3 +16,5 @@ assert_ddtrace_version "${new_version}"
 assert_file_exists "$(get_php_extension_dir)"/ddappsec.so
 
 assert_no_appsec
+assert_file_exists /opt/datadog/dd-library/${new_version}/bin/ddappsec-helper
+assert_file_exists /opt/datadog/dd-library/${new_version}/etc/recommended.json
