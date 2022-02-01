@@ -1108,40 +1108,6 @@ jobs:
             tar -xf ../v<< parameters.catch2_version >>.tar.gz --strip 1
             cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2
             cmake --build build/ --target install
-      - run:
-          name: Build and test Datadog::Arena
-          command: |
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/DatadogArena
-            cd /tmp/build/DatadogArena
-            if [ -f "/etc/debian_version" ]
-            then
-              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-            fi
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-              $toolchain \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_TESTING=ON \
-              ~/datadog/ext/DatadogArena
-            make -j
-            make test
-      - run:
-          name: Build and test Datadog::MemHash
-          command: |
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/DatadogMemHash
-            cd /tmp/build/DatadogMemHash
-            if [ -f "/etc/debian_version" ]
-            then
-              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-            fi
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-              $toolchain \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_TESTING=ON \
-              ~/datadog/ext/DatadogMemHash
-            make -j
-            make test
 
       - run:
           name: Build and test Datadog::Php::Components (ASan)
