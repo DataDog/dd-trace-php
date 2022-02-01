@@ -877,7 +877,7 @@ jobs:
       - run: mkdir -p test-results
       - run:
           name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> docker_compose_pull verify_centos_6
+          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> verify_centos_6
       - store_test_results:
           path: test-results
 

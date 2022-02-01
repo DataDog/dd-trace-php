@@ -95,7 +95,9 @@ function install($options)
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
         $version = RELEASE_VERSION;
-        $url = "https://github.com/DataDog/dd-trace-php/releases/download/{$version}/dd-library-php-{$platform}.tar.gz";
+        // phpcs:disable Generic.Files.LineLength.TooLong
+        $url = "https://github.com/DataDog/dd-trace-php/releases/download/{$version}/dd-library-php-{$version}-{$platform}.tar.gz";
+        // phpcs:enable Generic.Files.LineLength.TooLong
         download($url, $tmpDirTarGz);
         unset($version);
     }
