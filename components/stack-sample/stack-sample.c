@@ -4,8 +4,8 @@
 
 /* Done in the impl instead of the header because on CentOS 6 in gnu++11 mode
  * it fails in the header. The header gets included in C++ mode for testing. */
-_Static_assert(sizeof(struct datadog_php_stack_sample_s) <= 8192u,
-               "datadog_php_stack_sample should be less than or equal to 8KiB");
+_Static_assert(sizeof(struct datadog_php_stack_sample_s) < 8192u,
+               "size of datadog_php_stack_sample should be less than 8KiB");
 
 typedef datadog_php_stack_sample stack_sample_t;
 typedef datadog_php_stack_sample_frame stack_sample_frame_t;

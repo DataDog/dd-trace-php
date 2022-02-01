@@ -4,7 +4,7 @@
 #include <components/string_view/string_view.h>
 #include <stdint.h>
 
-#define DATADOG_PHP_STACK_SAMPLE_MAX_DEPTH 101u
+#define DATADOG_PHP_STACK_SAMPLE_MAX_DEPTH 99u
 static const uint16_t datadog_php_stack_sample_max_depth = DATADOG_PHP_STACK_SAMPLE_MAX_DEPTH;
 
 /**
