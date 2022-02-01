@@ -9,8 +9,8 @@ TEST_CASE("empty queue operations", "[queue]") {
     REQUIRE(datadog_php_queue_ctor(&queue, 0, nullptr));
 
     void *item = nullptr;
-    REQUIRE(!queue.try_push(&queue, item));
-    REQUIRE(!queue.try_pop(&queue, &item));
+    REQUIRE(!datadog_php_queue_try_push(&queue, item));
+    REQUIRE(!datadog_php_queue_try_pop(&queue, &item));
 }
 
 TEST_CASE("basic queue operations", "[queue]") {
@@ -25,21 +25,21 @@ TEST_CASE("basic queue operations", "[queue]") {
 
     // by iterating a few times, we may have wrapped (depending on impl)
     for (unsigned i = 0; i != n; ++i) {
-        REQUIRE(queue.try_push(&queue, items + 0));
-        REQUIRE(queue.try_push(&queue, items + 1));
-        REQUIRE(queue.try_push(&queue, items + 2));
-        REQUIRE(queue.try_push(&queue, items + 3));
+        REQUIRE(datadog_php_queue_try_push(&queue, items + 0));
+        REQUIRE(datadog_php_queue_try_push(&queue, items + 1));
+        REQUIRE(datadog_php_queue_try_push(&queue, items + 2));
+        REQUIRE(datadog_php_queue_try_push(&queue, items + 3));
 
-        REQUIRE(queue.try_pop(&queue, &item));
+        REQUIRE(datadog_php_queue_try_pop(&queue, &item));
         REQUIRE(item == items + 0);
 
-        REQUIRE(queue.try_pop(&queue, &item));
+        REQUIRE(datadog_php_queue_try_pop(&queue, &item));
         REQUIRE(item == items + 1);
 
-        REQUIRE(queue.try_pop(&queue, &item));
+        REQUIRE(datadog_php_queue_try_pop(&queue, &item));
         REQUIRE(item == items + 2);
 
-        REQUIRE(queue.try_pop(&queue, &item));
+        REQUIRE(datadog_php_queue_try_pop(&queue, &item));
         REQUIRE(item == items + 3);
     }
 }
@@ -52,6 +52,6 @@ TEST_CASE("full queue push", "[queue]") {
 
     void *items[n];
 
-    REQUIRE(queue.try_push(&queue, items + 0));
-    REQUIRE(!queue.try_push(&queue, items + 0));
+    REQUIRE(datadog_php_queue_try_push(&queue, items + 0));
+    REQUIRE(!datadog_php_queue_try_push(&queue, items + 0));
 }
