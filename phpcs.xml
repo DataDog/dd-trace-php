@@ -3,6 +3,7 @@
     <description>Sniffs for DD Trace PHP</description>
 
     <file>./</file>
+    <exclude-pattern>build/packages/*</exclude-pattern>
 
     <rule ref="PSR12"/>
 
@@ -30,7 +31,6 @@
     </rule>
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
         <exclude-pattern>bridge/dd_init.php</exclude-pattern>
-        <exclude-pattern>build/packages/*</exclude-pattern>
         <exclude-pattern>datadog-setup.php</exclude-pattern>
         <exclude-pattern>examples/long-running/long-running-script.php</exclude-pattern>
         <exclude-pattern>tests/api/bootstrap.php</exclude-pattern>

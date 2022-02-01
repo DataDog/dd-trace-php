@@ -50,6 +50,16 @@ assert_ddtrace_version() {
     fi
 }
 
+assert_appsec_version() {
+    output="$(php --ri ddappsec)"
+    if [ -z "${output##*Version => ${1}*}" ]; then
+        echo "---\nOk: dddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong ddappsec version. Expected: ${1}\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
 assert_profiler_version() {
     output="$(php -v)"
     if [ -z "${output##*datadog-profiling v${1}*}" ]; then
