@@ -67,6 +67,7 @@ test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
 # This scenario cannot be tested until we have at least two versions released with the new release bundle:
 test_appsec_install_enabled.sh \
+test_appsec_install_disabled.sh \
 test_first_install.sh \
 test_install_add_missing_ini_settings.sh \
 test_install_custom_installation_directory.sh \
@@ -80,11 +81,11 @@ test_uninstall.sh \
 test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \
 	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli bash
-	# sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_debug.sh \
 test_first_install_php_debugzts.sh \
+test_profiler_install_unsupported_debug.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
 
@@ -99,10 +100,6 @@ test_fpm.sh \
 test_profiler_install_unsupported.sh \
 	:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
-
-test_profiler_install_unsupported_debug.sh \
-	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \

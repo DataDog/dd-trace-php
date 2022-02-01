@@ -60,6 +60,15 @@ assert_appsec_version() {
     fi
 }
 
+assert_no_appsec() {
+    output="$(php -m)"
+    if [ -z "${output##*ddappsec*}" ]; then
+        echo "---\nError: ddappsec should not be installed\n---\n${1}\n---\n"
+        exit 1
+    fi
+    echo "Ok: ddappsec is not installed"
+}
+
 assert_profiler_version() {
     output="$(php -v)"
     if [ -z "${output##*datadog-profiling v${1}*}" ]; then
