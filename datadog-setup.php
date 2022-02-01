@@ -185,16 +185,15 @@ function install($options)
         }
 
         // Appsec
-        $shouldInstallAppsec = in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1']);
+        $shouldInstallAppsec =
+            in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
+            && !is_truthy($phpProperties[IS_DEBUG]);
         if ($shouldInstallAppsec) {
             $appsecExtensionRealPath = "$tmpArchiveAppsecRoot/ext/$extensionVersion/ddappsec$extensionSuffix.so";
             $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }
-        $appSecHelperPath =
-            $installDir
-                . '/bin/ddappsec-helper'
-                . (is_truthy($phpProperties[IS_DEBUG]) ? '.debug' : '');
+        $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
         // Writing the ini file
         $iniFileName = '98-ddtrace.ini';
