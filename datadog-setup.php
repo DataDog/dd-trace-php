@@ -81,8 +81,8 @@ function install($options)
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
-    $tmpArchiveAppsecBin = "${tmpArchiveAppsecRoot}/dd-library-php/appsec/bin";
-    $tmpArchiveAppsecEtc = "${tmpArchiveAppsecRoot}/dd-library-php/appsec/etc";
+    $tmpArchiveAppsecBin = "${tmpArchiveAppsecRoot}/bin";
+    $tmpArchiveAppsecEtc = "${tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
