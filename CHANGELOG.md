@@ -1,5 +1,10 @@
 # Datadog AppSec for PHP Release
 
+### v0.2.1
+#### Miscellaneous Changes
+- ([#64](https://github.com/DataDog/dd-appsec-php/pull/64)) Add system tests
+- ([#65](https://github.com/DataDog/dd-appsec-php/pull/65)) Update ruleset to v1.2.5
+
 ### v0.2.0
 
 #### Breaking Changes
