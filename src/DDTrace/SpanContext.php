@@ -24,7 +24,16 @@ final class SpanContext extends SpanContextData
 
     public static function createAsChild(SpanContextInterface $parentContext, $startTime = null)
     {
+        // @phpstan-ignore-next-line
+        $origin = \property_exists($parentContext, 'origin') ? $parentContext->origin : null;
         if (!$parentContext->isDistributedTracingActivationContext() || !active_span()) {
+            if ($parentContext->isDistributedTracingActivationContext()) {
+                set_distributed_tracing_context(
+                    $parentContext->getTraceId(),
+                    $parentContext->getSpanId(),
+                    $origin
+                );
+            }
             if ($startTime) {
                 start_span($startTime);
             } else {
@@ -40,11 +49,8 @@ final class SpanContext extends SpanContextData
         );
         $instance->parentContext = $parentContext;
         $instance->setPropagatedPrioritySampling($parentContext->getPropagatedPrioritySampling());
-        if (
-            property_exists($instance, 'origin')
-            && !empty($parentContext->origin)
-        ) {
-            $instance->origin = $parentContext->origin;
+        if ($origin) {
+            $instance->origin = $origin;
         }
         return $instance;
     }

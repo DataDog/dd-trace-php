@@ -8,6 +8,7 @@ use DDTrace\Contracts\Tracer as TracerInterface;
 use DDTrace\Exceptions\UnsupportedFormat;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagators\Noop as NoopPropagator;
+use DDTrace\Propagators\TextMap;
 use DDTrace\Transport\Internal;
 use DDTrace\Transport\Noop;
 use DDTrace\Transport\Noop as NoopTransport;
@@ -88,10 +89,10 @@ final class Tracer implements TracerInterface
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
         $this->transport = $transport ?: new Internal();
-        $noopPropagator = new NoopPropagator();
+        $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
-            Format::TEXT_MAP => $noopPropagator,
-            Format::HTTP_HEADERS => $noopPropagator,
+            Format::TEXT_MAP => $textMapPropagator,
+            Format::HTTP_HEADERS => $textMapPropagator,
         ];
         $this->config = array_merge($this->config, $config);
         foreach ($this->config['global_tags'] as $key => $val) {
