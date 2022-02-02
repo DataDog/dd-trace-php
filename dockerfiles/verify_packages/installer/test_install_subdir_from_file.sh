@@ -14,7 +14,8 @@ fi
 
 new_version="0.68.0"
 generate_installers "${new_version}"
-curl -L -o /tmp/downloaded.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/${new_version}/dd-library-php-x86_64-linux-gnu.tar.gz"
+repo_url=${DD_TEST_INSTALLER_REPO:-"https://github.com/DataDog/dd-trace-php"}
+curl -L -o /tmp/downloaded.tar.gz "${repo_url}/releases/download/${new_version}/dd-library-php-${new_version}-x86_64-linux-gnu.tar.gz"
 
 # Install using the php installer
 php ./build/packages/datadog-setup.php --php-bin php --file /tmp/downloaded.tar.gz

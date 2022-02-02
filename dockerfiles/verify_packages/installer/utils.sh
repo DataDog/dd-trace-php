@@ -50,6 +50,25 @@ assert_ddtrace_version() {
     fi
 }
 
+assert_appsec_version() {
+    output="$(php --ri ddappsec)"
+    if [ -z "${output##*Version => ${1}*}" ]; then
+        echo "---\nOk: dddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong ddappsec version. Expected: ${1}\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_no_appsec() {
+    output="$(php -m)"
+    if [ -z "${output##*ddappsec*}" ]; then
+        echo "---\nError: ddappsec should not be installed\n---\n${1}\n---\n"
+        exit 1
+    fi
+    echo "Ok: ddappsec is not installed"
+}
+
 assert_profiler_version() {
     output="$(php -v)"
     if [ -z "${output##*datadog-profiling v${1}*}" ]; then
@@ -66,11 +85,11 @@ assert_request_init_hook_exists() {
 
 assert_file_exists() {
     file="${1}"
-    if [ ! -f "${file}" ]; then
+    if [ -f "${file}" ]; then
+        echo "Ok: File '${file}' exists\n"
+    else
         echo "Error: File '${file}' does not exist\n"
         exit 1
-    else
-        echo "Ok: File '${file}' exists\n"
     fi
 }
 
