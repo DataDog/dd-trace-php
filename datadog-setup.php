@@ -81,8 +81,8 @@ function install($options)
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
-    $tmpArchiveAppsecBin = $tmpDir . '/dd-library-php/appsec/bin';
-    $tmpArchiveAppsecEtc = $tmpDir . '/dd-library-php/appsec/etc';
+    $tmpArchiveAppsecBin = "${tmpArchiveAppsecRoot}/dd-library-php/appsec/bin";
+    $tmpArchiveAppsecEtc = "${tmpArchiveAppsecRoot}/dd-library-php/appsec/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
@@ -101,6 +101,8 @@ function install($options)
     } else {
         $version = RELEASE_VERSION;
         // phpcs:disable Generic.Files.LineLength.TooLong
+        // For testing purposes, we need an alternate repo where we can push bundles that includes changes that we are
+        // trying to test, as the previously released versions would not have those changes.
         $url = (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php")
                 . "/releases/download/${version}/dd-library-php-${version}-${platform}.tar.gz";
         // phpcs:enable Generic.Files.LineLength.TooLong
@@ -189,7 +191,7 @@ function install($options)
             in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
             && !is_truthy($phpProperties[IS_DEBUG]);
         if ($shouldInstallAppsec) {
-            $appsecExtensionRealPath = "$tmpArchiveAppsecRoot/ext/$extensionVersion/ddappsec$extensionSuffix.so";
+            $appsecExtensionRealPath = "${tmpArchiveAppsecRoot}/ext/${extensionVersion}/ddappsec${extensionSuffix}.so";
             $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }
@@ -267,7 +269,7 @@ function install($options)
             }
 
             // Enabling appsec
-            if ($shouldInstallAppsec && is_truthy($options[OPT_ENABLE_APPSEC])) {
+            if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                 if ($shouldInstallAppsec) {
                     // Appsec crashes with missing symbols if tracing is not loaded
                     execute_or_exit(
