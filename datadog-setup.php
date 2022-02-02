@@ -1294,7 +1294,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'commented' => true,
             'description' => [
                 'The location of the log file of the helper. This default to /dev/null (the log',
-                'messages will be discarded. This file is opened by the extension just before',
+                'messages will be discarded). This file is opened by the extension just before',
                 'launching the daemon and the file descriptor is passed to the helper as its',
                 'stderr, to which it will write its messages; this setting is therefore only',
                 'relevant if ddappsec.helper_launch is enabled',
