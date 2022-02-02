@@ -444,6 +444,19 @@ function parse_validate_user_options()
     ];
     $options = getopt($shortOptions, $longOptions);
 
+    global $argc;
+    if ($options === false || (empty($options) && $argc > 1)) {
+        /* Note that the above conditions are not as robust as I'd like.
+         * Consider:
+         *   php datadog-setup.php --enable-profiling 0.69.0 --php-bin php
+         * getopt will stop at 0.69.0 as it doesn't recognize it, but it will
+         * return an array that only has enable-profiling in it.
+         * I don't see an obvious way out of this, but catching some failures
+         * here is better than not catching any.
+         */
+        print_error_and_exit("Failed to parse options", true);
+    }
+
     // Help and exit
     if (key_exists('h', $options) || key_exists(OPT_HELP, $options)) {
         print_help();
