@@ -4,9 +4,7 @@ DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
 REGRESSIONS_FOLDER := ./regressions
 REGRESSION_NAME := "provide-regression-name"
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-dev-
-LIBRARY_TEST_URL := https://github.com/DataDog/dd-trace-php/releases/download/0.54.0/datadog-php-tracer-0.54.0.x86_64.tar.gz
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
-LIBRARY_VERSION := 0.68.0
 CONCURRENT_JOBS := 5
 DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
@@ -53,7 +51,7 @@ pull.centos7:
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@cp ../../build/packages/dd-library-php-x86_64-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz
+	@cp ../../build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz
 
 library.download:
 	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
@@ -66,7 +64,7 @@ library.version:
 	@echo "Downloading library version: $(LIBRARY_VERSION)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-x86_64-linux-gnu.tar.gz"
+	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-$(LIBRARY_VERSION)-x86_64-linux-gnu.tar.gz"
 	@echo "Done"
 
 generate: clean results_folder

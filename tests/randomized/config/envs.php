@@ -56,4 +56,5 @@ const ENVS = [
     'DD_TRACE_WORDPRESS_ENABLED' => ['false'],
     'DD_TRACE_YII_ENABLED' => ['false'],
     'DD_TRACE_ZENDFRAMEWORK_ENABLED' => ['false'],
+    'DD_PROFILING_ENABLED' => ['true'],
 ];

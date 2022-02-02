@@ -6,7 +6,7 @@ set -e
 if [ "${INSTALL_MODE}" == "package" ]; then
     # Do not enable profiling here as profiling is enabled as part of the randomized configuration
     php \
-        /dd-trace-php/dd-library-php-setup.php \
+        /dd-trace-php/datadog-setup.php \
             --php-bin=all \
             --file=/tmp/library-versions/dd-library-php-x86_64-linux-gnu.tar.gz
 elif [ "${INSTALL_MODE}" == "pecl" ]; then
