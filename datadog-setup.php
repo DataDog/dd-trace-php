@@ -77,7 +77,7 @@ function install($options)
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-install';
-    $tmpDirTarGz = $tmpDir . "/dd-library-php-{$platform}.tar.gz";
+    $tmpDirTarGz = $tmpDir . "/dd-library-php-${platform}.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
@@ -101,8 +101,8 @@ function install($options)
     } else {
         $version = RELEASE_VERSION;
         // phpcs:disable Generic.Files.LineLength.TooLong
-        $url = "https://github.com/labbati/test-actions/releases/download/{$version}/dd-library-php-{$version}-{$platform}.tar.gz";
-        // $url = "https://github.com/DataDog/dd-trace-php/releases/download/{$version}/dd-library-php-{$version}-{$platform}.tar.gz";
+        $url = (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php")
+                . "/releases/download/${version}/dd-library-php-${version}-${platform}.tar.gz";
         // phpcs:enable Generic.Files.LineLength.TooLong
         download($url, $tmpDirTarGz);
         unset($version);
@@ -261,7 +261,7 @@ function install($options)
                     );
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
-                    print_error_and_exit("Option --{$enableProfiling} was provided, but it is not supported on this PHP build or version.\n");
+                    print_error_and_exit("Option --${enableProfiling} was provided, but it is not supported on this PHP build or version.\n");
                 }
                 // phpcs:enable Generic.Files.LineLength.TooLong
             }
@@ -283,7 +283,7 @@ function install($options)
                 } else {
                     $enableAppsec = OPT_ENABLE_APPSEC;
                     // phpcs:disable Generic.Files.LineLength.TooLong
-                    print_error_and_exit("Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
+                    print_error_and_exit("Option --${enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
                     // phpcs:enable Generic.Files.LineLength.TooLong
                 }
             }

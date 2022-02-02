@@ -84,25 +84,25 @@ test_uninstall.sh \
 test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \
 	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_debug.sh \
 test_first_install_php_debugzts.sh \
 test_profiler_install_unsupported_debug.sh \
 	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_zts.sh \
 	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_fpm.sh \
 	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
 
 test_profiler_install_unsupported.sh \
 	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
@@ -110,7 +110,7 @@ test_first_install_alpine.sh \
 test_alpine_install_no_ext_curl_no_curl_cli.sh \
 test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 	:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_libexecinfo.sh:
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
