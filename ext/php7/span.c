@@ -27,12 +27,17 @@ void ddtrace_init_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
+static void dd_drop_span(ddtrace_span_fci *span) {
+    span->span.duration = -1ull;
+    span->next = NULL;
+    OBJ_RELEASE(&span->span.std);
+}
+
 static void _free_span_stack(ddtrace_span_fci *span_fci) {
     while (span_fci != NULL) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
-        tmp->next = NULL;
-        OBJ_RELEASE(&tmp->span.std);
+        dd_drop_span(tmp);
     }
 }
 
@@ -102,12 +107,7 @@ DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
         return false;
     }
 
-    zval *meta = ddtrace_spandata_property_meta(&root->span);
-    if (Z_TYPE_P(meta) != IS_ARRAY) {
-        return false;
-    }
-
-    return zend_hash_add(Z_ARR_P(meta), tag, value) != NULL;
+    return zend_hash_add(ddtrace_spandata_property_meta(&root->span), tag, value) != NULL;
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
@@ -190,7 +190,7 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
         span_fci->dispatch = NULL;
     }
 
-    if (DDTRACE_G(span_ids_top) == NULL) {
+    if (DDTRACE_G(open_spans_top) == NULL) {
         // Enforce a sampling decision here
         ddtrace_fetch_prioritySampling_from_root();
 
@@ -212,7 +212,12 @@ void ddtrace_drop_top_open_span(void) {
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id();
-    OBJ_RELEASE(&span_fci->span.std);
+
+    if (DDTRACE_G(open_spans_top) == NULL) {
+        DDTRACE_G(root_span) = NULL;
+    }
+
+    dd_drop_span(span_fci);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized) {

@@ -27,8 +27,8 @@
 
 /* ######## Error & exception sandbox (Does NOT catch a zend_bailout) #########
  *
- * Convenience function that backs up the error and exception states using the
- * 'zai_sandbox_*_backup' APIs below.
+ * Convenience function that backs up the error, exception, and engine states
+ * using the 'zai_sandbox_*_backup' APIs below.
  *
  *     void zai_sandbox_open(zai_sandbox *sandbox);
  *
@@ -36,6 +36,9 @@
  * 'zai_sandbox_*_restore' APIs below.
  *
  *     void zai_sandbox_close(zai_sandbox *sandbox);
+ *
+ * NOTE: zai_sandbox_close does NOT restore engine state
+ *         see zai_sandbox_bailout
  */
 
 /* ########### Error state sandbox (Does NOT catch a zend_bailout) ############
@@ -66,6 +69,33 @@
  *     void zai_sandbox_exception_state_restore(zai_exception_state *es);
  */
 
+/* ######### Bailouts ##########
+ *
+ * void zai_sandbox_bailout(zai_sandbox *sandbox)
+ *
+ * This function should be invoked when a bailout has been caught.
+ *
+ * It will restore engine state and continue in all but the case of a timeout
+ */
+
+/* ######### Timeout ##########
+ *
+ * void zai_sandbox_timed_out()
+ *
+ * This function is used to determine if a timeout has occured by bailout handling
+ */
+
+/* ######### Engine state sandbox ##########
+ *
+ * When a sandbox is opened, relevant engine state is backed up with
+ *
+ *     void zai_sandbox_engine_state_backup(zai_engine_state *es);
+ *
+ * When it is necessary, the engine state may be restored with
+ *
+ *     void zai_sandbox_engine_state_restore(zai_engine_state *es);
+ */
+
 #if PHP_VERSION_ID >= 80000
 /********************************** <PHP 8> **********************************/
 #include <Zend/zend_exceptions.h>
@@ -89,9 +119,14 @@ typedef struct zai_exception_state_s {
     const zend_op *opline_before_exception;
 } zai_exception_state;
 
+typedef struct zai_engine_state_s {
+    zend_execute_data *current_execute_data;
+} zai_engine_state;
+
 typedef struct zai_sandbox_s {
     zai_error_state error_state;
     zai_exception_state exception_state;
+    zai_engine_state engine_state;
 } zai_sandbox;
 
 inline void zai_sandbox_error_state_backup(zai_error_state *es) {
@@ -140,14 +175,45 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
     }
 }
 
+inline void zai_sandbox_engine_state_backup(zai_engine_state *es) {
+    es->current_execute_data = EG(current_execute_data);
+}
+
+inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
+    EG(current_execute_data) = es->current_execute_data;
+}
+
 inline void zai_sandbox_open(zai_sandbox *sandbox) {
     zai_sandbox_exception_state_backup(&sandbox->exception_state);
     zai_sandbox_error_state_backup(&sandbox->error_state);
+    zai_sandbox_engine_state_backup(&sandbox->engine_state);
 }
 
 inline void zai_sandbox_close(zai_sandbox *sandbox) {
     zai_sandbox_error_state_restore(&sandbox->error_state);
     zai_sandbox_exception_state_restore(&sandbox->exception_state);
+}
+
+inline bool zai_sandbox_timed_out(void) {
+    if (EG(timed_out)) {
+        return true;
+    }
+
+    if (PG(connection_status) & PHP_CONNECTION_TIMEOUT) {
+        return true;
+    }
+
+    return false;
+}
+
+inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
+    if (!zai_sandbox_timed_out()) {
+        zai_sandbox_engine_state_restore(&sandbox->engine_state);
+
+        return;
+    }
+
+    zend_bailout();
 }
 /********************************** </PHP 8> *********************************/
 #elif PHP_VERSION_ID >= 70000
@@ -169,9 +235,14 @@ typedef struct zai_exception_state_s {
     const zend_op *opline_before_exception;
 } zai_exception_state;
 
+typedef struct zai_engine_state_s {
+    zend_execute_data *current_execute_data;
+} zai_engine_state;
+
 typedef struct zai_sandbox_s {
     zai_error_state error_state;
     zai_exception_state exception_state;
+    zai_engine_state engine_state;
 } zai_sandbox;
 
 inline void zai_sandbox_error_state_backup(zai_error_state *es) {
@@ -235,14 +306,47 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
     }
 }
 
+inline void zai_sandbox_engine_state_backup(zai_engine_state *es) {
+    es->current_execute_data = EG(current_execute_data);
+}
+
+inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
+    EG(current_execute_data) = es->current_execute_data;
+}
+
 inline void zai_sandbox_open(zai_sandbox *sandbox) {
     zai_sandbox_exception_state_backup(&sandbox->exception_state);
     zai_sandbox_error_state_backup(&sandbox->error_state);
+    zai_sandbox_engine_state_backup(&sandbox->engine_state);
 }
 
 inline void zai_sandbox_close(zai_sandbox *sandbox) {
     zai_sandbox_error_state_restore(&sandbox->error_state);
     zai_sandbox_exception_state_restore(&sandbox->exception_state);
+}
+
+inline bool zai_sandbox_timed_out(void) {
+#if PHP_VERSION_ID >= 70100
+    if (EG(timed_out)) {
+        return true;
+    }
+#endif
+
+    if (PG(connection_status) & PHP_CONNECTION_TIMEOUT) {
+        return true;
+    }
+
+    return false;
+}
+
+inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
+    if (!zai_sandbox_timed_out()) {
+        zai_sandbox_engine_state_restore(&sandbox->engine_state);
+
+        return;
+    }
+
+    zend_bailout();
 }
 /********************************** </PHP 7> *********************************/
 #else
@@ -262,9 +366,14 @@ typedef struct zai_exception_state_s {
     zend_op *opline_before_exception;
 } zai_exception_state;
 
+typedef struct zai_engine_state_s {
+    zend_execute_data *current_execute_data;
+} zai_engine_state;
+
 typedef struct zai_sandbox_s {
     zai_error_state error_state;
     zai_exception_state exception_state;
+    zai_engine_state engine_state;
 } zai_sandbox;
 
 inline void zai_sandbox_error_state_backup_ex(zai_error_state *es TSRMLS_DC) {
@@ -342,9 +451,18 @@ inline void zai_sandbox_exception_state_restore_ex(zai_exception_state *es TSRML
     }
 }
 
+inline void zai_sandbox_engine_state_backup_ex(zai_engine_state *es TSRMLS_DC) {
+    es->current_execute_data = EG(current_execute_data);
+}
+
+inline void zai_sandbox_engine_state_restore_ex(zai_engine_state *es TSRMLS_DC) {
+    EG(current_execute_data) = es->current_execute_data;
+}
+
 inline void zai_sandbox_open_ex(zai_sandbox *sandbox TSRMLS_DC) {
     zai_sandbox_exception_state_backup_ex(&sandbox->exception_state TSRMLS_CC);
     zai_sandbox_error_state_backup_ex(&sandbox->error_state TSRMLS_CC);
+    zai_sandbox_engine_state_backup_ex(&sandbox->engine_state TSRMLS_CC);
 }
 
 inline void zai_sandbox_close_ex(zai_sandbox *sandbox TSRMLS_DC) {
@@ -352,15 +470,37 @@ inline void zai_sandbox_close_ex(zai_sandbox *sandbox TSRMLS_DC) {
     zai_sandbox_exception_state_restore_ex(&sandbox->exception_state TSRMLS_CC);
 }
 
+inline bool zai_sandbox_timed_out_ex(TSRMLS_D) {
+    if (PG(connection_status) & PHP_CONNECTION_TIMEOUT) {
+        return true;
+    }
+
+    return false;
+}
+
+inline void zai_sandbox_bailout_ex(zai_sandbox *sandbox TSRMLS_DC) {
+    if (!zai_sandbox_timed_out_ex(TSRMLS_C)) {
+        zai_sandbox_engine_state_restore_ex(&sandbox->engine_state TSRMLS_CC);
+
+        return;
+    }
+
+    zend_bailout();
+}
+
 /* Mask away the TSRMLS_* macros with more macros */
 #define zai_sandbox_open(sandbox) zai_sandbox_open_ex(sandbox TSRMLS_CC)
 #define zai_sandbox_close(sandbox) zai_sandbox_close_ex(sandbox TSRMLS_CC)
+#define zai_sandbox_bailout(sandbox) zai_sandbox_bailout_ex(sandbox TSRMLS_CC)
+#define zai_sandbox_timed_out() zai_sandbox_timed_out_ex(TSRMLS_C)
 
 #define zai_sandbox_error_state_backup(es) zai_sandbox_error_state_backup_ex(es TSRMLS_CC)
 #define zai_sandbox_error_state_restore(es) zai_sandbox_error_state_restore_ex(es TSRMLS_CC)
 
 #define zai_sandbox_exception_state_backup(es) zai_sandbox_exception_state_backup_ex(es TSRMLS_CC)
 #define zai_sandbox_exception_state_restore(es) zai_sandbox_exception_state_restore_ex(es TSRMLS_CC)
+#define zai_sandbox_engine_state_backup(es) zai_sandbox_engine_state_backup_ex(es TSRMLS_CC)
+#define zai_sandbox_engine_state_restore(es) zai_sandbox_engine_state_restore_ex(es TSRMLS_CC)
 /********************************** </PHP 5> *********************************/
 #endif
 

@@ -2,8 +2,6 @@
 
 namespace DDTrace\Integrations\CodeIgniter\V2;
 
-use DDTrace\Contracts\Span;
-use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -27,11 +25,10 @@ class CodeIgniterIntegration extends Integration
     public function init()
     {
 
-        $tracer = GlobalTracer::get();
 
         $integration = $this;
-        $rootScope = $tracer->getRootScope();
-        if (!$rootScope) {
+        $rootSpan = \DDTrace\root_span();
+        if (null === $rootSpan) {
             return Integration::NOT_LOADED;
         }
         $service = \ddtrace_config_app_name(self::NAME);
@@ -40,7 +37,7 @@ class CodeIgniterIntegration extends Integration
             'CI_Router',
             '_set_routing',
             null,
-            function ($router) use ($integration, $rootScope, $service) {
+            function ($router) use ($integration, $rootSpan, $service) {
                 if (!\defined('CI_VERSION') || !isset($router)) {
                     return;
                 }
@@ -49,7 +46,7 @@ class CodeIgniterIntegration extends Integration
                     /* After _set_routing has been called the class and method
                      * are known, so now we can set up tracing on CodeIgniter.
                      */
-                    $integration->registerIntegration($router, $rootScope->getSpan(), $service);
+                    $integration->registerIntegration($router, $rootSpan, $service);
                 }
             }
         );
@@ -57,20 +54,16 @@ class CodeIgniterIntegration extends Integration
         return parent::LOADED;
     }
 
-    public function registerIntegration(\CI_Router $router, Span $root, $service)
+    public function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
     {
-        $this->addTraceAnalyticsIfEnabledLegacy($root);
-        $root->overwriteOperationName('codeigniter.request');
-        $root->setTag(Tag::SERVICE_NAME, $service);
-        $root->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+        $this->addTraceAnalyticsIfEnabled($rootSpan);
+        $rootSpan->name = 'codeigniter.request';
+        $rootSpan->service = $service;
+        $rootSpan->type = Type::WEB_SERVLET;
 
         if ('cli' !== PHP_SAPI) {
             $normalizedPath = \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
-            $root->setTag(
-                Tag::RESOURCE_NAME,
-                "{$_SERVER['REQUEST_METHOD']} $normalizedPath",
-                true
-            );
+            $rootSpan->resource = "{$_SERVER['REQUEST_METHOD']} $normalizedPath";
         }
 
         $controller = $router->fetch_class();
@@ -79,15 +72,15 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             $controller,
             $method,
-            function (SpanData $span) use ($root, $method, $service) {
+            function (SpanData $span) use ($rootSpan, $method, $service) {
                 $class = \get_class($this);
                 $span->name = $span->resource = "{$class}.{$method}";
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
 
                 $this->load->helper('url');
-                $root->setTag(Tag::HTTP_URL, base_url(uri_string()));
-                $root->setTag('app.endpoint', "{$class}::{$method}");
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize(base_url(uri_string()));
+                $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
             }
         );
 
@@ -101,7 +94,7 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             $controller,
             '_remap',
-            function (SpanData $span, $args, $retval, $ex) use ($root, $service) {
+            function (SpanData $span, $args, $retval, $ex) use ($rootSpan, $service) {
                 $class = \get_class($this);
 
                 $span->name = "{$class}._remap";
@@ -110,8 +103,8 @@ class CodeIgniterIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $this->load->helper('url');
-                $root->setTag(Tag::HTTP_URL, base_url(uri_string()));
-                $root->setTag('app.endpoint', "{$class}::_remap");
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize(base_url(uri_string()));
+                $rootSpan->meta['app.endpoint'] = "{$class}::_remap";
             }
         );
 

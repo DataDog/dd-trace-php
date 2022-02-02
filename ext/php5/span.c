@@ -27,12 +27,17 @@ void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
+static void dd_drop_span(ddtrace_span_fci *span TSRMLS_DC) {
+    span->span.duration = -1ull;
+    span->next = NULL;
+    zend_objects_store_del_ref_by_handle(span->span.obj_value.handle TSRMLS_CC);
+}
+
 static void _free_span_stack(ddtrace_span_fci *span_fci TSRMLS_DC) {
     while (span_fci != NULL) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
-        tmp->next = NULL;
-        zend_objects_store_del_ref_by_handle(tmp->span.obj_value.handle TSRMLS_CC);
+        dd_drop_span(tmp TSRMLS_CC);
     }
 }
 
@@ -189,7 +194,7 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
         span_fci->dispatch = NULL;
     }
 
-    if (DDTRACE_G(span_ids_top) == NULL) {
+    if (DDTRACE_G(open_spans_top) == NULL) {
         // Enforce a sampling decision here
         ddtrace_fetch_prioritySampling_from_root(TSRMLS_C);
 
@@ -211,7 +216,12 @@ void ddtrace_drop_top_open_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
-    zend_objects_store_del_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
+
+    if (DDTRACE_G(open_spans_top) == NULL) {
+        DDTRACE_G(root_span) = NULL;
+    }
+
+    dd_drop_span(span_fci TSRMLS_CC);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {

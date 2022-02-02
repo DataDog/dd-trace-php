@@ -15,13 +15,11 @@ DDTrace\trace_function('array_sum', function (SpanData $span, $args, $retval) {
 });
 
 function main($max) {
-    // Emulate opening a userland span
-    dd_trace_push_span_id();
+    DDTrace\start_span();
     echo array_sum(range(0, $max)) . PHP_EOL;
     echo array_sum(range(0, $max + 1)) . PHP_EOL;
     echo 'Has not flushed yet.' . PHP_EOL;
-    // Emulate closing a userland span
-    dd_trace_pop_span_id();
+    DDTrace\close_span();
 }
 
 main(2);
@@ -35,16 +33,16 @@ echo PHP_EOL;
 3
 6
 Has not flushed yet.
-Successfully triggered flush with trace of size 2
+Successfully triggered flush with trace of size 3
 
 10
 15
 Has not flushed yet.
-Successfully triggered flush with trace of size 2
+Successfully triggered flush with trace of size 3
 
 21
 28
 Has not flushed yet.
-Successfully triggered flush with trace of size 2
+Successfully triggered flush with trace of size 3
 
 No finished traces to be sent to the agent

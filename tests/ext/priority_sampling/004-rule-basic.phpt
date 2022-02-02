@@ -10,10 +10,12 @@ $root = \DDTrace\root_span();
 \DDTrace\get_priority_sampling();
 
 if ($root->metrics["_dd.rule_psr"] == 0.3) {
-    echo "Rule OK";
+    echo "Rule OK\n";
 } else {
     var_dump($root->metrics);
 }
+echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
 ?>
---EXPECT--
+--EXPECTREGEX--
 Rule OK
+_dd.p.upstream_services = MDA0LXJ1bGUtYmFzaWMucGhw\|(-1|2)\|3\|0.300

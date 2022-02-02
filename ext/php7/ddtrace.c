@@ -48,8 +48,10 @@
 #include "signals.h"
 #include "span.h"
 #include "startup_logging.h"
+#include "tracer_tag_propagation/tracer_tag_propagation.h"
 
 bool ddtrace_has_excluded_module;
+static zend_module_entry *ddtrace_module;
 
 atomic_int ddtrace_warn_legacy_api;
 
@@ -276,8 +278,8 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
     zend_object_std_init(&span_fci->span.std, class_type);
     span_fci->span.std.handlers = &ddtrace_span_data_handlers;
-    array_init(ddtrace_spandata_property_meta(&span_fci->span));
-    array_init(ddtrace_spandata_property_metrics(&span_fci->span));
+    array_init(ddtrace_spandata_property_meta_zval(&span_fci->span));
+    array_init(ddtrace_spandata_property_metrics_zval(&span_fci->span));
     return &span_fci->span.std;
 }
 
@@ -417,6 +419,11 @@ static PHP_MINIT_FUNCTION(ddtrace) {
                            CONST_CS | CONST_PERSISTENT);
     REGISTER_INI_ENTRIES();
 
+    zval *ddtrace_module_zv = zend_hash_str_find(&module_registry, ZEND_STRL("ddtrace"));
+    if (ddtrace_module_zv) {
+        ddtrace_module = Z_PTR_P(ddtrace_module_zv);
+    }
+
     // config initialization needs to be at the top
     if (!ddtrace_config_minit(module_number)) {
         return FAILURE;
@@ -461,6 +468,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     UNREGISTER_INI_ENTRIES();
 
+    /* prevent unloading ddtrace, extension shutdown is called later */
+    if (ddtrace_module) {
+        ddtrace_module->handle = NULL;
+    }
+
     if (DDTRACE_G(disable) == 1) {
         zai_config_mshutdown();
         return SUCCESS;
@@ -503,6 +515,9 @@ static void dd_initialize_request() {
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+    DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+    zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, shhhht, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, shhhht, ZVAL_PTR_DTOR, 0);
 
     // Things that should only run on the first RINIT
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
@@ -574,6 +589,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 static void dd_clean_globals() {
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     zend_array_destroy(DDTRACE_G(additional_global_tags));
+    zend_hash_destroy(&DDTRACE_G(root_span_tags_preset));
+    zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
 
     if (DDTRACE_G(dd_origin)) {
@@ -1764,7 +1781,7 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
 void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
 
 void dd_read_distributed_tracing_ids(void) {
-    zend_string *trace_id_str, *parent_id_str, *priority_str;
+    zend_string *trace_id_str, *parent_id_str, *priority_str, *propagated_tags;
     bool success = true;
 
     if (zai_read_header_literal("X_DATADOG_TRACE_ID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
@@ -1794,6 +1811,11 @@ void dd_read_distributed_tracing_ids(void) {
     }
 
     if (zai_read_header_literal("X_DATADOG_SAMPLING_PRIORITY", &priority_str) == ZAI_HEADER_SUCCESS) {
-        DDTRACE_G(default_priority_sampling) = strtol(ZSTR_VAL(priority_str), NULL, 10);
+        DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) =
+            strtol(ZSTR_VAL(priority_str), NULL, 10);
+    }
+
+    if (zai_read_header_literal("X_DATADOG_TAGS", &propagated_tags) == ZAI_HEADER_SUCCESS) {
+        ddtrace_add_tracer_tags_from_header(propagated_tags);
     }
 }

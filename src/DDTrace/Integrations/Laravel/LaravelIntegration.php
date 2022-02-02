@@ -2,8 +2,6 @@
 
 namespace DDTrace\Integrations\Laravel;
 
-use DDTrace\Contracts\Span;
-use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -48,10 +46,9 @@ class LaravelIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootScope = GlobalTracer::get()->getRootScope();
-        $rootSpan = null;
+        $rootSpan = \DDTrace\root_span();
 
-        if (null === $rootScope || null === ($rootSpan = $rootScope->getSpan())) {
+        if (null === $rootSpan) {
             return Integration::NOT_LOADED;
         }
 
@@ -62,12 +59,12 @@ class LaravelIntegration extends Integration
             'handle',
             function (SpanData $span, $args, $response) use ($rootSpan, $integration) {
                 // Overwriting the default web integration
-                $rootSpan->overwriteOperationName('laravel.request');
-                $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
+                $rootSpan->name = 'laravel.request';
+                $integration->addTraceAnalyticsIfEnabled($rootSpan);
                 if (\method_exists($response, 'getStatusCode')) {
-                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
-                $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getServiceName());
+                $rootSpan->service = $integration->getServiceName();
 
                 $span->name = 'laravel.application.handle';
                 $span->type = Type::WEB_SERVLET;
@@ -88,18 +85,15 @@ class LaravelIntegration extends Integration
                 list($request) = $args;
 
                 // Overwriting the default web integration
-                $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
+                $integration->addTraceAnalyticsIfEnabled($rootSpan);
                 $routeName = LaravelIntegration::normalizeRouteName($route->getName());
 
-                $rootSpan->setTag(
-                    Tag::RESOURCE_NAME,
-                    $route->getActionName() . ' ' . $routeName
-                );
+                $rootSpan->resource = $route->getActionName() . ' ' . $routeName;
 
-                $rootSpan->setTag('laravel.route.name', $routeName);
-                $rootSpan->setTag('laravel.route.action', $route->getActionName());
-                $rootSpan->setTag('http.url', $request->url());
-                $rootSpan->setTag('http.method', $request->method());
+                $rootSpan->meta['laravel.route.name'] = $routeName;
+                $rootSpan->meta['laravel.route.action'] = $route->getActionName();
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Private_\util_url_sanitize($request->url());
+                $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
             }
         );
 
@@ -118,7 +112,7 @@ class LaravelIntegration extends Integration
             'Symfony\Component\HttpFoundation\Response',
             'setStatusCode',
             function ($This, $scope, $args) use ($rootSpan) {
-                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+                $rootSpan->meta[Tag::HTTP_STATUS_CODE] =  $args[0];
             }
         );
 
@@ -164,8 +158,8 @@ class LaravelIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $serviceName;
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
-                $rootSpan->overwriteOperationName('laravel.request');
-                $rootSpan->setTag(Tag::SERVICE_NAME, $serviceName);
+                $rootSpan->name = 'laravel.request';
+                $rootSpan->service = $serviceName;
             }
         );
 
@@ -173,28 +167,37 @@ class LaravelIntegration extends Integration
             'Illuminate\Console\Application',
             '__construct',
             function () use ($rootSpan, $integration) {
-                $rootSpan->overwriteOperationName('laravel.artisan');
-                $rootSpan->setTag(
-                    Tag::RESOURCE_NAME,
-                    !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan'
-                );
+                $rootSpan->name = 'laravel.artisan';
+                $rootSpan->resource = !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan';
             }
         );
 
+        // renderException is since Symfony 4.4, use "renderThrowable()" instead
+        // Used by Laravel < v7.0
         \DDTrace\hook_method(
             'Symfony\Component\Console\Application',
             'renderException',
-            function ($This, $scope, $args) use ($rootSpan) {
-                $rootSpan->setError($args[0]);
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $integration->setError($rootSpan, $args[0]);
+            }
+        );
+
+        // Used by Laravel > v7.0
+        // More details: https://github.com/laravel/framework/commit/f81b6ed01fb60580ade8c7fb4386aff4cb4d7719
+        \DDTrace\hook_method(
+            'Symfony\Component\Console\Application',
+            'renderThrowable',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $integration->setError($rootSpan, $args[0]);
             }
         );
 
         \DDTrace\hook_method(
             'Illuminate\Foundation\Http\Kernel',
             'renderException',
-            function ($This, $scope, $args) use ($rootSpan) {
-                if (!$rootSpan->hasError()) {
-                    $rootSpan->setError($args[1]);
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (empty($rootSpan->exception)) {
+                    $integration->setError($rootSpan, $args[1]);
                 }
             }
         );
@@ -202,9 +205,9 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Routing\Pipeline',
             'handleException',
-            function ($This, $scope, $args) use ($rootSpan) {
-                if (!$rootSpan->hasError()) {
-                    $rootSpan->setError($args[1]);
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (empty($rootSpan->exception)) {
+                    $integration->setError($rootSpan, $args[1]);
                 }
             }
         );
@@ -227,12 +230,12 @@ class LaravelIntegration extends Integration
     /**
      * Tells whether a span is a lumen request.
      *
-     * @param Span $rootSpan
+     * @param SpanData $rootSpan
      * @return bool
      */
-    public function isLumen(Span $rootSpan)
+    public function isLumen(SpanData $rootSpan)
     {
-        return $rootSpan->getOperationName() === 'lumen.request';
+        return $rootSpan->name === 'lumen.request';
     }
 
     /**

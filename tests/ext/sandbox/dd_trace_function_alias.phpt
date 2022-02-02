@@ -26,4 +26,5 @@ bar(hello)
 spans(\DDTrace\SpanData) (1) {
   bar (alias, bar, cli)
     system.pid => %d
+    _dd.p.upstream_services => YWxpYXM|1|1|1.000
 }

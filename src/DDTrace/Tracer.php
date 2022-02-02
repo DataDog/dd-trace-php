@@ -141,7 +141,7 @@ final class Tracer implements TracerInterface
      */
     public function startSpan($operationName, $options = [])
     {
-        if (!$this->config['enabled']) {
+        if (!$this->config['enabled'] || !\ddtrace_config_trace_enabled()) {
             return NoopSpan::create();
         }
 

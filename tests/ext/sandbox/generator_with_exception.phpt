@@ -1,8 +1,9 @@
 --TEST--
-Exceptions are handled from a generator context
+[PHP 7 generator smoke test] Exceptions are handled from a generator context
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70100) die('skip: Generators are partially supported on PHP 7.1+'); ?>
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Generators are fully supported on PHP 8+'); ?>
+<?php if (PHP_VERSION_ID < 70000 || PHP_VERSION_ID >= 80000) die('skip: Test is for PHP 7'); ?>
+--ENV--
+DD_TRACE_DEBUG=1
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -44,18 +45,11 @@ DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
 });
 
 echo doSomething() . PHP_EOL;
-
-array_map(function($span) {
-    echo $span['name'];
-    echo isset($span['resource']) ? ', ' . $span['resource'] : '';
-    echo isset($span['meta']['error.msg']) ? ', ' . $span['meta']['error.msg'] : '';
-    echo PHP_EOL;
-}, dd_trace_serialize_closed_spans());
 ?>
 --EXPECT--
+Cannot instrument generators on PHP 7.x
 0
 1
 2
 FooException caught
-doSomething, FooException caught
-maybeThrowException, 0
+Successfully triggered flush with trace of size 2

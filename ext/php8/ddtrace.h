@@ -29,11 +29,28 @@ static inline zval *ddtrace_spandata_property_service(ddtrace_span_t *span) {
 static inline zval *ddtrace_spandata_property_type(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 3);
 }
-static inline zval *ddtrace_spandata_property_meta(ddtrace_span_t *span) {
+static inline zend_array *ddtrace_spandata_property_force_array(zval *zv) {
+    ZVAL_DEREF(zv);
+    if (Z_TYPE_P(zv) != IS_ARRAY) {
+        zval garbage;
+        ZVAL_COPY_VALUE(&garbage, zv);
+        array_init(zv);
+        zval_ptr_dtor(&garbage);
+    }
+    SEPARATE_ARRAY(zv);
+    return Z_ARR_P(zv);
+}
+static inline zval *ddtrace_spandata_property_meta_zval(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 4);
 }
-static inline zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) {
+static inline zend_array *ddtrace_spandata_property_meta(ddtrace_span_t *span) {
+    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_meta_zval(span));
+}
+static inline zval *ddtrace_spandata_property_metrics_zval(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 5);
+}
+static inline zend_array *ddtrace_spandata_property_metrics(ddtrace_span_t *span) {
+    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_metrics_zval(span));
 }
 static inline zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) {
     return OBJ_PROP_NUM((zend_object *)span, 6);
@@ -65,6 +82,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *function_lookup;
     zval additional_trace_meta; // IS_ARRAY
     zend_array *additional_global_tags;
+    zend_array root_span_tags_preset;
+    zend_array propagated_root_span_tags;
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
@@ -75,6 +94,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     uint64_t trace_id;
     zend_long default_priority_sampling;
+    zend_long propagated_priority_sampling;
     ddtrace_span_ids_t *span_ids_top;
     ddtrace_span_fci *open_spans_top;
     ddtrace_span_fci *closed_spans_top;

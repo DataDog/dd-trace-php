@@ -74,6 +74,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             // Short flush interval by default or our tests will take all day
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
+            'DD_TRACE_DEBUG' => 0,
         ];
 
         return $envs;

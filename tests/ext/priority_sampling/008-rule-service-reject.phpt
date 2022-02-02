@@ -17,10 +17,12 @@ $root->service = "barservice";
 \DDTrace\get_priority_sampling();
 
 if ($root->metrics["_dd.rule_psr"] != 0.3) {
-    echo "Rule OK";
+    echo "Rule OK\n";
 } else {
     var_dump($root->metrics);
 }
+echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
 ?>
 --EXPECT--
 Rule OK
+_dd.p.upstream_services = YmFyc2VydmljZQ|1|1|1.000

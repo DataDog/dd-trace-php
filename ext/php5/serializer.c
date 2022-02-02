@@ -5,7 +5,6 @@
 #include <exceptions/exceptions.h>
 #include <inttypes.h>
 #include <php.h>
-#include <properties/properties.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -435,6 +434,11 @@ static smart_str dd_build_req_url(TSRMLS_D) {
         return url_str;
     }
 
+    char *question_mark = strchr(uri, '?');
+    if (question_mark) {
+        uri_len = question_mark - uri;
+    }
+
     zend_bool is_https = zend_hash_exists(Z_ARRVAL_P(_server), ZEND_STRS("HTTPS"));
 
     zval **host_zv;
@@ -458,6 +462,9 @@ static smart_str dd_build_req_url(TSRMLS_D) {
 
 void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
     zval *meta = ddtrace_spandata_property_meta(span);
+
+    zend_hash_copy(Z_ARRVAL_P(meta), &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref, NULL,
+                   sizeof(zval *));
 
     add_assoc_long(meta, "system.pid", (long)getpid());
 

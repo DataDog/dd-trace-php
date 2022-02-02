@@ -30,9 +30,11 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
 } else {
     echo "Default priority sampling is not automatically kept\n";
 }
+echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
 ?>
 --EXPECT--
 \DDTrace\get_priority_sampling() OK
 metrics[_sampling_priority_v1] OK
 metrics[_dd.rule_psr] OK
 \DDTrace\get_priority_sampling() OK
+_dd.p.upstream_services = MDAzLXVzZXIta2VlcC5waHA|2|3|1.000

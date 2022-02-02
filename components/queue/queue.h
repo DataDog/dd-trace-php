@@ -4,6 +4,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#if __cplusplus
+#define C_STATIC(...)
+#else
+#define C_STATIC(...) static __VA_ARGS__
+#endif
+
 /**
  * A bounded, NOT thread-safe queue.
  * If you are interested in thread-safety, look at datadog_php_channel.
@@ -19,11 +25,13 @@ typedef struct datadog_php_queue_s {
     uint16_t size, capacity;
     uint16_t head, tail;
     void **buffer;  // borrowed, not owned
-
-    bool (*try_push)(struct datadog_php_queue_s *queue, void *item);
-    bool (*try_pop)(struct datadog_php_queue_s *queue, void **item_ref);
 } datadog_php_queue;
 
-bool datadog_php_queue_ctor(datadog_php_queue *queue, uint16_t capacity, void *buffer[]);
+bool datadog_php_queue_ctor(datadog_php_queue *queue, uint16_t capacity, void *buffer[C_STATIC(capacity)]);
+
+bool datadog_php_queue_try_pop(datadog_php_queue *queue, void **item_ref);
+bool datadog_php_queue_try_push(datadog_php_queue *queue, void *item);
+
+#undef C_STATIC
 
 #endif  // DATADOG_PHP_QUEUE_H

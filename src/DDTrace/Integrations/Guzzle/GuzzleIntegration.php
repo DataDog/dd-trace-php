@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Guzzle;
 
-use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
@@ -25,9 +24,8 @@ class GuzzleIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $tracer = GlobalTracer::get();
-        $rootScope = $tracer->getRootScope();
-        if (!$rootScope) {
+        $rootSpan = \DDTrace\root_span();
+        if (!$rootSpan) {
             return Integration::NOT_LOADED;
         }
 

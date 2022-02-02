@@ -1,8 +1,7 @@
 extern "C" {
 #include "ext_zai_config.h"
-
 #include "config/config.h"
-#include "zai_sapi/zai_sapi.h"
+#include "tea/extension.h"
 }
 
 #include <atomic>
@@ -17,47 +16,69 @@ static PHP_MINIT_FUNCTION(zai_config) {
 }
 
 static PHP_MSHUTDOWN_FUNCTION(zai_config) {
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+#if PHP_VERSION_ID >= 80000
+    zend_result result = SUCCESS;
+#else
+    int result = SUCCESS;
+#endif
 
-    zai_config_mshutdown();
-    UNREGISTER_INI_ENTRIES();
+    zend_try {
+        zai_config_mshutdown();
+        UNREGISTER_INI_ENTRIES();
+    } zend_catch {
+        result = FAILURE;
+    } zend_end_try();
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    return SUCCESS;
+    return result;
 }
 
 static PHP_RINIT_FUNCTION(zai_config) {
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+#if PHP_VERSION_ID >= 80000
+    zend_result result = SUCCESS;
+#else
+    int result = SUCCESS;
+#endif
 
-    if (ext_zai_config_pre_rinit) {
-        ext_zai_config_pre_rinit();
-    }
+    zend_try {
+        if (ext_zai_config_pre_rinit) {
+            ext_zai_config_pre_rinit();
+        }
 
-    int expected_first_rinit = 1;
-    if (atomic_compare_exchange_strong(&ext_first_rinit, &expected_first_rinit, 0)) {
-        zai_config_first_time_rinit();
-    }
+        int expected_first_rinit = 1;
+        if (atomic_compare_exchange_strong(&ext_first_rinit, &expected_first_rinit, 0)) {
+            zai_config_first_time_rinit();
+        }
 
-    zai_config_rinit();
+        zai_config_rinit();
+    } zend_catch {
+        result = FAILURE;
+    } zend_end_try();
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    return SUCCESS;
+    return result;
 }
 
 static PHP_RSHUTDOWN_FUNCTION(zai_config) {
-    ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
+#if PHP_VERSION_ID >= 80000
+    zend_result result = SUCCESS;
+#else
+    int result = SUCCESS;
+#endif
 
-    zai_config_rshutdown();
+    zend_try {
+        zai_config_rshutdown();
+    } zend_catch {
+        result = FAILURE;
+    } zend_end_try();
 
-    ZAI_SAPI_ABORT_ON_BAILOUT_CLOSE()
-    return SUCCESS;
+    return result;
 }
 
-void ext_zai_config_ctor(zend_module_entry *module, ext_zai_config_minit_fn orig_minit) {
+void ext_zai_config_ctor(ext_zai_config_minit_fn orig_minit) {
     ext_zai_config_pre_rinit = NULL;
     ext_orig_minit = orig_minit;
-    module->module_startup_func = PHP_MINIT(zai_config);
-    module->module_shutdown_func = PHP_MSHUTDOWN(zai_config);
-    module->request_startup_func = PHP_RINIT(zai_config);
-    module->request_shutdown_func = PHP_RSHUTDOWN(zai_config);
+
+    tea_extension_minit(PHP_MINIT(zai_config));
+    tea_extension_rinit(PHP_RINIT(zai_config));
+    tea_extension_rshutdown(PHP_RSHUTDOWN(zai_config));
+    tea_extension_mshutdown(PHP_MSHUTDOWN(zai_config));
 }

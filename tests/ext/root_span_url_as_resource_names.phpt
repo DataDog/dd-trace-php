@@ -8,7 +8,7 @@ HTTPS=on
 SERVER_NAME=localhost:8888
 HTTP_HOST=localhost:9999
 SCRIPT_NAME=/foo.php
-REQUEST_URI=/foo
+REQUEST_URI=/foo?with_to_be_stripped?query_string
 METHOD=GET
 --GET--
 foo=bar
@@ -20,13 +20,15 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
   ["system.pid"]=>
   %s
   ["http.method"]=>
   string(3) "GET"
   ["http.url"]=>
   string(26) "https://localhost:9999/foo"
+  ["_dd.p.upstream_services"]=>
+  string(25) "d2ViLnJlcXVlc3Q|1|1|1.000"
   ["http.status_code"]=>
   string(3) "200"
 }

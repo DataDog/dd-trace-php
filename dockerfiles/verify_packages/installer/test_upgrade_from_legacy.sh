@@ -14,7 +14,8 @@ assert_ddtrace_version "${old_version}"
 
 # Upgrade using the php installer
 new_version="0.68.0"
-php dd-library-php-setup.php --php-bin php --version "${new_version}"
+generate_installers "${new_version}"
+php ./build/packages/datadog-setup.php --php-bin php
 assert_ddtrace_version "${new_version}"
 
 # Assert that there are no deprecation warnings from old ddtrace.request_init_hook

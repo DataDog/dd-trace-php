@@ -112,11 +112,13 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["args.0"]=>
       string(18) "tracing is awesome"
+      ["_dd.p.upstream_services"]=>
+      string(24) "Rm9vU2VydmljZQ|1|1|1.000"
     }
     ["metrics"]=>
     array(5) {
@@ -177,9 +179,11 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
+      ["_dd.p.upstream_services"]=>
+      string(36) "ZGRfdHJhY2VfbWV0aG9kLnBocA|1|1|1.000"
     }
     ["metrics"]=>
     array(3) {
