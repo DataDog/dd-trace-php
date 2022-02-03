@@ -54,11 +54,9 @@
 - Load the legacy tracer only when actually used #1449
 - Update profiling to v0.4.0 #1495
 
-
 ### Added
 - Add appsec library to the release bundle #1469
 - Add appsec installation #1470
-
 
 ### Fixed
 - Always emit NoopSpans if the tracer extension is disabled #1475
@@ -74,12 +72,14 @@
 ### Internal changes
 - Add parallelism to makefile for builds and test runs #1382
 - Add profiling module to randomized tests #1412
-- Switch to Symbols interface, cleanup tests (#1465)
+- Run randomized internal API stress testing in CI #1445
+- Switch to Symbols interface, cleanup tests #1465
 - Improve Symbol Call interface, introduce closure support #1467
 - Support in-tree builds of Tea #1472
 - Sandbox Bailout #1473
 - Patch zend_alloc.c to not crash in CI for PHP 7.0 to 7.2 #1478
 - build tea once during development #1479
+- Update PHP 8.1 dependencies, include laravel testing #1482
 - Inline queue function pointers #1490
 - Adjust stack sample max stack depth #1491
 - Remove unused profiling components #1492
