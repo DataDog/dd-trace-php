@@ -1,11 +1,11 @@
 <?php
 
+namespace DDTrace\Contracts;
+
 /**
  * Ported from opentracing/opentracing
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Tracer.php
  */
-
-namespace DDTrace\Contracts;
 
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;

@@ -1,11 +1,11 @@
 <?php
 
+namespace DDTrace;
+
 /**
  * Ported from opentracing/opentracing
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/GlobalTracer.php
  */
-
-namespace DDTrace;
 
 use DDTrace\Contracts\Tracer as TracerInterface;
 
@@ -42,6 +42,16 @@ final class GlobalTracer
         if (null !== self::$instance) {
             return self::$instance;
         }
+
+        // Ensure that, when trying to use the legacy API, our Tracer is also loaded
+        if (\extension_loaded('ddtrace') && function_exists('ddtrace_legacy_tracer_autoloading_possible')) {
+            /** @phpstan-ignore-next-line */
+            Bootstrap::tracerOnce();
+            if (null !== self::$instance) {
+                return self::$instance;
+            }
+        }
+
         return self::$instance = NoopTracer::create();
     }
 }

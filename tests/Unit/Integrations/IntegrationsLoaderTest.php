@@ -147,7 +147,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
     {
-        $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
+        $expected = $this->normalize(glob(__DIR__ . '/../../../src/Integrations/Integrations/*', GLOB_ONLYDIR));
 
         /*
          * We need a better way of validating loaded integrations:

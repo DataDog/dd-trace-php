@@ -61,10 +61,13 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
             require $file;
         }
     }
-    $internalFiles = include __DIR__ . '/_files_internal.php';
-    foreach ($internalFiles as $file) {
+    $integrationsFiles = include __DIR__ . '/_files_integrations.php';
+    foreach ($integrationsFiles as $file) {
         require $file;
     }
+
+    $tracerFiles = require __DIR__ . '/_files_tracer_api.php';
+    $tracerFilesWithComposerLoaded = require __DIR__ . '/_files_tracer.php';
 } else {
     // Production
     if (!$apiLoadedViaComposer) {
@@ -74,7 +77,42 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
         require_once __DIR__ . '/_generated_api.php';
     }
 
-    // File `_generated_internal.php` declares all the classes and functions meant only for internal use, and not meant
+    require_once __DIR__ . '/_generated_integrations.php';
+
+    // File `_generated_tracer_api.php` declares all tracer specific APIs for public usage of the legacy API.
+    // File `_generated_tracer.php` declares all the classes and functions meant only for internal use, and not meant
     // to be used by users for manual instrumentation.
-    require_once __DIR__ . '/_generated_internal.php';
+    $tracerFiles = [__DIR__ . '/_generated_tracer_api.php'];
+    $tracerFilesWithComposerLoaded = [__DIR__ . '/_generated_tracer.php'];
+}
+
+// Note that this autoloader is defined after the other DDTrace autoloader, thus it gets only invoked if the API
+// autoloader (if present) did not find the class.
+// In that case, we assume the user wants to load one of our legacy API classes. Then hard load them all.
+// This autoloader exists as to avoid loading the legacy API completely, if it is not used at all by the user.
+spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithComposerLoaded) {
+    // If $class is not a DDTrace class, move quickly to the next autoloader
+    $prefix = 'DDTrace\\';
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        // move to the next registered autoloader
+        return;
+    }
+
+    // The value of `$apiLoadedViaComposer` defined in the root scope cannot be reused because that value only reflects
+    // composer's autoloading definitions loaded during `opcache.preload` scripts execution.
+    $apiLoadedViaComposer = \class_exists('DDTrace\ComposerBootstrap', false);
+    if (!$apiLoadedViaComposer) {
+        foreach ($tracerFiles as $file) {
+            require_once $file;
+        }
+    }
+
+    foreach ($tracerFilesWithComposerLoaded as $file) {
+        require_once $file;
+    }
+});
+
+function ddtrace_legacy_tracer_autoloading_possible()
+{
 }

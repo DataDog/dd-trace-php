@@ -46,8 +46,8 @@ class Urls
      */
     public static function sanitize($url, $dropUserInfo = false)
     {
-        /* The implementation of this method is an exact replica of \DDTrace\Private_\util_url_sanitize() - and has to
-         * be kept in sync - until \DDTrace\Private_\util_url_sanitize() will be removed as part of the PHP->C
+        /* The implementation of this method is an exact replica of \DDTrace\Util\Normalizer::urlSanitize() - and has to
+         * be kept in sync - until \DDTrace\Util\Normalizer::urlSanitize() will be removed as part of the PHP->C
          * migration.
          *
          * Definition of unreserved and sub-delims in https://datatracker.ietf.org/doc/html/rfc3986#page-18

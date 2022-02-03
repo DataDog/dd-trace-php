@@ -1,11 +1,11 @@
 <?php
 
+namespace DDTrace\Exceptions;
+
 /**
  * Ported from opentracing/opentracing
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Exceptions/UnsupportedFormat.php
  */
-
-namespace DDTrace\Exceptions;
 
 use UnexpectedValueException;
 

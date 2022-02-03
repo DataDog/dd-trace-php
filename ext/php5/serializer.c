@@ -407,42 +407,47 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span TSRMLS_DC) {
     }
 }
 
-static smart_str dd_build_req_url(TSRMLS_D) {
-    smart_str url_str = {0};
-
+static const char *dd_get_req_uri(TSRMLS_D) {
     const char *uri = NULL;
-    size_t uri_len;
     zval *_server = PG(http_globals)[TRACK_VARS_SERVER];
     if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC)) {
         zval **req_uri;
         if (zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("REQUEST_URI"), (void **)&req_uri) == SUCCESS) {
             if (Z_TYPE_PP(req_uri) == IS_STRING) {
                 uri = Z_STRVAL_PP(req_uri);
-                uri_len = Z_STRLEN_PP(req_uri);
             }
         }
     }
 
     if (!uri) {
         uri = SG(request_info).request_uri;
-        if (uri) {
-            uri_len = strlen(uri);
-        }
     }
 
+    return uri;
+}
+
+static smart_str dd_build_req_url(TSRMLS_D) {
+    smart_str url_str = {0};
+
+    zval *_server = PG(http_globals)[TRACK_VARS_SERVER];
+    const char *uri = dd_get_req_uri(TSRMLS_C);
     if (!uri) {
         return url_str;
     }
 
+    int uri_len;
     char *question_mark = strchr(uri, '?');
     if (question_mark) {
         uri_len = question_mark - uri;
+    } else {
+        uri_len = strlen(uri);
     }
 
     zend_bool is_https = zend_hash_exists(Z_ARRVAL_P(_server), ZEND_STRS("HTTPS"));
 
     zval **host_zv;
-    if ((zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("HTTP_HOST"), (void **)&host_zv) == FAILURE &&
+    if (Z_TYPE_P(_server) != IS_ARRAY ||
+        (zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("HTTP_HOST"), (void **)&host_zv) == FAILURE &&
          zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("SERVER_NAME"), (void **)&host_zv) == FAILURE) ||
         Z_TYPE_PP(host_zv) != IS_STRING) {
         return url_str;
@@ -477,7 +482,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
             add_assoc_string(meta, "http.url", http_url.c, 0);
         }
 
-        const char *uri = SG(request_info).request_uri;
+        const char *uri = dd_get_req_uri(TSRMLS_C);
         zval **prop_resource = ddtrace_spandata_property_resource_write(span);
         MAKE_STD_ZVAL(*prop_resource);
         if (uri) {
@@ -560,6 +565,12 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
             hostname = erealloc(hostname, strlen(hostname) + 1);
             add_assoc_string(meta, "_dd.hostname", hostname, 0);
         }
+    }
+
+    ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
+    if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
+        zval *metrics = ddtrace_spandata_property_metrics(span);
+        add_assoc_double(metrics, "_dd1.sr.eausr", web_integration->get_sample_rate());
     }
 }
 

@@ -373,7 +373,7 @@ final class Tracer implements TracerInterface
         // Normalized URL as the resource name
         $resourceName = $_SERVER['REQUEST_METHOD'];
         if (isset($_SERVER['REQUEST_URI'])) {
-            $resourceName .= ' ' . \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
+            $resourceName .= ' ' . \DDTrace\Util\Normalizer::uriNormalizeIncomingPath($_SERVER['REQUEST_URI']);
         }
         $span->setTag(Tag::RESOURCE_NAME, $resourceName, true);
     }

@@ -415,30 +415,36 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span) {
     ZEND_HASH_FOREACH_END();
 }
 
-static zend_string *dd_build_req_url() {
+static const char *dd_get_req_uri() {
     const char *uri = NULL;
-    int uri_len;
     zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
     if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
         zval *req_uri = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("REQUEST_URI"));
         if (req_uri && Z_TYPE_P(req_uri) == IS_STRING) {
             uri = Z_STRVAL_P(req_uri);
-            uri_len = Z_STRLEN_P(req_uri);
         }
     }
 
     if (!uri) {
         uri = SG(request_info).request_uri;
-        if (uri) {
-            uri_len = strlen(uri);
-        } else {
-            return ZSTR_EMPTY_ALLOC();
-        }
     }
 
+    return uri;
+}
+
+static zend_string *dd_build_req_url() {
+    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
+    const char *uri = dd_get_req_uri();
+    if (!uri) {
+        return ZSTR_EMPTY_ALLOC();
+    }
+
+    int uri_len;
     char *question_mark = strchr(uri, '?');
     if (question_mark) {
         uri_len = question_mark - uri;
+    } else {
+        uri_len = strlen(uri);
     }
 
     zend_bool is_https = zend_hash_str_exists(Z_ARRVAL_P(_server), ZEND_STRL("HTTPS"));
@@ -474,7 +480,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
             zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &http_url);
         }
 
-        const char *uri = SG(request_info).request_uri;
+        const char *uri = dd_get_req_uri();
         zval *prop_resource = ddtrace_spandata_property_resource(span);
         if (uri) {
             zend_string *path = zend_string_init(uri, strlen(uri), 0);
@@ -539,6 +545,14 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
             ZVAL_STR(&hostname_zv, hostname);
             zend_hash_str_add_new(meta, ZEND_STRL("_dd.hostname"), &hostname_zv);
         }
+    }
+
+    ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
+    if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
+        zend_array *metrics = ddtrace_spandata_property_metrics(span);
+        zval sample_rate;
+        ZVAL_DOUBLE(&sample_rate, web_integration->get_sample_rate());
+        zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
     }
 }
 
