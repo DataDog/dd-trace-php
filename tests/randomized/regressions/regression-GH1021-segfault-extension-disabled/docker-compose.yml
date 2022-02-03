@@ -35,7 +35,7 @@ services:
       - MYSQL_DATABASE=test
 
   php-test:
-    image: datadog/dd-trace-ci:php-randomizedtests-dev-centos7-7.0
+    image: datadog/dd-trace-ci:php-randomizedtests-centos7-7.0
     ulimits:
       core: 99999999999
     privileged: true
