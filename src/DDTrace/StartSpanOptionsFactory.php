@@ -6,6 +6,8 @@ use DDTrace\Contracts\Tracer as TracerInterface;
 
 /**
  * A factory to create instances of StartSpanOptions.
+ *
+ * @deprecated Obsoleted by moving related code to internal.
  */
 class StartSpanOptionsFactory
 {

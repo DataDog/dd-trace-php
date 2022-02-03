@@ -24,37 +24,33 @@ final class SpanContext extends SpanContextData
 
     public static function createAsChild(SpanContextInterface $parentContext, $startTime = null)
     {
-        // Since dd_trace_push_span_id() updates the return value of
-        // dd_trace_peek_span_id(), we need to access the existing
-        // value before generating a new ID
-        $activeSpanId = dd_trace_peek_span_id();
-
+        // @phpstan-ignore-next-line
+        $origin = \property_exists($parentContext, 'origin') ? $parentContext->origin : null;
         if (!$parentContext->isDistributedTracingActivationContext() || !active_span()) {
+            if ($parentContext->isDistributedTracingActivationContext()) {
+                set_distributed_tracing_context(
+                    $parentContext->getTraceId(),
+                    $parentContext->getSpanId(),
+                    $origin
+                );
+            }
             if ($startTime) {
                 start_span($startTime);
             } else {
                 start_span(); // we'll peek at the span stack top later
             }
         }
-        if ($parentContext->isDistributedTracingActivationContext() && !$activeSpanId) {
-            $activeSpanId = $parentContext->getTraceId();
-        }
         $instance = new self(
             $parentContext->getTraceId(),
-            \dd_trace_peek_span_id(),
-            // Since the last span could have been generated internally,
-            // we can't use `$parentContext->getSpanId()` here
-            $activeSpanId,
+            active_span()->id,
+            $parentContext->getSpanId(),
             $parentContext->getAllBaggageItems(),
             false
         );
         $instance->parentContext = $parentContext;
         $instance->setPropagatedPrioritySampling($parentContext->getPropagatedPrioritySampling());
-        if (
-            property_exists($instance, 'origin')
-            && !empty($parentContext->origin)
-        ) {
-            $instance->origin = $parentContext->origin;
+        if ($origin) {
+            $instance->origin = $origin;
         }
         return $instance;
     }
@@ -69,7 +65,7 @@ final class SpanContext extends SpanContextData
                 start_span(); // we'll peek at the span stack top later
             }
         }
-        $nextId = \dd_trace_peek_span_id();
+        $nextId = active_span()->id;
 
         return new self(
             $nextId,

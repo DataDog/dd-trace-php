@@ -12,7 +12,6 @@ return [
     __DIR__ . '/../src/DDTrace/Scope.php',
     __DIR__ . '/../src/DDTrace/Sampling/PrioritySampling.php',
     __DIR__ . '/../src/DDTrace/Propagator.php',
-    __DIR__ . '/../src/DDTrace/Bootstrap.php',
     __DIR__ . '/../src/DDTrace/Encoders/SpanEncoder.php',
     __DIR__ . '/../src/DDTrace/Encoders/MessagePack.php',
     __DIR__ . '/../src/DDTrace/Propagators/TextMap.php',

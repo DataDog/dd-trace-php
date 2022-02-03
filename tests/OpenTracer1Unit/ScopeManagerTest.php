@@ -12,6 +12,19 @@ final class ScopeManagerTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_name';
 
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        ini_set("datadog.trace.generate_root_span", false);
+    }
+
+    protected function ddTearDown()
+    {
+        parent::ddTearDown();
+        ini_restore("datadog.trace.generate_root_span");
+        \dd_trace_serialize_closed_spans();
+    }
+
     public function testGetActiveFailsWithNoActiveSpans()
     {
         $scopeManager = new ScopeManager(new DDScopeManager());

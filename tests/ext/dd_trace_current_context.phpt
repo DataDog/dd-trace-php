@@ -26,7 +26,7 @@ if (strcmp($context['env'], getenv("DD_ENV")) !== 0) {
 
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
   ["trace_id"]=>
   string(%d) "%d"
   ["span_id"]=>
@@ -35,4 +35,7 @@ array(4) {
   string(5) "1.2.3"
   ["env"]=>
   string(13) "dd-trace-test"
+  ["distributed_tracing_propagated_tags"]=>
+  array(0) {
+  }
 }

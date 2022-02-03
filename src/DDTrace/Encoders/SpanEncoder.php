@@ -7,6 +7,7 @@ use DDTrace\Data\Span as DataSpan;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Tag;
 
+/** @deprecated Obsoleted by moving related code to internal. */
 final class SpanEncoder
 {
     use LoggingTrait;

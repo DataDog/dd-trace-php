@@ -292,8 +292,6 @@ JSON;
 
     public function testUnfinishedSpansAreNotSentOnFlush()
     {
-        dd_trace_serialize_closed_spans();
-
         $transport = new DebugTransport();
         $tracer = Tracer::make($transport);
         $tracer->startActiveSpan('root');

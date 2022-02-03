@@ -6,6 +6,7 @@ use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
 use DDTrace\Log\LoggingTrait;
 
+/** @deprecated Obsoleted by moving related code to internal. */
 final class MessagePack implements Encoder
 {
     use LoggingTrait;

@@ -117,6 +117,8 @@ final class TextMapTest extends BaseTestCase
         $textMapPropagator->inject($context, $carrier);
 
         $this->assertSame('foo_origin', $carrier['x-datadog-origin']);
+
+        \dd_trace_serialize_closed_spans();
     }
 
     public function testOriginIsExtracted()

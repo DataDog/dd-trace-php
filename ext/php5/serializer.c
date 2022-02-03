@@ -405,6 +405,12 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span TSRMLS_DC) {
             zval_addref_p(*val);
         }
     }
+
+    zval **id = ddtrace_spandata_property_id_write(span);
+    MAKE_STD_ZVAL(*id);
+    char span_id_str[MAX_ID_BUFSIZ];
+    sprintf(span_id_str, "%" PRIu64, span->span_id);
+    ZVAL_STRING(*id, span_id_str, 1);
 }
 
 static const char *dd_get_req_uri(TSRMLS_D) {

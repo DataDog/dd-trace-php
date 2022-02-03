@@ -163,6 +163,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_close_span, 0, 0, 0)
 ZEND_ARG_INFO(0, finish_time)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_set_distributed_tracing_context, 0, 0, 2)
+ZEND_ARG_INFO(0, trace_id)
+ZEND_ARG_INFO(0, parent_id)
+ZEND_ARG_INFO(0, origin)
+ZEND_ARG_INFO(0, tags)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_add_global_tag, 0, 0, 2)
 ZEND_ARG_INFO(0, key)
 ZEND_ARG_INFO(0, value)
@@ -274,8 +281,10 @@ static zend_object_value ddtrace_span_data_clone_obj(zval *old_zv TSRMLS_DC) {
 }
 
 static void ddtrace_span_data_readonly(zval *object, zval *member, zval *value, const zend_literal *key TSRMLS_DC) {
-    if ((Z_TYPE_P(member) == IS_STRING) && (Z_STRLEN_P(member) == sizeof("parent") - 1) &&
-        (SUCCESS == memcmp(Z_STRVAL_P(member), "parent", sizeof("parent") - 1))) {
+    if (Z_TYPE_P(member) == IS_STRING &&
+        ((Z_STRLEN_P(member) == sizeof("parent") - 1 &&
+          SUCCESS == memcmp(Z_STRVAL_P(member), "parent", sizeof("parent") - 1)) ||
+         (Z_STRLEN_P(member) == sizeof("id") - 1 && SUCCESS == memcmp(Z_STRVAL_P(member), "id", sizeof("id") - 1)))) {
         zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Cannot modify readonly property %s::$%s", Z_OBJCE_P(object)->name,
                                 Z_STRVAL_P(member));
         return;
@@ -328,6 +337,7 @@ static void dd_register_span_data_ce(TSRMLS_D) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "id", sizeof("id") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static zval *OBJ_PROP_NUM(zend_object *obj, uint32_t offset) {
@@ -391,8 +401,9 @@ zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span) { return OBJ_PROP_
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 6); }
 zval **ddtrace_spandata_property_exception_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 6); }
 // SpanData::$parent
-zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) { return OBJ_PROP_NUM(&span->std, 7); }
 zval **ddtrace_spandata_property_parent_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 7); }
+// SpanData::$id
+zval **ddtrace_spandata_property_id_write(ddtrace_span_t *span) { return OBJ_PROP_NUM_write(&span->std, 8); }
 
 static zend_object_handlers ddtrace_fatal_error_handlers;
 /* The goal is to mimic zend_default_exception_new_ex except for adding
@@ -1737,6 +1748,93 @@ static PHP_FUNCTION(current_context) {
     } else {
         add_assoc_null_ex(return_value, "env", sizeof("env"));
     }
+
+    if (DDTRACE_G(dd_origin)) {
+        add_assoc_string_ex(return_value, ZEND_STRS("distributed_tracing_origin"), DDTRACE_G(dd_origin), 1);
+    }
+
+    if (DDTRACE_G(distributed_parent_trace_id)) {
+        char *parent_id;
+        spprintf(&parent_id, DD_TRACE_MAX_ID_LEN, "%" PRIu64, DDTRACE_G(distributed_parent_trace_id));
+        add_assoc_string_ex(return_value, ZEND_STRS("distributed_tracing_parent_id"), parent_id, 0);
+    }
+
+    zval *tags;
+    if (get_DD_TRACE_ENABLED()) {
+        tags = ddtrace_get_propagated_tags(TSRMLS_C);
+    } else {
+        MAKE_STD_ZVAL(tags);
+        array_init(tags);
+    }
+    add_assoc_zval_ex(return_value, ZEND_STRS("distributed_tracing_propagated_tags"), tags);
+}
+
+/* {{{ proto bool set_distributed_tracing_context() */
+static PHP_FUNCTION(set_distributed_tracing_context) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+
+    char *trace_id_str, *parent_id_str, *origin = NULL;
+    int trace_id_len, parent_id_len, origin_len;
+    zval *tags = NULL;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "ss|s!z!", &trace_id_str,
+                                 &trace_id_len, &parent_id_str, &parent_id_len, &origin, &origin_len,
+                                 &tags) != SUCCESS ||
+        (tags && Z_TYPE_P(tags) != IS_BOOL && Z_TYPE_P(tags) != IS_NULL && Z_TYPE_P(tags) != IS_ARRAY &&
+         Z_TYPE_P(tags) != IS_STRING)) {
+        ddtrace_log_debug(
+            "unexpected parameter. expecting string trace id and string parent id and possibly string origin and string or array propagated tags");
+        RETURN_FALSE;
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_FALSE;
+    }
+
+    if (DDTRACE_G(open_spans_top)) {
+        ddtrace_log_debug("Cannot set the distributed tracing context when there are active spans");
+        RETURN_FALSE;
+    }
+
+    uint64_t old_trace_id = DDTRACE_G(trace_id);
+    zval trace_zv;
+    ZVAL_STRINGL(&trace_zv, trace_id_str, trace_id_len, 0);
+    if (trace_id_len == 1 && trace_id_str[0] == '0') {
+        DDTRACE_G(trace_id) = 0;
+    } else if (!ddtrace_set_userland_trace_id(&trace_zv TSRMLS_CC)) {
+        RETURN_FALSE;
+    }
+
+    zval parent_zv;
+    ZVAL_STRINGL(&parent_zv, parent_id_str, parent_id_len, 0);
+    uint64_t last_id = ddtrace_pop_span_id(TSRMLS_C);
+    if (parent_id_len == 1 && parent_id_str[0] == '0') {
+        DDTRACE_G(distributed_parent_trace_id) = 0;
+    } else if (ddtrace_push_userland_span_id(&parent_zv TSRMLS_CC)) {
+        DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id(TSRMLS_C);
+    } else {
+        ddtrace_push_span_id(last_id TSRMLS_CC);
+        DDTRACE_G(trace_id) = old_trace_id;
+        RETURN_FALSE;
+    }
+
+    if (origin) {
+        if (DDTRACE_G(dd_origin)) {
+            efree(DDTRACE_G(dd_origin));
+        }
+        DDTRACE_G(dd_origin) = origin_len ? estrndup(origin, origin_len) : NULL;
+    }
+
+    if (tags) {
+        if (Z_TYPE_P(tags) == IS_STRING) {
+            ddtrace_add_tracer_tags_from_header(
+                (zai_string_view){.len = Z_STRLEN_P(tags), .ptr = Z_STRVAL_P(tags)} TSRMLS_CC);
+        } else if (Z_TYPE_P(tags) == IS_ARRAY) {
+            ddtrace_add_tracer_tags_from_array(Z_ARRVAL_P(tags) TSRMLS_CC);
+        }
+    }
+
+    RETURN_TRUE;
 }
 
 /* {{{ proto string dd_trace_closed_spans_count() */
@@ -1835,6 +1933,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_NS_FE(trace_id, arginfo_ddtrace_void),
     DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(set_distributed_tracing_context, arginfo_dd_trace_set_distributed_tracing_context),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),
@@ -1921,6 +2020,6 @@ void dd_read_distributed_tracing_ids(TSRMLS_D) {
     }
 
     if (zai_read_header_literal("X_DATADOG_TAGS", &propagated_tags) == ZAI_HEADER_SUCCESS) {
-        ddtrace_add_tracer_tags_from_header(&propagated_tags TSRMLS_CC);
+        ddtrace_add_tracer_tags_from_header(propagated_tags TSRMLS_CC);
     }
 }

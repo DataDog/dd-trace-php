@@ -10,8 +10,26 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-void ddtrace_add_tracer_tags_from_header(zai_string_view *headerstr TSRMLS_DC) {
-    char *header = (char *)headerstr->ptr, *headerend = header + headerstr->len;
+static void dd_clean_old_tags(TSRMLS_D) {
+    HashPosition pos;
+    char *key;
+    uint klen;
+    ulong kidx;
+
+    for (zend_hash_internal_pointer_reset_ex(&DDTRACE_G(propagated_root_span_tags), &pos);
+         zend_hash_get_current_key_ex(&DDTRACE_G(propagated_root_span_tags), (char **)&key, (uint *)&klen, &kidx, 0,
+                                      &pos) == HASH_KEY_IS_STRING;
+         zend_hash_move_forward_ex(&DDTRACE_G(propagated_root_span_tags), &pos)) {
+        zend_hash_del(&DDTRACE_G(root_span_tags_preset), key, klen);
+    }
+
+    zend_hash_clean(&DDTRACE_G(propagated_root_span_tags));
+}
+
+void ddtrace_add_tracer_tags_from_header(zai_string_view headerstr TSRMLS_DC) {
+    dd_clean_old_tags(TSRMLS_C);
+
+    char *header = (char *)headerstr.ptr, *headerend = header + headerstr.len;
 
     for (char *tagstart = header; header < headerend; ++header) {
         if (*header == '=') {
@@ -24,18 +42,9 @@ void ddtrace_add_tracer_tags_from_header(zai_string_view *headerstr TSRMLS_DC) {
 
             zval *zv;
             MAKE_STD_ZVAL(zv);
-            Z_TYPE_P(zv) = IS_STRING;
-            Z_STRLEN_P(zv) = header - valuestart;
-            Z_STRVAL_P(zv) = emalloc(Z_STRLEN_P(zv) + 1);
-            memcpy(Z_STRVAL_P(zv), valuestart, header - valuestart);
-            Z_STRVAL_P(zv)[Z_STRLEN_P(zv)] = 0;
+            ZVAL_STRINGL(zv, valuestart, header - valuestart, 1);
 
-            char *key = emalloc(tag_name.len + 1);
-
-            memcpy(key, tag_name.ptr, tag_name.len);
-
-            key[tag_name.len] = 0;
-
+            char *key = estrndup(tag_name.ptr, tag_name.len);
             zend_hash_update(&DDTRACE_G(root_span_tags_preset), key, tag_name.len + 1, &zv, sizeof(zval *), NULL);
             zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), key, tag_name.len + 1);
             efree(key);
@@ -43,10 +52,55 @@ void ddtrace_add_tracer_tags_from_header(zai_string_view *headerstr TSRMLS_DC) {
         // we skip invalid tags without = within
         if (*header == ',') {
             ddtrace_log_debugf("Found x-datadog-tags header without key-separating equals character; raw input: %.*s",
-                               headerstr->len, headerstr->ptr);
+                               headerstr.len, headerstr.ptr);
             tagstart = ++header;
         }
     }
+}
+
+void ddtrace_add_tracer_tags_from_array(HashTable *array TSRMLS_DC) {
+    dd_clean_old_tags(TSRMLS_C);
+
+    HashPosition pos;
+    char *key = NULL;
+    uint klen;
+    ulong kidx;
+
+    for (zend_hash_internal_pointer_reset_ex(array, &pos);
+         zend_hash_get_current_key_ex(array, (char **)&key, (uint *)&klen, &kidx, 0, &pos) != HASH_KEY_NON_EXISTANT;
+         key = NULL, zend_hash_move_forward_ex(array, &pos)) {
+        if (key) {
+            zval *tagstr, **tag;
+            MAKE_STD_ZVAL(tagstr);
+            zend_hash_get_current_data_ex(array, (void **)&tag, &pos);
+            ddtrace_convert_to_string(tagstr, *tag TSRMLS_CC);
+            zend_hash_update(&DDTRACE_G(root_span_tags_preset), key, klen, &tagstr, sizeof(zval *), NULL);
+            zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), key, klen);
+        }
+    }
+}
+
+zval *ddtrace_get_propagated_tags(TSRMLS_D) {
+    zval *zv;
+    MAKE_STD_ZVAL(zv);
+    array_init(zv);
+
+    HashPosition pos;
+    char *key;
+    uint klen;
+    ulong kidx;
+
+    for (zend_hash_internal_pointer_reset_ex(&DDTRACE_G(propagated_root_span_tags), &pos);
+         zend_hash_get_current_key_ex(&DDTRACE_G(propagated_root_span_tags), (char **)&key, (uint *)&klen, &kidx, 0,
+                                      &pos) == HASH_KEY_IS_STRING;
+         zend_hash_move_forward_ex(&DDTRACE_G(propagated_root_span_tags), &pos)) {
+        zval **tag;
+        if (zend_hash_find(&DDTRACE_G(root_span_tags_preset), key, klen, (void **)&tag) == SUCCESS) {
+            zval_addref_p(*tag);
+            zend_hash_add(Z_ARRVAL_P(zv), key, klen, tag, sizeof(zval *), NULL);
+        }
+    }
+    return zv;
 }
 
 zai_string_view ddtrace_format_propagated_tags(TSRMLS_D) {
