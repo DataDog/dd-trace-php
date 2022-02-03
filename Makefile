@@ -17,7 +17,7 @@ PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
-PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0/datadog-profiling.tar.gz
+PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.4.0/datadog-profiling.tar.gz
 APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.2.0/dd-appsec-php-0.2.0-amd64.tar.gz
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
