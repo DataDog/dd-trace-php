@@ -877,7 +877,7 @@ jobs:
       - run: mkdir -p test-results
       - run:
           name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> docker_compose_pull verify_centos_6
+          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> verify_centos_6
       - store_test_results:
           path: test-results
 
@@ -980,7 +980,7 @@ jobs:
           command: sudo sysctl -w vm.max_map_count=262144
       - run:
           name: Copy tracer package
-          command: make -C tests/randomized tracer.local
+          command: make -C tests/randomized library.local
       - run:
           name: Pull docker images
           command: make -C tests/randomized pull
@@ -1108,40 +1108,6 @@ jobs:
             tar -xf ../v<< parameters.catch2_version >>.tar.gz --strip 1
             cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2
             cmake --build build/ --target install
-      - run:
-          name: Build and test Datadog::Arena
-          command: |
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/DatadogArena
-            cd /tmp/build/DatadogArena
-            if [ -f "/etc/debian_version" ]
-            then
-              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-            fi
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-              $toolchain \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_TESTING=ON \
-              ~/datadog/ext/DatadogArena
-            make -j
-            make test
-      - run:
-          name: Build and test Datadog::MemHash
-          command: |
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/DatadogMemHash
-            cd /tmp/build/DatadogMemHash
-            if [ -f "/etc/debian_version" ]
-            then
-              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-            fi
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-              $toolchain \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_TESTING=ON \
-              ~/datadog/ext/DatadogMemHash
-            make -j
-            make test
 
       - run:
           name: Build and test Datadog::Php::Components (ASan)
@@ -1447,14 +1413,14 @@ jobs:
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension basic .so
-          command: make all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make -j all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension debug .so
-          command: make clean all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make clean && make -j all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
@@ -1483,19 +1449,19 @@ jobs:
           name: Build ndebug, nts configuration
           command: |
             switch-php << parameters.php_version >>
-            make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
             switch-php << parameters.php_version >>-debug
-            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
       - run:
           name: Build zts configuration
           command: |
             switch-php << parameters.php_version >>-zts
-            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-zts.so
       - persist_to_workspace:
           root: '.'
@@ -2074,6 +2040,7 @@ workflows:
                 - test_api_unit
                 - test_c2php
                 - test_c_disabled
+                - test_internal_api_randomized
       - coverage:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -2104,6 +2071,7 @@ workflows:
               make_target:
                 - test_c_asan
                 - test_with_init_hook_asan
+                - test_internal_api_randomized
 
       - integration:
           requires: [ 'Prepare Code' ]

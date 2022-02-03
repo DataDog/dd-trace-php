@@ -192,7 +192,7 @@ TEST_CASE("channel multiple producers easy", "[channel]") {
     int sum = 0;
     for (int i = 0; i < capacity; ++i) {
         int *item = nullptr;
-        CHECK(receiver->recv(receiver, (void**)&item, TIMEOUT));
+        CHECK(receiver->recv(receiver, (void **)&item, TIMEOUT));
         sum += *item;
     }
 

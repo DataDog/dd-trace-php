@@ -41,7 +41,7 @@ static bool receiver_recv(struct datadog_php_receiver_s *receiver, void **data, 
     datadog_php_channel_impl *channel = receiver->channel;
     uv_mutex_lock(&channel->mutex);
     datadog_php_queue *queue = &channel->queue;
-    bool succeeded = queue->try_pop(queue, data);
+    bool succeeded = datadog_php_queue_try_pop(queue, data);
 
     // If there wasn't an item but there are known producers, wait and try again
     if (!succeeded && channel->sender_count && timeout_nanos) {
@@ -53,7 +53,7 @@ static bool receiver_recv(struct datadog_php_receiver_s *receiver, void **data, 
              * the mutex will be re-acquired when resuming.
              */
             (void)uv_cond_timedwait(&channel->condvar, &channel->mutex, timeout_target - now);
-            succeeded = queue->try_pop(queue, data);
+            succeeded = datadog_php_queue_try_pop(queue, data);
             if (succeeded) {
                 break;
             }
@@ -90,7 +90,7 @@ static bool sender_send(struct datadog_php_sender_s *sender, void *data) {
     datadog_php_channel_impl *channel = sender->channel;
     uv_mutex_lock(&channel->mutex);
     datadog_php_queue *queue = &channel->queue;
-    bool sent = queue->try_push(queue, data);
+    bool sent = datadog_php_queue_try_push(queue, data);
     if (sent) {
         uv_cond_signal(&channel->condvar);
     }

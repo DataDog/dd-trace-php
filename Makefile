@@ -18,14 +18,22 @@ PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.3.0/datadog-profiling.tar.gz
+APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.2.0/dd-appsec-php-0.2.0-amd64.tar.gz
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
+RUN_TESTS_IS_PARALLEL := $(shell test $(shell php-config --vernum) -gt 70399 && echo 1 || echo 0)
+
+ifeq ($(RUN_TESTS_IS_PARALLEL), 1)
+RUN_TESTS_EXTRA_ARGS := -j$(shell nproc)
+else
 RUN_TESTS_EXTRA_ARGS :=
+endif
+
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -68,7 +76,7 @@ $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure)
 
 $(SO_FILE): $(C_FILES) $(BUILD_DIR)/Makefile
-	$(Q) $(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
+	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)"
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
@@ -146,75 +154,90 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	)
 
 build_tea:
+	$(Q) test -f $(TEA_BUILD_DIR)/.built || \
 	( \
-	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
-	cd $(TEA_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 \
-	cmake \
-		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-		-DPHP_CONFIG=$(shell which php-config) \
-	$(PROJECT_ROOT)/tea; \
-	$(MAKE) $(MAKEFLAGS); \
+		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+		cd $(TEA_BUILD_DIR); \
+		CMAKE_PREFIX_PATH=/opt/catch2 \
+		cmake \
+			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
+			-DCMAKE_BUILD_TYPE=Debug \
+			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
+			-DPHP_CONFIG=$(shell which php-config) \
+		$(PROJECT_ROOT)/tea; \
+		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built; \
 	)
 
-test_tea: build_tea
+test_tea: clean_tea build_tea
 	( \
 	$(MAKE) -C $(TEA_BUILD_DIR) test; \
 	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
 install_tea: build_tea
-	$(MAKE) -C $(TEA_BUILD_DIR) install;
-
-build_tea_asan:
+	$(Q) test -f $(TEA_BUILD_DIR)/.installed || \
 	( \
-	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
-	cd $(TEA_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 \
-	cmake \
-		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-		-DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake \
-		-DPHP_CONFIG=$(shell which php-config) \
-	$(PROJECT_ROOT)/tea; \
-	$(MAKE) $(MAKEFLAGS); \
+		$(MAKE) -C $(TEA_BUILD_DIR) install; \
+		touch $(TEA_BUILD_DIR)/.installed; \
 	)
 
-test_tea_asan: build_tea_asan
+build_tea_asan:
+	$(Q) test -f $(TEA_BUILD_DIR)/.built.asan || \
+	( \
+		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+		cd $(TEA_BUILD_DIR); \
+		CMAKE_PREFIX_PATH=/opt/catch2 \
+		cmake \
+			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
+			-DCMAKE_BUILD_TYPE=Debug \
+			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
+			-DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake \
+			-DPHP_CONFIG=$(shell which php-config) \
+		$(PROJECT_ROOT)/tea; \
+		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.asan; \
+	)
+
+test_tea_asan: clean_tea build_tea_asan
 	( \
 	$(MAKE) -C $(TEA_BUILD_DIR) test; \
 	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
 install_tea_asan: build_tea_asan
-	$(MAKE) -C $(TEA_BUILD_DIR) install;
-
-build_tea_coverage:
+	$(Q) test -f $(TEA_BUILD_DIR)/.installed.asan || \
 	( \
-	mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
-	cd $(TEA_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 \
-	cmake \
-		-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
-		-DCMAKE_BUILD_TYPE=Debug \
-		-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-		-DCMAKE_C_FLAGS="-O0 --coverage" \
-		-DPHP_CONFIG=$(shell which php-config) \
-	$(PROJECT_ROOT)/tea; \
-	$(MAKE) $(MAKEFLAGS); \
+		$(MAKE) -C $(TEA_BUILD_DIR) install; \
+		touch $(TEA_BUILD_DIR)/.installed.asan; \
 	)
 
-test_tea_coverage: build_tea_coverage
+build_tea_coverage:
+	$(Q) test -f $(TEA_BUILD_DIR)/.built.coverage || \
+	( \
+		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
+		cd $(TEA_BUILD_DIR); \
+		CMAKE_PREFIX_PATH=/opt/catch2 \
+		cmake \
+			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
+			-DCMAKE_BUILD_TYPE=Debug \
+			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
+			-DCMAKE_C_FLAGS="-O0 --coverage" \
+			-DPHP_CONFIG=$(shell which php-config) \
+		$(PROJECT_ROOT)/tea; \
+		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.coverage; \
+	)
+
+test_tea_coverage: clean_tea build_tea_coverage
 	( \
 	$(MAKE) -C $(TEA_BUILD_DIR) test; \
 	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
 install_tea_coverage: build_tea_coverage
-	$(MAKE) -C $(TEA_BUILD_DIR) install;
+	$(Q) test -f $(TEA_BUILD_DIR)/.installed.coverage || \
+	( \
+		$(MAKE) -C $(TEA_BUILD_DIR) install; \
+		touch $(TEA_BUILD_DIR)/.installed.coverage; \
+	)
 
 clean_tea:
 	rm -rf $(TEA_BUILD_DIR)
@@ -245,7 +268,7 @@ build_zai_asan: install_tea_asan
 		-DPHP_CONFIG=$(shell which php-config) \
 	$(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) clean $(MAKEFLAGS); \
-	$(MAKE) $(MAKEFLAGS); \
+	$(MAKE) -j $(MAKEFLAGS); \
 	)
 
 test_zai_asan: build_zai_asan
@@ -386,7 +409,8 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR) \
-		$(PROFILING_RELEASE_URL)
+		$(PROFILING_RELEASE_URL) \
+		$(APPSEC_RELEASE_URL)
 	bash ./tooling/bin/generate-installers.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
@@ -776,6 +800,7 @@ TEST_INTEGRATIONS_81 := \
 TEST_WEB_81 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laravel_8x \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -783,7 +808,6 @@ TEST_WEB_81 := \
 	test_web_symfony_52 \
 	test_web_custom
 #	test_web_yii_2 \
-#	test_web_laravel_8x \
 
 FILTER := .
 
@@ -1009,6 +1033,10 @@ API_TESTS_ROOT := ./tests/api
 
 test_api_unit: composer.lock global_test_run_dependencies
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
+
+# Just test it does not crash, i.e. the exit code
+test_internal_api_randomized: $(SO_FILE)
+	php -ddatadog.trace.cli_enabled=1 -d extension=$(SO_FILE) tests/internal-api-stress-test.php 2>/dev/null
 
 composer.lock: composer.json
 	$(Q) composer update

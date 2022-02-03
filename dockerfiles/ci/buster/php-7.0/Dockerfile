@@ -9,13 +9,15 @@ ENV PHP_VERSION=${phpVersion}
 FROM base as build
 ARG phpTarGzUrl
 ARG phpSha256Hash
+COPY 0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    ./buildconf --force;
+    ./buildconf --force; \
+    patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch;
 COPY configure.sh /home/circleci
 
 FROM build as php-debug-zts

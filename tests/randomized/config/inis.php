@@ -5,4 +5,5 @@
 // NOTE: flags should be boolean values and are converted while generating the file to the proper value.
 const INIS = [
     'opcache.enable' => [false],
+    'zend_extension' => ['datadog-profiling.so'],
 ];

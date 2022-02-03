@@ -4,8 +4,6 @@ extern "C" {
 #include "config/config_decode.h"
 #include "ext_zai_config.h"
 #include "json/json.h"
-#include "tea/sapi.h"
-#include "tea/extension.h"
 }
 
 #include "zai_tests_common.hpp"

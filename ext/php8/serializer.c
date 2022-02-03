@@ -14,7 +14,6 @@
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
-#include <properties/properties.h>
 
 #include "arrays.h"
 #include "compat_string.h"
@@ -279,7 +278,8 @@ static zend_result ddtrace_exception_to_meta(zend_object *exception, void *conte
     }
 
     previous = ZAI_EXCEPTION_PROPERTY(exception_root, ZEND_STR_PREVIOUS);
-    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous)) {
+    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
+           instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
         Z_UNPROTECT_RECURSION_P(previous);
         previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
     }

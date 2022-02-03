@@ -1,6 +1,6 @@
 #include "queue.h"
 
-static bool queue_try_push(struct datadog_php_queue_s *queue, void *item) {
+bool datadog_php_queue_try_push(datadog_php_queue *queue, void *item) {
     if (queue->size == queue->capacity) {
         return false;
     }
@@ -10,7 +10,7 @@ static bool queue_try_push(struct datadog_php_queue_s *queue, void *item) {
     return true;
 }
 
-static bool queue_try_pop(struct datadog_php_queue_s *queue, void **item_ref) {
+bool datadog_php_queue_try_pop(datadog_php_queue *queue, void **item_ref) {
     bool has_item = queue->size;
     if (has_item) {
         *item_ref = queue->buffer[queue->tail];
@@ -20,7 +20,7 @@ static bool queue_try_pop(struct datadog_php_queue_s *queue, void **item_ref) {
     return has_item;
 }
 
-bool datadog_php_queue_ctor(datadog_php_queue *queue, uint16_t capacity, void *buffer[]) {
+bool datadog_php_queue_ctor(datadog_php_queue *queue, uint16_t capacity, void *buffer[static capacity]) {
     if (!queue || (capacity && !buffer)) {
         return false;
     }
@@ -31,8 +31,6 @@ bool datadog_php_queue_ctor(datadog_php_queue *queue, uint16_t capacity, void *b
         .head = 0,
         .tail = 0,
         .buffer = buffer,
-        .try_push = queue_try_push,
-        .try_pop = queue_try_pop,
     };
     *queue = q;
     return true;

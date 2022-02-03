@@ -4,9 +4,7 @@ DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
 REGRESSIONS_FOLDER := ./regressions
 REGRESSION_NAME := "provide-regression-name"
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
-TRACER_TEST_URL := https://github.com/DataDog/dd-trace-php/releases/download/0.54.0/datadog-php-tracer-0.54.0.x86_64.tar.gz
-TRACER_DOWNLOAD_PATH := ./.tracer-versions
-TRACER_VERSION := 0.55.0
+LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
@@ -50,29 +48,32 @@ pull.centos7:
 	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.5
 	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.4
 
-tracer.local:
-	@mkdir -p ${TRACER_DOWNLOAD_PATH}
-	@cp ../../build/packages/datadog-php-tracer-*.tar.gz ${TRACER_DOWNLOAD_PATH}/ddtrace-test.tar.gz
+library.local:
+	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
+#	For now we only handle centos in randomized tests
+	@cp ../../build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz
 
-tracer.download:
-	@echo "Downloading tracer at url: $(TRACER_TEST_URL)"
-	@mkdir -p $(TRACER_DOWNLOAD_PATH)
-	@curl --silent -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "$(TRACER_TEST_URL)"
+library.download:
+	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
+	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
+#	For now we only handle centos in randomized tests
+	@curl --silent -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "$(LIBRARY_TEST_URL)"
 	@echo "Done"
 
-tracer.version:
-	@echo "Downloading tracer version: $(TRACER_VERSION)"
-	@mkdir -p $(TRACER_DOWNLOAD_PATH)
-	@curl -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(TRACER_VERSION)/datadog-php-tracer-$(TRACER_VERSION).x86_64.tar.gz"
+library.version:
+	@echo "Downloading library version: $(LIBRARY_VERSION)"
+	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
+#	For now we only handle centos in randomized tests
+	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-$(LIBRARY_VERSION)-x86_64-linux-gnu.tar.gz"
 	@echo "Done"
 
 generate: clean results_folder
 	@php generate-scenarios.php --seed=$(SEED) --number=$(NUMBER_OF_SCENARIOS)
-	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
+	@cp -r $(LIBRARY_DOWNLOAD_PATH) $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
 generate.%: clean results_folder
 	@php generate-scenarios.php --scenario $(*)
-	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
+	@cp -r $(LIBRARY_DOWNLOAD_PATH) $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
 scenarios_clean:
 	@rm -rf $$(pwd)/$(TMP_SCENARIO_FOLDER)/**

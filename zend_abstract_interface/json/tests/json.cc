@@ -1,6 +1,5 @@
 extern "C" {
 #include "json/json.h"
-#include "tea/sapi.h"
 #include "tea/extension.h"
 
 #include "zai_compat.h"
@@ -16,10 +15,10 @@ extern "C" {
     REQUIRE(tea_sapi_minit());                   \
     REQUIRE(zai_json_setup_bindings());          \
     REQUIRE(tea_sapi_rinit());                   \
-    TEA_TSRMLS_FETCH();                     \
-    TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()   \
+    TEA_TSRMLS_FETCH();                          \
+    TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()        \
     { __VA_ARGS__ }                              \
-    TEA_TEST_CASE_WITHOUT_BAILOUT_END()     \
+    TEA_TEST_CASE_WITHOUT_BAILOUT_END()          \
     tea_sapi_spindown();                         \
 }
 
@@ -31,7 +30,7 @@ TEST_JSON("encode", {
 
     ZVAL_LONG(&val, 42);
 
-    zai_json_encode(&buf, &val, 0 ZAI_TSRMLS_CC);
+    zai_json_encode(&buf, &val, 0 TEA_TSRMLS_CC);
 
     REQUIRE(smart_str_length(&buf) > 0);
 
@@ -44,14 +43,14 @@ TEST_JSON("decode", {
 
     ZVAL_LONG(&val, 42);
 
-    zai_json_encode(&buf, &val, 0 ZAI_TSRMLS_CC);
+    zai_json_encode(&buf, &val, 0 TEA_TSRMLS_CC);
     smart_str_0(&buf);
 
     REQUIRE(smart_str_length(&buf));
 
     ZVAL_NULL(&val);
 
-    zai_json_decode_ex(&val, smart_str_value(&buf), smart_str_length(&buf), 0, 1 ZAI_TSRMLS_CC);
+    zai_json_decode_ex(&val, smart_str_value(&buf), smart_str_length(&buf), 0, 1 TEA_TSRMLS_CC);
 
     REQUIRE(Z_TYPE(val) == IS_LONG);
     REQUIRE(Z_LVAL(val) == 42);

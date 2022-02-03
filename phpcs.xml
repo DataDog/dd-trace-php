@@ -3,6 +3,7 @@
     <description>Sniffs for DD Trace PHP</description>
 
     <file>./</file>
+    <exclude-pattern>build/packages/*</exclude-pattern>
 
     <rule ref="PSR12"/>
 

@@ -95,11 +95,10 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/config/php5/config_runtime.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php5/exceptions.c \
-      zend_abstract_interface/functions/php5/functions.c \
       zend_abstract_interface/headers/php5/headers.c \
       zend_abstract_interface/json/json.c \
-      zend_abstract_interface/methods/php5/methods.c \
-      zend_abstract_interface/properties/php5/properties.c \
+      zend_abstract_interface/symbols/lookup.c \
+      zend_abstract_interface/symbols/call.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
     "
@@ -146,11 +145,10 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/config/php5/config_runtime.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php5/exceptions.c \
-      zend_abstract_interface/functions/php5/functions.c \
       zend_abstract_interface/headers/php5/headers.c \
       zend_abstract_interface/json/json.c \
-      zend_abstract_interface/methods/php5/methods.c \
-      zend_abstract_interface/properties/php5/properties.c \
+      zend_abstract_interface/symbols/lookup.c \
+      zend_abstract_interface/symbols/call.c \
       zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
     "
@@ -202,10 +200,10 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/config/php7-8/config_runtime.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
-      zend_abstract_interface/functions/php7-8/functions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
       zend_abstract_interface/json/json.c \
-      zend_abstract_interface/properties/php7-8/properties.c \
+      zend_abstract_interface/symbols/lookup.c \
+      zend_abstract_interface/symbols/call.c \
       zend_abstract_interface/sandbox/php7/sandbox.c \
       zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
     "
@@ -258,10 +256,10 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/config/php7-8/config_runtime.c \
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
-      zend_abstract_interface/functions/php7-8/functions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
       zend_abstract_interface/json/json.c \
-      zend_abstract_interface/properties/php7-8/properties.c \
+      zend_abstract_interface/symbols/lookup.c \
+      zend_abstract_interface/symbols/call.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
       zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
     "
@@ -297,6 +295,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_INCLUDE([$ext_srcdir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/symbols])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config/php7-8])
@@ -304,18 +303,10 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions/php7-8])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/functions])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/functions/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/functions/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/methods])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/methods/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/properties/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])

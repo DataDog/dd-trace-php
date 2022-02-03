@@ -7,6 +7,7 @@ add_executable(symbols
     lookup/local/frame.cc 
     call/internal.cc 
     call/user.cc
+    call/closure.cc
     api/class.cc
     api/constant.cc
     api/function.cc

@@ -23,6 +23,7 @@ function generate_garbage()
         "DDTrace\hook_method",
         "call_function",
         [],
+        ["nonempty" => new stdClass()],
         new stdClass(),
         function () {
             ob_start();
@@ -42,8 +43,9 @@ function generate_garbage()
 
 function call_function(ReflectionFunction $function)
 {
-    $invocations = [[]];
-    for ($i = 0; $i < $function->getNumberOfParameters(); ++$i) {
+    $i = PHP_VERSION_ID >= 80100 ? $function->getNumberOfRequiredParameters() : 0;
+    $invocations = $i == 0 ? [[]] : [];
+    for (; $i < $function->getNumberOfParameters(); ++$i) {
         foreach ($invocations as $invocation) {
             foreach (generate_garbage() as $garbage) {
                 $newInvocation = $invocation;
@@ -84,21 +86,27 @@ function runOneIteration()
             return DDTrace\active_span();
         },
     ];
-    $props = (new ReflectionClass('DDTrace\SpanData'))->getProperties();
+    $props = array_filter(
+        (new ReflectionClass('DDTrace\SpanData'))->getProperties(),
+        function ($p) {
+            return $p->name != "parent";
+        }
+    );
 
     shuffle($functions);
     foreach ($functions as $function) {
         $garbages = generate_garbage();
-        $e = new Exception("");
-        $exceptionClass = new ReflectionClass("Exception");
+        $ex = new Exception("");
+        $exceptionClass = new ReflectionClass($ex);
         foreach ($exceptionClass->getProperties() as $prop) {
             $prop->setAccessible(true);
             try {
-                $prop->setValue($e, rand(1, 5) == 1 ? $e : $garbages[array_rand($garbages)]);
+                $stringProp = PHP_VERSION_ID >= 80000 && $prop->getType() && $prop->getType()->getName() == "string";
+                $prop->setValue($ex, !$stringProp && rand(1, 5) == 1 ? $ex : $garbages[array_rand($garbages)]);
             } catch (TypeError $e) {
             }
         }
-        $garbages[] = $e;
+        $garbages[] = $ex;
         foreach (array_slice($return_span, 0, rand(0, count($return_span))) as $spanreturner) {
             $span = $spanreturner();
             foreach ($props as $prop) {
