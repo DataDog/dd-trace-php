@@ -185,19 +185,17 @@ class PDOIntegration extends Integration
     }
 
     /**
-     * @param PDO|PDOStatement|array $pdoOrStmt
+     * @param PDO|PDOStatement|array $source
      * @param DDTrace\SpanData $span
      */
     public static function setCommonSpanInfo($source, SpanData $span)
     {
         if (\is_array($source)) {
             $storedConnectionInfo = $source;
-        } elseif (
-            \is_object($source)
-            && (\is_a($source, 'PDO') || \is_a($source, 'PDOStatement'))
-        ) {
-            $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
         } else {
+            $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
+        }
+        if (!\is_array($storedConnectionInfo)) {
             $storedConnectionInfo = [];
         }
 
