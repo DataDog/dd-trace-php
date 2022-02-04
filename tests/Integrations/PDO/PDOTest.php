@@ -40,6 +40,7 @@ final class PDOTest extends IntegrationTestCase
     protected function ddTearDown()
     {
         $this->clearDatabase();
+        self::putenv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE');
         parent::ddTearDown();
     }
 
@@ -140,6 +141,19 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'pdo', 'sql', 'PDO.__construct')
+                ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testPDOSplitByDomain()
+    {
+        self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
+        $traces = $this->isolateTracer(function () {
+            $this->pdoInstance();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('PDO.__construct', 'pdo-mysql_integration', 'sql', 'PDO.__construct')
                 ->withExactTags($this->baseTags()),
         ]);
     }
@@ -330,6 +344,40 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo',
+                'sql',
+                "SELECT * FROM tests WHERE id = ?"
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge($this->baseTags(), [
+                    'db.rowcount' => 1,
+                ])),
+        ]);
+    }
+
+    public function testPDOStatementSplitByDomain()
+    {
+        self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([1]);
+            $stmt->fetchAll();
+            $stmt->closeCursor();
+            $stmt = null;
+            $pdo = null;
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build(
+                'PDO.prepare',
+                'pdo-mysql_integration',
+                'sql',
+                "SELECT * FROM tests WHERE id = ?"
+            )->withExactTags($this->baseTags()),
+            SpanAssertion::build(
+                'PDOStatement.execute',
+                'pdo-mysql_integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )
