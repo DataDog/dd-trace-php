@@ -1060,6 +1060,11 @@ void ddtrace_opcode_mshutdown(void) {
 void ddtrace_execute_internal_minit(void) {}
 void ddtrace_execute_internal_mshutdown(void) {}
 
+/* If the profiler is loaded, then this weak symbol will be overwritten by the
+ * strong symbol provided by profiler.
+ */
+extern void datadog_profiling_interrupt_function(zend_execute_data *execute_data) __attribute__((weak));
+
 PHP_FUNCTION(ddtrace_internal_function_handler) {
     ddtrace_dispatch_t *dispatch;
     void (*handler)(INTERNAL_FUNCTION_PARAMETERS) = EX(func)->internal_function.reserved[ddtrace_resource];
@@ -1072,6 +1077,16 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     ddtrace_span_fci *span_fci = dd_observer_begin(execute_data, dispatch);
     handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (span_fci) {
+        /* If the profiler doesn't handle a potential pending interrupt before
+         * the observer's end function, then the callback will be at the top of
+         * the stack even though it's not responsible.
+         * This is why the profiler's interrupt function is called here, to
+         * give the profiler an opportunity to take a sample before calling the
+         * tracing funcation.
+         */
+        if (datadog_profiling_interrupt_function) {
+            datadog_profiling_interrupt_function(execute_data);
+        }
         dd_observer_end(EX(func), span_fci, return_value);
     }
 }

@@ -758,6 +758,11 @@ zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *exec
     return (zend_observer_fcall_handlers){NULL, NULL};
 }
 
+/* If the profiler is loaded, then this weak symbol will be overwritten by the
+ * strong symbol provided by profiler.
+ */
+extern void datadog_profiling_interrupt_function(zend_execute_data *execute_data) __attribute__((weak));
+
 PHP_FUNCTION(ddtrace_internal_function_handler) {
     ddtrace_dispatch_t *dispatch;
     zend_function *fbc = EX(func);
@@ -772,6 +777,16 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
         ddtrace_span_fci *span_fci = dd_observer_begin(execute_data, dispatch);
         handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         if (span_fci) {
+            /* If the profiler doesn't handle a potential pending interrupt
+             * before the observer's end function, then the callback will
+             * be at the top of the stack even though it's not responsible.
+             * This is why the profiler's interrupt function is called here,
+             * to give the profiler an opportunity to take a sample before
+             * calling the tracing funcation.
+             */
+            if (datadog_profiling_interrupt_function) {
+                datadog_profiling_interrupt_function(execute_data);
+            }
             dd_observer_end(fbc, span_fci, return_value);
         }
         return;
