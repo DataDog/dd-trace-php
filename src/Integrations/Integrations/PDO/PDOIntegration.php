@@ -37,8 +37,11 @@ class PDOIntegration extends Integration
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         \DDTrace\trace_method('PDO', '__construct', function (SpanData $span, array $args) {
             $span->name = $span->resource = 'PDO.__construct';
-            PDOIntegration::storeConnectionParams($this, $args);
-            PDOIntegration::setCommonSpanInfo($this, $span);
+            $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);
+            ObjectKVStore::put($this, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
+            // We have to use $connectionMetadata as a medium, instead of $this (aka the PDO instance) because in
+            // PHP 5.* $this is NULL in this callback when there is a connection error.
+            PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
         });
 
         // public int PDO::exec(string $query)
@@ -69,6 +72,7 @@ class PDOIntegration extends Integration
                 $span->meta = [
                     'db.rowcount' => $retval->rowCount(),
                 ];
+                ObjectKVStore::propagate($this, $retval, PDOIntegration::CONNECTION_TAGS_KEY);
             }
             PDOIntegration::setCommonSpanInfo($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
@@ -85,7 +89,7 @@ class PDOIntegration extends Integration
         \DDTrace\trace_method('PDO', 'prepare', function (SpanData $span, array $args, $retval) {
             $span->name = 'PDO.prepare';
             $span->resource = Integration::toString($args[0]);
-            PDOIntegration::storeStatementFromConnection($this, $retval);
+            ObjectKVStore::propagate($this, $retval, PDOIntegration::CONNECTION_TAGS_KEY);
             PDOIntegration::setCommonSpanInfo($this, $span);
         });
 
@@ -171,23 +175,32 @@ class PDOIntegration extends Integration
         return $tags;
     }
 
-    public static function storeConnectionParams($pdo, array $constructorArgs)
+    public static function extractConnectionMetadata(array $constructorArgs)
     {
         $tags = self::parseDsn($constructorArgs[0]);
         if (isset($constructorArgs[1])) {
             $tags['db.user'] = $constructorArgs[1];
         }
-        ObjectKVStore::put($pdo, PDOIntegration::CONNECTION_TAGS_KEY, $tags);
+        return $tags;
     }
 
-    public static function storeStatementFromConnection($pdo, $stmt)
+    /**
+     * @param PDO|PDOStatement|array $pdoOrStmt
+     * @param DDTrace\SpanData $span
+     */
+    public static function setCommonSpanInfo($source, SpanData $span)
     {
-        ObjectKVStore::propagate($pdo, $stmt, PDOIntegration::CONNECTION_TAGS_KEY);
-    }
+        if (\is_array($source)) {
+            $storedConnectionInfo = $source;
+        } elseif (
+            \is_object($source)
+            && (\is_a($source, 'PDO') || \is_a($source, 'PDOStatement'))
+        ) {
+            $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
+        } else {
+            $storedConnectionInfo = [];
+        }
 
-    public static function setCommonSpanInfo($pdoOrStmt, SpanData $span)
-    {
-        $storedConnectionInfo = ObjectKVStore::get($pdoOrStmt, PDOIntegration::CONNECTION_TAGS_KEY, []);
         $span->type = Type::SQL;
         $span->service = 'pdo';
         if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance")) {
