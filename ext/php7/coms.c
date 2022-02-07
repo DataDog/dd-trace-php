@@ -53,6 +53,7 @@ static bool _dd_is_memory_pressure_high(void) {
 }
 
 static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size) {
+    ddtrace_log_debugf("Storing group: %u, size: %u)", group_id, size);
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
     if (stack == NULL) {
         // no stack to save data to
@@ -61,12 +62,15 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
 
     size_t size_to_alloc = size + sizeof(size_t) + sizeof(group_id_t);
 
-    atomic_fetch_add(&stack->refcount, 1);
+    int32_t refcount = atomic_fetch_add(&stack->refcount, 1);
+    ddtrace_log_debugf("Now Ref count is: %u)", refcount + 1);
 
     size_t position = atomic_fetch_add(&stack->position, size_to_alloc);
+    ddtrace_log_debugf("Current position is: %u)", position);
     if ((position + size_to_alloc) > stack->size) {
         // allocation failed
         atomic_fetch_sub(&stack->refcount, 1);
+        ddtrace_log_debug("Not enough memory");
         return ENOMEM;
     }
 
@@ -79,7 +83,8 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
     memcpy(stack->data + position, src, size);
 
     atomic_fetch_add(&stack->bytes_written, size_to_alloc);
-    atomic_fetch_sub(&stack->refcount, 1);
+    int32_t after_refcount = atomic_fetch_sub(&stack->refcount, 1);
+    ddtrace_log_debugf("Now Ref count is back to: %u)", after_refcount - 1);
     return 0;
 }
 
