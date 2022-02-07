@@ -1063,7 +1063,7 @@ void ddtrace_execute_internal_mshutdown(void) {}
 /* If the profiler is loaded, then this weak symbol will be overwritten by the
  * strong symbol provided by profiler.
  */
-extern void datadog_profiling_interrupt_function(zend_execute_data *execute_data) __attribute__((weak));
+__attribute__((weak)) extern void datadog_profiling_interrupt_function(zend_execute_data *execute_data);
 
 PHP_FUNCTION(ddtrace_internal_function_handler) {
     ddtrace_dispatch_t *dispatch;
