@@ -1163,7 +1163,7 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
-  Zai:
+  Tea:
     working_directory: ~/datadog
     parameters:
       os:
@@ -1542,7 +1542,7 @@ workflows:
   zend_abstract_interface:
     jobs:
       - "Prepare Code"
-      - Zai:
+      - Tea:
           requires: [ 'Prepare Code' ]
           matrix:
             parameters:

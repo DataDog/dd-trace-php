@@ -457,6 +457,7 @@ static bool dd_is_compatible_sapi(datadog_php_string_view module_name) {
         case DATADOG_PHP_SAPI_CLI:
         case DATADOG_PHP_SAPI_CLI_SERVER:
         case DATADOG_PHP_SAPI_FPM_FCGI:
+        case DATADOG_PHP_SAPI_TEA:
             return true;
 
         default:
