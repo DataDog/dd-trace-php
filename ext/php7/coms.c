@@ -52,6 +52,10 @@ static bool _dd_is_memory_pressure_high(void) {
     }
 }
 
+/* Is called internally in the context of the PHP thread and actually attempts at storing the payload to send. If
+ * there is not enough memory left in the currently active stack, it does not attempt to generate a new stack, instead
+ * it returns a `ENOMEM` code that should be read by the invoker that can manually decide to ask for a larger stack.
+ */
 static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size) {
     ddtrace_log_debugf("Storing group: %u, size: %u)", group_id, size);
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
@@ -88,6 +92,13 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
     return 0;
 }
 
+/*
+ * Allocates a new stack of the minimum possible size. Only if `min_size` (which is the size required by the user to
+ * fit in a given payload) is larger than the currently active stack size, then new sizes are attempted attemptiong
+ * to double at each iteration, up to `DDTRACE_COMS_STACK_MAX_SIZE`.
+ * The rationale behind this is that once we know that at least one single payload can be larger than X bytes, then
+ * all the subsequent stacks are allocated larger than that size.
+ */
 static ddtrace_coms_stack_t *_dd_new_stack(size_t min_size) {
     size_t initial_size = atomic_load(&ddtrace_coms_globals.stack_size);
     size_t size = initial_size;
@@ -207,6 +218,17 @@ static void _dd_unsafe_cleanup_dirty_stack_area(void) {
     ddtrace_coms_globals.tmp_stack = NULL;
 }
 
+/* Stores the global current stack (if any) into the global `stacks` array. The writer will pick from this array when
+ * sending payloads to the backend. This function is invoked when a global current stack is "filled enough" to be sent
+ * to the backend.
+ * This function has a side effect: it tries to save memory by using as the "next" global current stack one of the
+ * stacks in the global `stack` array mentioned above. This is possible if a payload contained in one of the elements of
+ * the array has already been sent to the backend and, as a consequence, that element is ready for reuse. Keep in mind
+ * that in order to be ready for reuse it has to be at list of size `min_size`.
+ * It is possible that the global current stack is set to `NULL` by this function. In this case it means that there were
+ * no available existing stacks that could store `min_size` bytes and it is the invoker's own responsibility to allocate
+ * a new stack of the desired size and assign it to the global current stack.
+ */
 static void _dd_unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_size) {
     _dd_unsafe_cleanup_dirty_stack_area();
 
@@ -253,16 +275,23 @@ static void _dd_unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_si
     *current_stack = NULL;
 }
 
-static bool _dd_coms_rotate_stack(bool attempt_allocate_new, size_t min_size) {
+static bool _dd_coms_unsafe_rotate_stack(bool attempt_allocate_new, size_t min_size) {
     _dd_unsafe_store_or_swap_current_stack_for_empty_stack(min_size);
 
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
 
+    /* In this case we are reusing a stack (from the global `stacks` array) that has been already sent and was
+     * recycled, and `current_stack` is just a pointer to one of `<global>.stacks[i]`.
+     */
     if (current_stack && current_stack->size >= min_size && ddtrace_coms_is_stack_free(current_stack)) {
         return true;
     }
 
-    // old current stack was stored so set a new stack
+    /* In this case it wasn't possible to reuse an existing stack, for one of two reasons:
+     *   1. All the N currently allocated stacks (with N <= `DDTRACE_COMS_STACKS_BACKLOG_SIZE`) are filled and waiting
+     *      to be sent by the writer; or
+     *   2. None of the available stacks in the global `stacks` array that could be reused has size >= `min_size`.
+     */
     if (!current_stack) {
         if (attempt_allocate_new) {
             ddtrace_coms_stack_t **next_stack = &ddtrace_coms_globals.tmp_stack;
@@ -312,12 +341,12 @@ static struct _writer_loop_data_t global_writer = {.thread = NULL,
 
 static struct _writer_loop_data_t *_dd_get_writer() { return &global_writer; }
 
-bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_size) {
+static bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_size) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
     bool rv = false;
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->stack_rotation_mutex);
-        rv = _dd_coms_rotate_stack(attempt_allocate_new, min_size);
+        rv = _dd_coms_unsafe_rotate_stack(attempt_allocate_new, min_size);
         pthread_mutex_unlock(&writer->thread->stack_rotation_mutex);
     }
     return rv;
@@ -1199,7 +1228,7 @@ uint32_t ddtrace_coms_test_writers(void) {
 }
 
 uint32_t ddtrace_coms_test_consumer(void) {
-    if (!_dd_coms_rotate_stack(true, atomic_load(&ddtrace_coms_globals.stack_size))) {
+    if (!_dd_coms_unsafe_rotate_stack(true, atomic_load(&ddtrace_coms_globals.stack_size))) {
         printf("error rotating stacks");
     }
 
@@ -1253,7 +1282,7 @@ uint32_t ddtrace_coms_test_consumer(void) {
     } while (0)
 
 uint32_t ddtrace_coms_test_msgpack_consumer(void) {
-    _dd_coms_rotate_stack(true, atomic_load(&ddtrace_coms_globals.stack_size));
+    _dd_coms_unsafe_rotate_stack(true, atomic_load(&ddtrace_coms_globals.stack_size));
 
     ddtrace_coms_stack_t *stack = _dd_coms_attempt_acquire_stack();
     if (!stack) {
