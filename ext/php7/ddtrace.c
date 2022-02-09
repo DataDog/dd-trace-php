@@ -95,7 +95,7 @@ static void ddtrace_sort_modules(void *base, size_t count, size_t siz, compare_f
 }
 #endif
 
-static int ddtrace_startup(struct _zend_extension *extension) {
+static int ddtrace_startup(zend_extension *extension) {
 #if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
     // Turns out with zai config we have dynamically allocated INI entries. This does not play well with PHP 7.3
     // As of PHP 7.3 opcache stores INI entry values in SHM. However, only as of PHP 7.4 opcache delays detaching SHM.
@@ -113,7 +113,7 @@ static int ddtrace_startup(struct _zend_extension *extension) {
     // We deliberately leave handler replacement during startup, even though this uses some config
     // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done
     // post-startup
-    ddtrace_internal_handlers_startup();
+    ddtrace_internal_handlers_startup(extension);
     return SUCCESS;
 }
 
@@ -135,7 +135,7 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   ddtrace_shutdown,
                                                   ddtrace_activate,
                                                   ddtrace_deactivate,
-                                                  NULL,
+                                                  ddtrace_message_handler,
                                                   NULL,
                                                   NULL,
                                                   NULL,
