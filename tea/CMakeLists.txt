@@ -30,10 +30,12 @@ find_library(
   # 'REQUIRED' added in cmake v3.18
   REQUIRED)
 
-include_directories(
-  "${PHP_PREFIX_PATH}/include/php/" "${PHP_PREFIX_PATH}/include/php/TSRM"
-  "${PHP_PREFIX_PATH}/include/php/Zend" "${PHP_PREFIX_PATH}/include/php/ext"
-  "${PHP_PREFIX_PATH}/include/php/main")
+add_library(tea-libphp INTERFACE)
+set_target_properties(tea-libphp PROPERTIES EXPORT_NAME PHP)
+target_link_libraries(tea-libphp INTERFACE "${PHP_LIB}")
+target_include_directories(tea-libphp INTERFACE
+  "${PHP_PREFIX_PATH}/include/php" "${PHP_PREFIX_PATH}/include/php/TSRM"
+  "${PHP_PREFIX_PATH}/include/php/Zend" "${PHP_PREFIX_PATH}/include/php/main")
 
 add_library(Tea src/extension.c src/error.c src/frame.c src/exceptions.c src/ini.c src/io.c src/sapi.c)
 
@@ -44,7 +46,7 @@ target_include_directories(
 
 target_compile_features(Tea PUBLIC c_std_99)
 
-target_link_libraries(Tea PUBLIC "${PHP_LIB}")
+target_link_libraries(Tea PUBLIC tea-libphp)
 
 set_target_properties(Tea PROPERTIES VERSION ${PROJECT_VERSION})
 
@@ -98,12 +100,12 @@ install(
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea)
 # Copy the static library on install
 install(
-  TARGETS Tea
+  TARGETS Tea tea-libphp
   EXPORT TeaTargets
   ARCHIVE)
 # Copy the .cmake files on install
 export(
-  TARGETS Tea
+  TARGETS Tea tea-libphp
   NAMESPACE Tea::
   FILE ${CMAKE_CURRENT_BINARY_DIR}/TeaTargets.cmake)
 install(

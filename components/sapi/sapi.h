@@ -13,6 +13,7 @@ typedef enum {
     DATADOG_PHP_SAPI_LITESPEED,
     DATADOG_PHP_SAPI_FPM_FCGI,
     DATADOG_PHP_SAPI_PHPDBG,
+    DATADOG_PHP_SAPI_TEA,
 } datadog_php_sapi;
 
 datadog_php_sapi datadog_php_sapi_from_name(datadog_php_string_view module);

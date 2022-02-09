@@ -22,6 +22,7 @@ sapi_t datadog_php_sapi_from_name(string_view_t module) {
         {SV("fpm-fcgi"), DATADOG_PHP_SAPI_FPM_FCGI},
         {SV("litespeed"), DATADOG_PHP_SAPI_LITESPEED},
         {SV("phpdbg"), DATADOG_PHP_SAPI_PHPDBG},
+        {SV("tea"), DATADOG_PHP_SAPI_TEA},
     };
 
     unsigned n_sapis = sizeof sapis / sizeof *sapis;
