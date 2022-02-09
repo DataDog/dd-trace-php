@@ -14,7 +14,8 @@ namespace {
         );
     }
 
-    function main() {
+    function main()
+    {
         sleep(1);
         echo "Done.\n";
     }
