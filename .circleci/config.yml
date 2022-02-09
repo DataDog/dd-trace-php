@@ -1313,7 +1313,7 @@ jobs:
               export Tea_ROOT=/opt/tea/${phpBuild}
               cmake ${toolchain} -DCMAKE_BUILD_TYPE=Debug -S ~/datadog/tests/tea
               cmake --build . --parallel
-              ctest --output-on-failure
+              make test ARGS="--output-on-failure"
               grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
             done
 
