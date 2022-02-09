@@ -1303,6 +1303,7 @@ jobs:
 
               # build ddtrace.so
               cd ~/datadog
+              make clean
               make install
 
               # Build ext Tea tests
