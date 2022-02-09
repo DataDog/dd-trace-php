@@ -794,9 +794,7 @@ static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trac
 
 static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
     if (!writer->curl) {
-        writer->curl = curl_easy_init();
-        curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
-        curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
+        ddtrace_bgs_logf("[bgs] no curl session - dropping the current stack.\n", NULL);
     }
 
     if (writer->curl) {
@@ -809,15 +807,13 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         ddtrace_curl_set_hostname(writer->curl);
         ddtrace_curl_set_timeout(writer->curl);
         ddtrace_curl_set_connect_timeout(writer->curl);
-
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, 10);
         curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
 
         res = curl_easy_perform(writer->curl);
 
         if (res != CURLE_OK) {
-            ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            ddtrace_bgs_logf("[bgs] curl_easy_perform(%u) failed: %s\n", res, curl_easy_strerror(res));
         } else if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
             double uploaded;
             curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
@@ -936,6 +932,12 @@ static void *_dd_writer_loop(void *_) {
         if (!*stack) {
             *stack = _dd_coms_attempt_acquire_stack();
         }
+
+        // initializing a curl client only for this iteration
+        writer->curl = curl_easy_init();
+        curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
+        curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
+
         while (*stack) {
             processed_stacks++;
             if (atomic_load(&writer->sending)) {
@@ -951,6 +953,8 @@ static void *_dd_writer_loop(void *_) {
             *stack = _dd_coms_attempt_acquire_stack();
         }
 
+        curl_easy_cleanup(writer->curl);
+
         if (processed_stacks > 0) {
             atomic_fetch_add(&writer->flush_processed_stacks_total, processed_stacks);
         } else if (atomic_load(&writer->shutdown_when_idle)) {
@@ -963,7 +967,6 @@ static void *_dd_writer_loop(void *_) {
     curl_slist_free_all(writer->headers);
     writer->headers = NULL;
 
-    curl_easy_cleanup(writer->curl);
     _dd_coms_stack_shutdown();
 
     pthread_cleanup_pop(1);
