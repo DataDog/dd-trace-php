@@ -173,17 +173,7 @@ class RandomExecutionPath
     public function runSomeIntegrations()
     {
         $this->logEnter(__FUNCTION__);
-        $availableIntegrations = $this->snippets->availableIntegrations();
-        $availableIntegrationsNames = \array_keys($availableIntegrations);
-        $numberOfIntegrationsToRun = \rand(0, \count($availableIntegrations));
-        for ($integrationIndex = 0; $integrationIndex < $numberOfIntegrationsToRun; $integrationIndex++) {
-            $pickAnIntegration = \rand(0, count($availableIntegrationsNames) - 1);
-            $integrationName = $availableIntegrationsNames[$pickAnIntegration];
-            $pickAVariant = \rand(1, $availableIntegrations[$integrationName]);
-
-            $functionName = $integrationName . 'Variant' . $pickAVariant;
-            $this->snippets->$functionName();
-        }
+        $this->snippets->runSomeIntegrations();
         $this->logLeave(__FUNCTION__);
     }
 

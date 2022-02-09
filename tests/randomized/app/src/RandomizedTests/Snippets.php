@@ -15,6 +15,21 @@ class Snippets
         $this->config = $configuration ?: new SnippetsConfiguration();
     }
 
+    public function runSomeIntegrations()
+    {
+        $availableIntegrations = $this->availableIntegrations();
+        $availableIntegrationsNames = \array_keys($availableIntegrations);
+        $numberOfIntegrationsToRun = \rand(0, \count($availableIntegrations));
+        for ($integrationIndex = 0; $integrationIndex < $numberOfIntegrationsToRun; $integrationIndex++) {
+            $pickAnIntegration = \rand(0, count($availableIntegrationsNames) - 1);
+            $integrationName = $availableIntegrationsNames[$pickAnIntegration];
+            $pickAVariant = \rand(1, $availableIntegrations[$integrationName]);
+
+            $functionName = $integrationName . 'Variant' . $pickAVariant;
+            $this->$functionName();
+        }
+    }
+
     public function availableIntegrations()
     {
         $all = [
