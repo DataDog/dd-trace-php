@@ -1280,6 +1280,18 @@ jobs:
       - run:
           name: Extension Tea Tests
           command: |
+            case << parameters.php_version >> in
+              "5.4")
+                exit 0
+                ;;
+              "5.5")
+                exit 0
+                ;;
+              "5.6")
+                exit 0
+                ;;
+            esac
+
             for phpBuild in $(ls /opt/php)
             do
               switch-php ${phpBuild}
@@ -1300,8 +1312,8 @@ jobs:
               export CMAKE_PREFIX_PATH=/opt/catch2
               export Tea_ROOT=/opt/tea/${phpBuild}
               cmake ${toolchain} -DCMAKE_BUILD_TYPE=Debug -S ~/datadog/tests/tea
-              make -j all
-              make test
+              cmake --build . --parallel
+              ctest --output-on-failure
               grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
             done
 
