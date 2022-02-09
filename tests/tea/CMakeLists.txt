@@ -7,6 +7,7 @@ find_package(Catch2 2.4 REQUIRED)
 
 set(CMAKE_C_VISIBILITY_PRESET "hidden")
 set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+set(CMAKE_POSITION_INDEPENDENT_CODE on)
 
 #[[ This file takes a while to build, so we do it once here and every test
 executable can link to it to save time.
