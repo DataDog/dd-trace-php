@@ -40,7 +40,6 @@ bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t pay
 
         if (ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), data, data_len)) {
             sent_to_background_sender = true;
-            ddtrace_log_debugf("Sent a trace to the BGS (group id: %u)", DDTRACE_G(traces_group_id));
         } else {
             ddtrace_log_debug("Unable to send payload to background sender's buffer");
         }

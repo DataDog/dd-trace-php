@@ -42,7 +42,6 @@ inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
 }
 
 /* Is called by the PHP thread to buffer a payload in order to send it. It is non-blocking on the request to the agent.
- * TBD: why `group_id` is necessary???
  */
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
 

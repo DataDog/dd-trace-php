@@ -57,7 +57,6 @@ static bool _dd_is_memory_pressure_high(void) {
  * it returns a `ENOMEM` code that should be read by the invoker that can manually decide to ask for a larger stack.
  */
 static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size) {
-    ddtrace_log_debugf("Storing group: %u, size: %u)", group_id, size);
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
     if (stack == NULL) {
         // no stack to save data to
@@ -66,15 +65,12 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
 
     size_t size_to_alloc = size + sizeof(size_t) + sizeof(group_id_t);
 
-    int32_t refcount = atomic_fetch_add(&stack->refcount, 1);
-    ddtrace_log_debugf("Now Ref count is: %u)", refcount + 1);
+    atomic_fetch_add(&stack->refcount, 1);
 
     size_t position = atomic_fetch_add(&stack->position, size_to_alloc);
-    ddtrace_log_debugf("Current position is: %u)", position);
     if ((position + size_to_alloc) > stack->size) {
         // allocation failed
         atomic_fetch_sub(&stack->refcount, 1);
-        ddtrace_log_debug("Not enough memory");
         return ENOMEM;
     }
 
@@ -87,17 +83,15 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
     memcpy(stack->data + position, src, size);
 
     atomic_fetch_add(&stack->bytes_written, size_to_alloc);
-    int32_t after_refcount = atomic_fetch_sub(&stack->refcount, 1);
-    ddtrace_log_debugf("Now Ref count is back to: %u)", after_refcount - 1);
+    atomic_fetch_sub(&stack->refcount, 1);
     return 0;
 }
 
-/*
- * Allocates a new stack of the minimum possible size. Only if `min_size` (which is the size required by the user to
+/* Allocates a new stack of the minimum possible size. Only if `min_size` (which is the size required by the user to
  * fit in a given payload) is larger than the currently active stack size, then new sizes are attempted attemptiong
  * to double at each iteration, up to `DDTRACE_COMS_STACK_MAX_SIZE`.
- * The rationale behind this is that once we know that at least one single payload can be larger than X bytes, then
- * all the subsequent stacks are allocated larger than that size.
+ * The rationale behind this is that once we know that at least one single trace can be larger than X bytes, then
+ * all the subsequent stacks are allocated at least as large as that size.
  */
 static ddtrace_coms_stack_t *_dd_new_stack(size_t min_size) {
     size_t initial_size = atomic_load(&ddtrace_coms_globals.stack_size);
@@ -224,7 +218,7 @@ static void _dd_unsafe_cleanup_dirty_stack_area(void) {
  * This function has a side effect: it tries to save memory by using as the "next" global current stack one of the
  * stacks in the global `stack` array mentioned above. This is possible if a payload contained in one of the elements of
  * the array has already been sent to the backend and, as a consequence, that element is ready for reuse. Keep in mind
- * that in order to be ready for reuse it has to be at list of size `min_size`.
+ * that in order to be ready for reuse it has to be at least of size `min_size`.
  * It is possible that the global current stack is set to `NULL` by this function. In this case it means that there were
  * no available existing stacks that could store `min_size` bytes and it is the invoker's own responsibility to allocate
  * a new stack of the desired size and assign it to the global current stack.
@@ -807,13 +801,14 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         ddtrace_curl_set_hostname(writer->curl);
         ddtrace_curl_set_timeout(writer->curl);
         ddtrace_curl_set_connect_timeout(writer->curl);
+
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
         curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
 
         res = curl_easy_perform(writer->curl);
 
         if (res != CURLE_OK) {
-            ddtrace_bgs_logf("[bgs] curl_easy_perform(%u) failed: %s\n", res, curl_easy_strerror(res));
+            ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
         } else if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
             double uploaded;
             curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
