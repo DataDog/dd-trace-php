@@ -11,8 +11,14 @@ on:
 jobs:
   system-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - weblog-variant: apache-mod
+          - weblog-variant: php-fpm
     env:
       TEST_LIBRARY: php
+      WEBLOG_VARIANT: ${{ matrix.weblog-variant }}
       DD_API_KEY: ${{ secrets.DD_API_KEY }}
     steps:
       - name: Checkout system tests
@@ -47,6 +53,6 @@ jobs:
         uses: actions/upload-artifact@v2
         if: ${{ always() }}
         with:
-          name: logs
+          name: logs_${{ matrix.weblog-variant }}
           path: artifact.tar.gz
 
