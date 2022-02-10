@@ -83,10 +83,6 @@ if(${BUILD_TEA_TESTING})
 
   enable_testing()
   add_subdirectory(tests)
-
-  install(
-    FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/testing/catch2.hpp
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea/testing)
 endif()
 
 # Copy the include files on install
@@ -98,6 +94,9 @@ install(
         ${CMAKE_CURRENT_SOURCE_DIR}/include/exceptions.h
         ${CMAKE_CURRENT_SOURCE_DIR}/include/sapi.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea)
+install(
+  FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/testing/catch2.hpp
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea/testing)
 # Copy the static library on install
 install(
   TARGETS Tea tea-libphp
