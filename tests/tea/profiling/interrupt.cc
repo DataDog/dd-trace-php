@@ -12,8 +12,6 @@ extern "C" {
 
 #include "profiling.h"
 
-#if PHP_VERSION_ID >= 70000
-
 TEA_TEST_CASE_WITH_PROLOGUE(
     "profiling", "profiling interrupt function is called before internal function's post-hook",
     {
@@ -51,5 +49,3 @@ TEA_TEST_CASE_WITH_PROLOGUE(
         auto expected = datadog_php_string_view_from_cstr("sleep");
         REQUIRE(datadog_php_string_view_equal(frame.function, expected));
     })
-
-#endif

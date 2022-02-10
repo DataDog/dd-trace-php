@@ -39,4 +39,8 @@ target_link_libraries(ext-tea-tests INTERFACE Catch2::Catch2WithMain Tea::Tea)
 # Need components, for example stack-sample.
 add_subdirectory(../../components ${CMAKE_CURRENT_BINARY_DIR}/components)
 
-add_subdirectory(profiling)
+# Profiling doesn't support PHP 5, so there haven't been any changes to the
+# tracer on those versions to support it.
+if(PHP_VERSION_ID GREATER_EQUAL "70000")
+  add_subdirectory(profiling)
+endif()

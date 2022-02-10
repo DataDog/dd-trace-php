@@ -1280,18 +1280,6 @@ jobs:
       - run:
           name: Extension Tea Tests
           command: |
-            case << parameters.php_version >> in
-              "5.4")
-                exit 0
-                ;;
-              "5.5")
-                exit 0
-                ;;
-              "5.6")
-                exit 0
-                ;;
-            esac
-
             for phpBuild in $(ls /opt/php)
             do
               switch-php ${phpBuild}
