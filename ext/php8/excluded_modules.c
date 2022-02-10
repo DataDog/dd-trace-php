@@ -8,11 +8,6 @@
 #include "logging.h"
 
 bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
-    if (strcmp("ionCube Loader", module->name) == 0) {
-        snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
-                 "Found incompatible module: %s, disabling conflicting functionality", module->name);
-        return true;
-    }
     if (strcmp("xdebug", module->name) == 0) {
         /*
         Xdebug versions < 2.9.3 did not call neighboring extension's opcode handlers.

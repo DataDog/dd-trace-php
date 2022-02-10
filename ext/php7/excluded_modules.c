@@ -8,11 +8,6 @@
 #include "logging.h"
 
 bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
-    if (strcmp("ionCube Loader", module->name) == 0) {
-        snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
-                 "Found incompatible module: %s, disabling conflicting functionality", module->name);
-        return true;
-    }
     if (strcmp("xdebug", module->name) == 0) {
         /*
         PHP 7.0 was only supported from Xdebug 2.4 through 2.7
