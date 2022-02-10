@@ -4,6 +4,7 @@
 #include <main/php_variables.h>
 
 #include <private/error.h>
+#include <include/extension.h>
 #include <private/extension.h>
 #include <private/frame.h>
 #include <private/ini.h>

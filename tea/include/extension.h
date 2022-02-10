@@ -35,7 +35,11 @@ typedef zend_result zend_result_t;
 #endif
 
 typedef zend_result_t (*tea_extension_init_function)(INIT_FUNC_ARGS);
-typedef zend_result_t (*tea_extension_shutdown_function)(SHUTDOWN_FUNC_ARGS); /* }}} */
+typedef zend_result_t (*tea_extension_shutdown_function)(SHUTDOWN_FUNC_ARGS);
+typedef void (*tea_extension_op_array_function)(zend_op_array *op_array);
+typedef zend_result_t (*tea_extension_startup_function)(void); /* }}} */
+
+zend_module_entry* tea_extension_module();
 
 /* {{{ prologue symbols */
 /*
@@ -50,10 +54,21 @@ void tea_extension_minit(tea_extension_init_function handler);
 void tea_extension_rinit(tea_extension_init_function handler);
 
 /*
+ * Shall install a startup stage handler
+ */
+void tea_extension_startup(tea_extension_startup_function handler);
+
+/*
  * Shall install a shutdown stage handler
  */
 void tea_extension_rshutdown(tea_extension_shutdown_function handler);
 void tea_extension_mshutdown(tea_extension_shutdown_function handler);
+
+/*
+ * Shall install op_array handlers
+ */
+void tea_extension_op_array_handler(tea_extension_op_array_function handler);
+void tea_extension_op_array_ctor(tea_extension_op_array_function handler);
 
 /*
  * Shall install functions

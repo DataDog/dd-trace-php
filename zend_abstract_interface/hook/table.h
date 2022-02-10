@@ -19,12 +19,45 @@ static inline bool zai_hook_table_insert_at(HashTable *table, zend_ulong index, 
 #endif
 }
 
-static inline bool zai_hook_table_find(HashTable *table, zend_ulong index, HashTable **found) {
+static inline bool zai_hook_table_find(HashTable *table, zend_ulong index, void **found) {
 #if PHP_VERSION_ID < 70000
     return zend_hash_index_find(table, index, (void **)found) == SUCCESS;
-#else
+#elif PHP_VERSION_ID < 70100
     return (*found = zend_hash_index_find_ptr(table, index));
+#else
+    zval *zv = _zend_hash_index_find(table, index);
+    if (EXPECTED(zv == NULL)) {
+        return false;
+    } else {
+        *found = Z_PTR_P(zv);
+        return true;
+    }
 #endif
+} /* }}} */
+
+
+extern __thread HashTable zai_hook_resolved;
+
+/* aligned to smallest common size for hash conflict avoidance on all versions: 32 bytes */
+static inline bool zai_hook_resolved_table_insert(zend_ulong index, HashTable *inserting, size_t size,
+                                            HashTable **inserted) {
+    return zai_hook_table_insert_at(&zai_hook_resolved, ((zend_ulong)index) >> 5, inserting, size, (void **)inserted);
+}
+
+static inline bool zai_hook_resolved_table_find(zend_ulong index, HashTable **found) {
+    return zai_hook_table_find(&zai_hook_resolved, ((zend_ulong)index) >> 5, (void **)found);
+}
+
+static inline bool zai_hook_resolved_table_del(zend_ulong index) {
+    return zend_hash_index_del(&zai_hook_resolved, ((zend_ulong)index) >> 5);
+}
+
+/* {{{ */
+static inline zend_ulong zai_hook_install_address(zend_function *function) {
+    if (function->type == ZEND_INTERNAL_FUNCTION) {
+        return (zend_ulong)function;
+    }
+    return (zend_ulong)function->op_array.opcodes;
 } /* }}} */
 
 /* {{{ uniform iterator for hooks */

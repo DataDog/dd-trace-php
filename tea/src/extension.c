@@ -1,5 +1,6 @@
 #include <include/extension.h>
 #include <include/sapi.h>
+#include <Zend/zend_extensions.h>
 
 // clang-format off
 #define TEA_EXTENSION_NAME_MAX_LEN 128
@@ -21,13 +22,26 @@ typedef struct {
     size_t                           size;
 } tea_extension_functions_list_t;
 
+typedef struct {
+    tea_extension_op_array_function *handlers;
+    size_t                           size;
+} tea_extension_op_array_list_t;
+
+typedef struct {
+    tea_extension_startup_function *handlers;
+    size_t                          size;
+} tea_extension_startup_list_t;
+
 #define TEA_EXTENSION_LIST_EMPTY {NULL, 0}
 
-tea_extension_init_list_t       tea_extension_minit_list     = TEA_EXTENSION_LIST_EMPTY;
-tea_extension_init_list_t       tea_extension_rinit_list     = TEA_EXTENSION_LIST_EMPTY;
-tea_extension_shutdown_list_t   tea_extension_rshutdown_list = TEA_EXTENSION_LIST_EMPTY;
-tea_extension_shutdown_list_t   tea_extension_mshutdown_list = TEA_EXTENSION_LIST_EMPTY;
-tea_extension_functions_list_t  tea_extension_functions_list = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_init_list_t       tea_extension_minit_list            = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_init_list_t       tea_extension_rinit_list            = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_shutdown_list_t   tea_extension_rshutdown_list        = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_shutdown_list_t   tea_extension_mshutdown_list        = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_functions_list_t  tea_extension_functions_list        = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_op_array_list_t   tea_extension_op_array_handler_list = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_op_array_list_t   tea_extension_op_array_ctor_list    = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_startup_list_t    tea_extension_startup_list          = TEA_EXTENSION_LIST_EMPTY;
 
 static void tea_extension_function(const zend_function_entry *entry);
 
@@ -53,10 +67,36 @@ static inline zend_result_t tea_extension_shutdown_run(tea_extension_shutdown_li
     return SUCCESS;
 }
 
+static inline void tea_extension_op_array_run(tea_extension_op_array_list_t *list, zend_op_array *op_array) {
+    if (list->size == 0) {
+        return;
+    }
+
+    for (size_t handler = 0; handler < list->size; handler++) {
+        list->handlers[handler](op_array);
+    }
+}
+
+static inline int tea_extension_startup_run() {
+    tea_extension_startup_list_t *list = &tea_extension_startup_list;
+
+    if (list->size == 0) {
+        return SUCCESS;
+    }
+
+    for (size_t handler = 0; handler < list->size; handler++) {
+        list->handlers[handler]();
+    }
+
+    return SUCCESS;
+}
+
 static PHP_MINIT_FUNCTION(tea_extension);
 static PHP_MSHUTDOWN_FUNCTION(tea_extension);
 static PHP_RINIT_FUNCTION(tea_extension);
 static PHP_RSHUTDOWN_FUNCTION(tea_extension);
+static void tea_extension_op_array_handler_run(zend_op_array *op_array);
+static void tea_extension_op_array_ctor_run(zend_op_array *op_array);
 
 static zend_module_entry __tea_extension_module = {
     STANDARD_MODULE_HEADER,
@@ -71,6 +111,26 @@ static zend_module_entry __tea_extension_module = {
     STANDARD_MODULE_PROPERTIES
 };
 
+static zend_extension __tea_zend_extension = {
+    __tea_extension_name,
+    PHP_VERSION,
+    "Datadog",
+    "https://github.com/DataDog/dd-trace-php",
+    "Copyright Datadog",
+    tea_extension_startup_run,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    tea_extension_op_array_handler_run,
+    NULL,
+    NULL,
+    NULL,
+    tea_extension_op_array_ctor_run,
+    NULL,
+    STANDARD_ZEND_EXTENSION_PROPERTIES
+};
+
 static PHP_MINIT_FUNCTION(tea_extension) {
     if (tea_extension_functions_list.size) {
         /* PHP_FE_END */
@@ -82,6 +142,8 @@ static PHP_MINIT_FUNCTION(tea_extension) {
             NULL,
             __tea_extension_module.type TEA_TSRMLS_CC);
     }
+
+    zend_register_extension(&__tea_zend_extension, __tea_extension_module.handle);
 
     return tea_extension_init_run(
         &tea_extension_minit_list, INIT_FUNC_ARGS_PASSTHRU);
@@ -107,6 +169,14 @@ static PHP_RINIT_FUNCTION(tea_extension) {
 static PHP_RSHUTDOWN_FUNCTION(tea_extension) {
     return tea_extension_shutdown_run(
         &tea_extension_rshutdown_list, SHUTDOWN_FUNC_ARGS_PASSTHRU);
+}
+
+static void tea_extension_op_array_handler_run(zend_op_array *op_array) {
+    tea_extension_op_array_run(&tea_extension_op_array_handler_list, op_array);
+}
+
+static void tea_extension_op_array_ctor_run(zend_op_array *op_array) {
+    tea_extension_op_array_run(&tea_extension_op_array_ctor_list, op_array);
 }
 
 void tea_extension_name(const char *name, size_t len) {
@@ -189,6 +259,36 @@ void tea_extension_functions(const zend_function_entry *entries) {
     } while (entries[++entry].fname);
 }
 
+void tea_extension_op_array_handler(tea_extension_op_array_function handler) {
+    tea_extension_op_array_handler_list.size++;
+    tea_extension_op_array_handler_list.handlers =
+            realloc(
+                    tea_extension_op_array_handler_list.handlers,
+                    tea_extension_op_array_handler_list.size * sizeof(tea_extension_op_array_function));
+    tea_extension_op_array_handler_list.handlers[
+            tea_extension_op_array_handler_list.size - 1] = handler;
+}
+
+void tea_extension_op_array_ctor(tea_extension_op_array_function handler) {
+    tea_extension_op_array_ctor_list.size++;
+    tea_extension_op_array_ctor_list.handlers =
+            realloc(
+                    tea_extension_op_array_ctor_list.handlers,
+                    tea_extension_op_array_ctor_list.size * sizeof(tea_extension_op_array_function));
+    tea_extension_op_array_ctor_list.handlers[
+            tea_extension_op_array_ctor_list.size - 1] = handler;
+}
+
+void tea_extension_startup(tea_extension_startup_function handler) {
+    tea_extension_startup_list.size++;
+    tea_extension_startup_list.handlers =
+            realloc(
+                    tea_extension_startup_list.handlers,
+                    tea_extension_startup_list.size * sizeof(tea_extension_op_array_function));
+    tea_extension_startup_list.handlers[
+            tea_extension_startup_list.size - 1] = handler;
+}
+
 zend_module_entry* tea_extension_module() {
     return &__tea_extension_module;
 }
@@ -227,5 +327,17 @@ void tea_extension_sinit(void) {
     tea_extension_free(
         (void**) &tea_extension_functions_list.entries,
         &tea_extension_functions_list.size);
+
+    tea_extension_free(
+        (void**) &tea_extension_op_array_handler_list.handlers,
+        &tea_extension_op_array_handler_list.size);
+
+    tea_extension_free(
+        (void**) &tea_extension_op_array_ctor_list.handlers,
+        &tea_extension_op_array_ctor_list.size);
+
+    tea_extension_free(
+        (void**) &tea_extension_startup_list.handlers,
+        &tea_extension_startup_list.size);
 }
 // clang-format on

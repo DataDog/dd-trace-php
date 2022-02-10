@@ -127,9 +127,6 @@ bool zai_hook_install_resolved(
         size_t dynamic,
         zend_function *function ZAI_TSRMLS_DC); /* }}} */
 
-/* {{{ zai_hook_installed shall return true if there are installs for this frame */
-bool zai_hook_installed(zend_execute_data *ex); /* }}} */
-
 /* {{{ zai_hook_memory_t structure is passed between
         continue and finish and managed by the hook interface */
 typedef struct {

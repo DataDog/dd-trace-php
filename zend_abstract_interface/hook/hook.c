@@ -98,12 +98,7 @@ static void zai_hook_resolved_destroy(zval *zv) {
 }
 
 /* {{{ */
-#if PHP_VERSION_ID < 70000
-static int zai_hook_resolve_impl(zai_hook_t *hook ZAI_TSRMLS_DC) {
-#else
-static int zai_hook_resolve_impl(zval *zv ZAI_TSRMLS_DC) {
-    zai_hook_t *hook = Z_PTR_P(zv);
-#endif
+static bool zai_hook_resolve_hook(zai_hook_t *hook ZAI_TSRMLS_DC) {
     zend_function *function = NULL;
 
     // clang-format off
@@ -115,7 +110,7 @@ static int zai_hook_resolve_impl(zval *zv ZAI_TSRMLS_DC) {
 
         if (!scope) {
             /* class not available */
-            return ZEND_HASH_APPLY_KEEP;
+            return false;
         }
 
         function =
@@ -132,26 +127,37 @@ static int zai_hook_resolve_impl(zval *zv ZAI_TSRMLS_DC) {
 
     if (!function) {
         /* cannot be resolved */
-        return ZEND_HASH_APPLY_KEEP;
+        return false;
     }
 
     HashTable *table;
 
     if (!zai_hook_resolved_table(zai_hook_install_address(function), &table ZAI_TSRMLS_CC)) {
-        return ZEND_HASH_APPLY_KEEP;
+        return false;
     }
 
     zai_hook_t *resolved;
 
     if (!zai_hook_table_insert(table, hook, sizeof(zai_hook_t), (void **)&resolved)) {
-        return ZEND_HASH_APPLY_KEEP;
+        return false;
     }
-
-    zai_hook_copy(resolved ZAI_TSRMLS_CC);
 
     zai_hook_memory_reserve(resolved);
 
-    return ZEND_HASH_APPLY_REMOVE;
+    return true;
+}
+
+#if PHP_VERSION_ID < 70000
+static int zai_hook_resolve_impl(zai_hook_t *hook ZAI_TSRMLS_DC) {
+#else
+static int zai_hook_resolve_impl(zval *zv ZAI_TSRMLS_DC) {
+    zai_hook_t *hook = Z_PTR_P(zv);
+#endif
+    if (zai_hook_resolve_hook(hook ZAI_TSRMLS_CC)) {
+        zai_hook_copy(hook ZAI_TSRMLS_CC);
+        return ZEND_HASH_APPLY_REMOVE;
+    }
+    return ZEND_HASH_APPLY_KEEP;
 }
 
 /* {{{ */
@@ -164,27 +170,9 @@ void zai_hook_resolve(ZAI_TSRMLS_D) {
 } /* }}} */
 
 /* {{{ */
-static inline HashTable *zai_hook_find(zend_execute_data *ex) {
-    HashTable *hooks;
-
-    if (!zai_hook_table_find(&zai_hook_resolved, zai_hook_frame_address(ex), &hooks)) {
-        return NULL;
-    }
-
-    return hooks;
-} /* }}} */
-
-/* {{{ */
-bool zai_hook_installed(zend_execute_data *ex) {
-    return zend_hash_index_exists(&zai_hook_resolved, zai_hook_frame_address(ex));
-}
-/* }}} */
-
-/* {{{ */
 bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory ZAI_TSRMLS_DC) {
-    HashTable *hooks = zai_hook_find(ex);
-
-    if (!hooks || zend_hash_num_elements(hooks) == 0) {
+    HashTable *hooks;
+    if (!zai_hook_resolved_table_find(zai_hook_frame_address(ex), &hooks) || zend_hash_num_elements(hooks) == 0) {
         return true;
     }
 
@@ -250,9 +238,8 @@ __zai_hook_finish:
 
 /* {{{ */
 void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory ZAI_TSRMLS_DC) {
-    HashTable *hooks = zai_hook_find(ex);
-
-    if (!hooks || zend_hash_num_elements(hooks) == 0) {
+    HashTable *hooks;
+    if (!zai_hook_resolved_table_find(zai_hook_frame_address(ex), &hooks) || zend_hash_num_elements(hooks) == 0) {
         return;
     }
 
@@ -338,8 +325,9 @@ bool zai_hook_rinit(void) {
 }
 
 void zai_hook_rshutdown(void) {
-    zend_hash_destroy(&zai_hook_resolved);
     zend_hash_destroy(&zai_hook_request);
+    zend_hash_destroy(&zai_hook_resolved);
+    zai_hook_resolved.pDestructor = NULL;
 }
 
 void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
@@ -460,7 +448,8 @@ bool zai_hook_install(
 
     zai_hook_t *hook;
 
-    if (!zai_hook_table_insert(table, &install, sizeof(zai_hook_t), (void **)&hook)) {
+    bool isUninitialized = zai_hook_resolved.pDestructor == NULL;
+    if ((isUninitialized || !zai_hook_resolve_hook(&install ZAI_TSRMLS_CC)) && !zai_hook_table_insert(table, &install, sizeof(zai_hook_t), (void **)&hook)) {
         if (install.scope) {
             zai_hook_string_release(install.scope);
         }
@@ -470,7 +459,7 @@ bool zai_hook_install(
     }
 
     if (type == ZAI_HOOK_USER) {
-        zai_hook_copy_u(hook ZAI_TSRMLS_CC);
+        zai_hook_copy_u(&install ZAI_TSRMLS_CC);
     }
 
     return true;
