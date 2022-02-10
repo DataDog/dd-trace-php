@@ -9,7 +9,7 @@
 #define DDTRACE_COMS_STACK_MAX_SIZE (1024u * 1024u * 10u)      // 10 MiB
 #define DDTRACE_COMS_STACK_HALF_MAX_SIZE (1024u * 1024u * 5u)  // 5 MiB
 #define DDTRACE_COMS_STACK_INITIAL_SIZE (1024u * 128u)         // 128 KiB
-#define DDTRACE_COMS_STACKS_BACKLOG_SIZE 10
+#define DDTRACE_COMS_STACKS_BACKLOG_SIZE 12
 
 typedef struct ddtrace_coms_stack_t {
     size_t size;
