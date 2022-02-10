@@ -1,6 +1,7 @@
 #ifndef DDTRACE_HANDLERS_INTERNAL_H
 #define DDTRACE_HANDLERS_INTERNAL_H
 
+#include <Zend/zend_extensions.h>
 #include <php.h>
 
 #include "ddtrace_string.h"
@@ -20,7 +21,7 @@ void ddtrace_replace_internal_methods(ddtrace_string Class, size_t methods_len, 
 
 void ddtrace_free_unregistered_class(zend_class_entry *ce);
 
-void ddtrace_internal_handlers_startup(void);
+void ddtrace_internal_handlers_startup(zend_extension *ddtrace_extension);
 void ddtrace_internal_handlers_shutdown(void);
 void ddtrace_internal_handlers_rinit(void);
 void ddtrace_internal_handlers_rshutdown(void);

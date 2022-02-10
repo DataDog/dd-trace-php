@@ -112,8 +112,21 @@ void ddtrace_exception_handlers_rinit(void);
 
 void ddtrace_curl_handlers_rshutdown(void);
 
+static void dd_message_dispatcher(const zend_extension *extension, const zend_extension *ddtrace) {
+    if (ddtrace != extension) {
+        ddtrace_message_handler(ZEND_EXTMSG_NEW_EXTENSION, (void *)extension);
+    }
+}
+
 // Internal handlers use ddtrace_resource and only implement the sandbox API.
-void ddtrace_internal_handlers_startup(void) {
+void ddtrace_internal_handlers_startup(zend_extension *ext) {
+    /* The zend_extension message_handler is used to detect if profiling is
+     * loaded, but it will not trigger for already loaded zend_extensions, so
+     * loop over existing zend_extensions to see if it's already there.
+     */
+    llist_apply_with_arg_func_t func = (llist_apply_with_arg_func_t)dd_message_dispatcher;
+    zend_llist_apply_with_argument(&zend_extensions, func, ext);
+
     // curl is different; it has pieces that always run.
     ddtrace_curl_handlers_startup();
     // pcntl handlers have to run even if tracing of pcntl extension is not enabled.

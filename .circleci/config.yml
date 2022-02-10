@@ -1278,6 +1278,35 @@ jobs:
             grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 
       - run:
+          name: Extension Tea Tests
+          command: |
+            for phpBuild in $(ls /opt/php)
+            do
+              switch-php ${phpBuild}
+              toolchain=""
+              if [ "${phpBuild}" = "debug-zts-asan" ]
+              then
+                toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+              fi
+
+              # build ddtrace.so
+              cd ~/datadog
+              make clean
+              make install
+
+              # Build ext Tea tests
+              builddir="/tmp/build/ext-tea-${phpBuild}"
+              mkdir -p "${builddir}"
+              cd "${builddir}"
+              export CMAKE_PREFIX_PATH=/opt/catch2
+              export Tea_ROOT=/opt/tea/${phpBuild}
+              cmake ${toolchain} -DCMAKE_BUILD_TYPE=Debug -S ~/datadog/tests/tea
+              cmake --build . --parallel
+              make test ARGS="--output-on-failure"
+              grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+            done
+
+      - run:
           command: |
             mkdir -p /tmp/artifacts
             cp --parents /tmp/build/zai-*/Testing/Temporary/LastTest.log /tmp/artifacts/
