@@ -9,19 +9,19 @@ ZEND_TLS datadog_php_stack_sample last_stack_sample;
 
 ZEND_API datadog_php_stack_sample tea_get_last_stack_sample(void) { return last_stack_sample; }
 
-extern "C" {
 ZEND_API void datadog_profiling_interrupt_function(zend_execute_data *execute_data) {
     datadog_php_stack_sample_ctor(&last_stack_sample);
-    // don't try to re-implement everything
 
+    /* Don't try to re-implement everything. Remember, the tracer is being
+     * tested here, not the profiler!
+     */
     while (execute_data) {
         datadog_php_stack_sample_frame frame = {DATADOG_PHP_STRING_VIEW_INIT, DATADOG_PHP_STRING_VIEW_INIT, 0};
+
         if (execute_data->func && execute_data->func->common.function_name) {
             frame.function.ptr = ZSTR_VAL(execute_data->func->common.function_name);
             frame.function.len = ZSTR_LEN(execute_data->func->common.function_name);
-        }
-
-        if (!frame.function.len) {
+        } else {
             frame.function.ptr = "<php>";
             frame.function.len = sizeof("<php>") - 1;
         }
@@ -32,7 +32,6 @@ ZEND_API void datadog_profiling_interrupt_function(zend_execute_data *execute_da
 
         execute_data = execute_data->prev_execute_data;
     }
-}
 }
 
 ZEND_API zend_extension_version_info extension_version_info = {
