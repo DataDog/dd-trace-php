@@ -89,7 +89,7 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
  * The rationale behind this is that once we know that at least one single trace can be larger than X bytes, then
  * all the subsequent stacks are allocated at least as large as that size.
  */
- static ddtrace_coms_stack_t *_dd_new_stack(size_t min_size) {
+static ddtrace_coms_stack_t *_dd_new_stack(size_t min_size) {
     size_t initial_size = atomic_load(&ddtrace_coms_globals.stack_size);
     size_t size = initial_size;
     while (min_size > size && size <= DDTRACE_COMS_STACK_HALF_MAX_SIZE) {
