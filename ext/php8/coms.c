@@ -956,7 +956,6 @@ static void *_dd_writer_loop(void *_) {
     curl_slist_free_all(writer->headers);
     writer->headers = NULL;
 
-    curl_easy_cleanup(writer->curl);
     _dd_coms_stack_shutdown();
 
     pthread_cleanup_pop(1);
