@@ -11,12 +11,7 @@ static inline void zai_hook_memory_allocate(zai_hook_memory_t *memory) {
         return;
     }
 
-    size_t zai_hook_memory_size = ZEND_MM_ALIGNED_SIZE(zai_hook_auxiliary_size + zai_hook_dynamic_size);
-
-    memory->auxiliary = emalloc(zai_hook_memory_size);
-
-    memset(memory->auxiliary, 0, zai_hook_memory_size);
-
+    memory->auxiliary = ecalloc(1, ZEND_MM_ALIGNED_SIZE(zai_hook_auxiliary_size) + zai_hook_dynamic_size);
     memory->dynamic = (void *)(((char *)memory->auxiliary) + ZEND_MM_ALIGNED_SIZE(zai_hook_auxiliary_size));
 }
 

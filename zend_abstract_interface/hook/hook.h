@@ -146,6 +146,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory 
 void zai_hook_resolve(ZAI_TSRMLS_D); /* }}} */
 
 /* {{{ private but externed for performance reasons */
+// TODO: Bitshift index by 5 to avoid collisions
 extern __thread HashTable zai_hook_resolved;
 /* }}} */
 
@@ -169,6 +170,15 @@ static inline zend_ulong zai_hook_frame_address(zend_execute_data *ex) {
 /* {{{ zai_hook_installed shall return true if there are installs for this frame */
 static inline bool zai_hook_installed(zend_execute_data *ex) {
     return zend_hash_index_exists(&zai_hook_resolved, zai_hook_frame_address(ex));
+}
+static inline bool zai_hook_installed_func(zend_function *func) {
+    return zend_hash_index_exists(&zai_hook_resolved, zai_hook_install_address(func));
+}
+static inline bool zai_hook_installed_user(zend_op_array *op_array) {
+    return zend_hash_index_exists(&zai_hook_resolved, (zend_ulong)op_array->opcodes);
+}
+static inline bool zai_hook_installed_internal(zend_internal_function *function) {
+    return zend_hash_index_exists(&zai_hook_resolved, (zend_ulong)function);
 }
 /* }}} */
 

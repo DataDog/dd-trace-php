@@ -19,11 +19,19 @@ static inline bool zai_hook_table_insert_at(HashTable *table, zend_ulong index, 
 #endif
 }
 
-static inline bool zai_hook_table_find(HashTable *table, zend_ulong index, HashTable **found) {
+static inline bool zai_hook_table_find(HashTable *table, zend_ulong index, void **found) {
 #if PHP_VERSION_ID < 70000
     return zend_hash_index_find(table, index, (void **)found) == SUCCESS;
-#else
+#elif PHP_VERSION_ID < 70100
     return (*found = zend_hash_index_find_ptr(table, index));
+#else
+    zval *zv = _zend_hash_index_find(table, index);
+    if (EXPECTED(zv == NULL)) {
+        return false;
+    } else {
+        *found = Z_PTR_P(zv);
+        return true;
+    }
 #endif
 } /* }}} */
 
