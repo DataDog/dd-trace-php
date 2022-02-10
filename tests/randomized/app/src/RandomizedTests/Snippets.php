@@ -2,8 +2,7 @@
 
 namespace RandomizedTests;
 
-use Elasticsearch\ClientBuilder;
-use GuzzleHttp\Client as GuzzleClient;
+// Do not use the `use` statement, as ionCubeloader is a pain to configure. Inline `Library\Namespace\Class` instead.
 
 class Snippets
 {
@@ -25,8 +24,96 @@ class Snippets
             $integrationName = $availableIntegrationsNames[$pickAnIntegration];
             $pickAVariant = \rand(1, $availableIntegrations[$integrationName]);
 
-            $functionName = $integrationName . 'Variant' . $pickAVariant;
-            $this->$functionName();
+            // We cannot use `$this->$functionName()` or `call_user_func()` as ionCubeLoader is not compatible with
+            // that form.
+            switch ($integrationName) {
+                case 'elasticsearch':
+                    switch ($pickAVariant) {
+                        case 1:
+                            $this->elasticsearchVariant1();
+                            break;
+                        default:
+                            throw new \Exception('Unknown variant: ' . $integrationName . ' -> ' . $pickAVariant);
+                    }
+                    break;
+                case 'guzzle':
+                    switch ($pickAVariant) {
+                        case 1:
+                            $this->guzzleVariant1();
+                            break;
+                        default:
+                            throw new \Exception('Unknown variant: ' . $integrationName . ' -> ' . $pickAVariant);
+                    }
+                    break;
+                case 'memcached':
+                    switch ($pickAVariant) {
+                        case 1:
+                            $this->memcachedVariant1();
+                            break;
+                        default:
+                            throw new \Exception('Unknown variant: ' . $integrationName . ' -> ' . $pickAVariant);
+                    }
+                    break;
+                case 'mysqli':
+                    switch ($pickAVariant) {
+                        case 1:
+                            $this->mysqliVariant1();
+                            break;
+                        default:
+                            throw new \Exception('Unknown variant: ' . $integrationName . ' -> ' . $pickAVariant);
+                    }
+                    break;
+                case 'curl':
+                    switch ($pickAVariant) {
+                        case 1:
+                            $this->curlVariant1();
+                            break;
+                        case 2:
+                            $this->curlVariant2();
+                            break;
+                        case 3:
+                            $this->curlVariant3();
+                            break;
+                        case 4:
+                            $this->curlVariant4();
+                            break;
+                        case 5:
+                            $this->curlVariant5();
+                            break;
+                        case 6:
+                            $this->curlVariant6();
+                            break;
+                        case 7:
+                            $this->curlVariant7();
+                            break;
+                        case 8:
+                            $this->curlVariant8();
+                            break;
+                        default:
+                            throw new \Exception('Unknown variant: ' . $integrationName . ' -> ' . $pickAVariant);
+                    }
+                    break;
+                case 'pdo':
+                    switch ($pickAVariant) {
+                        case 1:
+                            $this->pdoVariant1();
+                            break;
+                        default:
+                            throw new \Exception('Unknown variant: ' . $integrationName . ' -> ' . $pickAVariant);
+                    }
+                    break;
+                case 'phpredis':
+                    switch ($pickAVariant) {
+                        case 1:
+                            $this->phpredisVariant1();
+                            break;
+                        default:
+                            throw new \Exception('Unknown variant: ' . $integrationName . ' -> ' . $pickAVariant);
+                    }
+                    break;
+                default:
+                    throw new \Exception('Unknown integration name: ' . $integrationName);
+            }
         }
     }
 
@@ -302,7 +389,7 @@ class Snippets
 
     public function elasticsearchVariant1()
     {
-        $clientBuilder = ClientBuilder::create();
+        $clientBuilder = \Elasticsearch\ClientBuilder::create();
         $clientBuilder->setHosts([$this->config->elasticSearchHost]);
         $client = $clientBuilder->build();
 
@@ -320,7 +407,7 @@ class Snippets
 
     public function guzzleVariant1()
     {
-        $client = new GuzzleClient();
+        $client = new \GuzzleHttp\Client();
         $client->get($this->getGuzzleUrl());
     }
 
