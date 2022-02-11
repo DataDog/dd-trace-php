@@ -59,9 +59,15 @@ static void zai_interceptor_observer_generator_end_handler(zend_execute_data *ex
 }
 
 // TODO ... listen on hooks for change on installed hooks?
+static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(zend_op_array *op_array) {
+    if (op_array->fn_flags & ZEND_ACC_GENERATOR) {
+        return (zend_observer_fcall_handlers){NULL, zai_interceptor_observer_generator_end_handler};
+    }
+    return (zend_observer_fcall_handlers){zai_interceptor_observer_begin_handler, zai_interceptor_observer_end_handler};
+}
+
 #define ZEND_OBSERVER_DATA(op_array) \
 	ZEND_OP_ARRAY_EXTENSION(op_array, zend_observer_fcall_op_array_extension)
-#define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
 typedef struct {
     // points after the last handler
@@ -70,12 +76,13 @@ typedef struct {
     zend_observer_fcall_handlers handlers[1];
 } zend_observer_fcall_data;
 
+// TODO we probably need to keep track of closure liveness to be able to update their observers
 void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
     zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(op_array);
     if (remove) {
         for (zend_observer_fcall_handlers *handlers = data->handlers, *end = data->end; handlers != end; ++handlers) {
             if (handlers->end == zai_interceptor_observer_end_handler || handlers->end == zai_interceptor_observer_generator_end_handler) {
-                if (data->handlers == end + 1) {
+                if (data->handlers == end - 1) {
                     data->end = data->handlers;
                 } else {
                     *handlers = *(end - 1);
@@ -85,12 +92,28 @@ void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
             }
         }
     } else {
-        // TODO subtly leaks memory, given that we discard the old arena allocated handler list
-        // Currently by design as Closure rebinding anyway leaks memory, but it's very ugly
-        ZEND_OBSERVER_DATA(op_array) = NULL;
+        // We have space allocated...
+        *++data->end = zai_interceptor_determine_handlers(op_array);
     }
 }
 
+// Allocate some space. This space can be used to install observers afterwards
+// ... I would love to make use of ZEND_OBSERVER_NOT_OBSERVED optimization, but this does not seem possible :-(
+static void zai_interceptor_observer_placeholder_handler(zend_execute_data *execute_data) {
+    zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(&execute_data->func->op_array);
+    for (zend_observer_fcall_handlers *handlers = data->handlers, *end = data->end; handlers != end; ++handlers) {
+        if (handlers->begin == zai_interceptor_observer_placeholder_handler) {
+            if (handlers == end - 1) {
+                handlers->begin = NULL;
+            } else {
+                *handlers = *(end - 1);
+                handlers->begin(execute_data);
+            }
+            data->end = end - 1;
+            break;
+        }
+    }
+}
 
 static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_execute_data *execute_data) {
     // TODO: resolve only hooks for current function to avoid lookup overhead of yet unresolved hooks?
@@ -100,13 +123,10 @@ static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_exe
     HashTable *hooks;
     zend_function *func = execute_data->func;
     if (UNEXPECTED(zai_hook_resolved_table_find(zai_hook_install_address(func), &hooks))) {
-        if (func->type != ZEND_INTERNAL_FUNCTION && (func->op_array.fn_flags & ZEND_ACC_GENERATOR)) {
-            return (zend_observer_fcall_handlers){NULL, zai_interceptor_observer_generator_end_handler};
-        }
-        return (zend_observer_fcall_handlers){zai_interceptor_observer_begin_handler, zai_interceptor_observer_end_handler};
+        return zai_interceptor_determine_handlers(&func->op_array);
     }
-
-    return (zend_observer_fcall_handlers){NULL, NULL};
+    // Use one-time begin handler which will remove itself
+    return (zend_observer_fcall_handlers){zai_interceptor_observer_placeholder_handler, NULL};
 }
 
 static zend_object *(*generator_create_prev)(zend_class_entry *class_type);
