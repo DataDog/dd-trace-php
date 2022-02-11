@@ -400,11 +400,13 @@ static PHP_MINIT_FUNCTION(ddtrace) {
      * hooks too, but not loadable as zend_extension=ddtrace.so.
      * See http://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
      * {{{ */
-    Dl_info infos;
     zend_register_extension(&_dd_zend_extension_entry, ddtrace_module_entry.handle);
+#ifdef COMPILE_DL_DDTRACE
+    Dl_info infos;
     // The symbol used needs to be public on Alpine.
     dladdr(get_module, &infos);
     dlopen(infos.dli_fname, RTLD_LAZY);
+#endif
     /* }}} */
 
     if (DDTRACE_G(disable)) {
@@ -1795,7 +1797,8 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 
-static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_END};
+static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard")
+                                                          ZEND_MOD_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
                                           ddtrace_module_deps,       PHP_DDTRACE_EXTNAME,

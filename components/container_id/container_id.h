@@ -1,6 +1,9 @@
 #ifndef DATADOG_PHP_CONTAINER_ID_H
 #define DATADOG_PHP_CONTAINER_ID_H
 
+#include <stddef.h>
+#include <sys/types.h>
+// comment to ensure both defs are before regex.h
 #include <regex.h>
 #include <stdbool.h>
 
