@@ -25,6 +25,21 @@ build:
       - 'upstream.env'
       - 'php-linux-tracer-deb-latest.deb'
 
+build:
+  tags: ["runner:docker", "size:large"]
+  stage: build
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v3892323-786b6fd-20.10.3
+  script:
+    - docker version
+    - docker buildx install
+    - docker build -f dockerfiles/packaging/Dockerfile . --target export -t tmp_export
+    - docker image save tmp_export  | tar --wildcards --strip-components=1 -x '*/layer.tar'
+    - mkdir artifacts
+    - tar -xf layer.tar -C artifacts
+  artifacts:
+    paths:
+      - 'artifacts/'
+
 deploy_to_reliability_env:
   stage: deploy
   trigger:
