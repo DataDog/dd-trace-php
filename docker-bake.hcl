@@ -17,8 +17,9 @@ target "package-circleci" {
 target "package-github" {
     dockerfile = "dockerfiles/packaging/Dockerfile"
     target = "export"
-    cache-from = ["type=registry,ref=ghcr.io/pawelchcki/dd-trace-php"]
-    cache-to = ["type=registry,ref=ghcr.io/pawelchcki/dd-trace-php"]
+    // TODO remove or implement build caching in dd-trace-php repo
+    /* cache-from = ["type=registry,ref=ghcr.io/pawelchcki/dd-trace-php"]  */
+    /* cache-to = ["type=registry,ref=ghcr.io/pawelchcki/dd-trace-php"] */
     output = ["build/package"]
 }
 
