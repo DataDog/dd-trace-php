@@ -1,5 +1,9 @@
-add_library(zai_interceptor "${PHP_VERSION_DIRECTORY}/interceptor.c"
-                            "${PHP_VERSION_DIRECTORY}/resolver.c")
+if(PHP_VERSION_ID GREATER_EQUAL "80000")
+  add_library(zai_interceptor "${PHP_VERSION_DIRECTORY}/interceptor.c")
+else()
+  add_library(zai_interceptor "${PHP_VERSION_DIRECTORY}/interceptor.c"
+                              "${PHP_VERSION_DIRECTORY}/resolver.c")
+endif()
 
 target_include_directories(zai_interceptor PUBLIC
                                        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>

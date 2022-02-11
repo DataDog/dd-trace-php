@@ -1,14 +1,21 @@
 #include <tea/testing/catch2.hpp>
 
 extern "C" {
-#include <interceptor/php7/interceptor.h>
 #include <hook/hook.h>
 #include <value/value.h>
 #include <tea/extension.h>
 #include <ext/standard/basic_functions.h>
+#if PHP_VERSION_ID >= 80000
+#include <interceptor/php8/interceptor.h>
+#else
+#include <interceptor/php7/interceptor.h>
+#endif
 
     static PHP_MINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_minit();
+#if PHP_VERSION_ID >= 80000
+        zai_interceptor_minit();
+#endif
         return SUCCESS;
     }
 
@@ -29,14 +36,18 @@ extern "C" {
         return SUCCESS;
     }
 
-    static int ddtrace_testing_startup() {
+    static zend_result_t ddtrace_testing_startup() {
+#if PHP_VERSION_ID < 80000
         zai_interceptor_startup(tea_extension_module());
+#endif
         return SUCCESS;
     }
 
     static void init_interceptor_test() {
+#if PHP_VERSION_ID < 80000
         tea_extension_op_array_ctor(zai_interceptor_op_array_ctor);
         tea_extension_op_array_handler(zai_interceptor_op_array_pass_two);
+#endif
         tea_extension_startup(ddtrace_testing_startup);
         tea_extension_minit(PHP_MINIT(ddtrace_testing_hook));
         tea_extension_rinit(PHP_RINIT(ddtrace_testing_hook));
@@ -198,7 +209,9 @@ INTERCEPTOR_TEST_CASE("generator function intercepting from userland call", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
-#if PHP_VERSION_ID >= 70100
+// TODO check this, maybe just don't start the span if it's a generator creating span
+// OR: TODO PHP 8 support, by doing the ZEND_GENERATOR_CREATE overload, which does an open followed by an immediate close if retval unused
+#if PHP_VERSION_ID >= 70100 && PHP_VERSION_ID < 80000
 // On PHP 7.0 the call to create a generator is completely elided and not hookable
 INTERCEPTOR_TEST_CASE("unused generator function intercepting", {
     INSTALL_HOOK("generator");
