@@ -344,6 +344,23 @@ class UriTest extends BaseTestCase
         );
     }
 
+    public function testSubPathsMultipleWidlcards()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=path/then/*/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=path/then/*/*',
+        ]);
+
+        $this->assertSame(
+            '/path/then/?/?',
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/path/then/one/int')
+        );
+        $this->assertSame(
+            '/path/then/?/?',
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/path/then/one/int')
+        );
+    }
+
     public function testPartialMatching()
     {
         $this->putEnvAndReloadConfig([
