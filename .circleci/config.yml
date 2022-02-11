@@ -1538,7 +1538,7 @@ jobs:
       - run: ls -la 
       - run: docker system info
       - run: docker buildx create --config .circleci/buildkitd.toml --use --name=circleci
-      - run: docker buildx bake package --progress=plain
+      - run: docker buildx bake package-circleci --progress=plain
       - store_artifacts: { path: 'build/packages', destination: / }
 
   "package extension":

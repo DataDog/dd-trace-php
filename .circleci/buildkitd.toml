@@ -1,2 +1,2 @@
 [worker.oci]
-  max-parallelism = 18
+  max-parallelism = 24
