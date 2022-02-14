@@ -241,6 +241,10 @@ static void dd_multi_remove_handle(zval *mh, zval *ch TSRMLS_DC) {
         dd_multi_update_cache(mh, handles TSRMLS_CC);
         if (handles) {
             zend_hash_index_del(handles, Z_RESVAL_P(ch));
+            if (zend_hash_num_elements(handles) == 0) {
+                zend_hash_index_del(DDTRACE_G(curl_multi_handles), Z_RESVAL_P(mh));
+                dd_multi_update_cache(mh, NULL TSRMLS_CC);
+            }
         }
     }
 }
