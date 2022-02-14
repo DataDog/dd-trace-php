@@ -159,7 +159,7 @@ function fail_print_and_exit() {
 }
 
 function verify_installation() {
-    invoke_php -m | grep ddtrace && \
+    invoke_php -m | grep -e "^ddtrace$" && \
         println "Extension enabled successfully" || \
         fail_print_and_exit
 }
@@ -167,7 +167,7 @@ function verify_installation() {
 function verify_required_ext() {
     ext_name="$1"
     printf "Checking for extension: ${ext_name}\n"
-    output=$(invoke_php -m | grep "${ext_name}" || true)
+    output=$(invoke_php -m | grep -e "^${ext_name}$" || true)
 
     if [ "${output}" == "${ext_name}" ]; then
         printf "Extension '${ext_name}' was found.\n"
