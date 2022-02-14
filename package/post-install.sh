@@ -159,7 +159,7 @@ function fail_print_and_exit() {
 }
 
 function verify_installation() {
-    invoke_php -m | grep ddtrace && \
+    invoke_php -m | grep -e "^ddtrace$" && \
         println "Extension enabled successfully" || \
         fail_print_and_exit
 }
@@ -167,7 +167,7 @@ function verify_installation() {
 function verify_required_ext() {
     ext_name="$1"
     printf "Checking for extension: ${ext_name}\n"
-    output=$(invoke_php -m | grep "${ext_name}" || true)
+    output=$(invoke_php -m | grep -e "^${ext_name}$" || true)
 
     if [ "${output}" == "${ext_name}" ]; then
         printf "Extension '${ext_name}' was found.\n"
@@ -192,7 +192,6 @@ println
 invoke_php -i > "$EXTENSION_LOGS_DIR/php-info.log"
 
 PHP_VERSION=$(invoke_php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
-PHP_MAJOR_MINOR=$(invoke_php -r 'echo PHP_MAJOR_VERSION;').$(invoke_php -r 'echo PHP_MINOR_VERSION;')
 PHP_CFG_DIR=$(invoke_php -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
 
 PHP_THREAD_SAFETY=$(invoke_php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
