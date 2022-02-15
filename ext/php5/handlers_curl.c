@@ -1,3 +1,4 @@
+#include <curl/curl.h>
 #include <inttypes.h>
 #include <php.h>
 #include <stdbool.h>
@@ -519,14 +520,47 @@ void ddtrace_curl_handlers_startup(void) {
     dd_ext_curl_loaded = true;
 }
 
+typedef struct {
+    struct {
+        char str[CURL_ERROR_SIZE + 1];
+        int no;
+    } err;
+    struct _php_curl_free *to_free;
+    struct {
+        char *str;
+        size_t str_len;
+    } header;
+    void ***thread_ctx;
+    void *cp;
+    void *handlers;
+    long id;  // the resource id, we need that one
+} php_curl;
+
+static dtor_func_t prev_resources_dtor;
+static void ddtrace_curl_tracking_resources_dtor(void *ptr) {
+    zend_rsrc_list_entry *le = (zend_rsrc_list_entry *)ptr;
+    TSRMLS_FETCH();
+    if (le->type == DDTRACE_G(le_curl) && DDTRACE_G(le_curl)) {
+        php_curl *curl = le->ptr;
+        zval res;
+        ZVAL_RESOURCE(&res, curl->id);
+        dd_ch_delete_headers(&res TSRMLS_CC);
+    }
+    prev_resources_dtor(ptr);
+}
+
 /* We don't need to initialize the request globals on RINIT like we do
  * on PHP 7 & 8 because the GINIT function php_ddtrace_init_globals()
  * will memset everything to 0.
  */
-// void ddtrace_curl_handlers_rinit(TSRMLS_D) {}
+void ddtrace_curl_handlers_rinit(TSRMLS_D) {
+    prev_resources_dtor = EG(regular_list).pDestructor;
+    EG(regular_list).pDestructor = ddtrace_curl_tracking_resources_dtor;
+}
 
 void ddtrace_curl_handlers_rshutdown(TSRMLS_D) {
     DDTRACE_G(le_curl) = 0;
+    EG(regular_list).pDestructor = prev_resources_dtor;
     if (DDTRACE_G(curl_headers)) {
         zend_hash_destroy(DDTRACE_G(curl_headers));
         FREE_HASHTABLE(DDTRACE_G(curl_headers));
