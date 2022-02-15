@@ -19,6 +19,7 @@ void dd_install_handler(dd_zif_handler handler TSRMLS_DC) {
 }
 
 void ddtrace_curl_handlers_startup(void);
+void ddtrace_curl_handlers_rinit(TSRMLS_D);
 void ddtrace_curl_handlers_rshutdown(TSRMLS_D);
 void ddtrace_pcntl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(TSRMLS_D);
@@ -35,6 +36,9 @@ void ddtrace_internal_handlers_startup(TSRMLS_D) {
 
 void ddtrace_internal_handlers_shutdown(void) { ddtrace_exception_handlers_shutdown(); }
 
-void ddtrace_internal_handlers_rinit(TSRMLS_D) { ddtrace_exception_handlers_rinit(TSRMLS_C); }
+void ddtrace_internal_handlers_rinit(TSRMLS_D) {
+    ddtrace_curl_handlers_rinit(TSRMLS_C);
+    ddtrace_exception_handlers_rinit(TSRMLS_C);
+}
 
 void ddtrace_internal_handlers_rshutdown(TSRMLS_D) { ddtrace_curl_handlers_rshutdown(TSRMLS_C); }
