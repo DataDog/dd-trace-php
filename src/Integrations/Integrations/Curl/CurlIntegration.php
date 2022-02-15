@@ -80,10 +80,6 @@ final class CurlIntegration extends Integration
 
                 addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
 
-                // Datadog sets durations in nanoseconds - convert from seconds
-                $span->meta['duration'] = $info['total_time'] * 1000000000;
-                unset($info['duration']);
-
                 addSpanDataTagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
                 addSpanDataTagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
 

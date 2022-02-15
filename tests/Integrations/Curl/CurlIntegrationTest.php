@@ -57,7 +57,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
     private static function commonCurlInfoTags()
     {
         $tags = [
-            'duration',
+            'curl.total_time',
             'network.bytes_read',
             'network.bytes_written',
         ];
