@@ -1094,7 +1094,7 @@ void ddtrace_message_handler(int message, void *arg) {
 
         datadog_php_uuid (*runtime_id)(void) = DL_FETCH_SYMBOL(handle, "datadog_profiling_runtime_id");
         if (EXPECTED(runtime_id)) {
-            ddtrace_profiling_runtime_id = profiling_interrupt_function;
+            ddtrace_profiling_runtime_id = runtime_id;
         } else {
             ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: \n",
                                extension->version, DL_ERROR());
