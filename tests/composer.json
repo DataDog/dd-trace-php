@@ -23,6 +23,15 @@
                     "create-lockfile": false
                 }
             },
+            "elasticsearch7": {
+                "require": {
+                    "elasticsearch/elasticsearch": "~7.16",
+                    "symfony/event-dispatcher": "~2.7"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "guzzle5": {
                 "require": {
                     "guzzlehttp/guzzle": "~5.0"

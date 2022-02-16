@@ -675,6 +675,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
@@ -719,6 +720,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
@@ -767,6 +769,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
@@ -794,6 +797,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_mysqli \
 	test_integrations_pcntl \
 	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
 	test_opentracing_10
 
@@ -892,6 +896,9 @@ test_integrations_curl: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/Curl)
 test_integrations_elasticsearch1: global_test_run_dependencies
 	$(MAKE) test_scenario_elasticsearch1
+	$(call run_tests,tests/Integrations/Elasticsearch)
+test_integrations_elasticsearch7: global_test_run_dependencies
+	$(MAKE) test_scenario_elasticsearch7
 	$(call run_tests,tests/Integrations/Elasticsearch)
 test_integrations_guzzle5: global_test_run_dependencies
 	$(MAKE) test_scenario_guzzle5

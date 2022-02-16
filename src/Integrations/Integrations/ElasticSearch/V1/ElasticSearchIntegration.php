@@ -20,21 +20,79 @@ class ElasticSearchIntegration extends Integration
     }
 
     /**
-     * Add instrumentation to PDO requests
+     * Add instrumentation to Elasticsearch requests
      */
     public function init()
     {
+        // Dynamically generate namespace traces to ensure forward compatibility with future ES versions
+        $integration = $this;
+        \DDTrace\trace_method('Elasticsearch\Client', '__construct', [
+            "posthook" => function (SpanData $span) use (&$constructorCalled, $integration) {
+                if (!$constructorCalled) {
+                    $nsPattern = "(^Elasticsearch\\\\Namespaces\\\\([^\\\\]+Namespace)$)";
+                    foreach ($this as $property) {
+                        if (is_object($property) && preg_match($nsPattern, \get_class($property), $m)) {
+                            $reflection = new \ReflectionClass($property);
+                            foreach ($reflection->getMethods() as $method) {
+                                if ($method->isPublic()) {
+                                    $integration->traceNamespaceMethod($m[1], $method->name);
+                                }
+                            }
+                        }
+                    }
+                    $constructorCalled = true;
+                }
+
+                $span->name = "Elasticsearch.Client.__construct";
+                $span->service = ElasticSearchIntegration::NAME;
+                $span->type = Type::ELASTICSEARCH;
+                $span->resource = "__construct";
+            }
+        ]);
+
         // Client operations
-        $this->traceClientMethod('__construct');
+        $this->traceClientMethod('bulk');
+        $this->traceClientMethod('clearScroll');
+        $this->traceClientMethod('closePointInTime');
         $this->traceClientMethod('count');
+        $this->traceClientMethod('create');
+        $this->traceClientMethod('deleteByQuery');
+        $this->traceClientMethod('deleteByQueryRethrottle');
+        $this->traceClientMethod('deleteScript');
         $this->traceClientMethod('delete');
         $this->traceClientMethod('exists');
+        $this->traceClientMethod('existsScource');
         $this->traceClientMethod('explain');
+        $this->traceClientMethod('fieldCaps');
         $this->traceClientMethod('get', true);
+        $this->traceClientMethod('getScript');
+        $this->traceClientMethod('getScriptContext');
+        $this->traceClientMethod('getScriptLanguages');
+        $this->traceClientMethod('getSource');
         $this->traceClientMethod('index');
+        $this->traceClientMethod('knnSearch', true);
+        $this->traceClientMethod('mget', true);
+        $this->traceClientMethod('msearch', true);
+        $this->traceClientMethod('msearchTemplate', true);
+        $this->traceClientMethod('mtermvectors');
+        $this->traceClientMethod('openPointInTime');
+        $this->traceClientMethod('ping');
+        $this->traceClientMethod('putScript');
+        $this->traceClientMethod('rankEval');
+        $this->traceClientMethod('reindex');
+        $this->traceClientMethod('reindexRethrottle');
+        $this->traceClientMethod('renderSearchTemplate');
+        $this->traceClientMethod('scriptsPainlessExecute');
         $this->traceClientMethod('scroll');
         $this->traceClientMethod('search', true);
+        $this->traceClientMethod('searchMvt', true);
+        $this->traceClientMethod('searchShards', true);
+        $this->traceClientMethod('searchTemplate', true);
+        $this->traceClientMethod('termsEnum', true);
+        $this->traceClientMethod('termvectors');
         $this->traceClientMethod('update');
+        $this->traceClientMethod('updateByQuery');
+        $this->traceClientMethod('updateByQueryRethrottle');
 
         // Serializers
         $this->traceSimpleMethod('Elasticsearch\Serializers\ArrayToJSONSerializer', 'serialize');
@@ -44,86 +102,8 @@ class ElasticSearchIntegration extends Integration
         $this->traceSimpleMethod('Elasticsearch\Serializers\SmartSerializer', 'serialize');
         $this->traceSimpleMethod('Elasticsearch\Serializers\SmartSerializer', 'deserialize');
 
-        // IndicesNamespace operations
-        $this->traceNamespaceMethod('IndicesNamespace', 'analyze');
-        $this->traceNamespaceMethod('IndicesNamespace', 'clearCache');
-        $this->traceNamespaceMethod('IndicesNamespace', 'close');
-        $this->traceNamespaceMethod('IndicesNamespace', 'create');
-        $this->traceNamespaceMethod('IndicesNamespace', 'delete');
-        $this->traceNamespaceMethod('IndicesNamespace', 'deleteAlias');
-        $this->traceNamespaceMethod('IndicesNamespace', 'deleteMapping');
-        $this->traceNamespaceMethod('IndicesNamespace', 'deleteTemplate');
-        $this->traceNamespaceMethod('IndicesNamespace', 'deleteWarmer');
-        $this->traceNamespaceMethod('IndicesNamespace', 'exists');
-        $this->traceNamespaceMethod('IndicesNamespace', 'existsAlias');
-        $this->traceNamespaceMethod('IndicesNamespace', 'existsTemplate');
-        $this->traceNamespaceMethod('IndicesNamespace', 'existsType');
-        $this->traceNamespaceMethod('IndicesNamespace', 'flush');
-        $this->traceNamespaceMethod('IndicesNamespace', 'getAlias');
-        $this->traceNamespaceMethod('IndicesNamespace', 'getAliases');
-        $this->traceNamespaceMethod('IndicesNamespace', 'getFieldMapping');
-        $this->traceNamespaceMethod('IndicesNamespace', 'getMapping');
-        $this->traceNamespaceMethod('IndicesNamespace', 'getSettings');
-        $this->traceNamespaceMethod('IndicesNamespace', 'getTemplate');
-        $this->traceNamespaceMethod('IndicesNamespace', 'getWarmer');
-        $this->traceNamespaceMethod('IndicesNamespace', 'open');
-        $this->traceNamespaceMethod('IndicesNamespace', 'optimize');
-        $this->traceNamespaceMethod('IndicesNamespace', 'putAlias');
-        $this->traceNamespaceMethod('IndicesNamespace', 'putMapping');
-        $this->traceNamespaceMethod('IndicesNamespace', 'putSettings');
-        $this->traceNamespaceMethod('IndicesNamespace', 'putTemplate');
-        $this->traceNamespaceMethod('IndicesNamespace', 'putWarmer');
-        $this->traceNamespaceMethod('IndicesNamespace', 'recovery');
-        $this->traceNamespaceMethod('IndicesNamespace', 'refresh');
-        $this->traceNamespaceMethod('IndicesNamespace', 'segments');
-        $this->traceNamespaceMethod('IndicesNamespace', 'snapshotIndex');
-        $this->traceNamespaceMethod('IndicesNamespace', 'stats');
-        $this->traceNamespaceMethod('IndicesNamespace', 'status');
-        $this->traceNamespaceMethod('IndicesNamespace', 'updateAliases');
-        $this->traceNamespaceMethod('IndicesNamespace', 'validateQuery');
-
-        // CatNamespace operations
-        $this->traceNamespaceMethod('CatNamespace', 'aliases');
-        $this->traceNamespaceMethod('CatNamespace', 'allocation');
-        $this->traceNamespaceMethod('CatNamespace', 'count');
-        $this->traceNamespaceMethod('CatNamespace', 'fielddata');
-        $this->traceNamespaceMethod('CatNamespace', 'health');
-        $this->traceNamespaceMethod('CatNamespace', 'help');
-        $this->traceNamespaceMethod('CatNamespace', 'indices');
-        $this->traceNamespaceMethod('CatNamespace', 'master');
-        $this->traceNamespaceMethod('CatNamespace', 'nodes');
-        $this->traceNamespaceMethod('CatNamespace', 'pendingTasks');
-        $this->traceNamespaceMethod('CatNamespace', 'recovery');
-        $this->traceNamespaceMethod('CatNamespace', 'shards');
-        $this->traceNamespaceMethod('CatNamespace', 'threadPool');
-
-        // SnapshotNamespace operations
-        $this->traceNamespaceMethod('SnapshotNamespace', 'create');
-        $this->traceNamespaceMethod('SnapshotNamespace', 'createRepository');
-        $this->traceNamespaceMethod('SnapshotNamespace', 'delete');
-        $this->traceNamespaceMethod('SnapshotNamespace', 'deleteRepository');
-        $this->traceNamespaceMethod('SnapshotNamespace', 'get');
-        $this->traceNamespaceMethod('SnapshotNamespace', 'getRepository');
-        $this->traceNamespaceMethod('SnapshotNamespace', 'restore');
-        $this->traceNamespaceMethod('SnapshotNamespace', 'status');
-
-        // ClusterNamespace operations
-        $this->traceNamespaceMethod('ClusterNamespace', 'getSettings');
-        $this->traceNamespaceMethod('ClusterNamespace', 'health');
-        $this->traceNamespaceMethod('ClusterNamespace', 'pendingTasks');
-        $this->traceNamespaceMethod('ClusterNamespace', 'putSettings');
-        $this->traceNamespaceMethod('ClusterNamespace', 'reroute');
-        $this->traceNamespaceMethod('ClusterNamespace', 'state');
-        $this->traceNamespaceMethod('ClusterNamespace', 'stats');
-
-        // NodesNamespace operations
-        $this->traceNamespaceMethod('NodesNamespace', 'hotThreads');
-        $this->traceNamespaceMethod('NodesNamespace', 'info');
-        $this->traceNamespaceMethod('NodesNamespace', 'shutdown');
-        $this->traceNamespaceMethod('NodesNamespace', 'stats');
-
         // Endpoints
-        \DDTrace\trace_method('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function (SpanData $span) {
+        \DDTrace\trace_method('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function ($span) {
             $span->name = "Elasticsearch.Endpoint.performRequest";
             $span->resource = 'performRequest';
             $span->service = ElasticSearchIntegration::NAME;
@@ -139,6 +119,20 @@ class ElasticSearchIntegration extends Integration
                     $span->meta[Tag::ELASTICSEARCH_BODY] = json_encode($body);
                 }
             } catch (\Exception $ex) {
+            }
+        });
+        \DDTrace\trace_method('Elasticsearch\Connections\Connection', 'performRequest', function ($span, $args) {
+            $span->name = "Elasticsearch.Endpoint.performRequest";
+            $span->resource = 'performRequest';
+            $span->service = ElasticSearchIntegration::NAME;
+            $span->type = Type::ELASTICSEARCH;
+
+            $span->meta[Tag::ELASTICSEARCH_URL] = $args[1];
+            $span->meta[Tag::ELASTICSEARCH_METHOD] = $args[0];
+            $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($args[2]);
+            $recordBody = $args[0] === 'GET' || preg_match("(/_m?search.*$)", $args[1]);
+            if ($recordBody && null !== $body = $args[3]) {
+                $span->meta[Tag::ELASTICSEARCH_BODY] = $body;
             }
         });
 
