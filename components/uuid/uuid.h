@@ -2,6 +2,7 @@
 #define DATADOG_PHP_UUID
 
 #include <stdalign.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #if __cplusplus
@@ -61,6 +62,16 @@ void datadog_php_uuid_encode32(datadog_php_uuid uuid, char dest[C_STATIC(32)]);
  * @param dest A char buffer at least 36 chars in length.
  */
 void datadog_php_uuid_encode36(datadog_php_uuid uuid, char dest[C_STATIC(36)]);
+
+inline bool datadog_php_uuid_is_nil(datadog_php_uuid uuid) {
+    // Avoid string.h header for memcmp just for this
+    // Also avoid loops because GCC tends to miss the obvious optimizations:
+    // https://godbolt.org/z/jPYxcWrjd
+    return uuid.data[0] == 0 && uuid.data[1] == 0 && uuid.data[2] == 0 && uuid.data[3] == 0 && uuid.data[4] == 0 &&
+           uuid.data[5] == 0 && uuid.data[6] == 0 && uuid.data[7] == 0 && uuid.data[8] == 0 && uuid.data[9] == 0 &&
+           uuid.data[10] == 0 && uuid.data[11] == 0 && uuid.data[12] == 0 && uuid.data[13] == 0 && uuid.data[14] == 0 &&
+           uuid.data[15] == 0;
+}
 
 #undef C_STATIC
 

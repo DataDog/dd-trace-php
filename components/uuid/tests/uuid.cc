@@ -5,6 +5,23 @@ extern "C" {
 #include <catch2/catch.hpp>
 #include <cstring>
 
+TEST_CASE("uuid nil", "[uuid]") {
+    datadog_php_uuid uuid1;
+    datadog_php_uuid_default_ctor(&uuid1);
+
+    datadog_php_uuid uuid2 = DATADOG_PHP_UUID_INIT;
+
+    CHECK(datadog_php_uuid_is_nil(uuid1));
+    CHECK(datadog_php_uuid_is_nil(uuid2));
+}
+
+TEST_CASE("uuidv4 isn't nil", "[uuid]") {
+    datadog_php_uuid uuid;
+    const uint8_t src[16] = {0};
+    datadog_php_uuidv4_bytes_ctor(&uuid, src);
+    REQUIRE(!datadog_php_uuid_is_nil(uuid));
+}
+
 TEST_CASE("uuid encode32 nil", "[uuid]") {
     datadog_php_uuid uuid;
     datadog_php_uuid_default_ctor(&uuid);
@@ -20,6 +37,7 @@ TEST_CASE("uuid encode32", "[uuid]") {
     datadog_php_uuid uuid = {
         {29, 202, 33, 60, 217, 201, 77, 49, 162, 30, 13, 192, 25, 215, 90, 236},
     };
+    CHECK(!datadog_php_uuid_is_nil(uuid));
 
     alignas(32) char dest[32];
     datadog_php_uuid_encode32(uuid, dest);
@@ -32,6 +50,7 @@ TEST_CASE("uuid encode36", "[uuid]") {
     datadog_php_uuid uuid = {
         {190, 40, 194, 233, 78, 82, 76, 113, 164, 20, 69, 167, 221, 234, 5, 240},
     };
+    CHECK(!datadog_php_uuid_is_nil(uuid));
 
     alignas(32) char dest[36];
     datadog_php_uuid_encode36(uuid, dest);
@@ -65,6 +84,7 @@ TEST_CASE("uuidv4 encode36 bytes 6", "[uuid]") {
      */
     alignas(16) uint8_t bytes[16] = {190, 40, 194, 233, 78, 82, 191, 113, 164, 20, 69, 167, 221, 234, 5, 240};
     datadog_php_uuidv4_bytes_ctor(&uuidv4, bytes);
+    CHECK(!datadog_php_uuid_is_nil(uuidv4));
 
     alignas(32) char dest[36];
     datadog_php_uuid_encode36(uuidv4, dest);
