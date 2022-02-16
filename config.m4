@@ -184,6 +184,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/php7/dispatch.c \
       ext/php7/php7/engine_hooks.c \
       ext/php7/priority_sampling/priority_sampling.c \
+      ext/php7/profiling_context.c \
       ext/php7/random.c \
       ext/php7/request_hooks.c \
       ext/php7/serializer.c \
@@ -239,6 +240,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/php8/dispatch.c \
       ext/php8/php8/engine_hooks.c \
       ext/php8/priority_sampling/priority_sampling.c \
+      ext/php8/profiling_context.c \
       ext/php8/random.c \
       ext/php8/request_hooks.c \
       ext/php8/serializer.c \
