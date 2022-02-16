@@ -84,6 +84,7 @@ function analyze_cli($tmpScenariosFolder)
     $notEnoughResults = [];
     $largeInterceptResults = [];
     $leaksResults = [];
+    $leaksResultsPhp54 = [];
 
     foreach (scandir($resultsFolder) as $identifier) {
         if (in_array($identifier, ['.', '..'])) {
@@ -116,21 +117,28 @@ function analyze_cli($tmpScenariosFolder)
 
         // We must accept a 0.1% slope as elastic search has small increases even when tracer is not loaded.
         if (abs($slope) > ($intercept * 0.001)) {
-            $leaksResults[] = $identifier;
+            if (substr($identifier, -3) === '5.4') {
+                // PHP 5.4 has leaks in long running CLI scripts regardless of the tracer loaded
+                $leaksResultsPhp54[] = $identifier;
+            } else {
+                $leaksResults[] = $identifier;
+            }
             continue;
         }
     }
 
     echo "Analyzed " . count($analyzed) . " CLI scenarios.\n";
 
-    if ((count($largeInterceptResults) + count($notEnoughResults) + count($leaksResults)) === 0) {
-        return true;
-    }
-
     // Reporting errors
     if (count($leaksResults)) {
         echo "The following scenarios might have memory leaks in CLI. Check out their respective memory.out file:\n ";
         foreach ($leaksResults as $result) {
+            echo "    $result\n";
+        }
+    }
+    if (count($leaksResultsPhp54)) {
+        echo "The following scenarios leak memory on PHP 5.4 (expected, it happens also without tracing):\n ";
+        foreach ($leaksResultsPhp54 as $result) {
             echo "    $result\n";
         }
     }
@@ -147,6 +155,11 @@ function analyze_cli($tmpScenariosFolder)
         foreach ($notEnoughResults as $result) {
             echo "    $result\n";
         }
+    }
+
+    // Leaks on PHP 5.4 do not cause the analysis to fail, as leaks are also present without the tracer loaded.
+    if ((count($largeInterceptResults) + count($notEnoughResults) + count($leaksResults)) === 0) {
+        return true;
     }
 
     return false;
