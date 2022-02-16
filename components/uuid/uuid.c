@@ -100,3 +100,5 @@ void datadog_php_uuid_encode36(datadog_php_uuid uuid, char dest[static 36]) {
         dest[dest_offset] = src[src_offset];
     }
 }
+
+extern bool datadog_php_uuid_is_nil(datadog_php_uuid uuid);
