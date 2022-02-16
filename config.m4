@@ -46,6 +46,7 @@ if test "$PHP_DDTRACE" != "no"; then
     components/container_id/container_id.c \
     components/sapi/sapi.c \
     components/string_view/string_view.c \
+    components/uuid/uuid.c \
   "
 
   if test -z ${PHP_VERSION_ID+x}; then
@@ -294,6 +295,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/components/container_id])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/string_view])
+  PHP_ADD_BUILD_DIR([$ext_builddir/components/uuid])
 
   PHP_ADD_INCLUDE([$ext_srcdir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
