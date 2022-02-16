@@ -99,7 +99,7 @@ function analyze_cli($tmpScenariosFolder)
             continue;
         }
 
-        $values = array_map('intval', explode("\n", file_get_contents($absFilePath)));
+        $values = array_map('intval', array_filter(explode("\n", file_get_contents($absFilePath))));
 
         if (count($values) < 50) {
             $notEnoughResults[] = $identifier;
