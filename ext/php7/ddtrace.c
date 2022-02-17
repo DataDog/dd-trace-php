@@ -1525,7 +1525,12 @@ static PHP_FUNCTION(active_span) {
             RETURN_NULL();
         }
     }
-    zend_object *obj = &DDTRACE_G(open_spans_top)->span.std;
+    // To be removed once the new hooking mechanism is implemented
+    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
+    while (span_fci->span.start == 0 && span_fci->next) {  // skip placeholder span from dd_create_duplicate_span
+        span_fci = span_fci->next;
+    }
+    zend_object *obj = &span_fci->span.std;
     GC_ADDREF(obj);
     RETURN_OBJ(obj);
 }
