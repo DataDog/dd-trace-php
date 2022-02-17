@@ -24,6 +24,12 @@ aliases:
     image: elasticsearch:2
     name: elasticsearch2_integration
 
+  - &IMAGE_DOCKER_ELASTICSEARCH7
+    image: elasticsearch:7.17.0
+    name: elasticsearch7_integration
+    environment:
+      - discovery.type=single-node
+
   - &IMAGE_DOCKER_HTTPBIN
     image: kennethreitz/httpbin
     name: httpbin_integration
@@ -251,6 +257,7 @@ executors:
       - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
+      - <<: *IMAGE_DOCKER_ELASTICSEARCH7
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
