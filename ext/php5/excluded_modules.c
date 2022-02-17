@@ -3,6 +3,8 @@
 #include "logging.h"
 
 bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
+    UNUSED(module, error);
+    // We keep this function even if we do not exclude modules on PHP 5 so we have a consistent flow across versions.
     return false;
 }
 
