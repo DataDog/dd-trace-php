@@ -1472,7 +1472,12 @@ static PHP_FUNCTION(active_span) {
             RETURN_NULL();
         }
     }
-    RETURN_OBJ_COPY(&DDTRACE_G(open_spans_top)->span.std);
+    // To be removed once the new hooking mechanism is implemented
+    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
+    while (span_fci->span.start == 0 && span_fci->next) {  // skip placeholder span from dd_create_duplicate_span
+        span_fci = span_fci->next;
+    }
+    RETURN_OBJ_COPY(&span_fci->span.std);
 }
 
 /* {{{ proto string DDTrace\root_span() */
