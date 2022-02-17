@@ -45,15 +45,16 @@
         <exclude-pattern>tests/bootstrap.php</exclude-pattern>
         <exclude-pattern>tests/Composer/app/preload.ddtrace.php</exclude-pattern>
         <exclude-pattern>tests/Integration/CurrentContextAccess/</exclude-pattern>
-        <exclude-pattern>tests/Integration/LongRunning/long_running_script_manual.php</exclude-pattern>
-        <exclude-pattern>tests/Integration/LongRunning/long_running_script_with_trace_function.php</exclude-pattern>
         <exclude-pattern>tests/Integration/ErrorReporting/scripts/</exclude-pattern>
         <exclude-pattern>tests/Integration/LongRunning/long_running_script_manual.php</exclude-pattern>
+        <exclude-pattern>tests/Integration/LongRunning/long_running_script_manual.php</exclude-pattern>
+        <exclude-pattern>tests/Integration/LongRunning/long_running_script_with_trace_function.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V3/*Test.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V4/*Test.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V5/*Test.php</exclude-pattern>
         <exclude-pattern>tests/internal-api-stress-test.php</exclude-pattern>
         <exclude-pattern>tests/randomized/analyze-results.php</exclude-pattern>
+        <exclude-pattern>tests/randomized/app/public/long_running_script.php</exclude-pattern>
         <exclude-pattern>tests/randomized/generate-scenarios.php</exclude-pattern>
         <exclude-pattern>tests/randomized/lib/RequestTargetsGenerator.php</exclude-pattern>
     </rule>
