@@ -246,8 +246,12 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/span.c \
       ext/php8/startup_logging.c \
       ext/php8/tracer_tag_propagation/tracer_tag_propagation.c \
-      ext/php8/weakrefs.c \
     "
+    if test $PHP_VERSION_ID -lt 80200; then
+      DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
+        ext/php8/weakrefs.c \
+      "
+    fi
 
     ZAI_SOURCES="\
       zend_abstract_interface/config/config.c \

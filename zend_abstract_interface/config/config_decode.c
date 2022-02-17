@@ -316,18 +316,34 @@ static void zai_config_persist_zval(zval *in) {
     if (Z_TYPE_P(in) == IS_ARRAY) {
         zend_array *array = Z_ARR_P(in);
         ZVAL_NEW_PERSISTENT_ARR(in);
-        zend_hash_init(Z_ARR_P(in), 8, NULL, zai_config_dtor_pzval, 1);
-        Bucket *bucket;
-        ZEND_HASH_FOREACH_BUCKET(array, bucket) {
-            zai_config_persist_zval(&bucket->val);
-            if (bucket->key) {
-                zend_hash_str_add_new(Z_ARR_P(in), ZSTR_VAL(bucket->key), ZSTR_LEN(bucket->key), &bucket->val);
-            } else {
-                zend_hash_index_add_new(Z_ARR_P(in), bucket->h, &bucket->val);
+        zend_hash_init(Z_ARR_P(in), array->nTableSize, NULL, zai_config_dtor_pzval, 1);
+        if (zend_hash_num_elements(array)) {
+#if PHP_VERSION_ID >= 80200
+            if (HT_IS_PACKED(array)) {
+                zval *val;
+                int idx;
+                ZEND_HASH_PACKED_FOREACH_KEY_VAL(array, idx, val) {
+                    zai_config_persist_zval(val);
+                    zend_hash_index_add_new(Z_ARR_P(in), idx, val);
+                    ZVAL_NULL(val);
+                }
+                ZEND_HASH_FOREACH_END();
+            } else
+#endif
+            {
+                Bucket *bucket;
+                ZEND_HASH_FOREACH_BUCKET(array, bucket) {
+                    zai_config_persist_zval(&bucket->val);
+                    if (bucket->key) {
+                        zend_hash_str_add_new(Z_ARR_P(in), ZSTR_VAL(bucket->key), ZSTR_LEN(bucket->key), &bucket->val);
+                    } else {
+                        zend_hash_index_add_new(Z_ARR_P(in), bucket->h, &bucket->val);
+                    }
+                    ZVAL_NULL(&bucket->val);
+                }
+                ZEND_HASH_FOREACH_END();
             }
-            ZVAL_NULL(&bucket->val);
         }
-        ZEND_HASH_FOREACH_END();
         zend_hash_release(array);
     } else if (Z_TYPE_P(in) == IS_STRING) {
         zend_string *str = Z_STR_P(in);
