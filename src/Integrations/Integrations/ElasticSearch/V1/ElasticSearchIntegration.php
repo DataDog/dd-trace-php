@@ -32,11 +32,8 @@ class ElasticSearchIntegration extends Integration
                     $nsPattern = "(^Elasticsearch\\\\Namespaces\\\\([^\\\\]+Namespace)$)";
                     foreach ($this as $property) {
                         if (is_object($property) && preg_match($nsPattern, \get_class($property), $m)) {
-                            $reflection = new \ReflectionClass($property);
-                            foreach ($reflection->getMethods() as $method) {
-                                if ($method->isPublic()) {
-                                    $integration->traceNamespaceMethod($m[1], $method->name);
-                                }
+                            foreach (get_class_methods($property) as $method) {
+                                $integration->traceNamespaceMethod($m[1], $method);
                             }
                         }
                     }
