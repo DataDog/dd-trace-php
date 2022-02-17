@@ -1628,8 +1628,14 @@ static PHP_FUNCTION(active_span) {
         }
     }
 
+    // To be removed once the new hooking mechanism is implemented
+    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
+    while (span_fci->span.start == 0 && span_fci->next) {  // skip placeholder span from dd_create_duplicate_span
+        span_fci = span_fci->next;
+    }
+
     Z_TYPE_P(return_value) = IS_OBJECT;
-    Z_OBJVAL_P(return_value) = DDTRACE_G(open_spans_top)->span.obj_value;
+    Z_OBJVAL_P(return_value) = span_fci->span.obj_value;
     zend_objects_store_add_ref(return_value TSRMLS_CC);
 }
 
