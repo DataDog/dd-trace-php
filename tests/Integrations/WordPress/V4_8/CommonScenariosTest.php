@@ -66,12 +66,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             SpanAssertion::exists('wp_maybe_load_widgets'),
             SpanAssertion::exists('create_initial_post_types'),
             SpanAssertion::exists('create_initial_taxonomies'),
-
-            SpanAssertion::exists('mysqli_query'),
-            SpanAssertion::exists('mysqli_query'),
-            SpanAssertion::exists('mysqli_query'),
-            SpanAssertion::exists('mysqli_query'),
-            SpanAssertion::exists('mysqli_real_connect'),
             SpanAssertion::exists('WP.main')->withChildren([
                 SpanAssertion::exists('WP.init'),
                 SpanAssertion::exists('WP.parse_request')->withChildren([
@@ -85,6 +79,16 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('mysqli_query'),
                     ]),
                 ]),
+            ]),
+            SpanAssertion::exists('wpdb.query')
+                ->withChildren([
+                    SpanAssertion::exists('mysqli_query'),
+                ]),
+            SpanAssertion::exists('wpdb.__construct')->withChildren([
+                SpanAssertion::exists('mysqli_query'),
+                SpanAssertion::exists('mysqli_query'),
+                SpanAssertion::exists('mysqli_query'),
+                SpanAssertion::exists('mysqli_real_connect'),
             ]),
         ];
 
@@ -157,11 +161,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     ]),
                             ]),
                         SpanAssertion::exists('load_template'),
-                        SpanAssertion::exists('mysqli_query'),
-                        SpanAssertion::exists('mysqli_query'),
-                        SpanAssertion::exists('mysqli_query'),
-                        SpanAssertion::exists('mysqli_query'),
-                        SpanAssertion::exists('mysqli_real_connect'),
                         SpanAssertion::exists('get_header')
                             ->withChildren([
                                 SpanAssertion::exists('load_template')
@@ -204,6 +203,16 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             ->withChildren([
                                 SpanAssertion::exists('mysqli_query'),
                             ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.__construct')->withChildren([
+                            SpanAssertion::exists('mysqli_query'),
+                            SpanAssertion::exists('mysqli_query'),
+                            SpanAssertion::exists('mysqli_query'),
+                            SpanAssertion::exists('mysqli_real_connect'),
+                        ]),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -251,11 +260,16 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('wp_maybe_load_widgets'),
                         SpanAssertion::exists('create_initial_post_types'),
                         SpanAssertion::exists('create_initial_taxonomies'),
-                        SpanAssertion::exists('mysqli_query'),
-                        SpanAssertion::exists('mysqli_query'),
-                        SpanAssertion::exists('mysqli_query'),
-                        SpanAssertion::exists('mysqli_query'),
-                        SpanAssertion::exists('mysqli_real_connect'),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.__construct')->withChildren([
+                            SpanAssertion::exists('mysqli_query'),
+                            SpanAssertion::exists('mysqli_query'),
+                            SpanAssertion::exists('mysqli_query'),
+                            SpanAssertion::exists('mysqli_real_connect'),
+                        ]),
                     ]),
                 ],
             ]
