@@ -17,6 +17,18 @@ services:
 
   httpbin:
     image: kennethreitz/httpbin
+      - "gunicorn"
+      - "-b"
+      - "0.0.0.0:80"
+      - "httpbin:app"
+      - "-k"
+      - "gevent"
+      - "--workers"
+      - "4"
+      - "--threads"
+      - "4"
+      - "--worker-connections"
+      - "10000"
 
   memcached:
     image: "memcached:1.5-alpine"
