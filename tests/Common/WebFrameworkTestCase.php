@@ -160,9 +160,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
                 // sleep for 100 milliseconds before trying again
                 \usleep(100 * 1000);
             } else {
+                $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 // See phpunit_error.log in CircleCI artifacts
                 error_log("[request] '{$method} {$url}' (attempt #{$i})");
-                error_log("[response] {$response}");
+                error_log("[response] {$statusCode} - {$response}");
                 break;
             }
         }
