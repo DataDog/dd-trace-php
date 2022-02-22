@@ -127,9 +127,6 @@ bool zai_hook_install_resolved(
         size_t dynamic,
         zend_function *function ZAI_TSRMLS_DC); /* }}} */
 
-/* {{{ zai_hook_installed shall return true if there are installs for this frame */
-bool zai_hook_installed(zend_execute_data *ex); /* }}} */
-
 /* {{{ zai_hook_memory_t structure is passed between
         continue and finish and managed by the hook interface */
 typedef struct {
@@ -147,6 +144,33 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory 
 /* {{{ zai_hook_resolve should be called as little as possible
         NOTE: will be called by hook interface on rinit, to resolve internal installs early */
 void zai_hook_resolve(ZAI_TSRMLS_D); /* }}} */
+
+/* {{{ private but externed for performance reasons */
+extern __thread HashTable zai_hook_resolved;
+/* }}} */
+
+/* {{{ */
+static inline zend_ulong zai_hook_install_address(zend_function *function) {
+    if (function->type == ZEND_INTERNAL_FUNCTION) {
+        return (zend_ulong)function;
+    }
+    return (zend_ulong)function->op_array.opcodes;
+} /* }}} */
+
+/* {{{ */
+static inline zend_ulong zai_hook_frame_address(zend_execute_data *ex) {
+#if PHP_VERSION_ID < 70000
+    return zai_hook_install_address(ex->function_state.function);
+#else
+    return zai_hook_install_address(ex->func);
+#endif
+} /* }}} */
+
+/* {{{ zai_hook_installed shall return true if there are installs for this frame */
+static inline bool zai_hook_installed(zend_execute_data *ex) {
+    return zend_hash_index_exists(&zai_hook_resolved, zai_hook_frame_address(ex));
+}
+/* }}} */
 
 // clang-format on
 #endif  // ZAI_HOOK_H
