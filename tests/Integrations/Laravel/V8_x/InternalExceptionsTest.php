@@ -50,7 +50,6 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
-                        '_dd.rule_psr' => 1,
                     ])
                     ->setError()
                     ->withChildren([
@@ -67,7 +66,8 @@ class InternalExceptionsTest extends WebFrameworkTestCase
     }
 
 
-    public function testUnauthorized() {
+    public function testUnauthorized()
+    {
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('Test unauthorized is not an error', '/unauthorized'));
         });
@@ -90,7 +90,6 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
-                        '_dd.rule_psr' => 1,
                     ])
                     ->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'unauthorized')

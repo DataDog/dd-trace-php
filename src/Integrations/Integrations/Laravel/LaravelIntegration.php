@@ -112,7 +112,7 @@ class LaravelIntegration extends Integration
             'Symfony\Component\HttpFoundation\Response',
             'setStatusCode',
             function ($This, $scope, $args) use ($rootSpan) {
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] =  $args[0];
+                // $rootSpan->meta[Tag::HTTP_STATUS_CODE] =  $args[0];
             }
         );
 
@@ -178,7 +178,7 @@ class LaravelIntegration extends Integration
             'Symfony\Component\Console\Application',
             'renderException',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $integration->setError($rootSpan, $args[0]);
+                // $integration->setError($rootSpan, $args[0]);
             }
         );
 
@@ -188,41 +188,26 @@ class LaravelIntegration extends Integration
             'Symfony\Component\Console\Application',
             'renderThrowable',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $integration->setError($rootSpan, $args[0]);
-            }
-        );
-
-        $reportedException = null;
-
-        \DDTrace\hook_method(
-            'Illuminate\Foundation\Exceptions\Handler',
-            'exceptionContext',
-            function ($This, $scope, $args) use (&$reportedException) {
-                $reportedException = $args[0];
+                // $integration->setError($rootSpan, $args[0]);
             }
         );
 
         \DDTrace\hook_method(
-            'Illuminate\Foundation\Exceptions\Handler',
-            'report',
-            function ($This, $scope, $args) use ($rootSpan, $integration, &$reportedException) {
-                if (!\defined('Illuminate\Foundation\Application::VERSION')) {
-                    return;
+            'Illuminate\Foundation\Http\Kernel',
+            'renderException',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (empty($rootSpan->exception)) {
+                    // $integration->setError($rootSpan, $args[1]);
                 }
-                $version = \Illuminate\Foundation\Application::VERSION;
-                /** @var \Exception */
-                $exception = $args[0];
-                if (\version_compare($version, '6', '>=')) {
-                    if ($reportedException === $exception) {
-                        if (empty($rootSpan->exception)) {
-                            $integration->setError($rootSpan, $exception);
-                        }
-                        $reportedException = null;
-                    }
-                } elseif (\version_compare($version, '5', '>=')) {
-                    if ($This->shouldReport($exception) && empty($rootSpan->exception)) {
-                        $integration->setError($rootSpan, $exception);
-                    }
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Routing\Pipeline',
+            'handleException',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (empty($rootSpan->exception)) {
+                    // $integration->setError($rootSpan, $args[1]);
                 }
             }
         );
