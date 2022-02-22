@@ -17,6 +17,7 @@ services:
 
   httpbin:
     image: kennethreitz/httpbin
+    command:
       - "gunicorn"
       - "-b"
       - "0.0.0.0:80"
