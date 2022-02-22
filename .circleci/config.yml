@@ -993,7 +993,7 @@ jobs:
           command: make -C tests/randomized pull
       - run:
           name: Generate scenarios
-          command: make -C tests/randomized generate NUMBER_OF_SCENARIOS=2
+          command: make -C tests/randomized generate NUMBER_OF_SCENARIOS=20
       - run:
           name: Execute tests
           command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m30s

@@ -57,16 +57,16 @@ function generate()
         }
     }
 
-    // Unpacking regressions
-    foreach (scandir(REGRESSIONS_FOLDER) as $regressionIdentifier) {
-        if (\substr($regressionIdentifier, 0, strlen('regression-')) !== 'regression-') {
-            continue;
-        }
-        $testIdentifiers[] = $regressionIdentifier;
+    // // Unpacking regressions
+    // foreach (scandir(REGRESSIONS_FOLDER) as $regressionIdentifier) {
+    //     if (\substr($regressionIdentifier, 0, strlen('regression-')) !== 'regression-') {
+    //         continue;
+    //     }
+    //     $testIdentifiers[] = $regressionIdentifier;
 
-        $cmd = sprintf("cp -r %s/%s %s", REGRESSIONS_FOLDER, $regressionIdentifier, TMP_SCENARIOS_FOLDER);
-        exec($cmd);
-    }
+    //     $cmd = sprintf("cp -r %s/%s %s", REGRESSIONS_FOLDER, $regressionIdentifier, TMP_SCENARIOS_FOLDER);
+    //     exec($cmd);
+    // }
 
     (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
 }
