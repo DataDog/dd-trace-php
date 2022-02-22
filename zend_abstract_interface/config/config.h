@@ -17,7 +17,7 @@ typedef uint16_t zai_config_id;
 
 #include "config_ini.h"
 
-#define ZAI_CONFIG_ENTRIES_COUNT_MAX 120
+#define ZAI_CONFIG_ENTRIES_COUNT_MAX 128
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
 #define ZAI_CONFIG_NAME_BUFSIZ 60
 
@@ -68,7 +68,7 @@ struct zai_config_memoized_entry_s {
 // Memoizes config entries to default values
 // Adds INI defs
 // env_to_ini can be NULL to disable INI support
-void zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
+bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
                       int module_number);
 // dtors all pzvals and name maps
 // Caller must call UNREGISTER_INI_ENTRIES() after this if using env_to_ini
@@ -98,6 +98,5 @@ bool zai_config_get_id_by_name(zai_string_view name, zai_config_id *id);
 
 // Adds name to name<->id mapping. Id may be present multiple times.
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);
-void zai_config_dtor_pzval(zval *pval);
 
 #endif  // ZAI_CONFIG_H

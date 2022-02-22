@@ -4,6 +4,7 @@ namespace DDTrace;
 
 use DDTrace\Contracts\Tracer as TracerInterface;
 
+/** @deprecated Obsoleted by moving related code to internal. */
 interface Encoder
 {
     /**

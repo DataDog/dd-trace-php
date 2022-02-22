@@ -27,6 +27,8 @@ final class SpanContextTest extends BaseTestCase
         $this->assertEquals($childContext->getTraceId(), $parentContext->getTraceId());
         $this->assertEquals($childContext->getParentId(), $parentContext->getSpanId());
         $this->assertEquals(iterator_to_array($childContext), iterator_to_array($parentContext));
+
+        \dd_trace_serialize_closed_spans();
     }
 
     public function testGetBaggageItemsReturnsExpectedValues()

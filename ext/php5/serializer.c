@@ -5,7 +5,6 @@
 #include <exceptions/exceptions.h>
 #include <inttypes.h>
 #include <php.h>
-#include <properties/properties.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,24 +37,34 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
     uint str_len;
     HashPosition iterator;
     zend_ulong num_key;
-    int key_type = HASH_KEY_NON_EXISTANT;
-    bool first_time = true;
+    int key_type;
+    bool is_assoc = 0;
 
-    zend_hash_internal_pointer_reset_ex(ht, &iterator);
-    while (zend_hash_get_current_data_ex(ht, (void **)&tmp, &iterator) == SUCCESS) {
+    for (zend_hash_internal_pointer_reset_ex(ht, &iterator);
+         (key_type = zend_hash_get_current_key_ex(ht, &string_key, &str_len, &num_key, 0, &iterator)) !=
+         HASH_KEY_NON_EXISTANT;
+         zend_hash_move_forward_ex(ht, &iterator)) {
+        is_assoc = is_assoc || key_type == HASH_KEY_IS_STRING;
+    }
+
+    if (is_assoc) {
+        mpack_start_map(writer, zend_hash_num_elements(ht));
+    } else {
+        mpack_start_array(writer, zend_hash_num_elements(ht));
+    }
+
+    for (zend_hash_internal_pointer_reset_ex(ht, &iterator);
+         zend_hash_get_current_data_ex(ht, (void **)&tmp, &iterator) == SUCCESS;
+         zend_hash_move_forward_ex(ht, &iterator)) {
         key_type = zend_hash_get_current_key_ex(ht, &string_key, &str_len, &num_key, 0, &iterator);
-        if (first_time == true) {
-            first_time = false;
-            if (key_type == HASH_KEY_IS_STRING) {
-                mpack_start_map(writer, zend_hash_num_elements(ht));
-            } else {
-                mpack_start_array(writer, zend_hash_num_elements(ht));
-            }
-        }
-
         // Writing the key, if associative
         bool zval_string_as_uint64 = false;
-        if (key_type == HASH_KEY_IS_STRING) {
+        if (is_assoc == 1) {
+            char num_str_buf[MAX_ID_BUFSIZ];
+            if (key_type != HASH_KEY_IS_STRING) {
+                string_key = num_str_buf;
+                sprintf(num_str_buf, "%ld", num_key);
+            }
             mpack_write_cstr(writer, string_key);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
             if (0 == strcmp(KEY_TRACE_ID, string_key) || 0 == strcmp(KEY_SPAN_ID, string_key) ||
@@ -70,14 +79,9 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
         } else if (msgpack_write_zval(writer, *tmp TSRMLS_CC) != 1) {
             return 0;
         }
-
-        zend_hash_move_forward_ex(ht, &iterator);
     }
 
-    if (key_type == HASH_KEY_NON_EXISTANT) {
-        mpack_start_array(writer, 0);
-        mpack_finish_array(writer);
-    } else if (key_type == HASH_KEY_IS_STRING) {
+    if (is_assoc) {
         mpack_finish_map(writer);
     } else {
         mpack_finish_array(writer);
@@ -401,37 +405,93 @@ void ddtrace_set_global_span_properties(ddtrace_span_t *span TSRMLS_DC) {
             zval_addref_p(*val);
         }
     }
+
+    zval **id = ddtrace_spandata_property_id_write(span);
+    MAKE_STD_ZVAL(*id);
+    char span_id_str[MAX_ID_BUFSIZ];
+    sprintf(span_id_str, "%" PRIu64, span->span_id);
+    ZVAL_STRING(*id, span_id_str, 1);
+}
+
+static const char *dd_get_req_uri(TSRMLS_D) {
+    const char *uri = NULL;
+    zval *_server = PG(http_globals)[TRACK_VARS_SERVER];
+    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC)) {
+        zval **req_uri;
+        if (zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("REQUEST_URI"), (void **)&req_uri) == SUCCESS) {
+            if (Z_TYPE_PP(req_uri) == IS_STRING) {
+                uri = Z_STRVAL_PP(req_uri);
+            }
+        }
+    }
+
+    if (!uri) {
+        uri = SG(request_info).request_uri;
+    }
+
+    return uri;
+}
+
+static smart_str dd_build_req_url(TSRMLS_D) {
+    smart_str url_str = {0};
+
+    zval *_server = PG(http_globals)[TRACK_VARS_SERVER];
+    const char *uri = dd_get_req_uri(TSRMLS_C);
+    if (!uri) {
+        return url_str;
+    }
+
+    int uri_len;
+    char *question_mark = strchr(uri, '?');
+    if (question_mark) {
+        uri_len = question_mark - uri;
+    } else {
+        uri_len = strlen(uri);
+    }
+
+    zend_bool is_https = zend_hash_exists(Z_ARRVAL_P(_server), ZEND_STRS("HTTPS"));
+
+    zval **host_zv;
+    if (Z_TYPE_P(_server) != IS_ARRAY ||
+        (zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("HTTP_HOST"), (void **)&host_zv) == FAILURE &&
+         zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("SERVER_NAME"), (void **)&host_zv) == FAILURE) ||
+        Z_TYPE_PP(host_zv) != IS_STRING) {
+        return url_str;
+    }
+
+    smart_str_appendl(&url_str, "http", sizeof("http") - 1);
+    if (is_https) {
+        smart_str_appendc(&url_str, 's');
+    }
+    smart_str_appendl(&url_str, "://", sizeof("://") - 1);
+    smart_str_appendl(&url_str, Z_STRVAL_PP(host_zv), Z_STRLEN_PP(host_zv));
+    smart_str_appendl(&url_str, uri, uri_len);
+    smart_str_0(&url_str);
+
+    return url_str;
 }
 
 void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
     zval *meta = ddtrace_spandata_property_meta(span);
 
+    zend_hash_copy(Z_ARRVAL_P(meta), &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref, NULL,
+                   sizeof(zval *));
+
     add_assoc_long(meta, "system.pid", (long)getpid());
 
-    const char *uri = SG(request_info).request_uri, *method = SG(request_info).request_method;
+    const char *method = SG(request_info).request_method;
     if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {
         add_assoc_string(meta, "http.method", (char *)method, 1);
 
-        zval *http_url = NULL;
-        if ((PG(http_globals)[TRACK_VARS_SERVER] && Z_TYPE_P(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY) ||
-            zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC)) {
-            zval **urizv;
-            if (zend_hash_find(Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_SERVER]), "REQUEST_URI", sizeof("REQUEST_URI"),
-                               (void **)&urizv) == SUCCESS) {
-                http_url = *urizv;
-                zval_addref_p(http_url);
-            }
-        }
-        if (!http_url && uri) {
-            MAKE_STD_ZVAL(http_url)
-            ZVAL_STRING(http_url, uri, 1);
+        smart_str http_url = dd_build_req_url(TSRMLS_C);
+        if (http_url.c) {
+            add_assoc_string(meta, "http.url", http_url.c, 0);
         }
 
+        const char *uri = dd_get_req_uri(TSRMLS_C);
         zval **prop_resource = ddtrace_spandata_property_resource_write(span);
         MAKE_STD_ZVAL(*prop_resource);
-        if (http_url) {
-            add_assoc_zval(meta, "http.url", http_url);
-
+        if (uri) {
             zai_string_view normalized =
                 ddtrace_uri_normalize_incoming_path((zai_string_view){.ptr = uri, .len = strlen(uri)});
             char *resource;
@@ -511,6 +571,12 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
             hostname = erealloc(hostname, strlen(hostname) + 1);
             add_assoc_string(meta, "_dd.hostname", hostname, 0);
         }
+    }
+
+    ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
+    if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
+        zval *metrics = ddtrace_spandata_property_metrics(span);
+        add_assoc_double(metrics, "_dd1.sr.eausr", web_integration->get_sample_rate());
     }
 }
 

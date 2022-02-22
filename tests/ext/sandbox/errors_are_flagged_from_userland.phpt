@@ -44,14 +44,20 @@ array(1) {
     ["error"]=>
     int(1)
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["error.msg"]=>
       string(9) "Foo error"
+      ["_dd.p.upstream_services"]=>
+      string(58) "ZXJyb3JzX2FyZV9mbGFnZ2VkX2Zyb21fdXNlcmxhbmQucGhw|1|1|1.000"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

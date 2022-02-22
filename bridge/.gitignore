@@ -1,2 +1,4 @@
 _generated_api.php
-_generated_internal.php
+_generated_integrations.php
+_generated_tracer.php
+_generated_tracer_api.php

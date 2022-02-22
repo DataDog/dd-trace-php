@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
+use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -78,6 +79,23 @@ class RouteCachingTest extends WebFrameworkTestCase
                     ]),
             ]
         );
+    }
+
+    public function testRouteNameNormalization()
+    {
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName(null));
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName(''));
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName('     '));
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName(123));
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName(true));
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName([]));
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName(new \stdClass()));
+        // Laravel cached route names after version 7
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName('generated::abcdef0912'));
+        // Laravel cached route when Route::domain('domain.com')->group(...)
+        $this->assertSame('unnamed_route', LaravelIntegration::normalizeRouteName('domain.com.generated::abcdef0912'));
+
+        $this->assertSame('my_route', LaravelIntegration::normalizeRouteName('my_route'));
     }
 
     private function routeCache()

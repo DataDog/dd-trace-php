@@ -111,7 +111,7 @@ array(5) {
     ["type"]=>
     string(7) "BarType"
     ["meta"]=>
-    array(5) {
+    array(6) {
       ["system.pid"]=>
       string(%d) "%d"
       ["args.0"]=>
@@ -122,13 +122,19 @@ array(5) {
       string(5) "first"
       ["retval.rand"]=>
       string(%d) "%d"
+      ["_dd.p.upstream_services"]=>
+      string(24) "QmFyU2VydmljZQ|1|1|1.000"
     }
     ["metrics"]=>
-    array(3) {
+    array(5) {
       ["foo"]=>
       float(1.2)
       ["bar"]=>
       float(25)
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
@@ -194,12 +200,18 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
+      ["_dd.p.upstream_services"]=>
+      string(49) "ZGRfdHJhY2VfZnVuY3Rpb25fY29tcGxleC5waHA|1|1|1.000"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
@@ -223,12 +235,18 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
+      ["_dd.p.upstream_services"]=>
+      string(49) "ZGRfdHJhY2VfZnVuY3Rpb25fY29tcGxleC5waHA|1|1|1.000"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

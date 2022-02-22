@@ -29,7 +29,7 @@ void *ddtrace_hash_find_ptr_lc(const HashTable *ht, const char *str, size_t len)
      *   - 5.6: https://app.circleci.com/jobs/github/DataDog/dd-trace-php/142298
      * So we always use an emalloc path until this is resolved.
      */
-    char *lc_str = zend_str_tolower_dup(str, len);
+    char *lc_str = zend_str_tolower_dup(str, len - 1);
     result = ddtrace_hash_find_ptr(ht, lc_str, len);
     efree(lc_str);
     return result;

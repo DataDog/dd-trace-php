@@ -40,11 +40,12 @@ services:
       core: 99999999999
     privileged: true
     volumes:
+      - ../../../../:/dd-trace-php
       - ./app:/var/www/html
       - ./www.php-fpm.conf:/etc/php-fpm.d/www.conf
       - ./www.apache.conf:/etc/httpd/conf.d/www.conf
       - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
-      - ../.tracer-versions:/tmp/tracer-versions
+      - ../.library-versions:/tmp/library-versions
       - ../.results/regression-GH1021-segfault-extension-disabled/:/results/
       - ../.results/regression-GH1021-segfault-extension-disabled/nginx:/var/log/nginx
       - ../.results/regression-GH1021-segfault-extension-disabled/php-fpm:/var/log/php-fpm

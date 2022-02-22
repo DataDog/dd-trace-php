@@ -30,6 +30,24 @@ final class TracerTest extends BaseTestCase
         parent::ddSetUp();
     }
 
+    public function testTracerNoConstructorArg()
+    {
+        $tracer = new Tracer();
+
+        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
+        $this->assertNull($span->getTag(Tag::ENV));
+        $this->assertNull($span->getTag(Tag::VERSION));
+    }
+
+    public function testTracerWithConstructorArg()
+    {
+        $tracer = new Tracer(\DDTrace\GlobalTracer::get());
+
+        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
+        $this->assertNull($span->getTag(Tag::ENV));
+        $this->assertNull($span->getTag(Tag::VERSION));
+    }
+
     public function testCreateSpanWithDefaultTags()
     {
         $tracer = Tracer::make(new NoopTransport());
@@ -274,8 +292,6 @@ JSON;
 
     public function testUnfinishedSpansAreNotSentOnFlush()
     {
-        dd_trace_serialize_closed_spans();
-
         $transport = new DebugTransport();
         $tracer = Tracer::make($transport);
         $tracer->startActiveSpan('root');

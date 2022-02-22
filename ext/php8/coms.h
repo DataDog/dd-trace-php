@@ -9,7 +9,7 @@
 #define DDTRACE_COMS_STACK_MAX_SIZE (1024u * 1024u * 10u)      // 10 MiB
 #define DDTRACE_COMS_STACK_HALF_MAX_SIZE (1024u * 1024u * 5u)  // 5 MiB
 #define DDTRACE_COMS_STACK_INITIAL_SIZE (1024u * 128u)         // 128 KiB
-#define DDTRACE_COMS_STACKS_BACKLOG_SIZE 10
+#define DDTRACE_COMS_STACKS_BACKLOG_SIZE 12
 
 typedef struct ddtrace_coms_stack_t {
     size_t size;
@@ -22,8 +22,15 @@ typedef struct ddtrace_coms_stack_t {
 typedef struct ddtrace_coms_state_t {
     _Atomic(ddtrace_coms_stack_t *) current_stack;
     ddtrace_coms_stack_t *tmp_stack;
+    /* An array of `DDTRACE_COMS_STACKS_BACKLOG_SIZE` stacks. Different stacks can have different size.
+     * Stacks that are accessed through this array are not for write. They are either empty, if their content has been
+     * sent and the stack is ready to be reused, or filled with data ready to be sent at the next writer iteration.
+     */
     ddtrace_coms_stack_t **stacks;
     _Atomic(uint32_t) next_group_id;
+    /* The size of the `current_stack`. Note that `current_stack` and `stack_size` are not changed in a 'transaction',
+     * so, with the current implementation, they have to be manually kept in sync.
+     */
     atomic_size_t stack_size;
 } ddtrace_coms_state_t;
 
@@ -33,6 +40,8 @@ inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
     return ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0;
 }
 
+/* Is called by the PHP thread to buffer a payload in order to send it. It is non-blocking on the request to the agent.
+ */
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
 bool ddtrace_coms_minit(void);
 void ddtrace_coms_mshutdown(void);

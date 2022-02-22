@@ -56,6 +56,10 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 
 Tests memory limits, which we exceed due to tracer being loaded.
 
+## `ext/curl/tests/bug76675.phpt`, `ext/curl/tests/bug77535.phpt`
+
+Test does http request to shut down server.
+
 ## `ext/pcntl/tests/pcntl_unshare_01.phpt`
 
 Disabled on versions: `7.4` (it wasn't there on [7.3-](https://github.com/php/php-src/tree/PHP-7.3/ext/pcntl/tests)).
@@ -88,6 +92,10 @@ Building again the container without `pcntl` enabled AND not even building the t
 ## `ext/openssl/tests/bug64802.phpt`, `ext/openssl/tests/openssl_error_string_basic.phpt`
 
 Tests do not work on PHP 5 with openssl 1.0.2.
+
+## `ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt`
+
+Depends on an expired cert. Was fixed in [php-src/98175fc](https://github.com/php/php-src/commit/98175fc).
 
 ## `ext/ftp/tests`
 

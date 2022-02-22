@@ -73,12 +73,18 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
+      ["_dd.p.upstream_services"]=>
+      string(56) "c3RhcnRfc3Bhbl93aXRoX2FsbF9wcm9wZXJ0aWVzLnBocA|1|1|1.000"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }
@@ -102,16 +108,22 @@ array(2) {
     ["type"]=>
     string(6) "runner"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["aa"]=>
       string(2) "bb"
+      ["_dd.p.upstream_services"]=>
+      string(16) "dGVzdA|1|1|1.000"
     }
     ["metrics"]=>
-    array(2) {
+    array(4) {
       ["cc"]=>
       float(0)
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

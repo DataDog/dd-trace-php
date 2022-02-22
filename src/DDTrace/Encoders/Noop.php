@@ -5,6 +5,7 @@ namespace DDTrace\Encoders;
 use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
 
+/** @deprecated Obsoleted by moving related code to internal. */
 final class Noop implements Encoder
 {
     /**

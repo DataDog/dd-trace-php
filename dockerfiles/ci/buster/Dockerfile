@@ -27,6 +27,7 @@ ENV RUNTIME_DEPS \
     libzip-dev \
     netbase \
     nginx \
+    strace \
     sudo \
     unzip \
     valgrind \
@@ -88,8 +89,8 @@ RUN set -eux; \
 # Allow nginx to be run as non-root for tests
     chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
 # Install CMake
-    CMAKE_VERSION="3.20.1"; \
-    CMAKE_SHA256="b8c141bd7a6d335600ab0a8a35e75af79f95b837f736456b5532f4d717f20a09"; \
+    CMAKE_VERSION="3.21.4"; \
+    CMAKE_SHA256="eddba9da5b60e0b5ec5cbb1a65e504d776e247573204df14f6d004da9bc611f9"; \
     cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz; \
     (echo "${CMAKE_SHA256} cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz" | sha256sum -c -); \
     mkdir -p /opt/cmake/${CMAKE_VERSION}; \
@@ -97,13 +98,13 @@ RUN set -eux; \
 # Currently there's only one version of cmake, make it default
     ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake; \
 # Install Catch2
-    CATCH2_VERSION="2.13.5"; \
-    CATCH2_SHA256="7fee7d643599d10680bfd482799709f14ed282a8b7db82f54ec75ec9af32fa76"; \
+    CATCH2_VERSION="2.13.7"; \
+    CATCH2_SHA256=""3cdb4138a072e4c0290034fe22d9f0a80d3bcfb8d7a8a5c49ad75d3a5da24fae; \
     cd /tmp && curl -OL https://github.com/catchorg/Catch2/archive/v${CATCH2_VERSION}.tar.gz; \
     (echo "${CATCH2_SHA256} v${CATCH2_VERSION}.tar.gz" | sha256sum -c -); \
     mkdir catch2 && cd catch2; \
     tar -xf ../v${CATCH2_VERSION}.tar.gz --strip 1; \
-    /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2; \
+    /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
     /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install; \
 # Install lcov
     LCOV_VERSION="1.15"; \
@@ -195,6 +196,31 @@ RUN set -eux; \
 # Setup php install directory
     mkdir -p $PHP_INSTALL_DIR; \
     chown -R circleci:circleci /opt;
+
+# libuv
+ARG LIBUV_VERSION="1.42.0"
+ARG LIBUV_SHA256="371e5419708f6aaeb8656671f89400b92a9bba6443369af1bb70bcd6e4b3c764"
+
+RUN set -eux; \
+    cd /usr/local/src; \
+    curl -OL https://github.com/libuv/libuv/archive/refs/tags/v${LIBUV_VERSION}.tar.gz; \
+    (echo "${LIBUV_SHA256} v${LIBUV_VERSION}.tar.gz" | sha256sum -c -); \
+    mv "v${LIBUV_VERSION}.tar.gz" "libuv-${LIBUV_VERSION}.tar.gz";
+
+RUN set -eux; \
+    cd /usr/local/src; \
+    tar -xvf "libuv-${LIBUV_VERSION}.tar.gz"; \
+    cd "libuv-${LIBUV_VERSION}"; \
+    ./autogen.sh; \
+    ./configure --prefix=/opt/libuv \
+        --disable-shared \
+        --enable-static \
+        --with-pic \
+        --disable-dependency-tracking \
+    ; \
+    make -j 4 all install; \
+    cd -; \
+    rm -fr "libuv-${LIBUV_VERSION}";
 
 # Run everything else as circleci user
 USER circleci

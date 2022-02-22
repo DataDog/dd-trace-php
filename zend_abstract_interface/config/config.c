@@ -1,14 +1,13 @@
 #include "./config.h"
 
 #include <assert.h>
+#include <json/json.h>
 #include <main/php.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
 #if PHP_VERSION_ID < 70000
-#undef zval_internal_ptr_dtor
-#define zval_internal_ptr_dtor zval_internal_dtor
 #define ZVAL_UNDEF(z)  \
     {                  \
         INIT_PZVAL(z); \
@@ -27,19 +26,6 @@ static bool zai_config_get_env_value(zai_string_view name, zai_env_buffer buf) {
     // We want to explicitly allow pre-RINIT access to env vars here. So that callers can have an early view at config.
     // But in general allmost all configurations shall only be accessed after first RINIT. (the trivial getter will
     return zai_getenv_ex(name, buf, true) == ZAI_ENV_SUCCESS;
-}
-
-void zai_config_dtor_pzval(zval *pval) {
-    if (Z_TYPE_P(pval) == IS_ARRAY) {
-        if (Z_DELREF_P(pval) == 0) {
-            zend_hash_destroy(Z_ARRVAL_P(pval));
-            free(Z_ARRVAL_P(pval));
-        }
-    } else {
-        zval_internal_ptr_dtor(pval);
-    }
-    // Prevent an accidental use after free
-    ZVAL_UNDEF(pval);
 }
 
 static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id) {
@@ -134,11 +120,13 @@ static void zai_config_entries_init(zai_config_entry entries[], zai_config_id en
     }
 }
 
-void zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
+bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
                       int module_number) {
-    if (!entries || !entries_count) return;
+    if (!entries || !entries_count) return false;
+    if (!zai_json_setup_bindings()) return false;
     zai_config_entries_init(entries, entries_count);
     zai_config_ini_minit(env_to_ini, module_number);
+    return true;
 }
 
 static void zai_config_dtor_memoized_zvals(void) {

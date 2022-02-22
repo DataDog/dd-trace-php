@@ -37,7 +37,7 @@ final class CurrentContextAccessTest extends IntegrationTestCase
 
     public function testInShortRunningCliScript()
     {
-        $traces = $this->inCli(__DIR__ . '/short-running.php');
+        list($traces) = $this->inCli(__DIR__ . '/short-running.php');
 
         $trace = $traces[0];
         $this->assertCount(2, $trace);
@@ -60,7 +60,7 @@ final class CurrentContextAccessTest extends IntegrationTestCase
             return $this->markTestSkipped('Long running processes are currently not supported on PHP 5');
         }
 
-        $traces = $this->inCli(
+        list($traces) = $this->inCli(
             __DIR__ . '/long-running.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => true,

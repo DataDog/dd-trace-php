@@ -1,12 +1,12 @@
 <?php
 
+namespace DDTrace;
+
 /**
  * Although DataDog uses nanotime to report spans PHP does not support nanotime
  * plus, nanotime is a uint64 which is not supported either. Microtime will be used
  * and there will be transformations in reporting in order to send nanotime.
  */
-
-namespace DDTrace;
 
 class Time
 {

@@ -8,7 +8,7 @@ final class PHPInstallerTest extends BaseTestCase
 {
     public static function ddSetUpBeforeClass()
     {
-        require_once __DIR__ . '/../../dd-library-php-setup.php';
+        require_once __DIR__ . '/../../datadog-setup.php';
 
         // Setting up a dummy remi repo
         $rootPath = self::getTmpRootPath();

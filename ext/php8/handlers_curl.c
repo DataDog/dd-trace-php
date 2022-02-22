@@ -12,7 +12,9 @@ __attribute__((weak)) zend_class_entry *curl_multi_ce = NULL;
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
 #include "handlers_internal.h"
 #include "logging.h"
+#include "priority_sampling/priority_sampling.h"
 #include "span.h"
+#include "tracer_tag_propagation/tracer_tag_propagation.h"
 
 // True global - only modify during MINIT/MSHUTDOWN
 bool dd_ext_curl_loaded = false;
@@ -55,14 +57,14 @@ static void dd_ch_store_headers(zend_object *ch, HashTable *headers) {
     zend_hash_copy(new_headers, headers, (copy_ctor_func_t)zval_add_ref);
 
     if (!zend_weakrefs_hash_add_ptr(&dd_headers, ch, new_headers)) {
-        zend_hash_index_update_ptr(&dd_headers, (zend_ulong)(uintptr_t)ch, new_headers);
+        zend_hash_index_update_ptr(&dd_headers, zend_object_to_weakref_key(ch), new_headers);
     }
 }
 
 static void dd_ch_delete_headers(zend_object *ch) { zend_weakrefs_hash_del(&dd_headers, ch); }
 
 static void dd_ch_duplicate_headers(zend_object *ch_orig, zend_object *ch_new) {
-    HashTable *headers = zend_hash_index_find_ptr(&dd_headers, (zend_ulong)(uintptr_t)ch_orig);
+    HashTable *headers = zend_hash_index_find_ptr(&dd_headers, zend_object_to_weakref_key(ch_orig));
     if (headers) {
         dd_ch_store_headers(ch_new, headers);
     }
@@ -71,15 +73,21 @@ static void dd_ch_duplicate_headers(zend_object *ch_orig, zend_object *ch_new) {
 static void dd_inject_distributed_tracing_headers(zend_object *ch) {
     zval headers;
     zend_array *dd_header_array;
-    if ((dd_header_array = zend_hash_index_find_ptr(&dd_headers, (zend_ulong)(uintptr_t)ch))) {
+    if ((dd_header_array = zend_hash_index_find_ptr(&dd_headers, zend_object_to_weakref_key(ch)))) {
         ZVAL_ARR(&headers, zend_array_dup(dd_header_array));
     } else {
         array_init(&headers);
     }
 
-    int sampling_priority;
-    if (ddtrace_fetch_prioritySampling_from_root(&sampling_priority)) {
-        add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-sampling-priority: %d", sampling_priority));
+    zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_root();
+    if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        add_next_index_str(&headers,
+                           zend_strpprintf(0, "x-datadog-sampling-priority: " ZEND_LONG_FMT, sampling_priority));
+    }
+    zend_string *propagated_tags = ddtrace_format_propagated_tags();
+    if (propagated_tags) {
+        add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-tags: %s", ZSTR_VAL(propagated_tags)));
+        zend_string_release(propagated_tags);
     }
     if (DDTRACE_G(trace_id)) {
         add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-trace-id: %" PRIu64, (DDTRACE_G(trace_id))));
@@ -114,7 +122,7 @@ static void dd_inject_distributed_tracing_headers(zend_object *ch) {
  * headers on the first call to curl_multi_exec().
  */
 static void dd_multi_add_handle(zend_object *mh, zend_object *ch) {
-    HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, (zend_ulong)(uintptr_t)mh);
+    HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, zend_object_to_weakref_key(mh));
     if (!handles) {
         ALLOC_HASHTABLE(handles);
         zend_hash_init(handles, 8, NULL, ZVAL_PTR_DTOR, 0);
@@ -129,14 +137,14 @@ static void dd_multi_add_handle(zend_object *mh, zend_object *ch) {
 /* Remove a curl handle from the multi-handle map when curl_multi_remove_handle() is called.
  */
 static void dd_multi_remove_handle(zend_object *mh, zend_object *ch) {
-    HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, (zend_ulong)(uintptr_t)mh);
+    HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, zend_object_to_weakref_key(mh));
     if (handles) {
         zend_hash_index_del(handles, (zend_ulong)ch->handle);
     }
 }
 
 static void dd_multi_inject_headers(zend_object *mh) {
-    HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, (zend_ulong)(uintptr_t)mh);
+    HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, zend_object_to_weakref_key(mh));
 
     if (handles && zend_hash_num_elements(handles) > 0) {
         zend_object *ch;
@@ -150,7 +158,7 @@ static void dd_multi_inject_headers(zend_object *mh) {
 static HashTable *ddtrace_curl_multi_get_gc(zend_object *object, zval **table, int *n) {
     HashTable *ret = dd_curl_multi_get_gc(object, table, n);
 
-    HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, (zend_ulong)(uintptr_t)object);
+    HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, zend_object_to_weakref_key(object));
     if (handles) {
         zend_object *ch;
         ZEND_HASH_FOREACH_PTR(handles, ch) { zend_get_gc_buffer_add_obj(&EG(get_gc_buffer), ch); }
@@ -405,7 +413,7 @@ void ddtrace_curl_handlers_rinit(void) {
 
 static void dd_curl_destroy_weakref_ht(HashTable *ht) {
     zend_ulong key;
-    ZEND_HASH_FOREACH_NUM_KEY(ht, key) { zend_weakrefs_hash_del(ht, (zend_object *)(uintptr_t)key); }
+    ZEND_HASH_FOREACH_NUM_KEY(ht, key) { zend_weakrefs_hash_del(ht, zend_weakref_key_to_object(key)); }
     ZEND_HASH_FOREACH_END();
     zend_hash_destroy(ht);
     // now ensure there's no use-after-free (zend_hash_init here is fine as memory allocation is deferred to first add)

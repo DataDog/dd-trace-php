@@ -27,8 +27,8 @@ zval *ddtrace_spandata_property_meta(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_metrics(ddtrace_span_t *span);
 zval *ddtrace_spandata_property_exception(ddtrace_span_t *span);
 zval **ddtrace_spandata_property_exception_write(ddtrace_span_t *span);
-
-bool ddtrace_fetch_prioritySampling_from_root(int *priority TSRMLS_DC);
+zval **ddtrace_spandata_property_parent_write(ddtrace_span_t *span);
+zval **ddtrace_spandata_property_id_write(ddtrace_span_t *span);
 
 bool ddtrace_tracer_is_limited(TSRMLS_D);
 // prepare the tracer state to start handling a new trace
@@ -52,6 +52,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *function_lookup;
     zval additional_trace_meta; // IS_ARRAY
     HashTable additional_global_tags;
+    HashTable root_span_tags_preset;
+    HashTable propagated_root_span_tags;
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
@@ -79,9 +81,12 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint16_t call_depth;
 
     uint64_t trace_id;
+    long default_priority_sampling;
+    long propagated_priority_sampling;
     ddtrace_span_ids_t *span_ids_top;
     ddtrace_span_fci *open_spans_top;
     ddtrace_span_fci *closed_spans_top;
+    ddtrace_span_fci *root_span;
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
     int64_t compile_time_microseconds;

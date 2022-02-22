@@ -8,7 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_4_2/public/index.php';
@@ -47,7 +46,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'http.status_code' => '200',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
-                    '_dd.rule_psr' => 1,
                     '_sampling_priority_v1' => 1,
                 ]) ->withChildren([
                     SpanAssertion::exists('symfony.kernel.terminate'),

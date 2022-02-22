@@ -114,7 +114,7 @@ object(MyDt)#%d (3) {
   ["timezone"]=>
   string(3) "UTC"
 }
-string(10) "2019-09-10"
+string(%d) "object(MyDt)#%d"
 
 array(1) {
   ["foo"]=>

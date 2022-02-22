@@ -139,6 +139,8 @@ Zend/tests/type_declarations/variance/class_order_autoload_error6.phpt
 Zend/tests/weakrefs/weakrefs_001.phpt
 ext/curl/tests/bug45161.phpt
 ext/curl/tests/bug64267.phpt
+ext/curl/tests/bug76675.phpt
+ext/curl/tests/bug77535.phpt
 ext/curl/tests/bug79033.phpt
 ext/date/tests/012.phpt
 ext/date/tests/013.phpt
@@ -185,6 +187,7 @@ ext/openssl/tests/capture_peer_cert_001.phpt
 ext/openssl/tests/openssl_encrypt_ccm.phpt
 ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
 ext/openssl/tests/openssl_pkcs7_decrypt_error.phpt
+ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt
 ext/openssl/tests/peer_verification.phpt
 ext/openssl/tests/san_peer_matching.phpt
 ext/openssl/tests/session_meta_capture.phpt

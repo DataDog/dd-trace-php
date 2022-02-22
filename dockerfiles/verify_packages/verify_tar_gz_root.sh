@@ -5,7 +5,7 @@ set -e
 DD_TRACE_ROOT=$(pwd)
 sh ${DD_TRACE_ROOT}/dockerfiles/verify_packages/tar_gz/install.sh
 
-tar -xf ${DD_TRACE_ROOT}/build/packages/*.tar.gz -C /
+tar -xf ${DD_TRACE_ROOT}/build/packages/datadog-php-tracer-*.x86_64.tar.gz -C /
 
 OPT_USER=$(stat -c '%U' /opt)
 echo "Owner of /opt: ${OPT_USER}"

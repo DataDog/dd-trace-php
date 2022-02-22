@@ -171,6 +171,8 @@ ext/curl/tests/bug45161.phpt
 ext/curl/tests/bug48514.phpt
 ext/curl/tests/bug64267.phpt
 ext/curl/tests/bug72202.phpt
+ext/curl/tests/bug76675.phpt
+ext/curl/tests/bug77535.phpt
 ext/curl/tests/bug79033.phpt
 ext/curl/tests/curl_basic_014.phpt
 ext/curl/tests/curl_close_basic.phpt
@@ -227,6 +229,7 @@ ext/openssl/tests/openssl_cms_decrypt_error.phpt
 ext/openssl/tests/openssl_encrypt_ccm.phpt
 ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
 ext/openssl/tests/openssl_pkcs7_decrypt_error.phpt
+ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt
 ext/openssl/tests/openssl_x509_free_basic.phpt
 ext/openssl/tests/peer_verification.phpt
 ext/openssl/tests/san_peer_matching.phpt

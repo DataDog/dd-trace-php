@@ -32,11 +32,11 @@ typedef struct datadog_php_string_view {
     { sizeof(cstr) - 1, cstr }
 
 /**
- * Creates a string view from a C string, which is an array of char which is
- * terminated by a null byte. Derives the length from strlen. `cstr` may be
- * null, in which case the `.len` will be 0.
+ * Converts the C string `cstr` into a string view by getting its length from
+ * `strlen`. Null is permitted and will become an empty string.
+ * @param cstr May be nullptr.
  */
-datadog_php_string_view datadog_php_string_view_from_cstr(const char cstr[]);
+datadog_php_string_view datadog_php_string_view_from_cstr(const char *cstr);
 
 /**
  * Compares the views `a` and `b` for equality. Note that the `.ptr` value of

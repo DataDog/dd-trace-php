@@ -36,14 +36,20 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["_dd.origin"]=>
       string(7) "datadog"
+      ["_dd.p.upstream_services"]=>
+      string(52) "ZGlzdHJpYnV0ZWRfdHJhY2VfYm9ndXNfaWRzLnBocA|1|1|1.000"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

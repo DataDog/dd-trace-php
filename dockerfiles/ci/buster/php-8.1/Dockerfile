@@ -84,26 +84,15 @@ RUN set -eux; \
         pecl channel-update pecl.php.net; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
-        curl https://github.com/krakjoe/apcu/archive/refs/heads/master.zip -LO; \
-        unzip master.zip; \
-        cd apcu-master; \
-        phpize; \
-        ./configure; \
-        make -j "$((`nproc`+1))" install; \
-        echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
+        yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
         pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
         #yes 'no' | pecl install memcached; \ # TODO Does not support PHP 8 yet
-        pecl install mongodb-1.11.0alpha1; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
+        pecl install mongodb-1.12.0; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
         pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
         # Xdebug is disabled by default \
-        curl https://github.com/xdebug/xdebug/archive/refs/heads/master.zip -LO; \
-        unzip master.zip; \
-        cd xdebug-master; \
-        phpize; \
-        ./configure; \
-        make -j "$((`nproc`+1))" install; \
+        pecl install xdebug-3.1.2; \
         cd $(php-config --extension-dir); \
-        mv xdebug.so xdebug-3.1.0.so; \
+        mv xdebug.so xdebug-3.1.2.so; \
     done;
 
 RUN set -eux; \

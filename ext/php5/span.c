@@ -2,6 +2,7 @@
 
 #include <SAPI.h>
 #include <inttypes.h>
+#include <php5/priority_sampling/priority_sampling.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -21,22 +22,29 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
+}
+
+static void dd_drop_span(ddtrace_span_fci *span TSRMLS_DC) {
+    span->span.duration = -1ull;
+    span->next = NULL;
+    zend_objects_store_del_ref_by_handle(span->span.obj_value.handle TSRMLS_CC);
 }
 
 static void _free_span_stack(ddtrace_span_fci *span_fci TSRMLS_DC) {
     while (span_fci != NULL) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
-        tmp->next = NULL;
-        zend_objects_store_del_ref_by_handle(tmp->span.obj_value.handle TSRMLS_CC);
+        dd_drop_span(tmp TSRMLS_CC);
     }
 }
 
 void ddtrace_free_span_stacks(TSRMLS_D) {
     _free_span_stack(DDTRACE_G(open_spans_top) TSRMLS_CC);
     DDTRACE_G(open_spans_top) = NULL;
+    DDTRACE_G(root_span) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top) TSRMLS_CC);
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
@@ -71,6 +79,7 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
     if (!span_fci->next) {  // root span
+        DDTRACE_G(root_span) = span_fci;
         ddtrace_set_root_span_properties(&span_fci->span TSRMLS_CC);
     } else {
         zval *last_service = ddtrace_spandata_property_service(&span_fci->next->span);
@@ -85,6 +94,11 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
             MAKE_STD_ZVAL(*type);
             MAKE_COPY_ZVAL(&last_type, *type);
         }
+        zval **parent = ddtrace_spandata_property_parent_write(&span_fci->span);
+        MAKE_STD_ZVAL(*parent);
+        Z_TYPE_PP(parent) = IS_OBJECT;
+        Z_OBJVAL_PP(parent) = span_fci->next->span.obj_value;
+        zend_objects_store_add_ref(*parent TSRMLS_CC);
     }
     ddtrace_set_global_span_properties(&span_fci->span TSRMLS_CC);
 }
@@ -180,10 +194,15 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
         span_fci->dispatch = NULL;
     }
 
-    // A userland span might still be open so we check the span ID stack instead of the internal span stack
-    // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
-    if (DDTRACE_G(span_ids_top) == NULL && get_DD_TRACE_AUTO_FLUSH_ENABLED()) {
-        if (!ddtrace_flush_tracer(TSRMLS_C)) {
+    if (DDTRACE_G(open_spans_top) == NULL) {
+        // Enforce a sampling decision here
+        ddtrace_fetch_prioritySampling_from_root(TSRMLS_C);
+
+        DDTRACE_G(root_span) = NULL;
+
+        // A userland span might still be open so we check the span ID stack instead of the internal span stack
+        // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && !ddtrace_flush_tracer(TSRMLS_C)) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
     }
@@ -197,12 +216,18 @@ void ddtrace_drop_top_open_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
-    zend_objects_store_del_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
+
+    if (DDTRACE_G(open_spans_top) == NULL) {
+        DDTRACE_G(root_span) = NULL;
+    }
+
+    dd_drop_span(span_fci TSRMLS_CC);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     // The tracer supports only one trace per request so free any remaining open spans
     _free_span_stack(DDTRACE_G(open_spans_top) TSRMLS_CC);
+    DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     ddtrace_free_span_id_stack(TSRMLS_C);

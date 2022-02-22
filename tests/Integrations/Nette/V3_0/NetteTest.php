@@ -52,7 +52,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simple',
                         'http.method' => 'GET',
-                        'http.url' => '/simple',
+                        'http.url' => 'http://localhost:' . self::PORT . '/simple',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -86,7 +86,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simpleView',
                         'http.method' => 'GET',
-                        'http.url' => '/simple_view',
+                        'http.url' => 'http://localhost:' . self::PORT . '/simple_view',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -131,7 +131,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'errorView',
                         'http.method' => 'GET',
-                        'http.url' => '/error',
+                        'http.url' => 'http://localhost:' . self::PORT . '/error',
                         'http.status_code' => '500',
                     ])
                     ->setError(

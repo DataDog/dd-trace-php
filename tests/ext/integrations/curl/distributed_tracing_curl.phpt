@@ -7,10 +7,13 @@ Distributed tracing headers propagate with curl_exec()
 ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
 DD_TRACE_DEBUG=1
-DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
+DD_TRACE_GENERATE_ROOT_SPAN=0
 HTTP_X_DATADOG_ORIGIN=phpt-test
+HTTP_X_DATADOG_TAGS=extreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeemely=loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong
 --FILE--
 <?php
+include 'curl_helper.inc';
+
 DDTrace\trace_function('curl_exec', function (\DDTrace\SpanData $span) {
     $span->name = 'curl_exec';
 });
@@ -21,6 +24,7 @@ $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $response = curl_exec($ch);
+show_curl_error_on_fail($ch);
 curl_close($ch);
 
 include 'distributed_tracing.inc';
@@ -32,13 +36,16 @@ dt_dump_headers_from_httpbin($headers, [
 
 $spans = dd_trace_serialize_closed_spans();
 var_dump($headers['x-datadog-parent-id'] === (string) $spans[0]['span_id']);
+var_dump($spans[0]["meta"]["_dd.propagation_error"]);
 
 echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
+The to be propagated tag 'extreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeemely=loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong' is too long and exceeds the maximum limit of 512 characters and is thus dropped.
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 bool(true)
+string(8) "max_size"
 Done.
 No finished traces to be sent to the agent

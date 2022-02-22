@@ -39,6 +39,10 @@
             <directory>./Integrations/Laravel/V5_8</directory>
             <directory>./Integrations/CLI/Laravel/V5_8</directory>
         </testsuite>
+        <testsuite name="laravel-8x-test">
+            <directory>./Integrations/Laravel/V8_x</directory>
+            <directory>./Integrations/CLI/Laravel/V8_X</directory>
+        </testsuite>
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>
         </testsuite>

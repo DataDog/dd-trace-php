@@ -46,10 +46,7 @@ static void dd_check_exception_in_header(int old_response_code TSRMLS_DC) {
 
     ddtrace_save_active_error_to_metadata(TSRMLS_C);
 
-    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
-    while (root_span->next) {
-        root_span = root_span->next;
-    }
+    ddtrace_span_fci *root_span = DDTRACE_G(root_span);
 
     zval *prop_exception = ddtrace_spandata_property_exception(&root_span->span);
     if (prop_exception != NULL && Z_TYPE_P(prop_exception) != IS_NULL &&

@@ -1,11 +1,11 @@
 <?php
 
+namespace DDTrace\Contracts;
+
 /**
  * Ported from opentracing/opentracing
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Scope.php
  */
-
-namespace DDTrace\Contracts;
 
 /**
  * A {@link Scope} formalizes the activation and deactivation of a {@link Span}, usually from a CPU standpoint.

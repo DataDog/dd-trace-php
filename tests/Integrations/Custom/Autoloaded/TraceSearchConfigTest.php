@@ -40,11 +40,10 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                     'GET /simple'
                 )->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => '/simple',
+                    'http.url' => 'http://localhost:' . self::PORT . '/simple',
                     'http.status_code' => '200',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
-                    '_dd.rule_psr' => 1,
                     '_sampling_priority_v1' => 1,
                 ]),
             ]

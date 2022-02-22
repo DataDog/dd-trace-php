@@ -1,5 +1,5 @@
 extern "C" {
-#include "sapi/sapi.h"
+#include <components/sapi/sapi.h>
 }
 
 #include <catch2/catch.hpp>
@@ -18,6 +18,7 @@ TEST_CASE("recognize real sapis", "[sapi]") {
         {"fpm-fcgi", DATADOG_PHP_SAPI_FPM_FCGI},
         {"litespeed", DATADOG_PHP_SAPI_LITESPEED},
         {"phpdbg", DATADOG_PHP_SAPI_PHPDBG},
+        {"tea", DATADOG_PHP_SAPI_TEA},
     };
 
     for (auto server : servers) {

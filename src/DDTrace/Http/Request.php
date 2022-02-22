@@ -2,6 +2,7 @@
 
 namespace DDTrace\Http;
 
+/** @deprecated Obsoleted by moving related code to internal. */
 class Request
 {
     /**

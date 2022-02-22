@@ -5,7 +5,8 @@ services:
     ulimits: { core: 99999999999 }
     stdin_open: true
     tty: true
-    volumes: [ '../../:/build_src' ]
+    working_dir: /datadog
+    volumes: [ '../../:/datadog' ]
     cap_add: [ SYS_PTRACE ]
     image: 'datadog/dd-trace-ci:php-5.4_centos-6'
   '5.5-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-5.5_centos-6' }

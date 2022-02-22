@@ -8,7 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class FatalErrorTest extends WebFrameworkTestCase
 {
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
@@ -41,7 +40,7 @@ final class FatalErrorTest extends WebFrameworkTestCase
                     'GET /fatal'
                 )->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => '/fatal',
+                    'http.url' => 'http://localhost:' . self::PORT . '/fatal',
                     'http.status_code' => '200',
                 ])
                 ->setError("E_ERROR", "Intentional E_ERROR")

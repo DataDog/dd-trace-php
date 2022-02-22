@@ -1,5 +1,6 @@
 version: "2.1"
-
+orbs:
+  codecov: codecov/codecov@3.2.2
 aliases:
 
   - &CACHE_COMPOSER_KEY
@@ -22,6 +23,12 @@ aliases:
   - &IMAGE_DOCKER_ELASTICSEARCH2
     image: elasticsearch:2
     name: elasticsearch2_integration
+
+  - &IMAGE_DOCKER_ELASTICSEARCH7
+    image: elasticsearch:7.17.0
+    name: elasticsearch7_integration
+    environment:
+      - discovery.type=single-node
 
   - &IMAGE_DOCKER_HTTPBIN
     image: kennethreitz/httpbin
@@ -139,6 +146,19 @@ aliases:
       name: Waiting for Dockerized request replayer
       command: dockerize -wait tcp://request-replayer:80/clear-dumped-data -timeout 2m
 
+  # Fix intermittent error: "Could not resolve host: httpbin_integration"
+  - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+    run:
+      name: Resolving HTTPBIN_HOSTNAME to IP address
+      command: |
+        export HTTPBIN_HOSTNAME=$( \
+          curl --verbose "http://httpbin_integration:80/headers" 2>&1 | \
+          grep '* Connected to' | \
+          awk -F' ' '{print $5}' | \
+          sed 's/[()]//g' \
+        );
+        echo "Resolved httpbin_integration: HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME}";
+
   - &STEP_PERSIST_TO_WORKSPACE
     persist_to_workspace:
       root: '.'
@@ -237,6 +257,7 @@ executors:
       - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
+      - <<: *IMAGE_DOCKER_ELASTICSEARCH7
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
@@ -289,7 +310,7 @@ jobs:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
       - run:
-          name: Verify PECL config and Version files
+          name: Verify Version files
           command: make verify_all
       - <<: *STEP_STORE_TEST_RESULTS
 
@@ -359,7 +380,7 @@ jobs:
           command: |
             export REPORT_EXIT_STATUS=1
             cd tmp/build_extension
-            php run-tests.php -p $(which php) --show-all -d zend_extension=opcache.so ../../tests/opcache
+            php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=opcache.so ../../tests/opcache
 
   xdebug_tests:
     parameters:
@@ -385,9 +406,9 @@ jobs:
             export REPORT_EXIT_STATUS=1
             export DD_TRACE_CLI_ENABLED=1
             cd tmp/build_extension
-            php run-tests.php -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so ../../tests/xdebug/<< parameters.xdebug_version_one >>
+            php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so ../../tests/xdebug/<< parameters.xdebug_version_one >>
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
-              php run-tests.php -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/<< parameters.xdebug_version_two >>
+              php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/<< parameters.xdebug_version_two >>
             fi;
       - run:
           name: Run unit tests with xdebug
@@ -412,7 +433,6 @@ jobs:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
-      HTTPBIN_HOSTNAME: httpbin_integration
       DATADOG_HAVE_DEV_ENV: 1
     executor:
       name: with_httpbin_and_request_replayer
@@ -426,6 +446,7 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - run:
           name: Run tests
           command: |
@@ -433,6 +454,51 @@ jobs:
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
+  coverage: &TEST_BASE
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 5.6
+        type: string
+      make_target:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+    working_directory: ~/datadog
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
+      DATADOG_HAVE_DEV_ENV: 1
+    executor:
+      name: with_httpbin_and_request_replayer
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - run:
+          name: Run tests
+          command: |
+            set -euo pipefail
+            make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      - run:
+          name: Install CodeCov Uploader Dependencies
+          command: sudo apt install -y gpg
+      - codecov/upload:
+          file: tmp/coverage.info
+          upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
@@ -551,6 +617,7 @@ jobs:
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
+              -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
               -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
       - run:
           command: |
@@ -633,7 +700,6 @@ jobs:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
-      HTTPBIN_HOSTNAME: httpbin_integration
       DATADOG_HAVE_DEV_ENV: 1
     executor:
       name: with_httpbin_and_request_replayer
@@ -645,6 +711,7 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - run:
           name: Ensure ext/<< parameters.ext_name >> is missing
           command: |
@@ -690,7 +757,6 @@ jobs:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
-      HTTPBIN_HOSTNAME: httpbin_integration
       DATADOG_HAVE_DEV_ENV: 1
     executor:
       name: with_httpbin_and_request_replayer
@@ -700,6 +766,7 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - run:
           name: Install .deb from artifacts
           command: |
@@ -817,7 +884,7 @@ jobs:
       - run: mkdir -p test-results
       - run:
           name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> docker_compose_pull verify_centos_6
+          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> verify_centos_6
       - store_test_results:
           path: test-results
 
@@ -869,12 +936,32 @@ jobs:
           name: Validate .tar.gz package
           command: PHP_VERSION=<< parameters.php_major_minor >> bash ./dockerfiles/verify_packages/verify_tar_gz_root.sh
 
+  verify_no_json_ext:
+    working_directory: ~/datadog
+    resource_class: small
+    docker:
+      - image: alpine:3.12
+    steps:
+      - run:
+          # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+          name: Install ca-certificates
+          command: apk add --no-cache ca-certificates
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Test
+          command: ./dockerfiles/verify_packages/verify_no_ext_json.sh
+
   installer_tests:
     working_directory: ~/datadog
     machine:
       image: ubuntu-2004:202010-01
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          # In order to hard-code the proper version required in tests, we need to regenerate the 'released' installer
+          # scripts which are saved to build/packages
+          name: Let testing images to write to build/packages dir
+          command: chmod a+w build/packages
       - run:
           name: Run tests
           command: make -C dockerfiles/verify_packages test_installer
@@ -900,7 +987,7 @@ jobs:
           command: sudo sysctl -w vm.max_map_count=262144
       - run:
           name: Copy tracer package
-          command: make -C tests/randomized tracer.local
+          command: make -C tests/randomized library.local
       - run:
           name: Pull docker images
           command: make -C tests/randomized pull
@@ -929,7 +1016,7 @@ jobs:
       - run:
           name: Make PECL build
           command: |
-            tooling/bin/pecl-build
+            make build_pecl_package
             mkdir -p ./pecl && cp datadog_trace-*.tgz ./pecl
       #- store_artifacts:
       #    path: pecl
@@ -958,12 +1045,13 @@ jobs:
             echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
             php --ri=ddtrace
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - run:
           name: Run phpt tests with PECL
           command: |
             sudo \
             TERM=dumb \
-            HTTPBIN_HOSTNAME=httpbin_integration \
+            HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME} \
             DATADOG_HAVE_DEV_ENV=1 \
             DD_TRACE_CLI_ENABLED=1 \
             pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
@@ -1027,45 +1115,14 @@ jobs:
             tar -xf ../v<< parameters.catch2_version >>.tar.gz --strip 1
             cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2
             cmake --build build/ --target install
-      - run:
-          name: Build and test Datadog::Arena
-          command: |
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/DatadogArena
-            cd /tmp/build/DatadogArena
-            if [ -f "/etc/debian_version" ]
-            then
-              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-            fi
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-              $toolchain \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_TESTING=ON \
-              ~/datadog/ext/DatadogArena
-            make -j
-            make test
-      - run:
-          name: Build and test Datadog::MemHash
-          command: |
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/DatadogMemHash
-            cd /tmp/build/DatadogMemHash
-            if [ -f "/etc/debian_version" ]
-            then
-              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-            fi
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-              $toolchain \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_TESTING=ON \
-              ~/datadog/ext/DatadogMemHash
-            make -j
-            make test
 
       - run:
           name: Build and test Datadog::Php::Components (ASan)
           command: |
             export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ] ; then
+              export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"
+            fi
             mkdir -p /tmp/build/datadog_php_components_asan
             cd /tmp/build/datadog_php_components_asan
             if [ -f "/etc/debian_version" ]
@@ -1075,7 +1132,7 @@ jobs:
             CMAKE_PREFIX_PATH=/opt/catch2 cmake \
               $toolchain \
               -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_COMPONENTS_TESTING=ON \
+              -DDATADOG_PHP_TESTING=ON \
               ~/datadog/components
             make -j all
             make test
@@ -1094,10 +1151,15 @@ jobs:
             CMAKE_PREFIX_PATH=/opt/catch2 cmake \
               -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
               -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_COMPONENTS_TESTING=ON \
+              -DDATADOG_PHP_TESTING=ON \
               ~/datadog/components
             make -j all
-            make test
+
+            # channel is non-deterministic, so run tests a few more times. At
+            # the moment, Catch2 tests are not automatically adding labels, so
+            # run all tests instead of just channel's:
+            # https://github.com/catchorg/Catch2/issues/1590
+            make test ARGS="--output-on-failure --repeat until-fail:10"
 
       - run:
           command: |
@@ -1108,7 +1170,7 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
-  Zai:
+  Tea:
     working_directory: ~/datadog
     parameters:
       os:
@@ -1134,6 +1196,7 @@ jobs:
             cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
             sudo mkdir -p /opt/cmake/<< parameters.cmake_version >>
             cd /opt/cmake/<< parameters.cmake_version >> && sudo tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz --strip 1
+            PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
       - run:
           name: Install Catch2
           command: |
@@ -1142,7 +1205,6 @@ jobs:
               echo 'catch2 already installed'
               exit 0
             fi
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
             cd /tmp
             curl -OL https://github.com/catchorg/Catch2/archive/v<< parameters.catch2_version >>.tar.gz
             mkdir catch2
@@ -1151,40 +1213,144 @@ jobs:
             cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2
             cmake --build build/ --target install
 
-      # Builds that support ASan
-      - when:
-          condition:
-            or:
-              - equal: [ "7.4", << parameters.php_version >> ]
-              - equal: [ "8.0", << parameters.php_version >> ]
-              - equal: [ "8.1", << parameters.php_version >> ]
-          steps:
-            - run:
-                name: Build and test Zend Abstract Interface (nts, debug, debug-zts-asan)
-                command: |
-                  export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-                  for phpBuild in nts debug debug-zts-asan
-                  do
-                    switch-php ${phpBuild}
-                    mkdir -p /tmp/build/zai-${phpBuild}
-                    cd /tmp/build/zai-${phpBuild}
-                    toolchain=""
-                    if [ "${phpBuild}" = "debug-zts-asan" ]
-                    then
-                      toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-                    fi
-                    CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-                      ${toolchain} \
-                      -DCMAKE_BUILD_TYPE=Debug \
-                      -DBUILD_ZAI_TESTING=ON \
-                      -DPHP_CONFIG=$(which php-config) \
-                      ~/datadog/zend_abstract_interface
-                    make -j all
-                    make test
-                    grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
-                  done
+      - run:
+          name: TEA (build, test, & install on all PHP builds)
+          command: |
+            for phpBuild in $(ls /opt/php)
+            do
+              switch-php ${phpBuild}
+              toolchain=""
+              if [ "${phpBuild}" = "debug-zts-asan" ]
+              then
+                toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+              fi
+              mkdir -p /tmp/build/tea-${phpBuild}
+              cd /tmp/build/tea-${phpBuild}
+              CMAKE_PREFIX_PATH=/opt/catch2 \
+              cmake \
+                ${toolchain} \
+                -DCMAKE_INSTALL_PREFIX=/opt/tea/${phpBuild} \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DBUILD_TEA_TESTING=ON \
+                -DPHP_CONFIG=$(which php-config) \
+                ~/datadog/tea
+              make -j all
+              make test
+              grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+              make install
+            done
 
-      # Builds that do not support ASan
+      - run:
+          name: Zend Abstract Interface (build & test on all PHP builds)
+          command: |
+            for phpBuild in $(ls /opt/php)
+            do
+              switch-php ${phpBuild}
+              toolchain=""
+              if [ "${phpBuild}" = "debug-zts-asan" ]
+              then
+                toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+              fi
+              mkdir -p /tmp/build/zai-${phpBuild}
+              cd /tmp/build/zai-${phpBuild}
+              CMAKE_PREFIX_PATH=/opt/catch2 \
+              Tea_ROOT=/opt/tea/${phpBuild} \
+              cmake \
+                ${toolchain} \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DBUILD_ZAI_TESTING=ON \
+                -DPHP_CONFIG=$(which php-config) \
+                ~/datadog/zend_abstract_interface
+              make -j all
+              make test
+              grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+            done
+
+      - run:
+          name: Build and test Zend Abstract Interface (debug + UBSan)
+          command: |
+            switch-php debug
+            mkdir -p /tmp/build/zai-debug-ubsan
+            cd /tmp/build/zai-debug-ubsan
+            CMAKE_PREFIX_PATH=/opt/catch2 \
+            Tea_ROOT=/opt/tea/debug \
+            cmake \
+              -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_ZAI_TESTING=ON \
+              -DPHP_CONFIG=$(which php-config) \
+              ~/datadog/zend_abstract_interface
+            make -j all
+            make test
+            grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+
+      - run:
+          name: Extension Tea Tests
+          command: |
+            for phpBuild in $(ls /opt/php)
+            do
+              switch-php ${phpBuild}
+              toolchain=""
+              if [ "${phpBuild}" = "debug-zts-asan" ]
+              then
+                toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+              fi
+
+              # build ddtrace.so
+              cd ~/datadog
+              make clean
+              make install
+
+              # Build ext Tea tests
+              builddir="/tmp/build/ext-tea-${phpBuild}"
+              mkdir -p "${builddir}"
+              cd "${builddir}"
+              export CMAKE_PREFIX_PATH=/opt/catch2
+              export Tea_ROOT=/opt/tea/${phpBuild}
+              cmake ${toolchain} -DCMAKE_BUILD_TYPE=Debug -S ~/datadog/tests/tea
+              cmake --build . --parallel
+              make test ARGS="--output-on-failure"
+              grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+            done
+
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            cp --parents /tmp/build/zai-*/Testing/Temporary/LastTest.log /tmp/artifacts/
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
+  ZaiSharedExts:
+    working_directory: ~/datadog
+    parameters:
+      php_version:
+        type: string
+    docker:
+      - image: datadog/dd-trace-ci:php-<< parameters.php_version >>-shared-ext
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Switch PHP to nts
+          command: |
+            switch-php nts
+
+      - run:
+          name: TEA (build & install on nts)
+          command: |
+            mkdir -p /tmp/build/tea-nts
+            cd /tmp/build/tea-nts
+            CMAKE_PREFIX_PATH=/opt/catch2 \
+            cmake \
+              -DCMAKE_INSTALL_PREFIX=/opt/tea/nts \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_TEA_TESTING=ON \
+              -DPHP_CONFIG=$(which php-config) \
+              ~/datadog/tea
+            make -j all
+            make install
+
+      # Starting in PHP 8.0, ext/json is a core extension
       - when:
           condition:
             or:
@@ -1195,41 +1361,42 @@ jobs:
               - equal: [ "7.1", << parameters.php_version >> ]
               - equal: [ "7.2", << parameters.php_version >> ]
               - equal: [ "7.3", << parameters.php_version >> ]
+              - equal: [ "7.4", << parameters.php_version >> ]
           steps:
             - run:
-                name: Build and test Zend Abstract Interface (nts, debug, debug-zts)
+                name: Ensure ext/json is loaded as shared lib
                 command: |
-                  export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-                  for phpBuild in nts debug debug-zts
-                  do
-                    switch-php ${phpBuild}
-                    mkdir -p /tmp/build/zai-${phpBuild}
-                    cd /tmp/build/zai-${phpBuild}
-                    CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-                      -DCMAKE_BUILD_TYPE=Debug \
-                      -DBUILD_ZAI_TESTING=ON \
-                      -DPHP_CONFIG=$(which php-config) \
-                      ~/datadog/zend_abstract_interface
-                    make -j all
-                    make test
-                    grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
-                  done
+                  if php --ri=json &> /dev/null
+                  then
+                    echo 'ext/json is enabled but should not be installed'
+                    exit 1
+                  fi
+                  echo "extension=json.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/json.ini
 
       - run:
-          name: Build and test Zend Abstract Interface (debug + UBSan)
+          name: Ensure ext/curl is loaded as shared lib
           command: |
-            switch-php debug
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/zai-debug-ubsan
-            cd /tmp/build/zai-debug-ubsan
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-              -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
+            if php --ri=curl &> /dev/null
+            then
+              echo 'ext/curl is enabled but should not be installed'
+              exit 1
+            fi
+            echo "extension=curl.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/curl.ini
+      - run:
+          name: Build and test Zend Abstract Interface (nts)
+          command: |
+            mkdir -p /tmp/build/zai-nts
+            cd /tmp/build/zai-nts
+            CMAKE_PREFIX_PATH=/opt/catch2 \
+            Tea_ROOT=/opt/tea/nts \
+            cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
               -DPHP_CONFIG=$(which php-config) \
+              -DRUN_SHARED_EXTS_TESTS=1 \
               ~/datadog/zend_abstract_interface
             make -j all
-            make test
+            TEA_INI_IGNORE=0 make test
             grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 
       - run:
@@ -1282,14 +1449,14 @@ jobs:
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension basic .so
-          command: make all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make -j all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension debug .so
-          command: make clean all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make clean && make -j all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
@@ -1318,19 +1485,19 @@ jobs:
           name: Build ndebug, nts configuration
           command: |
             switch-php << parameters.php_version >>
-            make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
             switch-php << parameters.php_version >>-debug
-            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
       - run:
           name: Build zts configuration
           command: |
             switch-php << parameters.php_version >>-zts
-            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-zts.so
       - persist_to_workspace:
           root: '.'
@@ -1403,15 +1570,15 @@ workflows:
                 - "datadog/dd-trace-ci:alpine"
                 - "datadog/dd-trace-ci:buster"
               cmake_version:
-                - "3.14.7"
-                - "3.19.6"
+                - "3.19.8"
+                - "3.21.4"
               catch2_version:
-                - "2.13.4"
+                - "2.13.7"
 
   zend_abstract_interface:
     jobs:
       - "Prepare Code"
-      - Zai:
+      - Tea:
           requires: [ 'Prepare Code' ]
           matrix:
             parameters:
@@ -1430,10 +1597,22 @@ workflows:
                 - "8.0"
                 - "8.1"
               cmake_version:
-                - "3.18.3"
+                - "3.19.7"
                 - "3.20.1"
               catch2_version:
                 - "2.13.5"
+
+  zend_abstract_interface_shared_exts:
+    jobs:
+      - "Prepare Code"
+      - ZaiSharedExts:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_version:
+                - "5.4"
+                - "7.4"
+                - "8.0"
 
   build_packages:
     jobs:
@@ -1614,7 +1793,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php php-fpm
+                - php php-fpm php-json
               install_type:
                 - php_installer
                 - native_package
@@ -1630,7 +1809,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php7 php7-fpm
+                - php7 php7-fpm php7-json
               install_type:
                 - php_installer
                 - native_package
@@ -1648,7 +1827,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php5 php5-fpm
+                - php5 php5-fpm php5-json
               install_type:
                 - php_installer
                 - native_package
@@ -1747,6 +1926,9 @@ workflows:
                 - "8.0"
                 # There is little value in testing several versions, since all the packages are already verified on the
                 # respective platforms using the native packages. Let's save some CPU cycles.
+
+      - verify_no_json_ext:
+          requires: [ "package extension" ]
 
       - pecl_tests:
           requires: [ "Build PECL" ]
@@ -1888,12 +2070,30 @@ workflows:
                 - "8.0"
                 - "8.1"
               make_target:
+                - test_coverage
                 - test_extension_ci
                 - test_unit
                 - test_api_unit
                 - test_c2php
                 - test_c_disabled
-
+                - test_internal_api_randomized
+      - coverage:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "5.4"
+                - "5.5"
+                - "5.6"
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+                - "8.1"
+              make_target:
+                - test_coverage
       - asan:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -1907,6 +2107,7 @@ workflows:
               make_target:
                 - test_c_asan
                 - test_with_init_hook_asan
+                - test_internal_api_randomized
 
       - integration:
           requires: [ 'Prepare Code' ]

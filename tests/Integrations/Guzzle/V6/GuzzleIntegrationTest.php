@@ -6,10 +6,7 @@ use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
 use GuzzleHttp\Client;
-use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Handler\MockHandler;
-use GuzzleHttp\Handler\CurlMultiHandler;
-use GuzzleHttp\Promise;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -19,7 +16,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
-
     const URL = 'http://httpbin_integration';
 
     public static function ddSetUpBeforeClass()
@@ -116,6 +112,23 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testGetInlineCredentials()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://my_user:my_password@example.com');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -292,6 +305,24 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testAppendHostnameToServiceNameInlineCredentials()
+    {
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://my_user:my_password@example.com');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'host-example.com', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                 ]),
         ]);

@@ -3,12 +3,15 @@
 #include <Zend/zend_closures.h>
 #include <Zend/zend_compile.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_extensions.h>
 #include <Zend/zend_generators.h>
 #include <Zend/zend_interfaces.h>
 #include <Zend/zend_observer.h>
+#include <Zend/zend_portability.h>
 #include <exceptions/exceptions.h>
-#include <functions/functions.h>
 #include <stdbool.h>
+#include <symbols/symbols.h>
+#include <value/value.h>
 
 #include "ext/php8/compatibility.h"
 #include "ext/php8/ddtrace.h"
@@ -113,9 +116,11 @@ static void dd_load_deferred_integration(zend_class_entry *scope, zval *fname, d
                            Z_STRVAL_P(fname));
     }
 
-    zval retval = {0};
-    bool success = zai_call_function_literal("ddtrace\\integrations\\load_deferred_integration", &retval, integration);
-    zval_ptr_dtor(&retval);
+    zval *rv;
+    ZAI_VALUE_INIT(rv);
+    bool success =
+        zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
+    ZAI_VALUE_DTOR(rv);
 
     ddtrace_dispatch_release(*dispatch);
 
@@ -738,6 +743,11 @@ static void dd_observer_end_handler(zend_execute_data *execute_data, zval *retva
 
 zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *execute_data) {
     zend_function *fbc = EX(func);
+
+    if (!PG(modules_activated)) {
+        return (zend_observer_fcall_handlers){NULL, NULL};
+    }
+
     if (!get_DD_TRACE_ENABLED() || ddtrace_op_array_extension == 0 || fbc->common.type != ZEND_USER_FUNCTION) {
         return (zend_observer_fcall_handlers){NULL, NULL};
     }
@@ -748,6 +758,30 @@ zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *exec
         return (zend_observer_fcall_handlers){dd_observer_begin_handler, dd_observer_end_handler};
     }
     return (zend_observer_fcall_handlers){NULL, NULL};
+}
+
+static void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
+
+/**
+ * The message handler is used to determine if the profiler is loaded, and if
+ * so it will locate certain symbols so cross-product features can be enabled.
+ */
+void ddtrace_message_handler(int message, void *arg) {
+    if (UNEXPECTED(message != ZEND_EXTMSG_NEW_EXTENSION)) {
+        // There are currently no other defined messages.
+        return;
+    }
+
+    zend_extension *extension = (zend_extension *)arg;
+    if (extension->name && strcmp(extension->name, "datadog-profiling") == 0) {
+        DL_HANDLE handle = extension->handle;
+
+        profiling_interrupt_function = DL_FETCH_SYMBOL(handle, "datadog_profiling_interrupt_function");
+        if (UNEXPECTED(!profiling_interrupt_function)) {
+            ddtrace_log_debugf("[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n",
+                               "datadog_profiling_interrupt_function", DL_ERROR());
+        }
+    }
 }
 
 PHP_FUNCTION(ddtrace_internal_function_handler) {
@@ -764,6 +798,16 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
         ddtrace_span_fci *span_fci = dd_observer_begin(execute_data, dispatch);
         handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         if (span_fci) {
+            /* If the profiler doesn't handle a potential pending interrupt
+             * before the observer's end function, then the callback will
+             * be at the top of the stack even though it's not responsible.
+             * This is why the profiler's interrupt function is called here,
+             * to give the profiler an opportunity to take a sample before
+             * calling the tracing funcation.
+             */
+            if (profiling_interrupt_function) {
+                profiling_interrupt_function(execute_data);
+            }
             dd_observer_end(fbc, span_fci, return_value);
         }
         return;

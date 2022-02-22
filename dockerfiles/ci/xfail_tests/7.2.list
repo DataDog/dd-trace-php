@@ -78,6 +78,8 @@ Zend/tests/type_declarations/scalar_strict_64bit.phpt
 Zend/tests/type_declarations/self_on_closure_in_method.phpt
 ext/curl/tests/bug45161.phpt
 ext/curl/tests/bug64267.phpt
+ext/curl/tests/bug76675.phpt
+ext/curl/tests/bug77535.phpt
 ext/date/tests/012.phpt
 ext/date/tests/013.phpt
 ext/date/tests/DateTimeZone_serialize_type_3.phpt
@@ -122,6 +124,7 @@ ext/openssl/tests/bug77390.phpt
 ext/openssl/tests/capture_peer_cert_001.phpt
 ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
 ext/openssl/tests/openssl_pkcs7_decrypt_error.phpt
+ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt
 ext/openssl/tests/peer_verification.phpt
 ext/openssl/tests/san_peer_matching.phpt
 ext/openssl/tests/session_meta_capture.phpt

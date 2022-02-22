@@ -3,12 +3,8 @@
 #include "logging.h"
 
 bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
-    if (strcmp("ionCube Loader", module->name) == 0 || strcmp("newrelic", module->name) == 0 ||
-        strcmp("Zend Guard Loader", module->name) == 0) {
-        snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
-                 "Found incompatible module: %s, disabling conflicting functionality", module->name);
-        return true;
-    }
+    UNUSED(module, error);
+    // We keep this function even if we do not exclude modules on PHP 5 so we have a consistent flow across versions.
     return false;
 }
 

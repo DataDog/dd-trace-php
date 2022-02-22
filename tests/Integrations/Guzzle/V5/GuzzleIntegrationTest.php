@@ -7,7 +7,6 @@ use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
 use GuzzleHttp\Client;
 use GuzzleHttp\Message\Request;
-use GuzzleHttp\Ring\Client\CurlMultiHandler;
 use GuzzleHttp\Ring\Client\MockHandler;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -112,6 +111,23 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testGetInlineCredentials()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://my_user:my_password@example.com');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+            ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -297,6 +313,24 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testAppendHostnameToServiceNameInlineCredentials()
+    {
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://my_user:my_password@example.com');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', 'host-example.com', 'http', 'send')
+            ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                 ]),
         ]);

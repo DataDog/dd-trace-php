@@ -15,6 +15,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     const FLUSH_INTERVAL_MS = 333;
 
+    // host and port for the testing framework
+    const HOST = 'http://localhost';
+    const HOST_WITH_CREDENTIALS = 'http://my_user:my_password@localhost';
     const PORT = 9999;
 
     const ERROR_LOG_NAME = 'phpunit_error.log';
@@ -71,6 +74,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             // Short flush interval by default or our tests will take all day
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
+            'DD_TRACE_DEBUG' => 0,
         ];
 
         return $envs;
@@ -127,7 +131,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $response = $this->sendRequest(
             $spec->getMethod(),
-            'http://localhost:' . self::PORT . $spec->getPath(),
+            self::HOST . ':' . self::PORT . $spec->getPath(),
             $spec->getHeaders()
         );
         return $response;
@@ -156,9 +160,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
                 // sleep for 100 milliseconds before trying again
                 \usleep(100 * 1000);
             } else {
+                $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 // See phpunit_error.log in CircleCI artifacts
                 error_log("[request] '{$method} {$url}' (attempt #{$i})");
-                error_log("[response] {$response}");
+                error_log("[response] {$statusCode} - {$response}");
                 break;
             }
         }

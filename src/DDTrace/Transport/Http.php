@@ -9,6 +9,7 @@ use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Transport;
 
+/** @deprecated Obsoleted by moving related code to internal. */
 final class Http implements Transport
 {
     use LoggingTrait;

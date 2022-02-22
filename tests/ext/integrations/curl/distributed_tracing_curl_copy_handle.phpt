@@ -10,6 +10,8 @@ DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 --FILE--
 <?php
+include 'curl_helper.inc';
+
 DDTrace\trace_function('curl_exec', function (\DDTrace\SpanData $span) {
     $span->name = 'curl_exec';
 });
@@ -28,17 +30,21 @@ curl_setopt_array($ch, [
 
 $responses = [];
 $responses[] = curl_exec($ch);
+show_curl_error_on_fail($ch);
 $responses[] = curl_exec($ch);
+show_curl_error_on_fail($ch);
 
 $ch2 = curl_copy_handle($ch);
 
 $responses[] = curl_exec($ch2);
+show_curl_error_on_fail($ch2);
 
 curl_setopt($ch2, CURLOPT_HTTPHEADER, [
     'x-foo: after-the-copy',
     'x-bar: linguistics',
 ]);
 $responses[] = curl_exec($ch2);
+show_curl_error_on_fail($ch2);
 
 curl_close($ch);
 curl_close($ch2);
@@ -51,6 +57,7 @@ foreach ($responses as $key => $response) {
         'x-datadog-trace-id',
         'x-datadog-parent-id',
         'x-datadog-sampling-priority',
+        'x-datadog-tags',
         'x-foo',
         'x-bar',
     ]);
@@ -64,24 +71,32 @@ echo 'Done.' . PHP_EOL;
 Response #0
 x-bar: theory
 x-datadog-parent-id: %d
+x-datadog-sampling-priority: 1
+x-datadog-tags: _dd.p.upstream_services=ZGlzdHJpYnV0ZWRfdHJhY2luZ19jdXJsX2NvcHlfaGFuZGxlLnBocA|1|1|1.000
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #1
 x-bar: theory
 x-datadog-parent-id: %d
+x-datadog-sampling-priority: 1
+x-datadog-tags: _dd.p.upstream_services=ZGlzdHJpYnV0ZWRfdHJhY2luZ19jdXJsX2NvcHlfaGFuZGxlLnBocA|1|1|1.000
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #2
 x-bar: theory
 x-datadog-parent-id: %d
+x-datadog-sampling-priority: 1
+x-datadog-tags: _dd.p.upstream_services=ZGlzdHJpYnV0ZWRfdHJhY2luZ19jdXJsX2NvcHlfaGFuZGxlLnBocA|1|1|1.000
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
 Response #3
 x-bar: linguistics
 x-datadog-parent-id: %d
+x-datadog-sampling-priority: 1
+x-datadog-tags: _dd.p.upstream_services=ZGlzdHJpYnV0ZWRfdHJhY2luZ19jdXJsX2NvcHlfaGFuZGxlLnBocA|1|1|1.000
 x-datadog-trace-id: %d
 x-foo: after-the-copy
 

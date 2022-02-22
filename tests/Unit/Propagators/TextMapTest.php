@@ -38,6 +38,7 @@ final class TextMapTest extends BaseTestCase
             'x-datadog-trace-id' => $context->getTraceId(),
             'x-datadog-parent-id' => $context->getSpanId(),
             'ot-baggage-' . self::BAGGAGE_ITEM_KEY => self::BAGGAGE_ITEM_VALUE,
+            'x-datadog-sampling-priority' => 1,
         ], $carrier);
     }
 
@@ -116,6 +117,8 @@ final class TextMapTest extends BaseTestCase
         $textMapPropagator->inject($context, $carrier);
 
         $this->assertSame('foo_origin', $carrier['x-datadog-origin']);
+
+        \dd_trace_serialize_closed_spans();
     }
 
     public function testOriginIsExtracted()

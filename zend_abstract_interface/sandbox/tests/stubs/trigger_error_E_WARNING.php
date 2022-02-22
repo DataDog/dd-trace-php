@@ -2,7 +2,7 @@
 
 function doError()
 {
-    Zai\trigger_error('My E_WARNING', E_WARNING);
+    tea\trigger_error('My E_WARNING', E_WARNING);
 }
 
 doError();

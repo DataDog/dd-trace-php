@@ -2,8 +2,6 @@
 
 namespace DDTrace\Log;
 
-use DDTrace\Configuration;
-
 /**
  * A global logger holder. Can be configured to use a specific logger. If not configured, it returns a NullLogger.
  */
@@ -32,11 +30,17 @@ final class Logger
     public static function get()
     {
         if (self::$logger === null) {
-            self::$logger = Configuration::get()->isDebugModeEnabled()
+            self::$logger = self::getBoolIni("datadog.trace.debug")
                 ? new ErrorLogLogger(LogLevel::DEBUG)
                 : new NullLogger(LogLevel::EMERGENCY);
         }
         return self::$logger;
+    }
+
+    private static function getBoolIni($iniName)
+    {
+        $ini = ini_get($iniName);
+        return $ini === "on" || $ini === "yes" || $ini === "true" || (int) $ini;
     }
 
     /**

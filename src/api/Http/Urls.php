@@ -38,14 +38,52 @@ class Urls
     }
 
     /**
-     * Removes query string and fragment from a url.
+     * Removes query string and fragment and user information from a url.
      *
      * @param string $url
-     * @return string
+     * @param bool $dropUserInfo Optional. If `true`, removes the user information fragment instead of obfuscating it.
+     *                           Defaults to `false`.
      */
-    public static function sanitize($url)
+    public static function sanitize($url, $dropUserInfo = false)
     {
-        return strstr($url, '?', true) ?: $url;
+        /* The implementation of this method is an exact replica of \DDTrace\Util\Normalizer::urlSanitize() - and has to
+         * be kept in sync - until \DDTrace\Util\Normalizer::urlSanitize() will be removed as part of the PHP->C
+         * migration.
+         *
+         * Definition of unreserved and sub-delims in https://datatracker.ietf.org/doc/html/rfc3986#page-18
+         * Note: this implementation detects the following false positives and sanitize them even if they are valid and
+         * should not be sanitized (see: https://datatracker.ietf.org/doc/html/rfc3986#section-3.3)
+         *   - path fragments like /before/<something>:@<anything>/after => /before/?:@<anything>/after
+         *   - path fragments like /before/<something>:<something>@<anything>/after => /before/?:?@<anything>/after
+         * However, given how rare they are and the fact that we over-sanitize (rather than under-sanitize), it is
+         * believed that this represents a good trade-off between correctness and complexity.
+         */
+        $userinfoPattern = "[a-zA-Z0-9\-._~!$&'()*+,;=%?]+";
+        /*                   \            /\         /||
+         *                    \          /  \       / |↳ supports urls that might already be sanitized
+         *                     \        /    \_____/  ↳ percent escape (hexadecimal already included in 'unreserved')
+         *                      \______/        ↳ sub-delims https://datatracker.ietf.org/doc/html/rfc3986#section-2.2
+         *                          ↳ unreserved https://datatracker.ietf.org/doc/html/rfc3986#section-2.3
+         */
+
+        $sanitizedUserinfo = preg_replace(
+            [
+                "/${userinfoPattern}:@/",
+                "/${userinfoPattern}:${userinfoPattern}@/",
+            ],
+            [
+                $dropUserInfo ? '' : '<sanitized>:@',
+                $dropUserInfo ? '' : '<sanitized>:<sanitized>@',
+            ],
+            /*
+             * Skip the query string. There can only be one question mark as it is a reserved word
+             * and only allowed between path and query.
+             * See: https://datatracker.ietf.org/doc/html/rfc3986#section-3
+             */
+            $url
+        );
+
+        return \str_replace('<sanitized>', '?', strstr($sanitizedUserinfo, '?', true) ?: $sanitizedUserinfo);
     }
 
     /**
@@ -56,19 +94,67 @@ class Urls
      */
     public static function hostname($url)
     {
-        return (string) parse_url($url, PHP_URL_HOST);
+        $url = self::sanitize($url, true);
+        $unparsableUrl = 'unparsable-host';
+        $parts = \parse_url($url);
+        if (!$parts) {
+            return $unparsableUrl;
+        }
+
+        if (isset($parts['host'])) {
+            return $parts['host'];
+        }
+
+        if (empty($parts['path'])) {
+            return $unparsableUrl;
+        }
+
+        $path = $parts['path'];
+        if (\substr($path, 0, 1) === '/') {
+            // If the user by mistake directly provided an abs path, guzzle and curl
+            // will let a request go through, but there will be an error.
+            return 'unknown-host';
+        }
+
+        $pathFragments = \explode('/', $path);
+        return $pathFragments[0];
     }
 
     /**
      * Metadata keys must start with [a-zA-Z:] so IP addresses,
-     * for example, need to be prefixed with a valid character
+     * for example, need to be prefixed with a valid character.
+     *
+     * Note: then name of this function is misleading, as it should actually be normalizeUrlForService(), but since this
+     * part of the public API, we keep it like this and discuss a future deprecation.
      *
      * @param string $url
      * @return string
      */
     public static function hostnameForTag($url)
     {
+        $url = \trim($url);
+
+        // Common UDS protocols are treated differently as they are not recognized by parse_url()
+        $knownUnixProtocols = ['uds', 'unix', 'http+unix', 'https+unix'];
+        foreach ($knownUnixProtocols as $protocol) {
+            $length = \strlen($protocol);
+            if ($protocol . '://' === \substr($url, 0, $length + 3)) {
+                return 'socket-' . Urls::normalizeFileSystemPath(\substr($url, $length + 3));
+            }
+        }
+
         return 'host-' . self::hostname($url);
+    }
+
+    /**
+     * Replaces all groups of non-(alphabetical chatacters|numbers|dots) with character '-'.
+     *
+     * @param string $url
+     * @return string
+     */
+    private static function normalizeFileSystemPath($url)
+    {
+        return \trim(\preg_replace('/[^0-9a-zA-Z\.]+/', '-', \trim($url)), '-');
     }
 
     /**

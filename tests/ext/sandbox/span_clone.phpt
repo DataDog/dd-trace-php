@@ -22,7 +22,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (6) {
+object(DDTrace\SpanData)#%d (7) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -39,8 +39,10 @@ object(DDTrace\SpanData)#%d (6) {
   ["metrics"]=>
   array(0) {
   }
+  ["id"]=>
+  string(%d) "%d"
 }
-object(DDTrace\SpanData)#%d (6) {
+object(DDTrace\SpanData)#%d (7) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -57,6 +59,8 @@ object(DDTrace\SpanData)#%d (6) {
   ["metrics"]=>
   array(0) {
   }
+  ["id"]=>
+  string(%d) "%d"
 }
 array(1) {
   [0]=>
@@ -78,12 +82,18 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
+      ["_dd.p.upstream_services"]=>
+      string(29) "c3Bhbl9jbG9uZS5waHA|1|1|1.000"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
     }

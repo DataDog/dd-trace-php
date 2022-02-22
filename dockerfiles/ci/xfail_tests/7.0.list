@@ -130,6 +130,7 @@ ext/openssl/tests/capture_peer_cert_001.phpt
 ext/openssl/tests/openssl_error_string_basic.phpt
 ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
 ext/openssl/tests/openssl_pkcs7_decrypt_error.phpt
+ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt
 ext/openssl/tests/peer_verification.phpt
 ext/openssl/tests/san_peer_matching.phpt
 ext/openssl/tests/session_meta_capture.phpt

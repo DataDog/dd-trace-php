@@ -1,5 +1,16 @@
 #!/bin/bash --login
 
+# WARNING: apk packaging via fpm (https://github.com/jordansissel/fpm) can fail because the tar file generated is not
+# valid.
+# This has been tested both on our custom image (fpm 1.11.0, ruby 2.5, tar 1.29), and on a ruby 3.0-bullseye
+# (fpm 1.14.0, ruby 3.0, tar 1.34).
+# Packing fails if this script size in bytes is between <unknown> and 7680. This value has been found empirically and
+# measured via `wc -c`.
+# The issue seems related to this very specific file size only, as generating a package that includes only this script
+# (no binaries and sources) will result in the very same error.
+# Issue reported to the fpm project (https://github.com/jordansissel/fpm/issues/1866), see there for more details and
+# a reproduction case.
+
 EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions
 EXTENSION_CFG_DIR=${EXTENSION_BASE_DIR}/etc
@@ -148,9 +159,22 @@ function fail_print_and_exit() {
 }
 
 function verify_installation() {
-    invoke_php -m | grep ddtrace && \
+    invoke_php -m | grep -e "^ddtrace$" && \
         println "Extension enabled successfully" || \
         fail_print_and_exit
+}
+
+function verify_required_ext() {
+    ext_name="$1"
+    printf "Checking for extension: ${ext_name}\n"
+    output=$(invoke_php -m | grep -e "^${ext_name}$" || true)
+
+    if [ "${output}" == "${ext_name}" ]; then
+        printf "Extension '${ext_name}' was found.\n"
+    else
+        printf "Error: PHP extension '${ext_name}' was not found.\n"
+        exit 1
+    fi
 }
 
 println "PHP version"
@@ -168,7 +192,6 @@ println
 invoke_php -i > "$EXTENSION_LOGS_DIR/php-info.log"
 
 PHP_VERSION=$(invoke_php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
-PHP_MAJOR_MINOR=$(invoke_php -r 'echo PHP_MAJOR_VERSION;').$(invoke_php -r 'echo PHP_MINOR_VERSION;')
 PHP_CFG_DIR=$(invoke_php -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
 
 PHP_THREAD_SAFETY=$(invoke_php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
@@ -194,6 +217,8 @@ extension=${EXTENSION_FILE_PATH}
 datadog.trace.request_init_hook=${EXTENSION_AUTO_INSTRUMENTATION_FILE}
 EOF
 )
+
+verify_required_ext json
 
 if [[ ! -e $PHP_CFG_DIR ]]; then
     println

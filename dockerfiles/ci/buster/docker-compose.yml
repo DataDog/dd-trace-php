@@ -13,8 +13,8 @@ services:
       context: ./php-8.1
       args:
         phpVersion: 8.1
-        phpTarGzUrl: https://downloads.php.net/~ramsey/php-8.1.0RC4.tar.gz
-        phpSha256Hash: 6e4e0bba242149ac467ed9624f0b34d482dc53bf85aff2790a7b695fe91459ea
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.2.tar.gz
+        phpSha256Hash: 9992409c0543e0c8e89914f7307e1485a08c057091146e4731565b59065f8bde
 
   php-8.0:
     image: datadog/dd-trace-ci:php-8.0_buster
@@ -32,8 +32,8 @@ services:
       dockerfile: Dockerfile_shared_ext
       args:
         phpVersion: 8.0
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.8.tar.gz
-        phpSha256Hash: 084a1e8020e86fb99b663d195fd9ac98a9f37dfcb9ecb5c159054cdb8f388945
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.13.tar.gz
+        phpSha256Hash: b4c2d27c954e1b0d84fd4bfef4d252e154ba479e7db11abd89358f2164ee7cc8
 
   php-7.4:
     image: datadog/dd-trace-ci:php-7.4_buster
@@ -43,6 +43,16 @@ services:
         phpVersion: 7.4
         phpTarGzUrl: https://www.php.net/distributions/php-7.4.21.tar.gz
         phpSha256Hash: 4b9623accbe4b8923a801212f371f784069535009185e7bf7e4dec66bbea61db
+
+  php-7.4-shared-ext:
+    image: datadog/dd-trace-ci:php-7.4-shared-ext
+    build:
+      context: ./php-7.4
+      dockerfile: Dockerfile_shared_ext
+      args:
+        phpVersion: 7.4
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.26.tar.gz
+        phpSha256Hash: 890a7e730f96708a68a77b19fd57fec33cc81573f7249111c870edac42b91a72
 
   php-7.3:
     image: datadog/dd-trace-ci:php-7.3_buster
@@ -102,6 +112,16 @@ services:
     image: datadog/dd-trace-ci:php-5.4_buster
     build:
       context: ./php-5.4
+      args:
+        phpVersion: 5.4
+        phpTarGzUrl: https://www.php.net/distributions/php-5.4.45.tar.gz
+        phpSha256Hash: 25bc4723955f4e352935258002af14a14a9810b491a19400d76fcdfa9d04b28f
+
+  php-5.4-shared-ext:
+    image: datadog/dd-trace-ci:php-5.4-shared-ext
+    build:
+      context: ./php-5.4
+      dockerfile: Dockerfile_shared_ext
       args:
         phpVersion: 5.4
         phpTarGzUrl: https://www.php.net/distributions/php-5.4.45.tar.gz

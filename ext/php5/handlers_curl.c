@@ -1,3 +1,4 @@
+#include <curl/curl.h>
 #include <inttypes.h>
 #include <php.h>
 #include <stdbool.h>
@@ -6,7 +7,9 @@
 #include "ddtrace.h"
 #include "handlers_internal.h"
 #include "logging.h"
+#include "priority_sampling/priority_sampling.h"
 #include "random.h"
+#include "tracer_tag_propagation/tracer_tag_propagation.h"
 
 // True global - only modify during MINIT/MSHUTDOWN
 bool dd_ext_curl_loaded = false;
@@ -104,10 +107,16 @@ static void dd_inject_distributed_tracing_headers(zval *ch TSRMLS_DC) {
     }
 
     char *str;
-    int sampling_priority;
-    if (ddtrace_fetch_prioritySampling_from_root(&sampling_priority TSRMLS_CC)) {
-        spprintf(&str, 0, "x-datadog-sampling-priority: %d", sampling_priority);
+    long sampling_priority = ddtrace_fetch_prioritySampling_from_root(TSRMLS_C);
+    if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        spprintf(&str, 0, "x-datadog-sampling-priority: %ld", sampling_priority);
         add_next_index_string(headers, str, 0);
+    }
+    zai_string_view propagated_tags = ddtrace_format_propagated_tags(TSRMLS_C);
+    if (propagated_tags.ptr) {
+        spprintf(&str, 0, "x-datadog-tags: %s", propagated_tags.ptr);
+        add_next_index_string(headers, str, 0);
+        efree((char *)propagated_tags.ptr);
     }
     if (DDTRACE_G(trace_id)) {
         spprintf(&str, 0, "x-datadog-trace-id: %" PRIu64, DDTRACE_G(trace_id));
@@ -233,6 +242,10 @@ static void dd_multi_remove_handle(zval *mh, zval *ch TSRMLS_DC) {
         dd_multi_update_cache(mh, handles TSRMLS_CC);
         if (handles) {
             zend_hash_index_del(handles, Z_RESVAL_P(ch));
+            if (zend_hash_num_elements(handles) == 0) {
+                zend_hash_index_del(DDTRACE_G(curl_multi_handles), Z_RESVAL_P(mh));
+                dd_multi_update_cache(mh, NULL TSRMLS_CC);
+            }
         }
     }
 }
@@ -507,14 +520,47 @@ void ddtrace_curl_handlers_startup(void) {
     dd_ext_curl_loaded = true;
 }
 
+typedef struct {
+    struct {
+        char str[CURL_ERROR_SIZE + 1];
+        int no;
+    } err;
+    struct _php_curl_free *to_free;
+    struct {
+        char *str;
+        size_t str_len;
+    } header;
+    void ***thread_ctx;
+    void *cp;
+    void *handlers;
+    long id;  // the resource id, we need that one
+} php_curl;
+
+static dtor_func_t prev_resources_dtor;
+static void ddtrace_curl_tracking_resources_dtor(void *ptr) {
+    zend_rsrc_list_entry *le = (zend_rsrc_list_entry *)ptr;
+    TSRMLS_FETCH();
+    if (le->type == DDTRACE_G(le_curl) && DDTRACE_G(le_curl)) {
+        php_curl *curl = le->ptr;
+        zval res;
+        ZVAL_RESOURCE(&res, curl->id);
+        dd_ch_delete_headers(&res TSRMLS_CC);
+    }
+    prev_resources_dtor(ptr);
+}
+
 /* We don't need to initialize the request globals on RINIT like we do
  * on PHP 7 & 8 because the GINIT function php_ddtrace_init_globals()
  * will memset everything to 0.
  */
-// void ddtrace_curl_handlers_rinit(TSRMLS_D) {}
+void ddtrace_curl_handlers_rinit(TSRMLS_D) {
+    prev_resources_dtor = EG(regular_list).pDestructor;
+    EG(regular_list).pDestructor = ddtrace_curl_tracking_resources_dtor;
+}
 
 void ddtrace_curl_handlers_rshutdown(TSRMLS_D) {
     DDTRACE_G(le_curl) = 0;
+    EG(regular_list).pDestructor = prev_resources_dtor;
     if (DDTRACE_G(curl_headers)) {
         zend_hash_destroy(DDTRACE_G(curl_headers));
         FREE_HASHTABLE(DDTRACE_G(curl_headers));

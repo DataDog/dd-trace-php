@@ -17,6 +17,7 @@ x-aliases:
         - ddagent_integration
         - request-replayer
         - elasticsearch2_integration
+        - elasticsearch7_integration
         - httpbin_integration
         - redis_integration
         - mongodb_integration
@@ -50,6 +51,7 @@ services:
   '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
   # --- Buster ---
   '5.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_buster' }
+  '5.4-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4-shared-ext' }
   '5.5-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_buster' }
   '5.6-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_buster' }
   '7.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }
@@ -57,6 +59,7 @@ services:
   '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
   '7.3-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
   '7.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
+  '7.4-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext' }
   '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
   '8.0-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
   '8.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
@@ -85,6 +88,16 @@ services:
 
   elasticsearch2_integration:
     image: "elasticsearch:2"
+
+  elasticsearch7_integration:
+    image: "elasticsearch:7.17.0"
+    environment:
+      - discovery.type=single-node
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "9200:9200"
+      - "9300:9300"
 
   mongodb_integration:
     image: "circleci/mongo:4.0"
@@ -134,3 +147,9 @@ services:
     - DD_API_KEY=${DATADOG_API_KEY}
     - DD_APM_ENABLED=true
     - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
+
+  packager:
+    image: datadog/docker-library:ddtrace_php_fpm_packaging
+    working_dir: /app
+    volumes:
+      - .:/app

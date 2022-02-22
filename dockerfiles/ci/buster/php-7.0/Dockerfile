@@ -9,13 +9,15 @@ ENV PHP_VERSION=${phpVersion}
 FROM base as build
 ARG phpTarGzUrl
 ARG phpSha256Hash
+COPY 0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    ./buildconf --force;
+    ./buildconf --force; \
+    patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch;
 COPY configure.sh /home/circleci
 
 FROM build as php-debug-zts
@@ -71,7 +73,7 @@ RUN set -eux; \
         yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
         pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
         yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
-        pecl install mongodb; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
+        pecl install mongodb-1.9.2; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
         pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
         # Xdebug is disabled by default
         pecl install xdebug-2.7.2; \

@@ -242,7 +242,6 @@ final class SpanTest extends BaseTestCase
     public function testForceTracingTagKeepsTrace()
     {
         $span = $this->createSpan();
-        $this->assertSame(PrioritySampling::UNKNOWN, $this->tracer->getPrioritySampling());
         $span->setTag(Tag::MANUAL_KEEP, null);
         $this->assertSame(PrioritySampling::USER_KEEP, $this->tracer->getPrioritySampling());
     }
@@ -250,9 +249,11 @@ final class SpanTest extends BaseTestCase
     public function testForceDropTracingTagRejectsTrace()
     {
         $span = $this->createSpan();
-        $this->assertSame(PrioritySampling::UNKNOWN, $this->tracer->getPrioritySampling());
         $span->setTag(Tag::MANUAL_DROP, null);
         $this->assertSame(PrioritySampling::USER_REJECT, $this->tracer->getPrioritySampling());
+
+        // reset default
+        \DDTrace\set_priority_sampling(PrioritySampling::USER_KEEP, true);
     }
 
     public function testHasTag()

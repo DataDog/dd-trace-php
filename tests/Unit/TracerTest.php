@@ -34,6 +34,7 @@ final class TracerTest extends BaseTestCase
 
     protected function ddTearDown()
     {
+        \dd_trace_serialize_closed_spans();
         parent::ddTearDown();
         self::putenv('DD_TRACE_REPORT_HOSTNAME');
         self::putenv('DD_AUTOFINISH_SPANS');
@@ -148,25 +149,26 @@ final class TracerTest extends BaseTestCase
     {
         $tracer = new Tracer(new DebugTransport());
         $span = $tracer->startRootSpan(self::OPERATION_NAME)->getSpan();
-        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+        $this->assertSame(PrioritySampling::USER_KEEP, $tracer->getPrioritySampling());
         $span->metrics = [];
         $carrier = [];
         $tracer->inject($span->getContext(), Format::TEXT_MAP, $carrier);
-        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+        $this->assertSame(PrioritySampling::USER_KEEP, $tracer->getPrioritySampling());
     }
 
     public function testPrioritySamplingIsLazilyAssignedAndRefreshedBeforeFlush()
     {
         $tracer = new Tracer(new DebugTransport());
         $span = $tracer->startRootSpan(self::OPERATION_NAME)->getSpan();
-        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+        $this->assertSame(PrioritySampling::USER_KEEP, $tracer->getPrioritySampling());
         $span->metrics = [];
-        $tracer->flush();
-        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+        $this->assertSame(PrioritySampling::USER_KEEP, $tracer->getPrioritySampling());
     }
 
     public function testPrioritySamplingInheritedFromDistributedTracingContext()
     {
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+
         $distributedTracingContext = new SpanContext('', '', '', [], true);
         $distributedTracingContext->setPropagatedPrioritySampling(PrioritySampling::USER_REJECT);
         $tracer = new Tracer(new DebugTransport());
@@ -176,13 +178,40 @@ final class TracerTest extends BaseTestCase
         // We need to flush as priority sampling is lazily evaluated at inject time or flush time.
         $tracer->flush();
         $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
+
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
+    }
+
+    public function testTracingContextInheritedFromDistributedTracingContext()
+    {
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+
+        $distributedTracingContext = new SpanContext('1234', '4321', '', [], true);
+        $distributedTracingContext->origin = "datadog";
+        $tracer = new Tracer(new DebugTransport());
+        $span = $tracer->startRootSpan(self::OPERATION_NAME, [
+            'child_of' => $distributedTracingContext,
+        ])->getSpan();
+        $context = \DDTrace\current_context();
+        $this->assertSame("1234", $span->getTraceId());
+        $this->assertSame("4321", $span->getParentId());
+        $this->assertSame("datadog", $span->getContext()->origin);
+        $this->assertSame("1234", $context["trace_id"]);
+        $this->assertSame("4321", $context["distributed_tracing_parent_id"]);
+        $this->assertSame("datadog", $context["distributed_tracing_origin"]);
+
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
 
     public function testSpanStartedAtRootCanBeAccessedLater()
     {
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
+
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
         $this->assertSame($scope, $tracer->getRootScope());
+
+        self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
     }
 
     public function testFlushAddsHostnameToRootSpanWhenEnabled()
@@ -220,9 +249,6 @@ final class TracerTest extends BaseTestCase
     {
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN=0');
         dd_trace_internal_fn('ddtrace_reload_config');
-
-        // Clear existing internal spans
-        \dd_trace_serialize_closed_spans();
 
         \DDTrace\trace_function(__NAMESPACE__ . '\\baz', function () {
             // Do nothing
