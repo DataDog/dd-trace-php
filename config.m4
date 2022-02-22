@@ -39,6 +39,7 @@ if test "$PHP_DDTRACE" != "no"; then
   DD_TRACE_VENDOR_SOURCES="\
     ext/vendor/mpack/mpack.c \
     ext/vendor/mt19937/mt19937-64.c \
+    ext/vendor/zai/hook/uhook.c \
     src/dogstatsd/client.c \
   "
 
@@ -96,6 +97,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php5/exceptions.c \
       zend_abstract_interface/headers/php5/headers.c \
+      zend_abstract_interface/hook/hook.c \
       zend_abstract_interface/json/json.c \
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
@@ -146,6 +148,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php5/exceptions.c \
       zend_abstract_interface/headers/php5/headers.c \
+      zend_abstract_interface/hook/hook.c \
       zend_abstract_interface/json/json.c \
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
@@ -201,6 +204,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
+      zend_abstract_interface/hook/hook.c \
       zend_abstract_interface/json/json.c \
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
@@ -261,6 +265,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/env/env.c \
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
+      zend_abstract_interface/hook/hook.c \
       zend_abstract_interface/json/json.c \
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
@@ -312,6 +317,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php7-8])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/hook])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])
@@ -325,6 +331,9 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor/zai/hook])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor/zai/hook])
 
   PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor/mpack])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor/mpack])

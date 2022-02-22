@@ -10,6 +10,7 @@
 #include <Zend/zend_vm.h>
 #include <components/sapi/sapi.h>
 #include <headers/headers.h>
+#include <hook/hook.h>
 #include <inttypes.h>
 #include <php.h>
 #include <php_ini.h>
@@ -50,6 +51,8 @@
 #include "span.h"
 #include "startup_logging.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
+
+#include <zai/hook/uhook.h>
 
 bool ddtrace_has_excluded_module;
 
@@ -477,6 +480,11 @@ static void dd_read_distributed_tracing_ids(TSRMLS_D);
 
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
+
+    zai_hook_minit();
+
+    zai_uhook_minit();
+
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP", PRIORITY_SAMPLING_AUTO_KEEP,
                            CONST_CS | CONST_PERSISTENT);
@@ -535,6 +543,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
 static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
+
+    zai_uhook_mshutdown();
+
+    zai_hook_mshutdown();
 
     UNREGISTER_INI_ENTRIES();
 
@@ -627,6 +639,8 @@ static void dd_initialize_request(TSRMLS_D) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
+    zai_hook_rinit();
+
     if (ddtrace_has_excluded_module == true) {
         DDTRACE_G(disable) = 2;
     }
@@ -679,6 +693,8 @@ static void dd_clean_globals(TSRMLS_D) {
 
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
+
+    zai_hook_rshutdown();
 
     if (!get_DD_TRACE_ENABLED()) {
         ddtrace_dispatch_destroy(TSRMLS_C);

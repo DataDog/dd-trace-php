@@ -14,7 +14,9 @@ set_target_properties(zai_hook PROPERTIES EXPORT_NAME Hook
 add_library(Zai::Hook ALIAS zai_hook)
 
 if(${BUILD_ZAI_TESTING})
-  add_subdirectory(tests)
+  if (PHP_VERSION_ID GREATER_EQUAL 50500)
+      add_subdirectory(tests)
+  endif()
 endif()
 
 install(
