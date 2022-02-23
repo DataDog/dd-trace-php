@@ -16,7 +16,7 @@ extern "C" {
         zai_hook_rinit();
         // test ZEND_DECLARE_*_DELAYED opcodes for opcache
         CG(compiler_options) |= ZEND_COMPILE_DELAYED_BINDING;
-        zai_interceptor_rinit();
+        zai_interceptor_rinit(ZAI_TSRMLS_C);
         return SUCCESS;
     }
 
@@ -38,7 +38,9 @@ extern "C" {
 
     static void init_interceptor_test() {
         tea_extension_op_array_ctor(zai_interceptor_op_array_ctor);
+#if PHP_VERSION_ID >= 70000
         tea_extension_op_array_handler(zai_interceptor_op_array_pass_two);
+#endif
         tea_extension_startup(ddtrace_testing_startup);
         tea_extension_minit(PHP_MINIT(ddtrace_testing_hook));
         tea_extension_rinit(PHP_RINIT(ddtrace_testing_hook));
@@ -164,8 +166,10 @@ INTERCEPTOR_TEST_CASE("runtime class_alias resolving", {
     REQUIRE(zai_hook_resolved_table_find(zai_hook_install_address(fn), &ht));
 });
 
+#if PHP_VERSION_ID >= 70000  // not a scenario which can happen on PHP 5
 INTERCEPTOR_TEST_CASE("ensure runtime post-declare resolving does not impact error", {
     INSTALL_CLASS_HOOK("Inherited", "bar");
     CALL_FN("failDeclare", REQUIRE(zval_is_true(result)););
     REQUIRE(zend_hash_num_elements(&zai_hook_resolved) == 0);
 });
+#endif

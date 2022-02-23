@@ -324,10 +324,11 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
     zend_function *func = execute_data->func;
     if (UNEXPECTED(zai_hook_resolved_table_find((zend_ulong)func, &hooks))) {
         zai_interceptor_frame_memory frame_memory;
-        if (zai_hook_continue(execute_data, &frame_memory.hook_data)) {
-            frame_memory.execute_data = execute_data;
-            zai_hook_memory_table_insert(execute_data, &frame_memory);
+        if (!zai_hook_continue(execute_data, &frame_memory.hook_data)) {
+            goto skip;
         }
+        frame_memory.execute_data = execute_data;
+        zai_hook_memory_table_insert(execute_data, &frame_memory);
 
         // we do not use try / catch here as to preserve order of hooks, LIFO style, in bailout handler
         if (prev) {
@@ -339,6 +340,7 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
         zai_hook_finish(execute_data, return_value, &frame_memory.hook_data);
         zai_hook_memory_table_del(execute_data);
     } else {
+        skip: ;
         if (prev) {
             prev_execute_internal(execute_data, return_value);
         } else {

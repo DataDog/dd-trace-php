@@ -129,12 +129,29 @@ function generatorWithFinallyReturn() {
     try {
         yield;
     } finally {
-        return "RETVAL";
+        return;
     }
 }
 
+if (PHP_VERSION_ID >= 70000) eval(<<<DECL
+function generatorWithFinallyReturnValue() {
+    try {
+        yield;
+    } finally {
+        return "RETVAL";
+    }
+}
+DECL
+);
+
 function runGeneratorWithFinallyReturn() {
     $g = generatorWithFinallyReturn();
+    $g->valid();
+    return $g;
+}
+
+function runGeneratorWithFinallyReturnValue() {
+    $g = generatorWithFinallyReturnValue();
     $g->valid();
     return $g;
 }
