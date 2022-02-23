@@ -7,8 +7,32 @@ extern "C" {
 #include <ext/standard/basic_functions.h>
 #if PHP_VERSION_ID >= 80000
 #include <interceptor/php8/interceptor.h>
-#else
+#elif PHP_VERSION_ID >= 70000
 #include <interceptor/php7/interceptor.h>
+#else
+#include <interceptor/php5/interceptor.h>
+#endif
+#if PHP_VERSION_ID < 50600
+static int user_shutdown_function_call(php_shutdown_function_entry *shutdown_function_entry TSRMLS_DC) /* {{{ */
+{
+    zval retval;
+
+    if (call_user_function(EG(function_table), NULL,
+                           shutdown_function_entry->arguments[0],
+                           &retval,
+                           shutdown_function_entry->arg_count - 1,
+                           shutdown_function_entry->arguments + 1
+                               TSRMLS_CC ) == SUCCESS)
+    {
+        zval_dtor(&retval);
+    }
+    return 0;
+}
+
+static void php_call_shutdown_functions(TSRMLS_D) /* {{{ */
+{
+    zend_hash_apply(BG(user_shutdown_function_names), (apply_func_t) user_shutdown_function_call TSRMLS_CC);
+}
 #endif
 
     static PHP_MINIT_FUNCTION(ddtrace_testing_hook) {
@@ -21,7 +45,7 @@ extern "C" {
 
     static PHP_RINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_rinit();
-        zai_interceptor_rinit();
+        zai_interceptor_rinit(ZAI_TSRMLS_C);
         return SUCCESS;
     }
 
@@ -46,7 +70,9 @@ extern "C" {
     static void init_interceptor_test() {
 #if PHP_VERSION_ID < 80000
         tea_extension_op_array_ctor(zai_interceptor_op_array_ctor);
+#if PHP_VERSION_ID >= 70000
         tea_extension_op_array_handler(zai_interceptor_op_array_pass_two);
+#endif
 #endif
         tea_extension_startup(ddtrace_testing_startup);
         tea_extension_minit(PHP_MINIT(ddtrace_testing_hook));
@@ -66,7 +92,11 @@ static void reset_interceptor_test_globals() {
     zai_hook_test_begin_invocations = 0;
     zai_hook_test_end_invocations = 0;
     zai_hook_test_end_has_exception = 0;
+#if PHP_VERSION_ID < 70000
+    Z_TYPE(zai_hook_test_last_rv) = 0xFF;
+#else
     Z_TYPE_INFO(zai_hook_test_last_rv) = 0xFF;
+#endif
 }
 
 static bool zai_hook_test_begin(zend_execute_data *ex, void *fixed, void *dynamic TEA_TSRMLS_DC) {
@@ -150,6 +180,7 @@ INTERCEPTOR_TEST_CASE("user function throws despite catch blocks", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
+#if PHP_VERSION_ID >= 50500
 INTERCEPTOR_TEST_CASE("user function throws despite finally blocks", {
     INSTALL_HOOK("functionWithFinallyDoesThrow");
     CALL_FN("runFunctionWithFinallyDoesThrow");
@@ -167,7 +198,10 @@ INTERCEPTOR_TEST_CASE("user function with finally-discarded exception", {
     CHECK(zai_hook_test_end_has_exception == 0);
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_LONG);
 });
+#endif
 
+#if PHP_VERSION_ID >= 50500
+// PHP 5.4 doesn't check zend_execute_internal in zend_call_function
 INTERCEPTOR_TEST_CASE("direct internal function intercepting", {
     INSTALL_HOOK("time");
     CALL_FN("time");
@@ -175,6 +209,7 @@ INTERCEPTOR_TEST_CASE("direct internal function intercepting", {
     CHECK(zai_hook_test_end_invocations == 1);
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_LONG);
 });
+#endif
 
 INTERCEPTOR_TEST_CASE("user calls internal function intercepting", {
     INSTALL_HOOK("time");
@@ -193,6 +228,7 @@ INTERCEPTOR_TEST_CASE("internal function throws", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
+#if PHP_VERSION_ID >= 50500
 INTERCEPTOR_TEST_CASE("generator function intercepting from internal call", {
     INSTALL_HOOK("generator");
     CALL_FN("generator", CHECK(zai_hook_test_end_invocations == 0););
@@ -247,8 +283,19 @@ INTERCEPTOR_TEST_CASE("generator with finally and return intercepting", {
     CALL_FN("runGeneratorWithFinallyReturn", CHECK(zai_hook_test_end_invocations == 0););
     CHECK(zai_hook_test_begin_invocations == 1);
     CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+#endif
+
+#if PHP_VERSION_ID >= 70000  // generator return values are only supported from PHP 7 on
+INTERCEPTOR_TEST_CASE("generator with finally and return value intercepting", {
+    INSTALL_HOOK("generatorWithFinallyReturnValue");
+    CALL_FN("runGeneratorWithFinallyReturnValue", CHECK(zai_hook_test_end_invocations == 0););
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_end_invocations == 1);
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_STRING);
 });
+#endif
 
 INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     INSTALL_HOOK("bailout");
@@ -264,7 +311,7 @@ INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     CHECK(zai_hook_test_begin_invocations == 1);
     CHECK(zai_hook_test_end_invocations == 0);
 
-    php_call_shutdown_functions();
+    php_call_shutdown_functions(ZAI_TSRMLS_C);
 #endif
 
     CHECK(zai_hook_test_begin_invocations == 1);
