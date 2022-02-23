@@ -985,12 +985,12 @@ jobs:
       - run:
           name: "Increase virtual memory limit for elasticsearch"
           command: sudo sysctl -w vm.max_map_count=262144
-      - run:
-          name: Copy tracer package
-          command: make -C tests/randomized library.download LIBRARY_TEST_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.70.0/dd-library-php-0.70.0-x86_64-linux-gnu.tar.gz
       # - run:
       #     name: Copy tracer package
-      #     command: make -C tests/randomized library.local
+          # command: make -C tests/randomized library.download LIBRARY_TEST_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.70.0/dd-library-php-0.70.0-x86_64-linux-gnu.tar.gz
+      - run:
+          name: Copy tracer package
+          command: make -C tests/randomized library.local
       - run:
           name: Pull docker images
           command: make -C tests/randomized pull
