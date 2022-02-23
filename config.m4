@@ -249,8 +249,12 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/span.c \
       ext/php8/startup_logging.c \
       ext/php8/tracer_tag_propagation/tracer_tag_propagation.c \
-      ext/php8/weakrefs.c \
     "
+    if test $PHP_VERSION_ID -lt 80200; then
+      DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
+        ext/php8/weakrefs.c \
+      "
+    fi
 
     ZAI_SOURCES="\
       zend_abstract_interface/config/config.c \
@@ -280,13 +284,15 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
 
-  dnl Only export symbols defined in ddtrace.sym, which should all be marked as
-  dnl DDTRACE_PUBLIC in their source files as well.
-  EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-  EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym"
+  if test "$ext_shared" = "yes"; then
+    dnl Only export symbols defined in ddtrace.sym, which should all be marked as
+    dnl DDTRACE_PUBLIC in their source files as well.
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym"
 
-  PHP_SUBST(EXTRA_CFLAGS)
-  PHP_SUBST(EXTRA_LDFLAGS)
+    PHP_SUBST(EXTRA_CFLAGS)
+    PHP_SUBST(EXTRA_LDFLAGS)
+  fi
 
   PHP_ADD_INCLUDE([$ext_srcdir])
   PHP_ADD_INCLUDE([$ext_srcdir/ext])

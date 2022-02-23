@@ -6,15 +6,16 @@ use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Elasticsearch\Client;
+use Elasticsearch\ClientBuilder;
 
 // also drops empty arrays
-function keep_non_symfony_spans($span)
+function keep_non_symfony_and_curl_spans($span)
 {
     if (!\is_array($span)) {
         return true;
     }
     if (isset($span['name'])) {
-        return \strpos($span['name'], 'symfony.') !== 0;
+        return \strpos($span['name'], 'symfony.') !== 0 && \strpos($span['name'], 'curl') !== 0 ;
     }
     return !empty($span);
 }
@@ -36,7 +37,8 @@ function array_filter_recursive(callable $keep_fn, array $input)
  */
 class ElasticSearchIntegrationTest extends IntegrationTestCase
 {
-    const HOST = 'elasticsearch2_integration';
+    const HOST2 = 'elasticsearch2_integration';
+    const HOST7 = 'elasticsearch7_integration';
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {
@@ -104,11 +106,11 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         ]);
         $client->indices()->flush();
         $traces = $this->isolateTracer(function () use ($client) {
-            $this->assertInternalType('array', $client->delete([
+            $this->assertSame('array', gettype($client->delete([
                 'id' => 1,
                 'index' => 'my_index',
                 'type' => 'my_type',
-            ]));
+            ])));
         });
 
         $this->assertFlameGraph($traces, [
@@ -175,6 +177,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             'body' => ['my' => 'body'],
         ]);
         $client->indices()->flush();
+        if (PHP_VERSION_ID >= 70300) {
+            sleep(1); // to flush it fully
+        }
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('explanation', $client->explain([
                 'id' => 1,
@@ -251,12 +256,13 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     {
         $client = $this->client();
         $traces = $this->isolateTracer(function () use ($client) {
-            $this->assertArrayHasKey('created', $client->index([
+            $response = $client->index([
                 'id' => 1,
                 'index' => 'my_index',
                 'type' => 'my_type',
                 'body' => ['my' => 'body'],
-            ]));
+            ]);
+            $this->assertTrue(empty($response['created']) || $response['result'] === 'updated');
         });
 
         $this->assertFlameGraph($traces, [
@@ -294,13 +300,12 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             ]);
             $client->indices()->flush();
             $docs = $client->search([
-                'search_type' => 'scan',
                 'scroll' => '1s',
                 'size' => 1,
                 'index' => 'my_index',
                 'body' => [
                     'query' => [
-                        'match_all' => [],
+                        'match_all' => new \stdClass(),
                     ],
                 ],
             ]);
@@ -337,21 +342,30 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function testScroll()
     {
         $client = $this->client();
+        $client->indices()->delete(['index' => 'my_index']);
         $client->index([
             'id' => 1,
             'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
+        $client->index([
+            'id' => 2,
+            'index' => 'my_index',
+            'type' => 'my_type',
+            'body' => ['my' => 'second'],
+        ]);
         $client->indices()->flush();
+        if (PHP_VERSION_ID >= 70300) {
+            sleep(1); // to flush it fully
+        }
         $docs = $client->search([
-            'search_type' => 'scan',
             'scroll' => '1s',
             'size' => 1,
             'index' => 'my_index',
             'body' => [
                 'query' => [
-                    'match_all' => [],
+                    'match_all' => new \stdClass(),
                 ],
             ],
         ]);
@@ -416,7 +430,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'index' => 'my_index',
                 'body' => [
                     'query' => [
-                        'match_all' => [],
+                        'match_all' => new \stdClass(),
                     ],
                 ],
             ]);
@@ -460,7 +474,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'index' => 'my_index',
                 'body' => [
                     'query' => [
-                        'match_all' => [],
+                        'match_all' => new \stdClass(),
                     ],
                 ],
             ]);
@@ -476,9 +490,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                         'performRequest'
                     )->withExactTags([
                         'elasticsearch.url' => '/my_index/_search',
-                        'elasticsearch.method' => 'GET',
+                        'elasticsearch.method' => \PHP_VERSION_ID >= 70300 ? 'POST' : 'GET',
                         'elasticsearch.params' => '[]',
-                        'elasticsearch.body' => '{"query":{"match_all":[]}}'
+                        'elasticsearch.body' => '{"query":{"match_all":{}}}'
                     ])->withChildren([
                         SpanAssertion::exists(
                             'Elasticsearch.Serializers.SmartSerializer.serialize',
@@ -560,7 +574,10 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
 
     public function namespacesDataProvider()
     {
-        return [
+        return array_map(function ($i) {
+            unset($i[2]);
+            return $i;
+        }, array_filter([
             // indices operations
             ['indices', 'analyze'],
             ['indices', 'analyze'],
@@ -569,9 +586,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             ['indices', 'create'],
             ['indices', 'delete'],
             ['indices', 'deleteAlias'],
-            ['indices', 'deleteMapping'],
+            ['indices', 'deleteMapping', \PHP_VERSION_ID < 70300],
             ['indices', 'deleteTemplate'],
-            ['indices', 'deleteWarmer'],
+            ['indices', 'deleteWarmer', \PHP_VERSION_ID < 70300],
             ['indices', 'exists'],
             ['indices', 'existsAlias'],
             ['indices', 'existsTemplate'],
@@ -583,20 +600,20 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             ['indices', 'getMapping'],
             ['indices', 'getSettings'],
             ['indices', 'getTemplate'],
-            ['indices', 'getWarmer'],
+            ['indices', 'getWarmer', \PHP_VERSION_ID < 70300],
             ['indices', 'open'],
-            ['indices', 'optimize'],
+            ['indices', 'optimize', \PHP_VERSION_ID < 70300],
             ['indices', 'putAlias'],
             ['indices', 'putMapping'],
             ['indices', 'putSettings'],
             ['indices', 'putTemplate'],
-            ['indices', 'putWarmer'],
+            ['indices', 'putWarmer', \PHP_VERSION_ID < 70300],
             ['indices', 'recovery'],
             ['indices', 'refresh'],
             ['indices', 'segments'],
-            ['indices', 'snapshotIndex'],
+            ['indices', 'snapshotIndex', \PHP_VERSION_ID < 70300],
             ['indices', 'stats'],
-            ['indices', 'status'],
+            ['indices', 'status', \PHP_VERSION_ID < 70300],
             ['indices', 'updateAliases'],
             ['indices', 'validateQuery'],
 
@@ -637,9 +654,11 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             // nodes operations
             ['nodes', 'hotThreads'],
             ['nodes', 'info'],
-            ['nodes', 'shutdown'],
+            ['nodes', 'shutdown', \PHP_VERSION_ID < 70300],
             ['nodes', 'stats'],
-        ];
+        ], function ($i) {
+            return !isset($i[2]) || $i[2];
+        }));
     }
 
     /**
@@ -647,11 +666,11 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
      */
     protected function client()
     {
-        return new Client([
-            'hosts' => [
-                'elasticsearch2_integration',
-            ],
-        ]);
+        if (PHP_VERSION_ID >= 70300) {
+            return ClientBuilder::create()->setHosts([self::HOST7])->build();
+        } else {
+            return new Client(['hosts' => [self::HOST2]]);
+        }
     }
 
     /**
@@ -662,7 +681,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function isolateLimitedTracer($fn, $tracer = null)
     {
         $traces = parent::isolateLimitedTracer($fn, $tracer);
-        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_spans', $traces);
+        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_and_curl_spans', $traces);
     }
 
     /**
@@ -674,6 +693,6 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function isolateTracer($fn, $tracer = null, $config = [])
     {
         $traces = parent::isolateTracer($fn, $tracer);
-        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_spans', $traces);
+        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_and_curl_spans', $traces);
     }
 }

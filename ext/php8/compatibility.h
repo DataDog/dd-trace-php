@@ -49,6 +49,7 @@
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
+#if PHP_VERSION_ID < 80200
 #define zend_weakrefs_hash_add zend_weakrefs_hash_add_fallback
 #define zend_weakrefs_hash_del zend_weakrefs_hash_del_fallback
 #define zend_weakrefs_hash_add_ptr zend_weakrefs_hash_add_ptr_fallback
@@ -65,5 +66,12 @@ static zend_always_inline void *zend_weakrefs_hash_add_ptr(HashTable *ht, zend_o
         return NULL;
     }
 }
+
+static zend_always_inline zend_ulong zend_object_to_weakref_key(const zend_object *object) { return (uintptr_t)object; }
+
+static zend_always_inline zend_object *zend_weakref_key_to_object(zend_ulong key) {
+    return (zend_object *)(uintptr_t)key;
+}
+#endif
 
 #endif  // DD_COMPATIBILITY_H

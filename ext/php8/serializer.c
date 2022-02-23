@@ -41,9 +41,13 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
     zend_long num_key;
     bool is_assoc = 0;
 
+#if PHP_VERSION_ID >= 80100
+    is_assoc = !zend_array_is_list(ht);
+#else
     Bucket *bucket;
     ZEND_HASH_FOREACH_BUCKET(ht, bucket) { is_assoc = is_assoc || bucket->key != NULL; }
     ZEND_HASH_FOREACH_END();
+#endif
 
     if (is_assoc) {
         mpack_start_map(writer, zend_hash_num_elements(ht));

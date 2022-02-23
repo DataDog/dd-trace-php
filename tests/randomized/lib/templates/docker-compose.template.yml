@@ -45,10 +45,12 @@ services:
       - ./www.php-fpm.conf:/etc/php-fpm.d/www.conf
       - ./www.apache.conf:/etc/httpd/conf.d/www.conf
       - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
+      - ./cli-runner.sh:/cli-runner.sh
       - ../.library-versions:/tmp/library-versions
       - ../.results/{{identifier}}/:/results/
       - ../.results/{{identifier}}/nginx:/var/log/nginx
       - ../.results/{{identifier}}/php-fpm:/var/log/php-fpm
+      - ../.results/{{identifier}}/php:/var/log/php
       - ../.results/{{identifier}}/apache:/var/log/httpd/
       - ../.results/{{identifier}}/corefiles:/tmp/corefiles
     environment:
