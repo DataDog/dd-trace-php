@@ -33,16 +33,28 @@ find_library(
 add_library(tea-libphp INTERFACE)
 set_target_properties(tea-libphp PROPERTIES EXPORT_NAME PHP)
 target_link_libraries(tea-libphp INTERFACE "${PHP_LIB}")
-target_include_directories(tea-libphp INTERFACE
-  "${PHP_PREFIX_PATH}/include/php" "${PHP_PREFIX_PATH}/include/php/TSRM"
-  "${PHP_PREFIX_PATH}/include/php/Zend" "${PHP_PREFIX_PATH}/include/php/main")
+target_include_directories(
+  tea-libphp
+  INTERFACE "${PHP_PREFIX_PATH}/include/php"
+            "${PHP_PREFIX_PATH}/include/php/TSRM"
+            "${PHP_PREFIX_PATH}/include/php/Zend"
+            "${PHP_PREFIX_PATH}/include/php/main")
 
-add_library(Tea src/extension.c src/error.c src/frame.c src/exceptions.c src/ini.c src/io.c src/sapi.c)
+add_library(
+  Tea
+  src/extension.c
+  src/error.c
+  src/frame.c
+  src/exceptions.c
+  src/ini.c
+  src/io.c
+  src/sapi.c)
 
 target_include_directories(
-  Tea PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>
-             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+  Tea
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(Tea PUBLIC c_std_99)
 
@@ -94,9 +106,8 @@ install(
         ${CMAKE_CURRENT_SOURCE_DIR}/include/exceptions.h
         ${CMAKE_CURRENT_SOURCE_DIR}/include/sapi.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea)
-install(
-  FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/testing/catch2.hpp
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea/testing)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/testing/catch2.hpp
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea/testing)
 # Copy the static library on install
 install(
   TARGETS Tea tea-libphp
