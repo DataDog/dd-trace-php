@@ -1,6 +1,6 @@
+#include <Zend/zend_extensions.h>
 #include <include/extension.h>
 #include <include/sapi.h>
-#include <Zend/zend_extensions.h>
 
 // clang-format off
 #define TEA_EXTENSION_NAME_MAX_LEN 128

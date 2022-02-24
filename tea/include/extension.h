@@ -76,6 +76,6 @@ void tea_extension_functions(const zend_function_entry *entry); /* }}} */
 /*
  * Shall return a dummy extension module (not registered)
  */
-zend_module_entry* tea_extension_dummy();
+zend_module_entry *tea_extension_dummy();
 
 #endif  // TEA_EXTENSION_H
