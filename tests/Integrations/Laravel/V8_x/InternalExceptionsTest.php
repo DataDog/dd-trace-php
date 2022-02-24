@@ -26,8 +26,8 @@ class InternalExceptionsTest extends WebFrameworkTestCase
         ]);
     }
 
-    public function testNotImplemented() {
-
+    public function testNotImplemented()
+    {
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('Test internal exceptions are not reported', '/not-implemented'));
         });
@@ -51,11 +51,15 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
                     ])
-                    ->setError()
+                    ->setError(
+                        'Symfony\Component\HttpKernel\Exception\HttpException',
+                        'Not Implemented',
+                        true
+                    )
                     ->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'not-implemented')
-                            ->withExactTags([
-                            ]),
+                            ->setError('Symfony\Component\HttpKernel\Exception\HttpException')
+                            ->withExistingTagsNames(['error.msg', 'error.stack']),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
@@ -92,17 +96,20 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         '_sampling_priority_v1' => 1,
                     ])
                     ->withChildren([
-                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'unauthorized')
-                            ->withExactTags([]),
-                        SpanAssertion::exists(
-                            'laravel.provider.load',
-                            'Illuminate\Foundation\ProviderRepository::load'
-                        ),
                         SpanAssertion::build(
                             'laravel.view.render',
                             'laravel_test_app',
                             'web',
-                            '403.blade.php'
+                            'errors::403'
+                        )->withChildren([
+                            SpanAssertion::exists('laravel.view'),
+                        ]),
+                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'unauthorized')
+                            ->setError()
+                            ->withExistingTagsNames(['error.msg', 'error.stack']),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
                         ),
                     ]),
             ]
