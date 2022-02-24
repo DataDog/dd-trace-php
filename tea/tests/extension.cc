@@ -47,6 +47,8 @@ extern "C" {
         PHP_FE(tea_extension_function_four,  tea_extension_function_arginfo)
         PHP_FE_END
     };
+
+    static zend_module_entry* tea_extension_dummy_test;
 }
 
 #include <include/testing/catch2.hpp>
@@ -292,4 +294,14 @@ TEA_TEST_CASE_BARE("tea/extension", "functions multiple", {
     CHECK(zend_hash_str_exists(EG(function_table), "tea_extension_function_three", sizeof("tea_extension_function_three")-1));
     CHECK(zend_hash_str_exists(EG(function_table), "tea_extension_function_four", sizeof("tea_extension_function_four")-1));
 #endif
+});
+
+TEA_TEST_CASE_WITH_PROLOGUE("tea/extension", "dummy", {
+    tea_extension_dummy_test = tea_extension_dummy();
+    tea_extension_dummy_test->name = "dummy";
+}, {
+    REQUIRE(tea_extension_dummy_test);
+    REQUIRE(memcmp(
+        tea_extension_dummy_test->name,
+        "dummy", sizeof("dummy")-1) == 0);
 });
