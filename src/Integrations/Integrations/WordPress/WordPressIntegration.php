@@ -36,13 +36,13 @@ class WordPressIntegration extends Integration
 
         $integration = $this;
 
-        // This call happens right after WP registers an autoloader for the first time
-        \DDTrace\hook_method('Requests', 'set_certificate_path', null, function () use ($integration) {
+        // This call happens right in central config initialization
+        \DDTrace\hook_function('wp_check_php_mysql_versions', null, function () use ($integration) {
             if (!isset($GLOBALS['wp_version']) || !is_string($GLOBALS['wp_version'])) {
                 return false;
             }
-            $majorVersion = substr($GLOBALS['wp_version'], 0, 2);
-            if ('4.' === $majorVersion || '5.' === $majorVersion) {
+            $majorVersion = substr($GLOBALS['wp_version'], 0, 1);
+            if ($majorVersion >= 4) {
                 $loader = new WordPressIntegrationLoader();
                 $loader->load($integration);
             }

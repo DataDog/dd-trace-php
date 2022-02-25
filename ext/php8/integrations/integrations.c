@@ -11,6 +11,10 @@
 #define DD_SET_UP_DEFERRED_LOADING_BY_METHOD(name, Class, fname, integration)                                \
     dd_set_up_deferred_loading_by_method(name, DDTRACE_STRING_LITERAL(Class), DDTRACE_STRING_LITERAL(fname), \
                                          DDTRACE_STRING_LITERAL(integration))
+
+#define DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(name, fname, integration)                           \
+    dd_set_up_deferred_loading_by_method(name, (ddtrace_string){0}, DDTRACE_STRING_LITERAL(fname), \
+                                         DDTRACE_STRING_LITERAL(integration))
 /**
  * DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)
  *
@@ -57,22 +61,6 @@ void ddtrace_integrations_minit(void) {
 
 void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_integration_name_map); }
 
-#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)                                         \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class_str), DDTRACE_STRING_LITERAL(fname_str), \
-                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK)
-
-/* Due to negative lookup caching, we need to have a list of all things we
- * might instrument so that if a call is made to something we want to later
- * instrument but is not currently instrumented, that we don't cache this.
- *
- * We should improve how this list is made in the future instead of hard-
- * coding known integrations (and for now only the problematic ones).
- */
-static void dd_register_known_calls(void) {
-    DDTRACE_KNOWN_INTEGRATION("wpdb", "query");
-    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire");
-}
-
 static void dd_load_test_integrations(void) {
     char* test_deferred = getenv("_DD_LOAD_TEST_INTEGRATIONS");
     if (!test_deferred) {
@@ -93,7 +81,6 @@ static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, 
 }
 
 void ddtrace_integrations_rinit(void) {
-    dd_register_known_calls();
     dd_load_test_integrations();
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELASTICSEARCH, "elasticsearch\\client", "__construct",
@@ -128,6 +115,9 @@ void ddtrace_integrations_rinit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
                                          "DDTrace\\Integrations\\Slim\\SlimIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_WORDPRESS, "wp_check_php_mysql_versions",
+                                           "DDTrace\\Integrations\\WordPress\\WordPressIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_YII, "yii\\di\\Container", "__construct",
                                          "DDTrace\\Integrations\\Yii\\YiiIntegration");
