@@ -80,6 +80,8 @@ zval ddtrace_get_propagated_tags(void) {
 }
 
 zend_string *ddtrace_format_propagated_tags(void) {
+    return NULL;
+
     // we propagate all tags on the current root span which were originally propagated, including the explicitly
     // defined tags here
     zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.upstream_services"));
