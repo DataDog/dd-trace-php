@@ -162,7 +162,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             } else {
                 // See phpunit_error.log in CircleCI artifacts
                 error_log("[request] '{$method} {$url}' (attempt #{$i})");
-                error_log("[response] {$response}");
                 break;
             }
         }
