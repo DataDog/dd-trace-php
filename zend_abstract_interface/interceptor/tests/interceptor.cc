@@ -273,10 +273,15 @@ INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     ZAI_VALUE_INIT(result);
     zai_string_view _fn_name = ZAI_STRL_VIEW("bailout");
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result TEA_TSRMLS_CC, 0) == false);
+
+    REQUIRE(CG(unclean_shutdown));
+
+#if PHP_VERSION_ID < 80000
     CHECK(zai_hook_test_begin_invocations == 1);
     CHECK(zai_hook_test_end_invocations == 0);
 
     php_call_shutdown_functions();
+#endif
 
     CHECK(zai_hook_test_begin_invocations == 1);
     CHECK(zai_hook_test_end_invocations == 1);

@@ -1,4 +1,4 @@
-add_executable(symbols 
+set(symbols_files
     lookup/class.cc
     lookup/function.cc 
     lookup/constant.cc 
@@ -13,6 +13,12 @@ add_executable(symbols
     api/function.cc
     api/property.cc
     api/call.cc)
+
+if (PHP_VERSION_ID GREATER_EQUAL "50500")
+    set(symbols_files ${symbols_files} call/generator.cc)
+endif()
+
+add_executable(symbols ${symbols_files})
 
 target_link_libraries(symbols PUBLIC catch2_main Tea::Tea Zai::Value Zai::Symbols)
 

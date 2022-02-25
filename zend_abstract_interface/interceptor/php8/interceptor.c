@@ -19,6 +19,24 @@ static inline bool zai_hook_memory_table_del(zend_execute_data *index) {
     return zend_hash_index_del(&zai_hook_memory, ((zend_ulong)index) >> 4);
 }
 
+static void zai_hook_safe_finish(register zend_execute_data *execute_data, register zval *retval, register zai_hook_memory_t *frame_memory) {
+    if (!CG(unclean_shutdown)) {
+        zai_hook_finish(execute_data, retval, frame_memory);
+        return;
+    }
+
+    // executing code may write to the stack as normal part of its execution. Jump onto a temporary stack here... to avoid messing with stack allocated data
+    JMP_BUF target;
+    const size_t stack_size = 1 << 17;
+    void *volatile stack = malloc(stack_size);
+    if (SETJMP(target) == 0) {
+        void *stacktop = stack + stack_size;
+        __asm__ volatile("mov %0, %%rsp" : : "r"(stacktop));
+        zai_hook_finish(execute_data, retval, frame_memory);
+        LONGJMP(target, 1);
+    }
+    free(stack);
+}
 
 static void zai_interceptor_observer_begin_handler(zend_execute_data *execute_data) {
     zai_hook_memory_t frame_memory;
@@ -35,7 +53,7 @@ static void zai_interceptor_observer_end_handler(zend_execute_data *execute_data
             ZVAL_NULL(&rv);
             retval = &rv;
         }
-        zai_hook_finish(execute_data, retval, frame_memory);
+        zai_hook_safe_finish(execute_data, retval, frame_memory);
         zai_hook_memory_table_del(execute_data);
     }
 }
@@ -53,7 +71,7 @@ static void zai_interceptor_observer_generator_end_handler(zend_execute_data *ex
             ZVAL_NULL(&rv);
             retval = &rv;
         }
-        zai_hook_finish(execute_data, retval, frame_memory);
+        zai_hook_safe_finish(execute_data, retval, frame_memory);
         zai_hook_memory_table_del((zend_execute_data *)generator);
     }
 }
