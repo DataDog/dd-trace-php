@@ -104,6 +104,8 @@ zval *ddtrace_get_propagated_tags(TSRMLS_D) {
 }
 
 zai_string_view ddtrace_format_propagated_tags(TSRMLS_D) {
+    return (zai_string_view){0, NULL};
+
     // we propagate all tags on the current root span which were originally propagated, including the explicitly
     // defined tags here
     zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), "_dd.p.upstream_services",
