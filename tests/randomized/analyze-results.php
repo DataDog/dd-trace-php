@@ -109,8 +109,8 @@ function analyze_cli($tmpScenariosFolder)
 
         list($slope, $intercept) = calculate_trend_line($values);
 
-        if ($intercept > 5 * 1000 * 1000) {
-            // Heuristic 5MB limit. It might have to be increased as we add integrations
+        if ($intercept > 6 * 1000 * 1000) {
+            // Heuristic 6MB limit. It might have to be increased as we add integrations
             $largeInterceptResults[] = $identifier;
             continue;
         }
