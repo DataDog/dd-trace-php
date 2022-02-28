@@ -155,10 +155,6 @@ bool ddtrace_coms_minit(void) {
     _dd_ptr_at_exit_callback = _dd_at_exit_callback;
     atexit(_dd_at_exit_hook);
 
-    if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
-        return false;
-    }
-
     return true;
 }
 
@@ -936,10 +932,6 @@ static void *_dd_writer_loop(void *_) {
         writer->curl = curl_easy_init();
         curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
-        // as per https://curl.se/libcurl/c/threadsafe.html
-        // Also note that the docs mention potential SIGPIPEs, which may occur with OpenSSL:
-        // We can ignore that for now as we don't do TLS traffic to the agent currently
-        curl_easy_setopt(writer->curl, CURLOPT_NOSIGNAL, 1);
 
         while (*stack) {
             processed_stacks++;
