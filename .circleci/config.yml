@@ -1567,7 +1567,7 @@ jobs:
               cd -
               # run phpize just to get run-tests.php
               phpize
-              php run-tests.php tests/ext/profiling
+              php run-tests.php -p $(which php) tests/ext/profiling
 
   placeholder:
     docker:
