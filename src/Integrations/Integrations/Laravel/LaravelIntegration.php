@@ -109,10 +109,12 @@ class LaravelIntegration extends Integration
         );
 
         \DDTrace\hook_method(
-            'Symfony\Component\HttpFoundation\Response',
-            'setStatusCode',
-            function ($This, $scope, $args) use ($rootSpan) {
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] =  $args[0];
+            'Illuminate\Http\Response',
+            'send',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (isset($This->exception) && $This->getStatusCode() >= 500) {
+                    $integration->setError($rootSpan, $This->exception);
+                }
             }
         );
 
@@ -189,26 +191,6 @@ class LaravelIntegration extends Integration
             'renderThrowable',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
                 $integration->setError($rootSpan, $args[0]);
-            }
-        );
-
-        \DDTrace\hook_method(
-            'Illuminate\Foundation\Http\Kernel',
-            'renderException',
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (empty($rootSpan->exception)) {
-                    $integration->setError($rootSpan, $args[1]);
-                }
-            }
-        );
-
-        \DDTrace\hook_method(
-            'Illuminate\Routing\Pipeline',
-            'handleException',
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (empty($rootSpan->exception)) {
-                    $integration->setError($rootSpan, $args[1]);
-                }
             }
         );
 

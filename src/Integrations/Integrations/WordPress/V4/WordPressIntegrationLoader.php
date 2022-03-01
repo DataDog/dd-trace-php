@@ -11,26 +11,23 @@ use DDTrace\Util\Normalizer;
 
 class WordPressIntegrationLoader
 {
-    /**
-     * @var SpanData
-     */
-    public $rootSpan;
-
     public function load(WordPressIntegration $integration)
     {
-        $this->rootSpan = \DDTrace\root_span();
-        if (!$this->rootSpan) {
+        $rootSpan = \DDTrace\root_span();
+        if (!$rootSpan) {
             return Integration::NOT_LOADED;
         }
         // Overwrite the default web integration
-        $integration->addTraceAnalyticsIfEnabled($this->rootSpan);
-        $this->rootSpan->name = 'wordpress.request';
+        $integration->addTraceAnalyticsIfEnabled($rootSpan);
+        $rootSpan->name = 'wordpress.request';
         $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
-        $this->rootSpan->service = $service;
+        $rootSpan->service = $service;
         if ('cli' !== PHP_SAPI) {
             $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
-            $this->rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
-            $this->rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+            $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
+            \DDTrace\hook_function('wp_plugin_directory_constants', function () use ($rootSpan) {
+                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+            });
         }
 
         // Core

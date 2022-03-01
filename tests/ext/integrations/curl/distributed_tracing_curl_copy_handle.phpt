@@ -57,7 +57,6 @@ foreach ($responses as $key => $response) {
         'x-datadog-trace-id',
         'x-datadog-parent-id',
         'x-datadog-sampling-priority',
-        'x-datadog-tags',
         'x-foo',
         'x-bar',
     ]);
@@ -72,7 +71,6 @@ Response #0
 x-bar: theory
 x-datadog-parent-id: %d
 x-datadog-sampling-priority: 1
-x-datadog-tags: _dd.p.upstream_services=ZGlzdHJpYnV0ZWRfdHJhY2luZ19jdXJsX2NvcHlfaGFuZGxlLnBocA|1|1|1.000
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
@@ -80,7 +78,6 @@ Response #1
 x-bar: theory
 x-datadog-parent-id: %d
 x-datadog-sampling-priority: 1
-x-datadog-tags: _dd.p.upstream_services=ZGlzdHJpYnV0ZWRfdHJhY2luZ19jdXJsX2NvcHlfaGFuZGxlLnBocA|1|1|1.000
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
@@ -88,7 +85,6 @@ Response #2
 x-bar: theory
 x-datadog-parent-id: %d
 x-datadog-sampling-priority: 1
-x-datadog-tags: _dd.p.upstream_services=ZGlzdHJpYnV0ZWRfdHJhY2luZ19jdXJsX2NvcHlfaGFuZGxlLnBocA|1|1|1.000
 x-datadog-trace-id: %d
 x-foo: before-the-copy
 
@@ -96,7 +92,6 @@ Response #3
 x-bar: linguistics
 x-datadog-parent-id: %d
 x-datadog-sampling-priority: 1
-x-datadog-tags: _dd.p.upstream_services=ZGlzdHJpYnV0ZWRfdHJhY2luZ19jdXJsX2NvcHlfaGFuZGxlLnBocA|1|1|1.000
 x-datadog-trace-id: %d
 x-foo: after-the-copy
 

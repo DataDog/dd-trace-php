@@ -103,8 +103,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                     ])->withExistingTagsNames(\PHP_MAJOR_VERSION === 5 ? [] : ['error.stack'])
                     ->setError(
-                        \PHP_MAJOR_VERSION === 5 ? 'Internal Server Error' : 'Exception',
-                        \PHP_MAJOR_VERSION === 5 ? null : 'Controller error'
+                        'Exception',
+                        'Controller error',
+                        true
                     )->withChildren([
                         SpanAssertion::build(
                             'Laravel\Lumen\Application.handleFoundRoute',

@@ -3,6 +3,7 @@ Distributed tracing header tags propagate with curl_exec()
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
+<?php die('skip: disabled functionality'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,foo=bar,_dd.p.upstream_services=abcdef|0|2|1.000

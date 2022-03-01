@@ -129,8 +129,6 @@ services:
       - DD_APM_ENABLED=true
       - DD_BIND_HOST=0.0.0.0
       - DD_API_KEY=invalid_key_but_its_ok
-    ports:
-      - "8126:8126"
 
   request-replayer:
     image: datadog/dd-trace-ci:php-request-replayer-1.0
@@ -140,13 +138,15 @@ services:
   agent:
     image: datadog/agent:latest
     volumes:
-    - /var/run/docker.sock:/var/run/docker.sock:ro
-    - /proc/:/host/proc/:ro
-    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     environment:
-    - DD_API_KEY=${DATADOG_API_KEY}
-    - DD_APM_ENABLED=true
-    - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
+    ports:
+      - "8126:8126"
 
   packager:
     image: datadog/docker-library:ddtrace_php_fpm_packaging

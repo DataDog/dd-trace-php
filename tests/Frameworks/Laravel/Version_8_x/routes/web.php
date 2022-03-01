@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CommonSpecsController;
 use App\Http\Controllers\EloquentTestController;
+use App\Http\Controllers\InternalErrorController;
 use App\Http\Controllers\RouteCachingController;
 
 /*
@@ -25,6 +26,8 @@ Route::get('eloquent/update', [EloquentTestController::class, 'update']);
 Route::get('eloquent/delete', [EloquentTestController::class, 'delete']);
 Route::get('eloquent/destroy', [EloquentTestController::class, 'destroy']);
 Route::get('eloquent/refresh', [EloquentTestController::class, 'refresh']);
+Route::get('not-implemented', [InternalErrorController::class, 'notImplemented'])->name('not-implemented');
+Route::get('unauthorized', [InternalErrorController::class, 'unauthorized'])->name('unauthorized');
 
 // This route has to remain unnamed so we test both route cached and not cached.
 Route::get('/unnamed-route', [RouteCachingController::class, 'unnamed']);

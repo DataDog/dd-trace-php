@@ -11,6 +11,10 @@
 #define DD_SET_UP_DEFERRED_LOADING_BY_METHOD(name, Class, fname, integration)                                \
     dd_set_up_deferred_loading_by_method(name, DDTRACE_STRING_LITERAL(Class), DDTRACE_STRING_LITERAL(fname), \
                                          DDTRACE_STRING_LITERAL(integration))
+
+#define DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(name, fname, integration)                           \
+    dd_set_up_deferred_loading_by_method(name, (ddtrace_string){0}, DDTRACE_STRING_LITERAL(fname), \
+                                         DDTRACE_STRING_LITERAL(integration))
 /**
  * DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)
  *
@@ -132,8 +136,8 @@ void ddtrace_integrations_rinit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
                                          "DDTrace\\Integrations\\Slim\\SlimIntegration");
 
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_WORDPRESS, "Requests", "set_certificate_path",
-                                         "DDTrace\\Integrations\\WordPress\\WordPressIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_WORDPRESS, "wp_check_php_mysql_versions",
+                                           "DDTrace\\Integrations\\WordPress\\WordPressIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_YII, "yii\\di\\Container", "__construct",
                                          "DDTrace\\Integrations\\Yii\\YiiIntegration");
