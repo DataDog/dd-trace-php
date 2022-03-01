@@ -50,39 +50,15 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
 ### Changed
-- Make the legacy API a pure proxy to internal spans #1471
-- Load the legacy tracer only when actually used #1449
-- Update profiling to v0.4.0 #1495
-
-### Added
-- Add appsec library to the release bundle #1469
-- Add appsec installation #1470
-
+- Disable x-datadog-tags header propagation #1528
 ### Fixed
-- Always emit NoopSpans if the tracer extension is disabled #1475
-- fix dd_update_upstream_services on php5 #1476
-- Setup: Error if profiling is given but unavailable #1477
-- Ensure dropped spans are distinguishable from unfinished spans #1480
-- Fix Span::setError docblock #1481
-- Fix invalid reads in background sender #1483
-- Restore support for manual distributed tracing #1484
-- Remove version number from datadog-setup.php's help output #1487
-- Improve error detection for datadog-setup.php #1489
-
-### Internal changes
-- Add parallelism to makefile for builds and test runs #1382
-- Add profiling module to randomized tests #1412
-- Run randomized internal API stress testing in CI #1445
-- Switch to Symbols interface, cleanup tests #1465
-- Improve Symbol Call interface, introduce closure support #1467
-- Support in-tree builds of Tea #1472
-- Sandbox Bailout #1473
-- Patch zend_alloc.c to not crash in CI for PHP 7.0 to 7.2 #1478
-- build tea once during development #1479
-- Update PHP 8.1 dependencies, include laravel testing #1482
-- Inline queue function pointers #1490
-- Adjust stack sample max stack depth #1491
-- Remove unused profiling components #1492
+- Fix Laravel exceptions being over-reported #1361
+- Fix too aggressive symbol exporting #1523
+- Hide the dummy span during trace hooks away #1519
+- (PHP 5) Remove empty multi_curl handles hashtables #1513
+- Do not mess with the span duration in curl integration #1512
+- Fix #1510 post-install not detecting required extension #1511
+- ​​Explicitly depend on ext/standard and fix in-tree builds #1509
 </notes>
     <contents>
         <dir name="/">
