@@ -490,7 +490,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
 
         zval zv;
         ZVAL_STR(&zv, encoded_id);
-        zend_hash_str_add_new(meta, "runtime-id", sizeof("runtime-id"), &zv);
+        zend_hash_str_add_new(meta, "runtime-id", sizeof("runtime-id") - 1, &zv);
     }
 
     const char *method = SG(request_info).request_method;
