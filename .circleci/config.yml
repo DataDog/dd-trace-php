@@ -1556,7 +1556,7 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
-          name: Build packages
+          name: Run cross-product profiling phpt tests
           command: |
               set -eu
               apk update
