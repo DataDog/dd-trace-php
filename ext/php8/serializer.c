@@ -22,6 +22,7 @@
 #include "engine_hooks.h"
 #include "logging.h"
 #include "mpack/mpack.h"
+#include "runtime.h"
 #include "span.h"
 #include "uri_normalization.h"
 
@@ -473,6 +474,23 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     zval pid;
     ZVAL_LONG(&pid, (long)getpid());
     zend_hash_str_add_new(meta, ZEND_STRL("system.pid"), &pid);
+
+    datadog_php_uuid runtime_id = ddtrace_profiling_runtime_id();
+    if (!datadog_php_uuid_is_nil(runtime_id)) {
+        zend_string *encoded_id = zend_string_alloc(36, false);
+
+        /* Compilers rightfully complain about array bounds due to the struct
+         * hack if we write straight to the char storage. Saving the char* to a
+         * temporary avoids the warning without a performance penalty.
+         */
+        char *tmp = ZSTR_VAL(encoded_id);
+        datadog_php_uuid_encode36(runtime_id, tmp);
+        ZSTR_VAL(encoded_id)[36] = '\0';
+
+        zval zv;
+        ZVAL_STR(&zv, encoded_id);
+        zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
+    }
 
     const char *method = SG(request_info).request_method;
     if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {

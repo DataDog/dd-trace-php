@@ -1546,6 +1546,29 @@ jobs:
           root: '.'
           paths: ['./build/packages', 'dockerfiles/verify_packages']
 
+  "x-profiling phpt tests on Alpine":
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        type: string
+    docker:
+      - image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Run cross-product profiling phpt tests
+          command: |
+              set -eu
+              apk update
+              apk add autoconf coreutils gcc libexecinfo make
+              cd ./build/packages
+              installable_bundle=$(find . -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
+              php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
+              cd -
+              # run phpize just to get run-tests.php
+              phpize
+              php run-tests.php -p $(which php) tests/ext/profiling
+
   placeholder:
     docker:
       - image: busybox
@@ -1712,6 +1735,16 @@ workflows:
             - "Compile PHP 80 nts + zts + debug"
             - "Compile PHP 81 nts + zts + debug"
             - "Build PECL"
+      - "x-profiling phpt tests on Alpine":
+          requires: [ 'package extension' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
       - randomized_tests:
           requires: [ 'package extension' ]
           matrix:

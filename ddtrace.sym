@@ -1,2 +1,3 @@
+ddtrace_get_profiling_context
 ddtrace_root_span_add_tag
 get_module

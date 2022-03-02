@@ -18,6 +18,7 @@
 #include "ext/php8/dispatch.h"
 #include "ext/php8/engine_api.h"
 #include "ext/php8/logging.h"
+#include "ext/php8/runtime.h"
 #include "ext/php8/span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
@@ -762,6 +763,13 @@ zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *exec
 
 static void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
 
+static datadog_php_uuid dd_profiling_runtime_id_nil(void) {
+    datadog_php_uuid uuid = DATADOG_PHP_UUID_INIT;
+    return uuid;
+}
+
+datadog_php_uuid (*ddtrace_profiling_runtime_id)(void) = dd_profiling_runtime_id_nil;
+
 /**
  * The message handler is used to determine if the profiler is loaded, and if
  * so it will locate certain symbols so cross-product features can be enabled.
@@ -778,8 +786,16 @@ void ddtrace_message_handler(int message, void *arg) {
 
         profiling_interrupt_function = DL_FETCH_SYMBOL(handle, "datadog_profiling_interrupt_function");
         if (UNEXPECTED(!profiling_interrupt_function)) {
-            ddtrace_log_debugf("[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n",
-                               "datadog_profiling_interrupt_function", DL_ERROR());
+            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: \n",
+                               extension->version, DL_ERROR());
+        }
+
+        datadog_php_uuid (*runtime_id)(void) = DL_FETCH_SYMBOL(handle, "datadog_profiling_runtime_id");
+        if (EXPECTED(runtime_id)) {
+            ddtrace_profiling_runtime_id = runtime_id;
+        } else {
+            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: \n",
+                               extension->version, DL_ERROR());
         }
     }
 }

@@ -46,6 +46,7 @@ if test "$PHP_DDTRACE" != "no"; then
     components/container_id/container_id.c \
     components/sapi/sapi.c \
     components/string_view/string_view.c \
+    components/uuid/uuid.c \
   "
 
   if test -z ${PHP_VERSION_ID+x}; then
@@ -184,6 +185,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/php7/dispatch.c \
       ext/php7/php7/engine_hooks.c \
       ext/php7/priority_sampling/priority_sampling.c \
+      ext/php7/profiling_context.c \
       ext/php7/random.c \
       ext/php7/request_hooks.c \
       ext/php7/serializer.c \
@@ -239,6 +241,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/php8/dispatch.c \
       ext/php8/php8/engine_hooks.c \
       ext/php8/priority_sampling/priority_sampling.c \
+      ext/php8/profiling_context.c \
       ext/php8/random.c \
       ext/php8/request_hooks.c \
       ext/php8/serializer.c \
@@ -298,6 +301,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/components/container_id])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/string_view])
+  PHP_ADD_BUILD_DIR([$ext_builddir/components/uuid])
 
   PHP_ADD_INCLUDE([$ext_srcdir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
