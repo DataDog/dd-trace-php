@@ -17,8 +17,7 @@ else
     exit 1
 fi
 
-echo "" >>/etc/php.ini
-echo "opcache.protect_memory=1" >>/etc/php.ini
+rm /etc/php*.d/10-opcache.ini
 
 php -v
 
