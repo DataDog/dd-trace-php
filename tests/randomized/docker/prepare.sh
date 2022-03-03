@@ -17,6 +17,9 @@ else
     exit 1
 fi
 
+echo "" >>/etc/php.ini
+echo "opcache.protect_memory=1" >>/etc/php.ini
+
 php -v
 
 # Start PHP-FPM
