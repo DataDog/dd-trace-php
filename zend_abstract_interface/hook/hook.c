@@ -39,6 +39,11 @@ static void zai_hook_destroy(zai_hook_t *hook);
 static void zai_hook_destroy(zval *zv);
 #endif
 
+#if PHP_VERSION_ID >= 80000
+static void zai_hook_on_update_empty(zend_op_array *op_array, bool remove) { (void)op_array, (void)remove; }
+void (*zai_hook_on_update)(zend_op_array *op_array, bool remove) = zai_hook_on_update_empty;
+#endif
+
 /* {{{ some inlines need private access */
 #include <hook/memory.h> /* }}} */
 
@@ -217,7 +222,7 @@ static bool zai_hook_resolve_hook(zai_hook_t *hook ZAI_TSRMLS_DC) {
 
     HashTable *table;
 
-    if (!zai_hook_resolved_table(zai_hook_install_address(function), &table ZAI_TSRMLS_CC)) {
+    if (!zai_hook_resolved_table(zai_hook_install_address(function), &table)) {
         return false;
     }
 
@@ -228,6 +233,12 @@ static bool zai_hook_resolve_hook(zai_hook_t *hook ZAI_TSRMLS_DC) {
     }
 
     zai_hook_memory_reserve(resolved);
+
+#if PHP_VERSION_ID >= 80000
+    if (function->type == ZEND_USER_FUNCTION) {
+        zai_hook_on_update(&function->op_array, false);
+    }
+#endif
 
     return true;
 }
@@ -252,6 +263,22 @@ void zai_hook_resolve(ZAI_TSRMLS_D) {
 
     zend_hash_apply(&zai_hook_request, (apply_func_t)zai_hook_resolve_impl ZAI_TSRMLS_CC);
 } /* }}} */
+
+// TODO: make these two functions below efficient
+void zai_hook_resolve_user_function(zend_op_array *op_array ZAI_TSRMLS_DC) {
+    (void)op_array;
+    zai_hook_resolve(ZAI_TSRMLS_C);
+#if PHP_VERSION_ID > 80000
+    // We do negative caching for run-time allocated op_arrays
+    if (op_array->fn_flags & ZEND_ACC_HEAP_RT_CACHE) {
+        zend_hash_index_add_ptr(&zai_hook_resolved, (zend_ulong)op_array->opcodes, NULL);
+    }
+#endif
+}
+void zai_hook_resolve_class(zend_class_entry *ce ZAI_TSRMLS_DC) {
+    (void)ce;
+    zai_hook_resolve(ZAI_TSRMLS_C);
+}
 
 /* {{{ */
 static inline HashTable *zai_hook_find(zend_execute_data *ex) {
@@ -506,6 +533,13 @@ bool zai_hook_install_resolved(
     }
 
     zai_hook_memory_reserve(resolved);
+
+
+#if PHP_VERSION_ID >= 80000
+    if (function->type == ZEND_USER_FUNCTION) {
+        zai_hook_on_update(&function->op_array, false);
+    }
+#endif
 
     return true;
 } /* }}} */
