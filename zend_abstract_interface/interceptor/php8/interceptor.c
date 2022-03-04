@@ -1,7 +1,10 @@
 #include <Zend/zend_observer.h>
 #include <hook/hook.h>
 #include <hook/table.h>
+#include <Zend/zend_extensions.h>
 #include <Zend/zend_generators.h>
+
+static int registered_observers = 0;
 
 __thread HashTable zai_hook_memory;
 // execute_data is 16 byte aligned (except when it isn't, but it doesn't matter as zend_execute_data is big enough
@@ -77,10 +80,19 @@ static void zai_interceptor_observer_generator_end_handler(zend_execute_data *ex
 }
 
 // TODO ... listen on hooks for change on installed hooks?
+static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(zend_op_array *op_array) {
+    if (op_array->fn_flags & ZEND_ACC_GENERATOR) {
+        return (zend_observer_fcall_handlers){NULL, zai_interceptor_observer_generator_end_handler};
+    }
+    return (zend_observer_fcall_handlers){zai_interceptor_observer_begin_handler, zai_interceptor_observer_end_handler};
+}
+
 #define ZEND_OBSERVER_DATA(op_array) \
 	ZEND_OP_ARRAY_EXTENSION(op_array, zend_observer_fcall_op_array_extension)
+
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
+#if PHP_VERSION_ID < 80200
 typedef struct {
     // points after the last handler
     zend_observer_fcall_handlers *end;
@@ -88,12 +100,13 @@ typedef struct {
     zend_observer_fcall_handlers handlers[1];
 } zend_observer_fcall_data;
 
-void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
+// TODO we probably need to keep track of closure liveness to be able to update their observers
+void zai_interceptor_replace_observer_legacy(zend_op_array *op_array, bool remove) {
     zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(op_array);
     if (remove) {
         for (zend_observer_fcall_handlers *handlers = data->handlers, *end = data->end; handlers != end; ++handlers) {
             if (handlers->end == zai_interceptor_observer_end_handler || handlers->end == zai_interceptor_observer_generator_end_handler) {
-                if (data->handlers == end + 1) {
+                if (data->handlers == end - 1) {
                     data->end = data->handlers;
                 } else {
                     *handlers = *(end - 1);
@@ -103,9 +116,86 @@ void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
             }
         }
     } else {
-        // TODO subtly leaks memory, given that we discard the old arena allocated handler list
-        // Currently by design as Closure rebinding anyway leaks memory, but it's very ugly
-        ZEND_OBSERVER_DATA(op_array) = NULL;
+        // We have space allocated...
+        *++data->end = zai_interceptor_determine_handlers(op_array);
+    }
+}
+
+void (*zai_interceptor_replace_observer)(zend_op_array *op_array, bool remove);
+#define zai_interceptor_replace_observer zai_interceptor_replace_observer_current
+
+// Allocate some space. This space can be used to install observers afterwards
+// ... I would love to make use of ZEND_OBSERVER_NOT_OBSERVED optimization, but this does not seem possible :-(
+static void zai_interceptor_observer_placeholder_handler(zend_execute_data *execute_data) {
+    zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(&execute_data->func->op_array);
+    for (zend_observer_fcall_handlers *handlers = data->handlers, *end = data->end; handlers != end; ++handlers) {
+        if (handlers->begin == zai_interceptor_observer_placeholder_handler) {
+            if (handlers == end - 1) {
+                handlers->begin = NULL;
+            } else {
+                *handlers = *(end - 1);
+                handlers->begin(execute_data);
+            }
+            data->end = end - 1;
+            break;
+        }
+    }
+}
+#endif
+
+void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
+    zend_observer_fcall_begin_handler *beginHandler = ZEND_OBSERVER_DATA(op_array), *beginEnd = beginHandler + registered_observers - 1;
+    zend_observer_fcall_end_handler *endHandler = (void *)beginEnd + 1, *endEnd = endHandler + registered_observers - 1;
+
+    if (remove) {
+        for (zend_observer_fcall_begin_handler *curHandler = beginHandler; curHandler <= beginEnd; ++curHandler) {
+            if (*curHandler == zai_interceptor_observer_begin_handler) {
+                if (registered_observers == 1 || (curHandler == beginHandler && curHandler[1] == NULL)) {
+                    *curHandler = ZEND_OBSERVER_NOT_OBSERVED;
+                } else {
+                    if (curHandler != beginEnd) {
+                        memmove(curHandler, curHandler + 1, sizeof(curHandler) * (beginEnd - curHandler));
+                    } else {
+                        *beginEnd = NULL;
+                    }
+                }
+                break;
+            }
+        }
+
+        for (zend_observer_fcall_end_handler *curHandler = endHandler; curHandler <= endEnd; ++curHandler) {
+            if (*curHandler == zai_interceptor_observer_end_handler || *curHandler == zai_interceptor_observer_generator_end_handler) {
+                if (registered_observers == 1 || (curHandler == endHandler && *(curHandler + 1) == NULL)) {
+                    *curHandler = ZEND_OBSERVER_NOT_OBSERVED;
+                } else {
+                    if (curHandler != endEnd) {
+                        memmove(curHandler, curHandler + 1, sizeof(curHandler) * (endEnd - curHandler));
+                    } else {
+                        *endEnd = NULL;
+                    }
+                }
+                break;
+            }
+        }
+    } else {
+        // preserve the invariant that end handlers are in reverse order of begin handlers
+        zend_observer_fcall_handlers handlers = zai_interceptor_determine_handlers(op_array);
+        if (handlers.begin) {
+            if (*beginHandler == ZEND_OBSERVER_NOT_OBSERVED) {
+                *beginHandler = handlers.begin;
+            } else {
+                for (zend_observer_fcall_begin_handler *curHandler = beginHandler + 1; curHandler <= beginEnd; ++curHandler) {
+                    if (*curHandler == NULL) {
+                        *curHandler = handlers.begin;
+                        break;
+                    }
+                }
+            }
+        }
+        if (*endHandler != ZEND_OBSERVER_NOT_OBSERVED) {
+            memmove(endHandler + 1, endHandler, endEnd - endHandler);
+        }
+        *endHandler = handlers.end;
     }
 }
 
@@ -117,13 +207,15 @@ static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_exe
     zai_hook_resolve();
     zend_op_array *op_array = &execute_data->func->op_array;
     if (UNEXPECTED(zai_hook_installed_user(op_array))) {
-        if (op_array->fn_flags & ZEND_ACC_GENERATOR) {
-            return (zend_observer_fcall_handlers){NULL, zai_interceptor_observer_generator_end_handler};
-        }
-        return (zend_observer_fcall_handlers){zai_interceptor_observer_begin_handler, zai_interceptor_observer_end_handler};
+        return zai_interceptor_determine_handlers(op_array);
     }
-
+    // Use one-time begin handler which will remove itself
+#if PHP_VERSION_ID < 80200
+#undef zai_interceptor_replace_observer
+    return (zend_observer_fcall_handlers){zai_interceptor_replace_observer == zai_interceptor_replace_observer_current ? NULL : zai_interceptor_observer_placeholder_handler, NULL};
+#else
     return (zend_observer_fcall_handlers){NULL, NULL};
+#endif
 }
 
 static zend_object *(*generator_create_prev)(zend_class_entry *class_type);
@@ -195,7 +287,30 @@ static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zv
     zai_interceptor_execute_internal_impl(execute_data, return_value, true);
 }
 
+// extension handles are supposed to be frozen at post_startup time and observer extension handle allocation
+// incidentally is right before the defacto freeze via zend_finalize_system_id
+static zend_result (*prev_post_startup)();
+zend_result zai_interceptor_post_startup() {
+    registered_observers = zend_op_array_extension_handles - zend_observer_fcall_op_array_extension;
+    return prev_post_startup ? prev_post_startup() : SUCCESS;
+}
+
 void zai_interceptor_minit() {
+#if PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID < 80100
+#define RUN_TIME_CACHE_OBSERVER_PATCH_VERSION 18
+#else
+#define RUN_TIME_CACHE_OBSERVER_PATCH_VERSION 4
+#endif
+
+    zend_long patch_version = Z_LVAL_P(zend_get_constant_str(ZEND_STRL("PHP_RELEASE_VERSION")));
+    if (patch_version < RUN_TIME_CACHE_OBSERVER_PATCH_VERSION) {
+        zai_interceptor_replace_observer = zai_interceptor_replace_observer_legacy;
+    } else {
+        zai_interceptor_replace_observer = zai_interceptor_replace_observer_current;
+    }
+#endif
+
     prev_execute_internal = zend_execute_internal;
     zend_execute_internal = prev_execute_internal ? zai_interceptor_execute_internal : zai_interceptor_execute_internal_no_prev;
 
@@ -219,6 +334,9 @@ void zai_interceptor_minit() {
 
     efree(generator);
     EG(objects_store) = objects_store;
+
+    prev_post_startup = zend_post_startup_cb;
+    zend_post_startup_cb = zai_interceptor_post_startup;
 }
 
 static void zai_hook_memory_dtor(zval *zv) {
