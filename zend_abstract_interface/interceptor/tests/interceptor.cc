@@ -145,6 +145,17 @@ INTERCEPTOR_TEST_CASE("empty user function intercepting", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
+INTERCEPTOR_TEST_CASE("function intercepting after initial call", {
+    CALL_FN("to_intercept");
+    INSTALL_HOOK("to_intercept");
+    CHECK(zai_hook_test_begin_invocations == 0);
+    CHECK(zai_hook_test_end_invocations == 0);
+    CALL_FN("to_intercept");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
 INTERCEPTOR_TEST_CASE("user function intercepting returns value", {
     INSTALL_HOOK("returns");
     CALL_FN("returns");

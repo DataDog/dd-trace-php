@@ -34,7 +34,11 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
     void *volatile stack = malloc(stack_size);
     if (SETJMP(target) == 0) {
         void *stacktop = stack + stack_size;
+#if defined(__x86_64__)
         __asm__ volatile("mov %0, %%rsp" : : "r"(stacktop));
+#elif defined(__aarch64__)
+        __asm__ volatile("mov sp, %0" : : "r"(stacktop));
+#endif
         zai_hook_finish(execute_data, retval, frame_memory);
         LONGJMP(target, 1);
     }
@@ -79,7 +83,6 @@ static void zai_interceptor_observer_generator_end_handler(zend_execute_data *ex
     }
 }
 
-// TODO ... listen on hooks for change on installed hooks?
 static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(zend_op_array *op_array) {
     if (op_array->fn_flags & ZEND_ACC_GENERATOR) {
         return (zend_observer_fcall_handlers){NULL, zai_interceptor_observer_generator_end_handler};
@@ -100,8 +103,11 @@ typedef struct {
     zend_observer_fcall_handlers handlers[1];
 } zend_observer_fcall_data;
 
-// TODO we probably need to keep track of closure liveness to be able to update their observers
 void zai_interceptor_replace_observer_legacy(zend_op_array *op_array, bool remove) {
+    if (!RUN_TIME_CACHE(op_array)) {
+        return;
+    }
+
     zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(op_array);
     if (remove) {
         for (zend_observer_fcall_handlers *handlers = data->handlers, *end = data->end; handlers != end; ++handlers) {
@@ -117,7 +123,7 @@ void zai_interceptor_replace_observer_legacy(zend_op_array *op_array, bool remov
         }
     } else {
         // We have space allocated...
-        *++data->end = zai_interceptor_determine_handlers(op_array);
+        *(data->end++) = zai_interceptor_determine_handlers(op_array);
     }
 }
 
@@ -144,6 +150,10 @@ static void zai_interceptor_observer_placeholder_handler(zend_execute_data *exec
 #endif
 
 void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
+    if (!RUN_TIME_CACHE(op_array)) {
+        return;
+    }
+
     zend_observer_fcall_begin_handler *beginHandler = ZEND_OBSERVER_DATA(op_array), *beginEnd = beginHandler + registered_observers - 1;
     zend_observer_fcall_end_handler *endHandler = (void *)beginEnd + 1, *endEnd = endHandler + registered_observers - 1;
 
@@ -201,12 +211,9 @@ void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
 
 
 static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_execute_data *execute_data) {
-    // TODO: resolve only hooks for current function to avoid lookup overhead of yet unresolved hooks?
-    // Not sure whether the current zai hooks design makes sense here... - observer design forces us to do decisions at first-call time
-    // I guess doing a class -> name & simple name lookup would be better here
-    zai_hook_resolve();
     zend_op_array *op_array = &execute_data->func->op_array;
-    if (UNEXPECTED(zai_hook_installed_user(op_array))) {
+    // We opt to always install observers for runtime op_arrays with dynamic runtime cache, as we cannot find them reliably and inexpensively at runtime (e.g. dynamic closures) when observers change
+    if (UNEXPECTED((op_array->fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) || UNEXPECTED(zai_hook_installed_user(op_array))) {
         return zai_interceptor_determine_handlers(op_array);
     }
     // Use one-time begin handler which will remove itself
@@ -339,6 +346,8 @@ void zai_interceptor_minit() {
 
     prev_post_startup = zend_post_startup_cb;
     zend_post_startup_cb = zai_interceptor_post_startup;
+
+    zai_hook_on_update = zai_interceptor_replace_observer;
 }
 
 static void zai_hook_memory_dtor(zval *zv) {

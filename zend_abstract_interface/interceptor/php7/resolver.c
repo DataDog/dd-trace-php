@@ -3,6 +3,7 @@
 #include <Zend/zend_vm.h>
 #include "../../hook/hook.h"
 
+// TODO: use zai_hook_resolve_user_function and zai_hook_resolve_class for more efficient resolving
 static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int type);
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
     zend_op_array *op_array = prev_compile_file(file_handle, type);

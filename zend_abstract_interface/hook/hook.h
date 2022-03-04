@@ -127,6 +127,8 @@ bool zai_hook_install_resolved(
         size_t dynamic,
         zend_function *function ZAI_TSRMLS_DC); /* }}} */
 
+// TODO: add missing zai_hook_uninstall*() functions
+
 /* {{{ zai_hook_memory_t structure is passed between
         continue and finish and managed by the hook interface */
 typedef struct {
@@ -145,10 +147,18 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory 
         NOTE: will be called by hook interface on rinit, to resolve internal installs early */
 void zai_hook_resolve(ZAI_TSRMLS_D); /* }}} */
 
+/* {{{ zai_hook_resolve_* functions are designed to do individual resolving */
+void zai_hook_resolve_user_function(zend_op_array *op_array ZAI_TSRMLS_DC);
+void zai_hook_resolve_class(zend_class_entry *ce ZAI_TSRMLS_DC);
+
 /* {{{ private but externed for performance reasons */
 // TODO: Bitshift index by 5 to avoid collisions
 extern __thread HashTable zai_hook_resolved;
 /* }}} */
+
+#if PHP_VERSION_ID >= 80000
+extern void (*zai_hook_on_update)(zend_op_array *op_array, bool remove);
+#endif
 
 /* {{{ */
 static inline zend_ulong zai_hook_install_address(zend_function *function) {
@@ -175,7 +185,17 @@ static inline bool zai_hook_installed_func(zend_function *func) {
     return zend_hash_index_exists(&zai_hook_resolved, zai_hook_install_address(func));
 }
 static inline bool zai_hook_installed_user(zend_op_array *op_array) {
+#if PHP_VERSION_ID >= 80000
+    zval *zv = zend_hash_index_find(&zai_hook_resolved, (zend_ulong)op_array->opcodes);
+    if (zv) {
+        return Z_PTR_P(zv) != NULL;
+    } else {
+        zai_hook_resolve_user_function(op_array);
+        return zend_hash_index_find_ptr(&zai_hook_resolved, (zend_ulong)op_array->opcodes) != NULL;
+    }
+#else
     return zend_hash_index_exists(&zai_hook_resolved, (zend_ulong)op_array->opcodes);
+#endif
 }
 static inline bool zai_hook_installed_internal(zend_internal_function *function) {
     return zend_hash_index_exists(&zai_hook_resolved, (zend_ulong)function);
