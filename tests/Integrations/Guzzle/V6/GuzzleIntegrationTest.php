@@ -261,6 +261,26 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         self::assertEmpty($traces);
     }
 
+    // Test for APMS-5427
+    public function testAppendHostnameToServiceNameNoSchema()
+    {
+        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+
+        $traces = $this->isolateTracer(function () {
+            $response = $this->getMockedClient()->get('example.com');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'host-example.com', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
     public function testLimitedTracerDistributedTracingIsPropagated()
     {
         $client = new Client();
