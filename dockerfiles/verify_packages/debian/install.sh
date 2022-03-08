@@ -30,6 +30,8 @@ elif [ "${INSTALL_MODE}" = "sury" ]; then
         libapache2-mod-php${PHP_VERSION}
         WWW_CONF=/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf
         PHP_FPM_BIN=php-fpm${PHP_VERSION}
+elif [ "${INSTALL_MODE}" = "none" ]
+    echo "Using php installed by default"
 else
     echo "Unknown installation mode: ${INSTALL_MODE}"
     exit 1
