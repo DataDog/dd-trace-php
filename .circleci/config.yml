@@ -906,6 +906,7 @@ jobs:
         default: php_installer
       configuration:
         type: string
+        default: ""
     docker:
       - image: << parameters.docker_image >>
         environment:
