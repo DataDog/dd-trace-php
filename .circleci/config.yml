@@ -1952,24 +1952,6 @@ workflows:
                   # So we just test the PHP version in the default repo (5.6)
                 - PHP_PACKAGE="php5 php5-fpm libapache2-mod-php5" PHP_FPM_BIN="php5-fpm"
 
-      - verify_debian:
-          requires: [ "package extension" ]
-          matrix:
-            parameters:
-              install_mode:
-                - none
-              install_type:
-                - php_installer
-              docker_image:
-                - bitnami/php-fpm:5.6-prod
-                - bitnami/php-fpm:7.0-prod
-                - bitnami/php-fpm:7.1-prod
-                - bitnami/php-fpm:7.2-prod
-                - bitnami/php-fpm:7.3-prod
-                - bitnami/php-fpm:7.4-prod
-                - bitnami/php-fpm:8.0-prod
-                - bitnami/php-fpm:8.1-prod
-
       - verify_tar_gz:
           requires: [ "package extension" ]
           matrix:

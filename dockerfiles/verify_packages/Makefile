@@ -114,3 +114,6 @@ test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 
 test_alpine_no_libexecinfo.sh:
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
+
+test_bitnami_install.sh:
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app bitnami/php-fpm:8.0-prod sh dockerfiles/verify_packages/installer/$(@)
