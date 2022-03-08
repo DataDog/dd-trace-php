@@ -36,7 +36,16 @@ static inline bool zai_symbol_update(zend_class_entry *ce ZAI_TSRMLS_DC) {
 
 static inline void *zai_symbol_lookup_table(HashTable *table, zai_string_view key, bool ncase, bool pointer) {
 #if PHP_VERSION_ID >= 70000
-    zval *result = zend_hash_str_find(table, key.ptr, key.len);
+    zval *result;
+#if PHP_VERSION_ID >= 70300
+    zval resultzv;
+    zend_function *func;
+    if (table == EG(function_table) && (func = zend_fetch_function_str(key.ptr, key.len))) {
+        result = &resultzv;
+        ZVAL_PTR(result, func);
+    } else
+#endif
+    result = zend_hash_str_find(table, key.ptr, key.len);
 #else
     void *result = NULL;
 
@@ -53,6 +62,12 @@ static inline void *zai_symbol_lookup_table(HashTable *table, zai_string_view ke
         ptr[key.len] = 0;
 
 #if PHP_VERSION_ID >= 70000
+#if PHP_VERSION_ID >= 70300
+        if (table == EG(function_table) && (func = zend_fetch_function_str(key.ptr, key.len))) {
+            result = &resultzv;
+            ZVAL_PTR(result, func);
+        } else
+#endif
         result = zend_hash_str_find(table, ptr, key.len);
 #else
         zend_hash_find(table, ptr, key.len + 1, (void **)&result);
