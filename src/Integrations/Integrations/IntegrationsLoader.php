@@ -18,6 +18,7 @@ use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
+use DDTrace\Integrations\TYPO3\TYPO3Integration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Yii\YiiIntegration;
@@ -101,6 +102,8 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Symfony\SymfonyIntegration';
         $this->integrations[ZendFrameworkIntegration::NAME] =
             '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
+        $this->integrations[TYPO3Integration::NAME] =
+            '\DDTrace\Integrations\TYPO3\TYPO3Integration';
 
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION < 7) {

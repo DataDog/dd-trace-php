@@ -30,7 +30,8 @@
     INTEGRATION(WEB, "web")                     \
     INTEGRATION(WORDPRESS, "wordpress")         \
     INTEGRATION(YII, "yii")                     \
-    INTEGRATION(ZENDFRAMEWORK, "zendframework")
+    INTEGRATION(ZENDFRAMEWORK, "zendframework") \
+    INTEGRATION(TYPO3, "typo3")
 
 #define INTEGRATION(id, ...) DDTRACE_INTEGRATION_##id,
 typedef enum { DD_INTEGRATIONS } ddtrace_integration_name;

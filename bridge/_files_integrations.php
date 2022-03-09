@@ -32,6 +32,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/WordPress/WordPressIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/WordPress/V4/WordPressIntegrationLoader.php',
     __DIR__ . '/../src/Integrations/Integrations/ZendFramework/ZendFrameworkIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/TYPO3/TYPO3Integration.php',
     __DIR__ . '/../src/Integrations/Util/Runtime.php',
     __DIR__ . '/../src/Integrations/Util/Versions.php',
     __DIR__ . '/../src/Integrations/Util/ObjectKVStore.php',
