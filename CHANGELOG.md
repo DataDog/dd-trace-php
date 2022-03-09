@@ -1,12 +1,18 @@
 # Datadog AppSec for PHP Release
 
+### v0.2.2
+#### Miscellaneous Changes
+- ([#69](https://github.com/DataDog/dd-appsec-php/pull/69)) Add PHP FPM to system tests
+- ([#70](https://github.com/DataDog/dd-appsec-php/pull/70)) Add a nightly run for system tests
+- ([#71](https://github.com/DataDog/dd-appsec-php/pull/71)) libddwaf upgraded to v1.0.18
+- ([#73](https://github.com/DataDog/dd-appsec-php/pull/73)) Update ruleset to v1.2.6
+
 ### v0.2.1
 #### Miscellaneous Changes
 - ([#64](https://github.com/DataDog/dd-appsec-php/pull/64)) Add system tests
 - ([#65](https://github.com/DataDog/dd-appsec-php/pull/65)) Update ruleset to v1.2.5
 
 ### v0.2.0
-
 #### Breaking Changes
 - ([#44](https://github.com/DataDog/dd-appsec-php/pull/44)) Rename ini settings from `ddappsec.*` to `datadog.appsec.*`
 - ([#54](https://github.com/DataDog/dd-appsec-php/pull/54)) Align ini and environment priorities with the tracer

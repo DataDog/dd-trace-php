@@ -46,7 +46,7 @@ FetchContent_MakeAvailable(spdlog)
 include(ExternalProject)
 ExternalProject_Add(proj_event_rules
     GIT_REPOSITORY git@github.com:DataDog/appsec-event-rules.git
-    GIT_TAG 1.2.5
+    GIT_TAG 1.2.6
     GIT_SHALLOW ON
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
