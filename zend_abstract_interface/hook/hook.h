@@ -9,6 +9,8 @@
         Note: installation of hooks may occur after minit */
 bool zai_hook_minit(void);
 bool zai_hook_rinit(void);
+void zai_hook_activate(void);
+void zai_hook_clean(void);
 void zai_hook_rshutdown(void);
 void zai_hook_mshutdown(void); /* }}} */
 
@@ -44,7 +46,10 @@ typedef struct {
 } zai_hook_end;
 
 /* {{{ auxiliary support */
-typedef void* zai_hook_aux_i;
+typedef struct {
+    void *data;
+    void (*dtor)(void *data);
+} zai_hook_aux_i;
 typedef void (*zai_hook_aux_u)(zval* aux);
 
 typedef struct {
@@ -101,8 +106,8 @@ typedef struct {
 /* }}} */
 
 /* {{{ zai_hook_aux ZAI_HOOK_AUX_INTERNAL(zai_hook_aux_p pointer) */
-#define ZAI_HOOK_AUX_INTERNAL(pointer) \
-    ZAI_HOOK_USED(INTERNAL, aux, i, pointer)
+#define ZAI_HOOK_AUX_INTERNAL(pointer, destructor) \
+    ZAI_HOOK_USED(INTERNAL, aux, i, ((zai_hook_aux_i){ .data = (pointer), .dtor = (destructor) }))
 /* }}} */
 
 /* {{{ zai_hook_install may be executed after minit and during request */
@@ -127,7 +132,8 @@ bool zai_hook_install_resolved(
         size_t dynamic,
         zend_function *function ZAI_TSRMLS_DC); /* }}} */
 
-// TODO: add missing zai_hook_uninstall*() functions
+/* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
+void zai_hook_remove(zai_string_view scope, zai_string_view function, int index ZAI_TSRMLS_DC); /* }}} */
 
 /* {{{ zai_hook_memory_t structure is passed between
         continue and finish and managed by the hook interface */

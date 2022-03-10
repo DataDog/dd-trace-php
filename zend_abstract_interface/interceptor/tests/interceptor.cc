@@ -45,6 +45,7 @@ static void php_call_shutdown_functions(TSRMLS_D) /* {{{ */
 
     static PHP_RINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_rinit();
+        zai_hook_activate();
         zai_interceptor_rinit(ZAI_TSRMLS_C);
         return SUCCESS;
     }

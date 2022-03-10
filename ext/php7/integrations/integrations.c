@@ -1,45 +1,33 @@
 #include "integrations.h"
 
-#include "ext/php7/configuration.h"
-#include "ext/php7/ddtrace_string.h"
+#include "../configuration.h"
+#include "../logging.h"
+#include "value/value.h"
+#include <hook/hook.h>
 #undef INTEGRATION
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
-                          DDTRACE_STRING_LITERAL(integration_name), DDTRACE_DISPATCH_DEFERRED_LOADER)
+    dd_hook_method_and_unhook_on_first_call(ZAI_STRL_VIEW(class), ZAI_STRL_VIEW(fname), \
+                          ZAI_STRL_VIEW(integration_name))
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_METHOD(name, Class, fname, integration)                                \
-    dd_set_up_deferred_loading_by_method(name, DDTRACE_STRING_LITERAL(Class), DDTRACE_STRING_LITERAL(fname), \
-                                         DDTRACE_STRING_LITERAL(integration))
+    dd_set_up_deferred_loading_by_method(name, ZAI_STRL_VIEW(Class), ZAI_STRL_VIEW(fname), \
+                                         ZAI_STRL_VIEW(integration))
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(name, fname, integration)                           \
-    dd_set_up_deferred_loading_by_method(name, (ddtrace_string){0}, DDTRACE_STRING_LITERAL(fname), \
-                                         DDTRACE_STRING_LITERAL(integration))
-/**
- * DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)
- *
- * This macro can be used to assign a tracing callable to Class, Method/Function name combination
- * the callable can be any callable string thats recognized by PHP. It needs to have the signature
- * expected by normal DDTrace.
- *
- * function tracing_function(SpanData $span, array $args) { }
- *
- * options need to specify either DDTRACE_DISPATCH_POSTHOOK or DDTRACE_DISPATCH_PREHOOK
- * in order for the callable to be called by the hooks
- **/
-#define DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)                      \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
-                          DDTRACE_STRING_LITERAL(callable), options)
+    dd_set_up_deferred_loading_by_method(name, ZAI_STRING_EMPTY, ZAI_STRL_VIEW(fname), \
+                                         ZAI_STRL_VIEW(integration))
 
+// TODO revisit: now looks at gloabl instead of request local ini
 #define INTEGRATION(id, lcname)                                        \
     {                                                                  \
         .name = DDTRACE_INTEGRATION_##id,                              \
         .name_ucase = #id,                                             \
         .name_lcase = (lcname),                                        \
         .name_len = sizeof(lcname) - 1,                                \
-        .is_enabled = get_DD_TRACE_##id##_ENABLED,                     \
-        .is_analytics_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
-        .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
+        .is_enabled = get_global_DD_TRACE_##id##_ENABLED,                     \
+        .is_analytics_enabled = get_global_DD_TRACE_##id##_ANALYTICS_ENABLED, \
+        .get_sample_rate = get_global_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
     },
 ddtrace_integration ddtrace_integrations[] = {DD_INTEGRATIONS};
 size_t ddtrace_integrations_len = sizeof ddtrace_integrations / sizeof ddtrace_integrations[0];
@@ -49,32 +37,41 @@ static HashTable _dd_string_to_integration_name_map;
 
 static void _dd_add_integration_to_map(char* name, size_t name_len, ddtrace_integration* integration);
 
-void ddtrace_integrations_minit(void) {
-    zend_hash_init(&_dd_string_to_integration_name_map, ddtrace_integrations_len, NULL, NULL, 1);
-
-    for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
-        char* name = ddtrace_integrations[i].name_lcase;
-        size_t name_len = ddtrace_integrations[i].name_len;
-        _dd_add_integration_to_map(name, name_len, &ddtrace_integrations[i]);
-    }
-}
-
 void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_integration_name_map); }
 
-#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)                                         \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class_str), DDTRACE_STRING_LITERAL(fname_str), \
-                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK)
+static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *frame, void *auxiliary, void *dynamic) {
+    (void)frame, (void)dynamic;
 
-/* Due to negative lookup caching, we need to have a list of all things we
- * might instrument so that if a call is made to something we want to later
- * instrument but is not currently instrumented, that we don't cache this.
- *
- * We should improve how this list is made in the future instead of hard-
- * coding known integrations (and for now only the problematic ones).
- */
-static void dd_register_known_calls(void) {
-    DDTRACE_KNOWN_INTEGRATION("wpdb", "query");
-    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire");
+    zval integration;
+    ZVAL_STR(&integration, auxiliary);
+
+    zval *rv;
+    ZAI_VALUE_INIT(rv);
+    bool success =
+            zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
+    ZAI_VALUE_DTOR(rv);
+
+    if (UNEXPECTED(!success)) {
+        ddtrace_log_debugf(
+                "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
+                Z_STRVAL(integration));
+    }
+
+    zend_string *func = frame->func->common.function_name;
+    zend_string *Class = frame->func->common.scope ? frame->func->common.scope->name : NULL;
+    zai_hook_remove(Class ? ZAI_STRING_EMPTY : (zai_string_view){ .ptr =  ZSTR_VAL(Class), .len = ZSTR_LEN(Class) },
+                    (zai_string_view){ .ptr =  ZSTR_VAL(func), .len = ZSTR_LEN(func) },
+                    0);
+
+    return true;
+}
+
+static void dd_hook_method_and_unhook_on_first_call(zai_string_view Class, zai_string_view method, zai_string_view callback) {
+    zai_hook_install(ZAI_HOOK_INTERNAL, Class, method,
+            ZAI_HOOK_BEGIN_INTERNAL(dd_invoke_integration_loader_and_unhook),
+            ZAI_HOOK_UNUSED(end),
+            ZAI_HOOK_AUX_INTERNAL(zend_string_init(callback.ptr, callback.len, 1), (void(*)(void *))zend_string_release),
+            0);
 }
 
 static void dd_load_test_integrations(void) {
@@ -84,20 +81,27 @@ static void dd_load_test_integrations(void) {
     }
 
     DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "public_static_method", "ddtrace\\test\\testsandboxedintegration");
-    DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
+    // DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
 }
 
-static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, ddtrace_string Class,
-                                                 ddtrace_string method, ddtrace_string integration) {
+static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, zai_string_view Class,
+                                                 zai_string_view method, zai_string_view integration) {
     if (!ddtrace_config_integration_enabled(name)) {
         return;
     }
 
-    ddtrace_hook_callable(Class, method, integration, DDTRACE_DISPATCH_DEFERRED_LOADER);
+    dd_hook_method_and_unhook_on_first_call(Class, method, integration);
 }
 
-void ddtrace_integrations_rinit(void) {
-    dd_register_known_calls();
+void ddtrace_integrations_minit(void) {
+    zend_hash_init(&_dd_string_to_integration_name_map, ddtrace_integrations_len, NULL, NULL, 1);
+
+    for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
+        char *name = ddtrace_integrations[i].name_lcase;
+        size_t name_len = ddtrace_integrations[i].name_len;
+        _dd_add_integration_to_map(name, name_len, &ddtrace_integrations[i]);
+    }
+
     dd_load_test_integrations();
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELASTICSEARCH, "elasticsearch\\client", "__construct",

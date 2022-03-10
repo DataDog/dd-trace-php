@@ -2,11 +2,12 @@
 #include <exceptions/exceptions.h>
 #include <php.h>
 
-#include "engine_hooks.h"  // For 'ddtrace_resource'
+#include "ddtrace.h"
 #include "handlers_internal.h"
-#include "logging.h"
 #include "serializer.h"
 #include "span.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 // Keep in mind that we are currently not having special handling for uncaught exceptions thrown within the shutdown
 // sequence. This arises from the exception handlers being only invoked at the end of {main}. Additionally we currently
@@ -366,18 +367,6 @@ void ddtrace_exception_handlers_startup(void) {
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {
         dd_install_handler(handlers[i]);
-    }
-
-    if (ddtrace_resource != -1) {
-        ddtrace_string handlers[] = {
-            DDTRACE_STRING_LITERAL("header"),
-            DDTRACE_STRING_LITERAL("http_response_code"),
-            DDTRACE_STRING_LITERAL("set_error_handler"),
-            DDTRACE_STRING_LITERAL("set_exception_handler"),
-            DDTRACE_STRING_LITERAL("restore_exception_handler"),
-        };
-        size_t handlers_len = sizeof handlers / sizeof handlers[0];
-        ddtrace_replace_internal_functions(CG(function_table), handlers_len, handlers);
     }
 }
 

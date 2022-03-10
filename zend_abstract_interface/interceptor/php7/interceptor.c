@@ -63,7 +63,10 @@ void zai_interceptor_op_array_ctor(zend_op_array *op_array) {
     // push our own EXT_NOP onto the op_array start
     if (!(CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO)) {
         if (op_array->last == 0 || op_array->opcodes[0].opcode != ZEND_EXT_NOP) {
-            zai_set_ext_nop(&op_array->opcodes[op_array->last++]);
+            zend_op *op = &op_array->opcodes[op_array->last++];
+            zai_set_ext_nop(op);
+            // EXT_STMT is skipped by compiler when determining "very first" instructions
+            op->opcode = ZEND_EXT_STMT;
         }
     }
 }
@@ -73,16 +76,22 @@ static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
 }
 
 void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
-    // technically not necessary, but we do it as to not hinder the default optimization of skipping the first RECV ops
     if (!(CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO)) {
         zend_op *opcodes = op_array->opcodes;
+        for (zend_op *cur = opcodes, *last = cur + op_array->last; cur < last; ++cur) {
+            if (cur->opcode == ZEND_EXT_STMT && cur->extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
+                cur->opcode = ZEND_EXT_NOP;
+                break;
+            }
+        }
+        // technically not necessary, but we do it as to not hinder the default optimization of skipping the first RECV ops
         if (op_array->last > 0 && opcodes[0].opcode == ZEND_EXT_NOP && opcodes[0].extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
             int i = 1;
             while (zai_is_func_recv_opcode(opcodes[i].opcode)) {
                 ++i;
             }
-            if (i > 1) {
-                memmove(&opcodes[0], &opcodes[1], (i - 1) * sizeof(zend_op));
+            if (i-- > 1) {
+                memmove(&opcodes[0], &opcodes[1], i * sizeof(zend_op));
                 zai_set_ext_nop(&opcodes[i]);
             }
         }
@@ -296,6 +305,17 @@ static int zai_interceptor_handle_exception_handler(zend_execute_data *execute_d
     return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
+void zai_interceptor_terminate_all_pending_observers() {
+    zai_interceptor_frame_memory *frame_memory;
+    zval retval;
+    ZVAL_NULL(&retval);
+    ZEND_HASH_FOREACH_PTR(&zai_hook_memory, frame_memory) {
+                // the individual execute_data contents here may point to bogus (but allocated) memory, but it's just used as key here, hence there's no issue.
+                zai_hook_finish(frame_memory->execute_data, &retval, &frame_memory->hook_data);
+            } ZEND_HASH_FOREACH_END();
+    zend_hash_clean(&zai_hook_memory);
+}
+
 static zend_class_entry zai_interceptor_bailout_ce;
 static zend_object_handlers zai_interceptor_bailout_handlers;
 static int zai_interceptor_bailout_get_closure(zval *obj, zend_class_entry **ce_ptr, zend_function **fptr_ptr,
@@ -305,14 +325,7 @@ static int zai_interceptor_bailout_get_closure(zval *obj, zend_class_entry **ce_
     *obj_ptr = Z_OBJ_P(obj);
     if (CG(unclean_shutdown)) {
         // we do this directly in the get_closure handler instead of a function to avoid an extra pushed stack frame in traces
-        zai_interceptor_frame_memory *frame_memory;
-        zval retval;
-        ZVAL_NULL(&retval);
-        ZEND_HASH_FOREACH_PTR(&zai_hook_memory, frame_memory) {
-            // the individual execute_data contents here may point to bogus (but allocated) memory, but it's just used as key here, hence there's no issue.
-            zai_hook_finish(frame_memory->execute_data, &retval, &frame_memory->hook_data);
-        } ZEND_HASH_FOREACH_END();
-        zend_hash_clean(&zai_hook_memory);
+        zai_interceptor_terminate_all_pending_observers();
     }
     return SUCCESS;
 }

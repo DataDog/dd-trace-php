@@ -18,6 +18,7 @@ typedef struct {
         size_t         auxiliary;
         size_t         dynamic;
     } offset;
+    bool is_global;
 } zai_hook_t; /* }}} */
 
 // clang-format on
@@ -139,12 +140,14 @@ static inline void zai_hook_copy(zai_hook_t *hook ZAI_TSRMLS_DC) {
         zai_hook_copy_u(hook ZAI_TSRMLS_CC);
     }
 
-    if (hook->scope) {
-        zai_hook_string_copy(hook->scope);
-    }
+    if (!hook->is_global) {
+        if (hook->scope) {
+            zai_hook_string_copy(hook->scope);
+        }
 
-    if (hook->function) {
-        zai_hook_string_copy(hook->function);
+        if (hook->function) {
+            zai_hook_string_copy(hook->function);
+        }
     }
 } /* }}} */
 
@@ -156,16 +159,20 @@ static void zai_hook_destroy(zval *zv) {
     zai_hook_t *hook = Z_PTR_P(zv);
 #endif
 
-    if (hook->type == ZAI_HOOK_USER) {
-        zai_hook_destroy_u(hook ZAI_TSRMLS_CC);
-    }
+    if (!hook->is_global) {
+        if (hook->type == ZAI_HOOK_USER) {
+            zai_hook_destroy_u(hook ZAI_TSRMLS_CC);
+        } else if (hook->aux.u.i.dtor) {
+            hook->aux.u.i.dtor(hook->aux.u.i.data);
+        }
 
-    if (hook->scope) {
-        zai_hook_string_release(hook->scope);
-    }
+        if (hook->scope) {
+            zai_hook_string_release(hook->scope);
+        }
 
-    if (hook->function) {
-        zai_hook_string_release(hook->function);
+        if (hook->function) {
+            zai_hook_string_release(hook->function);
+        }
     }
 
 #if PHP_VERSION_ID >= 70000
@@ -425,10 +432,15 @@ bool zai_hook_minit(void) {
 bool zai_hook_rinit(void) {
     ZAI_TSRMLS_FETCH();
 
+    zend_hash_init(&zai_hook_request, 8, NULL, (dtor_func_t) zai_hook_destroy, 1);
+    zend_hash_init(&zai_hook_resolved, 8, NULL, (dtor_func_t)zai_hook_resolved_destroy, 1);
+
+    return true;
+}
+
+void zai_hook_activate(void) {
     zai_hook_auxiliary_size = 0;
     zai_hook_dynamic_size = 0;
-
-    zend_hash_init(&zai_hook_request, 8, NULL, (dtor_func_t)zai_hook_destroy, 1);
 
     zai_hook_t *hook;
     ZAI_HOOK_FOREACH(&zai_hook_static, hook, {
@@ -438,14 +450,16 @@ bool zai_hook_rinit(void) {
             continue;
         }
 
+        inherited->is_global = true;
         zai_hook_copy(inherited ZAI_TSRMLS_CC);
     });
 
-    zend_hash_init(&zai_hook_resolved, 8, NULL, (dtor_func_t)zai_hook_resolved_destroy, 1);
-
     zai_hook_resolve(ZAI_TSRMLS_C);
+}
 
-    return true;
+void zai_hook_clean(void) {
+    zend_hash_clean(&zai_hook_resolved);
+    zend_hash_clean(&zai_hook_request);
 }
 
 void zai_hook_rshutdown(void) {
@@ -594,5 +608,9 @@ bool zai_hook_install(
 
     return true;
 } /* }}} */
+
+void zai_hook_remove(zai_string_view scope, zai_string_view function, int index ZAI_TSRMLS_DC) {
+    // TODO implement
+}
 
 // clang-format on

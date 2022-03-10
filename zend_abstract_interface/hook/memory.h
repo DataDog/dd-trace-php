@@ -22,7 +22,7 @@ static inline void *zai_hook_memory_auxiliary(zai_hook_memory_t *memory, zai_hoo
 
     switch (hook->type) {
         case ZAI_HOOK_INTERNAL:
-            return hook->aux.u.i;
+            return hook->aux.u.i.data;
 
         case ZAI_HOOK_USER:
             return (char *)(((char *)memory->auxiliary) + hook->offset.auxiliary);

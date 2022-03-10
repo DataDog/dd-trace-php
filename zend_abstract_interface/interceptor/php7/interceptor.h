@@ -10,4 +10,6 @@ void zai_interceptor_startup(zend_module_entry *module_entry);
 void zai_interceptor_rinit(void);
 void zai_interceptor_rshutdown(void);
 
+void zai_interceptor_terminate_all_pending_observers(void);
+
 #endif  // ZAI_INTERCEPTOR_H

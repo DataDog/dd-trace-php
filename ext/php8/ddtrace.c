@@ -51,7 +51,7 @@
 #include "startup_logging.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 
-#include <zai/hook/uhook.h>
+#include "../hook/uhook.h"
 
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;

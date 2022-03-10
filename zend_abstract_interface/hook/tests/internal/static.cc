@@ -57,6 +57,7 @@ static zai_string_view zai_hook_test_target = ZAI_STRL_VIEW("phpversion");
         { statics }                                             \
         REQUIRE(tea_sapi_rinit());                              \
         REQUIRE(zai_hook_rinit());                              \
+        zai_hook_activate();                                    \
         TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()                   \
         { __VA_ARGS__ }                                         \
         TEA_TEST_CASE_WITHOUT_BAILOUT_END()                     \
@@ -76,7 +77,7 @@ HOOK_TEST_CASE("continue", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_first),
+        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_first, NULL),
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     zval *result;
@@ -107,7 +108,7 @@ HOOK_TEST_CASE("stop", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_first),
+        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_first, NULL),
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     zval *result;
@@ -138,7 +139,7 @@ HOOK_TEST_CASE("multiple continue", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_first),
+        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_first, NULL),
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 
     REQUIRE(zai_hook_install(
@@ -147,7 +148,7 @@ HOOK_TEST_CASE("multiple continue", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_second),
+        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_second, NULL),
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     zval *result;
@@ -178,7 +179,7 @@ HOOK_TEST_CASE("multiple stop", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_first),
+        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_first, NULL),
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 
     REQUIRE(zai_hook_install(
@@ -187,7 +188,7 @@ HOOK_TEST_CASE("multiple stop", {
         zai_hook_test_target,
         ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin),
         ZAI_HOOK_END_INTERNAL(zai_hook_test_end),
-        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_second),
+        ZAI_HOOK_AUX_INTERNAL(&zai_hook_test_fixed_second, NULL),
         sizeof(zai_hook_test_dynamic_t) TEA_TSRMLS_CC));
 }, {
     zval *result;

@@ -2,6 +2,7 @@
 
 #include <SAPI.h>
 #include <php7/priority_sampling/priority_sampling.h>
+#include <interceptor/php7/interceptor.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -9,7 +10,6 @@
 #include "compat_string.h"
 #include "configuration.h"
 #include "ddtrace.h"
-#include "dispatch.h"
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
@@ -85,10 +85,6 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
         ddtrace_set_root_span_properties(&span_fci->span);
     } else {
         ddtrace_span_fci *next_span = span_fci->next;
-        while (next_span->span.start == 0 && next_span->next) {  // skip placeholder span from dd_create_duplicate_span
-            next_span = next_span->next;
-        }
-
         ZVAL_COPY(ddtrace_spandata_property_service(&span_fci->span),
                   ddtrace_spandata_property_service(&next_span->span));
         ZVAL_COPY(ddtrace_spandata_property_type(&span_fci->span), ddtrace_spandata_property_type(&next_span->span));
@@ -195,11 +191,6 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
     span_fci->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = span_fci;
 
-    if (span_fci->dispatch) {
-        ddtrace_dispatch_release(span_fci->dispatch);
-        span_fci->dispatch = NULL;
-    }
-
     if (DDTRACE_G(open_spans_top) == NULL) {
         // Enforce a sampling decision here
         ddtrace_fetch_prioritySampling_from_root();
@@ -212,6 +203,20 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
     }
+}
+
+void ddtrace_close_all_open_spans(void) {
+    ddtrace_span_fci *span_fci;
+    zai_interceptor_terminate_all_pending_observers();
+    while ((span_fci = DDTRACE_G(open_spans_top))) {
+        if (get_DD_AUTOFINISH_SPANS()) {
+            dd_trace_stop_span_time(&span_fci->span);
+            ddtrace_close_span(span_fci);
+        } else {
+            ddtrace_drop_top_open_span();
+        }
+    }
+    DDTRACE_G(open_spans_top) = NULL;
 }
 
 void ddtrace_drop_top_open_span(void) {

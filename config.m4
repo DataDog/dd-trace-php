@@ -39,7 +39,6 @@ if test "$PHP_DDTRACE" != "no"; then
   DD_TRACE_VENDOR_SOURCES="\
     ext/vendor/mpack/mpack.c \
     ext/vendor/mt19937/mt19937-64.c \
-    ext/vendor/zai/hook/uhook.c \
     src/dogstatsd/client.c \
   "
 
@@ -168,7 +167,6 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/coms.c \
       ext/php7/configuration.c \
       ext/php7/ddshared.c \
-      ext/php7/dispatch.c \
       ext/php7/dogstatsd_client.c \
       ext/php7/engine_api.c \
       ext/php7/engine_hooks.c \
@@ -176,17 +174,10 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/handlers_curl.c \
       ext/php7/handlers_exception.c \
       ext/php7/handlers_internal.c \
-      ext/php7/handlers_memcached.c \
-      ext/php7/handlers_mongodb.c \
-      ext/php7/handlers_mysqli.c \
       ext/php7/handlers_pcntl.c \
-      ext/php7/handlers_pdo.c \
-      ext/php7/handlers_phpredis.c \
       ext/php7/integrations/integrations.c \
       ext/php7/logging.c \
       ext/php7/memory_limit.c \
-      ext/php7/php7/dispatch.c \
-      ext/php7/php7/engine_hooks.c \
       ext/php7/priority_sampling/priority_sampling.c \
       ext/php7/profiling_context.c \
       ext/php7/random.c \
@@ -196,6 +187,8 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/span.c \
       ext/php7/startup_logging.c \
       ext/php7/tracer_tag_propagation/tracer_tag_propagation.c \
+      ext/hook/uhook.c \
+      ext/hook/uhook_legacy.c \
     "
 
     ZAI_SOURCES="\
@@ -207,6 +200,8 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
       zend_abstract_interface/hook/hook.c \
+      zend_abstract_interface/interceptor/php7/interceptor.c \
+      zend_abstract_interface/interceptor/php7/resolver.c \
       zend_abstract_interface/json/json.c \
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
@@ -253,6 +248,8 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/span.c \
       ext/php8/startup_logging.c \
       ext/php8/tracer_tag_propagation/tracer_tag_propagation.c \
+      ext/hook/uhook.c \
+      ext/hook/uhook_legacy.c \
     "
     if test $PHP_VERSION_ID -lt 80200; then
       DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
@@ -269,6 +266,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
       zend_abstract_interface/hook/hook.c \
+      zend_abstract_interface/interceptor/php8/interceptor.c \
       zend_abstract_interface/json/json.c \
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
@@ -322,6 +320,9 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/hook])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php7])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])

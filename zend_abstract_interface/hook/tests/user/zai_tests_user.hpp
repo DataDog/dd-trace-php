@@ -55,6 +55,7 @@ extern "C" {
 
     static PHP_RINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_rinit();
+        zai_hook_activate();
         return SUCCESS;
     }
 
