@@ -212,6 +212,7 @@ function count_possible_segfaults($scenarioResultsRoot)
     }
     $count += substr_count($phpFpmLogsContent, ' signal ');
 
+    // phpcs:disable Generic.Files.LineLength.TooLong
     /* PHP-FPM 5.6 at times segfaults during module shutdown for reasons that almost certainly not related to the tracer
      * #0  0x00007ff9836a2387 in __GI_raise (sig=sig@entry=6) at ../nptl/sysdeps/unix/sysv/linux/raise.c:55
      * #1  0x00007ff9836a3a78 in __GI_abort () at abort.c:90
@@ -221,6 +222,7 @@ function count_possible_segfaults($scenarioResultsRoot)
      * #5  0x0000557565eb006b in php_module_shutdown () at /usr/src/debug/php-5.6.40/main/main.c:2477
      * #6  0x0000557565d8ecb8 in main (argc=<optimized out>, argv=<optimized out>) at /usr/src/debug/php-5.6.40/sapi/fpm/fpm/fpm_main.c:2041
      */
+    // phpcs:enable Generic.Files.LineLength.TooLong
     $count -= substr_count($phpFpmLogsContent, ' signal 6 (SIGABRT');
 
     $apacheLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'apache' . DIRECTORY_SEPARATOR . 'error_log';
