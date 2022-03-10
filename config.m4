@@ -266,6 +266,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/exceptions/php7-8/exceptions.c \
       zend_abstract_interface/headers/php7-8/headers.c \
       zend_abstract_interface/hook/hook.c \
+      zend_abstract_interface/interceptor/php8/interceptor.c \
       zend_abstract_interface/json/json.c \
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
@@ -318,6 +319,8 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/hook])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/hook])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])

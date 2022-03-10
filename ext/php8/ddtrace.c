@@ -53,6 +53,8 @@
 
 #include <zai/hook/uhook.h>
 
+#include "interceptor/php8/interceptor.h"
+
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
 
@@ -435,6 +437,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_integrations_minit();
 
+    zai_interceptor_minit();
+
     return SUCCESS;
 }
 
@@ -535,6 +539,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zai_hook_rinit();
+    zai_interceptor_rinit();
 
     if (ddtrace_has_excluded_module == true) {
         DDTRACE_G(disable) = 2;
@@ -589,6 +594,7 @@ static void dd_clean_globals() {
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
+    zai_interceptor_rshutdown();
     zai_hook_rshutdown();
 
     if (!get_DD_TRACE_ENABLED()) {
@@ -608,6 +614,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     dd_clean_globals();
     ddtrace_free_span_id_stack();
+
 
     return SUCCESS;
 }
