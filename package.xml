@@ -48,7 +48,40 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Changed
+    - Do not disable tracing when ionCube loader is detected #1520
+
+    ### Added
+    - Added ES integration support for newer PHP and ES versions #1516
+    - Add support for wordpress on PHP 8 and use a different hook #1522
+    - Add Code Hotspots #1517
+    - Implement split by instance in PDO #1498
+
+    ### Fixed
+    - Trigger profiling interrupt function before internal observer_end #1499
+    - Fix compatibility with PHP 8.2 (master) #1521
+
+    ### Internal changes
+    - Clean up Tea SAPI and allow ddtrace to run there #1502
+    - Use a new curl session for each writer iteration and clear it after #1504
+    - Increase bgs backlog by 20% #1506
+    - Always include the Tea SAPI Catch2 test header #1507
+    - Add is_nil function to UUID component #1515
+    - Fix randomized testsuite memory limits and background sender curl handling #1525
+    - Run cmake-format on TEA's CMakeLists.txt #1527
+    - Simplify calls (zai symbols), add support for generators #1529
+    - Update profiling to v0.5.0 #1537
+    - Update profiling to v0.5.1 #1541
+    - Move from checking status code reported by vegeta to check error logs #1540
+    - Fix ZAI symbols on PHP 7.3+ (randomized tests failures) #1536
+    - ​​Add a test case for guzzle url no schema + split by domain #1534
+    - Point rel-env deployment to GH release 0.70.1 #1531
+    - Tea ZE Suppport #1526
+    - Show curl response status code in tests #1524
+    - Add long running script memory check to randomized tests #1356
+    - Add a test for sub path and wildcards normalization #1505
+    </notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
