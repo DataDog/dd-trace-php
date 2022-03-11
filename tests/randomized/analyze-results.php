@@ -7,13 +7,15 @@ function analyze_web($tmpScenariosFolder)
     $resultsFolder = $tmpScenariosFolder . DIRECTORY_SEPARATOR . '.results';
     $analyzed = [];
     $unexpectedCodes = [];
+    $possibleSegfaults = [];
     $minimumRequestCount = [];
 
     foreach (scandir($resultsFolder) as $identifier) {
         if (in_array($identifier, ['.', '..'])) {
             continue;
         }
-        $absFilePath = $resultsFolder . DIRECTORY_SEPARATOR . $identifier . DIRECTORY_SEPARATOR . 'results.json';
+        $scenarioResultsRoot = $resultsFolder . DIRECTORY_SEPARATOR . $identifier;
+        $absFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'results.json';
         $analyzed[] = $identifier;
 
         $jsonResult = json_decode(file_get_contents($absFilePath), 1);
@@ -25,9 +27,26 @@ function analyze_web($tmpScenariosFolder)
         // Note: not all the 5** can be set in PHP/Apache via http_response_code()
         // See: https://www.php.net/manual/en/function.http-response-code.php#114996
         $receivedStatusCodes = $jsonResult['status_codes'];
+        $numberOfCICurlErrors = count_circleci_curl_error_7_failures($scenarioResultsRoot);
+        if (getenv('CIRCLECI') === 'true' && isset($receivedStatusCodes['500'])) {
+            error_log('Number: ' . var_export($numberOfCICurlErrors, true));
+            $receivedStatusCodes['500'] -= $numberOfCICurlErrors;
+            if ($receivedStatusCodes['500'] === 0) {
+                unset($receivedStatusCodes['500']);
+            }
+        }
+
+        // We have to ignore 0 status codes as in CirceCI they are over reported. Instead we check error log for
+        // Apache's segfaults.
+        unset($receivedStatusCodes[0]);
         if (array_keys($receivedStatusCodes) !== [200, 510, 511]) {
             $unexpectedCodes[$identifier] = $receivedStatusCodes;
         }
+
+        if (count_possible_segfaults($scenarioResultsRoot)) {
+            $possibleSegfaults[$identifier] = true;
+        }
+
         if (($requestCount = array_sum($receivedStatusCodes)) < MINIMUM_ACCEPTABLE_REQUESTS) {
             $minimumRequestCount[$identifier] = $requestCount;
         }
@@ -39,6 +58,10 @@ function analyze_web($tmpScenariosFolder)
     $isError = false;
     if (count($unexpectedCodes) > 0) {
         echo "Unexpected status codes found: " . var_export($unexpectedCodes, 1) . "\n";
+        $isError = true;
+    }
+    if (count($possibleSegfaults) > 0) {
+        echo "Possible seg faults: " . var_export(array_keys($possibleSegfaults), 1) . "\n";
         $isError = true;
     }
     if (count($minimumRequestCount)) {
@@ -163,6 +186,53 @@ function analyze_cli($tmpScenariosFolder)
     }
 
     return false;
+}
+
+function count_circleci_curl_error_7_failures($scenarioResultsRoot)
+{
+    $count = 0;
+
+    $phpFpmLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'php-fpm' . DIRECTORY_SEPARATOR . 'error.log';
+    $count += substr_count(file_get_contents($phpFpmLogs), 'cURL error 7');
+
+    $apacheLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'apache' . DIRECTORY_SEPARATOR . 'error_log';
+    $count += substr_count(file_get_contents($apacheLogs), 'cURL error 7');
+
+    return $count;
+}
+
+function count_possible_segfaults($scenarioResultsRoot)
+{
+    $count = 0;
+
+    $phpFpmLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'php-fpm' . DIRECTORY_SEPARATOR . 'error.log';
+    $phpFpmLogsContent = file_get_contents($phpFpmLogs);
+    if (!$phpFpmLogsContent) {
+        throw new Exception("Error while reading file $phpFpmLogs");
+    }
+    $count += substr_count($phpFpmLogsContent, ' signal ');
+
+    // phpcs:disable Generic.Files.LineLength.TooLong
+    /* PHP-FPM 5.6 at times segfaults during module shutdown for reasons that almost certainly not related to the tracer
+     * #0  0x00007ff9836a2387 in __GI_raise (sig=sig@entry=6) at ../nptl/sysdeps/unix/sysv/linux/raise.c:55
+     * #1  0x00007ff9836a3a78 in __GI_abort () at abort.c:90
+     * #2  0x00007ff9836e4ed7 in __libc_message (do_abort=do_abort@entry=2, fmt=fmt@entry=0x7ff9837f73f0 "*** Error in `%s': %s: 0x%s ***\n") at ../sysdeps/unix/sysv/linux/libc_fatal.c:196
+     * #3  0x00007ff9836ed299 in malloc_printerr (ar_ptr=0x7ff983a33760 <main_arena>, ptr=<optimized out>, str=0x7ff9837f4bf0 "free(): invalid pointer", action=3) at malloc.c:4967
+     * #4  _int_free (av=0x7ff983a33760 <main_arena>, p=<optimized out>, have_lock=0) at malloc.c:3843
+     * #5  0x0000557565eb006b in php_module_shutdown () at /usr/src/debug/php-5.6.40/main/main.c:2477
+     * #6  0x0000557565d8ecb8 in main (argc=<optimized out>, argv=<optimized out>) at /usr/src/debug/php-5.6.40/sapi/fpm/fpm/fpm_main.c:2041
+     */
+    // phpcs:enable Generic.Files.LineLength.TooLong
+    $count -= substr_count($phpFpmLogsContent, ' signal 6 (SIGABRT');
+
+    $apacheLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'apache' . DIRECTORY_SEPARATOR . 'error_log';
+    $apacheLogsContent = file_get_contents($apacheLogs);
+    if (!$apacheLogsContent) {
+        throw new Exception("Error while reading file $apacheLogs");
+    }
+    $count += substr_count($apacheLogsContent, ' signal ');
+
+    return $count;
 }
 
 /**

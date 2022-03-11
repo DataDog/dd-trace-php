@@ -12,6 +12,8 @@ if [ "${INSTALL_MODE}" == "package" ]; then
 elif [ "${INSTALL_MODE}" == "pecl" ]; then
     echo "PECL installation mode not supported yet"
     exit 1
+elif [ "${INSTALL_MODE}" == "notracer" ]; then
+    echo "Tracer not installed"
 else
     echo "Unknown installation mode"
     exit 1
@@ -47,3 +49,5 @@ echo "Waiting for elasticsearch"
 bash /scripts/wait-for.sh elasticsearch:9200 -t 30
 echo "Waiting for mysql"
 bash /scripts/wait-for.sh mysql:3306 -t 30
+echo "Waiting for the agent"
+bash /scripts/wait-for.sh agent:8126 -t 30
