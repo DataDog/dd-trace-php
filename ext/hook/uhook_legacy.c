@@ -240,11 +240,10 @@ static void dd_uhook_function(INTERNAL_FUNCTION_PARAMETERS, bool tracing) {
     def->run_if_limited = run_when_limited;
 
     RETURN_BOOL(zai_hook_install(
-            ZAI_HOOK_INTERNAL,
             ZAI_STRING_EMPTY, (zai_string_view){ .ptr = ZSTR_VAL(function_name), .len = ZSTR_LEN(function_name) },
-            ZAI_HOOK_BEGIN_INTERNAL(dd_uhook_begin),
-            ZAI_HOOK_END_INTERNAL(dd_uhook_end),
-            ZAI_HOOK_AUX_INTERNAL(def, dd_uhook_dtor),
+            dd_uhook_begin,
+            dd_uhook_end,
+            ZAI_HOOK_AUX(def, dd_uhook_dtor),
             sizeof(dd_uhook_dynamic)));
 
 }
@@ -309,12 +308,11 @@ static void dd_uhook_method(INTERNAL_FUNCTION_PARAMETERS, bool tracing) {
     def->run_if_limited = run_when_limited;
 
     RETURN_BOOL(zai_hook_install(
-            ZAI_HOOK_INTERNAL,
             (zai_string_view){ .ptr = ZSTR_VAL(class_name), .len = ZSTR_LEN(class_name) },
             (zai_string_view){ .ptr = ZSTR_VAL(method_name), .len = ZSTR_LEN(method_name) },
-            ZAI_HOOK_BEGIN_INTERNAL(dd_uhook_begin),
-            ZAI_HOOK_END_INTERNAL(dd_uhook_end),
-            ZAI_HOOK_AUX_INTERNAL(def, dd_uhook_dtor),
+            dd_uhook_begin,
+            dd_uhook_end,
+            ZAI_HOOK_AUX(def, dd_uhook_dtor),
             sizeof(dd_uhook_dynamic)));
 
 }

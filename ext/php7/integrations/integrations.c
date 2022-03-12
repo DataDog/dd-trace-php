@@ -67,10 +67,10 @@ static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *frame, vo
 }
 
 static void dd_hook_method_and_unhook_on_first_call(zai_string_view Class, zai_string_view method, zai_string_view callback) {
-    zai_hook_install(ZAI_HOOK_INTERNAL, Class, method,
-            ZAI_HOOK_BEGIN_INTERNAL(dd_invoke_integration_loader_and_unhook),
-            ZAI_HOOK_UNUSED(end),
-            ZAI_HOOK_AUX_INTERNAL(zend_string_init(callback.ptr, callback.len, 1), (void(*)(void *))zend_string_release),
+    zai_hook_install(Class, method,
+            dd_invoke_integration_loader_and_unhook,
+            NULL,
+            ZAI_HOOK_AUX(zend_string_init(callback.ptr, callback.len, 1), (void(*)(void *))zend_string_release),
             0);
 }
 

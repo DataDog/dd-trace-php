@@ -215,10 +215,9 @@ PHP_FUNCTION(install_hook) {
 
     if (resolved) {
         RETURN_LONG(zai_hook_install_resolved(
-            ZAI_HOOK_INTERNAL,
-            ZAI_HOOK_BEGIN_INTERNAL(dd_uhook_begin),
-            ZAI_HOOK_END_INTERNAL(dd_uhook_end),
-            ZAI_HOOK_AUX_INTERNAL(def, dd_uhook_dtor),
+            dd_uhook_begin,
+            dd_uhook_end,
+            ZAI_HOOK_AUX(def, dd_uhook_dtor),
             sizeof(dd_uhook_dynamic), resolved));
     }
 
@@ -231,11 +230,10 @@ PHP_FUNCTION(install_hook) {
     }
 
     RETURN_LONG(zai_hook_install(
-        ZAI_HOOK_INTERNAL,
         scope, function,
-        ZAI_HOOK_BEGIN_INTERNAL(dd_uhook_begin),
-        ZAI_HOOK_END_INTERNAL(dd_uhook_end),
-        ZAI_HOOK_AUX_INTERNAL(def, dd_uhook_dtor),
+        dd_uhook_begin,
+        dd_uhook_end,
+        ZAI_HOOK_AUX(def, dd_uhook_dtor),
         sizeof(dd_uhook_dynamic)));
 } /* }}} */
 // clang-foramt on

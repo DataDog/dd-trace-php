@@ -1,78 +1,41 @@
 #ifndef HAVE_HOOK_MEMORY_H
 #define HAVE_HOOK_MEMORY_H
 
-/* TODO php5 */
-
 /* {{{ */
 static inline void zai_hook_memory_allocate(zai_hook_memory_t *memory) {
-    if (!zai_hook_auxiliary_size && !zai_hook_dynamic_size) {
+    if (!zai_hook_dynamic_size) {
         memset(memory, 0, sizeof(zai_hook_memory_t));
 
         return;
     }
 
-    memory->auxiliary = ecalloc(1, ZEND_MM_ALIGNED_SIZE(zai_hook_auxiliary_size) + zai_hook_dynamic_size);
-    memory->dynamic = (void *)(((char *)memory->auxiliary) + ZEND_MM_ALIGNED_SIZE(zai_hook_auxiliary_size));
+    memory->dynamic = ecalloc(1, zai_hook_dynamic_size);
 }
 
 static inline void *zai_hook_memory_auxiliary(zai_hook_memory_t *memory, zai_hook_t *hook) {
-    if (hook->aux.type == ZAI_HOOK_UNUSED) {
-        return NULL;
-    }
-
-    switch (hook->type) {
-        case ZAI_HOOK_INTERNAL:
-            return hook->aux.u.i.data;
-
-        case ZAI_HOOK_USER:
-            return (char *)(((char *)memory->auxiliary) + hook->offset.auxiliary);
-
-        default: { /* unreachable */
-        }
-    }
-
-    return NULL;
+    return hook->aux.data;
 }
 
 static inline void *zai_hook_memory_dynamic(zai_hook_memory_t *memory, zai_hook_t *hook) {
-    if (hook->type != ZAI_HOOK_INTERNAL || hook->dynamic == 0) {
+    if (hook->dynamic == 0) {
         return NULL;
     }
 
-    return (char *)(((char *)memory->dynamic) + hook->offset.dynamic);
+    return (char *)(((char *)memory->dynamic) + hook->dynamic_offset);
 }
 
 static inline void zai_hook_memory_reserve(zai_hook_t *hook) {
-    // clang-format off
-    if (hook->aux.type == ZAI_HOOK_USER) {
-        /* user aux input requires reservation */
-        hook->offset.auxiliary =
-            zai_hook_auxiliary_size;
-
-        zai_hook_auxiliary_size +=
-            ZEND_MM_ALIGNED_SIZE(sizeof(zval));
-    }
-
     if (hook->dynamic) {
         /* internal install may require dynamic reservation */
-        hook->offset.dynamic =
-            zai_hook_dynamic_size;
+        hook->dynamic_offset = zai_hook_dynamic_size;
 
-        zai_hook_dynamic_size +=
-            ZEND_MM_ALIGNED_SIZE(hook->dynamic);
+        zai_hook_dynamic_size += ZEND_MM_ALIGNED_SIZE(hook->dynamic);
     }
-    // clang-format on
 }
 
 static inline void zai_hook_memory_free(zai_hook_memory_t *memory) {
-    if (zai_hook_auxiliary_size) {
-        for (size_t offset = 0; offset < (zai_hook_auxiliary_size / ZEND_MM_ALIGNED_SIZE(sizeof(zval))); offset++) {
-            zval_dtor(((zval *)memory->auxiliary) + offset);
-        }
-    }
-
-    if (memory->auxiliary) {
-        efree(memory->auxiliary);
+    if (memory->dynamic) {
+        efree(memory->dynamic);
     }
 } /* }}} */
 

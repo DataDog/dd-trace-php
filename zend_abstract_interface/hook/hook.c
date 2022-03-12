@@ -1,5 +1,4 @@
 #include <hook/hook.h>
-#include <hook/string.h>
 #include <hook/table.h>
 #include <value/value.h>
 
@@ -7,25 +6,20 @@
 
 /* {{{ */
 typedef struct {
-    zai_hook_type_t    type;
-    zai_hook_string_t* scope;
-    zai_hook_string_t* function;
-    zai_hook_begin     begin;
-    zai_hook_end       end;
-    zai_hook_aux       aux;
-    size_t             dynamic;
-    struct {
-        size_t         auxiliary;
-        size_t         dynamic;
-    } offset;
-    bool is_global;
+    zend_string    *scope;
+    zend_string    *function;
+    zai_hook_begin begin;
+    zai_hook_end   end;
+    zai_hook_aux   aux;
+    size_t         dynamic;
+    size_t         dynamic_offset;
+    bool           is_global;
 } zai_hook_t; /* }}} */
 
 // clang-format on
 
 /* {{{ private reserved counters */
-__thread size_t zai_hook_dynamic_size;
-__thread size_t zai_hook_auxiliary_size; /* }}} */
+__thread size_t zai_hook_dynamic_size; /* }}} */
 
 /* {{{ private tables */
 static HashTable zai_hook_static;
@@ -34,11 +28,7 @@ __thread HashTable zai_hook_request;
 
 __thread HashTable zai_hook_resolved; /* }}} */
 
-#if PHP_VERSION_ID < 70000
-static void zai_hook_destroy(zai_hook_t *hook);
-#else
 static void zai_hook_destroy(zval *zv);
-#endif
 
 #if PHP_VERSION_ID >= 80000
 static void zai_hook_on_update_empty(zend_op_array *op_array, bool remove) { (void)op_array, (void)remove; }
@@ -49,25 +39,7 @@ void (*zai_hook_on_update)(zend_op_array *op_array, bool remove) = zai_hook_on_u
 #include <hook/memory.h> /* }}} */
 
 /* {{{ */
-static inline zval *zai_hook_this(zend_execute_data *ex) {
-#if PHP_VERSION_ID < 70000
-    return ex->current_this;
-#else
-    return Z_OBJ(ex->This) ? &ex->This : NULL;
-#endif
-} /* }}} */
-
-/* {{{ */
-static inline bool zai_hook_returned_false(zval *zv) {
-#if PHP_VERSION_ID < 70000
-    return Z_TYPE_P(zv) == IS_BOOL && !Z_BVAL_P(zv);
-#else
-    return Z_TYPE_P(zv) == IS_FALSE;
-#endif
-} /* }}} */
-
-/* {{{ */
-static inline HashTable *zai_hook_install_table(ZAI_TSRMLS_D) {
+static inline HashTable *zai_hook_install_table(void) {
     if (PG(modules_activated)) {
         return &zai_hook_request;
     }
@@ -97,130 +69,63 @@ static inline bool zai_hook_resolved_table(zend_ulong address, HashTable **resol
 } /* }}} */
 
 /* {{{ */
-static inline void zai_hook_copy_u(zai_hook_t *hook ZAI_TSRMLS_DC) {
-    if (hook->begin.type != ZAI_HOOK_UNUSED) {
-#if PHP_VERSION_ID < 70000
-        zend_objects_store_add_ref_by_handle(Z_OBJ_HANDLE(hook->begin.u.u) ZAI_TSRMLS_CC);
-#else
-        Z_ADDREF(hook->begin.u.u);
-#endif
-    }
-
-    if (hook->end.type != ZAI_HOOK_UNUSED) {
-#if PHP_VERSION_ID < 70000
-        zend_objects_store_add_ref_by_handle(Z_OBJ_HANDLE(hook->end.u.u) ZAI_TSRMLS_CC);
-#else
-        Z_ADDREF(hook->end.u.u);
-#endif
-    }
-} /* }}} */
-
-/* {{{ */
-static inline void zai_hook_destroy_u(zai_hook_t *hook ZAI_TSRMLS_DC) {
-    if (hook->begin.type != ZAI_HOOK_UNUSED) {
-#if PHP_VERSION_ID < 70000
-        zend_objects_store_del_ref_by_handle(Z_OBJ_HANDLE(hook->begin.u.u) ZAI_TSRMLS_CC);
-#else
-        zval_dtor(&hook->begin.u.u);
-#endif
-    }
-
-    if (hook->end.type != ZAI_HOOK_UNUSED) {
-#if PHP_VERSION_ID < 70000
-        zend_objects_store_del_ref_by_handle(Z_OBJ_HANDLE(hook->end.u.u) ZAI_TSRMLS_CC);
-#else
-        zval_dtor(&hook->end.u.u);
-#endif
-    }
-} /* }}} */
-
-/* {{{ */
-static inline void zai_hook_copy(zai_hook_t *hook ZAI_TSRMLS_DC) {
-    if (hook->type == ZAI_HOOK_USER) {
-        zai_hook_copy_u(hook ZAI_TSRMLS_CC);
-    }
-
+static inline void zai_hook_copy(zai_hook_t *hook) {
     if (!hook->is_global) {
         if (hook->scope) {
-            zai_hook_string_copy(hook->scope);
+            GC_ADDREF(hook->scope);
         }
 
         if (hook->function) {
-            zai_hook_string_copy(hook->function);
+            GC_ADDREF(hook->function);
         }
     }
 } /* }}} */
 
-#if PHP_VERSION_ID < 70000
-static void zai_hook_destroy(zai_hook_t *hook) {
-    ZAI_TSRMLS_FETCH();
-#else
 static void zai_hook_destroy(zval *zv) {
     zai_hook_t *hook = Z_PTR_P(zv);
-#endif
 
     if (!hook->is_global) {
-        if (hook->type == ZAI_HOOK_USER) {
-            zai_hook_destroy_u(hook ZAI_TSRMLS_CC);
-        } else if (hook->aux.u.i.dtor) {
-            hook->aux.u.i.dtor(hook->aux.u.i.data);
+        if (hook->aux.dtor) {
+            hook->aux.dtor(hook->aux.data);
         }
 
         if (hook->scope) {
-            zai_hook_string_release(hook->scope);
+            zend_string_release(hook->scope);
         }
 
         if (hook->function) {
-            zai_hook_string_release(hook->function);
+            zend_string_release(hook->function);
         }
     }
 
-#if PHP_VERSION_ID >= 70000
     pefree(hook, 1);
-#endif
 }
 
-#if PHP_VERSION_ID < 70000
-static void zai_hook_resolved_destroy(HashTable *hooks) {
-#else
 static void zai_hook_resolved_destroy(zval *zv) {
     HashTable *hooks = Z_PTR_P(zv);
-#endif
 
     zend_hash_destroy(hooks);
 
-#if PHP_VERSION_ID >= 70000
     pefree(hooks, 1);
-#endif
 }
 
 /* {{{ */
-static bool zai_hook_resolve_hook(zai_hook_t *hook ZAI_TSRMLS_DC) {
+static bool zai_hook_resolve_hook(zai_hook_t *hook) {
     zend_function *function = NULL;
 
-    // clang-format off
+    zai_string_view func_name = ZAI_STRING_FROM_ZSTR(hook->function);
     if (hook->scope) {
-        zend_class_entry *scope =
-            zai_symbol_lookup_class(
-                ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                zai_hook_string_cast(hook->scope) ZAI_TSRMLS_CC);
+        zai_string_view class_name = ZAI_STRING_FROM_ZSTR(hook->scope);
+        zend_class_entry *scope = zai_symbol_lookup_class(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,&class_name);
 
         if (!scope) {
             /* class not available */
             return false;
         }
-
-        function =
-            zai_symbol_lookup_function(
-                ZAI_SYMBOL_SCOPE_CLASS, scope,
-                zai_hook_string_cast(hook->function) ZAI_TSRMLS_CC);
+        function = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, scope, &func_name);
     } else {
-        function =
-            zai_symbol_lookup_function(
-                ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                zai_hook_string_cast(hook->function) ZAI_TSRMLS_CC);
+        function = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &func_name);
     }
-    // clang-format on
 
     if (!function) {
         /* cannot be resolved */
@@ -250,31 +155,27 @@ static bool zai_hook_resolve_hook(zai_hook_t *hook ZAI_TSRMLS_DC) {
     return true;
 }
 
-#if PHP_VERSION_ID < 70000
-static int zai_hook_resolve_impl(zai_hook_t *hook ZAI_TSRMLS_DC) {
-#else
-static int zai_hook_resolve_impl(zval *zv ZAI_TSRMLS_DC) {
+static int zai_hook_resolve_impl(zval *zv) {
     zai_hook_t *hook = Z_PTR_P(zv);
-#endif
-    if (zai_hook_resolve_hook(hook ZAI_TSRMLS_CC)) {
-        zai_hook_copy(hook ZAI_TSRMLS_CC);
+    if (zai_hook_resolve_hook(hook)) {
+        zai_hook_copy(hook);
         return ZEND_HASH_APPLY_REMOVE;
     }
     return ZEND_HASH_APPLY_KEEP;
 }
 /* {{{ */
-void zai_hook_resolve(ZAI_TSRMLS_D) {
+void zai_hook_resolve(void) {
     if (zend_hash_num_elements(&zai_hook_request) == 0) {
         return;
     }
 
-    zend_hash_apply(&zai_hook_request, (apply_func_t)zai_hook_resolve_impl ZAI_TSRMLS_CC);
+    zend_hash_apply(&zai_hook_request, (apply_func_t)zai_hook_resolve_impl);
 } /* }}} */
 
 // TODO: make these two functions below efficient
-void zai_hook_resolve_user_function(zend_op_array *op_array ZAI_TSRMLS_DC) {
+void zai_hook_resolve_user_function(zend_op_array *op_array) {
     (void)op_array;
-    zai_hook_resolve(ZAI_TSRMLS_C);
+    zai_hook_resolve();
 #if PHP_VERSION_ID > 80000
     // We do negative caching for run-time allocated op_arrays
     if (op_array->fn_flags & ZEND_ACC_HEAP_RT_CACHE) {
@@ -282,9 +183,9 @@ void zai_hook_resolve_user_function(zend_op_array *op_array ZAI_TSRMLS_DC) {
     }
 #endif
 }
-void zai_hook_resolve_class(zend_class_entry *ce ZAI_TSRMLS_DC) {
+void zai_hook_resolve_class(zend_class_entry *ce) {
     (void)ce;
-    zai_hook_resolve(ZAI_TSRMLS_C);
+    zai_hook_resolve();
 }
 
 /* {{{ */
@@ -299,7 +200,7 @@ static inline HashTable *zai_hook_find(zend_execute_data *ex) {
 } /* }}} */
 
 /* {{{ */
-bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory ZAI_TSRMLS_DC) {
+bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory) {
     HashTable *hooks = zai_hook_find(ex);
 
     if (!hooks || zend_hash_num_elements(hooks) == 0) {
@@ -308,116 +209,49 @@ bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory ZAI_TSRM
 
     zai_hook_memory_allocate(memory);
 
-    zval *This = zai_hook_this(ex);
-
     zai_hook_t *hook;
     // clang-format off
-    ZAI_HOOK_FOREACH(hooks, hook, {
-        if (hook->begin.type == ZAI_HOOK_UNUSED) {
+    ZEND_HASH_FOREACH_PTR(hooks, hook) {
+        if (!hook->begin) {
             continue;
         }
 
-        switch (hook->type) {
-            case ZAI_HOOK_INTERNAL:
-                if (!hook->begin.u.i(
-                        ex,
-                        zai_hook_memory_auxiliary(memory, hook),
-                        zai_hook_memory_dynamic(memory, hook) ZAI_TSRMLS_CC)) {
-                    goto __zai_hook_finish;
-                }
-                break;
-
-            case ZAI_HOOK_USER: {
-                zval *auxiliary = zai_hook_memory_auxiliary(memory, hook);
-
-                if (auxiliary) {
-                    hook->aux.u.u(auxiliary);
-                } else {
-                    auxiliary = &EG(uninitialized_zval);
-                }
-
-                zval *rvu;
-                ZAI_VALUE_INIT(rvu);
-                zai_symbol_call(
-                    This ?
-                        ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL,
-                    This ?
-                        This : NULL,
-                    ZAI_SYMBOL_FUNCTION_CLOSURE, &hook->begin.u.u,
-                    &rvu ZAI_TSRMLS_CC, 1, &auxiliary);
-
-                bool stop = zai_hook_returned_false(rvu);
-                ZAI_VALUE_DTOR(rvu);
-
-                if (stop) {
-                    goto __zai_hook_finish;
-                }
-            } break;
-
-            default: { /* unreachable */ }
+        if (!hook->begin(
+                ex,
+                zai_hook_memory_auxiliary(memory, hook),
+                zai_hook_memory_dynamic(memory, hook))) {
+            goto __zai_hook_finish;
         }
-    });
+    } ZEND_HASH_FOREACH_END();
     // clang-format on
 
     return true;
 
 __zai_hook_finish:
-    zai_hook_finish(ex, NULL, memory ZAI_TSRMLS_CC);
+    zai_hook_finish(ex, NULL, memory);
     return false;
 } /* }}} */
 
 /* {{{ */
-void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory ZAI_TSRMLS_DC) {
+void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory) {
     HashTable *hooks = zai_hook_find(ex);
 
     if (!hooks || zend_hash_num_elements(hooks) == 0) {
         return;
     }
 
-    zval *This = zai_hook_this(ex);
-
     zai_hook_t *hook;
     // clang-format off
-    ZAI_HOOK_FOREACH(hooks, hook, {
-        if (hook->end.type == ZAI_HOOK_UNUSED) {
+    ZEND_HASH_FOREACH_PTR(hooks, hook) {
+        if (!hook->end) {
             continue;
         }
 
-        switch (hook->type) {
-            case ZAI_HOOK_INTERNAL:
-                hook->end.u.i(
-                    ex, rv,
-                    zai_hook_memory_auxiliary(memory, hook),
-                    zai_hook_memory_dynamic(memory, hook) ZAI_TSRMLS_CC);
-                break;
-
-            case ZAI_HOOK_USER: {
-                zval *auxiliary = zai_hook_memory_auxiliary(memory, hook);
-
-                if (!auxiliary) {
-                    auxiliary = &EG(uninitialized_zval);
-                }
-
-                zval *rvu;
-                ZAI_VALUE_INIT(rvu);
-                zai_symbol_call(
-                    This ?
-                        ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL,
-                    This ?
-                        This : NULL,
-                    ZAI_SYMBOL_FUNCTION_CLOSURE, &hook->end.u.u,
-                    &rvu ZAI_TSRMLS_CC,
-                        rv != NULL ?
-                            2 : 1,
-                        &auxiliary,
-                        rv != NULL ?
-                            &rv : NULL);
-                ZAI_VALUE_DTOR(rvu);
-            } break;
-
-            default: { /* unreachable */ }
-        }
-    });
+        hook->end(
+            ex, rv,
+            zai_hook_memory_auxiliary(memory, hook),
+            zai_hook_memory_dynamic(memory, hook));
+    } ZEND_HASH_FOREACH_END();
     // clang-format on
 
     zai_hook_memory_free(memory);
@@ -430,8 +264,6 @@ bool zai_hook_minit(void) {
 }
 
 bool zai_hook_rinit(void) {
-    ZAI_TSRMLS_FETCH();
-
     zend_hash_init(&zai_hook_request, 8, NULL, (dtor_func_t) zai_hook_destroy, 1);
     zend_hash_init(&zai_hook_resolved, 8, NULL, (dtor_func_t)zai_hook_resolved_destroy, 1);
 
@@ -439,11 +271,10 @@ bool zai_hook_rinit(void) {
 }
 
 void zai_hook_activate(void) {
-    zai_hook_auxiliary_size = 0;
     zai_hook_dynamic_size = 0;
 
     zai_hook_t *hook;
-    ZAI_HOOK_FOREACH(&zai_hook_static, hook, {
+    ZEND_HASH_FOREACH_PTR(&zai_hook_static, hook) {
         zai_hook_t *inherited;
 
         if (!zai_hook_table_insert(&zai_hook_request, hook, sizeof(zai_hook_t), (void **)&inherited)) {
@@ -451,10 +282,10 @@ void zai_hook_activate(void) {
         }
 
         inherited->is_global = true;
-        zai_hook_copy(inherited ZAI_TSRMLS_CC);
-    });
+        zai_hook_copy(inherited);
+    } ZEND_HASH_FOREACH_END();
 
-    zai_hook_resolve(ZAI_TSRMLS_C);
+    zai_hook_resolve();
 }
 
 void zai_hook_clean(void) {
@@ -471,63 +302,26 @@ void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 
 // clang-format off
 
-static inline bool zai_hook_install_verify(zai_hook_type_t type, zai_hook_begin begin, zai_hook_end end, zai_hook_aux aux, size_t dynamic ZAI_TSRMLS_DC) {
-    if (type == ZAI_HOOK_USER) {
-        if (!PG(modules_activated)) {
-            /* not allowed: cannot install user hooks before request */
-            return false;
-        }
-
-        if (dynamic) {
-            /* not allowed: user hooks may not use dynamic memory */
-            return false;
-        }
-    }
-
-    if ((begin.type != ZAI_HOOK_UNUSED) && (type != begin.type)) {
-        /* not allowed: begin type may only be unused or match hook type */
-        return false;
-    }
-
-    if ((end.type != ZAI_HOOK_UNUSED) && (type != end.type)) {
-        /* not allowed: end type may only be unused or match hook type */
-        return false;
-    }
-
-    if ((aux.type != ZAI_HOOK_UNUSED) && (type != aux.type)) {
-        /* not allowed: aux type may only be unused or match hook type */
-        return false;
-    }
-
-    return true;
-}
-
 /* {{{ */
 bool zai_hook_install_resolved(
-        zai_hook_type_t type,
         zai_hook_begin begin,
         zai_hook_end end,
         zai_hook_aux aux,
         size_t dynamic,
-        zend_function *function ZAI_TSRMLS_DC) {
+        zend_function *function) {
     if (!PG(modules_activated)) {
         /* not allowed: can only do resolved install during request */
         return false;
     }
 
-    if (!zai_hook_install_verify(type, begin, end, aux, dynamic ZAI_TSRMLS_CC)) {
-        return false;
-    }
-
     zai_hook_t install = {
-        .type = type,
         .scope = NULL,
         .function = NULL,
         .begin = begin,
         .end = end,
         .aux = aux,
         .dynamic = dynamic,
-        .offset = {0, 0},
+        .dynamic_offset = 0,
     };
 
     HashTable *table;
@@ -540,10 +334,6 @@ bool zai_hook_install_resolved(
 
     if (!zai_hook_table_insert(table, &install, sizeof(zai_hook_t), (void **)&resolved)) {
         return false;
-    }
-
-    if (type == ZAI_HOOK_USER) {
-        zai_hook_copy_u(resolved ZAI_TSRMLS_CC);
     }
 
     zai_hook_memory_reserve(resolved);
@@ -560,56 +350,48 @@ bool zai_hook_install_resolved(
 
 /* {{{ */
 bool zai_hook_install(
-        zai_hook_type_t type,
         zai_string_view scope,
         zai_string_view function,
         zai_hook_begin begin,
         zai_hook_end end,
         zai_hook_aux aux,
-        size_t dynamic ZAI_TSRMLS_DC) {
-
-    if (!zai_hook_install_verify(type, begin, end, aux, dynamic ZAI_TSRMLS_CC)) {
-        return false;
-    }
+        size_t dynamic) {
 
     if (!function.len) {
         /* not allowed: target must be known */
         return false;
     }
 
+    bool persistent = !PG(modules_activated);
+
     zai_hook_t install = {
-        .type = type,
-        .scope = zai_hook_string_from(&scope),
-        .function = zai_hook_string_from(&function),
+        .scope = scope.len ? zend_string_init(scope.ptr, scope.len, persistent) : NULL,
+        .function = zend_string_init(function.ptr, function.len, persistent),
         .begin = begin,
         .end = end,
         .aux = aux,
         .dynamic = dynamic,
-        .offset = {0, 0},
+        .dynamic_offset = 0,
     };
 
-    HashTable *table = zai_hook_install_table(ZAI_TSRMLS_C);
+    HashTable *table = zai_hook_install_table();
 
     zai_hook_t *hook;
 
     bool isUninitialized = table != &zai_hook_request;
-    if ((isUninitialized || !zai_hook_resolve_hook(&install ZAI_TSRMLS_CC)) && !zai_hook_table_insert(table, &install, sizeof(zai_hook_t), (void **)&hook)) {
+    if ((isUninitialized || !zai_hook_resolve_hook(&install)) && !zai_hook_table_insert(table, &install, sizeof(zai_hook_t), (void **)&hook)) {
         if (install.scope) {
-            zai_hook_string_release(install.scope);
+            zend_string_release(install.scope);
         }
 
-        zai_hook_string_release(install.function);
+        zend_string_release(install.function);
         return false;
-    }
-
-    if (type == ZAI_HOOK_USER) {
-        zai_hook_copy_u(&install ZAI_TSRMLS_CC);
     }
 
     return true;
 } /* }}} */
 
-void zai_hook_remove(zai_string_view scope, zai_string_view function, int index ZAI_TSRMLS_DC) {
+void zai_hook_remove(zai_string_view scope, zai_string_view function, int index) {
     // TODO implement
 }
 

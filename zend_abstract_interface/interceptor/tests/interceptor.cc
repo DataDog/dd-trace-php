@@ -122,12 +122,11 @@ static void zai_hook_test_end(zend_execute_data *ex, zval *rv, void *fixed, void
 
 #define INSTALL_HOOK(fn) INSTALL_CLASS_HOOK("", fn)
 #define INSTALL_CLASS_HOOK(class, fn) REQUIRE(zai_hook_install( \
-    ZAI_HOOK_INTERNAL, \
     ZAI_STRL_VIEW(class), \
     ZAI_STRL_VIEW(fn), \
-    ZAI_HOOK_BEGIN_INTERNAL(zai_hook_test_begin), \
-    ZAI_HOOK_END_INTERNAL(zai_hook_test_end), \
-    ZAI_HOOK_UNUSED(aux), \
+    zai_hook_test_begin, \
+    zai_hook_test_end, \
+    ZAI_HOOK_AUX(NULL, NULL), \
     0 TEA_TSRMLS_CC))
 #define CALL_FN(fn, ...) do { \
     zval *result; \

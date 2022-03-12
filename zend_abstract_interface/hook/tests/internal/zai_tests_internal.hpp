@@ -7,21 +7,6 @@ extern "C" {
 #include <hook/hook.h>
 #include <value/value.h>
 
-#if PHP_VERSION_ID < 70000
-    static void (*zend_execute_internal_function)(zend_execute_data *ex, zend_fcall_info *fci, int return_value_used TEA_TSRMLS_DC);
-
-    static void zai_hook_test_execute_internal(zend_execute_data *ex, zend_fcall_info *fci, int return_value_used TEA_TSRMLS_DC) {
-        zai_hook_memory_t memory;
-
-        if (!zai_hook_continue(ex, &memory TEA_TSRMLS_CC)) {
-            zend_bailout();
-        }
-
-        zend_execute_internal_function(ex, fci, return_value_used TEA_TSRMLS_CC);
-
-        zai_hook_finish(ex, *fci->retval_ptr_ptr, &memory TEA_TSRMLS_CC);
-    }
-#else
     static void (*zend_execute_internal_function)(zend_execute_data *ex, zval *rv);
 
     static void zai_hook_test_execute_internal(zend_execute_data *ex, zval *rv) {
@@ -35,7 +20,6 @@ extern "C" {
 
         zai_hook_finish(ex, rv, &memory);
     }
-#endif
 
     static inline void zai_hook_test_reset(bool rv) {
         zai_hook_test_begin_return  = rv;
@@ -47,4 +31,6 @@ extern "C" {
         zai_hook_test_end_fixed     = NULL;
     }
 }
+
+#define zai_hook_install(scope, function, begin, end, aux, dynamic) zai_hook_install(scope, function, (zai_hook_begin)begin, (zai_hook_end)end, aux, dynamic)
 #endif
