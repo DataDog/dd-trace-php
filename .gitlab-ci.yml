@@ -7,7 +7,7 @@ variables:
     value: "https://1105103-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_0.71.0_amd64.deb"
     description: "Location where to download latest built package"
   DOWNSTREAM_REL_BRANCH:
-    value: "master"
+    value: "php/deployment-trigger"
     description: "Run a specific datadog-reliability-env branch downstream"
   FORCE_TRIGGER:
     value: "false"
