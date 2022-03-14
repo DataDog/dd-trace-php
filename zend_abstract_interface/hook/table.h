@@ -2,10 +2,6 @@
 #define HAVE_HOOK_TABLE_H
 
 /* {{{ these just allow us to keep most of the code ifdef free */
-static inline bool zai_hook_table_insert(HashTable *table, void *inserting, size_t size, void **inserted) {
-    return (*inserted = zend_hash_next_index_insert_mem(table, inserting, size));
-}
-
 static inline bool zai_hook_table_insert_at(HashTable *table, zend_ulong index, void *inserting, size_t size,
                                             void **inserted) {
     return (*inserted = zend_hash_index_update_mem(table, index, inserting, size));

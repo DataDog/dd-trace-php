@@ -25,10 +25,11 @@ typedef struct {
 
 /* {{{ zai_hook_aux ZAI_HOOK_AUX(void *pointer, void (*destructor)(void *pointer)) */
 #define ZAI_HOOK_AUX(pointer, destructor) (zai_hook_aux){ .data = (pointer), .dtor = (destructor) }
+#define ZAI_HOOK_AUX_UNUSED ZAI_HOOK_AUX(NULL, NULL)
 /* }}} */
 
 /* {{{ zai_hook_install may be executed after minit and during request */
-bool zai_hook_install(
+zend_long zai_hook_install(
         zai_string_view scope,
         zai_string_view function,
         zai_hook_begin  begin,
@@ -40,7 +41,7 @@ bool zai_hook_install(
         this API requires no symbol names, or resolution, it may be used
         to associate a hook with anonymous symbols
         ie. generators, closures, fibers */
-bool zai_hook_install_resolved(
+zend_long zai_hook_install_resolved(
         zai_hook_begin  begin,
         zai_hook_end    end,
         zai_hook_aux    aux,
@@ -48,12 +49,13 @@ bool zai_hook_install_resolved(
         zend_function *function); /* }}} */
 
 /* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
-void zai_hook_remove(zai_string_view scope, zai_string_view function, int index); /* }}} */
+void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index);
+void zai_hook_remove_resolved(zend_function *function, zend_long index); /* }}} */
 
 /* {{{ zai_hook_memory_t structure is passed between
         continue and finish and managed by the hook interface */
 typedef struct {
-    zend_ulong index;
+    zend_ulong invocation;
     void *dynamic;
 } zai_hook_memory_t; /* }}} */
 
@@ -64,16 +66,11 @@ bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory); /* }}}
 /* {{{ zai_hook_finish shall execute end handlers and cleanup reserved memory */
 void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory); /* }}} */
 
-/* {{{ zai_hook_resolve should be called as little as possible
-        NOTE: will be called by hook interface on rinit, to resolve internal installs early */
-void zai_hook_resolve(void); /* }}} */
-
 /* {{{ zai_hook_resolve_* functions are designed to do individual resolving */
 void zai_hook_resolve_user_function(zend_op_array *op_array);
 void zai_hook_resolve_class(zend_class_entry *ce);
 
 /* {{{ private but externed for performance reasons */
-// TODO: Bitshift index by 5 to avoid collisions
 extern __thread HashTable zai_hook_resolved;
 /* }}} */
 
@@ -81,12 +78,27 @@ extern __thread HashTable zai_hook_resolved;
 extern void (*zai_hook_on_update)(zend_op_array *op_array, bool remove);
 #endif
 
+typedef struct {
+    bool active;
+    zend_ulong index;
+    zai_hook_begin *begin;
+    zai_hook_end *end;
+    zai_hook_aux *aux;
+    HashTableIterator iterator;
+} zai_hook_iterator;
+zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function);
+zai_hook_iterator zai_hook_iterate_resolved(zend_function *function);
+void zai_hook_iterator_advance(zai_hook_iterator *iterator);
+
 /* {{{ */
+static inline zend_ulong zai_hook_install_address_user(zend_op_array *op_array) {
+    return ((zend_ulong)op_array->opcodes) >> 5;
+}
 static inline zend_ulong zai_hook_install_address(zend_function *function) {
     if (function->type == ZEND_INTERNAL_FUNCTION) {
-        return (zend_ulong)function;
+        return ((zend_ulong)function) >> 5;
     }
-    return (zend_ulong)function->op_array.opcodes;
+    return zai_hook_install_address_user(&function->op_array);
 } /* }}} */
 
 /* {{{ */
@@ -103,15 +115,15 @@ static inline bool zai_hook_installed_func(zend_function *func) {
 }
 static inline bool zai_hook_installed_user(zend_op_array *op_array) {
 #if PHP_VERSION_ID >= 80000
-    zval *zv = zend_hash_index_find(&zai_hook_resolved, (zend_ulong)op_array->opcodes);
+    zval *zv = zend_hash_index_find(&zai_hook_resolved, zai_hook_install_address_user(op_array));
     if (zv) {
         return Z_PTR_P(zv) != NULL;
     } else {
         zai_hook_resolve_user_function(op_array);
-        return zend_hash_index_find_ptr(&zai_hook_resolved, (zend_ulong)op_array->opcodes) != NULL;
+        return zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address_user(op_array)) != NULL;
     }
 #else
-    return zend_hash_index_exists(&zai_hook_resolved, (zend_ulong)op_array->opcodes);
+    return zend_hash_index_exists(&zai_hook_resolved, zai_hook_install_address_user(op_array));
 #endif
 }
 static inline bool zai_hook_installed_internal(zend_internal_function *function) {
