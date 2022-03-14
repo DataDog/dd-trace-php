@@ -70,9 +70,9 @@ if(DD_APPSEC_INSTALL_RULES_FILE STREQUAL "")
     ExternalProject_Get_property(proj_event_rules SOURCE_DIR)
     set(EVENT_RULES_SOURCE_DIR ${SOURCE_DIR})
     add_custom_target(rules_json ALL true
-        DEPENDS ${EVENT_RULES_SOURCE_DIR}/v2/build/recommended.json)
+        DEPENDS ${EVENT_RULES_SOURCE_DIR}/build/recommended.json)
     add_dependencies(rules_json proj_event_rules)
-    install(FILES ${EVENT_RULES_SOURCE_DIR}/v2/build/recommended.json
+    install(FILES ${EVENT_RULES_SOURCE_DIR}/build/recommended.json
         DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/dd-appsec/)
 else()
     install(FILES ${DD_APPSEC_INSTALL_RULES_FILE}

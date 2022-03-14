@@ -40,7 +40,7 @@ public:
     };
 
     // NOLINTNEXTLINE(google-runtime-references)
-    instance(dds::parameter &rule, std::uint64_t waf_timeout_ms);
+    instance(dds::parameter &rule, std::uint64_t waf_timeout_us);
     instance(const instance &) = delete;
     instance &operator=(const instance &) = delete;
     instance(instance &&) noexcept;
@@ -55,7 +55,7 @@ public:
 
     // testing only
     static instance::ptr from_string(
-        std::string_view rule, std::uint64_t waf_timeout_ms);
+        std::string_view rule, std::uint64_t waf_timeout_us);
 
 protected:
     ddwaf_handle handle_{nullptr};

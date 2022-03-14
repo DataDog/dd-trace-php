@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
             msg.client_version = "1.2.3";
             msg.runtime_version = "7.4.2";
             msg.settings.rules_file = ".github/workflows/release/recommended.json";
-            msg.settings.waf_timeout_ms = 10;
+            msg.settings.waf_timeout_us = 10000;
             msg.settings.trace_rate_limit = 0;
 
             msgpack::packer<std::stringstream> packer(ss);

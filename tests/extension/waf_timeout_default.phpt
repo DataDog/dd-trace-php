@@ -4,4 +4,4 @@ datadog.appsec.waf_timeout default value
 <?php
 var_dump(ini_get('datadog.appsec.waf_timeout'));
 --EXPECT--
-string(2) "10"
+string(5) "10000"

@@ -222,7 +222,7 @@ dds::result instance::listener::call(dds::parameter &data)
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
-        code = ddwaf_run(handle_, data.ptr(), &res, waf_timeout_.count());
+        code = ddwaf_run(handle_, data.ptr(), nullptr, &res, waf_timeout_.count());
     };
 
     if (spdlog::should_log(spdlog::level::debug)) {
@@ -267,10 +267,8 @@ dds::result instance::listener::call(dds::parameter &data)
     return dds::result{dds::result::code::ok};
 }
 
-instance::instance(parameter &rule, std::uint64_t waf_timeout_ms)
-    : handle_{ddwaf_init(rule.ptr(), nullptr)}, waf_timeout_{
-                                                    std::chrono::milliseconds{
-                                                        waf_timeout_ms}}
+instance::instance(parameter &rule, std::uint64_t waf_timeout_us)
+    : handle_{ddwaf_init(rule.ptr(), nullptr, nullptr)}, waf_timeout_{waf_timeout_us}
 {
     rule.free();
     if (handle_ == nullptr) {
@@ -319,14 +317,14 @@ std::vector<std::string_view> instance::get_subscriptions()
 instance::ptr instance::from_settings(const client_settings &settings)
 {
     dds::parameter param = parse_file(settings.rules_file_or_default());
-    return std::make_shared<instance>(param, settings.waf_timeout_ms);
+    return std::make_shared<instance>(param, settings.waf_timeout_us);
 }
 
 instance::ptr instance::from_string(
-    std::string_view rule, std::uint64_t waf_timeout_ms)
+    std::string_view rule, std::uint64_t waf_timeout_us)
 {
     dds::parameter param = parse_string(rule);
-    return std::make_shared<instance>(param, waf_timeout_ms);
+    return std::make_shared<instance>(param, waf_timeout_us);
 }
 
 parameter parse_string(std::string_view config)

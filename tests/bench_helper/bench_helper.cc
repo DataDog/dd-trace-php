@@ -112,7 +112,7 @@ static const std::string default_output{"bench_timings.bin"};        // NOLINT
 static const std::string default_payload{"payload.msgpack"};         // NOLINT
 static const std::string default_payload_sh{"req_shutdown.msgpack"}; // NOLINT
 
-static constexpr std::uint64_t waf_timeout_ms = 10;
+static constexpr std::uint64_t waf_timeout_us = 10000;
 static constexpr std::uint32_t trace_rate_limit = 0; // disabled
 static constexpr int max_simultaneous_connects = 5;
 
@@ -419,8 +419,8 @@ void Client::do_client_init()
         mpack_write(&w, "rules_file");
         mpack_write_str(
             &w, &rules_file_[0], static_cast<uint32_t>(rules_file_.size()));
-        mpack_write(&w, "waf_timeout_ms");
-        mpack_write_u64(&w, waf_timeout_ms);
+        mpack_write(&w, "waf_timeout_us");
+        mpack_write_u64(&w, waf_timeout_us);
         mpack_write(&w, "trace_rate_limit");
         mpack_write_u32(&w, trace_rate_limit);
         mpack_finish_map(&w);

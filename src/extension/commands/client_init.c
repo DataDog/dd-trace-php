@@ -47,13 +47,13 @@ static dd_result _pack_command(
 
         if (!has_rules_file) {
             mlog(dd_log_info,
-                "datadog.appsec.rules_path was not provided. The helper "
+                "datadog.appsec.rules was not provided. The helper "
                 "will atttempt to use the default file");
         }
         dd_mpack_write_nullable_cstr(w, rules_file);
     }
-    dd_mpack_write_lstr(w, "waf_timeout_ms");
-    mpack_write(w, (uint64_t)DDAPPSEC_G(waf_timeout_ms));
+    dd_mpack_write_lstr(w, "waf_timeout_us");
+    mpack_write(w, (uint64_t)DDAPPSEC_G(waf_timeout_us));
 
     dd_mpack_write_lstr(w, "trace_rate_limit");
     mpack_write(w, (uint32_t)DDAPPSEC_G(trace_rate_limit));
