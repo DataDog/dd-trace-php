@@ -67,8 +67,8 @@ bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory); /* }}}
 void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory); /* }}} */
 
 /* {{{ zai_hook_resolve_* functions are designed to do individual resolving */
-void zai_hook_resolve_user_function(zend_op_array *op_array);
-void zai_hook_resolve_class(zend_class_entry *ce);
+void zai_hook_resolve_function(zend_function *function, zend_string *lcname);
+void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname);
 
 /* {{{ private but externed for performance reasons */
 extern __thread HashTable zai_hook_resolved;
@@ -94,9 +94,12 @@ void zai_hook_iterator_advance(zai_hook_iterator *iterator);
 static inline zend_ulong zai_hook_install_address_user(zend_op_array *op_array) {
     return ((zend_ulong)op_array->opcodes) >> 5;
 }
+static inline zend_ulong zai_hook_install_address_internal(zend_internal_function *function) {
+    return ((zend_ulong)function) >> 5;
+}
 static inline zend_ulong zai_hook_install_address(zend_function *function) {
     if (function->type == ZEND_INTERNAL_FUNCTION) {
-        return ((zend_ulong)function) >> 5;
+        return zai_hook_install_address_internal(&function->internal_function);
     }
     return zai_hook_install_address_user(&function->op_array);
 } /* }}} */
@@ -119,7 +122,9 @@ static inline bool zai_hook_installed_user(zend_op_array *op_array) {
     if (zv) {
         return Z_PTR_P(zv) != NULL;
     } else {
-        zai_hook_resolve_user_function(op_array);
+        zend_string *lcname = zend_string_tolower(op_array->function_name);
+        zai_hook_resolve_function((zend_function *)op_array, lcname);
+        zend_string_release(lcname);
         return zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address_user(op_array)) != NULL;
     }
 #else
@@ -127,7 +132,7 @@ static inline bool zai_hook_installed_user(zend_op_array *op_array) {
 #endif
 }
 static inline bool zai_hook_installed_internal(zend_internal_function *function) {
-    return zend_hash_index_exists(&zai_hook_resolved, (zend_ulong)function);
+    return zend_hash_index_exists(&zai_hook_resolved, zai_hook_install_address_internal(function));
 }
 /* }}} */
 

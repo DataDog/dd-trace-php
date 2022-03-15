@@ -1,6 +1,6 @@
 add_executable(hooks
     internal/static.cc
-##    internal/request.cc
+    internal/request.cc
 )
 
 target_link_libraries(hooks PUBLIC catch2_main Tea::Tea Zai::Value Zai::Symbols Zai::Hook)

@@ -127,7 +127,7 @@ static void zai_hook_test_end(zend_execute_data *ex, zval *rv, void *fixed, void
     zai_hook_test_begin, \
     zai_hook_test_end, \
     ZAI_HOOK_AUX(NULL, NULL), \
-    0 TEA_TSRMLS_CC))
+    0 TEA_TSRMLS_CC) != -1)
 #define CALL_FN(fn, ...) do { \
     zval *result; \
     ZAI_VALUE_INIT(result); \

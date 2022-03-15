@@ -3,25 +3,59 @@
 #include <Zend/zend_vm.h>
 #include "../../hook/hook.h"
 
-// TODO: use zai_hook_resolve_user_function and zai_hook_resolve_class for more efficient resolving
+static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition funcpos) {
+    zval keyzv;
+
+    zend_hash_move_forward_ex(CG(class_table), &classpos); // move past previous end
+    for (zend_class_entry *ce; (ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &classpos)); zend_hash_move_forward_ex(CG(class_table), &classpos)) {
+        zend_hash_get_current_key_zval_ex(CG(class_table), &keyzv, &classpos);
+        zai_hook_resolve_class(ce, Z_STR(keyzv));
+    }
+
+    zend_hash_move_forward_ex(CG(function_table), &funcpos); // move past previous end
+    for (zend_function *func; (func = zend_hash_get_current_data_ptr_ex(CG(function_table), &funcpos)); zend_hash_move_forward_ex(CG(function_table), &funcpos)) {
+        zend_hash_get_current_key_zval_ex(CG(function_table), &keyzv, &funcpos);
+        zai_hook_resolve_function(func, Z_STR(keyzv));
+    }
+}
+
 static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int type);
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
+    HashPosition classpos, funcpos;
+    zend_hash_internal_pointer_end_ex(CG(class_table), &classpos);
+    zend_hash_internal_pointer_end_ex(CG(function_table), &funcpos);
+
     zend_op_array *op_array = prev_compile_file(file_handle, type);
-    zai_hook_resolve();
+
+    zai_interceptor_add_new_entries(classpos, funcpos);
+
     return op_array;
 }
 
 static zend_op_array *(*prev_compile_string)(zval *source_string, char *filename);
 static zend_op_array *zai_interceptor_compile_string(zval *source_string, char *filename) {
+    HashPosition classpos, funcpos;
+    zend_hash_internal_pointer_end_ex(CG(class_table), &classpos);
+    zend_hash_internal_pointer_end_ex(CG(function_table), &funcpos);
+
     zend_op_array *op_array = prev_compile_string(source_string, filename);
-    zai_hook_resolve();
+
+    zai_interceptor_add_new_entries(classpos, funcpos);
+
     return op_array;
 }
 
 static void (*prev_class_alias)(INTERNAL_FUNCTION_PARAMETERS);
 PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
     prev_class_alias(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-    zai_hook_resolve();
+    if (Z_TYPE_P(return_value) == IS_TRUE) {
+        HashPosition pos;
+        zval keyzv;
+        zend_hash_internal_pointer_end_ex(CG(class_table), &pos);
+        zend_class_entry *ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &pos);
+        zend_hash_get_current_key_zval_ex(CG(class_table), &keyzv, &pos);
+        zai_hook_resolve_class(ce, Z_STR(keyzv));
+    }
 }
 
 #define ZAI_INTERCEPTOR_POST_DECLARE_OP 224 // random 8 bit number greater than ZEND_VM_LAST_OPCODE
@@ -57,7 +91,18 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
 static user_opcode_handler_t prev_post_declare_handler;
 static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data) {
     if (EX(opline) == &zai_interceptor_post_declare_ops[0] || EX(opline) == &zai_interceptor_post_declare_ops[1]) {
-        zai_hook_resolve();
+        zend_string *lcname = Z_STR_P(RT_CONSTANT(&zai_interceptor_post_declare_ops[0], zai_interceptor_post_declare_ops[0].op1));
+        if (zai_interceptor_post_declare_ops[0].opcode == ZEND_DECLARE_FUNCTION) {
+            zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
+            if (function) {
+                zai_hook_resolve_function(function, lcname);
+            }
+        } else {
+            zend_class_entry *ce = zend_hash_find_ptr(CG(class_table), lcname);
+            if (ce) {
+                zai_hook_resolve_class(ce, lcname);
+            }
+        }
         // preserve offset
         EX(opline) = zai_interceptor_opline_before_binding + (EX(opline) - &zai_interceptor_post_declare_ops[0]);
         return ZEND_USER_OPCODE_CONTINUE;

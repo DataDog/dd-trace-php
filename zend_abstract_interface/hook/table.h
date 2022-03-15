@@ -21,4 +21,21 @@ static inline bool zai_hook_table_find(HashTable *table, zend_ulong index, void 
 #endif
 } /* }}} */
 
+#if PHP_VERSION_ID < 80000
+static void *zend_hash_str_find_ptr_lc(const HashTable *ht, const char *str, size_t len) {
+    void *result;
+    char *lc_str;
+
+    /* Stack allocate small strings to improve performance */
+    ALLOCA_FLAG(use_heap)
+
+    lc_str = zend_str_tolower_copy((char *)do_alloca(len + 1, use_heap), str, len);
+    result = zend_hash_str_find_ptr(ht, lc_str, len);
+    free_alloca(lc_str, use_heap);
+
+    return result;
+}
+
+#endif
+
 #endif

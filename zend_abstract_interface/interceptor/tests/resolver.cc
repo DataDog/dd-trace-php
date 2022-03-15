@@ -77,7 +77,7 @@ static void zai_hook_test_end(zend_execute_data *ex, zval *rv, void *fixed, void
     zai_hook_test_begin, \
     zai_hook_test_end, \
     ZAI_HOOK_AUX(NULL, NULL), \
-    0 TEA_TSRMLS_CC))
+    0 TEA_TSRMLS_CC) != -1)
 #define CALL_FN(fn, ...) do { \
     zval *result; \
     ZAI_VALUE_INIT(result); \
@@ -106,8 +106,8 @@ TEA_TEST_CASE_WITH_PROLOGUE("interceptor", "runtime top-level resolving", init_i
     {
         zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("TopLevel") ZAI_TSRMLS_CC);
         zai_string_view name = ZAI_STRL_VIEW("foo");
-        zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
-        CHECK(zai_hook_installed_func(fn));
+        zend_function *classfn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
+        CHECK(zai_hook_installed_func(classfn));
     }
 });
 
