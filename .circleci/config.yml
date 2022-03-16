@@ -878,7 +878,7 @@ jobs:
         # Possible values: php_installer, native_package
         default: php_installer
     machine:
-      image: circleci/classic:latest
+      image: ubuntu-2004:202111-02
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p test-results
@@ -954,7 +954,7 @@ jobs:
   installer_tests:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2004:202111-02
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
@@ -969,7 +969,7 @@ jobs:
   randomized_tests:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2004:202111-02
     resource_class: xlarge
     parameters:
       batch:
