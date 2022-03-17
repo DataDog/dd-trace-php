@@ -7,7 +7,7 @@ FROM php:$PHP_VERSION-fpm-alpine
 RUN apk add --no-cache apache2 apache2-proxy libexecinfo bash
 
 ARG TRACER_VERSION
-RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-trace-php/cataphract/appsec-installer/dd-library-php-setup.php && \
+RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
 	PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
 
 RUN rm -rf /var/www/localhost/htdocs

@@ -13,10 +13,10 @@ Datadog Application Security (AppSec) extension for PHP.
 
 ## Installation
 
-To install the Datadog AppSec extension, first download the [installer](https://raw.githubusercontent.com/DataDog/dd-trace-php/cataphract/appsec-installer/dd-library-php-setup.php) from the Datadog Tracer repository. 
+To install the Datadog AppSec extension, first download the [installer](https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php) from the Datadog AppSec repository. 
 
 ```
-$ wget https://raw.githubusercontent.com/DataDog/dd-trace-php/cataphract/appsec-installer/dd-library-php-setup.php
+$ wget https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php
 ```
 :exclamation: This extension requires version `0.67.0` or above of the [Datadog PHP Tracer (ddtrace)](https://github.com/DataDog/dd-trace-php) and version `7.0` or above of [PHP](https://php.net). 
 
@@ -26,7 +26,7 @@ This installation requires an active internet connection and the installer menti
 
 To install both the Tracer and AppSec extensions, use the following command:
 ```
-$ php dd-library-php-setup.php --tracer-version=latest --appsec-version=latest
+$ php dd-library-php-setup.php --php-bin all --tracer-version=latest --appsec-version=latest
 ```
 
 ### Offline Installation
