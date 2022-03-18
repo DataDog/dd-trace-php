@@ -16,18 +16,18 @@ services:
     image: redis:latest
 
   httpbin:
-    image: kennethreitz/httpbin
+    image: mccutchen/go-httpbin
 
   memcached:
-    image: "memcached:1.5-alpine"
+    image: memcached:1.5-alpine
 
   elasticsearch:
-    image: "elasticsearch:6.8.13"
+    image: elasticsearch:7.17.1
     environment:
       - discovery.type=single-node
 
   mysql:
-    image: mysql:5.7
+    image: mysql:8.0-oracle
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
