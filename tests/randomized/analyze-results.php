@@ -76,10 +76,7 @@ function analyze_web($tmpScenariosFolder)
     // Reading expected identifiers
     $foundScenarios = [];
     foreach (scandir($tmpScenariosFolder) as $identifier) {
-        if (
-            substr($identifier, 0, strlen('randomized-')) !== 'randomized-'
-            && substr($identifier, 0, strlen('regression-')) !== 'regression-'
-        ) {
+        if (substr($identifier, 0, strlen('randomized-')) !== 'randomized-') {
             continue;
         }
         $foundScenarios[] = $identifier;
@@ -117,11 +114,6 @@ function analyze_cli($tmpScenariosFolder)
         $analyzed[] = $identifier;
 
         $absFilePath = $resultsFolder . DIRECTORY_SEPARATOR . $identifier . DIRECTORY_SEPARATOR . 'memory.out';
-
-        // Old regressions do not have CLI tests
-        if (!file_exists($absFilePath) && strpos($absFilePath, "regression-") !== false) {
-            continue;
-        }
 
         $values = array_map('intval', array_filter(explode("\n", file_get_contents($absFilePath))));
 
