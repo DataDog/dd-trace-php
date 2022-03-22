@@ -48,7 +48,7 @@ composer --working-dir=/var/www/html install
 echo "Waiting for elasticsearch"
 bash /scripts/wait-for.sh elasticsearch:9200 -t 30
 echo "Waiting for mysql"
-bash /scripts/wait-for.sh mysql:3306 -t 30
+bash /scripts/wait-for.sh mysql:3306 -t 60
 echo "Waiting for the agent"
 bash /scripts/wait-for.sh agent:8126 -t 30
 

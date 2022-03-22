@@ -31,7 +31,9 @@ services:
       - discovery.type=single-node
 
   mysql:
-    image: mysql:8.0-oracle
+    image: mysql/mysql-server:8.0.27
+    volumes:
+      - ../../docker/my.cnf:/etc/my.cnf
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
