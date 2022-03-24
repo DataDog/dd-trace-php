@@ -22,37 +22,26 @@ dds::parameter msgpack_to_param(const msgpack::object &o, unsigned depth = 0)
     switch (o.type) {
     case msgpack::type::ARRAY: {
         dds::parameter p = dds::parameter::array();
-        try {
-            const msgpack::object_array &array = o.via.array;
-            for (uint32_t i = 0; i < array.size; i++) {
-                const msgpack::object &item = array.ptr[i];
-                // Assume keys are strings
-                p.add(msgpack_to_param(item, depth));
-            }
-        } catch (...) {
-            p.free();
-            throw;
+        const msgpack::object_array &array = o.via.array;
+        for (uint32_t i = 0; i < array.size; i++) {
+            const msgpack::object &item = array.ptr[i];
+            p.add(msgpack_to_param(item, depth));
         }
         return p;
     }
     case msgpack::type::MAP: {
         dds::parameter p = dds::parameter::map();
-        try {
-            const msgpack::object_map &map = o.via.map;
-            for (uint32_t i = 0; i < map.size; i++) {
-                const msgpack::object_kv &kv = map.ptr[i];
-                // Assume keys are strings
-                p.add(kv.key.as<std::string_view>(),
-                    msgpack_to_param(kv.val, depth));
-            }
-        } catch (...) {
-            p.free();
-            throw;
+        const msgpack::object_map &map = o.via.map;
+        for (uint32_t i = 0; i < map.size; i++) {
+            const msgpack::object_kv &kv = map.ptr[i];
+            // Assume keys are strings
+            p.add(
+                kv.key.as<std::string_view>(), msgpack_to_param(kv.val, depth));
         }
         return p;
     }
     case msgpack::type::STR:
-        return dds::parameter{o.as<std::string_view>()};
+        return dds::parameter::string(o.as<std::string_view>());
     default:
         break;
     }

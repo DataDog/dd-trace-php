@@ -9,6 +9,7 @@
 #include <msgpack.hpp>
 #include <network/broker.hpp>
 #include <network/socket.hpp>
+#include <parameter_view.hpp>
 
 namespace dds {
 
@@ -228,13 +229,13 @@ TEST(BrokerTest, RecvRequestInit)
     EXPECT_STREQ(request.method.c_str(), "request_init");
 
     auto &command = request.as<network::request_init>();
-    EXPECT_TRUE(command.data.is_map());
-    EXPECT_EQ(command.data.size(), 2);
-    EXPECT_STREQ(command.data[0].key().data(), "server.request.query");
-    EXPECT_STREQ(std::string_view(command.data[0]).data(), "Arachni");
-    EXPECT_STREQ(command.data[1].key().data(), "server.request.uri");
-    EXPECT_STREQ(std::string_view(command.data[1]).data(), "arachni.com");
-    command.data.free();
+    parameter_view pv(command.data);
+    EXPECT_TRUE(pv.is_map());
+    EXPECT_EQ(pv.size(), 2);
+    EXPECT_STREQ(pv[0].key().data(), "server.request.query");
+    EXPECT_STREQ(std::string_view(pv[0]).data(), "Arachni");
+    EXPECT_STREQ(pv[1].key().data(), "server.request.uri");
+    EXPECT_STREQ(std::string_view(pv[1]).data(), "arachni.com");
 }
 
 TEST(BrokerTest, RecvRequestShutdown)
@@ -263,11 +264,11 @@ TEST(BrokerTest, RecvRequestShutdown)
     EXPECT_STREQ(request.method.c_str(), "request_shutdown");
 
     auto command = std::move(request.as<network::request_shutdown>());
-    EXPECT_TRUE(command.data.is_map());
-    EXPECT_EQ(command.data.size(), 1);
-    EXPECT_STREQ(command.data[0].key().data(), "server.response.code");
-    EXPECT_STREQ(std::string_view(command.data[0]).data(), "1729");
-    command.data.free();
+    parameter_view pv(command.data);
+    EXPECT_TRUE(pv.is_map());
+    EXPECT_EQ(pv.size(), 1);
+    EXPECT_STREQ(pv[0].key().data(), "server.response.code");
+    EXPECT_STREQ(std::string_view(pv[0]).data(), "1729");
 }
 
 TEST(BrokerTest, NoBytesForHeader)

@@ -3,15 +3,14 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef ENGINE_HPP
-#define ENGINE_HPP
+#pragma once
+
 #include "client_settings.hpp"
 #include "config.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "result.hpp"
 #include "subscriber/base.hpp"
-#include <iostream>
 #include <map>
 #include <memory>
 #include <spdlog/fmt/ostr.h>
@@ -48,7 +47,7 @@ public:
         context &operator=(const context &) = delete;
         context(context &&) = delete;
         context &operator=(context &&) = delete;
-        ~context();
+        ~context() = default;
 
         result publish(parameter &&param);
 
@@ -76,5 +75,3 @@ protected:
 };
 
 } // namespace dds
-
-#endif // ENGINE_HPP

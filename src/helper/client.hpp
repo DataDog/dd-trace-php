@@ -3,8 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef CLIENT_HPP
-#define CLIENT_HPP
+#pragma once
 
 #include <cstdint>
 
@@ -60,5 +59,3 @@ protected:
 };
 
 } // namespace dds
-
-#endif // CLIENT_HPP

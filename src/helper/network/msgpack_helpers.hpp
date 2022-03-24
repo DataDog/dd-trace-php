@@ -3,8 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef MSGPACK_HELPERS_HPP
-#define MSGPACK_HELPERS_HPP
+#pragma once
 
 #include "../parameter.hpp"
 // NOLINTNEXTLINE: msgpack.hpp is buggy and needs an include of sstream before
@@ -28,4 +27,3 @@ template <> struct convert<dds::parameter> {
 } // namespace adaptor
 } // MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS)
 } // namespace msgpack
-#endif

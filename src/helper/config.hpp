@@ -3,8 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef CONFIG_HPP
-#define CONFIG_HPP
+#pragma once
 
 #include <boost/lexical_cast.hpp>
 #include <unordered_map>
@@ -36,4 +35,3 @@ template <>
 std::string_view config::get<std::string_view>(std::string_view key) const;
 
 } // namespace dds::config
-#endif

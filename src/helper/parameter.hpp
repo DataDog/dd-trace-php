@@ -2,84 +2,53 @@
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
 // This product includes software developed at Datadog
-// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef PARAMETER_HPP
-#define PARAMETER_HPP
+// (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
-#include <ddwaf.h>
+#pragma once
+
 #include <limits>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "parameter_base.hpp"
 
 namespace dds {
 
-class parameter : public ddwaf_object {
+class parameter : public parameter_base {
 public:
-    parameter();
+    parameter() = default;
     explicit parameter(const ddwaf_object &arg);
 
-    // FIXME: Copy and move semantics are unclear, perhaps copy should be
-    //        deleted and move reimplemented to invalidate source parameter.
-    parameter(const parameter &) = delete;            // fault;
-    parameter &operator=(const parameter &) = delete; // fault;
+    template <typename T,
+        typename = std::enable_if_t<std::conjunction_v<
+            std::is_base_of<ddwaf_object, std::remove_cv_t<std::decay_t<T>>>,
+            std::negation<std::is_same<ddwaf_object,
+                std::remove_cv_t<std::decay_t<T>>>>>>>
+    parameter(T &&t) = delete;
+
+    parameter(const parameter &) = delete;
+    parameter &operator=(const parameter &) = delete;
 
     parameter(parameter &&) noexcept;
     parameter &operator=(parameter &&) noexcept;
 
-    explicit parameter(uint64_t value);
-    explicit parameter(int64_t value);
-    explicit parameter(const std::string &str);
-    explicit parameter(std::string_view str);
-
-    // These will be freed by the WAF, if the parameters are not passed to the
-    // WAF, expect a memory leak if "free" is not called.
-    ~parameter() = default;
-    void free() noexcept;
-    void invalidate() noexcept { ddwaf_object_invalid(this); }
+    ~parameter() { ddwaf_object_free(this); }
 
     static parameter map() noexcept;
     static parameter array() noexcept;
+    static parameter uint64(uint64_t value) noexcept;
+    static parameter int64(int64_t value) noexcept;
+    static parameter string(const std::string &str) noexcept;
+    static parameter string(std::string_view str) noexcept;
 
-    // NOLINTNEXTLINE(google-runtime-references)
-    bool add(parameter &entry) noexcept;
-    // NOLINTNEXTLINE(google-runtime-references)
     bool add(parameter &&entry) noexcept;
-    // NOLINTNEXTLINE(google-runtime-references)
-    bool add(std::string_view name, parameter &entry) noexcept;
-    // NOLINTNEXTLINE(google-runtime-references)
     bool add(std::string_view name, parameter &&entry) noexcept;
 
-    // Container size
-    [[nodiscard]] size_t size() const noexcept
-    {
-        return static_cast<size_t>(nbEntries);
-    }
-    parameter operator[](size_t index) const noexcept;
-
-    explicit operator std::string_view() const noexcept;
-
-    [[nodiscard]] std::string_view key() const noexcept
-    {
-        return {parameterName, parameterNameLength};
-    };
-    [[nodiscard]] bool is_map() const noexcept { return type == DDWAF_OBJ_MAP; }
-    [[nodiscard]] bool is_container() const noexcept
-    {
-        return (type & (DDWAF_OBJ_MAP | DDWAF_OBJ_ARRAY)) != 0;
-    }
-    [[nodiscard]] bool is_valid() const noexcept
-    {
-        return type != DDWAF_OBJ_INVALID;
-    }
-    ddwaf_object *ptr() noexcept;
-
-    [[nodiscard]] std::string debug_str() const noexcept;
-
-    using length_type = decltype(nbEntries);
-    static constexpr auto max_length{
-        std::numeric_limits<length_type>::max() - 1};
+    // The reference should be considered invalid after adding an element
+    parameter &operator[](size_t index) const;
 };
 
 } // namespace dds
-
-#endif

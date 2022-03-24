@@ -3,8 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef RUNNER_HPP
-#define RUNNER_HPP
+#pragma once
 
 #include <boost/asio.hpp>
 #include <chrono>
@@ -43,4 +42,3 @@ private:
 };
 
 } // namespace dds
-#endif

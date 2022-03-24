@@ -9,6 +9,7 @@
 
 #include "engine.hpp"
 #include "exception.hpp"
+#include "parameter_view.hpp"
 #include "std_logging.hpp"
 
 namespace dds {
@@ -26,25 +27,20 @@ void engine::subscribe(const subscriber::ptr &sub)
     }
 }
 
-engine::context::~context()
-{
-    for (auto &param : prev_published_params_) { param.free(); }
-}
-
 result engine::context::publish(parameter &&param)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
     prev_published_params_.push_back(std::move(param));
 
-    auto &data = prev_published_params_.back();
+    parameter_view data(prev_published_params_.back());
     if (!data.is_map()) {
         throw invalid_object(".", "not a map");
     }
 
     std::set<subscriber::ptr> sub_set;
-    for (size_t i = 0; i < data.size(); i++) {
-        auto key = data[i].key();
+    for (const auto &entry : data) {
+        auto key = entry.key();
         DD_STDLOG(DD_STDLOG_IG_DATA_PUSHED, key);
         auto it = subscriptions_.find(key);
         if (it == subscriptions_.end()) {

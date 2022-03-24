@@ -7,7 +7,6 @@
 #include "../exception.hpp"
 #include <cerrno>
 #include <chrono>
-#include <iostream>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <sys/socket.h>

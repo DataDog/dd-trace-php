@@ -217,12 +217,12 @@ instance::listener::~listener()
     }
 }
 
-dds::result instance::listener::call(dds::parameter &data)
+dds::result instance::listener::call(dds::parameter_view &data)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
-        code = ddwaf_run(handle_, data.ptr(), nullptr, &res, waf_timeout_.count());
+        code = ddwaf_run(handle_, data, &res, waf_timeout_.count());
     };
 
     if (spdlog::should_log(spdlog::level::debug)) {
@@ -268,9 +268,8 @@ dds::result instance::listener::call(dds::parameter &data)
 }
 
 instance::instance(parameter &rule, std::uint64_t waf_timeout_us)
-    : handle_{ddwaf_init(rule.ptr(), nullptr, nullptr)}, waf_timeout_{waf_timeout_us}
+    : handle_{ddwaf_init(rule, nullptr, nullptr)}, waf_timeout_{waf_timeout_us}
 {
-    rule.free();
     if (handle_ == nullptr) {
         throw invalid_object();
     }
@@ -336,7 +335,7 @@ parameter parse_string(std::string_view config)
     }
 
     parameter obj;
-    json_to_object(obj.ptr(), document);
+    json_to_object(obj, document);
     return obj;
 }
 

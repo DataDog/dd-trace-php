@@ -7,7 +7,6 @@
 #include "../exception.hpp"
 #include "proto.hpp"
 #include <chrono>
-#include <iostream>
 #include <msgpack.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>

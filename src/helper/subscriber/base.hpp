@@ -3,11 +3,11 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef SUBSCRIBER_BASE_HPP
-#define SUBSCRIBER_BASE_HPP
+#pragma once
 
 #include "../client_settings.hpp"
 #include "../parameter.hpp"
+#include "../parameter_view.hpp"
 #include "../result.hpp"
 #include <memory>
 #include <vector>
@@ -30,7 +30,7 @@ public:
 
         virtual ~listener() = default;
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual result call(parameter &data) = 0;
+        virtual result call(parameter_view &data) = 0;
     };
 
     subscriber() = default;
@@ -46,4 +46,3 @@ public:
 };
 
 } // namespace dds
-#endif

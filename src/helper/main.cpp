@@ -8,7 +8,6 @@
 #include "subscriber/waf.hpp"
 #include <csignal>
 #include <fcntl.h>
-#include <iostream>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <sys/file.h>

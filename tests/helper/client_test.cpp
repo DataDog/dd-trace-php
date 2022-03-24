@@ -245,7 +245,7 @@ TEST(ClientTest, RequestInitOnClientInit)
         network::request_init::request msg;
         msg.data = parameter::map();
         msg.data.add("server.request.headers.no_cookies",
-            parameter("acunetix-product"sv));
+            parameter::string("acunetix-product"sv));
 
         network::request req(std::move(msg));
 
@@ -288,7 +288,7 @@ TEST(ClientTest, RequestInit)
         network::request_init::request msg;
         msg.data = parameter::map();
         msg.data.add("server.request.headers.no_cookies",
-            parameter("acunetix-product"sv));
+            parameter::string("acunetix-product"sv));
 
         network::request req(std::move(msg));
 
@@ -315,7 +315,7 @@ TEST(ClientTest, RequestInitNoClientInit)
         network::request_init::request msg;
         msg.data = parameter::map();
         msg.data.add("server.request.headers.no_cookies",
-            parameter("acunetix-product"sv));
+            parameter::string("acunetix-product"sv));
 
         network::request req(std::move(msg));
 
@@ -399,7 +399,7 @@ TEST(ClientTest, RequestInitBrokerThrows)
         network::request_init::request msg;
         msg.data = parameter::map();
         msg.data.add("server.request.headers.no_cookies",
-            parameter("acunetix-product"sv));
+            parameter::string("acunetix-product"sv));
 
         network::request req(std::move(msg));
 
@@ -414,7 +414,7 @@ TEST(ClientTest, RequestInitBrokerThrows)
         network::request_init::request msg;
         msg.data = parameter::map();
         msg.data.add("server.request.headers.no_cookies",
-            parameter("acunetix-product"sv));
+            parameter::string("acunetix-product"sv));
 
         network::request req(std::move(msg));
 
@@ -457,8 +457,8 @@ TEST(ClientTest, RequestShutdown)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add(
-            "server.request.headers.no_cookies", parameter("Arachni"sv));
+        msg.data.add("server.request.headers.no_cookies",
+            parameter::string("Arachni"sv));
 
         network::request req(std::move(msg));
 
@@ -476,7 +476,7 @@ TEST(ClientTest, RequestShutdown)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.response.code", parameter("1991"sv));
+        msg.data.add("server.response.code", parameter::string("1991"sv));
 
         network::request req(std::move(msg));
 
@@ -522,8 +522,8 @@ TEST(ClientTest, RequestShutdownInvalidData)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add(
-            "server.request.headers.no_cookies", parameter("Arachni"sv));
+        msg.data.add("server.request.headers.no_cookies",
+            parameter::string("Arachni"sv));
 
         network::request req(std::move(msg));
 
@@ -645,8 +645,8 @@ TEST(ClientTest, RequestShutdownBrokerThrows)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add(
-            "server.request.headers.no_cookies", parameter("Arachni"sv));
+        msg.data.add("server.request.headers.no_cookies",
+            parameter::string("Arachni"sv));
 
         network::request req(std::move(msg));
 
@@ -664,7 +664,7 @@ TEST(ClientTest, RequestShutdownBrokerThrows)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.response.code", parameter("1991"sv));
+        msg.data.add("server.response.code", parameter::string("1991"sv));
 
         network::request req(std::move(msg));
 
@@ -678,7 +678,7 @@ TEST(ClientTest, RequestShutdownBrokerThrows)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.response.code", parameter("1991"sv));
+        msg.data.add("server.response.code", parameter::string("1991"sv));
 
         network::request req(std::move(msg));
 

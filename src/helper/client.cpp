@@ -10,7 +10,6 @@
 #include "network/proto.hpp"
 #include "std_logging.hpp"
 #include <chrono>
-#include <iostream>
 #include <mutex>
 #include <spdlog/spdlog.h>
 #include <string>

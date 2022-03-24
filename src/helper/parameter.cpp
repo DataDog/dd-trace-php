@@ -4,56 +4,27 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "parameter.hpp"
-#include "ddwaf.h"
 #include "exception.hpp"
-#include <string>
-#include <string_view>
 
 namespace dds {
 
-parameter::parameter() : _ddwaf_object() { ddwaf_object_invalid(this); }
-
-parameter::parameter(const ddwaf_object &arg) : _ddwaf_object()
+parameter::parameter(const ddwaf_object &arg)
 {
-    *((ddwaf_object *)this) = arg;
+    *static_cast<ddwaf_object *>(this) = arg;
 }
 
-parameter::parameter(parameter &&other) noexcept : _ddwaf_object()
+parameter::parameter(parameter &&other) noexcept
 {
-    *((ddwaf_object *)this) = *other.ptr();
-    ddwaf_object_invalid(other.ptr());
+    *((ddwaf_object *)this) = *other;
+    ddwaf_object_invalid(other);
 }
 
 parameter &parameter::operator=(parameter &&other) noexcept
 {
-    *((ddwaf_object *)this) = *other.ptr();
-    ddwaf_object_invalid(other.ptr());
+    *((ddwaf_object *)this) = *other;
+    ddwaf_object_invalid(other);
     return *this;
 }
-
-parameter::parameter(uint64_t value) : _ddwaf_object()
-{
-    ddwaf_object_unsigned(this, value);
-}
-
-parameter::parameter(int64_t value) : _ddwaf_object()
-{
-    ddwaf_object_signed(this, value);
-}
-
-parameter::parameter(const std::string &str) : _ddwaf_object()
-{
-    length_type length = str.length() <= max_length ? str.length() : max_length;
-    ddwaf_object_stringl(this, str.c_str(), length);
-}
-
-parameter::parameter(std::string_view str) : _ddwaf_object()
-{
-    length_type length = str.length() <= max_length ? str.length() : max_length;
-    ddwaf_object_stringl(this, str.data(), length);
-}
-
-void parameter::free() noexcept { ddwaf_object_free(this); }
 
 parameter parameter::map() noexcept
 {
@@ -69,107 +40,69 @@ parameter parameter::array() noexcept
     return parameter{obj};
 }
 
-bool parameter::add(parameter &entry) noexcept
+parameter parameter::uint64(uint64_t value) noexcept
 {
-    return ddwaf_object_array_add(this, entry.ptr());
+    ddwaf_object obj;
+    ddwaf_object_unsigned(&obj, value);
+    return parameter{obj};
 }
+
+parameter parameter::int64(int64_t value) noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_signed(&obj, value);
+    return parameter{obj};
+}
+
+parameter parameter::string(const std::string &str) noexcept
+{
+    length_type length = str.length() <= max_length ? str.length() : max_length;
+    ddwaf_object obj;
+    ddwaf_object_stringl(&obj, str.c_str(), length);
+    return parameter{obj};
+}
+
+parameter parameter::string(std::string_view str) noexcept
+{
+    length_type length = str.length() <= max_length ? str.length() : max_length;
+    ddwaf_object obj;
+    ddwaf_object_stringl(&obj, str.data(), length);
+    return parameter{obj};
+}
+
 bool parameter::add(parameter &&entry) noexcept
 {
-    if (!ddwaf_object_array_add(this, entry.ptr())) {
-        entry.free();
+    if (!ddwaf_object_array_add(this, entry)) {
         return false;
     }
+    ddwaf_object_invalid(entry);
     return true;
-}
-bool parameter::add(std::string_view name, parameter &entry) noexcept
-{
-    length_type length =
-        name.length() <= max_length ? name.length() : max_length;
-    return ddwaf_object_map_addl(this, name.data(), length, entry.ptr());
 }
 
 bool parameter::add(std::string_view name, parameter &&entry) noexcept
 {
     length_type length =
         name.length() <= max_length ? name.length() : max_length;
-    if (!ddwaf_object_map_addl(this, name.data(), length, entry.ptr())) {
-        entry.free();
+    if (!ddwaf_object_map_addl(this, name.data(), length, entry)) {
         return false;
     }
+    ddwaf_object_invalid(entry);
     return true;
 }
 
-ddwaf_object *parameter::ptr() noexcept { return this; }
-
-parameter parameter::operator[](size_t index) const noexcept
+parameter &parameter::operator[](size_t index) const
 {
-    if (!is_container() || index >= size()) {
-        return {};
+    if (!is_container()) {
+        throw invalid_type("parameter not a container");
     }
 
-    return parameter{ddwaf_object::array[index]};
-}
-
-parameter::operator std::string_view() const noexcept
-{
-    if (type != DDWAF_OBJ_STRING || stringValue == nullptr) {
-        return {};
+    if (index >= size()) {
+        throw std::out_of_range("index(" + std::to_string(index) +
+                                ") out of range(" + std::to_string(size()) +
+                                ")");
     }
-
-    return {stringValue, nbEntries};
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
+    return static_cast<parameter &>(ddwaf_object::array[index]);
 }
 
-namespace {
-// NOLINTNEXTLINE(misc-no-recursion,google-runtime-references)
-void debug_str_helper(std::string &res, const parameter &p) noexcept
-{
-    if (p.parameterNameLength != 0U) {
-        res += p.key();
-        res += ": ";
-    }
-    switch (p.type) {
-    case DDWAF_OBJ_INVALID:
-        res += "<invalid>";
-        break;
-    case DDWAF_OBJ_SIGNED:
-        res += std::to_string(p.intValue);
-        break;
-    case DDWAF_OBJ_UNSIGNED:
-        res += std::to_string(p.uintValue);
-        break;
-    case DDWAF_OBJ_STRING:
-        res += '"';
-        res += std::string_view{p.stringValue, p.nbEntries};
-        res += '"';
-        break;
-    case DDWAF_OBJ_ARRAY:
-        res += '[';
-        for (decltype(p.size()) i = 0; i < p.size(); i++) {
-            debug_str_helper(res, p[i]);
-            if (i != p.size() - 1) {
-                res += ", ";
-            }
-        }
-        res += ']';
-        break;
-    case DDWAF_OBJ_MAP:
-        res += '{';
-        for (decltype(p.size()) i = 0; i < p.size(); i++) {
-            debug_str_helper(res, p[i]);
-            if (i != p.size() - 1) {
-                res += ", ";
-            }
-        }
-        res += '}';
-        break;
-    }
-}
-} // namespace
-
-std::string parameter::debug_str() const noexcept
-{
-    std::string res;
-    debug_str_helper(res, *this);
-    return res;
-}
 } // namespace dds

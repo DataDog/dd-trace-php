@@ -36,12 +36,10 @@ using log_counter_sink_st = log_counter_sink<spdlog::details::null_mutex>;
 
 TEST(WafTest, RunWithInvalidParam)
 {
-    subscriber::ptr wi{waf::instance::from_string(
-        waf_rule, client_settings::default_waf_timeout_us)};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule)};
     auto ctx = wi->get_listener();
-    parameter p;
-    EXPECT_THROW(ctx->call(p), invalid_object);
-    p.free();
+    parameter_view pv;
+    EXPECT_THROW(ctx->call(pv), invalid_object);
 }
 
 TEST(WafTest, RunWithTimeout)
@@ -50,39 +48,37 @@ TEST(WafTest, RunWithTimeout)
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
-    p.add("arg1", parameter("string 1"sv));
-    p.add("arg2", parameter("string 2"sv));
+    p.add("arg1", parameter::string("string 1"sv));
+    p.add("arg2", parameter::string("string 2"sv));
 
-    EXPECT_THROW(ctx->call(p), timeout_error);
-    p.free();
+    parameter_view pv(p);
+    EXPECT_THROW(ctx->call(pv), timeout_error);
 }
 
 TEST(WafTest, ValidRunGood)
 {
-    subscriber::ptr wi{waf::instance::from_string(
-        waf_rule, client_settings::default_waf_timeout_us)};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
-    p.add("arg1", parameter("string 1"sv));
+    p.add("arg1", parameter::string("string 1"sv));
 
-    auto res = ctx->call(p);
-    p.free();
+    parameter_view pv(p);
+    auto res = ctx->call(pv);
     EXPECT_EQ(res.value, dds::result::code::ok);
 }
 
 TEST(WafTest, ValidRunMonitor)
 {
-    subscriber::ptr wi{waf::instance::from_string(
-        waf_rule, client_settings::default_waf_timeout_us)};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
-    p.add("arg1", parameter("string 1"sv));
-    p.add("arg2", parameter("string 3"sv));
+    p.add("arg1", parameter::string("string 1"sv));
+    p.add("arg2", parameter::string("string 3"sv));
 
-    auto res = ctx->call(p);
-    p.free();
+    parameter_view pv(p);
+    auto res = ctx->call(pv);
     EXPECT_EQ(res.value, dds::result::code::record);
 
     for (auto &match : res.data) {

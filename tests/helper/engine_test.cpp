@@ -18,7 +18,7 @@ class listener : public dds::subscriber::listener {
 public:
     typedef std::shared_ptr<dds::mock::listener> ptr;
 
-    MOCK_METHOD1(call, dds::result(dds::parameter &));
+    MOCK_METHOD1(call, dds::result(dds::parameter_view &));
 };
 
 class subscriber : public dds::subscriber {
@@ -36,7 +36,7 @@ TEST(EngineTest, NoSubscriptors)
     auto ctx = e->get_context();
 
     parameter p = parameter::map();
-    p.add("a", parameter("value"sv));
+    p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::ok);
 }
@@ -59,17 +59,17 @@ TEST(EngineTest, SingleSubscriptor)
     auto ctx = e->get_context();
 
     parameter p = parameter::map();
-    p.add("a", parameter("value"sv));
+    p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::block);
 
     p = parameter::map();
-    p.add("b", parameter("value"sv));
+    p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::block);
 
     p = parameter::map();
-    p.add("c", parameter("value"sv));
+    p.add("c", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::ok);
 }
@@ -111,55 +111,55 @@ TEST(EngineTest, MultipleSubscriptors)
     auto ctx = e->get_context();
 
     parameter p = parameter::map();
-    p.add("a", parameter("value"sv));
+    p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::block);
 
     p = parameter::map();
-    p.add("b", parameter("value"sv));
+    p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::block);
 
     p = parameter::map();
-    p.add("c", parameter("value"sv));
+    p.add("c", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::record);
 
     p = parameter::map();
-    p.add("d", parameter("value"sv));
+    p.add("d", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::record);
 
     p = parameter::map();
-    p.add("e", parameter("value"sv));
+    p.add("e", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::block);
 
     p = parameter::map();
-    p.add("f", parameter("value"sv));
+    p.add("f", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::block);
 
     p = parameter::map();
-    p.add("g", parameter("value"sv));
+    p.add("g", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::record);
 
     p = parameter::map();
-    p.add("h", parameter("value"sv));
+    p.add("h", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::ok);
 
     p = parameter::map();
-    p.add("a", parameter("value"sv));
-    p.add("c", parameter("value"sv));
-    p.add("h", parameter("value"sv));
+    p.add("a", parameter::string("value"sv));
+    p.add("c", parameter::string("value"sv));
+    p.add("h", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::block);
 
     p = parameter::map();
-    p.add("c", parameter("value"sv));
-    p.add("h", parameter("value"sv));
+    p.add("c", parameter::string("value"sv));
+    p.add("h", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::record);
 }
@@ -189,39 +189,39 @@ TEST(EngineTest, StatefulSubscriptor)
     auto ctx = e->get_context();
 
     parameter p = parameter::map();
-    p.add("sub1", parameter("value"sv));
+    p.add("sub1", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::ok);
 
     p = parameter::map();
-    p.add("sub2", parameter("value"sv));
+    p.add("sub2", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::ok);
 
     p = parameter::map();
-    p.add("irrelevant", parameter("value"sv));
+    p.add("irrelevant", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::ok);
 
     p = parameter::map();
-    p.add("final", parameter("value"sv));
+    p.add("final", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::record);
 
     auto ctx2 = e->get_context();
 
     p = parameter::map();
-    p.add("final", parameter("value"sv));
+    p.add("final", parameter::string("value"sv));
     res = ctx2.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::ok);
 
     p = parameter::map();
-    p.add("sub1", parameter("value"sv));
+    p.add("sub1", parameter::string("value"sv));
     res = ctx2.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::ok);
 
     p = parameter::map();
-    p.add("sub2", parameter("value"sv));
+    p.add("sub2", parameter::string("value"sv));
     res = ctx2.publish(std::move(p));
     EXPECT_EQ(res.value, result::code::record);
 }
@@ -229,13 +229,13 @@ TEST(EngineTest, StatefulSubscriptor)
 TEST(EngineTest, WafSubscriptorBasic)
 {
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, 100));
+    e->subscribe(waf::instance::from_string(waf_rule));
 
     auto ctx = e->get_context();
 
     auto p = parameter::map();
-    p.add("arg1", parameter("string 1"sv));
-    p.add("arg2", parameter("string 3"sv));
+    p.add("arg1", parameter::string("string 1"sv));
+    p.add("arg2", parameter::string("string 3"sv));
 
     auto res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, dds::result::code::record);
@@ -251,7 +251,7 @@ TEST(EngineTest, WafSubscriptorBasic)
 TEST(EngineTest, WafSubscriptorInvalidParam)
 {
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, 100));
+    e->subscribe(waf::instance::from_string(waf_rule));
 
     auto ctx = e->get_context();
 
@@ -268,8 +268,8 @@ TEST(EngineTest, WafSubscriptorTimeout)
     auto ctx = e->get_context();
 
     auto p = parameter::map();
-    p.add("arg1", parameter("string 1"sv));
-    p.add("arg2", parameter("string 3"sv));
+    p.add("arg1", parameter::string("string 1"sv));
+    p.add("arg2", parameter::string("string 3"sv));
 
     auto res = ctx.publish(std::move(p));
     EXPECT_EQ(res.value, dds::result::code::ok);

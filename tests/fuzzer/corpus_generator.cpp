@@ -18,6 +18,7 @@ namespace fs = std:: experimental::filesystem;
 #endif
 
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <random>
 #include <msgpack.hpp>

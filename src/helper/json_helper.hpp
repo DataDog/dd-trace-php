@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "parameter_view.hpp"
 #include <string>
 
 namespace dds {
@@ -41,4 +42,5 @@ protected:
     std::string buffer_;
 };
 
+std::string parameter_to_json(const dds::parameter_view &pv);
 } // namespace dds

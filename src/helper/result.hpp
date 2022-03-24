@@ -3,8 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef RESULT_HPP
-#define RESULT_HPP
+#pragma once
 
 #include <ostream>
 #include <string>
@@ -31,5 +30,3 @@ struct result {
 };
 
 } // namespace dds
-
-#endif

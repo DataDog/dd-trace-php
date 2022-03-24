@@ -3,8 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#ifndef WAF_HPP
-#define WAF_HPP
+#pragma once
 
 #include <chrono>
 #include <ddwaf.h>
@@ -22,6 +21,8 @@ void initialise_logging(spdlog::level::level_enum level);
 
 class instance : public dds::subscriber {
 public:
+    static constexpr int default_waf_timeout_us = 10000;
+
     using ptr = std::shared_ptr<instance>;
     class listener : public dds::subscriber::listener {
     public:
@@ -32,7 +33,7 @@ public:
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        dds::result call(dds::parameter &data) override;
+        dds::result call(dds::parameter_view &data) override;
 
     protected:
         ddwaf_context handle_{};
@@ -54,8 +55,8 @@ public:
     static instance::ptr from_settings(const client_settings &settings);
 
     // testing only
-    static instance::ptr from_string(
-        std::string_view rule, std::uint64_t waf_timeout_us);
+    static instance::ptr from_string(std::string_view rule,
+        std::uint64_t waf_timeout_us = default_waf_timeout_us);
 
 protected:
     ddwaf_handle handle_{nullptr};
@@ -66,5 +67,3 @@ parameter parse_file(std::string_view filename);
 parameter parse_string(std::string_view config);
 
 } // namespace dds::waf
-
-#endif // WAF_HPP
