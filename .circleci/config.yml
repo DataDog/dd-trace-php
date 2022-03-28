@@ -144,7 +144,7 @@ aliases:
   - &STEP_WAIT_REQUEST_REPLAYER
     run:
       name: Waiting for Dockerized request replayer
-      command: wait-for request-replayer:80/clear-dumped-data --timeout=120
+      command: wait-for request-replayer:80 --timeout=120
 
   # Fix intermittent error: "Could not resolve host: httpbin_integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP

@@ -26,6 +26,7 @@ ENV RUNTIME_DEPS \
     libxml2-dev \
     libzip-dev \
     netbase \
+    netcat \
     nginx \
     strace \
     sudo \
@@ -75,6 +76,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
+    apt-get clean; \
     \
 # Disable DST ROOT X3 certificate explicitly to fix conflicts with older openssl versions \
     sed -ri 's/(mozilla\/DST_Root_CA_X3.crt)/!\1/' /etc/ca-certificates.conf; \
