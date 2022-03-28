@@ -1,18 +1,18 @@
 --TEST--
 [Sandbox regression] Override traced function from within itself
---SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Dispatch cannot be overwritten on PHP 8+'); ?>
 --FILE--
 <?php
 function test($a){
-    DDTrace\trace_function("test", function($s, $a, $retval){
-        echo 'NEW HOOK ' . $retval . PHP_EOL;
-    });
+    if ($a === "exec_b") {
+        DDTrace\trace_function("test", function($s, $a, $retval){
+            echo 'NEW HOOK ' . $retval . PHP_EOL;
+        });
+    }
     return 'METHOD ' . $a;
 }
 
-DDTrace\trace_function("test", function($s, $a, $retval){
-    echo 'OLD HOOK ' . $retval . PHP_EOL;
+DDTrace\trace_function("test", function($s, $a){
+    echo 'OLD HOOK METHOD ' . $a[0] . PHP_EOL;
 });
 
 test("exec_a");

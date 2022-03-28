@@ -226,6 +226,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_untrace, 0, 0, 1)
 ZEND_ARG_INFO(0, function_name)
+ZEND_ARG_INFO(0, class_name)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
@@ -636,7 +637,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     zai_interceptor_rshutdown();
 
     if (!get_DD_TRACE_ENABLED()) {
-        zai_hook_rshutdown();
         return SUCCESS;
     }
 
@@ -650,16 +650,16 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
 
-    // we here need to disable the tracer, so that further dispatches do not trigger
+    // we here need to disable the tracer, so that further hooks do not trigger
     ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
-
-    // The hooks shall not be reset, just disabled at runtime.
-    zai_hook_rshutdown();
 
     return SUCCESS;
 }
 
 int ddtrace_post_deactivate(void) {
+    // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run
+    zai_hook_rshutdown();
+
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
     return SUCCESS;
@@ -889,34 +889,6 @@ static PHP_FUNCTION(dd_trace_env_config) {
     } else {
         RETURN_NULL();
     }
-}
-
-// This function allows untracing a function.
-static PHP_FUNCTION(dd_untrace) {
-    UNUSED(execute_data);
-
-    if (!get_DD_TRACE_ENABLED()) {
-        RETURN_BOOL(0);
-    }
-
-    zval *function = NULL;
-
-    // Remove the traced function from the global lookup
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "z", &function) != SUCCESS) {
-        ddtrace_log_debug("unexpected parameter. the function name must be provided");
-        RETURN_BOOL(0);
-    }
-
-    // Remove the traced function from the global lookup
-    if (!function || Z_TYPE_P(function) != IS_STRING) {
-        RETURN_BOOL(0);
-    }
-
-    if (DDTRACE_G(function_lookup)) {
-        zend_hash_del(DDTRACE_G(function_lookup), Z_STR_P(function));
-    }
-
-    RETURN_BOOL(1);
 }
 
 static PHP_FUNCTION(dd_trace_disable_in_request) {

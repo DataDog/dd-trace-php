@@ -118,7 +118,7 @@ bool zai_symbol_call_impl(
     }
 
     if (scope_type == ZAI_SYMBOL_SCOPE_CLASS) {
-        if (!(fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC)) {
+        if (!(fcc.function_handler->common.fn_flags & (ZEND_ACC_STATIC | ZEND_ACC_CLOSURE))) {
             return false;
         }
     }

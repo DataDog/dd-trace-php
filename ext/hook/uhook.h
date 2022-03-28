@@ -10,4 +10,5 @@ PHP_FUNCTION(trace_function);
 PHP_FUNCTION(trace_method);
 PHP_FUNCTION(hook_function);
 PHP_FUNCTION(hook_method);
+PHP_FUNCTION(dd_untrace);
 #endif

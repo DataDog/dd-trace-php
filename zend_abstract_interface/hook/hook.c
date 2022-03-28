@@ -88,7 +88,7 @@ static void zai_hook_destroy(zval *zv) {
 static void zai_hook_hash_destroy(zval *zv) {
     HashTable *hooks = Z_PTR_P(zv);
 
-    zend_array_destroy(hooks);
+    zend_hash_destroy(hooks);
 
     efree(hooks);
 }
@@ -195,7 +195,7 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_function *function,
             zend_hash_index_update(&existingHooks->hooks, index, hook_zv);
         } ZEND_HASH_FOREACH_END();
 
-        // we remove the whole zai_hooks_entry, excluding the indvidual zai_hook_t which we moved
+        // we remove the whole zai_hooks_entry, excluding the individual zai_hook_t which we moved
         hooks->hooks.pDestructor = NULL;
         zend_hash_del(base_ht, lcname);
     } else {
@@ -269,7 +269,8 @@ bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory) {
         return true;
     }
 
-    zai_hook_memory_allocate(memory, hooks->dynamic);
+    size_t dynamic_size = hooks->dynamic;
+    zai_hook_memory_allocate(memory, dynamic_size);
 
     // clang-format off
     // iterate the array in a safe way, i.e. handling possible updates at runtime
@@ -277,9 +278,11 @@ bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory) {
     zend_hash_internal_pointer_reset_ex(&hooks->hooks, &pos);
     uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
 
-    for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos)); zend_hash_move_forward_ex(&hooks->hooks, &pos)) {
+    for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
+        zend_hash_move_forward_ex(&hooks->hooks, &pos);
+
         ++hook->invocation_refcount;
-        if (!hook->begin) {
+        if (!hook->begin || hook->deleted_invocation != (zend_ulong)-1) {
             continue;
         }
 
@@ -298,6 +301,15 @@ bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory) {
             break;  // ht was deleted
         }
         pos = zend_hash_iterator_pos(ht_iter, &hooks->hooks);
+
+        // increase dynamic memory if new hooks get added during iteration
+        if (UNEXPECTED(dynamic_size != hooks->dynamic)) {
+            if (dynamic_size < hooks->dynamic) {
+                memory->dynamic = erealloc(memory->dynamic, hooks->dynamic);
+                memset(memory->dynamic + dynamic_size, 0, hooks->dynamic - dynamic_size);
+            }
+            dynamic_size = hooks->dynamic;
+        }
     }
 
     zend_hash_iterator_del(ht_iter);
@@ -326,7 +338,9 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
     zend_hash_internal_pointer_reset_ex(&hooks->hooks, &pos);
     uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
 
-    for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos)); zend_hash_move_forward_ex(&hooks->hooks, &pos)) {
+    for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
+        zend_hash_move_forward_ex(&hooks->hooks, &pos);
+
         if (hook->added_invocation >= memory->invocation) {
             continue;
         }
@@ -342,7 +356,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
             hook->aux.data,
             zai_hook_memory_dynamic(memory, hook));
 
-        if (hook->deleted_invocation < zai_hook_invocation && --hook->invocation_refcount == 0) {
+        if (--hook->invocation_refcount == 0 && hook->deleted_invocation < zai_hook_invocation) {
             zval zv;
             zend_hash_get_current_key_zval_ex(&hooks->hooks, &zv, &pos);
             zai_hook_remove_from_entry(hooks, Z_LVAL(zv));
@@ -351,6 +365,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
         if (EG(ht_iterators)[ht_iter].ht != &hooks->hooks) {
             break;  // ht was deleted
         }
+
         pos = zend_hash_iterator_pos(ht_iter, &hooks->hooks);
     }
 
@@ -475,7 +490,7 @@ zend_long zai_hook_install(
 } /* }}} */
 
 static void zai_hooks_try_remove_entry(zai_hooks_entry *hooks, zend_long index) {
-    zai_hook_t *hook = zend_hash_index_find_ptr(&hooks->hooks, index);
+    zai_hook_t *hook = zend_hash_index_find_ptr(&hooks->hooks, (zend_ulong)index);
     if (!hook || hook->deleted_invocation <= zai_hook_invocation) {
         return;
     }
@@ -484,7 +499,7 @@ static void zai_hooks_try_remove_entry(zai_hooks_entry *hooks, zend_long index) 
         // we have an active hook. We cannot remove it right here, but need to schedule it for deletion
         hook->deleted_invocation = zai_hook_invocation;
     } else {
-        zai_hook_remove_from_entry(hooks, index);
+        zai_hook_remove_from_entry(hooks, (zend_ulong)index);
     }
 }
 
@@ -492,13 +507,16 @@ void zai_hook_remove_resolved(zend_function *function, zend_long index) {
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(function));
     if (hooks) {
         zai_hooks_try_remove_entry(hooks, index);
-    } else if (function->common.function_name) {
-        zai_hook_remove(function->common.scope ? ZAI_STRING_FROM_ZSTR(function->common.scope->name) : ZAI_STRING_EMPTY,
-                        ZAI_STRING_FROM_ZSTR(function->common.function_name), index);
     }
 }
 
 void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index) {
+    zend_function *resolved = zai_hook_lookup_function(scope, function);
+    if (resolved) {
+        zai_hook_remove_resolved(resolved, index);
+        return;
+    }
+
     HashTable *base_ht;
     if (scope.len) {
         base_ht = zend_hash_str_find_ptr_lc(&zai_hook_request_classes, scope.ptr, scope.len);
@@ -519,7 +537,6 @@ void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
         }
     }
 }
-
 // clang-format on
 
 static void zai_hook_iterator_set_current(zai_hook_iterator *it) {

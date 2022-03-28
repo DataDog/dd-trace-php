@@ -4,18 +4,19 @@
 #include "../../hook/hook.h"
 
 static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition funcpos) {
-    zval keyzv;
+    zend_string *lcname;
+    zend_ulong index;
 
     zend_hash_move_forward_ex(CG(class_table), &classpos); // move past previous end
     for (zend_class_entry *ce; (ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &classpos)); zend_hash_move_forward_ex(CG(class_table), &classpos)) {
-        zend_hash_get_current_key_zval_ex(CG(class_table), &keyzv, &classpos);
-        zai_hook_resolve_class(ce, Z_STR(keyzv));
+        zend_hash_get_current_key_ex(CG(class_table), &lcname, &index, &classpos);
+        zai_hook_resolve_class(ce, lcname);
     }
 
     zend_hash_move_forward_ex(CG(function_table), &funcpos); // move past previous end
     for (zend_function *func; (func = zend_hash_get_current_data_ptr_ex(CG(function_table), &funcpos)); zend_hash_move_forward_ex(CG(function_table), &funcpos)) {
-        zend_hash_get_current_key_zval_ex(CG(function_table), &keyzv, &funcpos);
-        zai_hook_resolve_function(func, Z_STR(keyzv));
+        zend_hash_get_current_key_ex(CG(function_table), &lcname, &index, &funcpos);
+        zai_hook_resolve_function(func, lcname);
     }
 }
 
@@ -50,11 +51,12 @@ PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
     prev_class_alias(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (Z_TYPE_P(return_value) == IS_TRUE) {
         HashPosition pos;
-        zval keyzv;
+        zend_string *lcname;
+        zend_ulong index;
         zend_hash_internal_pointer_end_ex(CG(class_table), &pos);
         zend_class_entry *ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &pos);
-        zend_hash_get_current_key_zval_ex(CG(class_table), &keyzv, &pos);
-        zai_hook_resolve_class(ce, Z_STR(keyzv));
+        zend_hash_get_current_key_ex(CG(class_table), &lcname, &index, &pos);
+        zai_hook_resolve_class(ce, lcname);
     }
 }
 

@@ -39,16 +39,16 @@ static void _dd_add_integration_to_map(char* name, size_t name_len, ddtrace_inte
 
 void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_integration_name_map); }
 
-static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *frame, void *auxiliary, void *dynamic) {
-    (void)frame, (void)dynamic;
+static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+    (void)dynamic;
 
-    zval integration;
+    zval integration, *integrationp = &integration;
     ZVAL_STR(&integration, auxiliary);
 
     zval *rv;
     ZAI_VALUE_INIT(rv);
     bool success =
-            zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
+            zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integrationp);
     ZAI_VALUE_DTOR(rv);
 
     if (UNEXPECTED(!success)) {
@@ -57,11 +57,7 @@ static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *frame, vo
                 Z_STRVAL(integration));
     }
 
-    zend_string *func = frame->func->common.function_name;
-    zend_string *Class = frame->func->common.scope ? frame->func->common.scope->name : NULL;
-    zai_hook_remove(Class ? ZAI_STRING_EMPTY : (zai_string_view){ .ptr =  ZSTR_VAL(Class), .len = ZSTR_LEN(Class) },
-                    (zai_string_view){ .ptr =  ZSTR_VAL(func), .len = ZSTR_LEN(func) },
-                    0);
+    zai_hook_remove_resolved(EX(func),0);
 
     return true;
 }

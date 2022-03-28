@@ -207,8 +207,7 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
 
 void ddtrace_close_all_open_spans(void) {
     ddtrace_span_fci *span_fci;
-    zai_interceptor_terminate_all_pending_observers();
-    while ((span_fci = DDTRACE_G(open_spans_top))) {
+    while ((span_fci = DDTRACE_G(open_spans_top)) && (!get_DD_TRACE_GENERATE_ROOT_SPAN() || span_fci != DDTRACE_G(root_span))) {
         if (get_DD_AUTOFINISH_SPANS()) {
             dd_trace_stop_span_time(&span_fci->span);
             ddtrace_close_span(span_fci);
@@ -216,7 +215,7 @@ void ddtrace_close_all_open_spans(void) {
             ddtrace_drop_top_open_span();
         }
     }
-    DDTRACE_G(open_spans_top) = NULL;
+    DDTRACE_G(open_spans_top) = span_fci;
 }
 
 void ddtrace_drop_top_open_span(void) {

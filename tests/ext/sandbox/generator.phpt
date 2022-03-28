@@ -1,9 +1,7 @@
 --TEST--
-[PHP 7 generator smoke test] Functions return generators
+Functions that return generators are instrumented
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000 || PHP_VERSION_ID >= 80000) die('skip: Test is for PHP 7'); ?>
---ENV--
-DD_TRACE_DEBUG=1
+<?php if (PHP_VERSION_ID < 70000) die('skip: Generators are only fully supported on PHP 7+'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -25,7 +23,7 @@ function doSomething() {
 
 DDTrace\trace_function('getResults', function(SpanData $s, $a, $retval) {
     $s->name = 'getResults';
-    $s->resource = $retval;
+    $s->resource = null === $retval ? 'NULL' : $retval;
 });
 
 DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
@@ -34,11 +32,20 @@ DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
 });
 
 echo doSomething() . PHP_EOL;
+
+array_map(function($span) {
+    echo $span['name'];
+    echo isset($span['resource']) ? ', ' . $span['resource'] : '';
+    echo PHP_EOL;
+}, dd_trace_serialize_closed_spans());
 ?>
 --EXPECT--
-Cannot instrument generators on PHP 7.x
 10
 11
 12
 Done
-Successfully triggered flush with trace of size 2
+doSomething, Done
+getResults, NULL
+getResults, 12
+getResults, 11
+getResults, 10

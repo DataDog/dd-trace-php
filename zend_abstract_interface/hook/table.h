@@ -22,7 +22,7 @@ static inline bool zai_hook_table_find(HashTable *table, zend_ulong index, void 
 } /* }}} */
 
 #if PHP_VERSION_ID < 80000
-static void *zend_hash_str_find_ptr_lc(const HashTable *ht, const char *str, size_t len) {
+static inline void *zend_hash_str_find_ptr_lc(const HashTable *ht, const char *str, size_t len) {
     void *result;
     char *lc_str;
 
