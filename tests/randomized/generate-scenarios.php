@@ -22,7 +22,6 @@ include __DIR__ . '/lib/PhpFpmConfigGenerator.php';
 include __DIR__ . '/lib/RequestTargetsGenerator.php';
 
 const TMP_SCENARIOS_FOLDER = './.tmp.scenarios';
-const REGRESSIONS_FOLDER = './regressions';
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
 
@@ -55,17 +54,6 @@ function generate()
             $scenarioSeed = rand();
             $testIdentifiers[] = generateOne($scenarioSeed);
         }
-    }
-
-    // Unpacking regressions
-    foreach (scandir(REGRESSIONS_FOLDER) as $regressionIdentifier) {
-        if (\substr($regressionIdentifier, 0, strlen('regression-')) !== 'regression-') {
-            continue;
-        }
-        $testIdentifiers[] = $regressionIdentifier;
-
-        $cmd = sprintf("cp -r %s/%s %s", REGRESSIONS_FOLDER, $regressionIdentifier, TMP_SCENARIOS_FOLDER);
-        exec($cmd);
     }
 
     (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);

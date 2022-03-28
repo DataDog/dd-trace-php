@@ -1,8 +1,6 @@
 TMP_SCENARIO_FOLDER := ./.tmp.scenarios
 TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
-REGRESSIONS_FOLDER := ./regressions
-REGRESSION_NAME := "provide-regression-name"
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-dev-
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
@@ -93,13 +91,3 @@ clean:
 
 clean_results:
 	@rm -rf $(TMP_RESULTS_FOLDER)
-
-# Example: make freeze SCENARIO_NAME=randomized-12345678-centos7-7.4 REGRESSION_NAME=GH1070-origin-header
-freeze:
-	@rm -rf /tmp/regression-$(REGRESSION_NAME)
-	@cp -r $(TMP_SCENARIO_FOLDER)/$(SCENARIO_NAME) /tmp/regression-$(REGRESSION_NAME)
-	@grep -Ril "$(SCENARIO_NAME)" /tmp/regression-$(REGRESSION_NAME) | xargs sed -i '' -e 's|$(SCENARIO_NAME)|regression-$(REGRESSION_NAME)|'
-	@mkdir -p $(REGRESSIONS_FOLDER)
-	@cp -r /tmp/regression-$(REGRESSION_NAME) $(REGRESSIONS_FOLDER)
-	@rm -rf /tmp/regression-$(REGRESSION_NAME)
-	@echo "Done"
