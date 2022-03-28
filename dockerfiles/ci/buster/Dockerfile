@@ -222,6 +222,11 @@ RUN set -eux; \
     cd -; \
     rm -fr "libuv-${LIBUV_VERSION}";
 
+# Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
+# be changed without an appropriate code review.
+ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /usr/bin/wait-for
+RUN chmod a+rx /usr/bin/wait-for
+
 # Run everything else as circleci user
 USER circleci
 
