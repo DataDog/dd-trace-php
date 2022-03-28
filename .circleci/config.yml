@@ -134,17 +134,17 @@ aliases:
   - &STEP_WAIT_AGENT
     run:
       name: Waiting for Dockerized agent
-      command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m && export
+      command: wait-for 127.0.0.1:8126 --timeout=60
 
   - &STEP_WAIT_MYSQL
     run:
       name: Waiting for Dockerized MySQL
-      command: dockerize -wait tcp://mysql_integration:3306 -timeout 1m
+      command: wait-for mysql_integration:3306 --timeout=60
 
   - &STEP_WAIT_REQUEST_REPLAYER
     run:
       name: Waiting for Dockerized request replayer
-      command: dockerize -wait tcp://request-replayer:80/clear-dumped-data -timeout 2m
+      command: wait-for request-replayer:80/clear-dumped-data --timeout=120
 
   # Fix intermittent error: "Could not resolve host: httpbin_integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
