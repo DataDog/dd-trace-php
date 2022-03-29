@@ -85,12 +85,16 @@ static void php_call_shutdown_functions(TSRMLS_D) /* {{{ */
 
 static bool zai_hook_test_begin_return;
 static int zai_hook_test_begin_invocations;
+static int zai_hook_test_resumption_invocations;
+static int zai_hook_test_yield_invocations;
 static int zai_hook_test_end_invocations;
 static int zai_hook_test_end_has_exception;
 static zval zai_hook_test_last_rv;
 static void reset_interceptor_test_globals() {
     zai_hook_test_begin_return = true;
     zai_hook_test_begin_invocations = 0;
+    zai_hook_test_resumption_invocations = 0;
+    zai_hook_test_yield_invocations = 0;
     zai_hook_test_end_invocations = 0;
     zai_hook_test_end_has_exception = 0;
 #if PHP_VERSION_ID < 70000
@@ -113,6 +117,10 @@ static void zai_hook_test_end(zend_execute_data *ex, zval *rv, void *fixed, void
     }
 }
 
+static void zai_hook_test_resume(zend_execute_data *ex, zval *sent, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+    ++zai_hook_test_resumption_invocations;
+}
+
 #define INTERCEPTOR_TEST_CASE(description, ...) \
     TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE(     \
         "interceptor", description,     \
@@ -128,6 +136,15 @@ static void zai_hook_test_end(zend_execute_data *ex, zval *rv, void *fixed, void
     zai_hook_test_end, \
     ZAI_HOOK_AUX(NULL, NULL), \
     0 TEA_TSRMLS_CC) != -1)
+#define INSTALL_GENERATOR_HOOK(fn, resume, yield) REQUIRE(zai_hook_install_generator( \
+                                               ZAI_STRL_VIEW(""), \
+                                               ZAI_STRL_VIEW(fn), \
+                                               zai_hook_test_begin,    \
+                                               resume, \
+                                               yield, \
+                                               zai_hook_test_end, \
+                                               ZAI_HOOK_AUX(NULL, NULL), \
+                                               0 TEA_TSRMLS_CC) != -1)
 #define CALL_FN(fn, ...) do { \
     zval *result; \
     ZAI_VALUE_INIT(result); \
@@ -252,6 +269,76 @@ INTERCEPTOR_TEST_CASE("generator function intercepting from userland call", {
     INSTALL_HOOK("generator");
     CALL_FN("createGenerator", CHECK(zai_hook_test_end_invocations == 0););
     CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
+static void zai_hook_test_yieldingGenerator_yield(zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+    REQUIRE(Z_TYPE_P(key) == IS_LONG);
+    switch (++zai_hook_test_yield_invocations) {
+        case 1:
+            REQUIRE(Z_LVAL_P(key) == 0);
+            REQUIRE(Z_TYPE_P(value) == IS_NULL);
+            break;
+        case 2:
+            REQUIRE(Z_LVAL_P(key) == 1);
+            REQUIRE(Z_TYPE_P(value) == IS_LONG);
+            REQUIRE(Z_LVAL_P(value) == 1);
+            break;
+        case 3:
+            REQUIRE(Z_LVAL_P(key) == 10);
+            REQUIRE(Z_TYPE_P(value) == IS_LONG);
+            REQUIRE(Z_LVAL_P(value) == 2);
+            break;
+    }
+}
+
+INTERCEPTOR_TEST_CASE("generator yield intercepting from userland call", {
+    INSTALL_GENERATOR_HOOK("yieldingGenerator", zai_hook_test_resume, zai_hook_test_yieldingGenerator_yield);
+    CALL_FN("runYieldingGenerator");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 4);
+    CHECK(zai_hook_test_yield_invocations == 3);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
+
+static void zai_hook_test_receivingGenerator_yield(zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+    REQUIRE(Z_TYPE_P(key) == IS_LONG);
+    REQUIRE(Z_TYPE_P(value) == IS_NULL);
+    ++zai_hook_test_yield_invocations;
+}
+
+static void zai_hook_test_receivingGenerator_resume(zend_execute_data *ex, zval *sent, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+    switch (++zai_hook_test_resumption_invocations) {
+        case 1:
+            // Initial start, always NULL
+            REQUIRE(EG(exception) == NULL);
+            REQUIRE(Z_TYPE_P(sent) == IS_NULL);
+            break;
+        case 2:
+            REQUIRE(EG(exception) != NULL);
+            REQUIRE(Z_TYPE_P(sent) == IS_NULL);
+            break;
+        case 3:
+            REQUIRE(EG(exception) == NULL);
+            REQUIRE(Z_TYPE_P(sent) == IS_NULL);
+            break;
+        case 4:
+            REQUIRE(EG(exception) == NULL);
+            REQUIRE(Z_TYPE_P(sent) == IS_LONG);
+            REQUIRE(Z_LVAL_P(sent) == 123);
+            break;
+    }
+}
+
+INTERCEPTOR_TEST_CASE("generator sending intercepting from userland call", {
+    INSTALL_GENERATOR_HOOK("receivingGenerator", zai_hook_test_receivingGenerator_resume, zai_hook_test_receivingGenerator_yield);
+    CALL_FN("runReceivingGenerator");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 4);
+    CHECK(zai_hook_test_yield_invocations == 3);
     CHECK(zai_hook_test_end_invocations == 1);
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });

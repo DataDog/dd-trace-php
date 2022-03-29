@@ -65,27 +65,37 @@ static void zai_interceptor_observer_end_handler(zend_execute_data *execute_data
     }
 }
 
-static void zai_interceptor_observer_generator_end_handler(zend_execute_data *execute_data, zval *retval) {
+static void zai_interceptor_observer_generator_resumption_handler(zend_execute_data *execute_data) {
     zend_generator *generator = (zend_generator *)execute_data->return_value;
-    if (!EG(exception) && Z_ISUNDEF(generator->retval)) {
-        return;
-    }
 
     zai_hook_memory_t *frame_memory;
     if (zai_hook_memory_table_find((zend_execute_data *)generator, &frame_memory)) {
-        zval rv;
-        if (!retval) {
-            ZVAL_NULL(&rv);
-            retval = &rv;
+        zai_hook_generator_resumption(execute_data, !EG(exception) && generator->send_target ? generator->send_target : &EG(uninitialized_zval), frame_memory);
+    }
+}
+
+static void zai_interceptor_observer_generator_end_handler(zend_execute_data *execute_data, zval *retval) {
+    zend_generator *generator = (zend_generator *)execute_data->return_value;
+
+    zai_hook_memory_t *frame_memory;
+    if (zai_hook_memory_table_find((zend_execute_data *)generator, &frame_memory)) {
+        if (!EG(exception) && Z_ISUNDEF(generator->retval)) {
+            zai_hook_generator_yielded(execute_data, &generator->key, retval, frame_memory);
+        } else {
+            zval rv;
+            if (!retval) {
+                ZVAL_NULL(&rv);
+                retval = &rv;
+            }
+            zai_hook_safe_finish(execute_data, retval, frame_memory);
+            zai_hook_memory_table_del((zend_execute_data *)generator);
         }
-        zai_hook_safe_finish(execute_data, retval, frame_memory);
-        zai_hook_memory_table_del((zend_execute_data *)generator);
     }
 }
 
 static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(zend_op_array *op_array) {
     if (op_array->fn_flags & ZEND_ACC_GENERATOR) {
-        return (zend_observer_fcall_handlers){NULL, zai_interceptor_observer_generator_end_handler};
+        return (zend_observer_fcall_handlers){zai_interceptor_observer_generator_resumption_handler, zai_interceptor_observer_generator_end_handler};
     }
     return (zend_observer_fcall_handlers){zai_interceptor_observer_begin_handler, zai_interceptor_observer_end_handler};
 }
@@ -159,7 +169,7 @@ void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
 
     if (remove) {
         for (zend_observer_fcall_begin_handler *curHandler = beginHandler; curHandler <= beginEnd; ++curHandler) {
-            if (*curHandler == zai_interceptor_observer_begin_handler) {
+            if (*curHandler == zai_interceptor_observer_begin_handler || *curHandler == zai_interceptor_observer_generator_resumption_handler) {
                 if (registered_observers == 1 || (curHandler == beginHandler && curHandler[1] == NULL)) {
                     *curHandler = ZEND_OBSERVER_NOT_OBSERVED;
                 } else {

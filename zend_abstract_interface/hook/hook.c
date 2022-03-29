@@ -9,6 +9,8 @@ typedef struct {
     zend_string    *scope;
     zend_string    *function;
     zai_hook_begin begin;
+    zai_hook_generator_resume generator_resume;
+    zai_hook_generator_yield generator_yield;
     zai_hook_end   end;
     zai_hook_aux   aux;
     size_t         dynamic;
@@ -324,6 +326,70 @@ __zai_hook_finish:
     return false;
 } /* }}} */
 
+void zai_hook_generator_resumption(zend_execute_data *ex, zval *sent, zai_hook_memory_t *memory) {
+    zai_hooks_entry *hooks = zai_hook_find(ex);
+
+    if (!hooks) {
+        return;
+    }
+
+    // clang-format off
+    HashPosition pos;
+    zend_hash_internal_pointer_reset_ex(&hooks->hooks, &pos);
+    uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
+
+    for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
+        zend_hash_move_forward_ex(&hooks->hooks, &pos);
+
+        if (!hook->generator_resume || hook->added_invocation >= memory->invocation || hook->deleted_invocation < memory->invocation) {
+            continue;
+        }
+
+        EG(ht_iterators)[ht_iter].pos = pos;
+
+        hook->generator_resume(
+            ex, sent,
+            hook->aux.data,
+            zai_hook_memory_dynamic(memory, hook));
+
+        pos = zend_hash_iterator_pos(ht_iter, &hooks->hooks);
+    }
+
+    zend_hash_iterator_del(ht_iter);
+} /* }}} */
+
+void zai_hook_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded, zai_hook_memory_t *memory) {
+    zai_hooks_entry *hooks = zai_hook_find(ex);
+
+    if (!hooks) {
+        return;
+    }
+
+    // clang-format off
+    HashPosition pos;
+    zend_hash_internal_pointer_reset_ex(&hooks->hooks, &pos);
+    uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
+
+    for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
+        zend_hash_move_forward_ex(&hooks->hooks, &pos);
+
+        if (!hook->generator_yield || hook->added_invocation >= memory->invocation || hook->deleted_invocation < memory->invocation) {
+            continue;
+        }
+
+        EG(ht_iterators)[ht_iter].pos = pos;
+
+        hook->generator_yield(
+            ex, key, yielded,
+            hook->aux.data,
+            zai_hook_memory_dynamic(memory, hook));
+
+        pos = zend_hash_iterator_pos(ht_iter, &hooks->hooks);
+    }
+
+    zend_hash_iterator_del(ht_iter);
+} /* }}} */
+
 /* {{{ */
 void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory) {
     zai_hooks_entry *hooks = zai_hook_find(ex);
@@ -344,17 +410,15 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
         if (hook->added_invocation >= memory->invocation) {
             continue;
         }
-        if (!hook->end || hook->deleted_invocation < memory->invocation) {
-            --hook->invocation_refcount;
-            continue;
-        }
 
         EG(ht_iterators)[ht_iter].pos = pos;
 
-        hook->end(
-            ex, rv,
-            hook->aux.data,
-            zai_hook_memory_dynamic(memory, hook));
+        if (hook->end && hook->deleted_invocation >= memory->invocation) {
+            hook->end(
+                    ex, rv,
+                    hook->aux.data,
+                    zai_hook_memory_dynamic(memory, hook));
+        }
 
         if (--hook->invocation_refcount == 0 && hook->deleted_invocation < zai_hook_invocation) {
             zval zv;
@@ -434,6 +498,8 @@ zend_long zai_hook_install_resolved(
         .scope = NULL,
         .function = NULL,
         .begin = begin,
+        .generator_resume = NULL,
+        .generator_yield = NULL,
         .end = end,
         .aux = aux,
         .dynamic = dynamic,
@@ -452,14 +518,15 @@ static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool
 }
 
 /* {{{ */
-zend_long zai_hook_install(
+zend_long zai_hook_install_generator(
         zai_string_view scope,
         zai_string_view function,
         zai_hook_begin begin,
+        zai_hook_generator_resume resumption,
+        zai_hook_generator_yield yield,
         zai_hook_end end,
         zai_hook_aux aux,
         size_t dynamic) {
-
     if (!function.len) {
         /* not allowed: target must be known */
         return -1;
@@ -472,6 +539,8 @@ zend_long zai_hook_install(
         .scope = scope.len ? zai_zend_string_init_lower(scope.ptr, scope.len, persistent) : NULL,
         .function = zai_zend_string_init_lower(function.ptr, function.len, persistent),
         .begin = begin,
+        .generator_resume = resumption,
+        .generator_yield = yield,
         .end = end,
         .aux = aux,
         .dynamic = dynamic,
@@ -487,6 +556,17 @@ zend_long zai_hook_install(
     } else {
         return zai_hook_request_install(hook);
     }
+
+}
+
+zend_long zai_hook_install(
+        zai_string_view scope,
+        zai_string_view function,
+        zai_hook_begin begin,
+        zai_hook_end end,
+        zai_hook_aux aux,
+        size_t dynamic) {
+    return zai_hook_install_generator(scope, function, begin, NULL, NULL, end, aux, dynamic);
 } /* }}} */
 
 static void zai_hooks_try_remove_entry(zai_hooks_entry *hooks, zend_long index) {
@@ -495,7 +575,7 @@ static void zai_hooks_try_remove_entry(zai_hooks_entry *hooks, zend_long index) 
         return;
     }
 
-    if (hook->begin != NULL && hook->end != NULL && hook->invocation_refcount > 0) {
+    if (((hook->begin && hook->end) || hook->generator_yield || hook->generator_resume) && hook->invocation_refcount > 0) {
         // we have an active hook. We cannot remove it right here, but need to schedule it for deletion
         hook->deleted_invocation = zai_hook_invocation;
     } else {
@@ -544,6 +624,8 @@ static void zai_hook_iterator_set_current(zai_hook_iterator *it) {
     if (hook) {
         zend_hash_get_current_key_ex(it->iterator.ht, NULL, &it->index, &it->iterator.pos);
         it->begin = &hook->begin;
+        it->generator_resume = &hook->generator_resume;
+        it->generator_yield = &hook->generator_yield;
         it->end = &hook->end;
         it->aux = &hook->aux;
     } else {

@@ -16,6 +16,8 @@ void zai_hook_mshutdown(void); /* }}} */
 
 typedef bool (*zai_hook_begin)(zend_execute_data *frame, void *auxiliary, void *dynamic);
 typedef void (*zai_hook_end)(zend_execute_data *frame, zval *retval, void *auxiliary, void *dynamic);
+typedef void (*zai_hook_generator_resume)(zend_execute_data *frame, zval *sent, void *auxiliary, void *dynamic);
+typedef void (*zai_hook_generator_yield)(zend_execute_data *frame, zval *key, zval *yielded, void *auxiliary, void *dynamic);
 
 /* {{{ auxiliary support */
 typedef struct {
@@ -35,6 +37,17 @@ zend_long zai_hook_install(
         zai_hook_begin  begin,
         zai_hook_end    end,
         zai_hook_aux    aux,
+        size_t dynamic); /* }}} */
+
+/* {{{ zai_hook_install_generator may be executed after minit and during request */
+zend_long zai_hook_install_generator(
+        zai_string_view scope,
+        zai_string_view function,
+        zai_hook_begin begin,
+        zai_hook_generator_resume resumption,
+        zai_hook_generator_yield yield,
+        zai_hook_end end,
+        zai_hook_aux aux,
         size_t dynamic); /* }}} */
 
 /* {{{ zai_hook_install_resolved may only be executed during request
@@ -63,6 +76,9 @@ typedef struct {
         the caller should bail out (one of the handlers returned false) */
 bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory); /* }}} */
 
+void zai_hook_generator_resumption(zend_execute_data *ex, zval *sent, zai_hook_memory_t *memory);
+void zai_hook_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded, zai_hook_memory_t *memory);
+
 /* {{{ zai_hook_finish shall execute end handlers and cleanup reserved memory */
 void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory); /* }}} */
 
@@ -84,6 +100,8 @@ typedef struct {
     zai_hook_begin *begin;
     zai_hook_end *end;
     zai_hook_aux *aux;
+    zai_hook_generator_resume *generator_resume;
+    zai_hook_generator_yield *generator_yield;
     HashTableIterator iterator;
 } zai_hook_iterator;
 zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function);

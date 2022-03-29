@@ -26,6 +26,7 @@ typedef struct {
     ddtrace_span_fci *span;
     bool skipped;
     bool dropped_span;
+    bool was_primed;
 } dd_uhook_dynamic;
 
 void dd_set_fqn(zval *zv, zend_execute_data *execute_data) {
@@ -93,6 +94,8 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
 
     def->active = true; // recursion protection
     dyn->skipped = false;
+    dyn->was_primed = false;
+    dyn->dropped_span = false;
     dyn->args = dd_uhook_collect_args(execute_data);
 
     if (def->tracing) {
@@ -116,6 +119,70 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
     return true;
 }
 
+// create an own span for every generator resumption
+static void dd_uhook_generator_resumption(zend_execute_data *execute_data, zval *value, void *auxiliary, void *dynamic) {
+    (void)value;
+
+    dd_uhook_def *def = auxiliary;
+    dd_uhook_dynamic *dyn = dynamic;
+
+    if (dyn->skipped || !dyn->was_primed) {
+        dyn->was_primed = true;
+        return;
+    }
+
+    if (def->tracing) {
+        ddtrace_span_fci *span_fci = ddtrace_init_span();
+        ddtrace_open_span(span_fci);
+
+        // SpanData::$name defaults to fully qualified called name
+        zval *prop_name = ddtrace_spandata_property_name(&span_fci->span);
+        dd_set_fqn(prop_name, execute_data);
+
+        dyn->span = span_fci;
+        dyn->dropped_span = false;
+    }
+
+    if (def->begin) {
+        dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, value);
+        if (def->tracing && dyn->dropped_span) {
+            ddtrace_drop_top_open_span();
+        }
+    }
+}
+
+static void dd_uhook_generator_yield(zend_execute_data *execute_data, zval *key, zval *value, void *auxiliary, void *dynamic) {
+    (void)key;
+
+    dd_uhook_def *def = auxiliary;
+    dd_uhook_dynamic *dyn = dynamic;
+
+    if (dyn->skipped) {
+        return;
+    }
+
+    if (def->tracing) {
+        zval *exception_zv = ddtrace_spandata_property_exception(&dyn->span->span);
+        if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
+            ZVAL_OBJ_COPY(exception_zv, EG(exception));
+        }
+
+        dd_trace_stop_span_time(&dyn->span->span);
+    }
+
+    if (def->end) {
+        bool keep_span = dd_uhook_call(def->end, def->tracing, dyn, execute_data, value);
+        if (def->tracing && !dyn->dropped_span) {
+            if (keep_span) {
+                ddtrace_close_span(dyn->span);
+            } else {
+                ddtrace_drop_top_open_span();
+            }
+        }
+        dyn->dropped_span = true;
+    }
+}
+
 static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
@@ -134,7 +201,7 @@ static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *au
         dd_trace_stop_span_time(&dyn->span->span);
     }
 
-    if (def->end) {
+    if (def->end && !dyn->dropped_span) {
         /* If the profiler doesn't handle a potential pending interrupt before
          * the observer's end function, then the callback will be at the top of
          * the stack even though it's not responsible.
@@ -300,10 +367,12 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         }
     }
 
-    RETURN_BOOL(zai_hook_install(
+    RETURN_BOOL(zai_hook_install_generator(
             class_str,
             func_str,
             dd_uhook_begin,
+            dd_uhook_generator_resumption,
+            dd_uhook_generator_yield,
             dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor),
             sizeof(dd_uhook_dynamic)) != -1);

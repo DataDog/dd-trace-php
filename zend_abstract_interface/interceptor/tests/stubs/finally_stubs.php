@@ -89,3 +89,30 @@ function runGeneratorWithFinallyReturnValue() {
     $g->valid();
     return $g;
 }
+
+function yieldingGenerator() {
+    yield;
+    yield 1;
+    yield 10 => 2;
+}
+
+function runYieldingGenerator() {
+    foreach (yieldingGenerator() as $k => $v);
+}
+
+function receivingGenerator() {
+    try {
+        time();
+        $ex = yield;
+    } catch (Exception $e) {}
+    yield;
+    $val = yield;
+}
+
+function runReceivingGenerator() {
+    $g = receivingGenerator();
+    $g->throw(new Exception);
+    $g->next();
+    $g->send(123);
+    unset($g);
+}
