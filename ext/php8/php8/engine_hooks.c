@@ -24,7 +24,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 int ddtrace_resource = -1;
-int ddtrace_op_array_extension = 0;
+int ddtrace_op_array_extension = -1;
 
 #define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
 
@@ -749,7 +749,7 @@ zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *exec
         return (zend_observer_fcall_handlers){NULL, NULL};
     }
 
-    if (!get_DD_TRACE_ENABLED() || ddtrace_op_array_extension == 0 || fbc->common.type != ZEND_USER_FUNCTION) {
+    if (!get_DD_TRACE_ENABLED() || ddtrace_op_array_extension == -1 || fbc->common.type != ZEND_USER_FUNCTION) {
         return (zend_observer_fcall_handlers){NULL, NULL};
     }
 
