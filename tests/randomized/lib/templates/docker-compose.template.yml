@@ -8,7 +8,7 @@ services:
   agent:
     image: datadog/agent:7
     environment:
-      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_API_KEY=${DATADOG_API_KEY:-not_a_valid_api_key}
       - DD_APM_ENABLED=true
       - DD_APM_NON_LOCAL_TRAFFIC=true
 
