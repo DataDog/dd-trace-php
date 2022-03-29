@@ -207,12 +207,6 @@ class TYPO3Integration extends Integration
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\FileBackend::class, 'flushByTag', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\FileBackend::class, 'flushByTags', $setFlushByTagsValues);
 
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\ApcBackend::class, 'get', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\ApcBackend::class, 'set', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\ApcBackend::class, 'flush', $setCommonValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\ApcBackend::class, 'flushByTag', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\ApcBackend::class, 'flushByTags', $setFlushByTagsValues);
-
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\ApcuBackend::class, 'get', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\ApcuBackend::class, 'set', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\ApcuBackend::class, 'flush', $setCommonValues);
@@ -225,15 +219,6 @@ class TYPO3Integration extends Integration
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class, 'flushByTag', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class, 'flushByTags', $setFlushByTagsValues);
 
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\NullBackend::class, 'get', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\NullBackend::class, 'set', $setGetSetFlushValues);
-
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\TransientMemoryBackend::class, 'get', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\TransientMemoryBackend::class, 'set', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\TransientMemoryBackend::class, 'flush', $setCommonValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\TransientMemoryBackend::class, 'flushByTag', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\TransientMemoryBackend::class, 'flushByTags', $setFlushByTagsValues);
-
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\RedisBackend::class, 'get', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\RedisBackend::class, 'set', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\RedisBackend::class, 'flush', $setCommonValues);
@@ -245,12 +230,6 @@ class TYPO3Integration extends Integration
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\PdoBackend::class, 'flush', $setCommonValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\PdoBackend::class, 'flushByTag', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\PdoBackend::class, 'flushByTags', $setFlushByTagsValues);
-
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\WincacheBackend::class, 'get', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\WincacheBackend::class, 'set', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\WincacheBackend::class, 'flush', $setCommonValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\WincacheBackend::class, 'flushByTag', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\WincacheBackend::class, 'flushByTags', $setFlushByTagsValues);
 
         // TYPO3 Headless specific methods
 
