@@ -60,4 +60,3 @@ curl "elasticsearch:9200/_cluster/settings?pretty" -X PUT -H 'Content-Type: appl
     "cluster.routing.allocation.disk.threshold_enabled": false
   }
 }'
-
