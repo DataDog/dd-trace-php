@@ -97,6 +97,12 @@ Tests do not work on PHP 5 with openssl 1.0.2.
 
 Depends on an expired cert. Was fixed in [php-src/98175fc](https://github.com/php/php-src/commit/98175fc).
 
+## `ext/openssl/tests/tlsv1.0_wrapper.phpt`, `ext/openssl/tests/tlsv1.1_wrapper.phpt`, `ext/openssl/tests/tlsv1.2_wrapper.phpt`
+
+Disabled on versions: `7.0`, `7.1`, `7.2`.
+
+Caused by openssl version that was upgraded from `1.1.1d` in our pre-existing buster images to `1.1.1n` in the new buster containers. It fails even without the tracing library installed.
+
 ## `ext/ftp/tests`
 
 Disabled on versions less than 8.1, which switches to ephemeral ports.
