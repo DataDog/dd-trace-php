@@ -51,3 +51,12 @@ echo "Waiting for mysql"
 bash /scripts/wait-for.sh mysql:3306 -t 30
 echo "Waiting for the agent"
 bash /scripts/wait-for.sh agent:8126 -t 30
+
+# Fix elastic search auto-readonly depending on available disk space to reduce flakiness
+# https://www.elastic.co/guide/en/elasticsearch/reference/6.2/disk-allocator.html
+curl "elasticsearch:9200/_cluster/settings?pretty" -X PUT -H 'Content-Type: application/json'  -d '
+{
+  "transient": {
+    "cluster.routing.allocation.disk.threshold_enabled": false
+  }
+}'

@@ -120,6 +120,7 @@ ext/openssl/tests/bug68879.phpt
 ext/openssl/tests/bug68920.phpt
 ext/openssl/tests/bug69215.phpt
 ext/openssl/tests/bug72333.phpt
+ext/openssl/tests/bug74159.phpt
 ext/openssl/tests/bug77390.phpt
 ext/openssl/tests/capture_peer_cert_001.phpt
 ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
@@ -139,6 +140,9 @@ ext/openssl/tests/stream_verify_peer_name_002.phpt
 ext/openssl/tests/stream_verify_peer_name_003.phpt
 ext/openssl/tests/streams_crypto_method.phpt
 ext/openssl/tests/tls_wrapper.phpt
+ext/openssl/tests/tlsv1.0_wrapper.phpt
+ext/openssl/tests/tlsv1.1_wrapper.phpt
+ext/openssl/tests/tlsv1.2_wrapper.phpt
 ext/pdo_sqlite/tests/bug43831.phpt
 ext/pdo_sqlite/tests/bug44327_2.phpt
 ext/pdo_sqlite/tests/bug44327_3.phpt

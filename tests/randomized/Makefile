@@ -14,6 +14,7 @@ publish: publish.centos7
 pull: pull.centos7
 
 build.centos7:
+	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=1 -t $(DOCKER_IMAGE_PREFIX)centos7-8.1 ./docker
 	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=0 -t $(DOCKER_IMAGE_PREFIX)centos7-8.0 ./docker
 	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-7.4 ./docker
 	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=3 -t $(DOCKER_IMAGE_PREFIX)centos7-7.3 ./docker
@@ -25,6 +26,7 @@ build.centos7:
 	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-5.4 ./docker
 
 publish.centos7: build.centos7
+	@docker push $(DOCKER_IMAGE_PREFIX)centos7-8.1
 	@docker push $(DOCKER_IMAGE_PREFIX)centos7-8.0
 	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.4
 	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.3
@@ -36,6 +38,7 @@ publish.centos7: build.centos7
 	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.4
 
 pull.centos7:
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-8.1
 	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-8.0
 	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.4
 	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.3

@@ -26,6 +26,7 @@ ENV RUNTIME_DEPS \
     libxml2-dev \
     libzip-dev \
     netbase \
+    netcat \
     nginx \
     strace \
     sudo \
@@ -75,6 +76,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
+    apt-get clean; \
     \
 # Disable DST ROOT X3 certificate explicitly to fix conflicts with older openssl versions \
     sed -ri 's/(mozilla\/DST_Root_CA_X3.crt)/!\1/' /etc/ca-certificates.conf; \
@@ -221,6 +223,11 @@ RUN set -eux; \
     make -j 4 all install; \
     cd -; \
     rm -fr "libuv-${LIBUV_VERSION}";
+
+# Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
+# be changed without an appropriate code review.
+ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /usr/bin/wait-for
+RUN chmod a+rx /usr/bin/wait-for
 
 # Run everything else as circleci user
 USER circleci
