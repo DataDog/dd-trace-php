@@ -3,7 +3,6 @@ DURATION := 30s
 SCENARIO := {{scenario_name}}
 
 run: prepare_results_folders
-	docker-compose pull
 	@DURATION=$(DURATION) docker-compose up php-test
 	@docker-compose down
 
