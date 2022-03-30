@@ -35,6 +35,11 @@ On PHP 5, certain tests can have intermittently deep call stacks that are deep e
 
 - `Zend/tests/bug54268.phpt`
 
+## Tests relying on `spl_object_id`
+
+
+- `Zend/tests/gh7958.phpt` (PHP-8.1)
+
 ## `var_dump()`-ed objects with additional properties from ObjectKVStore
 
 The following tests assert the output of `var_dump($obj)` and fail because we add the additional properties through `ObjectKVStore`.

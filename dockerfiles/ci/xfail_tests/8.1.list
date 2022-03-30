@@ -19,6 +19,7 @@ Zend/tests/gc_031.phpt
 Zend/tests/gc_037.phpt
 Zend/tests/get_defined_functions_basic.phpt
 Zend/tests/get_required_files.phpt
+Zend/tests/gh7958.phpt
 Zend/tests/list_keyed_conversions.phpt
 Zend/tests/multibyte/multibyte_encoding_004.phpt
 Zend/tests/object_gc_in_shutdown.phpt
