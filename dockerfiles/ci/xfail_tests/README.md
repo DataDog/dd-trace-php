@@ -93,6 +93,12 @@ Building again the container without `pcntl` enabled AND not even building the t
 
 Tests do not work on PHP 5 with openssl 1.0.2.
 
+## `ext/openssl/tests/bug74159.phpt`
+
+Disabled on versions: `7.2`.
+
+Caused by openssl version that was upgraded from `1.1.1d` in our pre-existing buster images to `1.1.1n` in the new buster containers. It fails even without the tracing library installed.
+
 ## `ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt`
 
 Depends on an expired cert. Was fixed in [php-src/98175fc](https://github.com/php/php-src/commit/98175fc).
