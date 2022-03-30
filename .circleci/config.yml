@@ -1575,6 +1575,48 @@ jobs:
     steps:
       - run: echo "."
 
+  system_tests:
+    machine:
+      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
+      image: ubuntu-2004:current
+    resource_class: large
+    working_directory: ~/datadog
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install good version of docker-compose
+          command: |
+            sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+      - run:
+          name: versions
+          command: |
+            docker --version
+            docker-compose --version
+      - run:
+          name: Clone System Tests repo
+          command: git clone https://github.com/DataDog/system-tests.git
+      - run:
+          name: Copy .tar.gz file to system test binaries folder
+          command: |
+            ls -la build/packages
+            installable_bundle=$(find build/packages -maxdepth 1 -name 'datadog-php-tracer-*-nightly.x86_64.tar.gz')
+            echo using $installable_bundle
+            cp $installable_bundle system-tests/binaries/
+      - run:
+          name: Build
+          command: |
+            cd system-tests
+            ./build.sh php
+      - run:
+          name: Run
+          command: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+      - store_artifacts:
+          path: system-tests/logs
+          destination: system-tests.tar.gz
+
 workflows:
   version: 2
 
@@ -2069,6 +2111,10 @@ workflows:
             parameters:
               php_version:
                 - '8.0'
+
+      - system_tests:
+          requires: [ 'package extension' ]
+          name: "System tests"
 
   build:
     jobs:
