@@ -48,7 +48,18 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Fixed
+
+    - Use -1 as uninitialized op_array_extension marker #1550
+
+    ### Internal changes
+
+    - Use latest ubuntu images in CI #1543
+    - Use 8.1.4 in development buster images #1553
+    - Add randomized tests for PHP 8.1 and make buster containers arm64 ready #1551
+    - Remove regressions from randomized tests #1547
+    </notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
