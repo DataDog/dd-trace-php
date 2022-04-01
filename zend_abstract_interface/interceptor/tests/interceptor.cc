@@ -121,6 +121,13 @@ static void zai_hook_test_resume(zend_execute_data *ex, zval *sent, void *fixed,
     ++zai_hook_test_resumption_invocations;
 }
 
+static void zai_hook_test_yield_ascending(zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+    REQUIRE(Z_TYPE_P(key) == IS_LONG);
+    REQUIRE(Z_TYPE_P(value) == IS_LONG);
+    REQUIRE(Z_LVAL_P(value) == zai_hook_test_yield_invocations);
+    ++zai_hook_test_yield_invocations;
+}
+
 #define INTERCEPTOR_TEST_CASE(description, ...) \
     TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE(     \
         "interceptor", description,     \
@@ -342,6 +349,49 @@ INTERCEPTOR_TEST_CASE("generator sending intercepting from userland call", {
     CHECK(zai_hook_test_end_invocations == 1);
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
+
+INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from array", {
+    INSTALL_GENERATOR_HOOK("yieldFromArrayGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
+    CALL_FN("runYieldFromArrayGenerator");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 6);
+    CHECK(zai_hook_test_yield_invocations == 5);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
+INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from array with thrown in exception", {
+    INSTALL_GENERATOR_HOOK("yieldFromArrayGeneratorThrows", zai_hook_test_resume, zai_hook_test_yield_ascending);
+    CALL_FN("runYieldFromArrayGeneratorThrows");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 3);
+    CHECK(zai_hook_test_yield_invocations == 2);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
+INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from iterator", {
+    INSTALL_GENERATOR_HOOK("yieldFromIteratorGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
+    CALL_FN("runYieldFromIteratorGenerator");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 3);
+    CHECK(zai_hook_test_yield_invocations == 2);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
+/* broken in earlier versions: https://github.com/php/php-src/issues/8289 */
+#if (PHP_VERSION_ID >= 80019 && PHP_VERSION_ID < 80100) || PHP_VERSION_ID >= 80106 || PHP_VERSION_ID < 70200
+INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from throwing iterator", {
+    INSTALL_GENERATOR_HOOK("yieldFromIteratorGeneratorThrows", zai_hook_test_resume, zai_hook_test_yield_ascending);
+    CALL_FN("runYieldFromIteratorGeneratorThrows");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 4);
+    CHECK(zai_hook_test_yield_invocations == 3);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+#endif
 
 // TODO check this, maybe just don't start the span if it's a generator creating span
 // OR: TODO PHP 8 support, by doing the ZEND_GENERATOR_CREATE overload, which does an open followed by an immediate close if retval unused

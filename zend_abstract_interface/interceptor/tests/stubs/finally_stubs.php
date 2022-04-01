@@ -116,3 +116,64 @@ function runReceivingGenerator() {
     $g->send(123);
     unset($g);
 }
+
+function yieldFromArrayGenerator() {
+    yield 0;
+    yield from [1, 2, 3];
+    yield 4;
+}
+
+function runYieldFromArrayGenerator() {
+    foreach (yieldFromArrayGenerator() as $k => $v);
+}
+
+function yieldFromArrayGeneratorThrows() {
+    try {
+        yield from [0, -1];
+    } catch (Exception $e) {
+        yield 1;
+    }
+}
+
+function runYieldFromArrayGeneratorThrows() {
+    $g = yieldFromArrayGeneratorThrows();
+    $g->throw(new Exception);
+    $g->next();
+}
+
+function yieldFromIteratorGenerator() {
+    yield from new ArrayIterator([0, 1]);
+}
+
+function runYieldFromIteratorGenerator() {
+    foreach (yieldFromIteratorGenerator() as $k => $v);
+}
+
+function yieldFromIteratorGeneratorThrows() {
+    try {
+        yield from new class(new ArrayIterator([-1, -2])) extends IteratorIterator {
+            public function key() {
+                throw new Exception;
+            }
+        };
+    } catch (Exception $e) {
+        yield 0;
+    }
+    try {
+        yield from new class(new ArrayIterator([1, -2])) extends IteratorIterator {
+            public function key() {
+                if ($k = parent::key()) {
+                    throw new Exception;
+                }
+                return $k;
+            }
+        };
+    } catch (Exception $e) {
+        yield 2;
+    }
+}
+
+function runYieldFromIteratorGeneratorThrows() {
+    foreach (yieldFromIteratorGeneratorThrows() as $k => $v);
+}
+
