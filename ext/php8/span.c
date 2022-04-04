@@ -82,11 +82,15 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
         DDTRACE_G(root_span) = span_fci;
         ddtrace_set_root_span_properties(&span_fci->span);
     } else {
+        ddtrace_span_fci *next_span = span_fci->next;
+        while (next_span->span.start == 0 && next_span->next) {  // skip placeholder span from dd_create_duplicate_span
+            next_span = next_span->next;
+        }
+
         ZVAL_COPY(ddtrace_spandata_property_service(&span_fci->span),
-                  ddtrace_spandata_property_service(&span_fci->next->span));
-        ZVAL_COPY(ddtrace_spandata_property_type(&span_fci->span),
-                  ddtrace_spandata_property_type(&span_fci->next->span));
-        ZVAL_OBJ_COPY(ddtrace_spandata_property_parent(&span_fci->span), &span_fci->next->span.std);
+                  ddtrace_spandata_property_service(&next_span->span));
+        ZVAL_COPY(ddtrace_spandata_property_type(&span_fci->span), ddtrace_spandata_property_type(&next_span->span));
+        ZVAL_OBJ_COPY(ddtrace_spandata_property_parent(&span_fci->span), &next_span->span.std);
     }
     ddtrace_set_global_span_properties(&span_fci->span);
 }

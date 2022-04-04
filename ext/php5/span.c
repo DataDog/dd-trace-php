@@ -82,13 +82,18 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
         DDTRACE_G(root_span) = span_fci;
         ddtrace_set_root_span_properties(&span_fci->span TSRMLS_CC);
     } else {
-        zval *last_service = ddtrace_spandata_property_service(&span_fci->next->span);
+        ddtrace_span_fci *next_span = span_fci->next;
+        while (next_span->span.start == 0 && next_span->next) {  // skip placeholder span from dd_create_duplicate_span
+            next_span = next_span->next;
+        }
+
+        zval *last_service = ddtrace_spandata_property_service(&next_span->span);
         if (last_service) {
             zval **service = ddtrace_spandata_property_service_write(&span_fci->span);
             MAKE_STD_ZVAL(*service);
             MAKE_COPY_ZVAL(&last_service, *service);
         }
-        zval *last_type = ddtrace_spandata_property_type(&span_fci->next->span);
+        zval *last_type = ddtrace_spandata_property_type(&next_span->span);
         if (last_type) {
             zval **type = ddtrace_spandata_property_type_write(&span_fci->span);
             MAKE_STD_ZVAL(*type);
@@ -97,7 +102,7 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
         zval **parent = ddtrace_spandata_property_parent_write(&span_fci->span);
         MAKE_STD_ZVAL(*parent);
         Z_TYPE_PP(parent) = IS_OBJECT;
-        Z_OBJVAL_PP(parent) = span_fci->next->span.obj_value;
+        Z_OBJVAL_PP(parent) = next_span->span.obj_value;
         zend_objects_store_add_ref(*parent TSRMLS_CC);
     }
     ddtrace_set_global_span_properties(&span_fci->span TSRMLS_CC);
