@@ -767,6 +767,7 @@ TEST_WEB_74 := \
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
@@ -795,6 +796,7 @@ TEST_WEB_80 := \
 TEST_INTEGRATIONS_81 := \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pcntl \

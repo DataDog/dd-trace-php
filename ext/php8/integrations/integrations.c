@@ -86,6 +86,9 @@ void ddtrace_integrations_rinit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELASTICSEARCH, "elasticsearch\\client", "__construct",
                                          "DDTrace\\Integrations\\ElasticSearch\\V1\\ElasticSearchIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHED, "Memcached", "__construct",
+                                         "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");
 

@@ -86,7 +86,7 @@ RUN set -eux; \
         \
         yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
         pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
-        #yes 'no' | pecl install memcached; \ # TODO Does not support PHP 8 yet
+        pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
         pecl install mongodb-1.12.0; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
         pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
         # Xdebug is disabled by default \
