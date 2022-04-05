@@ -48,7 +48,21 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - Add support for memcached on PHP 8 #1558
+
+    ### Fixed
+    - Fix #1544: Handle hook dummy span hack when assigning parent #1557
+
+    ### Internal changes
+    - Add gdbinit files for php 8.0 and 8.1 #1556
+    - Add system tests in CI #1552
+    - Use latest 8.0.17 in buster images #1559
+    - Update flex to v1.18.5 in composer.lock files for Symfony 4.0 and 5.0 #1560
+    - Add a single test to xfail after upgrade of docker image to 8.0.18 #1561
+    - Update link to download 0.71.1 in the reliability environment #1555
+    </notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
