@@ -14,6 +14,7 @@ The following tests are marked as skipped due to the test relying on a hard-code
 - `ext/standard/tests/filters/bug54350.phpt`
 - `Zend/tests/type_declarations/scalar_return_basic_64bit.phpt`
 - `Zend/tests/weakrefs/weakmap_basic_map_behaviour.phpt`
+- `ext/standard/tests/filters/bug54350.phpt`
 
 ## Random port selection
 
