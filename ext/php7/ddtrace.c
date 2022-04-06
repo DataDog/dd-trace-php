@@ -181,6 +181,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_env_config, 0, 0, 1)
 ZEND_ARG_INFO(0, env_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_close_spans_until, 0, 0, 1)
+ZEND_ARG_INFO(0, until)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_set_trace_id, 0, 0, 1)
 ZEND_ARG_INFO(0, trace_id)
 ZEND_END_ARG_INFO()
@@ -1467,6 +1471,38 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
     }
 }
 
+/* {{{ proto int DDTrace\close_spans_until(DDTrace\SpanData) */
+static PHP_FUNCTION(close_spans_until) {
+    zval *untilzv = NULL;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "O!", &untilzv, ddtrace_ce_span_data) ==
+        FAILURE) {
+        ddtrace_log_debug("DDTrace\\close_spans_until() expects null or a SpanData object");
+        RETURN_FALSE;
+    }
+
+    ddtrace_span_fci *until = untilzv ? (ddtrace_span_fci *)Z_OBJ_P(untilzv) : NULL, *span_fci;
+
+    if (until) {
+        span_fci = DDTRACE_G(open_spans_top);
+        while (span_fci && span_fci != until && span_fci->execute_data == NULL) {
+            span_fci = span_fci->next;
+        }
+        if (span_fci != until) {
+            RETURN_FALSE;
+        }
+    }
+
+    int closed_spans = 0;
+    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until && span_fci->execute_data == NULL) {
+        dd_trace_stop_span_time(&span_fci->span);
+        ddtrace_close_span(span_fci);
+        ++closed_spans;
+    }
+
+    RETURN_LONG(closed_spans);
+}
+
 /* {{{ proto string dd_trace_set_trace_id() */
 static PHP_FUNCTION(dd_trace_set_trace_id) {
     UNUSED(execute_data);
@@ -1817,6 +1853,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_internal_fn, arginfo_dd_trace_internal_fn),
     DDTRACE_FE(dd_trace_noop, arginfo_ddtrace_void),
     DDTRACE_NS_FE(flush, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(close_spans_until, arginfo_dd_trace_close_spans_until),
     DDTRACE_NS_FE(start_span, arginfo_dd_trace_start_span),
     DDTRACE_NS_FE(close_span, arginfo_dd_trace_close_span),
     DDTRACE_NS_FE(active_span, arginfo_ddtrace_void),
