@@ -1600,7 +1600,7 @@ jobs:
           name: Copy .tar.gz file to system test binaries folder
           command: |
             ls -la build/packages
-            installable_bundle=$(find build/packages -maxdepth 1 -name 'datadog-php-tracer-*-nightly.x86_64.tar.gz')
+            installable_bundle=$(find build/packages -maxdepth 1 -name 'datadog-php-tracer-*.x86_64.tar.gz')
             echo using $installable_bundle
             cp $installable_bundle system-tests/binaries/
       - run:
