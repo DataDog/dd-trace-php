@@ -451,6 +451,52 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+  test_arm:
+    machine:
+      image: ubuntu-2004:202101-01
+    resource_class: arm.medium
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 7.4
+        type: string
+      make_target:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+    working_directory: ~/datadog
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
+      DATADOG_HAVE_DEV_ENV: 1
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - run:
+          name: Build extension
+          command: docker-composer run --rm datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster make sudo install install_ini BUILD_DIR=tmp/build_extension
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - run:
+          name: Run tests
+          command: |
+            set -euo pipefail
+             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   coverage: &TEST_BASE
     parameters:
       php_major_minor:
@@ -1452,17 +1498,6 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
-  arm_environment:
-    machine:
-      image: ubuntu-2004:202101-01
-    resource_class: arm.medium
-    working_directory: ~/datadog
-    steps:
-      - checkout
-      - run:
-          name: Hello
-          command: echo 'Hello World'
-
   compile_arm:
     machine:
       image: ubuntu-2004:202101-01
@@ -1711,10 +1746,6 @@ workflows:
   #               - "7.4"
   #               - "8.0"
 
-  build_env:
-    jobs:
-      - arm_environment
-
   build_packages:
     jobs:
       - "Prepare Code"
@@ -1798,6 +1829,7 @@ workflows:
             parameters:
               php_variant:
                 - nts
+                # - debug
   #     - compile_extension_centos:
   #         requires: [ 'Prepare Code' ]
   #         name: "Compile PHP 80 nts + zts + debug"
@@ -1825,6 +1857,8 @@ workflows:
             # - "Compile PHP 73 nts + zts + debug"
             - "Compile PHP 74 nts + zts + debug"
             - "compile_arm-nts"
+            # - "compile_arm-debug"
+            # - "compile_arm-zts"
             # - "Compile PHP 80 nts + zts + debug"
             # - "Compile PHP 81 nts + zts + debug"
             # - "Build PECL"
@@ -2168,10 +2202,10 @@ workflows:
   #         requires: [ 'package extension' ]
   #         name: "System tests"
 
-  # build:
-  #   jobs:
+  build:
+    jobs:
 
-  #     - "Prepare Code"
+      - "Prepare Code"
 
   #     - compile_extension:
   #         requires: [ 'Prepare Code' ]
@@ -2208,6 +2242,16 @@ workflows:
   #               - test_c2php
   #               - test_c_disabled
   #               - test_internal_api_randomized
+
+      - test_arm:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.4"
+              make_target:
+                - test_extension_ci
+
   #     - coverage:
   #         requires: [ 'Prepare Code' ]
   #         matrix:
