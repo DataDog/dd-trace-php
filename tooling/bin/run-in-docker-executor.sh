@@ -10,5 +10,7 @@ php -v
 
 make sudo debug install install_ini BUILD_DIR=tmp/build_extension
 
+# First argument is php variant
 shift
-$(@)
+
+${@}
