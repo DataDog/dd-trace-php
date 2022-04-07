@@ -36,6 +36,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         }
         parent::ddSetUpBeforeClass();
         static::setUpWebServer();
+        static::setupApplication($index);
     }
 
     public static function ddTearDownAfterClass()
@@ -108,6 +109,49 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             self::$appServer->mergeEnvs(static::getEnvs());
             self::$appServer->mergeInis(static::getInis());
             self::$appServer->start();
+        }
+    }
+
+    /**
+     *
+     * @param string $index
+     */
+    protected static function setupApplication($index)
+    {
+        if ((bool) \getenv('DD_SKIP_APP_SETUP')) {
+            return;
+        }
+
+        $publicFolder = \dirname($index);
+        $parentFolder = \dirname($publicFolder);
+
+        // Install composer if present
+        $composerFolder = null;
+        if (\is_readable($publicFolder . \DIRECTORY_SEPARATOR . 'composer.json')) {
+            $composerFolder = $publicFolder;
+        } elseif (\is_readable($parentFolder . \DIRECTORY_SEPARATOR . 'composer.json')) {
+            $composerFolder = $parentFolder;
+        }
+        if ($composerFolder) {
+            \error_log("Installing composer dependencies");
+            exec(
+                "COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction --working-dir=$composerFolder install --no-scripts"
+            );
+        }
+
+        // Run before-run script if present
+        $scriptName = 'before-run.sh';
+        $beforeRunFolder = null;
+        if (\is_readable($publicFolder . \DIRECTORY_SEPARATOR . $scriptName)) {
+            $beforeRunFolder = $publicFolder;
+        } elseif (\is_readable($parentFolder . \DIRECTORY_SEPARATOR . $scriptName)) {
+            $beforeRunFolder = $parentFolder;
+        }
+        if ($beforeRunFolder) {
+            \error_log("Running before-run script: " . $beforeRunFolder . \DIRECTORY_SEPARATOR . $scriptName);
+            exec(
+                "cd $beforeRunFolder; sh $scriptName"
+            );
         }
     }
 

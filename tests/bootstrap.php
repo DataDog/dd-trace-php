@@ -19,3 +19,13 @@ if (PHPUNIT_MAJOR >= 8) {
 } else {
     require __DIR__ . '/Common/MultiPHPUnitVersionAdapter_untyped.php';
 }
+
+$skipAppSetup = (bool) \getenv('DD_SKIP_APP_SETUP');
+
+if ($skipAppSetup) {
+    error_log('Composer install and before-run script is disabled for this run. ' .
+        'Set DD_SKIP_APP_SETUP=0 to run app setup instead.');
+} else {
+    error_log('Composer install and before-run script are run before every test case. ' .
+        'Set DD_SKIP_APP_SETUP=1 to skip app setup instead.');
+}

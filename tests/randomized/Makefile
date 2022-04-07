@@ -5,7 +5,7 @@ DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-dev-
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
-NUMBER_OF_SCENARIOS := 20
+NUMBER_OF_SCENARIOS := 10
 
 build: build.centos7
 

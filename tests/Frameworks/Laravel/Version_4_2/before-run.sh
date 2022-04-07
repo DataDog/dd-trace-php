@@ -1,0 +1,3 @@
+set -eux
+
+artisan optimize
