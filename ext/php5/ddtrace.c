@@ -1753,6 +1753,9 @@ static PHP_FUNCTION(close_span) {
 
 static PHP_FUNCTION(flush) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    if (get_DD_AUTOFINISH_SPANS()) {
+        ddtrace_close_userland_spans_until(NULL TSRMLS_CC);
+    }
     if (!ddtrace_flush_tracer(TSRMLS_C)) {
         ddtrace_log_debug("Unable to flush the tracer");
     }

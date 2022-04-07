@@ -1583,6 +1583,9 @@ static PHP_FUNCTION(close_span) {
 
 static PHP_FUNCTION(flush) {
     UNUSED(execute_data);
+    if (get_DD_AUTOFINISH_SPANS()) {
+        ddtrace_close_userland_spans_until(NULL);
+    }
     if (ddtrace_flush_tracer() == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
