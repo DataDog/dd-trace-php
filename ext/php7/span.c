@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "auto_flush.h"
+#include "compat_string.h"
 #include "configuration.h"
 #include "ddtrace.h"
 #include "dispatch.h"
@@ -163,6 +164,10 @@ void ddtrace_close_userland_spans_until(ddtrace_span_fci *until) {
         if (span_fci->execute_data) {
             ddtrace_log_err("Found internal span data while closing userland spans");
         }
+
+        zend_string *name = ddtrace_convert_to_str(ddtrace_spandata_property_name(&span_fci->span));
+        ddtrace_log_debugf("Found unfinished span while automatically closing spans with name '%s'", ZSTR_VAL(name));
+        zend_string_release(name);
 
         if (get_DD_AUTOFINISH_SPANS()) {
             dd_trace_stop_span_time(&span_fci->span);

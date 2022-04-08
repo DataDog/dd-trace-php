@@ -29,5 +29,4 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     call_httpbin('user-agent');
     $scope->close();
     $tracer->flush();
-    $tracer->reset();
 }

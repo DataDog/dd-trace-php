@@ -384,6 +384,17 @@ final class TracerTest extends BaseTestCase
         self::assertSame('from-env', $span['meta']['version']);
     }
 
+    public function testTracerReset()
+    {
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $tracer->startRootSpan('custom.root');
+            $tracer->startActiveSpan('custom.internal');
+            $tracer->reset();
+        });
+
+        $this->assertEmpty($traces);
+    }
+
     public function testServiceMappingNoEnvMapping()
     {
         $traces = $this->isolateTracer(function (Tracer $tracer) {

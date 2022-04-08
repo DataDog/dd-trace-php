@@ -24,6 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
+Found unfinished span while automatically closing spans with name 'my precious span'
 array(1) {
   [0]=>
   array(10) {
