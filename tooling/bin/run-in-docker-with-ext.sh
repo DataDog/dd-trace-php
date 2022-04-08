@@ -2,15 +2,14 @@
 
 set -eux
 
-php_variant=$1
+php_variant=${PHP_VARIANT:-nts}
 php_major_minor=$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
 
+echo "Running with PHP variant: $php_variant"
 switch-php $php_variant
 php -v
 
-make sudo debug install install_ini BUILD_DIR=tmp/build_extension
 
-# First argument is php variant
-shift
+make sudo debug install install_ini BUILD_DIR=tmp/build_extension
 
 ${@}

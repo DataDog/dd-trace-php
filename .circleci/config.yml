@@ -465,18 +465,22 @@ jobs:
         type: string
         default: none
     working_directory: ~/datadog
-    environment:
-      DDAGENT_HOSTNAME: 127.0.0.1
-      DD_AGENT_HOST: 127.0.0.1
-      DATADOG_HAVE_DEV_ENV: 1
+    # environment:
+    #   DDAGENT_HOSTNAME: 127.0.0.1
+    #   DD_AGENT_HOST: 127.0.0.1
+    #   DATADOG_HAVE_DEV_ENV: 1
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - switch_php:
-          php_version: << parameters.switch_php_version >>
       - run:
-          name: Build extension
+          name: Run tests
           command: |
-            docker-compose run --rm << parameters.php_major_minor >>-buster ./tooling/bin/run-in-docker-executor.sh
+            docker-compose run --rm \
+              -e DDAGENT_HOSTNAME=127.0.0.1 \
+              -e DD_AGENT_HOST=127.0.0.1 \
+              -e DATADOG_HAVE_DEV_ENV=1 \
+              -e PHP_VARIANT=<< parameters.switch_php_version >> \
+              << parameters.php_major_minor >>-buster \
+                ./tooling/bin/run-in-docker-with-ext.sh make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
       # - <<: *STEP_COMPOSER_TESTS_UPDATE
       # - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       # - <<: *STEP_EXPORT_CI_ENV
