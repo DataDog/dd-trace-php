@@ -463,7 +463,7 @@ jobs:
         type: string
       switch_php_version:
         type: string
-        default: none
+        default: debug
     working_directory: ~/datadog
     # environment:
     #   DDAGENT_HOSTNAME: 127.0.0.1
@@ -2253,7 +2253,7 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-                - "debug"
+                - "7.4"
               make_target:
                 - test_extension_ci
 
