@@ -2253,7 +2253,7 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-                - "7.4"
+                - "debug"
               make_target:
                 - test_extension_ci
 
