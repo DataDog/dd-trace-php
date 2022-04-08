@@ -17,7 +17,7 @@ x-aliases:
       - agent
       - ddagent_integration
       - request-replayer
-      - elasticsearch2_integration
+      #      - elasticsearch2_integration
       - elasticsearch7_integration
       - httpbin_integration
       - redis_integration
