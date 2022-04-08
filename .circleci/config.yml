@@ -472,6 +472,9 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
+          name: Make executor script executable
+          command: chmod a+x ./tooling/bin/run-in-docker-with-ext.sh
+      - run:
           name: Run tests
           command: |
             docker-compose run --rm \
