@@ -30,6 +30,7 @@ $arr = array(
     'http.status_code' => '405',
     'http.response.headers.content-type' => 'text/xml',
     'network.client.ip' => '2.2.2.2',
+    'actor.ip' => '5.5.5.5'
 );
 add_ancillary_tags($arr);
 ksort($arr);
@@ -39,6 +40,7 @@ print_r($arr);
 --EXPECTF--
 Array
 (
+    [actor.ip] => 5.5.5.5
     [http.method] => POST
     [http.request.headers.user-agent] => my user agent
     [http.request.headers.x-forwarded-for] => 8.8.8.8

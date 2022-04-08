@@ -58,6 +58,7 @@ print_r($arr);
 --EXPECTF--
 Array
 (
+    [actor.ip] => 7.7.7.7
     [http.method] => GET
     [http.request.headers.accept] => */*
     [http.request.headers.accept-encoding] => gzip
