@@ -54,13 +54,13 @@ class Normalizer
      * @param boolean $incoming
      * @return string
      */
-    private static function uriApplyRules($uriPath, $incoming)
+    private static function uriApplyRules($inputUriPath, $incoming)
     {
-        if ('/' === $uriPath || '' === $uriPath || null === $uriPath) {
+        if ('/' === $inputUriPath || '' === $inputUriPath || null === $inputUriPath) {
             return '/';
         }
 
-        $uriPath = self::urlSanitize($uriPath);
+        $uriPath = self::urlSanitize($inputUriPath, false, true);
 
         // We always expect leading slash if it is a pure path, while urls with RFC3986 complaint schemes are preserved.
         // See: https://tools.ietf.org/html/rfc3986#page-17
@@ -89,7 +89,8 @@ class Normalizer
             && !empty($legacyMappings)
         ) {
             $normalizer = new Urls(explode(',', $legacyMappings));
-            return $normalizer->normalize($uriPath);
+            return $normalizer->normalize($uriPath)
+                . self::cleanQueryString($inputUriPath, "datadog.trace.resource_uri_query_param_allowed");
         }
 
 
@@ -130,7 +131,8 @@ class Normalizer
             }
         }
 
-        return implode('/', $fragments);
+        return implode('/', $fragments)
+            . self::cleanQueryString($inputUriPath, "datadog.trace.resource_uri_query_param_allowed");
     }
 
     /**
@@ -141,7 +143,7 @@ class Normalizer
      *                           Defaults to `false`.
      * @return string
      */
-    public static function urlSanitize($url, $dropUserInfo = false)
+    public static function urlSanitize($url, $dropUserInfo = false, $trimQueryString = false)
     {
         /* The implementation of this method is an exact replica of DDTrace\Http\Urls::sanitize() - and has to
          * be kept in sync - until this method will be removed as part of the PHP->C migration.
@@ -179,7 +181,37 @@ class Normalizer
             $url
         );
 
-        return \str_replace('<sanitized>', '?', strstr($sanitizedUserinfo, '?', true) ?: $sanitizedUserinfo);
+        return \str_replace('<sanitized>', '?', strstr($sanitizedUserinfo, '?', true) ?: $sanitizedUserinfo)
+            . ($trimQueryString ? "" : self::cleanQueryString($url, "datadog.trace.http_url_query_param_allowed"));
+    }
+
+    private static function cleanQueryString($queryString, $allowedSetting)
+    {
+        if (!preg_match('(\?(?!:\??@)\K.*)', $queryString, $m)) {
+            return "";
+        }
+
+        $queryString = $m[0];
+
+        $allowedSet = array_flip(self::decodeConfigSet($allowedSetting));
+
+        if (empty($allowedSet)) {
+            return "";
+        }
+
+        if ($allowedSet == ["*"]) {
+            return $queryString === "" ? "" : "?$queryString";
+        }
+
+        $preserve = array_filter(explode('&', $queryString), function ($part) use ($allowedSet) {
+            return isset($allowedSet[explode('=', $part)[0]]);
+        });
+
+        if (empty($preserve)) {
+            return "";
+        }
+
+        return '?' . implode('&', $preserve);
     }
 
     /**
