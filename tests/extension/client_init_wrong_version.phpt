@@ -6,7 +6,8 @@ use function datadog\appsec\testing\{rinit,backoff_status,is_without_holes};
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createRun([['ok', '0.0.0']]);
+$obj = new ArrayObject();
+$helper = Helper::createRun([['ok', '0.0.0',[],$obj,$obj]]);
 
 var_dump(rinit());
 

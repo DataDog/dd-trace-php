@@ -79,4 +79,13 @@ result engine::context::publish(parameter &&param)
     return res;
 }
 
+void engine::context::get_meta_and_metrics(
+    std::map<std::string_view, std::string> &meta,
+    std::map<std::string_view, double> &metrics)
+{
+    for (const auto &[subscriber, listener] : listeners_) {
+        listener->get_meta_and_metrics(meta, metrics);
+    }
+}
+
 } // namespace dds

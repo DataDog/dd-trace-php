@@ -7,8 +7,10 @@
 
 #include "../commands_helpers.h"
 #include "../ddappsec.h"
+#include "../ddtrace.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
+#include "../tags.h"
 #include "../version.h"
 #include "client_init.h"
 #include "mpack-common.h"
@@ -17,6 +19,7 @@
 
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nullable ctx);
 static dd_result _process_response(mpack_node_t root, void *nullable ctx);
+static void _process_meta_and_metrics(mpack_node_t root);
 
 static const dd_command_spec _spec = {
     .name = "client_init",
@@ -66,6 +69,9 @@ static dd_result _check_helper_version(mpack_node_t root);
 static dd_result _process_response(
     mpack_node_t root, ATTR_UNUSED void *nullable ctx)
 {
+    // Add any tags and metrics provided by the helper
+    _process_meta_and_metrics(root);
+
     // check verdict
     mpack_node_t verdict = mpack_node_array_at(root, 0);
     bool is_ok = dd_mpack_node_lstr_eq(verdict, "ok");
@@ -102,6 +108,21 @@ static dd_result _process_response(
     }
 
     return dd_error;
+}
+
+static void _process_meta_and_metrics(mpack_node_t root)
+{
+    mpack_node_t meta = mpack_node_array_at(root, 3);
+    if (mpack_node_map_count(meta) > 0) {
+        if (dd_command_process_meta(meta)) {
+            // If there are any meta tags and setting them succeeds
+            // we set the sampling priority
+            dd_tags_set_sampling_priority();
+        }
+    }
+
+    mpack_node_t metrics = mpack_node_array_at(root, 4);
+    dd_command_process_metrics(metrics);
 }
 
 static dd_result _check_helper_version(mpack_node_t root)

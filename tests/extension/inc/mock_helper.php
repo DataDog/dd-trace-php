@@ -47,7 +47,8 @@ class Helper {
     }
 
     static function createInitedRun($responses, $opts = array()) {
-        $responses = array_merge([['ok', phpversion('ddappsec')]], $responses);
+        $empty_obj = new ArrayObject();
+        $responses = array_merge([['ok', phpversion('ddappsec'),[],$empty_obj,$empty_obj]], $responses);
         return self::createRun($responses, $opts);
     }
 

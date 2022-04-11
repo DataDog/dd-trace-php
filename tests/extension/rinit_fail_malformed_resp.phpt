@@ -7,7 +7,8 @@ use function datadog\appsec\testing\{rinit,rshutdown,backoff_status,is_connected
 include __DIR__ . '/inc/mock_helper.php';
 
 // respond correctly to client_init and request_shutdown, but not request_init
-$helper = Helper::createInitedRun([[['foo' => 'ok']], ['ok']]);
+$obj = new ArrayObject();
+$helper = Helper::createInitedRun([[['foo' => 'ok']], ['ok', [], $obj, $obj]]);
 
 echo "rinit:\n";
 var_dump(rinit());

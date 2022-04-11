@@ -459,9 +459,9 @@ void Client::do_client_init()
                                uint32_t num_elements) {
             mpack_tag_t tag;
 
-            if (num_elements < 3) {
+            if (num_elements < 5) {
                 throw std::runtime_error{
-                    "Expected response to have at least 3 elements; has " +
+                    "Expected response to have at least 5 elements; has " +
                     std::to_string(num_elements)};
             }
 

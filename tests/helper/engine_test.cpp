@@ -19,6 +19,9 @@ public:
     typedef std::shared_ptr<dds::mock::listener> ptr;
 
     MOCK_METHOD1(call, dds::result(dds::parameter_view &));
+    MOCK_METHOD2(
+        get_meta_and_metrics, void(std::map<std::string_view, std::string> &,
+                                  std::map<std::string_view, double> &));
 };
 
 class subscriber : public dds::subscriber {
@@ -228,8 +231,11 @@ TEST(EngineTest, StatefulSubscriptor)
 
 TEST(EngineTest, WafSubscriptorBasic)
 {
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule));
+    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
 
     auto ctx = e->get_context();
 
@@ -250,8 +256,11 @@ TEST(EngineTest, WafSubscriptorBasic)
 
 TEST(EngineTest, WafSubscriptorInvalidParam)
 {
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule));
+    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
 
     auto ctx = e->get_context();
 
@@ -262,8 +271,11 @@ TEST(EngineTest, WafSubscriptorInvalidParam)
 
 TEST(EngineTest, WafSubscriptorTimeout)
 {
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, 0));
+    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics, 0));
 
     auto ctx = e->get_context();
 

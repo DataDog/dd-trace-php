@@ -75,12 +75,14 @@ TEST(BrokerTest, SendClientInit)
 
     std::stringstream ss;
     msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(3);
+    packer.pack_array(5);
     pack_str(packer, "ok");
     pack_str(packer, dds::php_ddappsec_version);
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");
+    packer.pack_map(0);
+    packer.pack_map(0);
     const auto &expected_data = ss.str();
 
     network::header_t h;
@@ -136,11 +138,13 @@ TEST(BrokerTest, SendRequestShutdown)
 
     std::stringstream ss;
     msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(2);
+    packer.pack_array(4);
     pack_str(packer, "block");
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");
+    packer.pack_map(0);
+    packer.pack_map(0);
     const auto &expected_data = ss.str();
 
     network::header_t h;

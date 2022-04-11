@@ -87,10 +87,13 @@ bool client::handle_command(const network::client_init::request &command)
     auto &&settings = command.settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
 
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
     std::vector<std::string> errors;
     bool has_errors = false;
     try {
-        engine_ = engine_pool_->create_engine(settings);
+        engine_ = engine_pool_->create_engine(settings, meta, metrics);
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(
@@ -110,6 +113,8 @@ bool client::handle_command(const network::client_init::request &command)
     network::client_init::response response;
     response.status = has_errors ? "fail" : "ok";
     response.errors = std::move(errors);
+    response.meta = std::move(meta);
+    response.metrics = std::move(metrics);
 
     try {
         if (!broker_->send(response)) {
@@ -145,6 +150,10 @@ bool client::handle_command(network::request_init::request &command)
         if (res.value == result::code::record) {
             response.verdict = "record";
             response.triggers = std::move(res.data);
+        } else if (res.value == result::code::block) {
+            response.verdict = "block";
+            response.triggers = std::move(res.data);
+            DD_STDLOG(DD_STDLOG_ATTACK_BLOCKED);
         } else {
             response.verdict = "ok";
         }
@@ -194,6 +203,8 @@ bool client::handle_command(network::request_shutdown::request &command)
         } else {
             response.verdict = "ok";
         }
+
+        context_->get_meta_and_metrics(response.meta, response.metrics);
     } catch (const invalid_object &e) {
         // This error indicates some issue in either the communication with
         // the client, incompatible versions or malicious client.

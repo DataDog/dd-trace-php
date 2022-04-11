@@ -7,6 +7,7 @@
 #include "common.hpp"
 #include <boost/algorithm/string/predicate.hpp>
 #include <engine_pool.hpp>
+#include <tags.hpp>
 
 namespace algo = boost::algorithm;
 
@@ -24,13 +25,17 @@ struct engine_pool_exp : public engine_pool {
 
 TEST(EnginePoolTest, LoadRulesOK)
 {
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
     engine_pool_exp pool;
     auto fn = create_sample_rules_ok();
-    auto engine = pool.create_engine({fn, 42});
+    auto engine = pool.create_engine({fn, 42}, meta, metrics);
     EXPECT_EQ(pool.get_cache().size(), 1);
+    EXPECT_EQ(metrics[tag::event_rules_loaded], 2);
 
     // loading again should take from the cache
-    auto engine2 = pool.create_engine({fn, 42});
+    auto engine2 = pool.create_engine({fn, 42}, meta, metrics);
     EXPECT_EQ(pool.get_cache().size(), 1);
 
     // destroying the engines should expire the cache ptr
@@ -47,30 +52,37 @@ TEST(EnginePoolTest, LoadRulesOK)
 
     // loading another file should cleanup the cache
     fn = create_sample_rules_ok();
-    auto engine3 = pool.create_engine({fn, 42});
+    auto engine3 = pool.create_engine({fn, 42}, meta, metrics);
     ASSERT_TRUE(weak_ptr.expired());
     EXPECT_EQ(pool.get_cache().size(), 1);
 
     // another timeout should result in another engine
-    auto engine4 = pool.create_engine({fn, 24});
+    auto engine4 = pool.create_engine({fn, 24}, meta, metrics);
     EXPECT_EQ(pool.get_cache().size(), 2);
 }
 
 TEST(EnginePoolTest, LoadRulesFileNotFound)
 {
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
     engine_pool_exp pool;
     EXPECT_THROW(
         {
-            pool.create_engine({"/file/that/does/not/exist", 42});
+            pool.create_engine(
+                {"/file/that/does/not/exist", 42}, meta, metrics);
         },
         std::runtime_error);
 }
 TEST(EnginePoolTest, BadRulesFile)
 {
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
     engine_pool_exp pool;
     EXPECT_THROW(
         {
-            pool.create_engine({"/dev/null", 42});
+            pool.create_engine({"/dev/null", 42}, meta, metrics);
         },
         dds::parsing_error);
 }

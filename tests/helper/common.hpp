@@ -30,3 +30,4 @@ using namespace std::literals;
 using namespace std::chrono_literals;
 
 std::string create_sample_rules_ok();
+std::string create_sample_rules_invalid();

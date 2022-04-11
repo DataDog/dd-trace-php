@@ -16,5 +16,7 @@ void dd_tags_rinit(void);
 void dd_tags_rshutdown(void);
 void dd_tags_rshutdown_testing(void);
 
+void dd_tags_set_sampling_priority(void);
+
 // does not increase the refcount on zstr
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr);

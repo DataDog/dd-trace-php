@@ -17,7 +17,9 @@ namespace dds {
  * @throws std::exception if creating the waf subscriber fails
  */
 std::shared_ptr<engine> engine_pool::create_engine(
-    const client_settings &settings)
+    const client_settings &settings,
+    std::map<std::string_view, std::string> &meta,
+    std::map<std::string_view, double> &metrics)
 {
     std::lock_guard guard{mutex_};
 
@@ -36,7 +38,8 @@ std::shared_ptr<engine> engine_pool::create_engine(
     try {
         SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);
         // may throw std::exception
-        subscriber::ptr waf = waf::instance::from_settings(settings);
+        subscriber::ptr waf =
+            waf::instance::from_settings(settings, meta, metrics);
         engine_ptr->subscribe(waf);
     } catch (...) {
         DD_STDLOG(DD_STDLOG_WAF_INIT_FAILED, rules_path);

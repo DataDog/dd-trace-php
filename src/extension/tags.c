@@ -268,6 +268,14 @@ void dd_tags_rshutdown_testing()
     zend_llist_clean(&_appsec_json_frags);
 }
 
+void dd_tags_set_sampling_priority()
+{
+    zval *metrics_zv = dd_trace_root_span_get_metrics();
+    if (metrics_zv) {
+        _set_sampling_priority(metrics_zv);
+    }
+}
+
 static void _zend_string_release_indirect(void *s)
 {
     zend_string_release(*(zend_string **)s);

@@ -32,3 +32,7 @@ dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
 /* Baked response */
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, ATTR_UNUSED void *unspecnull ctx);
+
+/* Common helpers */
+bool dd_command_process_meta(mpack_node_t root);
+bool dd_command_process_metrics(mpack_node_t root);

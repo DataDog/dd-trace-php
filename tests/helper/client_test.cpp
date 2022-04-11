@@ -7,6 +7,8 @@
 #include <client.hpp>
 #include <engine_pool.hpp>
 #include <network/broker.hpp>
+#include <rapidjson/document.h>
+#include <tags.hpp>
 
 namespace dds {
 
@@ -50,6 +52,57 @@ TEST(ClientTest, ClientInit)
 
     EXPECT_TRUE(c.run_client_init());
     EXPECT_STREQ(res.status.c_str(), "ok");
+    EXPECT_EQ(res.meta.size(), 2);
+    EXPECT_STREQ(res.meta[tag::waf_version].c_str(), "1.2.1");
+    EXPECT_STREQ(res.meta[tag::event_rules_errors].c_str(), "{}");
+
+    EXPECT_EQ(res.metrics.size(), 2);
+    // For small enough integers this comparison should work, otherwise replace
+    // with EXPECT_NEAR.
+    EXPECT_EQ(res.metrics[tag::event_rules_loaded], 2.0);
+    EXPECT_EQ(res.metrics[tag::event_rules_failed], 0.0);
+}
+
+TEST(ClientTest, ClientInitInvalidRules)
+{
+    auto epool = std::make_shared<engine_pool>();
+    auto broker = new mock::broker();
+
+    client c(epool, std::unique_ptr<mock::broker>(broker));
+
+    auto fn = create_sample_rules_invalid();
+
+    network::client_init::request msg;
+    msg.pid = 1729;
+    msg.runtime_version = "1.0";
+    msg.client_version = "2.0";
+    msg.settings.rules_file = fn;
+
+    network::request req(std::move(msg));
+
+    network::client_init::response res;
+    EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+    EXPECT_CALL(*broker, send(_))
+        .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
+
+    EXPECT_TRUE(c.run_client_init());
+    EXPECT_STREQ(res.status.c_str(), "ok");
+    EXPECT_EQ(res.meta.size(), 2);
+    EXPECT_STREQ(res.meta[tag::waf_version].c_str(), "1.2.1");
+
+    rapidjson::Document doc;
+    doc.Parse(res.meta[tag::event_rules_errors]);
+    EXPECT_FALSE(doc.HasParseError());
+    EXPECT_TRUE(doc.IsObject());
+    EXPECT_TRUE(doc.HasMember("missing key 'type'"));
+    EXPECT_TRUE(doc.HasMember("unknown processor: squash"));
+    EXPECT_TRUE(doc.HasMember("missing key 'inputs'"));
+
+    EXPECT_EQ(res.metrics.size(), 2);
+    // For small enough integers this comparison should work, otherwise replace
+    // with EXPECT_NEAR.
+    EXPECT_EQ(res.metrics[tag::event_rules_loaded], 1.0);
+    EXPECT_EQ(res.metrics[tag::event_rules_failed], 4.0);
 }
 
 TEST(ClientTest, ClientInitResponseFail)
@@ -488,6 +541,11 @@ TEST(ClientTest, RequestShutdown)
         EXPECT_TRUE(c.run_request());
         EXPECT_STREQ(res.verdict.c_str(), "record");
         EXPECT_EQ(res.triggers.size(), 1);
+
+        EXPECT_EQ(res.metrics.size(), 1);
+        EXPECT_GT(res.metrics[tag::waf_duration], 0.0);
+        EXPECT_EQ(res.meta.size(), 1);
+        EXPECT_STREQ(res.meta[tag::event_rules_version].c_str(), "1.2.3");
     }
 }
 

@@ -19,6 +19,7 @@
 
 #include "../json_helper.hpp"
 #include "../result.hpp"
+#include "../tags.hpp"
 #include "waf.hpp"
 
 namespace {
@@ -191,9 +192,9 @@ void initialise_logging(spdlog::level::level_enum level)
     ddwaf_set_log_cb(log_cb, spdlog_level_to_ddwaf(level));
 }
 
-instance::listener::listener(
-    ddwaf_context ctx, std::chrono::microseconds waf_timeout)
-    : handle_{ctx}, waf_timeout_{waf_timeout}
+instance::listener::listener(ddwaf_context ctx,
+    std::chrono::microseconds waf_timeout, std::string_view ruleset_version)
+    : handle_{ctx}, waf_timeout_{waf_timeout}, ruleset_version_(ruleset_version)
 {}
 
 instance::listener::listener(instance::listener &&other) noexcept
@@ -244,6 +245,9 @@ dds::result instance::listener::call(dds::parameter_view &data)
     std::unique_ptr<ddwaf_result, decltype(&ddwaf_result_free)> scope(
         &res, ddwaf_result_free);
 
+    // NOLINTNEXTLINE
+    total_runtime_ += res.total_runtime / 1000.0;
+
     switch (code) {
     case DDWAF_BLOCK:
         return format_waf_result(dds::result::code::block, res.data);
@@ -267,9 +271,39 @@ dds::result instance::listener::call(dds::parameter_view &data)
     return dds::result{dds::result::code::ok};
 }
 
-instance::instance(parameter &rule, std::uint64_t waf_timeout_us)
-    : handle_{ddwaf_init(rule, nullptr, nullptr)}, waf_timeout_{waf_timeout_us}
+void instance::listener::get_meta_and_metrics(
+    std::map<std::string_view, std::string> &meta,
+    std::map<std::string_view, double> &metrics)
 {
+    meta[tag::event_rules_version] = ruleset_version_;
+    metrics[tag::waf_duration] = total_runtime_;
+}
+
+instance::instance(parameter &rule,
+    std::map<std::string_view, std::string> &meta,
+    std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us)
+    : waf_timeout_{waf_timeout_us}
+{
+    ddwaf_ruleset_info info;
+    handle_ = ddwaf_init(rule, nullptr, &info);
+
+    metrics[tag::event_rules_loaded] = info.loaded;
+    metrics[tag::event_rules_failed] = info.failed;
+    meta[tag::event_rules_errors] =
+        parameter_to_json(dds::parameter_view(info.errors));
+    if (info.version != nullptr) {
+        ruleset_version_ = info.version;
+    }
+
+    ddwaf_version version;
+    ddwaf_get_version(&version);
+
+    std::stringstream ss;
+    ss << version.major << "." << version.minor << "." << version.patch;
+    meta[tag::waf_version] = ss.str();
+
+    ddwaf_ruleset_info_free(&info);
+
     if (handle_ == nullptr) {
         throw invalid_object();
     }
@@ -299,8 +333,8 @@ instance::~instance()
 
 instance::listener::ptr instance::get_listener()
 {
-    return listener::ptr(
-        new listener(ddwaf_context_init(handle_, nullptr), waf_timeout_));
+    return listener::ptr(new listener(
+        ddwaf_context_init(handle_, nullptr), waf_timeout_, ruleset_version_));
 }
 
 std::vector<std::string_view> instance::get_subscriptions()
@@ -313,17 +347,21 @@ std::vector<std::string_view> instance::get_subscriptions()
     return output;
 }
 
-instance::ptr instance::from_settings(const client_settings &settings)
+instance::ptr instance::from_settings(const client_settings &settings,
+    std::map<std::string_view, std::string> &meta,
+    std::map<std::string_view, double> &metrics)
 {
     dds::parameter param = parse_file(settings.rules_file_or_default());
-    return std::make_shared<instance>(param, settings.waf_timeout_us);
+    return std::make_shared<instance>(
+        param, meta, metrics, settings.waf_timeout_us);
 }
 
-instance::ptr instance::from_string(
-    std::string_view rule, std::uint64_t waf_timeout_us)
+instance::ptr instance::from_string(std::string_view rule,
+    std::map<std::string_view, std::string> &meta,
+    std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us)
 {
     dds::parameter param = parse_string(rule);
-    return std::make_shared<instance>(param, waf_timeout_us);
+    return std::make_shared<instance>(param, meta, metrics, waf_timeout_us);
 }
 
 parameter parse_string(std::string_view config)

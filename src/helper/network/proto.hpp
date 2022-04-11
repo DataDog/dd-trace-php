@@ -100,7 +100,10 @@ struct client_init {
         std::string version{dds::php_ddappsec_version};
         std::vector<std::string> errors;
 
-        MSGPACK_DEFINE(status, version, errors);
+        std::map<std::string_view, std::string> meta;
+        std::map<std::string_view, double> metrics;
+
+        MSGPACK_DEFINE(status, version, errors, meta, metrics);
     };
 };
 
@@ -154,7 +157,10 @@ struct request_shutdown {
         std::string verdict;
         std::vector<std::string> triggers;
 
-        MSGPACK_DEFINE(verdict, triggers);
+        std::map<std::string_view, std::string> meta;
+        std::map<std::string_view, double> metrics;
+
+        MSGPACK_DEFINE(verdict, triggers, meta, metrics);
     };
 };
 

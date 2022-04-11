@@ -50,6 +50,9 @@ public:
         ~context() = default;
 
         result publish(parameter &&param);
+        // NOLINTNEXTLINE(google-runtime-references)
+        void get_meta_and_metrics(std::map<std::string_view, std::string> &meta,
+            std::map<std::string_view, double> &metrics);
 
     protected:
         std::vector<parameter> prev_published_params_;
