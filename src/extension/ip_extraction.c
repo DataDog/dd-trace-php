@@ -162,7 +162,8 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
         return res;
     }
 
-    res = _try_extract(server, _x_cluster_client_ip_key, &_parse_plain);
+    res =
+        _try_extract(server, _x_cluster_client_ip_key, &_parse_x_forwarded_for);
     if (res) {
         return res;
     }

@@ -41,6 +41,11 @@ test('x_forwarded', 'far="8.8.8.8",for=4.4.4.4;');
 test('x_forwarded', '   for=127.0.0.1,for= for=,for=;"for = for="" ,; for=8.8.8.8;');
 
 test('x_cluster_client_ip', '2.2.2.2');
+test('x_cluster_client_ip', '127.0.0.1, 2.2.2.2');
+test('x_cluster_client_ip', '10.20.30.40,,');
+test('x_cluster_client_ip', '2001::1');
+test('x_cluster_client_ip', '::1, febf::1, fc00::1, fd00::1,2001:0000::1');
+test('x_cluster_client_ip', '172.16.0.1');
 
 test('forwarded_for', '::1, 127.0.0.1, 2001::1');
 
@@ -139,6 +144,21 @@ string(7) "8.8.8.8"
 
 x_cluster_client_ip: 2.2.2.2
 string(7) "2.2.2.2"
+
+x_cluster_client_ip: 127.0.0.1, 2.2.2.2
+string(7) "2.2.2.2"
+
+x_cluster_client_ip: 10.20.30.40,,
+NULL
+
+x_cluster_client_ip: 2001::1
+string(7) "2001::1"
+
+x_cluster_client_ip: ::1, febf::1, fc00::1, fd00::1,2001:0000::1
+string(7) "2001::1"
+
+x_cluster_client_ip: 172.16.0.1
+NULL
 
 forwarded_for: ::1, 127.0.0.1, 2001::1
 string(7) "2001::1"
