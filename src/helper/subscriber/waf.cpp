@@ -281,11 +281,14 @@ void instance::listener::get_meta_and_metrics(
 
 instance::instance(parameter &rule,
     std::map<std::string_view, std::string> &meta,
-    std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us)
+    std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
+    std::string_view key_regex, std::string_view value_regex)
     : waf_timeout_{waf_timeout_us}
 {
     ddwaf_ruleset_info info;
-    handle_ = ddwaf_init(rule, nullptr, &info);
+    ddwaf_config config{{0, 0, 0}, {key_regex.data(), value_regex.data()}};
+
+    handle_ = ddwaf_init(rule, &config, &info);
 
     metrics[tag::event_rules_loaded] = info.loaded;
     metrics[tag::event_rules_failed] = info.failed;
@@ -358,10 +361,12 @@ instance::ptr instance::from_settings(const client_settings &settings,
 
 instance::ptr instance::from_string(std::string_view rule,
     std::map<std::string_view, std::string> &meta,
-    std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us)
+    std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
+    std::string_view key_regex, std::string_view value_regex)
 {
     dds::parameter param = parse_string(rule);
-    return std::make_shared<instance>(param, meta, metrics, waf_timeout_us);
+    return std::make_shared<instance>(
+        param, meta, metrics, waf_timeout_us, key_regex, value_regex);
 }
 
 parameter parse_string(std::string_view config)

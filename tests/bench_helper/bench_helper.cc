@@ -415,7 +415,7 @@ void Client::do_client_init()
         mpack_write(&w, static_cast<uint32_t>(getpid()));
         mpack_write(&w, "1.0.0");
         mpack_write(&w, "7.0.0");
-        mpack_start_map(&w, 3);
+        mpack_start_map(&w, 5);
         mpack_write(&w, "rules_file");
         mpack_write_str(
             &w, &rules_file_[0], static_cast<uint32_t>(rules_file_.size()));
@@ -423,6 +423,10 @@ void Client::do_client_init()
         mpack_write_u64(&w, waf_timeout_us);
         mpack_write(&w, "trace_rate_limit");
         mpack_write_u32(&w, trace_rate_limit);
+        mpack_write(&w, "obfuscator_key_regex");
+        mpack_write(&w, "");
+        mpack_write(&w, "obfuscator_value_regex");
+        mpack_write(&w, "");
         mpack_finish_map(&w);
         mpack_finish_array(&w);
 

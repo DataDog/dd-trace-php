@@ -60,7 +60,7 @@ if(DD_APPSEC_BUILD_HELPER)
         $<TARGET_FILE:extension>
         $<TARGET_FILE:tracer>
         $<TARGET_FILE:ddappsec-helper>
-        ${EVENT_RULES_SOURCE_DIR}/v2/build/recommended.json
+        ${EVENT_RULES_SOURCE_DIR}/build/recommended.json
         WORKING_DIRECTORY ${CMAKE_BUILD_DIR})
     add_dependencies(ex_apache_mod proj_event_rules)
 
@@ -71,7 +71,7 @@ if(DD_APPSEC_BUILD_HELPER)
         $<TARGET_FILE:extension>
         $<TARGET_FILE:tracer>
         $<TARGET_FILE:ddappsec-helper>
-        ${EVENT_RULES_SOURCE_DIR}/v2/build/recommended.json
+        ${EVENT_RULES_SOURCE_DIR}/build/recommended.json
         WORKING_DIRECTORY ${CMAKE_BUILD_DIR})
     add_dependencies(ex_apache_fpm proj_event_rules)
 endif()

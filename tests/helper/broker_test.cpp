@@ -176,13 +176,17 @@ TEST(BrokerTest, RecvClientInit)
     packer.pack_unsigned_int(20);
     pack_str(packer, "one");
     pack_str(packer, "two");
-    packer.pack_map(3);
+    packer.pack_map(5);
     pack_str(packer, "rules_file");
     pack_str(packer, "three");
     pack_str(packer, "waf_timeout_us");
     packer.pack_uint64(42ul);
     pack_str(packer, "trace_rate_limit");
     packer.pack_uint32(1729u);
+    pack_str(packer, "obfuscator_key_regex");
+    pack_str(packer, "key_regex");
+    pack_str(packer, "obfuscator_value_regex");
+    pack_str(packer, "value_regex");
 
     const std::string &expected_data = ss.str();
 
@@ -203,6 +207,9 @@ TEST(BrokerTest, RecvClientInit)
     EXPECT_EQ(command.settings.rules_file, std::string{"three"});
     EXPECT_EQ(command.settings.waf_timeout_us, 42ul);
     EXPECT_EQ(command.settings.trace_rate_limit, 1729u);
+    EXPECT_STREQ(command.settings.obfuscator_key_regex.c_str(), "key_regex");
+    EXPECT_STREQ(
+        command.settings.obfuscator_value_regex.c_str(), "value_regex");
 }
 
 TEST(BrokerTest, RecvRequestInit)

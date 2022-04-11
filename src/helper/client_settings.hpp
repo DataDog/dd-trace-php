@@ -24,6 +24,8 @@ struct client_settings {
     std::string rules_file;
     std::uint64_t waf_timeout_us = default_waf_timeout_us;
     std::uint32_t trace_rate_limit = default_trace_rate_limit;
+    std::string obfuscator_key_regex;
+    std::string obfuscator_value_regex;
 
     static const std::string &default_rules_file();
 
@@ -36,20 +38,26 @@ struct client_settings {
         return rules_file;
     }
 
-    MSGPACK_DEFINE_MAP(rules_file, waf_timeout_us, trace_rate_limit);
+    MSGPACK_DEFINE_MAP(rules_file, waf_timeout_us, trace_rate_limit,
+        obfuscator_key_regex, obfuscator_value_regex);
 
     bool operator==(const client_settings &oth) const noexcept
     {
         return rules_file == oth.rules_file &&
                waf_timeout_us == oth.waf_timeout_us &&
-               trace_rate_limit == oth.trace_rate_limit;
+               trace_rate_limit == oth.trace_rate_limit &&
+               obfuscator_key_regex == oth.obfuscator_key_regex &&
+               obfuscator_value_regex == oth.obfuscator_value_regex;
     }
 
     friend auto &operator<<(std::ostream &os, const client_settings &c)
     {
         return os << "{rules_file=" << c.rules_file
                   << ", waf_timeout_us=" << c.waf_timeout_us
-                  << ", trace_rate_limit=" << c.trace_rate_limit << "}";
+                  << ", trace_rate_limit=" << c.trace_rate_limit
+                  << ", obfuscator_key_regex=" << c.obfuscator_key_regex
+                  << ", obfuscator_value_regex=" << c.obfuscator_value_regex
+                  << "}";
     }
 
     struct settings_hash {
@@ -59,7 +67,9 @@ struct client_settings {
             auto h2 = std::hash<decltype(waf_timeout_us)>{}(s.waf_timeout_us);
             auto h3 =
                 std::hash<decltype(trace_rate_limit)>{}(s.trace_rate_limit);
-            return h1 ^ h2 ^ h3;
+            auto h4 = std::hash<std::string>{}(s.obfuscator_key_regex);
+            auto h5 = std::hash<std::string>{}(s.obfuscator_value_regex);
+            return h1 ^ h2 ^ h3 ^ h4 ^ h5;
         }
     };
 };

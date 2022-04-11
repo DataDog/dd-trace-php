@@ -28,6 +28,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
     const char *nonnull extra_headers;
     long waf_timeout_us;
     unsigned trace_rate_limit;
+    const char *nonnull obfuscator_key_regex;
+    const char *nonnull obfuscator_value_regex;
 ZEND_END_MODULE_GLOBALS(ddappsec)
 // clang-format on
 

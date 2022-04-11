@@ -260,6 +260,10 @@ static ZEND_INI_MH(_on_update_appsec_enabled);
 static ZEND_INI_MH(_on_update_appsec_enabled_on_cli);
 static ZEND_INI_MH(_on_update_unsigned);
 
+#define DEFAULT_OBFUSCATOR_KEY_REGEX                                           \
+    "(p(ass)?w(or)?d|pass(_?phrase)?|secret|(api_?|private_?|public_?)key)|"   \
+    "token|consumer_?(id|key|secret)|sign(ed|ature)|bearer|authorization"
+
 static void _register_ini_entries()
 {
     // clang-format off
@@ -271,6 +275,8 @@ static void _register_ini_entries()
         DD_INI_ENV_GLOB("waf_timeout", "10000", PHP_INI_SYSTEM, OnUpdateLongGEZero, waf_timeout_us, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("trace_rate_limit", "100", PHP_INI_SYSTEM, _on_update_unsigned, trace_rate_limit, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("extra_headers", "", PHP_INI_SYSTEM, OnUpdateString, extra_headers, zend_ddappsec_globals, ddappsec_globals),
+        DD_INI_ENV_GLOB("obfuscation_parameter_key_regexp", DEFAULT_OBFUSCATOR_KEY_REGEX, PHP_INI_SYSTEM, OnUpdateString, obfuscator_key_regex, zend_ddappsec_globals, ddappsec_globals),
+        DD_INI_ENV_GLOB("obfuscation_parameter_value_regexp", "", PHP_INI_SYSTEM, OnUpdateString, obfuscator_value_regex, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("testing", "0", PHP_INI_SYSTEM, OnUpdateBool, testing, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("testing_abort_rinit", "0", PHP_INI_SYSTEM, OnUpdateBool, testing_abort_rinit, zend_ddappsec_globals, ddappsec_globals),
         DD_INI_ENV_GLOB("testing_raw_body", "0", PHP_INI_SYSTEM, OnUpdateBool, testing_raw_body, zend_ddappsec_globals, ddappsec_globals),

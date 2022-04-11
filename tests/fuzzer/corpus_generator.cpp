@@ -151,6 +151,8 @@ int main(int argc, char *argv[])
             msg.settings.rules_file = ".github/workflows/release/recommended.json";
             msg.settings.waf_timeout_us = 10000;
             msg.settings.trace_rate_limit = 0;
+            msg.settings.obfuscator_key_regex = "^key_regex$";
+            msg.settings.obfuscator_value_regex = "^value_regex$";
 
             msgpack::packer<std::stringstream> packer(ss);
 

@@ -42,7 +42,8 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, PHP_DDAPPSEC_VERSION);
     dd_mpack_write_lstr(w, PHP_VERSION);
 
-    mpack_start_map(w, 3);
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    mpack_start_map(w, 5);
     {
         dd_mpack_write_lstr(w, "rules_file");
         const char *rules_file = DDAPPSEC_G(rules_file);
@@ -60,6 +61,13 @@ static dd_result _pack_command(
 
     dd_mpack_write_lstr(w, "trace_rate_limit");
     mpack_write(w, (uint32_t)DDAPPSEC_G(trace_rate_limit));
+
+    dd_mpack_write_lstr(w, "obfuscator_key_regex");
+    dd_mpack_write_nullable_cstr(w, DDAPPSEC_G(obfuscator_key_regex));
+
+    dd_mpack_write_lstr(w, "obfuscator_value_regex");
+    dd_mpack_write_nullable_cstr(w, DDAPPSEC_G(obfuscator_value_regex));
+
     mpack_finish_map(w);
 
     return dd_success;

@@ -46,7 +46,7 @@ TEST(WafTest, InitWithInvalidRules)
     subscriber::ptr wi{waf::instance::from_settings(cs, meta, metrics)};
 
     EXPECT_EQ(meta.size(), 2);
-    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.2.1");
+    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.3.0");
 
     rapidjson::Document doc;
     doc.Parse(meta[tag::event_rules_errors]);
@@ -132,6 +132,40 @@ TEST(WafTest, ValidRunMonitor)
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
     }
+
+    ctx->get_meta_and_metrics(meta, metrics);
+    EXPECT_STREQ(meta[tag::event_rules_version].c_str(), "1.2.3");
+    EXPECT_GT(metrics[tag::waf_duration], 0.0);
+}
+
+TEST(WafTest, ValidRunMonitorObfuscated)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics,
+        waf::instance::default_waf_timeout_us, "password"sv, "string 3"sv)};
+    auto ctx = wi->get_listener();
+
+    auto p = parameter::map(), sub_p = parameter::map();
+    sub_p.add("password", parameter::string("string 1"sv));
+    p.add("arg1", std::move(sub_p));
+    p.add("arg2", parameter::string("string 3"sv));
+
+    parameter_view pv(p);
+    auto res = ctx->call(pv);
+    EXPECT_EQ(res.value, dds::result::code::record);
+
+    EXPECT_EQ(res.data.size(), 1);
+    rapidjson::Document doc;
+    doc.Parse(res.data[0]);
+    EXPECT_FALSE(doc.HasParseError());
+    EXPECT_TRUE(doc.IsObject());
+
+    EXPECT_STREQ(doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
+        "<Redacted>");
+    EXPECT_STREQ(doc["rule_matches"][1]["parameters"][0]["value"].GetString(),
+        "<Redacted>");
 
     ctx->get_meta_and_metrics(meta, metrics);
     EXPECT_STREQ(meta[tag::event_rules_version].c_str(), "1.2.3");
