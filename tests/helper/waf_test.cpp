@@ -172,6 +172,41 @@ TEST(WafTest, ValidRunMonitorObfuscated)
     EXPECT_GT(metrics[tag::waf_duration], 0.0);
 }
 
+TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    client_settings cs;
+    cs.rules_file = create_sample_rules_ok();
+    cs.obfuscator_key_regex = "password";
+
+    subscriber::ptr wi{waf::instance::from_settings(cs, meta, metrics)};
+
+    auto ctx = wi->get_listener();
+
+    auto p = parameter::map(), sub_p = parameter::map();
+    sub_p.add("password", parameter::string("acunetix-product"sv));
+    p.add("server.request.headers.no_cookies", std::move(sub_p));
+
+    parameter_view pv(p);
+    auto res = ctx->call(pv);
+    EXPECT_EQ(res.value, dds::result::code::record);
+
+    EXPECT_EQ(res.data.size(), 1);
+    rapidjson::Document doc;
+    doc.Parse(res.data[0]);
+    EXPECT_FALSE(doc.HasParseError());
+    EXPECT_TRUE(doc.IsObject());
+
+    EXPECT_STREQ(doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
+        "<Redacted>");
+
+    ctx->get_meta_and_metrics(meta, metrics);
+    EXPECT_STREQ(meta[tag::event_rules_version].c_str(), "1.2.3");
+    EXPECT_GT(metrics[tag::waf_duration], 0.0);
+}
+
 TEST(WafTest, Logging)
 {
     auto d = defer([old_logger = spdlog::default_logger()]() {

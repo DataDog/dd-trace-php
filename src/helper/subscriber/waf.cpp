@@ -356,7 +356,8 @@ instance::ptr instance::from_settings(const client_settings &settings,
 {
     dds::parameter param = parse_file(settings.rules_file_or_default());
     return std::make_shared<instance>(
-        param, meta, metrics, settings.waf_timeout_us);
+        param, meta, metrics, settings.waf_timeout_us,
+        settings.obfuscator_key_regex, settings.obfuscator_value_regex);
 }
 
 instance::ptr instance::from_string(std::string_view rule,
