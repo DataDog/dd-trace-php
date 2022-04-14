@@ -13,12 +13,12 @@ Datadog Application Security (AppSec) extension for PHP.
 
 ## Installation
 
-To install the Datadog AppSec extension, first download the [installer](https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php) from the Datadog AppSec repository. 
+To install the Datadog AppSec extension, first download the [installer](https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php) from the Datadog Tracer repository. 
 
 ```
-$ wget https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php
+$ wget https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php -O datadog-setup.php
 ```
-:exclamation: This extension requires version `0.67.0` or above of the [Datadog PHP Tracer (ddtrace)](https://github.com/DataDog/dd-trace-php) and version `7.0` or above of [PHP](https://php.net). 
+:exclamation: This extension requires version `7.0` or above of [PHP](https://php.net).
 
 ### Online Installation 
 
@@ -26,16 +26,16 @@ This installation requires an active internet connection and the installer menti
 
 To install both the Tracer and AppSec extensions, use the following command:
 ```
-$ php dd-library-php-setup.php --php-bin all --tracer-version=latest --appsec-version=latest
+$ php datadog-setup.php --php-bin all --enable-appsec
 ```
 
 ### Offline Installation
 
-The offline installation provides a way to install an existing AppSec or Tracer archive.
+The offline installation provides a way to install an existing archive, these can be found in the [Tracer release section](https://github.com/DataDog/dd-trace-php/releases) and are named `dd-library-php-<version>-<arch>-<os>-<libc>.tar.gz`.
 
 To install both the Tracer and AppSec extension, use the following command, please note that the archive names might differ:
 ```
-$ php dd-library-php-setup.php --tracer-file datadog-php-tracer-0.67.0.x86_64.tar.gz --appsec-file dd-appsec-php-0.1.0-amd64.tar.gz
+$ php datadog-setup.php --php-bin all --enable-appsec --file dd-library-php-0.72.0-x86_64-linux-gnu.tar.gz
 ```
 
 ### Verifying the installation
@@ -44,9 +44,9 @@ Once the installation has concluded, the best way to verify that the extensions 
 
 ### Configuration
 
-After the installation has been completed, the AppSec extension will be loaded but disabled by default. Enabling the extension can be done through the `ini` settings or through environment variables.
+After the installation has been completed, the AppSec extension will be loaded and enabled. If the `--enable-appsec` option was not passed to the installer, enabling the extension can be done through the `ini` settings or through environment variables.
 
-To enable the extension using `ini` settings, find the extension's `ini` file, which can usually be found in  `/etc/php/<version>/xxx/conf.d/98-ddappsec.ini` but may differ depending on your installation. Consult the top of the output of `phpinfo()` to identify the directory that is scanned for `.ini` files, if any. Once the settings file has been found, locate, uncomment and set the following variable:
+To enable the extension using `ini` settings, find the extension's `ini` file, which can usually be found in  `/etc/php/<version>/xxx/conf.d/98-ddtrace.ini` but may differ depending on your installation. Consult the top of the output of `phpinfo()` to identify the directory that is scanned for `.ini` files, if any. Once the settings file has been found, locate, uncomment and set the following variable:
 ```
 datadog.appsec.enabled = true
 ```

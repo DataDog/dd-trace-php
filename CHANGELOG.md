@@ -1,5 +1,27 @@
 # Datadog AppSec for PHP Release
 
+### v0.3.0
+#### Breaking Changes
+- ([#74](https://github.com/DataDog/dd-appsec-php/pull/74)) Rename ini settings from `datadog.appsec.rules_path` to `datadog.appsec.rules`
+- ([#74](https://github.com/DataDog/dd-appsec-php/pull/74)) Interpret `datadog.appsec.waf_timeout` as microseconds rather than milliseconds
+
+### Fixes
+- ([#83](https://github.com/DataDog/dd-appsec-php/pull/83)) Add obfuscator strings when initialising WAF from client settings
+
+#### Additions
+- ([#79](https://github.com/DataDog/dd-appsec-php/pull/79)) Add WAF metrics and errors to traces
+- ([#80](https://github.com/DataDog/dd-appsec-php/pull/80)) Actor IP resolution from request headers
+- ([#82](https://github.com/DataDog/dd-appsec-php/pull/82)) Add support for WAF event obfuscator
+- ([#84](https://github.com/DataDog/dd-appsec-php/pull/84)) Add obfuscator regex for values
+
+#### Miscellaneous Changes
+- ([#76](https://github.com/DataDog/dd-appsec-php/pull/76)) Update installer links in documentation and tests
+- ([#78](https://github.com/DataDog/dd-appsec-php/pull/78)) Add `parameter_view` for non-ownership of WAF parameters
+- ([#81](https://github.com/DataDog/dd-appsec-php/pull/81)) Accept IP list on `X-Cluster-Client-IP` header
+- ([#82](https://github.com/DataDog/dd-appsec-php/pull/82)) Update ruleset to v1.3.1
+- ([#82](https://github.com/DataDog/dd-appsec-php/pull/82)) libddwaf upgraded to v1.3.0
+- ([#84](https://github.com/DataDog/dd-appsec-php/pull/84)) Update installation instructions
+
 ### v0.2.2
 #### Miscellaneous Changes
 - ([#69](https://github.com/DataDog/dd-appsec-php/pull/69)) Add PHP FPM to system tests
