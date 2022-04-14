@@ -268,27 +268,47 @@ function install($options)
                 // phpcs:enable Generic.Files.LineLength.TooLong
             }
 
-            // Enabling appsec
-            if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                if ($shouldInstallAppsec) {
-                    // Appsec crashes with missing symbols if tracing is not loaded
-                    execute_or_exit(
-                        'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?extension \?= \?ddtrace.so@extension = ddtrace.so@g' "
-                            . escapeshellarg($iniFilePath)
-                    );
-                    execute_or_exit(
-                        'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
-                            . escapeshellarg($iniFilePath)
-                    );
+            // Load AppSec and enable/disable as required
+
+            // phpcs:disable Generic.Files.LineLength.TooLong
+            if ($shouldInstallAppsec) {
+                // Appsec crashes with missing symbols if tracing is not loaded
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@ \?; \?extension \?= \?ddtrace.so@extension = ddtrace.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
+
+                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
+                        execute_or_exit(
+                            'Impossible to update the INI settings file.',
+                            "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
+                                . escapeshellarg($iniFilePath)
+                        );
                 } else {
-                    $enableAppsec = OPT_ENABLE_APPSEC;
-                    // phpcs:disable Generic.Files.LineLength.TooLong
-                    print_error_and_exit("Option --${enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
-                    // phpcs:enable Generic.Files.LineLength.TooLong
+                    execute_or_exit(
+                        'Impossible to update the INI settings file.',
+                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
+                            . escapeshellarg($iniFilePath)
+                    );
                 }
+            } else if (is_truthy($options[OPT_ENABLE_APPSEC])) {
+                // Ensure AppSec isn't loaded if not compatible
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@extension \?= \?ddappsec.so@;extension = ddappsec.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
+
+                $enableAppsec = OPT_ENABLE_APPSEC;
+                print_error_and_exit("Option --${enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
             }
+            // phpcs:enable Generic.Files.LineLength.TooLong
 
             echo "Installation to '$binaryForLog' was successful\n";
         }
@@ -951,7 +971,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         [
             'name' => 'extension',
             'default' => 'ddappsec.so',
-            'commented' => true,
+            'commented' => false,
             'description' => 'Enables the appsec module',
         ],
         [
@@ -1196,7 +1216,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
         [
             'name' => 'datadog.appsec.enabled',
-            'default' => 'On',
+            'default' => 'Off',
             'commented' => false,
             'description' => [
                 'Enables or disables the loaded dd-appsec extension.',
@@ -1282,7 +1302,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             ],
         ],
         [
-            'name' => 'datadog.appsec.rules_path',
+            'name' => 'datadog.appsec.rules',
             'default' => $appsecRulesPath,
             'commented' => false,
             'description' => [
