@@ -297,7 +297,7 @@ function install($options)
                             . escapeshellarg($iniFilePath)
                     );
                 }
-            } else if (is_truthy($options[OPT_ENABLE_APPSEC])) {
+            } elseif (is_truthy($options[OPT_ENABLE_APPSEC])) {
                 // Ensure AppSec isn't loaded if not compatible
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
