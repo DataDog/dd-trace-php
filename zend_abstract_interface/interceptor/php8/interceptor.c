@@ -52,7 +52,7 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
 
 static void zai_interceptor_observer_begin_handler(zend_execute_data *execute_data) {
     zai_interceptor_frame_memory frame_memory;
-    if (zai_hook_continue(execute_data, &frame_memory.hook_data)) {
+    if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
         zai_hook_memory_table_insert(execute_data, &frame_memory);
     }
 }
@@ -371,7 +371,7 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
     zend_generator *generator = (zend_generator *)generator_create_prev(class_type);
 
     zai_interceptor_frame_memory frame_memory;
-    if (zai_hook_continue(EG(current_execute_data), &frame_memory.hook_data)) {
+    if (zai_hook_continue(EG(current_execute_data), &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
         frame_memory.resumed = false;
         zai_hook_memory_table_insert((zend_execute_data *)generator, &frame_memory);
     }
@@ -406,7 +406,7 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
     zend_function *func = execute_data->func;
     if (UNEXPECTED(zai_hook_installed_internal(&func->internal_function))) {
         zai_interceptor_frame_memory frame_memory;
-        if (!zai_hook_continue(execute_data, &frame_memory.hook_data)) {
+        if (zai_hook_continue(execute_data, &frame_memory.hook_data) != ZAI_HOOK_CONTINUED) {
             goto skip;
         }
         zai_hook_memory_table_insert(execute_data, &frame_memory);

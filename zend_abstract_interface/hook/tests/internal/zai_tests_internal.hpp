@@ -12,7 +12,7 @@ extern "C" {
     static void zai_hook_test_execute_internal(zend_execute_data *ex, zval *rv) {
         zai_hook_memory_t memory;
 
-        if (!zai_hook_continue(ex, &memory)) {
+        if (!zai_hook_continue(ex, &memory) == ZAI_HOOK_BAILOUT) {
             zend_bailout();
         }
 

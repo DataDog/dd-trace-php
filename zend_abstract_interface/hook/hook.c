@@ -264,11 +264,11 @@ static inline zai_hooks_entry *zai_hook_find(zend_execute_data *ex) {
 } /* }}} */
 
 /* {{{ */
-bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory) {
+zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory) {
     zai_hooks_entry *hooks = zai_hook_find(ex);
 
     if (!hooks) {
-        return true;
+        return ZAI_HOOK_SKIP;
     }
 
     size_t dynamic_size = hooks->dynamic;
@@ -318,12 +318,12 @@ bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory) {
     // clang-format on
 
     memory->invocation = ++zai_hook_invocation;
-    return true;
+    return ZAI_HOOK_CONTINUED;
 
 __zai_hook_finish:
     memory->invocation = ++zai_hook_invocation;
     zai_hook_finish(ex, NULL, memory);
-    return false;
+    return ZAI_HOOK_BAILOUT;
 } /* }}} */
 
 void zai_hook_generator_resumption(zend_execute_data *ex, zval *sent, zai_hook_memory_t *memory) {

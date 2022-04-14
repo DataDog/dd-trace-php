@@ -72,9 +72,15 @@ typedef struct {
     void *dynamic;
 } zai_hook_memory_t; /* }}} */
 
+typedef enum {
+    ZAI_HOOK_CONTINUED,
+    ZAI_HOOK_BAILOUT,
+    ZAI_HOOK_SKIP,
+} zai_hook_continued;
+
 /* {{{ zai_hook_continue shall execute begin handlers and return false if
         the caller should bail out (one of the handlers returned false) */
-bool zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory); /* }}} */
+zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory); /* }}} */
 
 void zai_hook_generator_resumption(zend_execute_data *ex, zval *sent, zai_hook_memory_t *memory);
 void zai_hook_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded, zai_hook_memory_t *memory);
