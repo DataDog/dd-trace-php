@@ -177,3 +177,39 @@ function runYieldFromIteratorGeneratorThrows() {
     foreach (yieldFromIteratorGeneratorThrows() as $k => $v);
 }
 
+function yieldFromInnerGenerator() {
+    yield 1;
+    yield 2;
+}
+
+function yieldFromGenerator() {
+    yield 0;
+    yield from yieldFromInnerGenerator();
+}
+
+function runYieldFromGenerator() {
+    foreach (yieldFromGenerator() as $k => $v);
+}
+
+function yieldFromMultiGenerator($gen) {
+    yield 0;
+    yield from $gen;
+}
+
+function runYieldFromMultiGenerator() {
+    $gen = yieldFromInnerGenerator();
+    $g1 = yieldFromMultiGenerator($gen);
+    $g2 = yieldFromMultiGenerator($gen);
+    $g1->current();
+    $g2->current();
+    $g1->next();
+    foreach ($g2 as $v);
+}
+
+function yieldFromNestedGenerator() {
+    yield from yieldFromGenerator();
+}
+
+function runYieldFromNestedGenerator() {
+    foreach (yieldFromNestedGenerator() as $k => $v);
+}

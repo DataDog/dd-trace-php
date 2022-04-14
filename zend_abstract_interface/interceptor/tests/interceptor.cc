@@ -105,6 +105,9 @@ static void reset_interceptor_test_globals() {
 }
 
 static bool zai_hook_test_begin(zend_execute_data *ex, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+    if (dynamic) {
+        *(int32_t *)dynamic = 0;
+    }
     ++zai_hook_test_begin_invocations;
     return zai_hook_test_begin_return;
 }
@@ -392,6 +395,67 @@ INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from throwing itera
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 #endif
+
+INTERCEPTOR_TEST_CASE("generator yield intercepting of simple yield from generator", {
+    INSTALL_GENERATOR_HOOK("yieldFromGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
+    CALL_FN("runYieldFromGenerator");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 4);
+    CHECK(zai_hook_test_yield_invocations == 3);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
+INTERCEPTOR_TEST_CASE("generator yield intercepting of yielded from generator", {
+    INSTALL_GENERATOR_HOOK("yieldFromInnerGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
+    ++zai_hook_test_yield_invocations;
+    CALL_FN("runYieldFromGenerator");
+    --zai_hook_test_yield_invocations;
+
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 3);
+    CHECK(zai_hook_test_yield_invocations == 2);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
+static void zai_hook_test_yield_multi_gen(zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+    int32_t *zai_hook_test_multi_yield_invocations = (int32_t*)fixed;
+    int32_t *zai_hook_test_local_yield_invocations = (int32_t*)dynamic;
+    REQUIRE(Z_TYPE_P(key) == IS_LONG);
+    REQUIRE(Z_TYPE_P(value) == IS_LONG);
+    REQUIRE(Z_LVAL_P(value) == *zai_hook_test_local_yield_invocations);
+    ++*zai_hook_test_local_yield_invocations;
+    ++*zai_hook_test_multi_yield_invocations;
+}
+
+INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from multi-generator", {
+    int32_t *zai_hook_test_multi_yield_invocations = (int32_t *)calloc(1, 4);
+    INSTALL_GENERATOR_HOOK("yieldFromInnerGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
+    REQUIRE(zai_hook_install_generator(ZAI_STRL_VIEW(""),ZAI_STRL_VIEW("yieldFromMultiGenerator"),
+                zai_hook_test_begin, zai_hook_test_resume, zai_hook_test_yield_multi_gen, zai_hook_test_end,
+                ZAI_HOOK_AUX(zai_hook_test_multi_yield_invocations, free), 4 TEA_TSRMLS_CC) != -1);
+    ++zai_hook_test_yield_invocations;
+    CALL_FN("runYieldFromMultiGenerator");
+    --zai_hook_test_yield_invocations;
+
+    CHECK(zai_hook_test_begin_invocations == 3);
+    CHECK(zai_hook_test_resumption_invocations == 2 /* gen 1 is primed + 1x next */ + 4 /* gen 2 is primed + 3x next */ + 3 /* inner gen is run to end */);
+    CHECK(zai_hook_test_yield_invocations == 2);
+    CHECK(*zai_hook_test_multi_yield_invocations == 2 + 3 /* gen 2 yields the current state of the inner generator first */);
+    CHECK(zai_hook_test_end_invocations == 3);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
+
+INTERCEPTOR_TEST_CASE("generator yield intercepting of nested yield from generator", {
+    INSTALL_GENERATOR_HOOK("yieldFromGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
+    CALL_FN("runYieldFromNestedGenerator");
+    CHECK(zai_hook_test_begin_invocations == 1);
+    CHECK(zai_hook_test_resumption_invocations == 4);
+    CHECK(zai_hook_test_yield_invocations == 3);
+    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+});
 
 // TODO check this, maybe just don't start the span if it's a generator creating span
 // OR: TODO PHP 8 support, by doing the ZEND_GENERATOR_CREATE overload, which does an open followed by an immediate close if retval unused
