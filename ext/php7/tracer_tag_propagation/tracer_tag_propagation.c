@@ -64,19 +64,16 @@ void ddtrace_add_tracer_tags_from_array(zend_array *array) {
     ZEND_HASH_FOREACH_END();
 }
 
-zval ddtrace_get_propagated_tags(void) {
-    zval zv;
-    array_init(&zv);
+void ddtrace_get_propagated_tags(zend_array *tags) {
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
         zval *tag;
         if ((tag = zend_hash_find(&DDTRACE_G(root_span_tags_preset), tagname))) {
             Z_TRY_ADDREF_P(tag);
-            zend_hash_add(Z_ARR(zv), tagname, tag);
+            zend_hash_update(tags, tagname, tag);
         }
     }
     ZEND_HASH_FOREACH_END();
-    return zv;
 }
 
 zend_string *ddtrace_format_propagated_tags(void) {
