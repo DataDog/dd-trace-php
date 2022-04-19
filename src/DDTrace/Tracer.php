@@ -123,10 +123,10 @@ final class Tracer implements TracerInterface
      */
     public function reset()
     {
-        if (_ddtrace_config_bool(ini_get("datadog.tracer.enabled"), false)) {
+        if (_ddtrace_config_bool(ini_get("datadog.trace.enabled"), false)) {
             // Do a full shutdown and re-startup of the tracer, which implies clearing the internal span stack
-            ini_set("datadog.tracer.enabled", 0);
-            ini_set("datadog.tracer.enabled", 1);
+            ini_set("datadog.trace.enabled", 0);
+            ini_set("datadog.trace.enabled", 1);
         }
         $this->scopeManager = new ScopeManager($this->rootContext);
     }

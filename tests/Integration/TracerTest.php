@@ -387,9 +387,10 @@ final class TracerTest extends BaseTestCase
     public function testTracerReset()
     {
         $traces = $this->isolateTracer(function (Tracer $tracer) {
-            $tracer->startRootSpan('custom.root');
+            $root = $tracer->startRootSpan('custom.root');
             $tracer->startActiveSpan('custom.internal');
             $tracer->reset();
+            $root->close();
         });
 
         $this->assertEmpty($traces);
