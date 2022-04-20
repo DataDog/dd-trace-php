@@ -2,13 +2,13 @@
 Functions that return generators with 'yield from' are instrumented
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Generators are only fully supported on PHP 7+'); ?>
-<?php if (false) die('skip: Observed generators with "yield from" are broken ATM on PHP 8+'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
 
 function getResults() {
     yield from [1337, 42, 0];
+    return 123;
 }
 
 function doSomething() {
@@ -22,7 +22,7 @@ function doSomething() {
 
 DDTrace\trace_function('getResults', function(SpanData $s, $a, $retval) {
     $s->name = 'getResults';
-    $s->resource = $retval[0];
+    $s->resource = $retval;
 });
 
 DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
@@ -44,6 +44,7 @@ array_map(function($span) {
 0
 Done
 doSomething, Done
-getResults, 1337
-getResults, 42
+getResults, 123
 getResults, 0
+getResults, 42
+getResults, 1337

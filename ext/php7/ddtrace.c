@@ -640,12 +640,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    ddtrace_close_all_open_spans();  // All remaining non-internal userland spans
-    if (DDTRACE_G(open_spans_top) && DDTRACE_G(open_spans_top)->execute_data == NULL) {
-        // we have a root span. Close it.
-        dd_trace_stop_span_time(&DDTRACE_G(open_spans_top)->span);
-        ddtrace_close_span(DDTRACE_G(open_spans_top));
-    }
+    ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
     if (ddtrace_flush_tracer() == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
@@ -684,7 +679,7 @@ bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
     if (Z_TYPE_P(old_value) == IS_FALSE) {
         dd_initialize_request();
     } else if (!DDTRACE_G(disable)) {  // if this is true, the request has not been initialized at all
-        ddtrace_close_all_open_spans();
+        ddtrace_close_all_open_spans(false);  // All remaining userland spans (and root span)
         dd_clean_globals();
     }
 
@@ -1258,7 +1253,7 @@ static PHP_FUNCTION(close_spans_until) {
 
     if (until) {
         span_fci = DDTRACE_G(open_spans_top);
-        while (span_fci && span_fci != until && span_fci->execute_data == NULL) {
+        while (span_fci && span_fci != until && span_fci->type != DDTRACE_INTERNAL_SPAN) {
             span_fci = span_fci->next;
         }
         if (span_fci != until) {
@@ -1267,7 +1262,7 @@ static PHP_FUNCTION(close_spans_until) {
     }
 
     int closed_spans = 0;
-    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until && span_fci->execute_data == NULL) {
+    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until && span_fci->type != DDTRACE_INTERNAL_SPAN) {
         dd_trace_stop_span_time(&span_fci->span);
         ddtrace_close_span(span_fci);
         ++closed_spans;
@@ -1368,7 +1363,7 @@ static PHP_FUNCTION(start_span) {
         RETURN_FALSE;
     }
 
-    ddtrace_span_fci *span_fci = ddtrace_init_span();
+    ddtrace_span_fci *span_fci = ddtrace_init_span(DDTRACE_USER_SPAN);
 
     if (get_DD_TRACE_ENABLED()) {
         GC_ADDREF(&span_fci->span.std);
@@ -1390,8 +1385,7 @@ static PHP_FUNCTION(close_span) {
         RETURN_FALSE;
     }
 
-    if (!DDTRACE_G(open_spans_top) || DDTRACE_G(open_spans_top)->execute_data ||
-        (get_DD_TRACE_GENERATE_ROOT_SPAN() && DDTRACE_G(open_spans_top)->next == NULL)) {
+    if (!DDTRACE_G(open_spans_top) || DDTRACE_G(open_spans_top)->type != DDTRACE_USER_SPAN) {
         ddtrace_log_err("There is no user-span on the top of the stack. Cannot close.");
         RETURN_NULL();
     }

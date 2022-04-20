@@ -332,7 +332,7 @@ void zai_interceptor_terminate_all_pending_observers() {
     zai_interceptor_frame_memory *frame_memory;
     zval retval;
     ZVAL_NULL(&retval);
-    ZEND_HASH_FOREACH_PTR(&zai_hook_memory, frame_memory) {
+    ZEND_HASH_REVERSE_FOREACH_PTR(&zai_hook_memory, frame_memory) {
         if (!frame_memory->implicit) {
             // the individual execute_data contents here may point to bogus (but allocated) memory, but it's just used as key here, hence there's no issue.
             zai_hook_finish(frame_memory->execute_data, &retval, &frame_memory->hook_data);

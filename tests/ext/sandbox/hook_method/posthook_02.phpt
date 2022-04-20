@@ -24,7 +24,7 @@ Greeter::greet('Datadog');
 --EXPECT--
 bool(true)
 Hello, Datadog.
-array(4) {
+array(5) {
   [0]=>
   NULL
   [1]=>
@@ -35,6 +35,8 @@ array(4) {
     string(7) "Datadog"
   }
   [3]=>
+  NULL
+  [4]=>
   NULL
 }
 

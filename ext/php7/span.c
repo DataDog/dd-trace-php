@@ -94,14 +94,15 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     ddtrace_set_global_span_properties(&span_fci->span);
 }
 
-ddtrace_span_fci *ddtrace_init_span(void) {
+ddtrace_span_fci *ddtrace_init_span(enum ddtrace_span_type type) {
     zval fci_zv;
     object_init_ex(&fci_zv, ddtrace_ce_span_data);
     ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ(fci_zv);
+    span_fci->type = type;
     return span_fci;
 }
 
-void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span()); }
+void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span(DDTRACE_AUTOROOT_SPAN)); }
 
 DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
     ddtrace_span_fci *root = DDTRACE_G(root_span);
@@ -146,7 +147,7 @@ bool ddtrace_has_top_internal_span(ddtrace_span_fci *end) {
         if (span_fci == end) {
             return true;
         }
-        if (span_fci->execute_data != NULL) {
+        if (span_fci->type != DDTRACE_USER_SPAN) {
             return false;
         }
         span_fci = span_fci->next;
@@ -156,9 +157,8 @@ bool ddtrace_has_top_internal_span(ddtrace_span_fci *end) {
 
 void ddtrace_close_userland_spans_until(ddtrace_span_fci *until) {
     ddtrace_span_fci *span_fci;
-    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until &&
-           (span_fci->execute_data != NULL || span_fci->next)) {
-        if (span_fci->execute_data) {
+    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until && span_fci->type != DDTRACE_AUTOROOT_SPAN) {
+        if (span_fci->type == DDTRACE_INTERNAL_SPAN) {
             ddtrace_log_err("Found internal span data while closing userland spans");
         }
 
@@ -205,10 +205,10 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
     }
 }
 
-void ddtrace_close_all_open_spans(void) {
+void ddtrace_close_all_open_spans(bool force_close_root_span) {
     ddtrace_span_fci *span_fci;
-    while ((span_fci = DDTRACE_G(open_spans_top)) && (!get_DD_TRACE_GENERATE_ROOT_SPAN() || span_fci != DDTRACE_G(root_span))) {
-        if (get_DD_AUTOFINISH_SPANS()) {
+    while ((span_fci = DDTRACE_G(open_spans_top))) {
+        if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span_fci->type == DDTRACE_AUTOROOT_SPAN)) {
             dd_trace_stop_span_time(&span_fci->span);
             ddtrace_close_span(span_fci);
         } else {

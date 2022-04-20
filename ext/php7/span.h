@@ -26,10 +26,15 @@ struct ddtrace_span_t {
     uint64_t duration;
 };
 
+enum ddtrace_span_type {
+    DDTRACE_INTERNAL_SPAN,
+    DDTRACE_USER_SPAN,
+    DDTRACE_AUTOROOT_SPAN,
+};
+
 struct ddtrace_span_fci {
     ddtrace_span_t span;
-    zend_execute_data *execute_data;
-    struct ddtrace_dispatch_t *dispatch;
+    enum ddtrace_span_type type;
     struct ddtrace_span_fci *next;
 };
 typedef struct ddtrace_span_fci ddtrace_span_fci;
@@ -38,7 +43,7 @@ void ddtrace_init_span_stacks(void);
 void ddtrace_free_span_stacks(void);
 
 void ddtrace_open_span(ddtrace_span_fci *span_fci);
-ddtrace_span_fci *ddtrace_init_span(void);
+ddtrace_span_fci *ddtrace_init_span(enum ddtrace_span_type type);
 void ddtrace_push_root_span(void);
 
 // Note that this function is used externally by the appsec extension.
@@ -48,7 +53,7 @@ void dd_trace_stop_span_time(ddtrace_span_t *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_fci *end);
 void ddtrace_close_userland_spans_until(ddtrace_span_fci *until);
 void ddtrace_close_span(ddtrace_span_fci *span_fci);
-void ddtrace_close_all_open_spans(void);
+void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_top_open_span(void);
 void ddtrace_serialize_closed_spans(zval *serialized);
 zend_string *ddtrace_span_id_as_string(uint64_t id);

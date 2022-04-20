@@ -28,6 +28,8 @@ class SubGreeter extends Greeter {}
 $greeter = new SubGreeter();
 $greeter->greet('Datadog');
 
+dd_untrace('greet', 'Greeter');
+
 var_dump(DDTrace\hook_method('Greeter', 'greet',
     function ($This, $scope, $args) {
         echo "Greeter::greet hooked.\n";
