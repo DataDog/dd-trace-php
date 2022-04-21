@@ -71,7 +71,7 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
     zend_op *opline = &zai_interceptor_post_declare_ops[0];
     *opline = *EX(opline);
     zai_interceptor_post_declare_ops[1] = zai_interceptor_post_declare_op;
-#if PHP_VERSION_ID > 70300 && !ZEND_USE_ABS_CONST_ADDR
+#if PHP_VERSION_ID >= 70300 && !ZEND_USE_ABS_CONST_ADDR
     // on PHP 7.3+ literals are opline-relative and thus need to be relocated
     zval *constant = (zval *)&zai_interceptor_post_declare_ops[2];
     if (opline->op1_type == IS_CONST) {
@@ -101,6 +101,24 @@ static void zai_interceptor_pop_opline_before_binding() {
     if (backup) {
         zai_interceptor_opline_before_binding = *backup;
         efree(backup);
+#if PHP_VERSION_ID >= 70300 && !ZEND_USE_ABS_CONST_ADDR
+        zend_op *opline = (zend_op *)zai_interceptor_opline_before_binding.op;
+        zend_op *target_op = &zai_interceptor_post_declare_ops[1];
+        zval *constant = (zval *)&zai_interceptor_post_declare_ops[2];
+        target_op->op1_type = opline->op1_type;
+        if (opline->op1_type == IS_CONST) {
+            // DECLARE_* ops all have two consecutive literals in op1
+            ZVAL_COPY_VALUE(&constant[0], RT_CONSTANT(opline, opline->op1));
+            ZVAL_COPY_VALUE(&constant[1], RT_CONSTANT(opline, opline->op1) + 1);
+            target_op->op1.constant = sizeof(zend_op) * 2;
+        }
+        target_op->op2_type = opline->op2_type;
+        if (opline->op2_type == IS_CONST) {
+            ZVAL_COPY_VALUE(&constant[2], RT_CONSTANT(opline, opline->op2));
+            ZVAL_COPY_VALUE(&constant[3], RT_CONSTANT(opline, opline->op2) + 1);
+            target_op->op2.constant = sizeof(zend_op) * 2 + sizeof(zval) * 2;
+        }
+#endif
     } else {
         zai_interceptor_opline_before_binding.op = NULL;
     }

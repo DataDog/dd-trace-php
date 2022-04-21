@@ -61,7 +61,7 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
         zval *span_zvp = &span_zv, *args_zvp = &args_zv, *retvalp = retval, *exception_zvp = &exception_zv;
         zai_symbol_scope_t scope_type = ZAI_SYMBOL_SCOPE_GLOBAL;
         void *scope = NULL;
-        if (Z_TYPE(EX(This)) == IS_OBJECT) {
+        if (getThis()) {
             scope_type = ZAI_SYMBOL_SCOPE_OBJECT;
             scope = &EX(This);
         } else if (EX(func)->common.scope) {
@@ -74,7 +74,7 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
                         ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 4, &span_zvp, &args_zvp, &retvalp, &exception_zvp);
     } else {
         zval *args_zvp = &args_zv, *retvalp = retval, *exception_zvp = &exception_zv;
-        zval *Thisp = &EX(This);
+        zval *Thisp = getThis() ? &EX(This) : &EG(uninitialized_zval);
         if (EX(func)->common.scope) {
             zval scope, *scopep = &scope;
             ZVAL_NULL(&scope);

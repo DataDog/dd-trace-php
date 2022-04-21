@@ -56,7 +56,7 @@ static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *execute_d
     zval integration, *integrationp = &integration;
     ZVAL_STR(&integration, aux->classname);
 
-    if (aux->name < 0 || ddtrace_config_integration_enabled(aux->name)) {
+    if (aux->name == -1u || ddtrace_config_integration_enabled(aux->name)) {
         zval *rv;
         ZAI_VALUE_INIT(rv);
         bool success =

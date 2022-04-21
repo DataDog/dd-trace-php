@@ -10,6 +10,7 @@
 #if PHP_VERSION_ID < 70100
 static ZEND_FUNCTION(pass)
 {
+    (void)execute_data, (void)return_value;
 }
 
 static const zend_internal_function zend_pass_function = {
@@ -23,7 +24,8 @@ static const zend_internal_function zend_pass_function = {
         0,                      /* required_num_args */
         NULL,                   /* arg_info          */
         ZEND_FN(pass),          /* handler           */
-        NULL                    /* module            */
+        NULL,                   /* module            */
+        {0}                     /* reserved          */
 };
 #endif
 
@@ -651,7 +653,7 @@ static void zai_interceptor_setup_generator_resumption_ops(zend_execute_data *ex
     generator_memory->return_op = opline + 1;
     generator_memory->resumption_ops[0] = *opline;
     zai_interceptor_install_generator_resumption_op(generator_memory);
-#if PHP_VERSION_ID > 70300 && !ZEND_USE_ABS_CONST_ADDR
+#if PHP_VERSION_ID >= 70300 && !ZEND_USE_ABS_CONST_ADDR
     // on PHP 7.3+ literals are opline-relative and thus need to be relocated
     zval *constant = (zval *)&generator_memory->resumption_ops[2];
     if (opline->op1_type == IS_CONST) {
