@@ -82,9 +82,9 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
             if (scope_ce) {
                 ZVAL_STR(&scope, scope_ce->name);
             }
-            zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 5, &Thisp, &scopep, &args_zvp, &retvalp, &exception_zvp);
+            zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 5, &Thisp, &scopep, &args_zvp, &retvalp, &exception_zvp);
         } else {
-            zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 3, &args_zvp, &retvalp, &exception_zvp);
+            zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 3, &args_zvp, &retvalp, &exception_zvp);
         }
     }
     zval_ptr_dtor(rvp);

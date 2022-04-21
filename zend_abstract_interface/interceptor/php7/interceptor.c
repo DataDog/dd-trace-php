@@ -139,7 +139,8 @@ static inline zval *zai_interceptor_get_zval_ptr(const zend_op *opline, int op_t
 #if PHP_VERSION_ID >= 70300
             return RT_CONSTANT(opline, *node);
 #else
-            return EX_CONSTANT(node);
+            (void)opline;
+            return EX_CONSTANT(*node);
 #endif
         case IS_TMP_VAR:
         case IS_VAR:
@@ -413,16 +414,20 @@ static void zai_interceptor_generator_yielded(zend_execute_data *ex, zval *key, 
             break;
         }
         if (generator->node.children == 1) {
+#if PHP_VERSION_ID < 70300
+            generator = generator->node.child.array[0].child;
+#else
             generator = generator->node.child.single.child;
+#endif
         } else {
             /* As per get_new_root():
              * We have reached a multi-child node haven't found the root yet. We don't know which
-	     * child to follow, so perform the search from the other direction instead. */
+	         * child to follow, so perform the search from the other direction instead. */
             zend_generator *child = leaf;
             while (child->node.parent != generator) {
                 child = child->node.parent;
             }
-            generator = leaf;
+            generator = child;
         }
     } while (zai_hook_memory_table_find(generator->execute_data, (zai_interceptor_frame_memory **) &frame_memory));
 }
@@ -459,16 +464,16 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
             /* Find next finally block */
             int op_num = EX(opline) - EX(func)->op_array.opcodes - 1;
             // this condition is typically true... unless we have a neighbour messing with oplines (just like ourselves)
-            if (op_num >= 0 && op_num < EX(func)->op_array.last) {
+            if (op_num >= 0 && (uint32_t)op_num < EX(func)->op_array.last) {
                 uint32_t finally_op_num = 0;
                 for (int i = 0; i < EX(func)->op_array.last_try_catch; i++) {
                     zend_try_catch_element *try_catch = &EX(func)->op_array.try_catch_array[i];
 
-                    if (op_num < try_catch->try_op) {
+                    if ((uint32_t)op_num < try_catch->try_op) {
                         break;
                     }
 
-                    if (op_num < try_catch->finally_op) {
+                    if ((uint32_t)op_num < try_catch->finally_op) {
                         finally_op_num = try_catch->finally_op;
                     }
                 }
@@ -519,7 +524,7 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
         memory_ptr->resumption_ops[0].lineno = EX(opline)->lineno;
         zai_interceptor_install_generator_resumption_op(memory_ptr);
         memory_ptr->return_op = EX(opline);
-        EX(opline) = (const zend_op *) &memory_ptr->resumption_ops;
+        EX(opline) = (const zend_op *) &memory_ptr->resumption_ops[1];
     }
 #endif
 
@@ -646,6 +651,8 @@ static void zai_interceptor_setup_generator_resumption_ops(zend_execute_data *ex
     generator_memory->return_op = opline + 1;
     generator_memory->resumption_ops[0] = *opline;
     zai_interceptor_install_generator_resumption_op(generator_memory);
+#if PHP_VERSION_ID > 70300 && !ZEND_USE_ABS_CONST_ADDR
+    // on PHP 7.3+ literals are opline-relative and thus need to be relocated
     zval *constant = (zval *)&generator_memory->resumption_ops[2];
     if (opline->op1_type == IS_CONST) {
         ZVAL_COPY_VALUE(&constant[0], RT_CONSTANT(opline, opline->op1));
@@ -655,6 +662,7 @@ static void zai_interceptor_setup_generator_resumption_ops(zend_execute_data *ex
         ZVAL_COPY_VALUE(&constant[1], RT_CONSTANT(opline, opline->op2));
         generator_memory->resumption_ops[0].op2.constant = sizeof(zend_op) * 2 + sizeof(zval);
     }
+#endif
     EX(opline) = &generator_memory->resumption_ops[0];
 }
 
@@ -696,6 +704,12 @@ typedef struct {
     zai_interceptor_generator_frame_memory *frame_memory;
     zval last_value;
 } zai_interceptor_iterator_wrapper;
+
+#if PHP_VERSION_ID < 70300
+#define CONST_ITERATOR_FUNCS
+#else
+#define CONST_ITERATOR_FUNCS const
+#endif
 
 static void zai_interceptor_iterator_wrapper_dtor(zend_object_iterator *it) {
     zval_ptr_dtor(&((zai_interceptor_iterator_wrapper *)it)->zv);
@@ -748,7 +762,7 @@ static void zai_interceptor_iterator_wrapper_iterator_rewind(zend_object_iterato
     }
 }
 
-const static zend_object_iterator_funcs zai_interceptor_iterator_wrapper_iterator_funcs = {
+static CONST_ITERATOR_FUNCS zend_object_iterator_funcs zai_interceptor_iterator_wrapper_iterator_funcs = {
         .dtor = zai_interceptor_iterator_wrapper_dtor,
         //.get_gc = zai_interceptor_iterator_wrapper_get_gc,
         .valid = zai_interceptor_iterator_wrapper_iterator_valid,
@@ -781,7 +795,7 @@ static void zai_interceptor_iterator_wrapper_array_move_forward(zend_object_iter
     zend_hash_move_forward_ex(it->array, &Z_FE_POS(it->zv));
 }
 
-const static zend_object_iterator_funcs zai_interceptor_iterator_wrapper_array_funcs = {
+static CONST_ITERATOR_FUNCS zend_object_iterator_funcs zai_interceptor_iterator_wrapper_array_funcs = {
         .dtor = zai_interceptor_iterator_wrapper_dtor,
         //.get_gc = zai_interceptor_iterator_wrapper_get_gc,
         .valid = zai_interceptor_iterator_wrapper_array_valid,
@@ -932,12 +946,17 @@ static int zai_interceptor_generator_resumption_handler(zend_execute_data *execu
 static void (*prev_exception_hook)(zval *);
 static void zai_interceptor_exception_hook(zval *ex) {
     zai_interceptor_generator_frame_memory *generator_memory;
-    // check against resumption_ops[0]: when throwing the engine rolls back to the original yielding opcode (for correct stacktraces)
-    if (zai_hook_memory_table_find(EG(current_execute_data), (zai_interceptor_frame_memory **) &generator_memory) && EG(current_execute_data)->opline == &generator_memory->resumption_ops[0]) {
-        // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
-        EG(current_execute_data)->opline = generator_memory->return_op - 1;
-
-        zai_interceptor_generator_resumption(EG(current_execute_data), &EG(uninitialized_zval), generator_memory);
+    if (zai_hook_memory_table_find(EG(current_execute_data), (zai_interceptor_frame_memory **) &generator_memory)) {
+        // check against resumption_ops[0]: when throwing the engine rolls back to the original yielding opcode (for correct stacktraces)
+        if (EG(current_execute_data)->opline == &generator_memory->resumption_ops[0]) {
+            // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
+            EG(current_execute_data)->opline = generator_memory->return_op - 1;
+            zai_interceptor_generator_resumption(EG(current_execute_data), &EG(uninitialized_zval), generator_memory);
+        } else if (EG(current_execute_data)->opline == &generator_memory->resumption_ops[1]) {
+            // however on versions before php-src commit 2e9e706a8271bbb42ad696c3383912facdd7d45f (< 7.3.23, < 7.4.11) the resumption op is not reset. Handle this case here (and mirror the slightly buggy behaviour...).
+            EG(current_execute_data)->opline = generator_memory->return_op;
+            zai_interceptor_generator_resumption(EG(current_execute_data), &EG(uninitialized_zval), generator_memory);
+        }
     }
     if (prev_exception_hook) {
         prev_exception_hook(ex);

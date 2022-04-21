@@ -156,16 +156,23 @@ static void dd_uhook_dtor(void *data) {
 }
 
 // clang-format off
+#if PHP_VERSION_ID < 70400
+#define _error_code error_code
+#endif
 
 /* {{{ proto int DDTrace\install_hook(string|Closure|Generator target, ?Closure begin = null, ?Closure end = null) */
 PHP_FUNCTION(install_hook) {
-    zend_string *name;
+    zend_string *name = NULL;
     zend_function *resolved = NULL;
     zval *begin = NULL;
     zval *end = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
+#if PHP_VERSION_ID < 70200
+        Z_PARAM_PROLOGUE(0);
+#else
         Z_PARAM_PROLOGUE(0, 0);
+#endif
         if (Z_TYPE_P(_arg) == IS_STRING) {
             name = Z_STR_P(_arg);
         } else if (Z_TYPE_P(_arg) == IS_OBJECT && (Z_OBJCE_P(_arg) == zend_ce_closure || Z_OBJCE_P(_arg) == zend_ce_generator)) {

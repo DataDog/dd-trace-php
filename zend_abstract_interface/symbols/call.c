@@ -17,7 +17,7 @@
 // stack allocate some memory to avoid overwriting stack allocated things needed for observers
 static char (*throwaway_buffer_pointer)[];
 zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache) {
-    char buffer[2048];  // dynamic runtime symbol resolving can have a 1-2 KB stack overhead
+    char buffer[3072];  // dynamic runtime symbol resolving can have a 1-3 KB stack overhead
     throwaway_buffer_pointer = &buffer;
     return zend_call_function(fci, fci_cache ZAI_TSRMLS_CC);
 }

@@ -150,13 +150,18 @@ function runYieldFromIteratorGenerator() {
 }
 
 function yieldFromIteratorGeneratorThrows() {
-    try {
-        yield from new class(new ArrayIterator([-1, -2])) extends IteratorIterator {
-            public function key() {
-                throw new Exception;
-            }
-        };
-    } catch (Exception $e) {
+    // with 7.2 generators got fixed to properly rethrow exceptions thrown during first key/value fetch from iterators
+    if (PHP_VERSION_ID >= 70200) {
+        try {
+            yield from new class(new ArrayIterator([-1, -2])) extends IteratorIterator {
+                public function key() {
+                    throw new Exception;
+                }
+            };
+        } catch (Exception $e) {
+            yield 0;
+        }
+    } else {
         yield 0;
     }
     try {

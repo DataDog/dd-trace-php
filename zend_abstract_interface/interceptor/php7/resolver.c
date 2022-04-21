@@ -93,7 +93,13 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
 static user_opcode_handler_t prev_post_declare_handler;
 static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data) {
     if (EX(opline) == &zai_interceptor_post_declare_ops[0] || EX(opline) == &zai_interceptor_post_declare_ops[1]) {
+#if PHP_VERSION_ID >= 70300
         zend_string *lcname = Z_STR_P(RT_CONSTANT(&zai_interceptor_post_declare_ops[0], zai_interceptor_post_declare_ops[0].op1));
+#elif PHP_VERSION_ID >= 70100
+        zend_string *lcname = Z_STR_P(EX_CONSTANT(zai_interceptor_post_declare_ops[0].op1));
+#else
+        zend_string *lcname = Z_STR_P(EX_CONSTANT(zai_interceptor_post_declare_ops[0].op2));
+#endif
         if (zai_interceptor_post_declare_ops[0].opcode == ZEND_DECLARE_FUNCTION) {
             zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
             if (function) {
