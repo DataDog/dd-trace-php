@@ -55,7 +55,7 @@ Options:
                                 paths. The option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
-    --enable-appsec             Enable the BETA appsec module.
+    --enable-appsec             Enable the application security monitoring module.
     --enable-profiling          Enable the BETA profiling module.
 
 EOD;

@@ -79,6 +79,26 @@ assert_profiler_version() {
     fi
 }
 
+assert_appsec_enabled() {
+    output="$(php --ri ddappsec)"
+    if [ -z "${output##*datadog.appsec.enabled => 1*}" ]; then
+        echo "---\nOk: dddappsec is enabled\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong ddappsec should be enabled\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_appsec_disabled() {
+    output="$(php --ri ddappsec)"
+    if [ -z "${output##*datadog.appsec.enabled => 0*}" ]; then
+        echo "---\nOk: dddappsec is not enabled\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong ddappsec should not be enabled\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
 assert_request_init_hook_exists() {
     assert_file_exists $(php -r 'echo ini_get("datadog.trace.request_init_hook");')
 }
