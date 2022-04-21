@@ -143,12 +143,11 @@ void ddtrace_config_first_rinit() {
 bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_name) {
     ddtrace_integration *integration = &ddtrace_integrations[integration_name];
 
-    // TODO revisit: now looks at gloabl instead of request local ini
-    if (zend_hash_str_find(get_global_DD_INTEGRATIONS_DISABLED(), ZEND_STRL("default"))) {
+    if (zend_hash_str_find(get_DD_INTEGRATIONS_DISABLED(), ZEND_STRL("default"))) {
         return integration->is_enabled();
     } else {
         // Deprecated as of 0.47.1
-        return zend_hash_str_find(get_global_DD_INTEGRATIONS_DISABLED(), integration->name_lcase, integration->name_len) ==
+        return zend_hash_str_find(get_DD_INTEGRATIONS_DISABLED(), integration->name_lcase, integration->name_len) ==
                NULL;
     }
 }

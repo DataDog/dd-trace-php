@@ -8,7 +8,7 @@
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
     dd_hook_method_and_unhook_on_first_call(ZAI_STRL_VIEW(class), ZAI_STRL_VIEW(fname), \
-                          ZAI_STRL_VIEW(integration_name))
+                          ZAI_STRL_VIEW(integration_name), (ddtrace_integration_name)-1)
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_METHOD(name, Class, fname, integration)                                \
     dd_set_up_deferred_loading_by_method(name, ZAI_STRL_VIEW(Class), ZAI_STRL_VIEW(fname), \
@@ -18,16 +18,15 @@
     dd_set_up_deferred_loading_by_method(name, ZAI_STRING_EMPTY, ZAI_STRL_VIEW(fname), \
                                          ZAI_STRL_VIEW(integration))
 
-// TODO revisit: now looks at gloabl instead of request local ini
 #define INTEGRATION(id, lcname)                                        \
     {                                                                  \
         .name = DDTRACE_INTEGRATION_##id,                              \
         .name_ucase = #id,                                             \
         .name_lcase = (lcname),                                        \
         .name_len = sizeof(lcname) - 1,                                \
-        .is_enabled = get_global_DD_TRACE_##id##_ENABLED,                     \
-        .is_analytics_enabled = get_global_DD_TRACE_##id##_ANALYTICS_ENABLED, \
-        .get_sample_rate = get_global_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
+        .is_enabled = get_DD_TRACE_##id##_ENABLED,              \
+        .is_analytics_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
+        .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
     },
 ddtrace_integration ddtrace_integrations[] = {DD_INTEGRATIONS};
 size_t ddtrace_integrations_len = sizeof ddtrace_integrations / sizeof ddtrace_integrations[0];
@@ -39,22 +38,37 @@ static void _dd_add_integration_to_map(char* name, size_t name_len, ddtrace_inte
 
 void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_integration_name_map); }
 
+typedef struct {
+    ddtrace_integration_name name;
+    zend_string *classname;
+} dd_integration_aux;
+
+void dd_integration_aux_free(void *auxiliary) {
+    dd_integration_aux *aux = auxiliary;
+    zend_string_release(aux->classname);
+    free(aux);
+}
+
 static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     (void)dynamic;
 
+    dd_integration_aux *aux = auxiliary;
     zval integration, *integrationp = &integration;
-    ZVAL_STR(&integration, auxiliary);
+    ZVAL_STR(&integration, aux->classname);
 
-    zval *rv;
-    ZAI_VALUE_INIT(rv);
-    bool success =
-            zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integrationp);
-    ZAI_VALUE_DTOR(rv);
+    if (aux->name < 0 || ddtrace_config_integration_enabled(aux->name)) {
+        zval *rv;
+        ZAI_VALUE_INIT(rv);
+        bool success =
+                zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1,
+                                        &integrationp);
+        ZAI_VALUE_DTOR(rv);
 
-    if (UNEXPECTED(!success)) {
-        ddtrace_log_debugf(
-                "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
-                Z_STRVAL(integration));
+        if (UNEXPECTED(!success)) {
+            ddtrace_log_debugf(
+                    "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
+                    Z_STRVAL(integration));
+        }
     }
 
     zai_hook_remove_resolved(EX(func),0);
@@ -62,11 +76,14 @@ static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *execute_d
     return true;
 }
 
-static void dd_hook_method_and_unhook_on_first_call(zai_string_view Class, zai_string_view method, zai_string_view callback) {
+static void dd_hook_method_and_unhook_on_first_call(zai_string_view Class, zai_string_view method, zai_string_view callback, ddtrace_integration_name name) {
+    dd_integration_aux *aux = malloc(sizeof(*aux));
+    aux->name = name;
+    aux->classname = zend_string_init(callback.ptr, callback.len, 1);
     zai_hook_install(Class, method,
             dd_invoke_integration_loader_and_unhook,
             NULL,
-            ZAI_HOOK_AUX(zend_string_init(callback.ptr, callback.len, 1), (void(*)(void *))zend_string_release),
+            ZAI_HOOK_AUX(aux, dd_integration_aux_free),
             0);
 }
 
@@ -82,11 +99,8 @@ static void dd_load_test_integrations(void) {
 
 static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, zai_string_view Class,
                                                  zai_string_view method, zai_string_view integration) {
-    if (!ddtrace_config_integration_enabled(name)) {
-        return;
-    }
-
-    dd_hook_method_and_unhook_on_first_call(Class, method, integration);
+    // We unconditionally install our hooks. We skip it on hit.
+    dd_hook_method_and_unhook_on_first_call(Class, method, integration, name);
 }
 
 void ddtrace_integrations_minit(void) {
