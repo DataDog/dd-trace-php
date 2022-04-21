@@ -53,7 +53,7 @@ assert_ddtrace_version() {
 assert_appsec_version() {
     output="$(php --ri ddappsec)"
     if [ -z "${output##*Version => ${1}*}" ]; then
-        echo "---\nOk: dddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
+        echo "---\nOk: ddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
     else
         echo "---\nError: Wrong ddappsec version. Expected: ${1}\n---\n${output}\n---\n"
         exit 1
@@ -75,6 +75,26 @@ assert_profiler_version() {
         echo "---\nOk: datadog-profiling version '${1}' is correctly installed\n---\n${output}\n---\n"
     else
         echo "---\nError: Wrong datadog-profiling version. Expected: ${1}\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_appsec_enabled() {
+    output="$(php --ri ddappsec)"
+    if [ -z "${output##*datadog.appsec.enabled => 1*}" ]; then
+        echo "---\nOk: ddappsec is enabled\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong ddappsec should be enabled\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_appsec_disabled() {
+    output="$(php --ri ddappsec)"
+    if [ -n "${output##*datadog.appsec.enabled => 1*}" ]; then
+        echo "---\nOk: ddappsec is not enabled\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong ddappsec should not be enabled\n---\n${output}\n---\n"
         exit 1
     fi
 }

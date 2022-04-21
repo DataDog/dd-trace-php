@@ -22,9 +22,8 @@ assert_no_appsec
 assert_no_profiler
 
 php ./build/packages/datadog-setup.php --enable-profiling --php-bin php
-# The current decision, that can be improved, is to not enable ddtrace again in case the user had manually disabled it.
-assert_no_ddtrace
-# Profiling should be enabled and it can work without ddtrace
+
+assert_ddtrace_version 0.68.2
 assert_profiler_version 0.3.0
 
 extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
