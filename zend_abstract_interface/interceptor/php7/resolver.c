@@ -63,7 +63,8 @@ PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
 #define ZAI_INTERCEPTOR_POST_DECLARE_OP 224 // random 8 bit number greater than ZEND_VM_LAST_OPCODE
 static zend_op zai_interceptor_post_declare_op;
 static __thread zend_op zai_interceptor_post_declare_ops[4];
-static __thread const zend_op *zai_interceptor_opline_before_binding;
+struct zai_interceptor_opline { const zend_op *op; struct zai_interceptor_opline *prev; };
+static __thread struct zai_interceptor_opline zai_interceptor_opline_before_binding = {0};
 static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_data) {
     // We replace the current opline *before* it is executed. Thus we need to preserve opline data first:
     //  only the second opline can be our own opcode.
@@ -86,8 +87,23 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
     }
 #endif
 
-    zai_interceptor_opline_before_binding = EX(opline);
+    if (zai_interceptor_opline_before_binding.op) {
+        struct zai_interceptor_opline *backup = ecalloc(1, sizeof(*zai_interceptor_opline_before_binding.prev));
+        *backup = zai_interceptor_opline_before_binding;
+        zai_interceptor_opline_before_binding.prev = backup;
+    }
+    zai_interceptor_opline_before_binding.op = EX(opline);
     EX(opline) = zai_interceptor_post_declare_ops;
+}
+
+static void zai_interceptor_pop_opline_before_binding() {
+    struct zai_interceptor_opline *backup = zai_interceptor_opline_before_binding.prev;
+    if (backup) {
+        zai_interceptor_opline_before_binding = *backup;
+        efree(backup);
+    } else {
+        zai_interceptor_opline_before_binding.op = NULL;
+    }
 }
 
 static user_opcode_handler_t prev_post_declare_handler;
@@ -112,7 +128,8 @@ static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data)
             }
         }
         // preserve offset
-        EX(opline) = zai_interceptor_opline_before_binding + (EX(opline) - &zai_interceptor_post_declare_ops[0]);
+        EX(opline) = zai_interceptor_opline_before_binding.op + (EX(opline) - &zai_interceptor_post_declare_ops[0]);
+        zai_interceptor_pop_opline_before_binding();
         return ZEND_USER_OPCODE_CONTINUE;
     } else if (prev_post_declare_handler) {
         return prev_post_declare_handler(execute_data);
@@ -167,7 +184,8 @@ static void (*prev_exception_hook)(zval *);
 static void zai_interceptor_exception_hook(zval *ex) {
     if (EG(current_execute_data)->opline == zai_interceptor_post_declare_ops) {
         // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
-        EG(current_execute_data)->opline = zai_interceptor_opline_before_binding;
+        EG(current_execute_data)->opline = zai_interceptor_opline_before_binding.op;
+        zai_interceptor_pop_opline_before_binding();
     }
     if (prev_exception_hook) {
         prev_exception_hook(ex);
