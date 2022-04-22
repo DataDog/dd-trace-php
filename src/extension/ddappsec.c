@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <SAPI.h>
+#include <Zend/zend_extensions.h>
 #include <ext/standard/info.h>
 #include <php.h>
 
@@ -42,6 +43,97 @@ static void _register_ini_entries(void);
 static void _register_testing_objects(void);
 #endif
 
+static PHP_MINIT_FUNCTION(ddappsec);
+static PHP_MSHUTDOWN_FUNCTION(ddappsec);
+static PHP_RINIT_FUNCTION(ddappsec);
+static PHP_RSHUTDOWN_FUNCTION(ddappsec);
+static PHP_MINFO_FUNCTION(ddappsec);
+static PHP_GINIT_FUNCTION(ddappsec);
+static PHP_GSHUTDOWN_FUNCTION(ddappsec);
+static int ddappsec_startup(zend_extension *extension);
+
+ZEND_DECLARE_MODULE_GLOBALS(ddappsec)
+
+// clang-format off
+static const  zend_module_dep _ddappsec_deps[] = {
+    ZEND_MOD_OPTIONAL("ddtrace")
+    ZEND_MOD_END
+};
+
+static zend_module_entry ddappsec_module_entry = {
+    STANDARD_MODULE_HEADER_EX,
+    NULL,
+    _ddappsec_deps,
+    PHP_DDAPPSEC_EXTNAME,
+    NULL,
+    PHP_MINIT(ddappsec),
+    PHP_MSHUTDOWN(ddappsec),
+    PHP_RINIT(ddappsec),
+    PHP_RSHUTDOWN(ddappsec),
+    PHP_MINFO(ddappsec),
+    PHP_DDAPPSEC_VERSION,
+    PHP_MODULE_GLOBALS(ddappsec),
+    PHP_GINIT(ddappsec),
+    PHP_GSHUTDOWN(ddappsec),
+    NULL,
+    STANDARD_MODULE_PROPERTIES_EX
+};
+
+static zend_extension ddappsec_extension_entry = {
+    PHP_DDAPPSEC_EXTNAME,
+    PHP_DDAPPSEC_VERSION,
+    "Datadog",
+    "https://github.com/DataDog/dd-appsec-php",
+    "Copyright Datadog",
+    ddappsec_startup,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    STANDARD_ZEND_EXTENSION_PROPERTIES};
+// clang-format on
+
+ZEND_GET_MODULE(ddappsec)
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
+    compare_func_t compare, swap_func_t swp)
+{
+    UNUSED(siz);
+    UNUSED(compare);
+    UNUSED(swp);
+
+    // Reorder ddappsec to ensure it's always after ddtrace
+    for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
+         module < end; ++module) {
+        zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
+        if (m->name == ddappsec_module_entry.name) {
+            ddappsec_module = module;
+            continue;
+        }
+        if (ddappsec_module && strcmp(m->name, "ddtrace") == 0) {
+            Bucket tmp = *ddappsec_module;
+            *ddappsec_module = *module;
+            *module = tmp;
+            break;
+        }
+    }
+}
+
+static int ddappsec_startup(zend_extension *extension)
+{
+    UNUSED(extension);
+
+    zend_hash_sort_ex(&module_registry, ddappsec_sort_modules, NULL, 0);
+    return SUCCESS;
+}
+
 // GINIT/GSHUTDOWN run before/after MINIT/MSHUTDOWN
 static PHP_GINIT_FUNCTION(ddappsec)
 {
@@ -77,6 +169,10 @@ static PHP_MINIT_FUNCTION(ddappsec)
 {
     UNUSED(type);
     UNUSED(module_number);
+
+    zend_register_extension(
+        &ddappsec_extension_entry, ddappsec_module_entry.handle);
+    ddappsec_module_entry.handle = NULL;
 
     dd_phpobj_startup(module_number);
     _register_ini_entries(); // depends on dd_phpobj_startup
@@ -219,38 +315,6 @@ static PHP_MINFO_FUNCTION(ddappsec)
 
     DISPLAY_INI_ENTRIES();
 }
-
-// clang-format off
-static const  zend_module_dep _ddappsec_deps[] = {
-    ZEND_MOD_OPTIONAL("ddtrace")
-    ZEND_MOD_END
-};
-// clang-format on
-
-ZEND_DECLARE_MODULE_GLOBALS(ddappsec)
-
-// clang-format off
-static zend_module_entry ddappsec_module_entry = {
-    STANDARD_MODULE_HEADER_EX,
-    NULL,
-    _ddappsec_deps,
-    PHP_DDAPPSEC_EXTNAME,
-    NULL,
-    PHP_MINIT(ddappsec),
-    PHP_MSHUTDOWN(ddappsec),
-    PHP_RINIT(ddappsec),
-    PHP_RSHUTDOWN(ddappsec),
-    PHP_MINFO(ddappsec),
-    PHP_DDAPPSEC_VERSION,
-    PHP_MODULE_GLOBALS(ddappsec),
-    PHP_GINIT(ddappsec),
-    PHP_GSHUTDOWN(ddappsec),
-    NULL,
-    STANDARD_MODULE_PROPERTIES_EX
-};
-// clang-format on
-
-ZEND_GET_MODULE(ddappsec)
 
 #ifdef ZTS
 __thread void *unspecnull TSRMLS_CACHE = NULL;
