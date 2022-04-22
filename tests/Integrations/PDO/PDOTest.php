@@ -98,7 +98,7 @@ final class PDOTest extends IntegrationTestCase
                 'PDO.prepare',
                 'pdo',
                 'sql',
-                'object(DDTrace\Tests\Integrations\PDO\BrokenPDOStatement)#' . $objId,
+                'object(DDTrace\Tests\Integrations\PDO\BrokenPDOStatement)#' . $objId
             )
                 ->setError()
                 ->setTraceAnalyticsCandidate()

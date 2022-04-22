@@ -101,18 +101,17 @@ static void zai_interceptor_pop_opline_before_binding() {
     if (backup) {
         zai_interceptor_opline_before_binding = *backup;
         efree(backup);
-#if PHP_VERSION_ID >= 70300 && !ZEND_USE_ABS_CONST_ADDR
         zend_op *opline = (zend_op *)zai_interceptor_opline_before_binding.op;
-        zend_op *target_op = &zai_interceptor_post_declare_ops[1];
+        zend_op *target_op = &zai_interceptor_post_declare_ops[0];
+        *target_op = *opline;
+#if PHP_VERSION_ID >= 70300 && !ZEND_USE_ABS_CONST_ADDR
         zval *constant = (zval *)&zai_interceptor_post_declare_ops[2];
-        target_op->op1_type = opline->op1_type;
         if (opline->op1_type == IS_CONST) {
             // DECLARE_* ops all have two consecutive literals in op1
             ZVAL_COPY_VALUE(&constant[0], RT_CONSTANT(opline, opline->op1));
             ZVAL_COPY_VALUE(&constant[1], RT_CONSTANT(opline, opline->op1) + 1);
             target_op->op1.constant = sizeof(zend_op) * 2;
         }
-        target_op->op2_type = opline->op2_type;
         if (opline->op2_type == IS_CONST) {
             ZVAL_COPY_VALUE(&constant[2], RT_CONSTANT(opline, opline->op2));
             ZVAL_COPY_VALUE(&constant[3], RT_CONSTANT(opline, opline->op2) + 1);
@@ -197,6 +196,13 @@ static int zai_interceptor_declare_inherited_class_delayed_handler(zend_execute_
     return prev_declare_inherited_class_delayed_handler ? prev_declare_inherited_class_delayed_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 #endif
+
+void zai_interceptor_check_for_opline_before_exception(void) {
+    if (EG(opline_before_exception) == zai_interceptor_post_declare_ops) {
+        EG(opline_before_exception) = zai_interceptor_opline_before_binding.op;
+        zai_interceptor_pop_opline_before_binding();
+    }
+}
 
 static void (*prev_exception_hook)(zval *);
 static void zai_interceptor_exception_hook(zval *ex) {
