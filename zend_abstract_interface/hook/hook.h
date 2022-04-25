@@ -108,11 +108,15 @@ typedef struct {
     zai_hook_aux *aux;
     zai_hook_generator_resume *generator_resume;
     zai_hook_generator_yield *generator_yield;
-    HashTableIterator iterator;
+    struct {
+        HashTable *ht;
+        uint32_t iter;
+    } iterator;
 } zai_hook_iterator;
 zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function);
 zai_hook_iterator zai_hook_iterate_resolved(zend_function *function);
 void zai_hook_iterator_advance(zai_hook_iterator *iterator);
+void zai_hook_iterator_free(zai_hook_iterator *iterator);
 
 /* {{{ */
 static inline zend_ulong zai_hook_install_address_user(zend_op_array *op_array) {

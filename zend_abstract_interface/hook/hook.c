@@ -87,9 +87,32 @@ static void zai_hook_destroy(zval *zv) {
     efree(hook);
 }
 
+// Manually polyfill the poisoning here to avoid https://github.com/php/php-src/issues/8438
+static void _zend_hash_iterators_remove(HashTable *ht)
+{
+    HashTableIterator *iter = EG(ht_iterators);
+    HashTableIterator *end  = iter + EG(ht_iterators_used);
+
+    while (iter != end) {
+        if (iter->ht == ht) {
+            iter->ht = (void *)-1;
+        }
+        iter++;
+    }
+}
+
+static void zend_hash_iterators_remove(HashTable *ht) {
+    if (ht->u.v.nIteratorsCount) {
+        _zend_hash_iterators_remove(ht);
+        ht->u.v.nIteratorsCount = 0;
+    }
+}
+
+
 static void zai_hook_hash_destroy(zval *zv) {
     HashTable *hooks = Z_PTR_P(zv);
 
+    zend_hash_iterators_remove(hooks);
     zend_hash_destroy(hooks);
 
     efree(hooks);
@@ -619,17 +642,35 @@ void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
 }
 // clang-format on
 
-static void zai_hook_iterator_set_current(zai_hook_iterator *it) {
-    zai_hook_t *hook = zend_hash_get_current_data_ptr_ex(it->iterator.ht, &it->iterator.pos);
+static void zai_hook_iterator_set_current_and_advance(zai_hook_iterator *it) {
+    HashPosition pos = zend_hash_iterator_pos(it->iterator.iter, it->iterator.ht);
+    zai_hook_t *hook = zend_hash_get_current_data_ptr_ex(it->iterator.ht, &pos);
     if (hook) {
-        zend_hash_get_current_key_ex(it->iterator.ht, NULL, &it->index, &it->iterator.pos);
+        zend_hash_get_current_key_ex(it->iterator.ht, NULL, &it->index, &pos);
         it->begin = &hook->begin;
         it->generator_resume = &hook->generator_resume;
         it->generator_yield = &hook->generator_yield;
         it->end = &hook->end;
         it->aux = &hook->aux;
+        zend_hash_move_forward_ex(it->iterator.ht, &pos);
+        EG(ht_iterators)[it->iterator.iter].pos = pos;
     } else {
         it->active = false;
+    }
+}
+
+static zai_hook_iterator zai_hook_iterator_init(HashTable *hooks) {
+    if (hooks && zend_hash_num_elements(hooks)) {
+        zai_hook_iterator it;
+        HashPosition pos;
+        zend_hash_internal_pointer_reset_ex(hooks, &pos);
+        it.iterator.ht = hooks;
+        it.iterator.iter = zend_hash_iterator_add(hooks, pos);
+        it.active = true;
+        zai_hook_iterator_set_current_and_advance(&it);
+        return it;
+    } else {
+        return (zai_hook_iterator){0};
     }
 }
 
@@ -648,32 +689,24 @@ zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_v
     } else {
         base_ht = &zai_hook_request_functions;
     }
-    HashTable *hooks = zend_hash_str_find_ptr(base_ht, function.ptr, function.len);
-    if (hooks) {
-        zai_hook_iterator it;
-        it.active = true;
-        it.iterator = (HashTableIterator){ .ht = hooks, .pos = 0 };
-        zai_hook_iterator_set_current(&it);
-        return it;
-    } else {
-        return (zai_hook_iterator){0};
-    }
+    return zai_hook_iterator_init(zend_hash_str_find_ptr(base_ht, function.ptr, function.len));
 }
 
 zai_hook_iterator zai_hook_iterate_resolved(zend_function *function) {
-    HashTable *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(function));
-    if (hooks) {
-        zai_hook_iterator it;
-        it.active = true;
-        it.iterator = (HashTableIterator){ .ht = hooks, .pos = 0 };
-        zai_hook_iterator_set_current(&it);
-        return it;
-    } else {
-        return (zai_hook_iterator){0};
-    }
+    return zai_hook_iterator_init(zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(function)));
 }
 
 void zai_hook_iterator_advance(zai_hook_iterator *iterator) {
-    zend_hash_move_forward_ex(iterator->iterator.ht, &iterator->iterator.pos);
-    zai_hook_iterator_set_current(iterator);
+    if (EG(ht_iterators)[iterator->iterator.iter].ht != iterator->iterator.ht) {
+        iterator->active = false;
+        return;
+    }
+
+    zai_hook_iterator_set_current_and_advance(iterator);
+}
+
+void zai_hook_iterator_free(zai_hook_iterator *iterator) {
+    if (iterator->iterator.ht) {
+        zend_hash_iterator_del(iterator->iterator.iter);
+    }
 }

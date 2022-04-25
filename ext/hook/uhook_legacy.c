@@ -378,16 +378,19 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     zai_string_view func_str = ZAI_STRING_FROM_ZSTR(method_name);
 
     if (tracing) {
-        for (zai_hook_iterator it = zai_hook_iterate_installed(class_str, func_str); it.active; zai_hook_iterator_advance(&it)) {
+        zai_hook_iterator it;
+        for (it = zai_hook_iterate_installed(class_str, func_str); it.active; zai_hook_iterator_advance(&it)) {
             if (*it.begin == dd_uhook_begin) {
                 dd_uhook_def *cur = it.aux->data;
                 if (cur->tracing) {
                     dd_uhook_dtor(cur);
                     it.aux->data = def;
+                    zai_hook_iterator_free(&it);
                     RETURN_TRUE;
                 }
             }
         }
+        zai_hook_iterator_free(&it);
     }
 
     RETURN_BOOL(zai_hook_install_generator(
@@ -421,7 +424,8 @@ PHP_FUNCTION(dd_untrace) {
     zai_string_view class_str = class_name ? ZAI_STRING_FROM_ZSTR(class_name) : ZAI_STRING_EMPTY;
     zai_string_view func_str = ZAI_STRING_FROM_ZSTR(method_name);
 
-    for (zai_hook_iterator it = zai_hook_iterate_installed(class_str, func_str); it.active; zai_hook_iterator_advance(&it)) {
+    zai_hook_iterator it;
+    for (it = zai_hook_iterate_installed(class_str, func_str); it.active; zai_hook_iterator_advance(&it)) {
         if (*it.begin == dd_uhook_begin) {
             dd_uhook_def *def = it.aux->data;
             if (def->end) {
@@ -432,6 +436,7 @@ PHP_FUNCTION(dd_untrace) {
             zai_hook_remove(class_str, func_str, it.index);
         }
     }
+    zai_hook_iterator_free(&it);
 
     RETURN_TRUE;
 }
