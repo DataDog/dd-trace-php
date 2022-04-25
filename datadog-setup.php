@@ -176,7 +176,7 @@ function install($options)
 
         // Profiling
         $shouldInstallProfiling =
-            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0'])
+            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
             && !is_truthy($phpProperties[THREAD_SAFETY])
             && !is_truthy($phpProperties[IS_DEBUG]);
 

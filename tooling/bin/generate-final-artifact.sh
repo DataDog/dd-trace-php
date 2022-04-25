@@ -47,7 +47,7 @@ curl -L -o $tmp_folder_profiling_archive $profiling_url
 tar -xf $tmp_folder_profiling_archive -C $tmp_folder_profiling
 
 # Extension
-php_apis=(20160303 20170718 20180731 20190902 20200930)
+php_apis=(20160303 20170718 20180731 20190902 20200930 20210902)
 for version in "${php_apis[@]}"
 do
     mkdir -v -p \
