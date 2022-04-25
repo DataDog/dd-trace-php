@@ -191,8 +191,15 @@ bool zai_symbol_call_impl(
                 op_array->fn_flags &= ~ZEND_ACC_CLOSURE;
 #if PHP_VERSION_ID >= 70400
                 op_array->fn_flags |= ZEND_ACC_HEAP_RT_CACHE;
+#if PHP_VERSION_ID >= 80200
                 void *ptr = emalloc(op_array->cache_size);
                 ZEND_MAP_PTR_INIT(op_array->run_time_cache, ptr);
+#else
+                void *ptr = emalloc(op_array->cache_size + sizeof(void *));
+                ZEND_MAP_PTR_INIT(op_array->run_time_cache, ptr);
+                ptr = (char*)ptr + sizeof(void*);
+                ZEND_MAP_PTR_SET(op_array->run_time_cache, ptr);
+#endif
                 memset(ptr, 0, op_array->cache_size);
 #elif PHP_VERSION_ID >= 70000
                 op_array->run_time_cache = ecalloc(1, op_array->cache_size);
