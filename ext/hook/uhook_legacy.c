@@ -2,6 +2,8 @@
 #include <zend_closures.h>
 #include <hook/hook.h>
 #include "uhook.h"
+#include <exceptions/exceptions.h>
+#include <sandbox/sandbox.h>
 
 #if PHP_VERSION_ID < 80000
 #include "../php7/logging.h"
@@ -55,6 +57,8 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
     } else {
         ZVAL_NULL(&exception_zv);
     }
+    zai_sandbox sandbox;
+    bool success;
     if (tracing) {
         zval span_zv;
         ZVAL_OBJ(&span_zv, &dyn->span->span.std);
@@ -70,8 +74,8 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
                 scope_type = ZAI_SYMBOL_SCOPE_CLASS;
             }
         }
-        zai_symbol_call(scope_type, scope,
-                        ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 4, &span_zvp, &args_zvp, &retvalp, &exception_zvp);
+        success = zai_symbol_call(scope_type, scope,
+                        ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zvp, &args_zvp, &retvalp, &exception_zvp);
     } else {
         zval *args_zvp = &args_zv, *retvalp = retval, *exception_zvp = &exception_zv;
         zval *Thisp = getThis() ? &EX(This) : &EG(uninitialized_zval);
@@ -82,11 +86,64 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
             if (scope_ce) {
                 ZVAL_STR(&scope, scope_ce->name);
             }
-            zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 5, &Thisp, &scopep, &args_zvp, &retvalp, &exception_zvp);
+            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 5 | ZAI_SYMBOL_SANDBOX, &sandbox, &Thisp, &scopep, &args_zvp, &retvalp, &exception_zvp);
         } else {
-            zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 3, &args_zvp, &retvalp, &exception_zvp);
+            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 3 | ZAI_SYMBOL_SANDBOX, &sandbox, &args_zvp, &retvalp, &exception_zvp);
         }
     }
+
+    if (get_DD_TRACE_DEBUG() && (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message)))) {
+        char *scope = "";
+        char *colon = "";
+        char *name = "(unknown function)";
+        if (execute_data->func && execute_data->func->common.function_name) {
+            zend_function *fbc = execute_data->func;
+            name = ZSTR_VAL(fbc->common.function_name);
+            if (fbc->common.scope) {
+                scope = ZSTR_VAL(fbc->common.scope->name);
+                colon = "::";
+            }
+        }
+
+        char *deffile;
+        int defline = 0;
+#if PHP_VERSION_ID < 80000
+        zval closure_zv;
+        ZVAL_OBJ(&closure_zv, closure);
+        const zend_function *func = zend_get_closure_method_def(&closure_zv);
+#else
+        const zend_function *func = zend_get_closure_method_def(closure);
+#endif
+        if (func->type == ZEND_USER_FUNCTION) {
+            deffile = ZSTR_VAL(func->op_array.filename);
+            defline = (int) func->op_array.opcodes[0].lineno;
+        } else {
+            deffile = ZSTR_VAL(func->op_array.function_name);
+        }
+
+        zend_object *ex = EG(exception);
+        if (ex) {
+            const char *type = ZSTR_VAL(ex->ce->name);
+            zend_string *msg = zai_exception_message(ex);
+            ddtrace_log_errf("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
+                             type, deffile, defline, scope, colon, name, ZSTR_VAL(msg));
+        } else if (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message)) {
+#if PHP_VERSION_ID < 80000
+            char *error = PG(last_error_message);
+#else
+            char *error = ZSTR_VAL(PG(last_error_message));
+#endif
+#if PHP_VERSION_ID < 80100
+            char *filename = PG(last_error_file);
+#else
+            char *filename = ZSTR_VAL(PG(last_error_file));
+#endif
+            ddtrace_log_errf("Error raised in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
+                             deffile, defline, scope, colon, name, error, filename, PG(last_error_lineno));
+        }
+    }
+    zai_sandbox_close(&sandbox);
+
     zval_ptr_dtor(rvp);
 
     return Z_TYPE(rv) != IS_FALSE;

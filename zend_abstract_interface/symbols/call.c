@@ -125,7 +125,6 @@ bool zai_symbol_call_impl(
 
     // clang-format off
     volatile int  zai_symbol_call_result    = FAILURE;
-    volatile bool zai_symbol_call_exception = false;
     volatile bool zai_symbol_call_bailed    = false;
     volatile bool rebound_closure = false;
 #if PHP_VERSION_ID >= 50500
@@ -133,8 +132,12 @@ bool zai_symbol_call_impl(
 #endif
     zend_op_array *volatile op_array;
 
-    zai_sandbox sandbox;
+    zai_sandbox sandbox, *sandbox_ptr = NULL;
     zai_sandbox_open(&sandbox);
+    if (argc & ZAI_SYMBOL_SANDBOX) {
+        sandbox_ptr = va_arg(*args, zai_sandbox *);
+    }
+    argc &= ~ZAI_SYMBOL_SANDBOX;
 
     if (function_type == ZAI_SYMBOL_FUNCTION_CLOSURE && fcc.called_scope) {
         zend_class_entry *closure_called_scope;
@@ -287,15 +290,15 @@ bool zai_symbol_call_impl(
         efree(fci.params);
     }
 
-    zai_symbol_call_exception = EG(exception) != NULL;
+    bool success = zai_symbol_call_result == SUCCESS && EG(exception) == NULL;
 
-    zai_sandbox_close(&sandbox);
-
-    if (zai_symbol_call_result == SUCCESS) {
-        return !zai_symbol_call_exception;
+    if (sandbox_ptr) {
+        *sandbox_ptr = sandbox;
+    } else {
+        zai_sandbox_close(&sandbox);
     }
 
-    return false;
+    return success;
 }
 
 bool zai_symbol_new(zval *zv, zend_class_entry *ce ZAI_TSRMLS_DC, uint32_t argc, ...) {

@@ -24,5 +24,6 @@ echo 'Done.' . PHP_EOL;
 --EXPECT--
 array(0) {
 }
+Cannot run tracing closure for shutdown_and_flush(); spans out of sync
 Done.
 No finished traces to be sent to the agent
