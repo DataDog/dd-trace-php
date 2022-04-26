@@ -7,6 +7,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\Normalizer;
 use Router;
 
 class CakePHPIntegration extends Integration
@@ -71,7 +72,8 @@ class CakePHPIntegration extends Integration
 
                     $integration->rootSpan->resource =
                         $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action'];
-                    $integration->rootSpan->meta[Tag::HTTP_URL] = Router::url($request->here, true);
+                    $integration->rootSpan->meta[Tag::HTTP_URL] = Router::url($request->here, true)
+                        . Normalizer::sanitizedQueryString();
                     $integration->rootSpan->meta['cakephp.route.controller'] = $request->params['controller'];
                     $integration->rootSpan->meta['cakephp.route.action'] = $request->params['action'];
                     if (isset($request->params['plugin'])) {

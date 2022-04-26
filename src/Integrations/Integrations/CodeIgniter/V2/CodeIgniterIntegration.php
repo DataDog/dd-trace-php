@@ -6,6 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\Normalizer;
 
 class CodeIgniterIntegration extends Integration
 {
@@ -79,7 +80,8 @@ class CodeIgniterIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $this->load->helper('url');
-                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()));
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                    . Normalizer::sanitizedQueryString();
                 $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
             }
         );
@@ -103,7 +105,8 @@ class CodeIgniterIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $this->load->helper('url');
-                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()));
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                    . Normalizer::sanitizedQueryString();
                 $rootSpan->meta['app.endpoint'] = "{$class}::_remap";
             }
         );

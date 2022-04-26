@@ -185,6 +185,14 @@ class Normalizer
             . ($trimQueryString ? "" : self::cleanQueryString($url, "datadog.trace.http_url_query_param_allowed"));
     }
 
+    public static function sanitizedQueryString()
+    {
+        return self::cleanQueryString(
+            isset($_SERVER["QUERY_STRING"]) ? $_SERVER["QUERY_STRING"] : "",
+            "datadog.trace.http_url_query_param_allowed"
+        );
+    }
+
     private static function cleanQueryString($queryString, $allowedSetting)
     {
         if (!preg_match('(\?(?!:\??@)\K.*)', $queryString, $m)) {
