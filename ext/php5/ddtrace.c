@@ -1814,11 +1814,10 @@ static PHP_FUNCTION(current_context) {
     }
 
     zval *tags;
+    MAKE_STD_ZVAL(tags);
+    array_init(tags);
     if (get_DD_TRACE_ENABLED()) {
-        tags = ddtrace_get_propagated_tags(TSRMLS_C);
-    } else {
-        MAKE_STD_ZVAL(tags);
-        array_init(tags);
+        ddtrace_get_propagated_tags(Z_ARRVAL_P(tags) TSRMLS_CC);
     }
     add_assoc_zval_ex(return_value, ZEND_STRS("distributed_tracing_propagated_tags"), tags);
 }
@@ -1842,11 +1841,6 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
     }
 
     if (!get_DD_TRACE_ENABLED()) {
-        RETURN_FALSE;
-    }
-
-    if (DDTRACE_G(open_spans_top)) {
-        ddtrace_log_debug("Cannot set the distributed tracing context when there are active spans");
         RETURN_FALSE;
     }
 
@@ -1880,12 +1874,50 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
     }
 
     if (tags) {
+        if (DDTRACE_G(root_span)) {
+            zval *meta = ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span);
+            HashTable *array = &DDTRACE_G(propagated_root_span_tags);
+            HashPosition pos;
+            char *key;
+            uint key_len;
+            ulong num_key;
+            for (zend_hash_internal_pointer_reset_ex(array, &pos);
+                 zend_hash_get_current_key_ex(array, (char **)&key, (uint *)&key_len, &num_key, 0, &pos) ==
+                 HASH_KEY_IS_STRING;
+                 zend_hash_move_forward_ex(array, &pos)) {
+                zend_hash_del(Z_ARRVAL_P(meta), key, key_len);
+            }
+        }
+
         if (Z_TYPE_P(tags) == IS_STRING) {
             ddtrace_add_tracer_tags_from_header(
                 (zai_string_view){.len = Z_STRLEN_P(tags), .ptr = Z_STRVAL_P(tags)} TSRMLS_CC);
         } else if (Z_TYPE_P(tags) == IS_ARRAY) {
             ddtrace_add_tracer_tags_from_array(Z_ARRVAL_P(tags) TSRMLS_CC);
         }
+
+        if (DDTRACE_G(root_span)) {
+            ddtrace_get_propagated_tags(Z_ARRVAL_P(ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span))
+                                            TSRMLS_CC);
+        }
+    }
+
+    ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
+    while (span) {
+        zval *meta = ddtrace_spandata_property_meta(&span->span);
+        span->span.trace_id = DDTRACE_G(trace_id);
+
+        if (DDTRACE_G(dd_origin)) {
+            add_assoc_string(meta, "_dd.origin", DDTRACE_G(dd_origin), 1);
+        } else {
+            zend_hash_del(Z_ARRVAL_P(meta), "_dd.origin", sizeof("_dd.origin"));
+        }
+
+        span = span->next;
+    }
+
+    if (DDTRACE_G(root_span)) {
+        DDTRACE_G(root_span)->span.parent_id = DDTRACE_G(distributed_parent_trace_id);
     }
 
     RETURN_TRUE;

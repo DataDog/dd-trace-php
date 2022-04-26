@@ -80,11 +80,7 @@ void ddtrace_add_tracer_tags_from_array(HashTable *array TSRMLS_DC) {
     }
 }
 
-zval *ddtrace_get_propagated_tags(TSRMLS_D) {
-    zval *zv;
-    MAKE_STD_ZVAL(zv);
-    array_init(zv);
-
+void ddtrace_get_propagated_tags(HashTable *tags TSRMLS_DC) {
     HashPosition pos;
     char *key;
     uint klen;
@@ -97,10 +93,9 @@ zval *ddtrace_get_propagated_tags(TSRMLS_D) {
         zval **tag;
         if (zend_hash_find(&DDTRACE_G(root_span_tags_preset), key, klen, (void **)&tag) == SUCCESS) {
             zval_addref_p(*tag);
-            zend_hash_add(Z_ARRVAL_P(zv), key, klen, tag, sizeof(zval *), NULL);
+            zend_hash_update(tags, key, klen, tag, sizeof(zval *), NULL);
         }
     }
-    return zv;
 }
 
 zai_string_view ddtrace_format_propagated_tags(TSRMLS_D) {

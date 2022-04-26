@@ -1707,10 +1707,9 @@ static PHP_FUNCTION(current_context) {
     }
 
     zval tags;
+    array_init(&tags);
     if (get_DD_TRACE_ENABLED()) {
-        tags = ddtrace_get_propagated_tags();
-    } else {
-        array_init(&tags);
+        ddtrace_get_propagated_tags(Z_ARR(tags));
     }
     add_assoc_zval_ex(return_value, ZEND_STRL("distributed_tracing_propagated_tags"), &tags);
 }
@@ -1729,11 +1728,6 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
     }
 
     if (!get_DD_TRACE_ENABLED()) {
-        RETURN_FALSE;
-    }
-
-    if (DDTRACE_G(open_spans_top)) {
-        ddtrace_log_debug("Cannot set the distributed tracing context when there are active spans");
         RETURN_FALSE;
     }
 
@@ -1767,11 +1761,42 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
     }
 
     if (tags) {
+        if (DDTRACE_G(root_span)) {
+            zend_string *tagname;
+            zend_array *meta = ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span);
+            ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) { zend_hash_del(meta, tagname); }
+            ZEND_HASH_FOREACH_END();
+        }
+
         if (Z_TYPE_P(tags) == IS_STRING) {
             ddtrace_add_tracer_tags_from_header(Z_STR_P(tags));
         } else if (Z_TYPE_P(tags) == IS_ARRAY) {
             ddtrace_add_tracer_tags_from_array(Z_ARR_P(tags));
         }
+
+        if (DDTRACE_G(root_span)) {
+            ddtrace_get_propagated_tags(ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span));
+        }
+    }
+
+    ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
+    while (span) {
+        zend_array *meta = ddtrace_spandata_property_meta(&span->span);
+        span->span.trace_id = DDTRACE_G(trace_id);
+
+        if (DDTRACE_G(dd_origin)) {
+            zval value;
+            ZVAL_STR_COPY(&value, DDTRACE_G(dd_origin));
+            zend_hash_str_update(meta, "_dd.origin", sizeof("_dd.origin") - 1, &value);
+        } else {
+            zend_hash_str_del(meta, ZEND_STRL("_dd.origin"));
+        }
+
+        span = span->next;
+    }
+
+    if (DDTRACE_G(root_span)) {
+        DDTRACE_G(root_span)->span.parent_id = DDTRACE_G(distributed_parent_trace_id);
     }
 
     RETURN_TRUE;
