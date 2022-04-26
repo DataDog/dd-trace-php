@@ -600,11 +600,6 @@ static void dd_initialize_request(TSRMLS_D) {
     ddtrace_engine_hooks_rinit(TSRMLS_C);
     ddtrace_internal_handlers_rinit(TSRMLS_C);
     ddtrace_bgs_log_rinit(PG(error_log));
-    ddtrace_dispatch_init(TSRMLS_C);
-
-    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
-    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
-    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
 
     ddtrace_dogstatsd_client_rinit(TSRMLS_C);
 
@@ -612,9 +607,6 @@ static void dd_initialize_request(TSRMLS_D) {
     ddtrace_init_span_id_stack(TSRMLS_C);
     ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
-
-    // Initialize C integrations and deferred loading
-    ddtrace_integrations_rinit(TSRMLS_C);
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset(TSRMLS_C);
@@ -648,6 +640,14 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     DDTRACE_G(request_init_hook_loaded) = 0;
+
+    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
+
+    ddtrace_dispatch_init(TSRMLS_C);
+    // Initialize C integrations and deferred loading
+    ddtrace_integrations_rinit(TSRMLS_C);
 
     if (!get_DD_TRACE_ENABLED()) {
         return SUCCESS;
@@ -701,8 +701,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
 
-    dd_clean_globals(TSRMLS_C);
+    // we here need to disable the tracer, so that further dispatches do not trigger
+    ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
 
+    // The dispatches shall not be reset, just disabled at runtime.
     ddtrace_dispatch_destroy(TSRMLS_C);
     ddtrace_free_span_id_stack(TSRMLS_C);
 

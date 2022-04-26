@@ -544,11 +544,6 @@ static void dd_initialize_request() {
 
     ddtrace_internal_handlers_rinit();
     ddtrace_bgs_log_rinit(PG(error_log));
-    ddtrace_dispatch_init();
-
-    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
-    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
-    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
 
     ddtrace_dogstatsd_client_rinit();
 
@@ -556,9 +551,6 @@ static void dd_initialize_request() {
     ddtrace_init_span_id_stack();
     ddtrace_init_span_stacks();
     ddtrace_coms_on_pid_change();
-
-    // Initialize C integrations and deferred loading
-    ddtrace_integrations_rinit();
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
@@ -593,6 +585,14 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     DDTRACE_G(request_init_hook_loaded) = 0;
 
+    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
+
+    ddtrace_dispatch_init();
+    // Initialize C integrations and deferred loading
+    ddtrace_integrations_rinit();
+
     if (!get_DD_TRACE_ENABLED()) {
         return SUCCESS;
     }
@@ -616,7 +616,6 @@ static void dd_clean_globals() {
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown();
 
-    ddtrace_dispatch_destroy();
     ddtrace_free_span_stacks();
     ddtrace_coms_rshutdown();
 
@@ -629,6 +628,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     if (!get_DD_TRACE_ENABLED()) {
+        ddtrace_dispatch_destroy();
         ddtrace_free_span_id_stack();
         return SUCCESS;
     }
@@ -643,7 +643,11 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
 
-    dd_clean_globals();
+    // we here need to disable the tracer, so that further dispatches do not trigger
+    ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
+
+    // The dispatches shall not be reset, just disabled at runtime.
+    ddtrace_dispatch_destroy();
     ddtrace_free_span_id_stack();
 
     return SUCCESS;
