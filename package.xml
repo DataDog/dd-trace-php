@@ -49,19 +49,32 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    ### Added
-    - Add support for memcached on PHP 8 #1558
+    ## Application Security Monitoring
+    ### v0.3.1
+    #### Fixes
+    - Fix relative module order with ddtrace on PHP 7.3 issue [#88](https://github.com/DataDog/dd-appsec-php/issues/88) -  [#86](https://github.com/DataDog/dd-appsec-php/pull/86)
 
-    ### Fixed
-    - Fix #1544: Handle hook dummy span hack when assigning parent #1557
+    ### v0.3.0
+    #### Breaking Changes
+    - Rename ini settings from `datadog.appsec.rules_path` to `datadog.appsec.rules` [#74](https://github.com/DataDog/dd-appsec-php/pull/74)
+    - Interpret `datadog.appsec.waf_timeout` as microseconds rather than milliseconds [#74](https://github.com/DataDog/dd-appsec-php/pull/74)
 
-    ### Internal changes
-    - Add gdbinit files for php 8.0 and 8.1 #1556
-    - Add system tests in CI #1552
-    - Use latest 8.0.17 in buster images #1559
-    - Update flex to v1.18.5 in composer.lock files for Symfony 4.0 and 5.0 #1560
-    - Add a single test to xfail after upgrade of docker image to 8.0.18 #1561
-    - Update link to download 0.71.1 in the reliability environment #1555
+    ### Fixes
+    - Add obfuscator strings when initialising WAF from client settings [#83](https://github.com/DataDog/dd-appsec-php/pull/83)
+
+    #### Additions
+    - Add WAF metrics and errors to traces [#79](https://github.com/DataDog/dd-appsec-php/pull/79)
+    - Actor IP resolution from request headers [#80](https://github.com/DataDog/dd-appsec-php/pull/80)
+    - Add support for WAF event obfuscator [#82](https://github.com/DataDog/dd-appsec-php/pull/82)
+    - Add obfuscator regex for values [#84](https://github.com/DataDog/dd-appsec-php/pull/84)
+
+    #### Miscellaneous Changes
+    - Update installer links in documentation and tests [#76](https://github.com/DataDog/dd-appsec-php/pull/76)
+    - Add `parameter_view` for non-ownership of WAF parameters [#78](https://github.com/DataDog/dd-appsec-php/pull/78)
+    - Accept IP list on `X-Cluster-Client-IP` header [#81](https://github.com/DataDog/dd-appsec-php/pull/81)
+    - Update ruleset to v1.3.1 [#82](https://github.com/DataDog/dd-appsec-php/pull/82)
+    - libddwaf upgraded to v1.3.0 [#82](https://github.com/DataDog/dd-appsec-php/pull/82)
+    - Update installation instructions [#84](https://github.com/DataDog/dd-appsec-php/pull/84)
     </notes>
     <contents>
         <dir name="/">
