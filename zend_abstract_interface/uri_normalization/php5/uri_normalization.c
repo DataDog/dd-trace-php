@@ -146,3 +146,55 @@ zai_string_view zai_uri_normalize_path(zai_string_view path, HashTable *fragment
 
     return (zai_string_view){.ptr = pathstr, .len = pathlen};
 }
+
+zai_string_view zai_filter_query_string(zai_string_view queryString, HashTable *whitelist) {
+    if (zend_hash_num_elements(whitelist) == 0) {
+        return (zai_string_view){.len = 0, .ptr = ecalloc(1, 1)};
+    }
+    if (zend_hash_num_elements(whitelist) == 1) {  // * is wildcard
+        char *str;
+        zend_ulong numkey;
+        zend_hash_get_current_key(whitelist, &str, &numkey, 0);
+        if (strcmp(str, "*") == 0) {
+            return (zai_string_view){.ptr = estrndup(queryString.ptr, queryString.len), .len = queryString.len};
+        }
+    }
+
+    smart_str filtered = {0};
+
+    for (const char *start = queryString.ptr, *ptr = start, *end = ptr + queryString.len; ptr < end; ++ptr) {
+        if (*ptr == '&') {
+            if (ptr != start) {
+                char *dup = estrndup(start, ptr - start);
+                if (zend_hash_exists(whitelist, dup, ptr - start + 1)) {
+                    efree(dup);
+                add_str:
+                    if (filtered.c) {
+                        smart_str_appendc(&filtered, '&');
+                    }
+                    smart_str_appendl(&filtered, start, ptr - start);
+                } else {
+                    efree(dup);
+                }
+            }
+            start = ptr + 1;
+        } else if (*ptr == '=') {
+            char *dup = estrndup(start, ptr - start);
+            zend_bool keep = zend_hash_exists(whitelist, dup, ptr - start + 1);
+            efree(dup);
+            while (ptr < end && *ptr != '&') {
+                ++ptr;
+            }
+            if (keep) {
+                goto add_str;
+            }
+            start = ptr + 1;
+        }
+    }
+
+    if (filtered.c) {
+        smart_str_0(&filtered);
+        return (zai_string_view){.len = filtered.len, .ptr = filtered.c};
+    }
+    return (zai_string_view){.len = 0, .ptr = ecalloc(1, 1)};
+}

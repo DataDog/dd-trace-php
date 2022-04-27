@@ -112,3 +112,47 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
     add_assoc_null(&mapping, "nested/*");
     add_assoc_null(&fragment_regex, "^abc$");
 })
+
+#undef TEST_BODY
+#define TEST_BODY(output, query_string, ...)          \
+{                                                     \
+    zval whitelist;                                   \
+    array_init(&whitelist);                           \
+                                                      \
+    { __VA_ARGS__ }                                   \
+    zend_string_ptr res =                             \
+        zai_filter_query_string(                      \
+            ZAI_STRL_VIEW(query_string),              \
+            Z_ARRVAL(whitelist));                     \
+                                                      \
+    REQUIRE(zend_string_equals_literal(res, output)); \
+                                                      \
+    zend_string_release(res);                         \
+    zval_dtor(&whitelist);                            \
+}
+
+#define TEST_QUERY_STRING(description, query_string, output, ...) \
+    TEA_TEST_CASE("query_string", description,                    \
+        TEST_BODY(output, query_string, __VA_ARGS__))
+
+TEST_QUERY_STRING("block everything: simple", "a=1&b&c=2", "", {});
+TEST_QUERY_STRING("block everything: repeated values", "&&a=1&a=1&&&b&b", "", {});
+
+TEST_QUERY_STRING("allow everything: simple", "a=1&b&c=2", "a=1&b&c=2", {
+    add_assoc_null(&whitelist, "*");
+});
+TEST_QUERY_STRING("allow everything: repeated values", "&&a=1&a=1&&&b&b", "&&a=1&a=1&&&b&b", {
+    add_assoc_null(&whitelist, "*");
+});
+
+TEST_QUERY_STRING("whitelist some: one", "some=query&param&eters", "param", {
+    add_assoc_null(&whitelist, "param");
+});
+TEST_QUERY_STRING("whitelist some: multiple", "a=1&b&de&c=2", "a=1&de&c=2", {
+    add_assoc_null(&whitelist, "a");
+    add_assoc_null(&whitelist, "de");
+    add_assoc_null(&whitelist, "c");
+});
+TEST_QUERY_STRING("whitelist some: repeated values", "&&a=1&a=1&&&b&b", "a=1&a=1", {
+    add_assoc_null(&whitelist, "a");
+});

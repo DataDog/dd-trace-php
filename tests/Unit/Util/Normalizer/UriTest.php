@@ -13,6 +13,7 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_MAPPING',
+            'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED',
         ]);
         parent::ddSetUp();
     }
@@ -25,6 +26,7 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_MAPPING',
+            'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED',
         ]);
     }
 
@@ -517,6 +519,38 @@ class UriTest extends BaseTestCase
         $this->assertSame(
             '/int/?/nested/some',
             \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123/nested/some?key=value')
+        );
+    }
+
+    public function testQueryParamPreserve()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED=foo,bar',
+        ]);
+
+        $this->assertSame(
+            '/int/??foo=page&bar=other',
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/int/123?foo=page&bar=other&baz=removed')
+        );
+        $this->assertSame(
+            '/int/??foo=page&bar=other',
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/int/123?foo=page&&bar=other&baz=removed')
+        );
+    }
+
+    public function testQueryParamPreserveWildcard()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED=*',
+        ]);
+
+        $this->assertSame(
+            '/?foo=page&bar=other',
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('?foo=page&bar=other')
+        );
+        $this->assertSame(
+            '/?foo=page&bar=other',
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('?foo=page&bar=other')
         );
     }
 

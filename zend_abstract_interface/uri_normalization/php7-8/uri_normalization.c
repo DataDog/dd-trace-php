@@ -136,3 +136,47 @@ zend_string *zai_uri_normalize_path(zend_string *path, zend_array *fragmentRegex
 
     return path;
 }
+
+zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist) {
+    if (zend_hash_num_elements(whitelist) == 0) {
+        return ZSTR_EMPTY_ALLOC();
+    }
+    if (zend_hash_num_elements(whitelist) == 1) {  // * is wildcard
+        zend_string *str;
+        zend_ulong numkey;
+        zend_hash_get_current_key(whitelist, &str, &numkey);
+        if (zend_string_equals_literal(str, "*")) {
+            return zend_string_init(queryString.ptr, queryString.len, 0);
+        }
+    }
+
+    smart_str filtered = {0};
+
+    for (const char *start = queryString.ptr, *ptr = start, *end = ptr + queryString.len; ptr < end; ++ptr) {
+        if (*ptr == '&') {
+            if (ptr != start && zend_hash_str_exists(whitelist, start, ptr - start)) {
+            add_str:
+                if (filtered.s) {
+                    smart_str_appendc(&filtered, '&');
+                }
+                smart_str_appendl(&filtered, start, ptr - start);
+            }
+            start = ptr + 1;
+        } else if (*ptr == '=') {
+            bool keep = zend_hash_str_exists(whitelist, start, ptr - start);
+            while (ptr < end && *ptr != '&') {
+                ++ptr;
+            }
+            if (keep) {
+                goto add_str;
+            }
+            start = ptr + 1;
+        }
+    }
+
+    if (filtered.s) {
+        smart_str_0(&filtered);
+        return filtered.s;
+    }
+    return ZSTR_EMPTY_ALLOC();
+}

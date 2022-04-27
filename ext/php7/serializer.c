@@ -440,19 +440,28 @@ static const char *dd_get_req_uri() {
     return uri;
 }
 
+static const char *dd_get_query_string() {
+    const char *query_string = NULL;
+    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
+    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+        zval *query_str = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("QUERY_STRING"));
+        if (query_str && Z_TYPE_P(query_str) == IS_STRING) {
+            query_string = Z_STRVAL_P(query_str);
+        }
+    }
+
+    if (!query_string) {
+        query_string = SG(request_info).query_string;
+    }
+
+    return query_string;
+}
+
 static zend_string *dd_build_req_url() {
     zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
     const char *uri = dd_get_req_uri();
     if (!uri) {
         return ZSTR_EMPTY_ALLOC();
-    }
-
-    int uri_len;
-    char *question_mark = strchr(uri, '?');
-    if (question_mark) {
-        uri_len = question_mark - uri;
-    } else {
-        uri_len = strlen(uri);
     }
 
     zend_bool is_https = zend_hash_str_exists(Z_ARRVAL_P(_server), ZEND_STRL("HTTPS"));
@@ -464,7 +473,25 @@ static zend_string *dd_build_req_url() {
         return ZSTR_EMPTY_ALLOC();
     }
 
-    return zend_strpprintf(0, "http%s://%s%.*s", is_https ? "s" : "", Z_STRVAL_P(host_zv), uri_len, uri);
+    int uri_len;
+    char *question_mark = strchr(uri, '?');
+    zend_string *query_string = ZSTR_EMPTY_ALLOC();
+    if (question_mark) {
+        uri_len = question_mark - uri;
+        query_string =
+            zai_filter_query_string((zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
+                                    get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED());
+    } else {
+        uri_len = strlen(uri);
+    }
+
+    zend_string *url =
+        zend_strpprintf(0, "http%s://%s%.*s%s%.*s", is_https ? "s" : "", Z_STRVAL_P(host_zv), uri_len, uri,
+                        ZSTR_LEN(query_string) ? "?" : "", (int)ZSTR_LEN(query_string), ZSTR_VAL(query_string));
+
+    zend_string_release(query_string);
+
+    return url;
 }
 
 void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
@@ -510,7 +537,17 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
         if (uri) {
             zend_string *path = zend_string_init(uri, strlen(uri), 0);
             zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
-            ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s", method, ZSTR_VAL(normalized)));
+            zend_string *query_string = ZSTR_EMPTY_ALLOC();
+            const char *query_str = dd_get_query_string();
+            if (query_str) {
+                query_string = zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
+                                                       get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED());
+            }
+
+            ZVAL_STR(prop_resource,
+                     zend_strpprintf(0, "%s %s%s%.*s", method, ZSTR_VAL(normalized), ZSTR_LEN(query_string) ? "?" : "",
+                                     (int)ZSTR_LEN(query_string), ZSTR_VAL(query_string)));
+            zend_string_release(query_string);
             zend_string_release(normalized);
             zend_string_release(path);
         } else {

@@ -432,6 +432,25 @@ static const char *dd_get_req_uri(TSRMLS_D) {
     return uri;
 }
 
+static const char *dd_get_query_string(TSRMLS_D) {
+    const char *query_string = NULL;
+    zval *_server = PG(http_globals)[TRACK_VARS_SERVER];
+    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC)) {
+        zval **query_str;
+        if (zend_hash_find(Z_ARRVAL_P(_server), ZEND_STRS("QUERY_STRING"), (void **)&query_str) == SUCCESS) {
+            if (Z_TYPE_PP(query_str) == IS_STRING) {
+                query_string = Z_STRVAL_PP(query_str);
+            }
+        }
+    }
+
+    if (!query_string) {
+        query_string = SG(request_info).query_string;
+    }
+
+    return query_string;
+}
+
 static smart_str dd_build_req_url(TSRMLS_D) {
     smart_str url_str = {0};
 
@@ -439,14 +458,6 @@ static smart_str dd_build_req_url(TSRMLS_D) {
     const char *uri = dd_get_req_uri(TSRMLS_C);
     if (!uri) {
         return url_str;
-    }
-
-    int uri_len;
-    char *question_mark = strchr(uri, '?');
-    if (question_mark) {
-        uri_len = question_mark - uri;
-    } else {
-        uri_len = strlen(uri);
     }
 
     zend_bool is_https = zend_hash_exists(Z_ARRVAL_P(_server), ZEND_STRS("HTTPS"));
@@ -459,6 +470,18 @@ static smart_str dd_build_req_url(TSRMLS_D) {
         return url_str;
     }
 
+    int uri_len;
+    char *question_mark = strchr(uri, '?');
+    zai_string_view query_string = {0};
+    if (question_mark) {
+        uri_len = question_mark - uri;
+        query_string =
+            zai_filter_query_string((zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
+                                    get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED());
+    } else {
+        uri_len = strlen(uri);
+    }
+
     smart_str_appendl(&url_str, "http", sizeof("http") - 1);
     if (is_https) {
         smart_str_appendc(&url_str, 's');
@@ -466,7 +489,15 @@ static smart_str dd_build_req_url(TSRMLS_D) {
     smart_str_appendl(&url_str, "://", sizeof("://") - 1);
     smart_str_appendl(&url_str, Z_STRVAL_PP(host_zv), Z_STRLEN_PP(host_zv));
     smart_str_appendl(&url_str, uri, uri_len);
+    if (question_mark && query_string.len) {
+        smart_str_appendc(&url_str, '?');
+        smart_str_appendl(&url_str, query_string.ptr, query_string.len);
+    }
     smart_str_0(&url_str);
+
+    if (question_mark) {
+        efree((void *)query_string.ptr);
+    }
 
     return url_str;
 }
@@ -494,8 +525,18 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
         if (uri) {
             zai_string_view normalized =
                 ddtrace_uri_normalize_incoming_path((zai_string_view){.ptr = uri, .len = strlen(uri)});
+            const char *query_str = dd_get_query_string(TSRMLS_C);
             char *resource;
-            spprintf(&resource, 0, "%s %s", method, normalized.ptr);
+            if (query_str) {
+                zai_string_view query_string =
+                    zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
+                                            get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED());
+                spprintf(&resource, 0, "%s %s%s%.*s", method, normalized.ptr, query_string.len ? "?" : "",
+                         (int)query_string.len, query_string.ptr);
+                efree((void *)query_string.ptr);
+            } else {
+                spprintf(&resource, 0, "%s %s", method, normalized.ptr);
+            }
             efree((char *)normalized.ptr);
             ZVAL_STRING(*prop_resource, resource, 0);
         } else {

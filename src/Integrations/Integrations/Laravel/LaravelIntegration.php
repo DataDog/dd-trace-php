@@ -82,6 +82,7 @@ class LaravelIntegration extends Integration
                     return;
                 }
 
+                /** @var \Illuminate\Http\Request $request */
                 list($request) = $args;
 
                 // Overwriting the default web integration
@@ -92,7 +93,7 @@ class LaravelIntegration extends Integration
 
                 $rootSpan->meta['laravel.route.name'] = $routeName;
                 $rootSpan->meta['laravel.route.action'] = $route->getActionName();
-                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->url());
+                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
             }
         );
