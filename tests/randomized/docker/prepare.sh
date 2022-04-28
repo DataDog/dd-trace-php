@@ -19,6 +19,8 @@ else
     exit 1
 fi
 
+cp /var/www/html/ddappsec.so /usr/lib64/php/modules/ddappsec.so
+
 php -v
 
 # Start PHP-FPM
