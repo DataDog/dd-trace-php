@@ -1,5 +1,9 @@
 # Datadog AppSec for PHP Release
 
+### v0.3.2
+#### Fixes
+- ([#92](https://github.com/DataDog/dd-appsec-php/pull/92)) Fix hybrid extension initialisation
+
 ### v0.3.1
 #### Fixes
 - ([#86](https://github.com/DataDog/dd-appsec-php/pull/86)) Fix relative module order with ddtrace on PHP 7.3 ([#88](https://github.com/DataDog/dd-appsec-php/issues/88))

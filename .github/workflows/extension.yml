@@ -43,8 +43,8 @@ jobs:
             version: '8.0'
           - os: 'ubuntu-latest'
             version: '8.1'
-          - os: 'macos-latest'
-            version: 7.4
+#          - os: 'macos-latest'
+#            version: 7.4
     runs-on: ${{ matrix.cfg.os }}
     steps:
       - uses: actions/checkout@v2
