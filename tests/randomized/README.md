@@ -27,7 +27,7 @@ Download the tracer version you intend to test.
 make tracer.local
 
 # Download from a url
-make tracer.download TRACER_TEST_URL=<link to the .tar.gz>
+make library.download LIBRARY_TEST_URL=<link to the .tar.gz>
 ```
 
 Generate scenarios, i.e. all the possible configuration we are testing.
