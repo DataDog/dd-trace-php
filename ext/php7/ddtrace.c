@@ -487,11 +487,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     UNREGISTER_INI_ENTRIES();
 
-    /* prevent unloading ddtrace, extension shutdown is called later */
-    if (ddtrace_module) {
-        ddtrace_module->handle = NULL;
-    }
-
     if (DDTRACE_G(disable) == 1) {
         zai_config_mshutdown();
         return SUCCESS;
