@@ -405,12 +405,20 @@ static PHP_MINIT_FUNCTION(ddtrace) {
      * See http://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
      * {{{ */
     zend_register_extension(&_dd_zend_extension_entry, ddtrace_module_entry.handle);
-#ifdef COMPILE_DL_DDTRACE
-    Dl_info infos;
-    // The symbol used needs to be public on Alpine.
-    dladdr(get_module, &infos);
-    dlopen(infos.dli_fname, RTLD_LAZY);
-#endif
+    // The original entry is copied into the module registry when the module is
+    // registered, so we search the module registry to find the right
+    // zend_module_entry to modify.
+    zend_module_entry *mod_ptr =
+        zend_hash_str_find_ptr(&module_registry, PHP_DDTRACE_EXTNAME, sizeof(PHP_DDTRACE_EXTNAME) - 1);
+    if (mod_ptr == NULL) {
+        // This shouldn't happen, possibly a bug if it does.
+        zend_error(E_CORE_WARNING,
+                   "Failed to find ddtrace extension in "
+                   "registered modules. Please open a bug report.");
+
+        return FAILURE;
+    }
+    mod_ptr->handle = NULL;
     /* }}} */
 
     if (DDTRACE_G(disable)) {
@@ -438,11 +446,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     UNREGISTER_INI_ENTRIES();
-
-    /* prevent unloading ddtrace, extension shutdown is called later */
-    if (ddtrace_module) {
-        ddtrace_module->handle = NULL;
-    }
 
     if (DDTRACE_G(disable) == 1) {
         zai_config_mshutdown();
