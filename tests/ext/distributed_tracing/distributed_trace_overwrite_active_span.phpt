@@ -12,6 +12,7 @@ DDTrace\start_span();
 
 var_dump(DDTrace\set_distributed_tracing_context("123", "321", "foo", ["a" => "b"]));
 var_dump(DDtrace\current_context());
+var_dump(DDtrace\current_context()["span_id"] != "123" && DDtrace\current_context()["span_id"] != "321");
 
 DDTrace\close_span();
 DDTrace\close_span();
@@ -28,7 +29,7 @@ array(7) {
   ["trace_id"]=>
   string(3) "123"
   ["span_id"]=>
-  string(3) "321"
+  string(%d) "%d"
   ["version"]=>
   NULL
   ["env"]=>
@@ -43,5 +44,6 @@ array(7) {
     string(1) "b"
   }
 }
+bool(true)
 parent: 321, trace: 123, meta: {"_dd.origin":"foo","a":"b"}
 parent: %d, trace: 123, meta: {"_dd.origin":"foo"}

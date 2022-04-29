@@ -28,7 +28,7 @@ trace_id: 42
 distributed_tracing_origin: datadog
 distributed_tracing_parent_id: 10
 distributed_tracing_propagated_tags: {"custom_tag":"inherited","second_tag":"bar"}
-trace_id: 321
+trace_id: 123
 distributed_tracing_origin: foo
 distributed_tracing_parent_id: 321
 distributed_tracing_propagated_tags: {"a":"b"}
