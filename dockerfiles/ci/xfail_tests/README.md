@@ -198,3 +198,11 @@ SKIP Test if socket_create_listen() returns false, when it cannot bind to the po
 ## `Zend/fibers/out-of-memory-in*`
 
 ddtrace request init hook consumes more than 2 MB of memory and fails too early instead of testing what it should.
+
+## `ext/standard/tests/http/bug60570.phpt`
+* Disabled on versions: `5.4`.
+* [Broken CI build example](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/8041/workflows/9a851b8c-e749-4625-a510-0a085f69d1ea/jobs/1159474/steps)
+
+The test fails because `$b > $a` instead of the [expected](https://github.com/php/php-src/blob/PHP-5.4/ext/standard/tests/http/bug60570.phpt#L37) `$b == $a`, where `$b` is the previous output of `memory_get_usage()` and `$a` is the latest output of `memory_get_usage()`.
+Actually what we are observing here is that the previous read is larger than the latest read, which means no leak at all. Specifically `$b = 257896` and `$a = 257880`.
+My hypothesis is that incidentally a gc collection happens between the two latest iterations. This hypothesis seems confirmed by the fact that if we `gc_collect_cycles()` right before the [loop](https://github.com/php/php-src/blob/PHP-5.4/ext/standard/tests/http/bug60570.phpt#L25) now the test will pass - or `$b == $a` even when the tracer is installed.
