@@ -899,10 +899,16 @@ function add_missing_ini_settings($iniFilePath, $settings)
     $formattedMissingProperties = '';
 
     foreach ($settings as $setting) {
-        $settingMightExist = 1 === preg_match(
-            '/' . str_replace('.', '\.', $setting['name']) . '\s?=\s?/',
-            $iniFileContent
-        );
+        // The extension setting is not unique, so make sure we check that the
+        // right extension setting is available.
+        $settingRegex = '/' . str_replace('.', '\.', $setting['name']) . '\s?=\s?';
+        if ($setting['name'] === 'extension' || $setting['name'] == 'zend_extension') {
+            $settingRegex .= str_replace('.', '\.', $setting['default']);
+        }
+        $settingRegex .= '/';
+
+        $settingMightExist = 1 === preg_match($settingRegex, $iniFileContent);
+
         if ($settingMightExist) {
             continue;
         }
