@@ -83,12 +83,12 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint64_t trace_id;
     long default_priority_sampling;
     long propagated_priority_sampling;
-    ddtrace_span_ids_t *span_ids_top;
     ddtrace_span_fci *open_spans_top;
     ddtrace_span_fci *closed_spans_top;
     ddtrace_span_fci *root_span;
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
+    uint32_t dropped_spans_count;
     int64_t compile_time_microseconds;
     uint64_t distributed_parent_trace_id;
     char *dd_origin;

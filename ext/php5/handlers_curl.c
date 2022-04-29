@@ -118,15 +118,14 @@ static void dd_inject_distributed_tracing_headers(zval *ch TSRMLS_DC) {
         add_next_index_string(headers, str, 0);
         efree((char *)propagated_tags.ptr);
     }
-    if (DDTRACE_G(trace_id)) {
-        spprintf(&str, 0, "x-datadog-trace-id: %" PRIu64, DDTRACE_G(trace_id));
+    uint64_t trace_id = ddtrace_peek_trace_id(TSRMLS_C), span_id = ddtrace_peek_span_id(TSRMLS_C);
+    if (trace_id) {
+        spprintf(&str, 0, "x-datadog-trace-id: %" PRIu64, trace_id);
         add_next_index_string(headers, str, 0);
-        if (DDTRACE_G(span_ids_top)) {
-            spprintf(&str, 0, "x-datadog-parent-id: %" PRIu64, DDTRACE_G(span_ids_top)->id);
+        if (span_id) {
+            spprintf(&str, 0, "x-datadog-parent-id: %" PRIu64, span_id);
             add_next_index_string(headers, str, 0);
         }
-    } else if (DDTRACE_G(span_ids_top)) {
-        ddtrace_log_err("Found span_id without active trace id, skipping sending of x-datadog-parent-id");
     }
     if (DDTRACE_G(dd_origin)) {
         spprintf(&str, 0, "x-datadog-origin: %s", DDTRACE_G(dd_origin));

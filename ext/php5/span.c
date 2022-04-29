@@ -25,6 +25,7 @@ void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_count) = 0;
+    DDTRACE_G(dropped_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
 }
 
@@ -49,6 +50,7 @@ void ddtrace_free_span_stacks(TSRMLS_D) {
     _free_span_stack(DDTRACE_G(closed_spans_top) TSRMLS_CC);
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
+    DDTRACE_G(dropped_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
 }
 
@@ -60,24 +62,23 @@ static uint64_t _get_nanoseconds(bool monotonic_clock) {
     return 0;
 }
 
-void ddtrace_push_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
-    span_fci->next = DDTRACE_G(open_spans_top);
-    DDTRACE_G(open_spans_top) = span_fci;
-}
-
 void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
-    ddtrace_push_span(span_fci TSRMLS_CC);
-
     ddtrace_span_t *span = &span_fci->span;
-    // Peek at the active span ID before we push a new one onto the stack
+    // Inherit from our current parent
+    span->span_id = ddtrace_generate_span_id();
     span->parent_id = ddtrace_peek_span_id(TSRMLS_C);
-    span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
-    // Set the trace_id last so we have ID's on the stack
-    span->trace_id = DDTRACE_G(trace_id);
+    span->trace_id = ddtrace_peek_trace_id(TSRMLS_C);
+    if (span->trace_id == 0) {
+        span->trace_id = span->span_id;
+    }
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+
+    span_fci->next = DDTRACE_G(open_spans_top);
+    DDTRACE_G(open_spans_top) = span_fci;
+    ++DDTRACE_G(open_spans_count);
 
     if (!span_fci->next) {  // root span
         DDTRACE_G(root_span) = span_fci;
@@ -193,8 +194,8 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     ddtrace_close_userland_spans_until(span_fci TSRMLS_CC);
 
     DDTRACE_G(open_spans_top) = span_fci->next;
-    // Sync with span ID stack
-    ddtrace_pop_span_id(TSRMLS_C);
+    ++DDTRACE_G(closed_spans_count);
+    --DDTRACE_G(open_spans_count);
     // TODO Assuming the tracing closure has run at this point, we can serialize the span onto a buffer with
     // ddtrace_coms_buffer_data() and free the span
     span_fci->next = DDTRACE_G(closed_spans_top);
@@ -225,8 +226,9 @@ void ddtrace_drop_top_open_span(TSRMLS_D) {
         return;
     }
     DDTRACE_G(open_spans_top) = span_fci->next;
-    // Sync with span ID stack
-    ddtrace_pop_span_id(TSRMLS_C);
+
+    ++DDTRACE_G(dropped_spans_count);
+    --DDTRACE_G(open_spans_count);
 
     if (DDTRACE_G(open_spans_top) == NULL) {
         DDTRACE_G(root_span) = NULL;
@@ -241,7 +243,7 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
-    ddtrace_free_span_id_stack(TSRMLS_C);
+    DDTRACE_G(dropped_spans_count) = 0;
     ddtrace_span_fci *span_fci = DDTRACE_G(closed_spans_top);
     array_init(serialized);
     while (span_fci != NULL) {
@@ -254,8 +256,9 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     }
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(closed_spans_count) = 0;
-    // Reset the span ID stack and trace ID
-    ddtrace_free_span_id_stack(TSRMLS_C);
+    if (!DDTRACE_G(distributed_parent_trace_id)) {
+        DDTRACE_G(trace_id) = 0;
+    }
 
     // root span is always first on the array
     HashPosition start;

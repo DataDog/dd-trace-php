@@ -39,7 +39,6 @@ typedef struct ddtrace_span_fci ddtrace_span_fci;
 void ddtrace_init_span_stacks(TSRMLS_D);
 void ddtrace_free_span_stacks(TSRMLS_D);
 
-void ddtrace_push_span(ddtrace_span_fci *span_fci TSRMLS_DC);
 void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC);
 ddtrace_span_fci *ddtrace_init_span(TSRMLS_D);
 void ddtrace_push_root_span(TSRMLS_D);
