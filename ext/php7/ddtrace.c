@@ -450,8 +450,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
      * See http://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
      * {{{ */
     zend_register_extension(&_dd_zend_extension_entry, ddtrace_module_entry.handle);
-    zend_module_entry *mod_ptr = zend_hash_str_find_ptr(&module_registry,
-        PHP_DDTRACE_EXTNAME, sizeof(PHP_DDTRACE_EXTNAME) -1);
+    zend_module_entry *mod_ptr =
+        zend_hash_str_find_ptr(&module_registry, PHP_DDTRACE_EXTNAME, sizeof(PHP_DDTRACE_EXTNAME) - 1);
     if (mod_ptr == NULL) {
         // This shouldn't happen, possibly a bug if it does.
         return FAILURE;
