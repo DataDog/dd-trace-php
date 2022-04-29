@@ -475,6 +475,11 @@ jobs:
           name: Make executor script executable
           command: chmod a+x ./tooling/bin/run-in-docker-with-ext.sh
       - run:
+          name: Fix mounted folder permissions mismatch (user 1000 vs user 3434 in docker)
+          command: |
+            sudo useradd -u 3434 docker-circleci
+            sudo chown -R docker-circleci . tests
+      - run:
           name: Run tests
           command: |
             docker-compose run --rm \
@@ -482,7 +487,7 @@ jobs:
               -e DD_AGENT_HOST=127.0.0.1 \
               -e DATADOG_HAVE_DEV_ENV=1 \
               -e PHP_VARIANT=<< parameters.switch_php_version >> \
-              << parameters.php_major_minor >>-buster-arm64 \
+              << parameters.php_major_minor >>_buster-arm64 \
                 ./tooling/bin/run-in-docker-with-ext.sh make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
       # - <<: *STEP_COMPOSER_TESTS_UPDATE
       # - <<: *STEP_PREPARE_TEST_RESULTS_DIR
