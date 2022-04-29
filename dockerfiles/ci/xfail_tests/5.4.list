@@ -227,6 +227,7 @@ ext/standard/tests/general_functions/print_r_64bit.phpt
 ext/standard/tests/general_functions/strval.phpt
 ext/standard/tests/general_functions/type.phpt
 ext/standard/tests/general_functions/var_dump_64bit.phpt
+ext/standard/tests/http/bug60570.phpt
 ext/standard/tests/php_ini_loaded_file.phpt
 ext/standard/tests/serialize/005.phpt
 ext/standard/tests/serialize/006.phpt
