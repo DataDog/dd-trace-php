@@ -409,6 +409,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         zend_hash_str_find_ptr(&module_registry, PHP_DDTRACE_EXTNAME, sizeof(PHP_DDTRACE_EXTNAME) - 1);
     if (mod_ptr == NULL) {
         // This shouldn't happen, possibly a bug if it does.
+        zend_error(E_CORE_WARNING,
+                   "Failed to find ddtrace extension in "
+                   "registered modules. Please open a bug report.");
+
         return FAILURE;
     }
     mod_ptr->handle = NULL;
