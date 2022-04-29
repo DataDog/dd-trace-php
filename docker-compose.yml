@@ -137,6 +137,11 @@ services:
       <<: *base_php_service,
       image: 'datadog/dd-trace-ci:php-7.4_buster'
     }
+  '7.4-buster-arm64':
+    {
+      <<: *base_php_service,
+      image: 'datadog/dd-trace-ci:php-7.4_buster-arm64'
+    }
   '7.4-buster-shared-ext':
     {
       <<: *base_php_service,
