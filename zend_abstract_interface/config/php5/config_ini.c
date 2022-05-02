@@ -160,34 +160,35 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
 
     zval new_zv = zval_used_for_init;
     ZVAL_NULL(&new_zv);
+    zai_config_memoized_entry *memoized = &zai_config_memoized_entries[id];
 
-    if (!zai_config_decode_value(value_view, zai_config_memoized_entries[id].type, &new_zv,
-                                 /* persistent */ stage != PHP_INI_STAGE_RUNTIME)) {
+    if (!zai_config_decode_value(value_view, memoized->type, &new_zv, /* persistent */ stage < PHP_INI_STAGE_RUNTIME)) {
         // TODO Log decoding error
 
         return FAILURE;
     }
 
-    /* Ignore calls that happen before runtime (e.g. the default INI values on MINIT). System values are obtained on
-     * first-time RINIT. */
-    if (stage != PHP_INI_STAGE_RUNTIME) {
+    /* This forces ini update before runtime stage to be ignored. */
+    if (stage < PHP_INI_STAGE_RUNTIME) {
         zai_config_dtor_pzval(&new_zv);
         return SUCCESS;
     }
 
-    if (zai_config_memoized_entries[id].ini_change &&
-        !zai_config_memoized_entries[id].ini_change(zai_config_get_value(id), &new_zv)) {
+    /* We continue for >= runtime changes: INI_STAGE_HTACCESS > INI_STAGE_RUNTIME */
+
+    if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv)) {
         zval_dtor(&new_zv);
         return FAILURE;
     }
 
-    bool is_reset = new_value == entry->orig_value;
-    for (int i = 0; i < zai_config_memoized_entries[id].names_count; ++i) {
-        zend_ini_entry *alias = zai_config_memoized_entries[id].ini_entries[i];
-#if ZTS
-        // alias initially contains the global ini
+    bool is_reset = (new_value_length == entry->orig_value_length) &&
+                    (memcmp(new_value, entry->orig_value, new_value_length) == SUCCESS);
+
+    for (int i = 0; i < memoized->names_count; ++i) {
+        zend_ini_entry *alias = memoized->ini_entries[i];
+
         zend_hash_find(EG(ini_directives), alias->name, alias->name_length, (void **)&alias);
-#endif
+
         if (alias != entry) {  // otherwise we leak memory, entry->modified is cached in zend_alter_ini_entry_ex...
             if (alias->modified) {
                 efree(alias->value);
@@ -201,7 +202,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
             }
             alias->value_length = new_value_length;
             if (is_reset) {
-                alias->value = new_value;
+                alias->value = entry->orig_value;
                 alias->modified = false;
                 alias->orig_value = NULL;
                 alias->orig_value_length = 0;

@@ -502,3 +502,33 @@ TEST_INI("invalid perdir INI setting ignored", {
     REQUEST_END()
 })
 
+TEST_INI("change in htaccess", {
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_BOOL", "0"));
+}, {
+    zval *value;
+
+    REQUEST_BEGIN();
+
+    value = zai_config_get_value(EXT_CFG_INI_FOO_BOOL);
+
+    REQUIRE(value);
+#if PHP_VERSION_ID >= 70000
+    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
+#else
+    REQUIRE(Z_BVAL_P(value) == 0);
+#endif
+
+    REQUIRE(zai_config_set_runtime_ini(
+        ZEND_STRL("zai_config.INI_FOO_BOOL"),
+        ZEND_STRL("1"),
+        PHP_INI_STAGE_HTACCESS));
+
+    value = zai_config_get_value(EXT_CFG_INI_FOO_BOOL);
+
+#if PHP_VERSION_ID >= 70000
+    REQUIRE(Z_TYPE_P(value) == IS_TRUE);
+#else
+    REQUIRE(Z_BVAL_P(value) == 1);
+#endif
+    REQUEST_END();
+})

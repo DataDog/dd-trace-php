@@ -21,21 +21,54 @@ void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
     MAKE_COPY_ZVAL(&value, *rt_value);
 }
 
+static inline void zai_config_runtime_config_value(zai_config_memoized_entry *memoized, zval **updated) {
+    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
+
+    for (int16_t name_index = 0; name_index < memoized->names_count; name_index++) {
+        zai_string_view name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
+        zai_env_result result = zai_getenv_ex(name, buf, false);
+
+        if (result == ZAI_ENV_SUCCESS) {
+            MAKE_STD_ZVAL(*updated);
+
+            ZVAL_NULL(*updated);
+
+            /*
+             * we unconditionally decode the value because we do not store the in-use encoded value
+             * so we cannot compare the current environment value to the current configuration value
+             * for the purposes of short circuiting decode
+             */
+            zai_string_view rte_value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
+
+            if (!zai_config_decode_value(rte_value, memoized->type, *updated, /* persistent */ false)) {
+                TSRMLS_FETCH();
+                zval_dtor(*updated);
+                FREE_ZVAL(*updated);
+                break;
+            }
+
+            return;
+        }
+    }
+
+    if (Z_TYPE(memoized->decoded_value) == IS_ARRAY) {
+        // arrays will land in the GC root buffer and must actually be of type struct _zval_gc_info, which also
+        // must not be shared across threads, hence forcing a copy of arrays
+        ALLOC_ZVAL(*updated);
+        INIT_PZVAL_COPY(*updated, &memoized->decoded_value);
+        zval_copy_ctor(*updated);
+    } else {
+        *updated = &memoized->decoded_value;
+        zval_add_ref(updated);
+    }
+}
+
 void zai_config_runtime_config_ctor(void) {
     if (runtime_config_initialized == true) return;
     runtime_config = emalloc(sizeof(zval *) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
-        if (Z_TYPE(zai_config_memoized_entries[i].decoded_value) == IS_ARRAY) {
-            // arrays will land in the GC root buffer and must actually be of type struct _zval_gc_info, which also
-            // must not be shared across threads, hence forcing a copy of arrays
-            ALLOC_ZVAL(runtime_config[i]);
-            INIT_PZVAL_COPY(runtime_config[i], &zai_config_memoized_entries[i].decoded_value);
-            zval_copy_ctor(runtime_config[i]);
-        } else {
-            runtime_config[i] = &zai_config_memoized_entries[i].decoded_value;
-            zval_add_ref(&runtime_config[i]);
-        }
+        zai_config_runtime_config_value(&zai_config_memoized_entries[i], &runtime_config[i]);
     }
     runtime_config_initialized = true;
 }
