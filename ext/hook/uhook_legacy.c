@@ -173,12 +173,14 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
         dd_set_fqn(prop_name, execute_data);
 
         dyn->span = span_fci;
+        GC_ADDREF(&span_fci->span.std);
     }
 
     if (def->begin) {
         dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, &EG(uninitialized_zval));
         if (def->tracing && dyn->dropped_span) {
             ddtrace_drop_top_open_span();
+            OBJ_RELEASE(&dyn->span->span.std);
         }
     }
 
@@ -206,6 +208,7 @@ static void dd_uhook_generator_resumption(zend_execute_data *execute_data, zval 
         dd_set_fqn(prop_name, execute_data);
 
         dyn->span = span_fci;
+        GC_ADDREF(&span_fci->span.std);
         dyn->dropped_span = false;
     }
 
@@ -213,6 +216,7 @@ static void dd_uhook_generator_resumption(zend_execute_data *execute_data, zval 
         dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, value);
         if (def->tracing && dyn->dropped_span) {
             ddtrace_drop_top_open_span();
+            OBJ_RELEASE(&dyn->span->span.std);
         }
     }
 }
@@ -251,6 +255,7 @@ static void dd_uhook_generator_yield(zend_execute_data *execute_data, zval *key,
             } else {
                 ddtrace_drop_top_open_span();
             }
+            OBJ_RELEASE(&dyn->span->span.std);
         }
         dyn->dropped_span = true;
     }
@@ -306,6 +311,7 @@ static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *au
         } else {
             ddtrace_drop_top_open_span();
         }
+        OBJ_RELEASE(&dyn->span->span.std);
     }
 
     def->active = false;
