@@ -40,6 +40,7 @@ typedef struct {
     const zend_op *return_op;
     zend_op resumption_ops[3];
     bool resumed;
+    uint32_t temporary;
 } zai_interceptor_generator_frame_memory;
 
 __thread HashTable zai_hook_memory;
@@ -75,14 +76,10 @@ static void zai_set_ext_nop(zend_op *op) {
 
 void zai_interceptor_op_array_ctor(zend_op_array *op_array) {
     // push our own EXT_NOP onto the op_array start
-    if (!(CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO)) {
-        if (op_array->last == 0 || op_array->opcodes[0].opcode != ZEND_EXT_NOP) {
-            zend_op *op = &op_array->opcodes[op_array->last++];
-            zai_set_ext_nop(op);
-            // EXT_STMT is skipped by compiler when determining "very first" instructions
-            op->opcode = ZEND_EXT_STMT;
-        }
-    }
+    zend_op *op = &op_array->opcodes[op_array->last++];
+    zai_set_ext_nop(op);
+    // EXT_STMT is skipped by compiler when determining "very first" instructions
+    op->opcode = ZEND_EXT_STMT;
 }
 
 static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
@@ -90,24 +87,35 @@ static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
 }
 
 void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
-    if (!(CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO)) {
-        zend_op *opcodes = op_array->opcodes;
-        for (zend_op *cur = opcodes, *last = cur + op_array->last; cur < last; ++cur) {
-            if (cur->opcode == ZEND_EXT_STMT && cur->extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
-                cur->opcode = ZEND_EXT_NOP;
-                break;
-            }
+    zend_op *opcodes = op_array->opcodes;
+    for (zend_op *cur = opcodes, *last = cur + op_array->last; cur < last; ++cur) {
+        if (cur->opcode == ZEND_EXT_STMT && cur->extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
+            cur->opcode = ZEND_EXT_NOP;
+            break;
         }
-        // technically not necessary, but we do it as to not hinder the default optimization of skipping the first RECV ops
-        if (op_array->last > 0 && opcodes[0].opcode == ZEND_EXT_NOP && opcodes[0].extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
-            int i = 1;
-            while (zai_is_func_recv_opcode(opcodes[i].opcode)) {
-                ++i;
-            }
-            if (i-- > 1) {
-                memmove(&opcodes[0], &opcodes[1], i * sizeof(zend_op));
-                zai_set_ext_nop(&opcodes[i]);
-            }
+    }
+    // technically not necessary, but we do it as to not hinder the default optimization of skipping the first RECV ops
+    uint32_t ext_nop_index = 0;
+    while (op_array->last > ext_nop_index && (opcodes[ext_nop_index].opcode != ZEND_EXT_NOP || opcodes[ext_nop_index].extended_value != ZAI_INTERCEPTOR_CUSTOM_EXT));
+    if (op_array->last > ext_nop_index && opcodes[ext_nop_index].opcode == ZEND_EXT_NOP && opcodes[ext_nop_index].extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
+        uint32_t i = ext_nop_index + 1;
+        while (zai_is_func_recv_opcode(opcodes[i].opcode)) {
+            ++i;
+        }
+        if (--i > ext_nop_index) {
+            memmove(&opcodes[ext_nop_index], &opcodes[ext_nop_index + 1], (i - ext_nop_index) * sizeof(zend_op));
+            zai_set_ext_nop(&opcodes[i]);
+        }
+
+        // For generators we need our own temporary to store a constant array which is converted to an iterator
+        if (op_array->fn_flags & ZEND_ACC_GENERATOR) {
+            // For Optimizer to allocate a temporary for us, the temporary must exist
+            // To not interfere with live range calculation, the temporary must be defined as a result
+            opcodes[i].result_type = IS_TMP_VAR;
+            opcodes[i].result.var = op_array->T++;
+        } else if (CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO) {
+            // We don't need it, Optimizer, feel free to optimize it away
+            opcodes[i].opcode = ZEND_NOP;
         }
     }
 }
@@ -513,6 +521,15 @@ static void zai_interceptor_replace_generator_dtor(void) {
     zai_interceptor_generator_handlers->dtor_obj = zai_interceptor_generator_dtor_wrapper;
 }
 
+uint32_t zai_interceptor_generator_find_temporary(zend_op_array *op_array) {
+    for (zend_op *op = op_array->opcodes, *end = op + op_array->last; op < end; ++op) {
+        if (op->opcode == ZEND_EXT_NOP && op->extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
+            return op->result.var;
+        }
+    }
+    return -1;
+}
+
 static zend_object *(*generator_create_prev)(zend_class_entry *class_type);
 static zend_object *zai_interceptor_generator_create(zend_class_entry *class_type) {
     zend_generator *generator = (zend_generator *)generator_create_prev(class_type);
@@ -523,6 +540,7 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
         if (zai_hook_continue(execute_data, &generator_memory.frame.hook_data) == ZAI_HOOK_CONTINUED) {
             generator_memory.frame.execute_data = execute_data;
             generator_memory.resumed = false;
+            generator_memory.temporary = zai_interceptor_generator_find_temporary(&EX(func)->op_array);
             generator_memory.frame.implicit = false;
 
             zai_interceptor_generator_frame_memory *memory_ptr = zai_hook_memory_table_insert_generator(execute_data,
@@ -593,6 +611,7 @@ static int zai_interceptor_post_generator_create_handler(zend_execute_data *exec
                 zai_interceptor_generator_frame_memory generator_frame;
                 generator_frame.frame = *frame_memory;
                 generator_frame.resumed = false;
+                generator_frame.temporary = zai_interceptor_generator_find_temporary(&new_generator_execute_data->func->op_array);
                 zai_interceptor_generator_frame_memory *generator_memory = zai_hook_memory_table_insert_generator(new_generator_execute_data, &generator_frame);
                 zai_hook_memory_table_del(initial_generator_execute_data);
 
@@ -819,9 +838,6 @@ static zend_object_iterator *zai_interceptor_yield_from_wrapped_iterator(zend_cl
     zai_interceptor_iterator_wrapper *it = ecalloc(1, sizeof(*it));
     it->generator = Z_PTR_P(OBJ_PROP_NUM(Z_OBJ_P(object), 1));
     it->frame_memory = Z_PTR_P(OBJ_PROP_NUM(Z_OBJ_P(object), 2));
-    if (Z_LVAL_P(OBJ_PROP_NUM(Z_OBJ_P(object), 3))) {
-        --EG(vm_stack_top);
-    }
 
     // we need to restore it immediately if this was a VAR or CV to not leak our internal wrapper object
     zval tmp;
@@ -866,22 +882,21 @@ static int zai_interceptor_yield_from_handler(zend_execute_data *execute_data) {
             zai_interceptor_setup_generator_resumption_ops(execute_data, generator_memory);
 
             zval *val = zai_interceptor_get_zval_ptr_op1(execute_data);
-            bool need_temporary = false;
             if (Z_TYPE_P(val) == IS_ARRAY) {
                 // We control that opline thanks to the replacing before. We can change it at will.
                 if (EX(opline)->op1_type == IS_CONST) {
                     // We need a zval * within the 4GB of virtual memory after the execute_data...
-                    if (EG(vm_stack_top) == EG(vm_stack_end)) {
+                    // Thus make use of our temporary here
+                    if (generator_memory->temporary == -1u) {
                         // it's sad, but we cannot support this properly right now?
                         goto end;
                     }
 
-                    need_temporary = true;
                     ((zend_op *)EX(opline))->op1_type = IS_TMP_VAR;
-                    zval *newtemp = EG(vm_stack_top)++;
+                    zval *newtemp = EX_VAR(generator_memory->temporary);
                     ZVAL_COPY(newtemp, val); // copy the const, as it's now a TMP it'll be freed
                     val = newtemp;
-                    ((zend_op *)EX(opline))->op1.var = (char*)val - (char*)EX_VAR(0);
+                    ((zend_op *)EX(opline))->op1.var = generator_memory->temporary;
                 }
 
                 goto install_wrapper_iterator;
@@ -916,12 +931,11 @@ static int zai_interceptor_yield_from_handler(zend_execute_data *execute_data) {
 
 install_wrapper_iterator: ;
                     yield_from_iterator_wrapper_class.get_iterator = zai_interceptor_yield_from_wrapped_iterator;
-                    yield_from_iterator_wrapper_class.default_properties_count = 4;
+                    yield_from_iterator_wrapper_class.default_properties_count = 3;
                     zend_object *obj = zend_objects_new(&yield_from_iterator_wrapper_class);
                     ZVAL_COPY_VALUE(OBJ_PROP_NUM(obj, 0), val);
                     ZVAL_PTR(OBJ_PROP_NUM(obj, 1), generator);
                     ZVAL_PTR(OBJ_PROP_NUM(obj, 2), generator_memory);
-                    ZVAL_LONG(OBJ_PROP_NUM(obj, 3), need_temporary);
                     ZVAL_OBJ(val, obj);
                 }
             }
