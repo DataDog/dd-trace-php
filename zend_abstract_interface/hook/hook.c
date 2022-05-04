@@ -428,6 +428,9 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
     uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
 
     for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
+        zval key_zv;
+        zend_hash_get_current_key_zval_ex(&hooks->hooks, &key_zv, &pos);
+
         zend_hash_move_forward_ex(&hooks->hooks, &pos);
 
         if (hook->added_invocation >= memory->invocation) {
@@ -443,10 +446,8 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
                     zai_hook_memory_dynamic(memory, hook));
         }
 
-        if (--hook->invocation_refcount == 0 && hook->deleted_invocation < zai_hook_invocation) {
-            zval zv;
-            zend_hash_get_current_key_zval_ex(&hooks->hooks, &zv, &pos);
-            zai_hook_remove_from_entry(hooks, Z_LVAL(zv));
+        if (--hook->invocation_refcount == 0 && hook->deleted_invocation <= zai_hook_invocation) {
+            zai_hook_remove_from_entry(hooks, Z_LVAL(key_zv));
         }
 
         if (EG(ht_iterators)[ht_iter].ht != &hooks->hooks) {
@@ -486,12 +487,6 @@ void zai_hook_activate(void) {
         copy->is_global = true;
         zai_hook_request_install(copy);
     } ZEND_HASH_FOREACH_END();
-}
-
-void zai_hook_clean(void) {
-    zend_hash_clean(&zai_hook_resolved);
-    zend_hash_clean(&zai_hook_request_functions);
-    zend_hash_clean(&zai_hook_request_classes);
 }
 
 void zai_hook_rshutdown(void) {
@@ -640,6 +635,23 @@ void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
         }
     }
 }
+
+void zai_hook_clean(void) {
+    zai_hooks_entry *hooks;
+    ZEND_HASH_REVERSE_FOREACH_PTR(&zai_hook_resolved, hooks) {
+        zend_long index;
+        ZEND_HASH_FOREACH_NUM_KEY(&hooks->hooks, index) {
+            bool last = zend_hash_num_elements(&hooks->hooks);
+            zai_hooks_try_remove_entry(hooks, index);
+            if (last) {
+                break;
+            }
+        } ZEND_HASH_FOREACH_END();
+    } ZEND_HASH_FOREACH_END();
+    zend_hash_clean(&zai_hook_request_functions);
+    zend_hash_clean(&zai_hook_request_classes);
+}
+
 // clang-format on
 
 static void zai_hook_iterator_set_current_and_advance(zai_hook_iterator *it) {

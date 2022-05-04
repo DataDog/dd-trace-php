@@ -199,6 +199,11 @@ static void dd_uhook_generator_resumption(zend_execute_data *execute_data, zval 
         return;
     }
 
+    if (!get_DD_TRACE_ENABLED()) {
+        dyn->dropped_span = true;
+        return;
+    }
+
     if (def->tracing) {
         ddtrace_span_fci *span_fci = ddtrace_init_span(DDTRACE_INTERNAL_SPAN);
         ddtrace_open_span(span_fci);
@@ -236,7 +241,9 @@ static void dd_uhook_generator_yield(zend_execute_data *execute_data, zval *key,
             dyn->dropped_span = true;
             OBJ_RELEASE(&dyn->span->span.std);
 
-            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
+            if (get_DD_TRACE_ENABLED()) {
+                ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
+            }
         } else {
             zval *exception_zv = ddtrace_spandata_property_exception(&dyn->span->span);
             if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
@@ -275,7 +282,9 @@ static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *au
             dyn->dropped_span = true;
             OBJ_RELEASE(&dyn->span->span.std);
 
-            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
+            if (get_DD_TRACE_ENABLED()) {
+                ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
+            }
         } else {
             zval *exception_zv = ddtrace_spandata_property_exception(&dyn->span->span);
             if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
