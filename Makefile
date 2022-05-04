@@ -747,7 +747,6 @@ TEST_WEB_74 := \
 	test_web_slim_4 \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
-	test_web_symfony_42 \
 	test_web_symfony_44 \
 	test_web_symfony_50 \
 	test_web_symfony_51 \
