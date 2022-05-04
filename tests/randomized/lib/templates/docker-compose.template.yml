@@ -34,7 +34,7 @@ services:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
-  php-test:
+  php-test-{{identifier}}:
     image: {{image}}
     ulimits:
       core: 99999999999
