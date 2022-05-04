@@ -89,8 +89,7 @@ TEA_TEST_CASE_BARE("env/host", "outside request context", {
     ZAI_ENV_BUFFER_INIT(buf, 64);
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
-    REQUIRE(res == ZAI_ENV_NOT_READY);
-    REQUIRE_BUF_EQ("", buf);
+    REQUIRE_BUF_EQ("bar", buf);
 
     TEA_TEST_CASE_WITHOUT_BAILOUT_END()
     tea_sapi_mshutdown();

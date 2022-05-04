@@ -12,6 +12,7 @@ void (*ext_zai_config_pre_rinit)();
 
 static PHP_MINIT_FUNCTION(zai_config) {
     atomic_init(&ext_first_rinit, 1);
+
     return ext_orig_minit(INIT_FUNC_ARGS_PASSTHRU);
 }
 
@@ -42,11 +43,6 @@ static PHP_RINIT_FUNCTION(zai_config) {
     zend_try {
         if (ext_zai_config_pre_rinit) {
             ext_zai_config_pre_rinit();
-        }
-
-        int expected_first_rinit = 1;
-        if (atomic_compare_exchange_strong(&ext_first_rinit, &expected_first_rinit, 0)) {
-            zai_config_first_time_rinit();
         }
 
         zai_config_rinit();

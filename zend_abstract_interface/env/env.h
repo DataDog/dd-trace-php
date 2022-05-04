@@ -22,10 +22,6 @@ typedef enum {
      * environment variable 'name'.
      */
     ZAI_ENV_SUCCESS,
-    /* The function is being called before the SAPI environment variables are
-     * available.
-     */
-    ZAI_ENV_NOT_READY,
     /* The environment variable is not set. */
     ZAI_ENV_NOT_SET,
     /* The buffer is not large enough to accommodate the length of the value. */

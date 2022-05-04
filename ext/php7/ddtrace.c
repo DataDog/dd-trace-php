@@ -123,8 +123,8 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
     ddtrace_internal_handlers_shutdown();
 }
 
-static void ddtrace_activate(void) {}
-static void ddtrace_deactivate(void) {}
+static void ddtrace_activate(void) { zai_config_rinit(); }
+static void ddtrace_deactivate(void) { zai_config_rshutdown(); }
 
 static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   PHP_DDTRACE_VERSION,
@@ -575,7 +575,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     // ZAI config is always set up
     pthread_once(&dd_rinit_config_once_control, ddtrace_config_first_rinit);
-    zai_config_rinit();
 
     if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
         DDTRACE_G(disable) = 2;
@@ -652,12 +651,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_dispatch_destroy();
     ddtrace_free_span_id_stack();
 
-    return SUCCESS;
-}
-
-int ddtrace_post_deactivate(void) {
-    // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
-    zai_config_rshutdown();
     return SUCCESS;
 }
 
@@ -1936,14 +1929,22 @@ static const zend_function_entry ddtrace_functions[] = {
 static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard")
                                                           ZEND_MOD_END};
 
-zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
-                                          ddtrace_module_deps,       PHP_DDTRACE_EXTNAME,
-                                          ddtrace_functions,         PHP_MINIT(ddtrace),
-                                          PHP_MSHUTDOWN(ddtrace),    PHP_RINIT(ddtrace),
-                                          PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),
-                                          PHP_DDTRACE_VERSION,       PHP_MODULE_GLOBALS(ddtrace),
-                                          PHP_GINIT(ddtrace),        NULL,
-                                          ddtrace_post_deactivate,   STANDARD_MODULE_PROPERTIES_EX};
+zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX,
+                                          NULL,
+                                          ddtrace_module_deps,
+                                          PHP_DDTRACE_EXTNAME,
+                                          ddtrace_functions,
+                                          PHP_MINIT(ddtrace),
+                                          PHP_MSHUTDOWN(ddtrace),
+                                          PHP_RINIT(ddtrace),
+                                          PHP_RSHUTDOWN(ddtrace),
+                                          PHP_MINFO(ddtrace),
+                                          PHP_DDTRACE_VERSION,
+                                          PHP_MODULE_GLOBALS(ddtrace),
+                                          PHP_GINIT(ddtrace),
+                                          NULL,
+                                          NULL,
+                                          STANDARD_MODULE_PROPERTIES_EX};
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
 //   - set a new trace (group) id

@@ -105,11 +105,7 @@ bool ddtrace_config_minit(int module_number) {
         ddtrace_log_err("Unable to load configuration; likely due to json symbols failing to resolve.");
         return false;
     }
-    // We immediately initialize inis at MINIT, so that we can use a select few values already at minit.
-    // Note that we are not calling zai_config_rinit(), i.e. the get_...() functions will not work.
-    // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the
-    // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
-    zai_config_first_time_rinit();
+
     return true;
 }
 
@@ -118,9 +114,6 @@ void ddtrace_config_first_rinit() {
         zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_TRACED_INTERNAL_FUNCTIONS].ini_entries[0];
     char *internal_functions_old =
         estrdup(internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value);
-
-    zai_config_first_time_rinit();
-    zai_config_rinit();
 
     char *internal_functions_new =
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value;

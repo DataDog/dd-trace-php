@@ -6,56 +6,78 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if PHP_VERSION_ID >= 80000
-#define sapi_getenv_compat(name, name_len) sapi_getenv(name, name_len)
-#elif PHP_VERSION_ID >= 70000
-#define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len)
-#else
-#define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len TSRMLS_CC)
-#endif
+#include <zai_compat.h>
 
-zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_rinit) {
+#if PHP_VERSION_ID >= 80000
+static inline char *sapi_getenv_compat(const char *name, size_t len) { return sapi_getenv(name, len); }
+#elif PHP_VERSION_ID >= 70000
+static inline char *sapi_getenv_compat(const char *name, size_t len) { return sapi_getenv((char *)name, len); }
+#else
+static inline char *sapi_getenv_compat(const char *name, size_t len) {
 #if PHP_VERSION_ID < 70000
     TSRMLS_FETCH();
 #endif
-    if (!buf.ptr || !buf.len) return ZAI_ENV_ERROR;
+
+    return sapi_getenv((char *)name, len ZAI_TSRMLS_CC);
+}
+#endif
+
+static inline char *nosapi_getenv_compat(const char *name, size_t len) {
+    (void)len;
+
+    return getenv(name);
+}
+
+zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_rinit) {
+    if (!buf.ptr || !buf.len) {
+        return ZAI_ENV_ERROR;
+    }
 
     buf.ptr[0] = '\0';
 
-    if (!zai_string_stuffed(name)) return ZAI_ENV_ERROR;
-
-    if (buf.len > ZAI_ENV_MAX_BUFSIZ) return ZAI_ENV_BUFFER_TOO_BIG;
-
-    /* Some SAPIs do not initialize the SAPI-controlled environment variables
-     * until SAPI RINIT. It is for this reason we cannot reliably access
-     * environment variables until module RINIT.
-     */
-    if (!pre_rinit && !PG(modules_activated) && !PG(during_request_startup)) return ZAI_ENV_NOT_READY;
-
-    /* sapi_getenv may or may not include process environment variables.
-     * It will return NULL when it is not found in the possibly synthetic SAPI environment.
-     * Hence we need to do a getenv() in any case.
-     */
-    bool use_sapi_env = false;
-    char *value = sapi_getenv_compat(name.ptr, name.len);
-    if (value) {
-        use_sapi_env = true;
-    } else {
-        value = getenv(name.ptr);
+    if (!zai_string_stuffed(name)) {
+        return ZAI_ENV_ERROR;
     }
 
-    if (!value) return ZAI_ENV_NOT_SET;
-
-    zai_env_result res;
-
-    if (strlen(value) < buf.len) {
-        strcpy(buf.ptr, value);
-        res = ZAI_ENV_SUCCESS;
-    } else {
-        res = ZAI_ENV_BUFFER_TOO_SMALL;
+    if (buf.len > ZAI_ENV_MAX_BUFSIZ) {
+        return ZAI_ENV_BUFFER_TOO_BIG;
     }
 
-    if (use_sapi_env) efree(value);
+    char *(*readenv)(const char *, size_t) = sapi_module.getenv ? sapi_getenv_compat : nosapi_getenv_compat;
 
-    return res;
+    char *value = readenv(name.ptr, name.len);
+
+    if (!value) {
+        /* in FCGI mode at request time, the FCGI SAPI will (by design)
+            only check the FCGI request for the requested variable.
+           we require the value from the actual environment if it is present
+           in FCGI mode, this prohibits our ability to determine if a variable
+           has been unset by the request */
+        if (!pre_rinit && strstr(sapi_module.name, "fcgi") != NULL) {
+            value = getenv(name.ptr);
+
+            if (value) {
+                value = estrdup(value);
+
+                goto zai_getenv_result;
+            }
+        }
+        return ZAI_ENV_NOT_SET;
+    }
+
+    zai_getenv_result: {
+        zai_env_result res;
+
+        if (strlen(value) < buf.len) {
+            strcpy(buf.ptr, value);
+            res = ZAI_ENV_SUCCESS;
+        } else {
+            res = ZAI_ENV_BUFFER_TOO_SMALL;
+        }
+
+        if (sapi_module.getenv) {
+            efree(value);
+        }
+        return res;
+    }
 }

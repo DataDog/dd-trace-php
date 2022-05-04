@@ -10,10 +10,13 @@
 
 extern HashTable zai_config_name_map;
 
-ZAI_TLS zval **runtime_config;  // dynamically allocated, otherwise TLS alignment limits may be exceeded
-ZAI_TLS bool runtime_config_initialized = false;
+ZAI_TLS zval **runtime_config = NULL;  // dynamically allocated, otherwise TLS alignment limits may be exceeded
+
+static void zai_config_runtime_config_update(void);
 
 void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
+    zai_config_runtime_config_update();
+
     zval **rt_value = &runtime_config[id];
     zval_ptr_dtor(rt_value);
 
@@ -63,24 +66,30 @@ static inline void zai_config_runtime_config_value(zai_config_memoized_entry *me
     }
 }
 
-void zai_config_runtime_config_ctor(void) {
-    if (runtime_config_initialized == true) return;
+void zai_config_runtime_config_update() {
+    if (runtime_config) {
+        return;
+    }
+
     runtime_config = emalloc(sizeof(zval *) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_runtime_config_value(&zai_config_memoized_entries[i], &runtime_config[i]);
     }
-    runtime_config_initialized = true;
 }
 
+void zai_config_runtime_config_reset() { runtime_config = NULL; }
+
+void zai_config_runtime_config_ctor(void) { zai_config_runtime_config_update(); }
+
 void zai_config_runtime_config_dtor(void) {
-    if (runtime_config_initialized != true) return;
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zval_ptr_dtor(&runtime_config[i]);
     }
 
     efree(runtime_config);
-    runtime_config_initialized = false;
+
+    zai_config_runtime_config_reset();
 }
 
 zval *zai_config_get_value(zai_config_id id) {
@@ -89,7 +98,7 @@ zval *zai_config_get_value(zai_config_id id) {
         TSRMLS_FETCH();
         return &EG(uninitialized_zval);
     }
-    if (runtime_config[id] == NULL) {
+    if (!runtime_config) {
         assert(false && "runtime config is not yet initialized");
         TSRMLS_FETCH();
         return &EG(uninitialized_zval);

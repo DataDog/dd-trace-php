@@ -74,11 +74,6 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
 // Caller must call UNREGISTER_INI_ENTRIES() after this if using env_to_ini
 void zai_config_mshutdown(void);
 
-// Not thread-safe; must block (Use pthread_once)
-// Must be called before zai_config_rinit()
-// Update decoded_value with env/ini value if exists
-void zai_config_first_time_rinit(void);
-
 // Runtime config ctor (++rc)
 void zai_config_rinit(void);
 // dtor run-time zvals  (--rc)

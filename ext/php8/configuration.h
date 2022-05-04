@@ -13,6 +13,7 @@
 bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_name);
 
 bool ddtrace_config_minit(int module_number);
+
 void ddtrace_config_first_rinit();
 
 extern bool runtime_config_first_init;

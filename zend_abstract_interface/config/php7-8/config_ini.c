@@ -147,26 +147,29 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     ZVAL_UNDEF(&new_zv);
     zai_config_memoized_entry *memoized = &zai_config_memoized_entries[id];
 
-    if (!zai_config_decode_value(value_view, memoized->type, &new_zv, /* persistent */ stage < PHP_INI_STAGE_RUNTIME)) {
+    if (!zai_config_decode_value(value_view, memoized->type, &new_zv,
+                                 /* persistent */ stage & ZEND_INI_STAGE_STARTUP)) {
         // TODO Log decoding error
-
         return FAILURE;
     }
 
-    /* This forces ini update before runtime stage to be ignored. */
-    if (stage < PHP_INI_STAGE_RUNTIME) {
-        zai_config_dtor_pzval(&new_zv);
+    /* We don't care about changes outside request */
+    if (!(stage & (ZEND_INI_STAGE_ACTIVATE | ZEND_INI_STAGE_RUNTIME | ZEND_INI_STAGE_HTACCESS))) {
+        if (stage & ZEND_INI_STAGE_STARTUP) {
+            zai_config_dtor_pzval(&new_zv);
+        } else {
+            zval_dtor(&new_zv);
+        }
         return SUCCESS;
     }
 
-    /* We continue for >= runtime changes: INI_STAGE_HTACCESS > INI_STAGE_RUNTIME */
-
     if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv)) {
         zval_dtor(&new_zv);
+
         return FAILURE;
     }
 
-    bool is_reset = zend_string_equals(new_value, entry->orig_value);
+    bool is_reset = entry->orig_value && zend_string_equals(new_value, entry->orig_value);
     for (int i = 0; i < memoized->names_count; ++i) {
         zend_ini_entry *alias = zend_hash_find_ptr(
             EG(ini_directives), memoized->ini_entries[i]->name);  // alias initially contains the global ini
@@ -189,7 +192,12 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
         }
     }
 
-    zai_config_replace_runtime_config(id, &new_zv);
+    if (stage & (ZEND_INI_STAGE_ACTIVATE | /* configuration from apache */
+                 ZEND_INI_STAGE_RUNTIME |  /* configuration from php */
+                 ZEND_INI_STAGE_HTACCESS /* .htaccess from apache */)) {
+        zai_config_replace_runtime_config(id, &new_zv);
+    }
+
     zval_dtor(&new_zv);
     return SUCCESS;
 }

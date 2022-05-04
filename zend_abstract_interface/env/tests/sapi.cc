@@ -56,18 +56,6 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set", {
     REQUIRE_BUF_EQ("", buf);
 })
 
-TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set (with host env fallback)", {
-    tea_sapi_module.getenv = tea_sapi_getenv_null;
-},{
-    REQUIRE_SETENV("FOO", "bar");
-
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
-})
-
 /****************************** Access from RINIT *****************************/
 
 zai_env_result zai_rinit_last_res;
