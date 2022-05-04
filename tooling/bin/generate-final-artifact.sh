@@ -138,9 +138,9 @@ cp \
 echo "$release_version" > ${tmp_folder_final_gnu}/dd-library-php/VERSION
 tar -czv \
     -f ${packages_build_dir}/dd-library-php-${release_version}-x86_64-linux-gnu.tar.gz \
-    -C ${tmp_folder_final_gnu} .
+    -C ${tmp_folder_final_gnu} . --owner=0 --group=0
 
 echo "$release_version" > ${tmp_folder_final_musl}/dd-library-php/VERSION
 tar -czv \
     -f ${packages_build_dir}/dd-library-php-${release_version}-x86_64-linux-musl.tar.gz \
-    -C ${tmp_folder_final_musl} .
+    -C ${tmp_folder_final_musl} . --owner=0 --group=0
