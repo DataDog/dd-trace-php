@@ -137,8 +137,15 @@ static zend_function *zai_hook_lookup_function(zai_string_view scope, zai_string
 }
 
 static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
-    zend_long index = hooks->hooks.nNextFreeElement;
-    zend_hash_index_add_ptr(&hooks->hooks, zai_hook_id++, hook);
+    zend_ulong index = zai_hook_id++;
+    if (!zend_hash_index_add_ptr(&hooks->hooks, index, hook)) {
+        // handle the edge case where a static hook is re-inserted after tracer shutdown and re-startup
+        // ensure that the "authoritative", i.e. the active current static hook is always at the correct index
+        zval *hook_zv = zend_hash_index_find(&hooks->hooks, index);
+        zai_hooks_entry *old_entry = Z_PTR_P(hook_zv);
+        Z_PTR_P(hook_zv) = hooks;
+        zend_hash_next_index_insert_ptr(&hooks->hooks, old_entry);
+    }
 
     hook->dynamic_offset = hooks->dynamic;
     hooks->dynamic += hook->dynamic;
@@ -154,15 +161,20 @@ static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
     return index;
 }
 
+static zai_hooks_entry *zai_hook_alloc_hooks_entry(zend_function *resolved) {
+    zai_hooks_entry *hooks = emalloc(sizeof(*hooks));
+    hooks->dynamic = 0;
+    hooks->resolved = resolved;
+    zend_hash_init(&hooks->hooks, 8, NULL, zai_hook_destroy, 0);
+    hooks->hooks.nNextFreeElement = ZEND_LONG_MAX >> 1;
+    return hooks;
+}
+
 static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *resolved) {
     zend_ulong addr = zai_hook_install_address(resolved);
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, addr);
     if (!hooks) {
-        hooks = emalloc(sizeof(*hooks));
-        hooks->dynamic = 0;
-        hooks->resolved = resolved;
-        zend_hash_init(&hooks->hooks, 8, NULL, zai_hook_destroy, 0);
-
+        hooks = zai_hook_alloc_hooks_entry(resolved);
         zend_hash_index_add_ptr(&zai_hook_resolved, addr, hooks);
     }
 
@@ -190,11 +202,7 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
 
     zai_hooks_entry *hooks = zend_hash_find_ptr(funcs, hook->function);
     if (!hooks) {
-        hooks = emalloc(sizeof(*hooks));
-        hooks->dynamic = 0;
-        hooks->resolved = NULL;
-        zend_hash_init(&hooks->hooks, 8, NULL, zai_hook_destroy, 0);
-
+        hooks = zai_hook_alloc_hooks_entry(NULL);
         zend_hash_add_ptr(funcs, hook->function, hooks);
     }
 
@@ -479,12 +487,16 @@ bool zai_hook_rinit(void) {
     zend_hash_init(&zai_hook_request_classes, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_resolved, 8, NULL, zai_hook_hash_destroy, 0);
 
-    zai_hook_id = 0;
+    // reserve low hook ids for static hooks
+    zai_hook_id = zend_hash_num_elements(&zai_hook_static);
 
     return true;
 }
 
 void zai_hook_activate(void) {
+    zend_ulong current_hook_id = zai_hook_id;
+    zai_hook_id = 0;
+
     zai_hook_t *hook;
     ZEND_HASH_FOREACH_PTR(&zai_hook_static, hook) {
         zai_hook_t *copy = emalloc(sizeof(*copy));
@@ -492,6 +504,8 @@ void zai_hook_activate(void) {
         copy->is_global = true;
         zai_hook_request_install(copy);
     } ZEND_HASH_FOREACH_END();
+
+    zai_hook_id = current_hook_id;
 }
 
 void zai_hook_rshutdown(void) {

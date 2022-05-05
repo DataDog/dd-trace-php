@@ -41,6 +41,7 @@ void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_int
 typedef struct {
     ddtrace_integration_name name;
     zend_string *classname;
+    zend_long id;
 } dd_integration_aux;
 
 void dd_integration_aux_free(void *auxiliary) {
@@ -71,7 +72,7 @@ static bool dd_invoke_integration_loader_and_unhook(zend_execute_data *execute_d
         }
     }
 
-    zai_hook_remove_resolved(EX(func),0);
+    zai_hook_remove_resolved(EX(func), aux->id);
 
     return true;
 }
@@ -80,7 +81,7 @@ static void dd_hook_method_and_unhook_on_first_call(zai_string_view Class, zai_s
     dd_integration_aux *aux = malloc(sizeof(*aux));
     aux->name = name;
     aux->classname = zend_string_init(callback.ptr, callback.len, 1);
-    zai_hook_install(Class, method,
+    aux->id = zai_hook_install(Class, method,
             dd_invoke_integration_loader_and_unhook,
             NULL,
             ZAI_HOOK_AUX(aux, dd_integration_aux_free),
