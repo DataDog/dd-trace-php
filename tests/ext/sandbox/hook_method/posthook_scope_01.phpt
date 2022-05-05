@@ -42,8 +42,8 @@ Orthogonal::run();
 ?>
 --EXPECT--
 I have spoken.
-BaseClass::speak hooked in BaseClass.
 BaseClass::speak hooked in ChildClass.
+BaseClass::speak hooked in BaseClass.
 I have spoken.
-ChildClass::speak hooked in BaseClass.
 ChildClass::speak hooked in ChildClass.
+ChildClass::speak hooked in BaseClass.

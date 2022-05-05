@@ -424,16 +424,16 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
     // clang-format off
     // iterate the array in a safe way, i.e. handling possible updates at runtime
     HashPosition pos;
-    zend_hash_internal_pointer_reset_ex(&hooks->hooks, &pos);
+    // iterating in reverse order to properly have LIFO style, and most importantly, zai_hook_remove_from_entry will change the memory offset of any hook coming after it, thus no hooks after it must be called afterwards
+    zend_hash_internal_pointer_end_ex(&hooks->hooks, &pos);
     uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
 
     for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
         zval key_zv;
         zend_hash_get_current_key_zval_ex(&hooks->hooks, &key_zv, &pos);
 
-        zend_hash_move_forward_ex(&hooks->hooks, &pos);
-
         if (hook->added_invocation >= memory->invocation) {
+            zend_hash_move_backwards_ex(&hooks->hooks, &pos);
             continue;
         }
 
@@ -455,6 +455,11 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
         }
 
         pos = zend_hash_iterator_pos(ht_iter, &hooks->hooks);
+        if (pos >= hooks->hooks.nNumUsed) {
+            zend_hash_internal_pointer_end_ex(&hooks->hooks, &pos);
+        } else {
+            zend_hash_move_backwards_ex(&hooks->hooks, &pos);
+        }
     }
 
     zend_hash_iterator_del(ht_iter);

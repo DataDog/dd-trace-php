@@ -159,10 +159,10 @@ HOOK_TEST_CASE("multiple continue", { /* no static */ }, {
     CHECK(zai_hook_test_begin_check == 2);
     CHECK(zai_hook_test_end_check == 2);
 
-    CHECK(zai_hook_test_begin_dynamic == zai_hook_test_end_dynamic);
+    CHECK(zai_hook_test_begin_dynamic != zai_hook_test_end_dynamic);
 
     CHECK(zai_hook_test_begin_fixed == &zai_hook_test_fixed_second);
-    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_second);
+    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_first);
 
     ZAI_VALUE_DTOR(result);
 });
@@ -197,10 +197,10 @@ HOOK_TEST_CASE("multiple stop", { /* no static */ }, {
     CHECK(zai_hook_test_begin_check == 1);
     CHECK(zai_hook_test_end_check == 2);
 
-    CHECK(zai_hook_test_begin_dynamic != zai_hook_test_end_dynamic);
+    CHECK(zai_hook_test_begin_dynamic == zai_hook_test_end_dynamic);
 
     CHECK(zai_hook_test_begin_fixed == &zai_hook_test_fixed_first);
-    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_second);
+    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_first);
 
     ZAI_VALUE_DTOR(result);
 });
@@ -235,10 +235,10 @@ HOOK_TEST_CASE("continue with static", {
     CHECK(zai_hook_test_begin_check == 2);
     CHECK(zai_hook_test_end_check == 2);
 
-    CHECK(zai_hook_test_begin_dynamic == zai_hook_test_end_dynamic);
+    CHECK(zai_hook_test_begin_dynamic != zai_hook_test_end_dynamic);
 
     CHECK(zai_hook_test_begin_fixed == &zai_hook_test_fixed_second);
-    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_second);
+    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_first);
 
     ZAI_VALUE_DTOR(result);
 });
@@ -273,10 +273,10 @@ HOOK_TEST_CASE("stop with static", {
     CHECK(zai_hook_test_begin_check == 1);
     CHECK(zai_hook_test_end_check == 2);
 
-    CHECK(zai_hook_test_begin_dynamic != zai_hook_test_end_dynamic);
+    CHECK(zai_hook_test_begin_dynamic == zai_hook_test_end_dynamic);
 
     CHECK(zai_hook_test_begin_fixed == &zai_hook_test_fixed_first);
-    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_second);
+    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_first);
 
     ZAI_VALUE_DTOR(result);
 });

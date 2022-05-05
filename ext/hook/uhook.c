@@ -31,6 +31,7 @@ zend_class_entry *ddtrace_hook_data_ce;
 typedef struct {
     zend_object *begin;
     zend_object *end;
+    bool running;
 } dd_uhook_def;
 
 typedef struct {
@@ -96,11 +97,14 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
     dd_uhook_dynamic *dyn = dynamic;
 
     dyn->hook_data = zend_objects_new(ddtrace_hook_data_ce);
+    object_properties_init(dyn->hook_data, ddtrace_hook_data_ce);
 
     ZVAL_ARR(ddtrace_hookdata_property_args(dyn->hook_data), dd_uhook_collect_args(execute_data));
 
-    if (def->begin) {
+    if (def->begin && !def->running) {
+        def->running = true;
         dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
+        def->running = false;
     }
 
     return true;
@@ -110,7 +114,7 @@ static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *au
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
-    if (def->end) {
+    if (def->end && !def->running) {
         zval tmp;
 
         /* If the profiler doesn't handle a potential pending interrupt before
@@ -138,7 +142,9 @@ static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *au
         }
         zval_ptr_dtor(&tmp);
 
+        def->running = true;
         dd_uhook_call_hook(execute_data, def->end, dyn->hook_data);
+        def->running = false;
     }
 
     OBJ_RELEASE(dyn->hook_data);
@@ -211,6 +217,7 @@ PHP_FUNCTION(install_hook) {
     }
 
     dd_uhook_def *def = emalloc(sizeof(*def));
+    def->running = false;
     def->begin = begin ? Z_OBJ_P(begin) : NULL;
     if (def->begin) {
         GC_ADDREF(def->begin);
