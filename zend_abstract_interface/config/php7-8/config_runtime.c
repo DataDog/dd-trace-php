@@ -52,15 +52,17 @@ static inline zval *zai_config_runtime_config_value(zai_config_memoized_entry *m
 }
 
 static void zai_config_runtime_config_update() {
-    if (runtime_config) {
-        return;
+    if (!runtime_config) {
+        runtime_config = ecalloc(sizeof(zval), ZAI_CONFIG_ENTRIES_COUNT_MAX);
     }
-
-    runtime_config = emalloc(sizeof(zval) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zval updated;
         ZVAL_UNDEF(&updated);
+
+        if (Z_OPT_REFCOUNTED(runtime_config[i])) {
+            zval_ptr_dtor(&runtime_config[i]);
+        }
 
         ZVAL_COPY(&runtime_config[i], zai_config_runtime_config_value(&zai_config_memoized_entries[i], &updated));
     }

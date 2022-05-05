@@ -75,9 +75,12 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
 void zai_config_mshutdown(void);
 
 // Runtime config ctor (++rc)
-void zai_config_rinit(void);
+void zai_config_activate(void);
+
+void zai_config_update(void);
+
 // dtor run-time zvals  (--rc)
-void zai_config_rshutdown(void);
+void zai_config_deactivate(void);
 
 // Directly replace the config value for the current request. Copies the passed argument.
 void zai_config_replace_runtime_config(zai_config_id id, zval *value);

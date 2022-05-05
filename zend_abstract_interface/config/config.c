@@ -159,14 +159,16 @@ void zai_config_mshutdown(void) {
     zai_config_ini_mshutdown();
 }
 
-void zai_config_rinit(void) {
+void zai_config_activate(void) {
     zai_config_runtime_config_ctor();
 #if ZTS
     zai_config_ini_rinit();
 #endif
 }
 
-void zai_config_rshutdown(void) { zai_config_runtime_config_dtor(); }
+void zai_config_update(void) { zai_config_runtime_config_ctor(); }
+
+void zai_config_deactivate(void) { zai_config_runtime_config_dtor(); }
 
 bool zai_config_system_ini_change(zval *old_value, zval *new_value) {
     (void)old_value;

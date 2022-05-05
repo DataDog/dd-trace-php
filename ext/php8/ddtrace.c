@@ -92,8 +92,8 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
     ddtrace_internal_handlers_shutdown();
 }
 
-static void ddtrace_activate(void) { zai_config_rinit(); }
-static void ddtrace_deactivate(void) { zai_config_rshutdown(); }
+static void ddtrace_activate(void) { zai_config_activate(); }
+static void ddtrace_deactivate(void) { zai_config_deactivate(); }
 
 static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   PHP_DDTRACE_VERSION,
@@ -531,6 +531,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     // ZAI config is always set up
     pthread_once(&dd_rinit_config_once_control, ddtrace_config_first_rinit);
+
+    zai_config_update();
 
     if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
         DDTRACE_G(disable) = 2;

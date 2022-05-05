@@ -6,13 +6,10 @@ extern "C" {
 
 #include <atomic>
 
-std::atomic<int> ext_first_rinit;
 static ext_zai_config_minit_fn ext_orig_minit;
 void (*ext_zai_config_pre_rinit)();
 
 static PHP_MINIT_FUNCTION(zai_config) {
-    atomic_init(&ext_first_rinit, 1);
-
     return ext_orig_minit(INIT_FUNC_ARGS_PASSTHRU);
 }
 
@@ -45,7 +42,7 @@ static PHP_RINIT_FUNCTION(zai_config) {
             ext_zai_config_pre_rinit();
         }
 
-        zai_config_rinit();
+        zai_config_activate();
     } zend_catch {
         result = FAILURE;
     } zend_end_try();
@@ -61,7 +58,7 @@ static PHP_RSHUTDOWN_FUNCTION(zai_config) {
 #endif
 
     zend_try {
-        zai_config_rshutdown();
+        zai_config_deactivate();
     } zend_catch {
         result = FAILURE;
     } zend_end_try();
