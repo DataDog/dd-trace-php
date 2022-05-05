@@ -130,17 +130,17 @@ typedef enum { DD_CONFIGURATION } ddtrace_config_id;
 #define BOOL(id)                                                                                           \
     static inline bool get_##id(void) { return Z_BVAL_P(zai_config_get_value(DDTRACE_CONFIG_##id)) != 0; } \
     static inline bool get_global_##id(void) {                                                             \
-        return Z_BVAL(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value) != 0;                \
+        return get_##id();                                                                                 \
     }
 #define INT(id)                                                                                       \
     static inline long get_##id(void) { return Z_LVAL_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
     static inline long get_global_##id(void) {                                                        \
-        return Z_LVAL(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value);                \
+        return get_##id();                                                                            \
     }
 #define DOUBLE(id)                                                                                      \
     static inline double get_##id(void) { return Z_DVAL_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
     static inline double get_global_##id(void) {                                                        \
-        return Z_DVAL(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value);                  \
+        return get_##id();                                                                              \
     }
 #define STRING(id)                                                                   \
     static inline zai_string_view get_##id(void) {                                   \
@@ -148,8 +148,7 @@ typedef enum { DD_CONFIGURATION } ddtrace_config_id;
         return (zai_string_view){.len = Z_STRLEN_P(cfg), .ptr = Z_STRVAL_P(cfg)};    \
     }                                                                                \
     static inline zai_string_view get_global_##id(void) {                            \
-        zval *cfg = &zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value; \
-        return (zai_string_view){.len = Z_STRLEN_P(cfg), .ptr = Z_STRVAL_P(cfg)};    \
+        return get_##id();                                                           \
     }
 #define SET MAP
 #define SET_LOWERCASE MAP
@@ -157,7 +156,7 @@ typedef enum { DD_CONFIGURATION } ddtrace_config_id;
 #define MAP(id)                                                                                               \
     static inline HashTable *get_##id(void) { return Z_ARRVAL_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
     static inline HashTable *get_global_##id(void) {                                                          \
-        return Z_ARRVAL(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value);                      \
+        return get_##id();                                                                                    \
     }
 
 #define CONFIG(type, name, ...) type(name)

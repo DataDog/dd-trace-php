@@ -90,10 +90,11 @@ zval *zai_config_get_value(zai_config_id id) {
         assert(false && "Config ID is out of bounds");
         return &EG(error_zval);
     }
+
     if (!runtime_config) {
-        assert(false && "runtime config is not yet initialized");
-        return &EG(error_zval);
+        return &zai_config_memoized_entries[id].decoded_value;
     }
+
     return &runtime_config[id];
 }
 

@@ -67,13 +67,15 @@ static inline void zai_config_runtime_config_value(zai_config_memoized_entry *me
 }
 
 void zai_config_runtime_config_update() {
-    if (runtime_config) {
-        return;
+    if (!runtime_config) {
+        runtime_config = ecalloc(sizeof(zval *), ZAI_CONFIG_ENTRIES_COUNT_MAX);
     }
 
-    runtime_config = emalloc(sizeof(zval *) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
-
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+        if (Z_TYPE_P(runtime_config[i]) == IS_ARRAY) {
+            zval_ptr_dtor(&runtime_config[i]);
+        }
+
         zai_config_runtime_config_value(&zai_config_memoized_entries[i], &runtime_config[i]);
     }
 }
@@ -99,9 +101,7 @@ zval *zai_config_get_value(zai_config_id id) {
         return &EG(uninitialized_zval);
     }
     if (!runtime_config) {
-        assert(false && "runtime config is not yet initialized");
-        TSRMLS_FETCH();
-        return &EG(uninitialized_zval);
+        return &zai_config_memoized_entries[id].decoded_value;
     }
     return runtime_config[id];
 }
