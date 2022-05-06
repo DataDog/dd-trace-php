@@ -27,6 +27,10 @@ static inline void zai_config_runtime_dtor(zval **zv) {
         return;
     }
 
+#ifdef ZTS
+    TSRMLS_FETCH();
+#endif
+
     if (Z_DELREF_PP(zv) == 0) {
         GC_REMOVE_ZVAL_FROM_BUFFER(*zv);
         FREE_ZVAL(*zv);
