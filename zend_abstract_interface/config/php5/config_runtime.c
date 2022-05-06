@@ -14,17 +14,42 @@ ZAI_TLS zval **runtime_config = NULL;  // dynamically allocated, otherwise TLS a
 
 static void zai_config_runtime_config_update(void);
 
+static inline void zai_config_runtime_dtor(zval **zv) {
+    if (Z_TYPE_PP(zv) != IS_ARRAY) {
+        zval_ptr_dtor(zv);
+
+        return;
+    }
+
+    if (!Z_ARRVAL_PP(zv)->persistent) {
+        zval_ptr_dtor(zv);
+
+        return;
+    }
+
+    if (Z_DELREF_PP(zv) == 0) {
+        GC_REMOVE_ZVAL_FROM_BUFFER(*zv);
+        FREE_ZVAL(*zv);
+    } else {
+        if (Z_REFCOUNT_PP(zv) == 1) {
+            Z_UNSET_ISREF_PP(zv);
+        }
+
+        GC_ZVAL_CHECK_POSSIBLE_ROOT(*zv);
+    }
+}
+
 void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
     zai_config_runtime_config_update();
 
     zval **rt_value = &runtime_config[id];
-    zval_ptr_dtor(rt_value);
+    zai_config_runtime_dtor(rt_value);
 
     MAKE_STD_ZVAL(*rt_value);
     MAKE_COPY_ZVAL(&value, *rt_value);
 }
 
-static inline void zai_config_runtime_config_value(zai_config_memoized_entry *memoized, zval **updated) {
+static inline void zai_config_runtime_config_value(zai_config_memoized_entry *memoized, zval **runtime) {
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
 
     for (int16_t name_index = 0; name_index < memoized->names_count; name_index++) {
@@ -32,9 +57,9 @@ static inline void zai_config_runtime_config_value(zai_config_memoized_entry *me
         zai_env_result result = zai_getenv_ex(name, buf, false);
 
         if (result == ZAI_ENV_SUCCESS) {
-            MAKE_STD_ZVAL(*updated);
+            MAKE_STD_ZVAL(*runtime);
 
-            ZVAL_NULL(*updated);
+            ZVAL_NULL(*runtime);
 
             /*
              * we unconditionally decode the value because we do not store the in-use encoded value
@@ -43,10 +68,10 @@ static inline void zai_config_runtime_config_value(zai_config_memoized_entry *me
              */
             zai_string_view rte_value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
 
-            if (!zai_config_decode_value(rte_value, memoized->type, *updated, /* persistent */ false)) {
+            if (!zai_config_decode_value(rte_value, memoized->type, *runtime, /* persistent */ false)) {
                 TSRMLS_FETCH();
-                zval_dtor(*updated);
-                FREE_ZVAL(*updated);
+                zval_dtor(*runtime);
+                FREE_ZVAL(*runtime);
                 break;
             }
 
@@ -54,15 +79,11 @@ static inline void zai_config_runtime_config_value(zai_config_memoized_entry *me
         }
     }
 
-    if (Z_TYPE(memoized->decoded_value) == IS_ARRAY) {
-        // arrays will land in the GC root buffer and must actually be of type struct _zval_gc_info, which also
-        // must not be shared across threads, hence forcing a copy of arrays
-        ALLOC_ZVAL(*updated);
-        INIT_PZVAL_COPY(*updated, &memoized->decoded_value);
-        zval_copy_ctor(*updated);
-    } else {
-        *updated = &memoized->decoded_value;
-        zval_add_ref(updated);
+    /* we must not write memory@memoized */
+    ALLOC_ZVAL(*runtime);
+    INIT_PZVAL_COPY(*runtime, &memoized->decoded_value);
+    if (Z_TYPE_PP(runtime) != IS_ARRAY) {
+        zval_copy_ctor(*runtime);
     }
 }
 
@@ -72,8 +93,8 @@ void zai_config_runtime_config_update() {
     }
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
-        if (Z_TYPE_P(runtime_config[i]) == IS_ARRAY) {
-            zval_ptr_dtor(&runtime_config[i]);
+        if (runtime_config[i] != NULL) {
+            zai_config_runtime_dtor(&runtime_config[i]);
         }
 
         zai_config_runtime_config_value(&zai_config_memoized_entries[i], &runtime_config[i]);
@@ -86,7 +107,7 @@ void zai_config_runtime_config_ctor(void) { zai_config_runtime_config_update(); 
 
 void zai_config_runtime_config_dtor(void) {
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
-        zval_ptr_dtor(&runtime_config[i]);
+        zai_config_runtime_dtor(&runtime_config[i]);
     }
 
     efree(runtime_config);

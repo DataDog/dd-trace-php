@@ -2,7 +2,11 @@
 
 #include "../config.h"
 
-#define ZAI_TLS __thread
+#ifdef ZTS
+#define ZAI_TLS static __thread
+#else
+#define ZAI_TLS static
+#endif
 
 extern HashTable zai_config_name_map;
 
@@ -10,16 +14,35 @@ ZAI_TLS zval *runtime_config = NULL;  // dynamically allocated, otherwise TLS al
 
 static void zai_config_runtime_config_update(void);
 
+static inline void zai_config_runtime_dtor(zval *zv) {
+    if (!Z_OPT_REFCOUNTED_P(zv)) {
+        return;
+    }
+
+    if (Z_TYPE_P(zv) == IS_ARRAY) {
+        if (!(GC_FLAGS(Z_COUNTED_P(zv)) & IS_ARRAY_PERSISTENT)) {
+            zval_ptr_dtor(zv);
+        }
+        return;
+    }
+
+    if (Z_TYPE_P(zv) == IS_STRING) {
+        if (!(GC_FLAGS(Z_COUNTED_P(zv)) & IS_STR_PERSISTENT)) {
+            zval_ptr_dtor(zv);
+        }
+    }
+}
+
 void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
     zai_config_runtime_config_update();
 
     zval *rt_value = &runtime_config[id];
-    zval_ptr_dtor(rt_value);
+    zai_config_runtime_dtor(rt_value);
 
     ZVAL_COPY(rt_value, value);
 }
 
-static inline zval *zai_config_runtime_config_value(zai_config_memoized_entry *memoized, zval *updated) {
+static inline void zai_config_runtime_config_value(zai_config_memoized_entry *memoized, zval *runtime) {
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
 
     for (int16_t name_index = 0; name_index < memoized->names_count; name_index++) {
@@ -34,21 +57,18 @@ static inline zval *zai_config_runtime_config_value(zai_config_memoized_entry *m
              */
             zai_string_view rte_value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
 
-            if (!zai_config_decode_value(rte_value, memoized->type, updated, /* persistent */ false)) {
+            ZVAL_UNDEF(runtime);
+
+            if (!zai_config_decode_value(rte_value, memoized->type, runtime, /* persistent */ false)) {
                 break;
             }
 
-            /*
-             * ZVAL_COPY should increase RC to 1; there are no other references to these values
-             */
-            if (Z_OPT_REFCOUNTED_P(updated)) {
-                Z_SET_REFCOUNT_P(updated, 0);
-            }
-
-            return updated;
+            return;
         }
     }
-    return &memoized->decoded_value;
+
+    /* we must not write memory@memoized */
+    ZVAL_COPY_VALUE(runtime, &memoized->decoded_value);
 }
 
 static void zai_config_runtime_config_update() {
@@ -57,14 +77,11 @@ static void zai_config_runtime_config_update() {
     }
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
-        zval updated;
-        ZVAL_UNDEF(&updated);
-
         if (Z_OPT_REFCOUNTED(runtime_config[i])) {
-            zval_ptr_dtor(&runtime_config[i]);
+            zai_config_runtime_dtor(&runtime_config[i]);
         }
 
-        ZVAL_COPY(&runtime_config[i], zai_config_runtime_config_value(&zai_config_memoized_entries[i], &updated));
+        zai_config_runtime_config_value(&zai_config_memoized_entries[i], &runtime_config[i]);
     }
 }
 
@@ -78,7 +95,7 @@ void zai_config_runtime_config_dtor(void) {
     }
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
-        zval_ptr_dtor(&runtime_config[i]);
+        zai_config_runtime_dtor(&runtime_config[i]);
     }
     efree(runtime_config);
 
