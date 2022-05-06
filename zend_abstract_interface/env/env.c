@@ -52,8 +52,11 @@ zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_
             only check the FCGI request for the requested variable.
            we require the value from the actual environment if it is present
            in FCGI mode, this prohibits our ability to determine if a variable
-           has been unset by the request */
-        if (!pre_rinit && strstr(sapi_module.name, "fcgi") != NULL) {
+           has been unset by the request
+           so that FCGI/Apache behave consistently with regard to unset, we do
+           not check for FCGI specifically, but apply this behaviour to any SAPI
+           while takes control of environ via sapi_module.getenv */
+        if (sapi_module.getenv) {
             value = getenv(name.ptr);
 
             if (value) {
