@@ -20,7 +20,11 @@ static inline void zai_config_runtime_dtor(zval *zv) {
     }
 
     if (Z_TYPE_P(zv) == IS_ARRAY) {
+#ifdef IS_ARRAY_PERSISTENT
         if (!(GC_FLAGS(Z_COUNTED_P(zv)) & IS_ARRAY_PERSISTENT)) {
+#else
+        if (!(Z_ARRVAL_P(zv)->u.flags & HASH_FLAG_PERSISTENT)) {
+#endif
             zval_ptr_dtor(zv);
         }
         return;
