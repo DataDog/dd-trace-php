@@ -29,7 +29,7 @@ static inline char *nosapi_getenv_compat(const char *name, size_t len) {
 }
 
 zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_rinit) {
-    (void) pre_rinit;
+    (void)pre_rinit;
 
     if (!buf.ptr || !buf.len) {
         return ZAI_ENV_ERROR;
@@ -70,19 +70,19 @@ zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_
         return ZAI_ENV_NOT_SET;
     }
 
-    zai_getenv_result: {
-        zai_env_result res;
+zai_getenv_result : {
+    zai_env_result res;
 
-        if (strlen(value) < buf.len) {
-            strcpy(buf.ptr, value);
-            res = ZAI_ENV_SUCCESS;
-        } else {
-            res = ZAI_ENV_BUFFER_TOO_SMALL;
-        }
-
-        if (sapi_module.getenv) {
-            efree(value);
-        }
-        return res;
+    if (strlen(value) < buf.len) {
+        strcpy(buf.ptr, value);
+        res = ZAI_ENV_SUCCESS;
+    } else {
+        res = ZAI_ENV_BUFFER_TOO_SMALL;
     }
+
+    if (sapi_module.getenv) {
+        efree(value);
+    }
+    return res;
+}
 }
