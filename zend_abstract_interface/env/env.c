@@ -29,6 +29,8 @@ static inline char *nosapi_getenv_compat(const char *name, size_t len) {
 }
 
 zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_rinit) {
+    (void) pre_rinit;
+
     if (!buf.ptr || !buf.len) {
         return ZAI_ENV_ERROR;
     }
@@ -55,7 +57,7 @@ zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_
            has been unset by the request
            so that FCGI/Apache behave consistently with regard to unset, we do
            not check for FCGI specifically, but apply this behaviour to any SAPI
-           while takes control of environ via sapi_module.getenv */
+           which takes control of environ via sapi_module.getenv */
         if (sapi_module.getenv) {
             value = getenv(name.ptr);
 
