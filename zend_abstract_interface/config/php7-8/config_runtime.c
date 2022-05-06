@@ -38,8 +38,6 @@ static inline void zai_config_runtime_dtor(zval *zv) {
 }
 
 void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
-    zai_config_runtime_config_update();
-
     zval *rt_value = &runtime_config[id];
     zai_config_runtime_dtor(rt_value);
 
