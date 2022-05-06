@@ -17,9 +17,7 @@
 typedef void (*zai_config_env_to_ini_name)(zai_string_view env_name, zai_config_name *ini_name);
 
 void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_number);
-#if ZTS
 void zai_config_ini_rinit();
-#endif
 void zai_config_ini_mshutdown();
 
 /* If present environment variable always overrides original value

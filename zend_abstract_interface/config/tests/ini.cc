@@ -502,3 +502,31 @@ TEST_INI("invalid perdir INI setting ignored", {
     REQUEST_END()
 })
 
+TEST_INI("change before request startup", {
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_INT", "1"));
+}, {
+    zval *value;
+
+    REQUIRE(zai_config_set_runtime_ini(
+            ZEND_STRL("zai_config.INI_FOO_INT"),
+            ZEND_STRL("2"),
+            PHP_INI_STAGE_ACTIVATE));
+
+    REQUEST_BEGIN();
+
+    value = zai_config_get_value(EXT_CFG_INI_FOO_INT);
+
+    REQUIRE(Z_LVAL_P(value) == 2);
+    REQUEST_END();
+
+    REQUIRE(zai_config_set_runtime_ini(
+            ZEND_STRL("zai_config.INI_FOO_INT"),
+            ZEND_STRL("3"),
+            PHP_INI_STAGE_ACTIVATE));
+
+    REQUEST_BEGIN();
+
+    value = zai_config_get_value(EXT_CFG_INI_FOO_INT);
+    REQUIRE(Z_LVAL_P(value) == 3);
+    REQUEST_END();
+})

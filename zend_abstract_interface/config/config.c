@@ -155,9 +155,7 @@ void zai_config_first_time_rinit(void) {
 
 void zai_config_rinit(void) {
     zai_config_runtime_config_ctor();
-#if ZTS
     zai_config_ini_rinit();
-#endif
 }
 
 void zai_config_rshutdown(void) { zai_config_runtime_config_dtor(); }

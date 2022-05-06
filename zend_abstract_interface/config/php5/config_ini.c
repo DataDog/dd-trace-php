@@ -65,8 +65,11 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
         }
     }
 
+    // On post-minit, i.e. at runtime, we do not want to take care of runtime values, only system values
+    bool is_minit = !php_get_module_initialized();
+
     for (int16_t i = 0; i < ini_count; ++i) {
-        if (entries[i]->modified && !runtime_value) {
+        if (entries[i]->modified && !runtime_value && (is_minit || entries[i]->modifiable == PHP_INI_SYSTEM)) {
             runtime_value_len = entries[i]->value_length;
             runtime_value = estrndup(entries[i]->value, runtime_value_len);
         }
@@ -181,7 +184,8 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
         return FAILURE;
     }
 
-    bool is_reset = new_value == entry->orig_value;
+    bool is_reset = (new_value_length == entry->orig_value_length) &&
+                    (memcmp(new_value, entry->orig_value, new_value_length) == SUCCESS);
     for (int i = 0; i < zai_config_memoized_entries[id].names_count; ++i) {
         zend_ini_entry *alias = zai_config_memoized_entries[id].ini_entries[i];
 #if ZTS
@@ -201,7 +205,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
             }
             alias->value_length = new_value_length;
             if (is_reset) {
-                alias->value = new_value;
+                alias->value = entry->orig_value;
                 alias->modified = false;
                 alias->orig_value = NULL;
                 alias->orig_value_length = 0;
@@ -280,49 +284,109 @@ void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_numb
 #endif
 }
 
-#if ZTS
 void zai_config_ini_rinit() {
-    if (!env_to_ini_name) return;
+    // we have to cover two cases here:
+    // a) update ini tables to take changes during first-time rinit into account on ZTS
+    // b) read current env variables
+    // c) apply and verify fpm&apache config/user.ini/htaccess settings
 
     TSRMLS_FETCH();
 
-    // we have to cover two cases here:
-    // a) update ini tables to take changes during first-time rinit into account
-    // b) apply and verify user.ini/htaccess settings
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
-        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        bool applied_update = false;
-        for (uint8_t n = 0; n < memoized->names_count; ++n) {
-            zend_ini_entry *source = memoized->ini_entries[n], *ini;
-            zend_hash_find(EG(ini_directives), source->name, source->name_length, (void **)&ini);
-            if (ini->modified) {
-                if (ini->orig_value == ini->value) {
-                    ini->value = source->value;
-                }
-                ini->orig_value = source->value;
-                ini->orig_value_length = source->value_length;
-
-                if (!applied_update) {
-                    if (ZaiConfigOnUpdateIni(ini, ini->value, ini->value_length, NULL, NULL, NULL,
-                                             PHP_INI_STAGE_RUNTIME TSRMLS_CC) == SUCCESS) {
-                        // first encountered name has highest priority
-                        applied_update = true;
-                    } else {
-                        efree(ini->value);
-                        ini->value = ini->orig_value;
-                        ini->value_length = ini->orig_value_length;
-                        ini->modified = false;
-                        ini->orig_value = NULL;
+#if ZTS
+    if (env_to_ini_name) {
+        for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+            zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
+            bool applied_update = false;
+            for (uint8_t n = 0; n < memoized->names_count; ++n) {
+                zend_ini_entry *source = memoized->ini_entries[n], *ini;
+                zend_hash_find(EG(ini_directives), source->name, source->name_length, (void **)&ini);
+                if (ini->modified) {
+                    if (ini->orig_value == ini->value) {
+                        ini->value = source->value;
                     }
+                    ini->orig_value = source->value;
+                    ini->orig_value_length = source->value_length;
+
+                    if (!applied_update) {
+                        if (ZaiConfigOnUpdateIni(ini, ini->value, ini->value_length, NULL, NULL, NULL,
+                                                 PHP_INI_STAGE_RUNTIME TSRMLS_CC) == SUCCESS) {
+                            // first encountered name has highest priority
+                            applied_update = true;
+                        } else {
+                            efree(ini->value);
+                            ini->value = ini->orig_value;
+                            ini->value_length = ini->orig_value_length;
+                            ini->modified = false;
+                            ini->orig_value = NULL;
+                        }
+                    }
+                } else {
+                    ini->value = source->value;
+                    ini->value_length = source->value_length;
                 }
-            } else {
-                ini->value = source->value;
-                ini->value_length = source->value_length;
             }
         }
     }
-}
 #endif
+
+    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
+
+    for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
+        if (memoized->ini_change == zai_config_system_ini_change) {
+            continue;
+        }
+
+        for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
+            zai_string_view name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
+            zai_env_result result = zai_getenv_ex(name, buf, false);
+
+            if (result == ZAI_ENV_SUCCESS) {
+                /*
+                 * we unconditionally decode the value because we do not store the in-use encoded value
+                 * so we cannot compare the current environment value to the current configuration value
+                 * for the purposes of short circuiting decode
+                 */
+                if (env_to_ini_name) {
+                    zend_ini_entry *ini = memoized->ini_entries[name_index];
+                    if (zend_alter_ini_entry_ex(ini->name, ini->name_length, buf.ptr, strlen(buf.ptr), PHP_INI_USER,
+                                                PHP_INI_STAGE_RUNTIME, 0 TSRMLS_CC) == SUCCESS) {
+                        goto next_entry;
+                    }
+                } else {
+                    zai_string_view rte_value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
+
+                    zval *new_zv;
+                    MAKE_STD_ZVAL(new_zv);
+                    ZVAL_NULL(new_zv);
+                    if (zai_config_decode_value(rte_value, memoized->type, new_zv, /* persistent */ false)) {
+                        zai_config_replace_runtime_config(i, new_zv);
+                        zval_ptr_dtor(&new_zv);
+                    } else {
+                        FREE_ZVAL(new_zv);
+                    }
+                }
+            }
+        }
+
+        if (env_to_ini_name) {
+            for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
+                zend_ini_entry *ini = memoized->ini_entries[name_index];
+#if ZTS
+                zend_hash_find(EG(ini_directives), ini->name, ini->name_length, (void **)&ini);
+#endif
+                if (ini->modified) {
+                    if (ZaiConfigOnUpdateIni(ini, ini->value, ini->value_length, NULL, NULL, NULL,
+                                             PHP_INI_STAGE_RUNTIME TSRMLS_CC) == SUCCESS) {
+                        goto next_entry;
+                    }
+                }
+            }
+        }
+
+    next_entry:;
+    }
+}
 
 void zai_config_ini_mshutdown() {
     for (int i = 0; i < ZAI_CONFIG_ENTRIES_COUNT_MAX; ++i) {
