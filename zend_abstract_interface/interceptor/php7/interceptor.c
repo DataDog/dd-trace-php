@@ -80,6 +80,9 @@ void zai_interceptor_op_array_ctor(zend_op_array *op_array) {
     zai_set_ext_nop(op);
     // EXT_STMT is skipped by compiler when determining "very first" instructions
     op->opcode = ZEND_EXT_STMT;
+
+    // For reasons this is not set on eval()'ed code, leading to pass_two handler not being called
+    CG(compiler_options) |= ZEND_COMPILE_HANDLE_OP_ARRAY;
 }
 
 static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {

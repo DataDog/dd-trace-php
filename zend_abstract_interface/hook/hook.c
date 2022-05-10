@@ -262,8 +262,10 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
         zai_hook_resolve(method_table, function, fnname);
     } ZEND_HASH_FOREACH_END();
 
-    // note: no pDestructor handling needed: zai_hook_resolve empties the table for us
-    zend_hash_del(&zai_hook_request_classes, lcname);
+    if (zend_hash_num_elements(method_table) == 0) {
+        // note: no pDestructor handling needed: zai_hook_resolve empties the table for us
+        zend_hash_del(&zai_hook_request_classes, lcname);
+    }
 }
 
 static void zai_hook_remove_from_entry(zai_hooks_entry *hooks, zend_ulong index) {

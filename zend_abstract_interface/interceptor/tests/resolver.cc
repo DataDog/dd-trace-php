@@ -153,6 +153,15 @@ INTERCEPTOR_TEST_CASE("runtime inherited delayed class resolving", {
     REQUIRE(zai_hook_installed_func(fn));
 });
 
+INTERCEPTOR_TEST_CASE("runtime trait using class resolving", {
+    INSTALL_CLASS_HOOK("TraitImport", "bar");
+    CALL_FN("defineTraitUser");
+    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("TraitImport") ZAI_TSRMLS_CC);
+    zai_string_view name = ZAI_STRL_VIEW("bar");
+    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
+    REQUIRE(zai_hook_installed_func(fn));
+});
+
 INTERCEPTOR_TEST_CASE("runtime class_alias resolving", {
     INSTALL_CLASS_HOOK("Aliased", "foo");
     CALL_FN("doAlias");

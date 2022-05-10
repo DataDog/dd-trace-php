@@ -4,6 +4,10 @@ class TopLevel {
     function foo() {}
 }
 
+trait Traity {
+    function bar() {}
+}
+
 function defineFunc() {
     function aFunction() {}
 }
@@ -23,6 +27,12 @@ function defineInherited() {
 function defineDelayedInherited() {
     class Inherited extends Normal {
         function bar() {}
+    }
+}
+
+function defineTraitUser() {
+    class TraitImport {
+        use Traity;
     }
 }
 

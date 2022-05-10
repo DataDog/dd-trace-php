@@ -134,22 +134,32 @@ static void zai_interceptor_pop_opline_before_binding() {
 static user_opcode_handler_t prev_post_declare_handler;
 static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data) {
     if (EX(opline) == &zai_interceptor_post_declare_ops[0] || EX(opline) == &zai_interceptor_post_declare_ops[1]) {
-#if PHP_VERSION_ID >= 70300
-        zend_string *lcname = Z_STR_P(RT_CONSTANT(&zai_interceptor_post_declare_ops[0], zai_interceptor_post_declare_ops[0].op1));
-#elif PHP_VERSION_ID >= 70100
-        zend_string *lcname = Z_STR_P(EX_CONSTANT(zai_interceptor_post_declare_ops[0].op1));
-#else
-        zend_string *lcname = Z_STR_P(EX_CONSTANT(zai_interceptor_post_declare_ops[0].op2));
+#if PHP_VERSION_ID < 70400
+        if (zai_interceptor_post_declare_ops[0].opcode == ZEND_BIND_TRAITS) {
+            zend_class_entry *ce = Z_CE_P(EX_VAR(zai_interceptor_post_declare_ops[0].op1.var));
+            zend_string *lcname = zend_string_tolower(ce->name);
+            zai_hook_resolve_class(ce, lcname);
+            zend_string_release(lcname);
+        } else
 #endif
-        if (zai_interceptor_post_declare_ops[0].opcode == ZEND_DECLARE_FUNCTION) {
-            zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
-            if (function) {
-                zai_hook_resolve_function(function, lcname);
-            }
-        } else {
-            zend_class_entry *ce = zend_hash_find_ptr(CG(class_table), lcname);
-            if (ce) {
-                zai_hook_resolve_class(ce, lcname);
+        {
+#if PHP_VERSION_ID >= 70300
+            zend_string *lcname = Z_STR_P(RT_CONSTANT(&zai_interceptor_post_declare_ops[0], zai_interceptor_post_declare_ops[0].op1));
+#elif PHP_VERSION_ID >= 70100
+            zend_string *lcname = Z_STR_P(EX_CONSTANT(zai_interceptor_post_declare_ops[0].op1));
+#else
+            zend_string *lcname = Z_STR_P(EX_CONSTANT(zai_interceptor_post_declare_ops[0].op2));
+#endif
+            if (zai_interceptor_post_declare_ops[0].opcode == ZEND_DECLARE_FUNCTION) {
+                zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
+                if (function) {
+                    zai_hook_resolve_function(function, lcname);
+                }
+            } else {
+                zend_class_entry *ce = zend_hash_find_ptr(CG(class_table), lcname);
+                if (ce) {
+                    zai_hook_resolve_class(ce, lcname);
+                }
             }
         }
         // preserve offset
@@ -203,6 +213,14 @@ static int zai_interceptor_declare_inherited_class_delayed_handler(zend_execute_
     }
     return prev_declare_inherited_class_delayed_handler ? prev_declare_inherited_class_delayed_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
+
+static user_opcode_handler_t prev_bind_traits_handler;
+static int zai_interceptor_bind_traits_handler(zend_execute_data *execute_data) {
+    if (ZEND_BIND_TRAITS == EX(opline)->opcode) {
+        zai_interceptor_install_post_declare_op(execute_data);
+    }
+    return prev_bind_traits_handler ? prev_bind_traits_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
 #endif
 
 void zai_interceptor_check_for_opline_before_exception(void) {
@@ -247,6 +265,8 @@ void zai_interceptor_setup_resolving_startup(void) {
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS, zai_interceptor_declare_inherited_class_handler);
     prev_declare_inherited_class_delayed_handler = zend_get_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS_DELAYED);
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS_DELAYED, zai_interceptor_declare_inherited_class_delayed_handler);
+    prev_bind_traits_handler = zend_get_user_opcode_handler(ZEND_BIND_TRAITS);
+    zend_set_user_opcode_handler(ZEND_BIND_TRAITS, zai_interceptor_bind_traits_handler);
 #endif
 
     prev_post_declare_handler = zend_get_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP);
