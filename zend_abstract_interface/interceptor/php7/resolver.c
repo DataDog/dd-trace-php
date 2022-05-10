@@ -24,11 +24,19 @@ static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int ty
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
     HashPosition classpos, funcpos;
     zend_hash_internal_pointer_end_ex(CG(class_table), &classpos);
+    uint32_t class_iter = zend_hash_iterator_add(CG(class_table), classpos);
     zend_hash_internal_pointer_end_ex(CG(function_table), &funcpos);
+    uint32_t func_iter = zend_hash_iterator_add(CG(function_table), funcpos);
 
     zend_op_array *op_array = prev_compile_file(file_handle, type);
 
+    classpos = zend_hash_iterator_pos(class_iter, CG(class_table));
+    funcpos = zend_hash_iterator_pos(func_iter, CG(function_table));
+
     zai_interceptor_add_new_entries(classpos, funcpos);
+
+    zend_hash_iterator_del(class_iter);
+    zend_hash_iterator_del(func_iter);
 
     return op_array;
 }

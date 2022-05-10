@@ -236,6 +236,7 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_function *function,
         base_ht->pDestructor = NULL;
         zend_hash_del(base_ht, lcname);
         base_ht->pDestructor = zai_hook_hash_destroy;
+        hooks->resolved = function;
     }
 }
 
