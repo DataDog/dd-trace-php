@@ -168,3 +168,42 @@ TEST_ENV("alias", {
 
     REQUEST_END()
 })
+
+TEA_TEST_CASE_BARE("config/env", "change after memoization", {
+    REQUIRE(tea_sapi_sinit());
+    ext_zai_config_ctor(PHP_MINIT(zai_config_env));
+    REQUIRE_SETENV("FOO_BOOL", "false");
+
+    REQUIRE(tea_sapi_minit());
+    REQUEST_BEGIN();
+
+    zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
+
+    REQUIRE(value != NULL);
+#if PHP_VERSION_ID > 70000
+    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
+#else
+    REQUIRE(Z_TYPE_P(value) == IS_BOOL);
+    REQUIRE(Z_BVAL_P(value) == 0);
+#endif
+
+    REQUEST_END();
+
+    REQUIRE_SETENV("FOO_BOOL", "true");
+
+    REQUEST_BEGIN();
+
+    zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
+
+    REQUIRE(value != NULL);
+#if PHP_VERSION_ID > 70000
+    REQUIRE(Z_TYPE_P(value) == IS_TRUE);
+#else
+    REQUIRE(Z_TYPE_P(value) == IS_BOOL);
+    REQUIRE(Z_BVAL_P(value) == 1);
+#endif
+
+    REQUEST_END();
+    tea_sapi_mshutdown();
+    tea_sapi_sshutdown();
+})
