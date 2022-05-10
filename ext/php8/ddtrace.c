@@ -506,7 +506,6 @@ static void dd_initialize_request() {
     ddtrace_dogstatsd_client_rinit();
 
     ddtrace_seed_prng();
-    ddtrace_init_span_id_stack();
     ddtrace_init_span_stacks();
     ddtrace_coms_on_pid_change();
 
@@ -583,7 +582,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     if (!get_DD_TRACE_ENABLED()) {
         ddtrace_dispatch_destroy();
-        ddtrace_free_span_id_stack();
         return SUCCESS;
     }
 
@@ -602,7 +600,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     // The dispatches shall not be reset, just disabled at runtime.
     ddtrace_dispatch_destroy();
-    ddtrace_free_span_id_stack();
 
     return SUCCESS;
 }
@@ -1460,40 +1457,40 @@ static PHP_FUNCTION(dd_trace_set_trace_id) {
 
     zval *trace_id = NULL;
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "|z!", &trace_id) == SUCCESS) {
-        if (ddtrace_set_userland_trace_id(trace_id) == true) {
-            RETURN_BOOL(1);
+        if (trace_id && Z_TYPE_P(trace_id) == IS_STRING) {
+            uint64_t new_trace_id = ddtrace_parse_userland_span_id(trace_id);
+            if (new_trace_id || (Z_STRLEN_P(trace_id) == 1 && Z_STRVAL_P(trace_id)[0] == '0')) {
+                DDTRACE_G(trace_id) = new_trace_id;
+                RETURN_TRUE;
+            }
         }
     }
 
-    RETURN_BOOL(0);
+    RETURN_FALSE;
+}
+
+atomic_int ddtrace_warn_span_id_legacy_api = 1;
+static void ddtrace_warn_span_id_legacy(void) {
+    int expected = 1;
+    if (atomic_compare_exchange_strong(&ddtrace_warn_span_id_legacy_api, &expected, 0) &&
+        get_DD_TRACE_WARN_LEGACY_DD_TRACE()) {
+        ddtrace_log_err(
+            "dd_trace_push_span_id and dd_trace_pop_span_id DEPRECATION NOTICE: the functions `dd_trace_push_span_id` and `dd_trace_pop_span_id` are deprecated and have become a no-op since 0.74.0, and will eventually be removed. To create or pop spans use `DDTrace\\start_span` and `DDTrace\\close_span` respectively. To set a distributed parent trace context use `DDTrace\\set_distributed_tracing_context`. Set DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.");
+    }
 }
 
 /* {{{ proto string dd_trace_push_span_id() */
 static PHP_FUNCTION(dd_trace_push_span_id) {
     UNUSED(execute_data);
-
-    zval *existing_id = NULL;
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "|z!", &existing_id) == SUCCESS) {
-        if (ddtrace_push_userland_span_id(existing_id) == true) {
-            RETURN_STR(ddtrace_span_id_as_string(ddtrace_peek_span_id()));
-        }
-    }
-
-    RETURN_STR(ddtrace_span_id_as_string(ddtrace_push_span_id(0)));
+    ddtrace_warn_span_id_legacy();
+    RETURN_STRING("0");
 }
 
 /* {{{ proto string dd_trace_pop_span_id() */
 static PHP_FUNCTION(dd_trace_pop_span_id) {
     UNUSED(execute_data);
-    uint64_t id = ddtrace_pop_span_id();
-
-    if (DDTRACE_G(span_ids_top) == NULL && get_DD_TRACE_AUTO_FLUSH_ENABLED()) {
-        if (ddtrace_flush_tracer() == FAILURE) {
-            ddtrace_log_debug("Unable to auto flush the tracer");
-        }
-    }
-
-    RETURN_STR(ddtrace_span_id_as_string(id));
+    ddtrace_warn_span_id_legacy();
+    RETURN_STRING("0");
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */
@@ -1602,7 +1599,7 @@ static PHP_FUNCTION(flush) {
 /* {{{ proto string \DDTrace\trace_id() */
 static PHP_FUNCTION(trace_id) {
     UNUSED(execute_data);
-    RETURN_STR(ddtrace_span_id_as_string(DDTRACE_G(trace_id)));
+    RETURN_STR(ddtrace_span_id_as_string(ddtrace_peek_trace_id()));
 }
 
 /* {{{ proto array \DDTrace\current_context() */
@@ -1615,7 +1612,7 @@ static PHP_FUNCTION(current_context) {
     array_init(return_value);
 
     // Add Trace ID
-    length = snprintf(buf, sizeof(buf), "%" PRIu64, DDTRACE_G(trace_id));
+    length = snprintf(buf, sizeof(buf), "%" PRIu64, ddtrace_peek_trace_id());
     add_assoc_stringl_ex(return_value, "trace_id", sizeof("trace_id") - 1, buf, length);
 
     // Add Span ID
@@ -1674,24 +1671,25 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
         RETURN_FALSE;
     }
 
-    uint64_t old_trace_id = DDTRACE_G(trace_id);
+    uint64_t old_trace_id = DDTRACE_G(trace_id), new_trace_id;
     zval trace_zv;
     ZVAL_STR(&trace_zv, trace_id_str);
     if (ZSTR_LEN(trace_id_str) == 1 && ZSTR_VAL(trace_id_str)[0] == '0') {
         DDTRACE_G(trace_id) = 0;
-    } else if (!ddtrace_set_userland_trace_id(&trace_zv)) {
+    } else if ((new_trace_id = ddtrace_parse_userland_span_id(&trace_zv))) {
+        DDTRACE_G(trace_id) = new_trace_id;
+    } else {
         RETURN_FALSE;
     }
 
     zval parent_zv;
     ZVAL_STR(&parent_zv, parent_id_str);
-    uint64_t last_id = ddtrace_pop_span_id();
+    uint64_t new_parent_id;
     if (ZSTR_LEN(parent_id_str) == 1 && ZSTR_VAL(parent_id_str)[0] == '0') {
         DDTRACE_G(distributed_parent_trace_id) = 0;
-    } else if (ddtrace_push_userland_span_id(&parent_zv)) {
-        DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
+    } else if ((new_parent_id = ddtrace_parse_userland_span_id(&parent_zv))) {
+        DDTRACE_G(distributed_parent_trace_id) = new_parent_id;
     } else {
-        ddtrace_push_span_id(last_id);
         DDTRACE_G(trace_id) = old_trace_id;
         RETURN_FALSE;
     }
@@ -1892,27 +1890,19 @@ void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_
 
 void dd_read_distributed_tracing_ids(void) {
     zend_string *trace_id_str, *parent_id_str, *priority_str, *propagated_tags;
-    bool success = true;
 
+    DDTRACE_G(trace_id) = 0;
     if (zai_read_header_literal("X_DATADOG_TRACE_ID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
-        if (ZSTR_LEN(trace_id_str) != 1 || ZSTR_VAL(trace_id_str)[0] != '0') {
-            zval trace_zv;
-            ZVAL_STR(&trace_zv, trace_id_str);
-            success = ddtrace_set_userland_trace_id(&trace_zv);
-        }
+        zval trace_zv;
+        ZVAL_STR(&trace_zv, trace_id_str);
+        DDTRACE_G(trace_id) = ddtrace_parse_userland_span_id(&trace_zv);
     }
 
     DDTRACE_G(distributed_parent_trace_id) = 0;
-    if (success && zai_read_header_literal("X_DATADOG_PARENT_ID", &parent_id_str) == ZAI_HEADER_SUCCESS) {
+    if (DDTRACE_G(trace_id) && zai_read_header_literal("X_DATADOG_PARENT_ID", &parent_id_str) == ZAI_HEADER_SUCCESS) {
         zval parent_zv;
         ZVAL_STR(&parent_zv, parent_id_str);
-        if (ZSTR_LEN(parent_id_str) != 1 || ZSTR_VAL(parent_id_str)[0] != '0') {
-            if (ddtrace_push_userland_span_id(&parent_zv)) {
-                DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(span_ids_top)->id;
-            } else {
-                DDTRACE_G(trace_id) = 0;
-            }
-        }
+        DDTRACE_G(distributed_parent_trace_id) = ddtrace_parse_userland_span_id(&parent_zv);
     }
 
     DDTRACE_G(dd_origin) = NULL;

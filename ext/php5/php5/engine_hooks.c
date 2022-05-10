@@ -264,6 +264,7 @@ release_dispatch:
 
     // drop the placeholder span -- we do not need it
     ddtrace_drop_top_open_span(TSRMLS_C);
+    --DDTRACE_G(dropped_spans_count);
 }
 
 static void dd_exit_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
@@ -536,19 +537,15 @@ static void dd_execute_non_tracing_posthook(zend_execute_data *execute_data TSRM
     span_fci->dispatch = dispatch;
     span_fci->dd_execute_data = dd_execute_data;
 
-    ddtrace_push_span(span_fci TSRMLS_CC);
-    zend_objects_store_add_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
-
     ddtrace_span_t *span = &span_fci->span;
-    span->trace_id = DDTRACE_G(trace_id);
+    span->trace_id = ddtrace_peek_trace_id(TSRMLS_C);
     span->span_id = ddtrace_peek_span_id(TSRMLS_C);
 
-    /* ddtrace_push_span_id will make an ID if you push 0. We don't want this,
-     * so we avoid the push when span_id=0.
-     */
-    if (span->span_id) {
-        ddtrace_push_span_id(span->span_id TSRMLS_CC);
-    }
+    span_fci->next = DDTRACE_G(open_spans_top);
+    DDTRACE_G(open_spans_top) = span_fci;
+    ++DDTRACE_G(open_spans_count);
+
+    zend_objects_store_add_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
 
     /* If the retval doesn't get used then sometimes the engine won't set the
      * retval_ptr_ptr at all. We expect it to always be present, so adjust it.
@@ -683,19 +680,15 @@ static void dd_internal_non_tracing_posthook(ddtrace_span_fci *span_fci, zend_fc
     zend_execute_data *execute_data = span_fci->execute_data;
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
 
-    ddtrace_push_span(span_fci TSRMLS_CC);
-    zend_objects_store_add_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
-
     ddtrace_span_t *span = &span_fci->span;
-    span->trace_id = DDTRACE_G(trace_id);
+    span->trace_id = ddtrace_peek_trace_id(TSRMLS_C);
     span->span_id = ddtrace_peek_span_id(TSRMLS_C);
 
-    /* ddtrace_push_span_id will make an ID if you push 0. We don't want this,
-     * so we avoid the push when span_id=0.
-     */
-    if (span->span_id) {
-        ddtrace_push_span_id(span->span_id TSRMLS_CC);
-    }
+    span_fci->next = DDTRACE_G(open_spans_top);
+    DDTRACE_G(open_spans_top) = span_fci;
+    ++DDTRACE_G(open_spans_count);
+
+    zend_objects_store_add_ref_by_handle(span_fci->span.obj_value.handle TSRMLS_CC);
 
     span_fci->dd_execute_data.opline = EX(opline);
 

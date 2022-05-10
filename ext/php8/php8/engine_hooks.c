@@ -444,18 +444,13 @@ static ddtrace_span_fci *dd_create_duplicate_span(zend_execute_data *call, ddtra
     span_fci->execute_data = call;
     span_fci->dispatch = dispatch;
 
-    span_fci->next = DDTRACE_G(open_spans_top);
-    DDTRACE_G(open_spans_top) = span_fci;
-
     ddtrace_span_t *span = &span_fci->span;
-
-    span->trace_id = DDTRACE_G(trace_id);
+    span->trace_id = ddtrace_peek_trace_id();
     span->span_id = ddtrace_peek_span_id();
 
-    // if you push a span_id of 0 it makes a new span id, which we don't want
-    if (span->span_id) {
-        ddtrace_push_span_id(span->span_id);
-    }
+    span_fci->next = DDTRACE_G(open_spans_top);
+    DDTRACE_G(open_spans_top) = span_fci;
+    ++DDTRACE_G(open_spans_count);
 
     return span_fci;
 }
@@ -604,6 +599,7 @@ static void dd_fcall_end_non_tracing_posthook(ddtrace_span_fci *span_fci, zval *
 
     // drop the placeholder span -- we do not need it
     ddtrace_drop_top_open_span();
+    --DDTRACE_G(dropped_spans_count);
 }
 
 static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_retval) {
@@ -619,6 +615,7 @@ static void dd_fcall_end_non_tracing_prehook(ddtrace_span_fci *span_fci, zval *u
     UNUSED(span_fci, user_retval);
 
     ddtrace_drop_top_open_span();
+    --DDTRACE_G(dropped_spans_count);
 }
 
 static void (*dd_fcall_end[])(ddtrace_span_fci *span_fci, zval *user_retval) = {

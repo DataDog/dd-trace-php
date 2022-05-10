@@ -6,15 +6,16 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 --FILE--
 <?php
 foreach (range(0, 9) as $i) {
-    echo dd_trace_push_span_id() . "\n";
+    echo DDTrace\start_span()->id . "\n";
 }
 
 echo "\n";
 
 foreach (range(0, 9) as $i) {
-    echo dd_trace_pop_span_id() . "\n";
+    echo DDTrace\active_span()->id . "\n";
+    DDTrace\close_span();
 }
-echo dd_trace_pop_span_id() . "\n";
+var_dump(DDTrace\active_span());
 ?>
 --EXPECT--
 13930160852258120406
@@ -38,4 +39,4 @@ echo dd_trace_pop_span_id() . "\n";
 13874630024467741450
 11788048577503494824
 13930160852258120406
-0
+NULL

@@ -13,9 +13,9 @@ DDTrace\trace_function('array_sum', function ($span) {
 array_sum([1, 2, array_sum([2, 3])]);
 var_dump(dd_trace_closed_spans_count());
 
-dd_trace_push_span_id();
-dd_trace_pop_span_id();
-echo "Simulated open & close of userland span\n";
+DDTrace\start_span();
+DDTrace\close_span();
+echo "Open & close of userland span\n";
 var_dump(dd_trace_closed_spans_count());
 
 DDTrace\trace_function('foo', function ($span) {
@@ -36,7 +36,7 @@ var_dump(dd_trace_closed_spans_count());
 --EXPECT--
 int(0)
 int(2)
-Simulated open & close of userland span
+Open & close of userland span
 int(3)
 Span not closed yet
 int(3)

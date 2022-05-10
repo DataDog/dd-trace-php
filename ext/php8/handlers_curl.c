@@ -89,14 +89,12 @@ static void dd_inject_distributed_tracing_headers(zend_object *ch) {
         add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-tags: %s", ZSTR_VAL(propagated_tags)));
         zend_string_release(propagated_tags);
     }
-    if (DDTRACE_G(trace_id)) {
-        add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-trace-id: %" PRIu64, (DDTRACE_G(trace_id))));
-        if (DDTRACE_G(span_ids_top)) {
-            add_next_index_str(&headers,
-                               zend_strpprintf(0, "x-datadog-parent-id: %" PRIu64, (DDTRACE_G(span_ids_top)->id)));
+    uint64_t trace_id = ddtrace_peek_trace_id(), span_id = ddtrace_peek_span_id();
+    if (trace_id) {
+        add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-trace-id: %" PRIu64, trace_id));
+        if (span_id) {
+            add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-parent-id: %" PRIu64, span_id));
         }
-    } else if (DDTRACE_G(span_ids_top)) {
-        ddtrace_log_err("Found span_id without active trace id, skipping sending of x-datadog-parent-id");
     }
     if (DDTRACE_G(dd_origin)) {
         add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-origin: %s", ZSTR_VAL(DDTRACE_G(dd_origin))));
