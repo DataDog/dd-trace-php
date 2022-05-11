@@ -34,24 +34,10 @@ class YiiIntegration extends Integration
      */
     public function init()
     {
-        if (!self::shouldLoad(self::NAME)) {
+        if (!self::shouldLoad(self::NAME) || !Versions::versionMatches('2.0', \Yii::getVersion())) {
             return self::NOT_AVAILABLE;
         }
 
-        $integration = $this;
-
-        // This happens somewhat early in the setup, though there may be a better candidate
-        \DDTrace\hook_method('yii\di\Container', '__construct', null, function () use ($integration) {
-            if (Versions::versionMatches('2.0', \Yii::getVersion())) {
-                $integration->loadV2();
-            }
-        });
-
-        return self::LOADED;
-    }
-
-    public function loadV2()
-    {
         $rootSpan = \DDTrace\root_span();
         if (!$rootSpan) {
             return Integration::NOT_LOADED;
@@ -155,6 +141,8 @@ class YiiIntegration extends Integration
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
             }
         );
+
+        return self::LOADED;
     }
 
     /**
