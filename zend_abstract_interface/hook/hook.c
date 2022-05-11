@@ -512,9 +512,12 @@ void zai_hook_activate(void) {
 }
 
 void zai_hook_rshutdown(void) {
-    zend_hash_destroy(&zai_hook_resolved);
-    zend_hash_destroy(&zai_hook_request_functions);
-    zend_hash_destroy(&zai_hook_request_classes);
+    // freeing this after a bailout is a bad idea: at least resolved hooks will contain objects, which are invalid when destroyed here.
+    if (!CG(unclean_shutdown)) {
+        zend_hash_destroy(&zai_hook_resolved);
+        zend_hash_destroy(&zai_hook_request_functions);
+        zend_hash_destroy(&zai_hook_request_classes);
+    }
 }
 
 void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */

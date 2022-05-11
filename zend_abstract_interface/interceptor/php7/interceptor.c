@@ -971,7 +971,7 @@ static int zai_interceptor_generator_resumption_handler(zend_execute_data *execu
 static void (*prev_exception_hook)(zval *);
 static void zai_interceptor_exception_hook(zval *ex) {
     zai_interceptor_generator_frame_memory *generator_memory;
-    if (zai_hook_memory_table_find(EG(current_execute_data), (zai_interceptor_frame_memory **) &generator_memory)) {
+    if (zai_hook_memory_table_find(EG(current_execute_data), (zai_interceptor_frame_memory **) &generator_memory) && ZEND_USER_CODE(EG(current_execute_data)->func->type)) {
         // check against resumption_ops[0]: when throwing the engine rolls back to the original yielding opcode (for correct stacktraces)
         if (EG(current_execute_data)->opline == &generator_memory->resumption_ops[0]) {
             // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
