@@ -150,13 +150,11 @@ static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
     hook->dynamic_offset = hooks->dynamic;
     hooks->dynamic += hook->dynamic;
 
-    if (hooks->resolved) {
 #if PHP_VERSION_ID >= 80000
-        if (hooks->resolved->type == ZEND_USER_FUNCTION) {
-            zai_hook_on_update(&hooks->resolved->op_array, false);
-        }
-#endif
+    if (hooks->resolved && hooks->resolved->type == ZEND_USER_FUNCTION) {
+        zai_hook_on_update(&hooks->resolved->op_array, false);
     }
+#endif
 
     return index;
 }
@@ -654,7 +652,7 @@ void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
         zai_hooks_try_remove_entry(hooks, index);
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
             zend_hash_str_del(base_ht, function.ptr, function.len);
-            if (zend_hash_num_elements(base_ht) == 0 && hooks->resolved->common.scope) {
+            if (zend_hash_num_elements(base_ht) == 0 && scope.len) {
                 zend_hash_str_del(&zai_hook_request_classes, scope.ptr, scope.len);
             }
         }

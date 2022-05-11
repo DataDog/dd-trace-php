@@ -43,6 +43,7 @@ struct ddtrace_integration {
     bool (*is_enabled)(void);
     bool (*is_analytics_enabled)(void);
     double (*get_sample_rate)(void);
+    void *aux[5];
 };
 typedef struct ddtrace_integration ddtrace_integration;
 

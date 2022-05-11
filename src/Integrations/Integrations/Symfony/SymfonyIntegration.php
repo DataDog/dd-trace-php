@@ -41,58 +41,44 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
-        $integration = $this;
+        $rootSpan = \DDTrace\root_span();
+        if (null == $rootSpan) {
+            return Integration::NOT_LOADED;
+        }
 
-        \DDTrace\hook_method(
+        \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
-            '__construct',
-            function () {
-                \DDTrace\trace_method(
-                    'Symfony\Component\HttpKernel\Kernel',
-                    'handle',
-                    function (SpanData $span) {
-                        $span->name = 'symfony.httpkernel.kernel.handle';
-                        $span->resource = \get_class($this);
-                        $span->type = Type::WEB_SERVLET;
-                        $span->service = \ddtrace_config_app_name('symfony');
-                    }
-                );
-
-                \DDTrace\trace_method(
-                    'Symfony\Component\HttpKernel\Kernel',
-                    'boot',
-                    function (SpanData $span) {
-                        $span->name = 'symfony.httpkernel.kernel.boot';
-                        $span->resource = \get_class($this);
-                        $span->type = Type::WEB_SERVLET;
-                        $span->service = \ddtrace_config_app_name('symfony');
-                    }
-                );
+            'handle',
+            function (SpanData $span) {
+                $span->name = 'symfony.httpkernel.kernel.handle';
+                $span->resource = \get_class($this);
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('symfony');
             }
         );
 
-        \DDTrace\hook_method(
-            'Symfony\Component\HttpKernel\HttpKernel',
-            '__construct',
-            function () use ($integration) {
-                $rootSpan = \DDTrace\root_span();
-                if (null == $rootSpan) {
-                    return;
-                }
-                /** @var SpanData $symfonyRequestSpan */
-                $integration->symfonyRequestSpan = $rootSpan;
-
-                if (
-                    defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
-                    && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
-                ) {
-                    $integration->loadSymfony2($integration);
-                    return;
-                }
-
-                $integration->loadSymfony($integration);
+        \DDTrace\trace_method(
+            'Symfony\Component\HttpKernel\Kernel',
+            'boot',
+            function (SpanData $span) {
+                $span->name = 'symfony.httpkernel.kernel.boot';
+                $span->resource = \get_class($this);
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('symfony');
             }
         );
+
+        /** @var SpanData $symfonyRequestSpan */
+        $this->symfonyRequestSpan = $rootSpan;
+
+        if (
+            defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
+            && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
+        ) {
+            $this->loadSymfony2($this);
+        } else {
+            $this->loadSymfony($this);
+        }
 
         return Integration::LOADED;
     }
@@ -267,11 +253,9 @@ class SymfonyIntegration extends Integration
         };
         \DDTrace\trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $traceRender);
-        \DDTrace\trace_method('Symfony\Bundle\TwigBundle\TwigEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $traceRender);
         \DDTrace\trace_method('Twig\Environment', 'render', $traceRender);
-        \DDTrace\trace_method('Twig_Environment', 'render', $traceRender);
     }
 
     public function loadSymfony2($integration)
