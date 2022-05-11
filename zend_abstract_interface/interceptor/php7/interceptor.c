@@ -99,7 +99,9 @@ void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
     }
     // technically not necessary, but we do it as to not hinder the default optimization of skipping the first RECV ops
     uint32_t ext_nop_index = 0;
-    while (op_array->last > ext_nop_index && (opcodes[ext_nop_index].opcode != ZEND_EXT_NOP || opcodes[ext_nop_index].extended_value != ZAI_INTERCEPTOR_CUSTOM_EXT));
+    while (op_array->last > ext_nop_index && (opcodes[ext_nop_index].opcode != ZEND_EXT_NOP || opcodes[ext_nop_index].extended_value != ZAI_INTERCEPTOR_CUSTOM_EXT)) {
+        ++ext_nop_index;
+    }
     if (op_array->last > ext_nop_index && opcodes[ext_nop_index].opcode == ZEND_EXT_NOP && opcodes[ext_nop_index].extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
         uint32_t i = ext_nop_index + 1;
         while (zai_is_func_recv_opcode(opcodes[i].opcode)) {

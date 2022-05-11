@@ -85,7 +85,7 @@ static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     ZVAL_OBJ(&closure_zv, closure);
     ZVAL_OBJ(&hook_data_zv, hook_data);
 
-    bool has_this = Z_TYPE(EX(This)) == IS_OBJECT;
+    bool has_this = getThis() != NULL;
     zval rv = {0}, *rvp = &rv;
     zval *hook_data_zvp = &hook_data_zv;
     zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 1, &hook_data_zvp);

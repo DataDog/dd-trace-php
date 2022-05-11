@@ -153,7 +153,7 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
-    if ((!def->run_if_limited && ddtrace_tracer_is_limited()) || def->active) {
+    if ((!def->run_if_limited && ddtrace_tracer_is_limited()) || def->active || !get_DD_TRACE_ENABLED()) {
         dyn->skipped = true;
         return true;
     }

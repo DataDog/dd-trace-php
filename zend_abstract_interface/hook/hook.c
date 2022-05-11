@@ -143,7 +143,7 @@ static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
         // ensure that the "authoritative", i.e. the active current static hook is always at the correct index
         zval *hook_zv = zend_hash_index_find(&hooks->hooks, index);
         zai_hooks_entry *old_entry = Z_PTR_P(hook_zv);
-        Z_PTR_P(hook_zv) = hooks;
+        Z_PTR_P(hook_zv) = hook;
         zend_hash_next_index_insert_ptr(&hooks->hooks, old_entry);
     }
 
@@ -664,7 +664,7 @@ void zai_hook_clean(void) {
     ZEND_HASH_REVERSE_FOREACH_PTR(&zai_hook_resolved, hooks) {
         zend_long index;
         ZEND_HASH_FOREACH_NUM_KEY(&hooks->hooks, index) {
-            bool last = zend_hash_num_elements(&hooks->hooks);
+            bool last = zend_hash_num_elements(&hooks->hooks) == 1;
             zai_hooks_try_remove_entry(hooks, index);
             if (last) {
                 break;

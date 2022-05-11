@@ -551,7 +551,6 @@ static void dd_initialize_request() {
 
     ddtrace_internal_handlers_rinit();
     ddtrace_bgs_log_rinit(PG(error_log));
-    zai_hook_activate();
 
     ddtrace_dogstatsd_client_rinit();
 
@@ -593,6 +592,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         ddtrace_disable_tracing_in_current_request();
     }
 
+    if (!DDTRACE_G(disable)) {
+        zai_hook_activate();
+    }
+
     DDTRACE_G(request_init_hook_loaded) = 0;
 
     // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
@@ -624,7 +627,6 @@ static void dd_clean_globals() {
 
     ddtrace_free_span_stacks();
     ddtrace_coms_rshutdown();
-    zai_hook_clean();
 
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rshutdown();
@@ -637,6 +639,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     zai_interceptor_rshutdown();
 
     if (!get_DD_TRACE_ENABLED()) {
+        if (!DDTRACE_G(disable)) {
+            zai_hook_clean();
+        }
+
         return SUCCESS;
     }
 
@@ -647,6 +653,9 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     // we here need to disable the tracer, so that further hooks do not trigger
     ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
+
+    // The hooks shall not be reset, just disabled at runtime.
+    zai_hook_clean();
 
     return SUCCESS;
 }
