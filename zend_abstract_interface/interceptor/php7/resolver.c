@@ -232,7 +232,8 @@ void zai_interceptor_check_for_opline_before_exception(void) {
 
 static void (*prev_exception_hook)(zval *);
 static void zai_interceptor_exception_hook(zval *ex) {
-    if (ZEND_USER_CODE(EG(current_execute_data)->func->type) && EG(current_execute_data)->opline == zai_interceptor_post_declare_ops) {
+    zend_function *func = EG(current_execute_data)->func;
+    if (func && ZEND_USER_CODE(func->type) && EG(current_execute_data)->opline == zai_interceptor_post_declare_ops) {
         // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
         EG(current_execute_data)->opline = zai_interceptor_opline_before_binding.op;
         zai_interceptor_pop_opline_before_binding();
