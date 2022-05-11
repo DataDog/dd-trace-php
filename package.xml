@@ -48,7 +48,39 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ## Tracer
+    ### Added
+    - Add configurations for retaining select query string parameters in resources and http.url #1566
+
+    ### Changed
+    - Respect autofinish on flush(), add warnings in debug mode when having unbalanced spans #1564, #1569
+    - Loose restrictions around distributed tracing context setting #1571
+
+    ### Fixed
+    - Fix dispatch resetting #1570
+    - Fix run_time_cache initialization for closure calls with foreign scope on PHP 7.4-8.1 #1578
+    - Eliminate the separate span id stack, fix distributed tracing trace_id #1586
+    - Fix handling of INI and ENV changes post minit, pre runtime #1593
+    - Fix inconsistent module load and unload sequence #1585
+    - Fix installer setting check for extensions #1584
+
+    ### Internal changes
+    - Pin composer on PHP 7 docker containers to version 2.2 #1565
+    - Disable flaky test on PHP 5.4 #1583
+    - Remove Symfony 4.2 from PHP 7.4 web tests #1587
+    - Add the scenario name to the randomized test docker name #1590
+    - Fix ownership of files within release artifact tars #1591
+
+    ## Profiling (v0.6.1)
+    ### Fixed
+    - Bump profiling to v0.6.1 #1588. This re-initializes static variables on startup/minit which may help prevent Apache reload from crashing.
+    - Enable profiling installation on PHP 8.1 #1576
+
+    ## Application Security Monitoring (v0.3.2)
+    ### Fixed
+    - Fix hybrid extension initialisation [#92](https://github.com/DataDog/dd-appsec-php/pull/92)
+    </notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
