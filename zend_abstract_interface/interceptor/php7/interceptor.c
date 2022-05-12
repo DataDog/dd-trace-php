@@ -13,11 +13,14 @@ static ZEND_FUNCTION(pass)
     (void)execute_data, (void)return_value;
 }
 
+// HACK: define a name for XDebug compatibility...
+static const struct __attribute__((__packed__)) { zend_string str; char value[]; } zend_pass_function_name = { .str.gc.refcount = 2, .str.gc.u.v.type = IS_STRING, .str.gc.u.v.flags = IS_STR_INTERNED, .str.len = 11, .str.h = 0xc0ff0fab5cdbc6c4, .str.val = { '{' }, .value = {'z', 'e', 'n', 'd', '_', 'p', 'a', 's', 's', '}'} };
+
 static const zend_internal_function zend_pass_function = {
         ZEND_INTERNAL_FUNCTION, /* type              */
         {0, 0, 0},              /* arg_flags         */
         0,                      /* fn_flags          */
-        NULL,                   /* name              */
+        (zend_string *)&zend_pass_function_name,     /* name              */
         NULL,                   /* scope             */
         NULL,                   /* prototype         */
         0,                      /* num_args          */
