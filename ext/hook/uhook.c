@@ -16,22 +16,32 @@
 
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
-static inline zval *ddtrace_hookdata_property_args(zend_object *hookdata) {
+static inline zval *ddtrace_hookdata_property_id(zend_object *hookdata) {
     return OBJ_PROP_NUM(hookdata, 0);
 }
-static inline zval *ddtrace_hookdata_property_returned(zend_object *hookdata) {
+static inline zval *ddtrace_hookdata_property_args(zend_object *hookdata) {
     return OBJ_PROP_NUM(hookdata, 1);
 }
-static inline zval *ddtrace_hookdata_property_exception(zend_object *hookdata) {
+static inline zval *ddtrace_hookdata_property_returned(zend_object *hookdata) {
     return OBJ_PROP_NUM(hookdata, 2);
+}
+static inline zval *ddtrace_hookdata_property_exception(zend_object *hookdata) {
+    return OBJ_PROP_NUM(hookdata, 3);
 }
 
 zend_class_entry *ddtrace_hook_data_ce;
+
+static __thread HashTable dd_active_hooks;
 
 typedef struct {
     zend_object *begin;
     zend_object *end;
     bool running;
+    zend_long id;
+
+    zend_function *resolved;
+    zend_string *scope;
+    zend_string *function;
 } dd_uhook_def;
 
 typedef struct {
@@ -99,6 +109,7 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
     dyn->hook_data = zend_objects_new(ddtrace_hook_data_ce);
     object_properties_init(dyn->hook_data, ddtrace_hook_data_ce);
 
+    ZVAL_LONG(ddtrace_hookdata_property_id(dyn->hook_data), def->id);
     ZVAL_ARR(ddtrace_hookdata_property_args(dyn->hook_data), dd_uhook_collect_args(execute_data));
 
     if (def->begin && !def->running) {
@@ -158,6 +169,13 @@ static void dd_uhook_dtor(void *data) {
     if (def->end) {
         OBJ_RELEASE(def->end);
     }
+    if (def->function) {
+        zend_string_release(def->function);
+        if (def->scope) {
+            zend_string_release(def->scope);
+        }
+    }
+    zend_hash_index_del(&dd_active_hooks, def->id);
     efree(def);
 }
 
@@ -228,29 +246,70 @@ PHP_FUNCTION(install_hook) {
     }
 
     if (resolved) {
-        RETURN_LONG(zai_hook_install_resolved(
+        def->resolved = resolved;
+        def->function = NULL;
+
+        def->id = zai_hook_install_resolved(
             dd_uhook_begin,
             dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor),
-            sizeof(dd_uhook_dynamic), resolved));
+            sizeof(dd_uhook_dynamic), resolved);
+    } else {
+        const char *colon = strchr(ZSTR_VAL(name), ':');
+        zai_string_view scope = ZAI_STRING_EMPTY, function = {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
+        if (colon) {
+            function.len = ZSTR_VAL(name) - colon;
+            do ++colon; while (*colon == ':');
+            def->scope = zend_string_init(colon, ZSTR_VAL(name) + ZSTR_LEN(name) - colon, 0);
+            scope = (zai_string_view) {.ptr = ZSTR_VAL(def->scope), .len = ZSTR_LEN(def->scope)};
+        } else {
+            def->scope = NULL;
+        }
+        def->function = zend_string_init(function.ptr, function.len, 0);
+
+        def->id = zai_hook_install(
+                scope, function,
+                dd_uhook_begin,
+                dd_uhook_end,
+                ZAI_HOOK_AUX(def, dd_uhook_dtor),
+                sizeof(dd_uhook_dynamic));
     }
 
-    const char *colon = strchr(ZSTR_VAL(name), ':');
-    zai_string_view scope = ZAI_STRING_EMPTY, function = (zai_string_view){ .ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name) };
-    if (colon) {
-        function.len = ZSTR_VAL(name) - colon;
-        do ++colon; while (*colon == ':');
-        scope = (zai_string_view){ .ptr = colon, .len = ZSTR_VAL(name) + ZSTR_LEN(name) - colon };
-    }
-
-    RETURN_LONG(zai_hook_install(
-        scope, function,
-        dd_uhook_begin,
-        dd_uhook_end,
-        ZAI_HOOK_AUX(def, dd_uhook_dtor),
-        sizeof(dd_uhook_dynamic)));
+    zend_hash_index_add_ptr(&dd_active_hooks, (zend_ulong)def->id, def);
+    RETURN_LONG(def->id);
 } /* }}} */
 // clang-foramt on
+
+/* {{{ proto void DDTrace\remove_hook(int $id) */
+PHP_FUNCTION(remove_hook) {
+    (void)return_value;
+
+    zend_long id;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(id)
+    ZEND_PARSE_PARAMETERS_END();
+
+    dd_uhook_def *def;
+    if ((def = zend_hash_index_find_ptr(&dd_active_hooks, (zend_ulong)id))) {
+        if (def->function) {
+            zai_string_view scope = ZAI_STRING_EMPTY, function = { .ptr = ZSTR_VAL(def->function), .len = ZSTR_LEN(def->function) };
+            if (def->scope) {
+                scope = (zai_string_view){ .ptr = ZSTR_VAL(def->scope), .len = ZSTR_LEN(def->scope) };
+            }
+            zai_hook_remove(scope, function, id);
+        } else {
+            zai_hook_remove_resolved(def->resolved, id);
+        }
+    }
+}
+
+void zai_uhook_rinit() {
+    zend_hash_init(&dd_active_hooks, 8, NULL, NULL, 0);
+}
+
+void zai_uhook_rshutdown() {
+    zend_hash_destroy(&dd_active_hooks);
+}
 
 void zai_uhook_minit() {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();

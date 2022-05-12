@@ -3,6 +3,8 @@
 
 HashTable *dd_uhook_collect_args(zend_execute_data *execute_data);
 
+void zai_uhook_rinit();
+void zai_uhook_rshutdown();
 void zai_uhook_minit();
 void zai_uhook_mshutdown();
 

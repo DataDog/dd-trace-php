@@ -156,7 +156,7 @@ static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
     }
 #endif
 
-    return index;
+    return (zend_long)index;
 }
 
 static zai_hooks_entry *zai_hook_alloc_hooks_entry(zend_function *resolved) {

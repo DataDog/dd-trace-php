@@ -90,6 +90,10 @@ typedef void zend_type;
 #define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
 #define ZEND_TYPE_INIT_MASK(type) NULL
 #define ZEND_TYPE_INIT_CLASS(class_name, allow_null, extra_flags) NULL; zend_string_release(class_name)
+
+#if PHP_VERSION_ID < 70100
+#define IS_VOID 0
+#endif
 #endif
 
 #define ZVAL_OBJ_COPY(z, o) do { zend_object *__o = (o); GC_ADDREF(__o); ZVAL_OBJ(z, __o); } while (0)

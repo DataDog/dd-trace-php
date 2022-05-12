@@ -575,6 +575,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     zai_hook_rinit();
     zai_interceptor_rinit();
+    zai_uhook_rinit();
 
     if (ddtrace_has_excluded_module == true) {
         DDTRACE_G(disable) = 2;
@@ -663,6 +664,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 int ddtrace_post_deactivate(void) {
     // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run
     zai_hook_rshutdown();
+    zai_uhook_rshutdown();
 
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
