@@ -69,6 +69,7 @@ void zai_hook_remove_resolved(zend_function *function, zend_long index); /* }}} 
         continue and finish and managed by the hook interface */
 typedef struct {
     zend_ulong invocation;
+    zend_ulong hook_count;
     void *dynamic;
 } zai_hook_memory_t; /* }}} */
 
@@ -150,9 +151,15 @@ static inline bool zai_hook_installed_user(zend_op_array *op_array) {
     if (zv) {
         return Z_PTR_P(zv) != NULL;
     } else {
-        zend_string *lcname = zend_string_tolower(op_array->function_name);
-        zai_hook_resolve_function((zend_function *)op_array, lcname);
-        zend_string_release(lcname);
+        if (op_array->scope) {
+            zend_string *lcname = zend_string_tolower(op_array->function_name);
+            zai_hook_resolve_function((zend_function *) op_array, lcname);
+            zend_string_release(lcname);
+        } else {
+            zend_string *lcname = zend_string_tolower(op_array->scope->name);
+            zai_hook_resolve_class(op_array->scope, lcname);
+            zend_string_release(lcname);
+        }
         return zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address_user(op_array)) != NULL;
     }
 #else

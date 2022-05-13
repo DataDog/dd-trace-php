@@ -194,7 +194,7 @@ HOOK_TEST_CASE("multiple stop", {
         &result, 0));
 
     CHECK(zai_hook_test_begin_check == 1);
-    CHECK(zai_hook_test_end_check == 2);
+    CHECK(zai_hook_test_end_check == 1);
 
     CHECK(zai_hook_test_begin_dynamic == zai_hook_test_end_dynamic);
 
