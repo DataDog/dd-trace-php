@@ -49,7 +49,7 @@ testMatrix.each { spec ->
 
         it.systemProperty 'PHP_VERSION', phpVersion
         it.systemProperty 'VARIANT', variant
-        it.systemProperty 'TRACER_VERSION', '0.67.0'
+        it.systemProperty 'TRACER_VERSION', '0.74.0'
     }
 
     tasks['check'].dependsOn task
