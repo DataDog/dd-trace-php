@@ -21,6 +21,8 @@ function dt_dump_headers_from_httpbin(array $headers, array $whitelist)
         if (!in_array($key, $whitelist, true)) {
             continue;
         }
-        echo $key . ': ' . $value . PHP_EOL;
+        // go-httpbin returns values in arrays to include this use case:
+        // https://github.com/golang/go/blob/cf7ec0fa098a46c3b75cc3d625f5d7528fe6e984/src/net/http/request.go#L138-L152
+        echo $key . ': ' . implode("|", $value) . PHP_EOL;
     }
 }

@@ -262,9 +262,13 @@ services:
     image: "memcached:1.5-alpine"
 
   httpbin_integration:
-    image: kennethreitz/httpbin
+    image: mccutchen/go-httpbin
     ports:
       - "8765:80"
+    command:
+      - /bin/go-httpbin
+      - -port
+      - "80"
 
   ddagent_integration:
     image: datadog/agent:latest
