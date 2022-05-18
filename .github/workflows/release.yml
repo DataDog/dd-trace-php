@@ -49,6 +49,7 @@ jobs:
           fi
       - name: Build PHPs
         run: |
+          sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libxml2-dev libonig-dev libzip-dev
           for v in 8.1.0 8.0.11 7.4.24 7.3.31 7.2.34 7.1.33 7.0.33; do
             if [[ ! -d $PHP_HOMEDIR/${v}-release-minimal ]]; then
