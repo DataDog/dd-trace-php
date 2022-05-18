@@ -31,22 +31,6 @@ typedef struct {
     bool was_primed;
 } dd_uhook_dynamic;
 
-void dd_set_fqn(zval *zv, zend_execute_data *execute_data) {
-    if (!EX(func) || !EX(func)->common.function_name) {
-        return;
-    }
-
-    zval_ptr_dtor(zv);
-
-    zend_class_entry *called_scope = EX(func)->common.scope ? zend_get_called_scope(execute_data) : NULL;
-    if (called_scope) {
-        // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
-        ZVAL_STR(zv, strpprintf(0, "%s.%s", ZSTR_VAL(called_scope->name), ZSTR_VAL(EX(func)->common.function_name)));
-    } else {
-        ZVAL_STR_COPY(zv, EX(func)->common.function_name);
-    }
-}
-
 static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *dyn, zend_execute_data *execute_data, zval *retval) {
     zval rv = {0}, *rvp = &rv;
     zval closure_zv, args_zv, exception_zv;
@@ -108,8 +92,6 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
         char *deffile;
         int defline = 0;
 #if PHP_VERSION_ID < 80000
-        zval closure_zv;
-        ZVAL_OBJ(&closure_zv, closure);
         const zend_function *func = zend_get_closure_method_def(&closure_zv);
 #else
         const zend_function *func = zend_get_closure_method_def(closure);
@@ -149,7 +131,7 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
     return Z_TYPE(rv) != IS_FALSE;
 }
 
-static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
@@ -165,22 +147,13 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
     dyn->args = dd_uhook_collect_args(execute_data);
 
     if (def->tracing) {
-        ddtrace_span_fci *span_fci = ddtrace_init_span(DDTRACE_INTERNAL_SPAN);
-        ddtrace_open_span(span_fci);
-
-        // SpanData::$name defaults to fully qualified called name
-        zval *prop_name = ddtrace_spandata_property_name(&span_fci->span);
-        dd_set_fqn(prop_name, execute_data);
-
-        dyn->span = span_fci;
-        GC_ADDREF(&span_fci->span.std);
+        dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
     }
 
     if (def->begin) {
         dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, &EG(uninitialized_zval));
         if (def->tracing && dyn->dropped_span) {
-            ddtrace_drop_top_open_span();
-            OBJ_RELEASE(&dyn->span->span.std);
+            ddtrace_clear_execute_data_span(invocation, false);
         }
     }
 
@@ -188,7 +161,7 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
 }
 
 // create an own span for every generator resumption
-static void dd_uhook_generator_resumption(zend_execute_data *execute_data, zval *value, void *auxiliary, void *dynamic) {
+static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_data *execute_data, zval *value, void *auxiliary, void *dynamic) {
     (void)value;
 
     dd_uhook_def *def = auxiliary;
@@ -205,28 +178,19 @@ static void dd_uhook_generator_resumption(zend_execute_data *execute_data, zval 
     }
 
     if (def->tracing) {
-        ddtrace_span_fci *span_fci = ddtrace_init_span(DDTRACE_INTERNAL_SPAN);
-        ddtrace_open_span(span_fci);
-
-        // SpanData::$name defaults to fully qualified called name
-        zval *prop_name = ddtrace_spandata_property_name(&span_fci->span);
-        dd_set_fqn(prop_name, execute_data);
-
-        dyn->span = span_fci;
-        GC_ADDREF(&span_fci->span.std);
+        dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
         dyn->dropped_span = false;
     }
 
     if (def->begin) {
         dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, value);
         if (def->tracing && dyn->dropped_span) {
-            ddtrace_drop_top_open_span();
-            OBJ_RELEASE(&dyn->span->span.std);
+            ddtrace_clear_execute_data_span(invocation, false);
         }
     }
 }
 
-static void dd_uhook_generator_yield(zend_execute_data *execute_data, zval *key, zval *value, void *auxiliary, void *dynamic) {
+static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *execute_data, zval *key, zval *value, void *auxiliary, void *dynamic) {
     (void)key;
 
     dd_uhook_def *def = auxiliary;
@@ -239,7 +203,7 @@ static void dd_uhook_generator_yield(zend_execute_data *execute_data, zval *key,
     if (def->tracing && !dyn->dropped_span) {
         if (dyn->span->span.duration == -1ull) {
             dyn->dropped_span = true;
-            OBJ_RELEASE(&dyn->span->span.std);
+            ddtrace_clear_execute_data_span(invocation, false);
 
             if (get_DD_TRACE_ENABLED()) {
                 ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
@@ -257,18 +221,13 @@ static void dd_uhook_generator_yield(zend_execute_data *execute_data, zval *key,
     if (def->end && (!def->tracing || !dyn->dropped_span)) {
         bool keep_span = dd_uhook_call(def->end, def->tracing, dyn, execute_data, value);
         if (def->tracing && !dyn->dropped_span) {
-            if (keep_span) {
-                ddtrace_close_span(dyn->span);
-            } else {
-                ddtrace_drop_top_open_span();
-            }
-            OBJ_RELEASE(&dyn->span->span.std);
+            ddtrace_clear_execute_data_span(invocation, keep_span);
         }
         dyn->dropped_span = true;
     }
 }
 
-static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
     bool keep_span = true;
@@ -280,7 +239,7 @@ static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *au
     if (def->tracing && !dyn->dropped_span) {
         if (dyn->span->span.duration == -1ull) {
             dyn->dropped_span = true;
-            OBJ_RELEASE(&dyn->span->span.std);
+            ddtrace_clear_execute_data_span(invocation, false);
 
             if (get_DD_TRACE_ENABLED()) {
                 ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
@@ -315,12 +274,7 @@ static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *au
     }
 
     if (def->tracing && !dyn->dropped_span) {
-        if (keep_span) {
-            ddtrace_close_span(dyn->span);
-        } else {
-            ddtrace_drop_top_open_span();
-        }
-        OBJ_RELEASE(&dyn->span->span.std);
+        ddtrace_clear_execute_data_span(invocation, keep_span);
     }
 
     def->active = false;
@@ -448,22 +402,6 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
 
     zai_string_view class_str = method ? ZAI_STRING_FROM_ZSTR(class_name) : ZAI_STRING_EMPTY;
     zai_string_view func_str = ZAI_STRING_FROM_ZSTR(method_name);
-
-    if (tracing) {
-        zai_hook_iterator it;
-        for (it = zai_hook_iterate_installed(class_str, func_str); it.active; zai_hook_iterator_advance(&it)) {
-            if (*it.begin == dd_uhook_begin) {
-                dd_uhook_def *cur = it.aux->data;
-                if (cur->tracing) {
-                    dd_uhook_dtor(cur);
-                    it.aux->data = def;
-                    zai_hook_iterator_free(&it);
-                    RETURN_TRUE;
-                }
-            }
-        }
-        zai_hook_iterator_free(&it);
-    }
 
     RETURN_BOOL(zai_hook_install_generator(
             class_str,

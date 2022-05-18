@@ -104,7 +104,7 @@ static void reset_interceptor_test_globals() {
 #endif
 }
 
-static bool zai_hook_test_begin(zend_execute_data *ex, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static bool zai_hook_test_begin(zend_ulong invocation, zend_execute_data *ex, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     if (dynamic) {
         *(int32_t *)dynamic = 0;
     }
@@ -112,7 +112,7 @@ static bool zai_hook_test_begin(zend_execute_data *ex, void *fixed, void *dynami
     return zai_hook_test_begin_return;
 }
 
-static void zai_hook_test_end(zend_execute_data *ex, zval *rv, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     ++zai_hook_test_end_invocations;
     ZVAL_COPY_VALUE(&zai_hook_test_last_rv, rv);
     if (EG(exception)) {
@@ -120,11 +120,11 @@ static void zai_hook_test_end(zend_execute_data *ex, zval *rv, void *fixed, void
     }
 }
 
-static void zai_hook_test_resume(zend_execute_data *ex, zval *sent, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_resume(zend_ulong invocation, zend_execute_data *ex, zval *sent, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     ++zai_hook_test_resumption_invocations;
 }
 
-static void zai_hook_test_yield_ascending(zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     REQUIRE(Z_TYPE_P(key) == IS_LONG);
     REQUIRE(Z_TYPE_P(value) == IS_LONG);
     REQUIRE(Z_LVAL_P(value) == zai_hook_test_yield_invocations);
@@ -283,7 +283,7 @@ INTERCEPTOR_TEST_CASE("generator function intercepting from userland call", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
-static void zai_hook_test_yieldingGenerator_yield(zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_yieldingGenerator_yield(zend_ulong invocation, zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     REQUIRE(Z_TYPE_P(key) == IS_LONG);
     switch (++zai_hook_test_yield_invocations) {
         case 1:
@@ -314,13 +314,13 @@ INTERCEPTOR_TEST_CASE("generator yield intercepting from userland call", {
 });
 
 
-static void zai_hook_test_receivingGenerator_yield(zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_receivingGenerator_yield(zend_ulong invocation, zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     REQUIRE(Z_TYPE_P(key) == IS_LONG);
     REQUIRE(Z_TYPE_P(value) == IS_NULL);
     ++zai_hook_test_yield_invocations;
 }
 
-static void zai_hook_test_receivingGenerator_resume(zend_execute_data *ex, zval *sent, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_receivingGenerator_resume(zend_ulong invocation, zend_execute_data *ex, zval *sent, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     switch (++zai_hook_test_resumption_invocations) {
         case 1:
             // Initial start, always NULL
@@ -419,7 +419,7 @@ INTERCEPTOR_TEST_CASE("generator yield intercepting of yielded from generator", 
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
-static void zai_hook_test_yield_multi_gen(zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_yield_multi_gen(zend_ulong invocation, zend_execute_data *ex, zval *key, zval *value, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     int32_t *zai_hook_test_multi_yield_invocations = (int32_t*)fixed;
     int32_t *zai_hook_test_local_yield_invocations = (int32_t*)dynamic;
     REQUIRE(Z_TYPE_P(key) == IS_LONG);

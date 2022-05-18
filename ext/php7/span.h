@@ -46,6 +46,9 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci);
 ddtrace_span_fci *ddtrace_init_span(enum ddtrace_span_type type);
 void ddtrace_push_root_span(void);
 
+ddtrace_span_fci *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_execute_data *execute_data);
+void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
+
 // Note that this function is used externally by the appsec extension.
 DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value);
 

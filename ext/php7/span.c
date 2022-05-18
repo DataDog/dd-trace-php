@@ -94,6 +94,57 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     ddtrace_set_global_span_properties(&span_fci->span);
 }
 
+ddtrace_span_fci *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execute_data *execute_data) {
+    zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
+    ddtrace_span_fci *span_fci;
+    if (span_zv) {
+        span_fci = Z_PTR_P(span_zv);
+        ++Z_TYPE_INFO_P(span_zv);
+    } else {
+        span_fci = ddtrace_init_span(DDTRACE_INTERNAL_SPAN);
+        ddtrace_open_span(span_fci);
+
+        GC_ADDREF(&span_fci->span.std);
+
+        // SpanData::$name defaults to fully qualified called name
+        zval *prop_name = ddtrace_spandata_property_name(&span_fci->span);
+
+        if (EX(func) && EX(func)->common.function_name) {
+            zval_ptr_dtor(prop_name);
+
+            zend_class_entry *called_scope = EX(func)->common.scope ? zend_get_called_scope(execute_data) : NULL;
+            if (called_scope) {
+                // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
+                ZVAL_STR(prop_name, strpprintf(0, "%s.%s", ZSTR_VAL(called_scope->name), ZSTR_VAL(EX(func)->common.function_name)));
+            } else {
+                ZVAL_STR_COPY(prop_name, EX(func)->common.function_name);
+            }
+        }
+
+        zval zv;
+        Z_PTR(zv) = span_fci;
+        Z_TYPE_INFO(zv) = 1;
+        zend_hash_index_add_new(&DDTRACE_G(traced_spans), index, &zv);
+    }
+    return span_fci;
+}
+
+void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
+    zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
+    if (--Z_TYPE_INFO_P(span_zv) == 0) {
+        ddtrace_span_fci *span_fci = Z_PTR_P(span_zv);
+        if (span_fci->span.duration != -1ull) {
+            if (keep) {
+                ddtrace_close_span(span_fci);
+            } else {
+                ddtrace_drop_top_open_span();
+            }
+        }
+        OBJ_RELEASE(&span_fci->span.std);
+        zend_hash_index_del(&DDTRACE_G(traced_spans), index);
+    }
+}
+
 ddtrace_span_fci *ddtrace_init_span(enum ddtrace_span_type type) {
     zval fci_zv;
     object_init_ex(&fci_zv, ddtrace_ce_span_data);

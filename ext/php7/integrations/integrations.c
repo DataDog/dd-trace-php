@@ -57,8 +57,8 @@ void dd_integration_aux_free(void *auxiliary) {
     free(aux);
 }
 
-static void dd_invoke_integration_loader_and_unhook_posthook(zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
-    (void) dynamic, (void) retval;
+static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+    (void) dynamic, (void) retval, (void) invocation;
 
     dd_integration_aux *aux = auxiliary;
     zval integration, *integrationp = &integration;
@@ -94,8 +94,8 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_execute_data *
     }
 }
 
-static bool dd_invoke_integration_loader_and_unhook_prehook(zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
-    dd_invoke_integration_loader_and_unhook_posthook(execute_data, &EG(uninitialized_zval), auxiliary, dynamic);
+static bool dd_invoke_integration_loader_and_unhook_prehook(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+    dd_invoke_integration_loader_and_unhook_posthook(invocation, execute_data, &EG(uninitialized_zval), auxiliary, dynamic);
     return true;
 }
 

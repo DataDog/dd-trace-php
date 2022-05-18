@@ -44,9 +44,8 @@ $greeter->greet('SubGreeter');
 bool(true)
 bool(true)
 Hello, Greeter.
-SubGreeter::greet hooked.
 Greeter::greet hooked.
 Hello, SubGreeter.
-SubGreeter::greet hooked.
 Greeter::greet hooked.
+SubGreeter::greet hooked.
 

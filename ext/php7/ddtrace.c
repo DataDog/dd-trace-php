@@ -576,6 +576,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     zai_hook_rinit();
     zai_interceptor_rinit();
     zai_uhook_rinit();
+    zend_hash_init(&DDTRACE_G(traced_spans), 8, shhhht, NULL, 0);
 
     if (ddtrace_has_excluded_module == true) {
         DDTRACE_G(disable) = 2;
@@ -638,6 +639,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zai_interceptor_rshutdown();
+    zend_hash_destroy(&DDTRACE_G(traced_spans));
 
     if (!get_DD_TRACE_ENABLED()) {
         if (!DDTRACE_G(disable)) {

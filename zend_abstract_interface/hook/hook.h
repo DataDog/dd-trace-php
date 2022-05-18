@@ -14,10 +14,10 @@ void zai_hook_clean(void);
 void zai_hook_rshutdown(void);
 void zai_hook_mshutdown(void); /* }}} */
 
-typedef bool (*zai_hook_begin)(zend_execute_data *frame, void *auxiliary, void *dynamic);
-typedef void (*zai_hook_end)(zend_execute_data *frame, zval *retval, void *auxiliary, void *dynamic);
-typedef void (*zai_hook_generator_resume)(zend_execute_data *frame, zval *sent, void *auxiliary, void *dynamic);
-typedef void (*zai_hook_generator_yield)(zend_execute_data *frame, zval *key, zval *yielded, void *auxiliary, void *dynamic);
+typedef bool (*zai_hook_begin)(zend_ulong invocation, zend_execute_data *frame, void *auxiliary, void *dynamic);
+typedef void (*zai_hook_end)(zend_ulong invocation, zend_execute_data *frame, zval *retval, void *auxiliary, void *dynamic);
+typedef void (*zai_hook_generator_resume)(zend_ulong invocation, zend_execute_data *frame, zval *sent, void *auxiliary, void *dynamic);
+typedef void (*zai_hook_generator_yield)(zend_ulong invocation, zend_execute_data *frame, zval *key, zval *yielded, void *auxiliary, void *dynamic);
 
 /* {{{ auxiliary support */
 typedef struct {

@@ -8,6 +8,7 @@
 typedef struct {
     zend_string    *scope;
     zend_string    *function;
+    zend_class_entry *resolved_scope;
     zai_hook_begin begin;
     zai_hook_generator_resume generator_resume;
     zai_hook_generator_yield generator_yield;
@@ -121,21 +122,95 @@ static void zai_hook_hash_destroy(zval *zv) {
 }
 
 /* {{{ */
-static zend_function *zai_hook_lookup_function(zai_string_view scope, zai_string_view func) {
+static inline zend_function *zai_hook_lookup_function(zai_string_view scope, zai_string_view func, zend_class_entry **ce) {
     zend_function *function = NULL;
 
     if (scope.len) {
-        zend_class_entry *ce = zai_symbol_lookup_class(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &scope);
+        *ce = zai_symbol_lookup_class(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &scope);
 
-        if (!ce) {
+        if (!*ce) {
             /* class not available */
             return NULL;
         }
-        function = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &func);
+        function = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, *ce, &func);
     } else {
+        ce = NULL;
         function = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &func);
     }
     return function;
+}
+
+static void zai_hook_sort_newest(zai_hooks_entry *hooks) {
+    if (hooks->resolved->common.scope) {
+        HashPosition pos;
+        zend_hash_internal_pointer_end_ex(&hooks->hooks, &pos);
+        Bucket *newBucket = &hooks->hooks.arData[pos];
+        zai_hook_t *hook = Z_PTR(newBucket->val);
+        // traits are always last
+        if (hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) {
+            return;
+        }
+
+        // sort: children at the start, parents at the end
+        HashPosition prevPos = pos;
+        zend_hash_move_backwards_ex(&hooks->hooks, &prevPos);
+        while (prevPos < hooks->hooks.nNumUsed) {
+            Bucket *bucket = &hooks->hooks.arData[prevPos];
+
+            zai_hook_t *check = Z_PTR(bucket->val);
+            // Everything except the newest entry is already properly sorted
+            if (instanceof_function(check->resolved_scope, hook->resolved_scope)) {
+                // we're iterating from the end, i.e. first the top/parent of the hierarchy. Once the class is instanceof our hooked class, all further classes are either children or in unrelated hierarchies
+                // prevPos is the last matching one. Increment to have index 0 or the first one to move respectively.
+                ++prevPos;
+                goto move;
+            }
+
+            zend_hash_move_backwards_ex(&hooks->hooks, &prevPos);
+        }
+        prevPos = 0;
+
+move: ;
+        // prevPos is now the index where the new entry will be spliced in
+        if (pos != prevPos) {
+            for (int32_t i = -1; i > -(int32_t)hooks->hooks.nTableSize; --i) {
+                uint32_t *hash = &HT_HASH(&hooks->hooks, HT_IDX_TO_HASH(i));
+                if (*(int32_t*)hash >= (int32_t)prevPos) {
+                    if (*hash == pos) {
+                        *hash = prevPos;
+                    } else {
+                        ++*hash;
+                    }
+                }
+            }
+
+            for (uint32_t i = 0; i < hooks->hooks.nNumUsed; ++i) {
+                uint32_t *hash = &Z_NEXT(hooks->hooks.arData[i].val);
+                if (*(int32_t*)hash >= (int32_t)prevPos) {
+                    if (*hash == pos) {
+                        *hash = prevPos;
+                    } else {
+                        ++*hash;
+                    }
+                }
+            }
+
+            Bucket tmp = *newBucket;
+            Bucket *target = &hooks->hooks.arData[prevPos];
+            memmove(target + 1, target, (char*)newBucket - (char *)target);
+            *target = tmp;
+
+            HashTableIterator *iter = EG(ht_iterators);
+            HashTableIterator *end  = iter + EG(ht_iterators_used);
+
+            while (iter != end) {
+                if (iter->ht == &hooks->hooks && (int32_t)iter->pos >= (int32_t)prevPos) {
+                    ++iter->pos;
+                }
+                iter++;
+            }
+        }
+    }
 }
 
 static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
@@ -144,9 +219,13 @@ static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
         // handle the edge case where a static hook is re-inserted after tracer shutdown and re-startup
         // ensure that the "authoritative", i.e. the active current static hook is always at the correct index
         zval *hook_zv = zend_hash_index_find(&hooks->hooks, index);
-        zai_hooks_entry *old_entry = Z_PTR_P(hook_zv);
+        zai_hook_t *old_entry = Z_PTR_P(hook_zv);
         Z_PTR_P(hook_zv) = hook;
         zend_hash_next_index_insert_ptr(&hooks->hooks, old_entry);
+    }
+
+    if (zend_hash_num_elements(&hooks->hooks) > 1 && hooks->resolved) {
+        zai_hook_sort_newest(hooks);
     }
 
     hooks->dynamic += hook->dynamic;
@@ -181,9 +260,10 @@ static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *reso
 }
 
 static zend_long zai_hook_request_install(zai_hook_t *hook) {
-    zend_function *function = zai_hook_lookup_function(
-        hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STRING_EMPTY, ZAI_STRING_FROM_ZSTR(hook->function));
+    zend_class_entry *ce;
+    zend_function *function = zai_hook_lookup_function(hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STRING_EMPTY, ZAI_STRING_FROM_ZSTR(hook->function), &ce);
     if (function) {
+        hook->resolved_scope = ce;
         return zai_hook_resolved_install(hook, function);
     }
     
@@ -208,7 +288,7 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
     return zai_hook_add_entry(hooks, hook);
 }
 
-static inline void zai_hook_resolve(HashTable *base_ht, zend_function *function, zend_string *lcname) {
+static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, zend_function *function, zend_string *lcname) {
     zai_hooks_entry *hooks = zend_hash_find_ptr(base_ht, lcname);
     if (!hooks) {
         return;
@@ -222,8 +302,10 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_function *function,
         zend_ulong index;
         ZEND_HASH_FOREACH_NUM_KEY_VAL(&hooks->hooks, index, hook_zv) {
             zai_hook_t *hook = Z_PTR_P(hook_zv);
+            hook->resolved_scope = ce;
             existingHooks->dynamic += hook->dynamic;
-            zend_hash_index_update(&existingHooks->hooks, index, hook_zv);
+            zend_hash_index_add_new(&existingHooks->hooks, index, hook_zv);
+            zai_hook_sort_newest(existingHooks);
         } ZEND_HASH_FOREACH_END();
 
         // we remove the whole zai_hooks_entry, excluding the individual zai_hook_t which we moved
@@ -235,12 +317,16 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_function *function,
         zend_hash_del(base_ht, lcname);
         base_ht->pDestructor = zai_hook_hash_destroy;
         hooks->resolved = function;
+        zai_hook_t *hook;
+        ZEND_HASH_FOREACH_PTR(&hooks->hooks, hook) {
+            hook->resolved_scope = ce;
+        } ZEND_HASH_FOREACH_END();
     }
 }
 
 /* {{{ */
 void zai_hook_resolve_function(zend_function *function, zend_string *lcname) {
-    zai_hook_resolve(&zai_hook_request_functions, function, lcname);
+    zai_hook_resolve(&zai_hook_request_functions, NULL, function, lcname);
 #if PHP_VERSION_ID > 80000
     // We do negative caching for run-time allocated op_arrays
     if (function->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) {
@@ -257,7 +343,7 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
     zend_function *function;
     zend_string *fnname;
     ZEND_HASH_FOREACH_STR_KEY_PTR(&ce->function_table, fnname, function) {
-        zai_hook_resolve(method_table, function, fnname);
+        zai_hook_resolve(method_table, ce, function, fnname);
     } ZEND_HASH_FOREACH_END();
 
     if (zend_hash_num_elements(method_table) == 0) {
@@ -289,6 +375,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     size_t hook_info_size = allocated_hook_count * sizeof(zai_hook_info);
     size_t dynamic_size = hooks->dynamic + hook_info_size;
     memory->dynamic = ecalloc(1, dynamic_size);
+    memory->invocation = ++zai_hook_invocation;
 
     // clang-format off
     // iterate the array in a safe way, i.e. handling possible updates at runtime
@@ -297,9 +384,14 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
     int hook_num = 0;
     size_t dynamic_offset = hook_info_size;
+    bool check_scope = ex->func->common.scope != NULL;
 
     for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
         zend_hash_move_forward_ex(&hooks->hooks, &pos);
+
+        if (check_scope && !(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
+            continue;
+        }
 
         // increase dynamic memory if new hooks get added during iteration
         if (UNEXPECTED(dynamic_offset + hook->dynamic > dynamic_size || allocated_hook_count <= hook_num)) {
@@ -330,14 +422,13 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
 
         EG(ht_iterators)[ht_iter].pos = pos;
 
-        if (!hook->begin(
+        if (!hook->begin(memory->invocation,
                 ex,
                 hook->aux.data,
                 memory->dynamic + dynamic_offset)) {
             zend_hash_iterator_del(ht_iter);
 
             memory->hook_count = hook_num;
-            memory->invocation = ++zai_hook_invocation;
             zai_hook_finish(ex, NULL, memory);
             return ZAI_HOOK_BAILOUT;
         }
@@ -360,7 +451,6 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     // clang-format on
 
     memory->hook_count = hook_num;
-    memory->invocation = ++zai_hook_invocation;
     return ZAI_HOOK_CONTINUED;
 } /* }}} */
 
@@ -373,7 +463,7 @@ void zai_hook_generator_resumption(zend_execute_data *ex, zval *sent, zai_hook_m
             continue;
         }
 
-        hook->generator_resume(
+        hook->generator_resume(memory->invocation,
             ex, sent,
             hook->aux.data,
             memory->dynamic + hook_info->dynamic_offset);
@@ -389,7 +479,7 @@ void zai_hook_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded,
             continue;
         }
 
-        hook->generator_yield(
+        hook->generator_yield(memory->invocation,
                 ex, key, yielded,
                 hook->aux.data,
                 memory->dynamic + hook_info->dynamic_offset);
@@ -404,7 +494,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
         zai_hook_t *hook = hook_info->hook;
 
         if (hook->end) {
-            hook->end(
+            hook->end(memory->invocation,
                     ex, rv,
                     hook->aux.data,
                     memory->dynamic + hook_info->dynamic_offset);
@@ -479,6 +569,7 @@ zend_long zai_hook_install_resolved(
     *hook = (zai_hook_t){
         .scope = NULL,
         .function = NULL,
+        .resolved_scope = function->common.scope,
         .begin = begin,
         .generator_resume = NULL,
         .generator_yield = NULL,
@@ -518,6 +609,7 @@ zend_long zai_hook_install_generator(
     *hook = (zai_hook_t){
         .scope = scope.len ? zai_zend_string_init_lower(scope.ptr, scope.len, persistent) : NULL,
         .function = zai_zend_string_init_lower(function.ptr, function.len, persistent),
+        .resolved_scope = NULL,
         .begin = begin,
         .generator_resume = resumption,
         .generator_yield = yield,
@@ -556,7 +648,8 @@ void zai_hook_remove_resolved(zend_function *function, zend_long index) {
 }
 
 void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index) {
-    zend_function *resolved = zai_hook_lookup_function(scope, function);
+    zend_class_entry *ce;
+    zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
     if (resolved) {
         zai_hook_remove_resolved(resolved, index);
         return;
@@ -624,7 +717,8 @@ static zai_hook_iterator zai_hook_iterator_init(HashTable *hooks) {
 }
 
 zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function) {
-    zend_function *resolved = zai_hook_lookup_function(scope, function);
+    zend_class_entry *ce;
+    zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
     if (resolved) {
         return zai_hook_iterate_resolved(resolved);
     }

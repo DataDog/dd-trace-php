@@ -24,7 +24,7 @@ extern "C" {
     static zai_hook_test_fixed_t zai_hook_test_fixed_first = {42};
     static zai_hook_test_fixed_t zai_hook_test_fixed_second = {42};
 
-    static bool zai_hook_test_begin(zend_execute_data *ex, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic TEA_TSRMLS_DC) {
+    static bool zai_hook_test_begin(zend_ulong invocation, zend_execute_data *ex, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic TEA_TSRMLS_DC) {
         zai_hook_test_begin_fixed   = fixed;
         zai_hook_test_begin_dynamic = dynamic;
 
@@ -33,7 +33,7 @@ extern "C" {
         return zai_hook_test_begin_return;
     }
 
-    static void zai_hook_test_end(zend_execute_data *ex, zval *rv, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic TEA_TSRMLS_DC) {
+    static void zai_hook_test_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic TEA_TSRMLS_DC) {
         zai_hook_test_end_fixed   = fixed;
         zai_hook_test_end_dynamic = dynamic;
 

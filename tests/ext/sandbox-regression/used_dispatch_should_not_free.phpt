@@ -3,11 +3,9 @@
 --FILE--
 <?php
 function test($a){
-    if ($a === "exec_b") {
-        DDTrace\trace_function("test", function($s, $a, $retval){
-            echo 'NEW HOOK ' . $retval . PHP_EOL;
-        });
-    }
+    DDTrace\trace_function("test", function($s, $a, $retval){
+        echo 'NEW HOOK ' . $retval . PHP_EOL;
+    });
     return 'METHOD ' . $a;
 }
 
@@ -22,3 +20,4 @@ test("exec_b");
 --EXPECT--
 OLD HOOK METHOD exec_a
 NEW HOOK METHOD exec_b
+OLD HOOK METHOD exec_b

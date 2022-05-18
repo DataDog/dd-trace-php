@@ -102,7 +102,9 @@ static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     zval_ptr_dtor(rvp);
 }
 
-static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+    (void) invocation;
+
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
@@ -121,7 +123,9 @@ static bool dd_uhook_begin(zend_execute_data *execute_data, void *auxiliary, voi
     return true;
 }
 
-static void dd_uhook_end(zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+    (void) invocation;
+
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
@@ -175,7 +179,7 @@ static void dd_uhook_dtor(void *data) {
             zend_string_release(def->scope);
         }
     }
-    zend_hash_index_del(&dd_active_hooks, def->id);
+    zend_hash_index_del(&dd_active_hooks, (zend_ulong)def->id);
     efree(def);
 }
 

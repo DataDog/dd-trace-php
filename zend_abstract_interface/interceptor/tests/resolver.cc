@@ -54,12 +54,12 @@ extern "C" {
     }
 }
 
-static bool zai_hook_test_begin(zend_execute_data *ex, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static bool zai_hook_test_begin(zend_ulong invocation, zend_execute_data *ex, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     REQUIRE_FALSE(1);
     return true;
 }
 
-static void zai_hook_test_end(zend_execute_data *ex, zval *rv, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     REQUIRE_FALSE(1);
 }
 
