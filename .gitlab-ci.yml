@@ -28,7 +28,7 @@ build:
 deploy_to_reliability_env:
   stage: deploy
   trigger:
-    project: DataDog/datadog-reliability-env
+    project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_REL_BRANCH
   variables:
     UPSTREAM_PACKAGE_JOB: build
