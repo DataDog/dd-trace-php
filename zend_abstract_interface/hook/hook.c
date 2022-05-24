@@ -16,6 +16,7 @@ typedef struct {
     zai_hook_aux   aux;
     size_t         dynamic;
     bool           is_global;
+    zend_long      id;
     int            refcount; // one ref held by the existence in the array, one ref held by each frame
 } zai_hook_t; /* }}} */
 
@@ -74,20 +75,14 @@ static void zai_hook_static_destroy(zval *zv) {
     pefree(hook, 1);
 }
 
-static void zai_free_runtime_hook(zai_hook_t *hook) {
+static void zai_hook_destroy(zval *zv) {
+    zai_hook_t *hook = Z_PTR_P(zv);
+
     if (!hook->is_global) {
         zai_hook_data_dtor(hook);
     }
 
     efree(hook);
-}
-
-static void zai_hook_destroy(zval *zv) {
-    zai_hook_t *hook = Z_PTR_P(zv);
-
-    if (!--hook->refcount) {
-        zai_free_runtime_hook(hook);
-    }
 }
 
 // Manually polyfill the poisoning here to avoid https://github.com/php/php-src/issues/8438
@@ -111,6 +106,21 @@ static void zend_hash_iterators_remove(HashTable *ht) {
     }
 }
 
+
+static void zai_hook_entries_destroy(zval *zv) {
+    zai_hooks_entry *hooks = Z_PTR_P(zv);
+
+#if PHP_VERSION_ID >= 80000
+    if (hooks->resolved && hooks->resolved->type == ZEND_USER_FUNCTION) {
+        zai_hook_on_update(&hooks->resolved->op_array, true);
+    }
+#endif
+
+    zend_hash_iterators_remove(&hooks->hooks);
+    zend_hash_destroy(&hooks->hooks);
+
+    efree(hooks);
+}
 
 static void zai_hook_hash_destroy(zval *zv) {
     HashTable *hooks = Z_PTR_P(zv);
@@ -214,14 +224,11 @@ move: ;
 }
 
 static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
-    zend_ulong index = zai_hook_id++;
+    zend_ulong index = ++zai_hook_id;
     if (!zend_hash_index_add_ptr(&hooks->hooks, index, hook)) {
         // handle the edge case where a static hook is re-inserted after tracer shutdown and re-startup
-        // ensure that the "authoritative", i.e. the active current static hook is always at the correct index
-        zval *hook_zv = zend_hash_index_find(&hooks->hooks, index);
-        zai_hook_t *old_entry = Z_PTR_P(hook_zv);
-        Z_PTR_P(hook_zv) = hook;
-        zend_hash_next_index_insert_ptr(&hooks->hooks, old_entry);
+        hook->id = (zend_long)index;
+        return hook->id;
     }
 
     if (zend_hash_num_elements(&hooks->hooks) > 1 && hooks->resolved) {
@@ -229,12 +236,6 @@ static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
     }
 
     hooks->dynamic += hook->dynamic;
-
-#if PHP_VERSION_ID >= 80000
-    if (hooks->resolved && hooks->resolved->type == ZEND_USER_FUNCTION) {
-        zai_hook_on_update(&hooks->resolved->op_array, false);
-    }
-#endif
 
     return (zend_long)index;
 }
@@ -254,6 +255,12 @@ static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *reso
     if (!hooks) {
         hooks = zai_hook_alloc_hooks_entry(resolved);
         zend_hash_index_add_ptr(&zai_hook_resolved, addr, hooks);
+
+#if PHP_VERSION_ID >= 80000
+        if (hooks->resolved->type == ZEND_USER_FUNCTION) {
+            zai_hook_on_update(&hooks->resolved->op_array, false);
+        }
+#endif
     }
 
     return zai_hook_add_entry(hooks, hook);
@@ -327,13 +334,8 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, ze
 /* {{{ */
 void zai_hook_resolve_function(zend_function *function, zend_string *lcname) {
     zai_hook_resolve(&zai_hook_request_functions, NULL, function, lcname);
-#if PHP_VERSION_ID > 80000
-    // We do negative caching for run-time allocated op_arrays
-    if (function->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) {
-        zend_hash_index_add_ptr(&zai_hook_resolved, zai_hook_install_address(function), NULL);
-    }
-#endif
 }
+
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
     HashTable *method_table = zend_hash_find_ptr(&zai_hook_request_classes, lcname);
     if (!method_table) {
@@ -355,12 +357,16 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
 static void zai_hook_remove_from_entry(zai_hooks_entry *hooks, zend_ulong index) {
     zai_hook_t *hook = zend_hash_index_find_ptr(&hooks->hooks, index);
 
-    if (!hook) {
+    if (!hook || hook->id < 0) {
         return;
     }
 
     hooks->dynamic -= hook->dynamic;
-    zend_hash_index_del(&hooks->hooks, index);
+    if (!--hook->refcount) {
+        zend_hash_index_del(&hooks->hooks, index);
+    } else {
+        hook->id = -hook->id;
+    }
 }
 
 /* {{{ */
@@ -389,7 +395,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
         zend_hash_move_forward_ex(&hooks->hooks, &pos);
 
-        if (check_scope && !(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
+        if (hook->id < 0 || (check_scope && !(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope))) {
             continue;
         }
 
@@ -501,7 +507,12 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
         }
 
         if (!--hook->refcount) {
-            zai_free_runtime_hook(hook);
+            zai_hooks_entry *hooks;
+            zai_hook_table_find(&zai_hook_resolved, zai_hook_frame_address(ex), (void**)&hooks);
+            zend_hash_index_del(&hooks->hooks, (zend_ulong) -hook->id);
+            if (zend_hash_num_elements(&hooks->hooks) == 0) {
+                zend_hash_index_del(&zai_hook_resolved, zai_hook_install_address(hooks->resolved));
+            }
         }
     }
 
@@ -511,16 +522,17 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
 /* {{{ */
 bool zai_hook_minit(void) {
     zend_hash_init(&zai_hook_static, 8, NULL, zai_hook_static_destroy, 1);
+    zai_hook_static.nNextFreeElement = 1;
     return true;
 }
 
 bool zai_hook_rinit(void) {
     zend_hash_init(&zai_hook_request_functions, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_request_classes, 8, NULL, zai_hook_hash_destroy, 0);
-    zend_hash_init(&zai_hook_resolved, 8, NULL, zai_hook_hash_destroy, 0);
+    zend_hash_init(&zai_hook_resolved, 8, NULL, zai_hook_entries_destroy, 0);
 
     // reserve low hook ids for static hooks
-    zai_hook_id = zend_hash_num_elements(&zai_hook_static);
+    zai_hook_id = (zend_ulong)zai_hook_static.nNextFreeElement;
 
     return true;
 }
@@ -575,11 +587,13 @@ zend_long zai_hook_install_resolved(
         .generator_yield = NULL,
         .end = end,
         .aux = aux,
+        .is_global = false,
+        .id = 0,
         .dynamic = dynamic,
         .refcount = 1,
     };
 
-    return zai_hook_resolved_install(hook, function);
+    return hook->id = zai_hook_resolved_install(hook, function);
 } /* }}} */
 
 static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool persistent) {
@@ -615,15 +629,17 @@ zend_long zai_hook_install_generator(
         .generator_yield = yield,
         .end = end,
         .aux = aux,
+        .is_global = false,
+        .id = 0,
         .dynamic = dynamic,
         .refcount = 1,
     };
 
     if (persistent) {
         zend_hash_next_index_insert_ptr(&zai_hook_static, hook);
-        return zai_hook_static.nNextFreeElement - 1;
+        return hook->id = zai_hook_static.nNextFreeElement - 1;
     } else {
-        return zai_hook_request_install(hook);
+        return hook->id = zai_hook_request_install(hook);
     }
 }
 
@@ -686,7 +702,10 @@ void zai_hook_clean(void) {
 
 static void zai_hook_iterator_set_current_and_advance(zai_hook_iterator *it) {
     HashPosition pos = zend_hash_iterator_pos(it->iterator.iter, it->iterator.ht);
-    zai_hook_t *hook = zend_hash_get_current_data_ptr_ex(it->iterator.ht, &pos);
+    zai_hook_t *hook;
+    while ((hook = zend_hash_get_current_data_ptr_ex(it->iterator.ht, &pos)) && hook->id < 0) {
+        zend_hash_move_forward_ex(it->iterator.ht, &pos);
+    }
     if (hook) {
         zend_hash_get_current_key_ex(it->iterator.ht, NULL, &it->index, &pos);
         it->begin = &hook->begin;

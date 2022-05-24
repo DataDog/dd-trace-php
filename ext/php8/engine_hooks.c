@@ -1,12 +1,13 @@
 #include "engine_hooks.h"
 
-#include <Zend/zend_observer.h>
 #include <php.h>
 #include <time.h>
 
-#include "configuration.h"
 #include "ddtrace.h"
 #include "span.h"
+#include "zend_extensions.h"
+#include "logging.h"
+#include "runtime.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -17,16 +18,59 @@ static void _compile_mshutdown(void);
 
 void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 
+static datadog_php_uuid dd_profiling_runtime_id_nil(void) {
+    datadog_php_uuid uuid = DATADOG_PHP_UUID_INIT;
+    return uuid;
+}
+
+datadog_php_uuid (*ddtrace_profiling_runtime_id)(void) = dd_profiling_runtime_id_nil;
+
+void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
+
+/**
+ * The message handler is used to determine if the profiler is loaded, and if
+ * so it will locate certain symbols so cross-product features can be enabled.
+ */
+void ddtrace_message_handler(int message, void *arg) {
+    if (UNEXPECTED(message != ZEND_EXTMSG_NEW_EXTENSION)) {
+        // There are currently no other defined messages.
+        return;
+    }
+
+    zend_extension *extension = (zend_extension *)arg;
+    if (extension->name && strcmp(extension->name, "datadog-profiling") == 0) {
+        DL_HANDLE handle = extension->handle;
+
+        profiling_interrupt_function = DL_FETCH_SYMBOL(handle, "datadog_profiling_interrupt_function");
+        if (UNEXPECTED(!profiling_interrupt_function)) {
+            ddtrace_log_debugf("[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n",
+                               "datadog_profiling_interrupt_function", DL_ERROR());
+        }
+
+        datadog_php_uuid (*runtime_id)(void) = DL_FETCH_SYMBOL(handle, "datadog_profiling_runtime_id");
+        if (EXPECTED(runtime_id)) {
+            ddtrace_profiling_runtime_id = runtime_id;
+        } else {
+            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: \n",
+                               extension->version, DL_ERROR());
+        }
+    }
+}
+
 void ddtrace_engine_hooks_minit(void) {
     _compile_minit();
-
-    zend_observer_fcall_register(ddtrace_observer_fcall_init);
 
     ddtrace_prev_error_cb = zend_error_cb;
     zend_error_cb = ddtrace_error_cb;
 }
 
-void ddtrace_engine_hooks_mshutdown(void) { _compile_mshutdown(); }
+void ddtrace_engine_hooks_mshutdown(void) {
+    if (ddtrace_prev_error_cb == ddtrace_error_cb) {
+        zend_error_cb = ddtrace_prev_error_cb;
+    }
+
+    _compile_mshutdown();
+}
 
 static uint64_t _get_microseconds() {
     struct timespec time;

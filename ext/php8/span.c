@@ -1,7 +1,8 @@
 #include "span.h"
 
 #include <SAPI.h>
-#include <php8/priority_sampling/priority_sampling.h>
+#include "priority_sampling/priority_sampling.h"
+#include <interceptor/php8/interceptor.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -9,7 +10,6 @@
 #include "compat_string.h"
 #include "configuration.h"
 #include "ddtrace.h"
-#include "dispatch.h"
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
@@ -85,10 +85,6 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
         ddtrace_set_root_span_properties(&span_fci->span);
     } else {
         ddtrace_span_fci *next_span = span_fci->next;
-        while (next_span->span.start == 0 && next_span->next) {  // skip placeholder span from dd_create_duplicate_span
-            next_span = next_span->next;
-        }
-
         ZVAL_COPY(ddtrace_spandata_property_service(&span_fci->span),
                   ddtrace_spandata_property_service(&next_span->span));
         ZVAL_COPY(ddtrace_spandata_property_type(&span_fci->span), ddtrace_spandata_property_type(&next_span->span));
@@ -97,14 +93,66 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     ddtrace_set_global_span_properties(&span_fci->span);
 }
 
-ddtrace_span_fci *ddtrace_init_span(void) {
-    zval fci_zv;
-    object_init_ex(&fci_zv, ddtrace_ce_span_data);
-    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ(fci_zv);
+ddtrace_span_fci *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execute_data *execute_data) {
+    zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
+    ddtrace_span_fci *span_fci;
+    if (span_zv) {
+        span_fci = Z_PTR_P(span_zv);
+        ++Z_TYPE_INFO_P(span_zv);
+    } else {
+        span_fci = ddtrace_init_span(DDTRACE_INTERNAL_SPAN);
+        ddtrace_open_span(span_fci);
+
+        GC_ADDREF(&span_fci->span.std);
+
+        // SpanData::$name defaults to fully qualified called name
+        zval *prop_name = ddtrace_spandata_property_name(&span_fci->span);
+
+        if (EX(func) && EX(func)->common.function_name) {
+            zval_ptr_dtor(prop_name);
+
+            zend_class_entry *called_scope = EX(func)->common.scope ? zend_get_called_scope(execute_data) : NULL;
+            if (called_scope) {
+                // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
+                ZVAL_STR(prop_name, strpprintf(0, "%s.%s", ZSTR_VAL(called_scope->name), ZSTR_VAL(EX(func)->common.function_name)));
+            } else {
+                ZVAL_STR_COPY(prop_name, EX(func)->common.function_name);
+            }
+        }
+
+        zval zv;
+        Z_PTR(zv) = span_fci;
+        Z_TYPE_INFO(zv) = 1;
+        zend_hash_index_add_new(&DDTRACE_G(traced_spans), index, &zv);
+    }
     return span_fci;
 }
 
-void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span()); }
+void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
+    zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
+    if (--Z_TYPE_INFO_P(span_zv) == 0) {
+        ddtrace_span_fci *span_fci = Z_PTR_P(span_zv);
+        if (span_fci->span.duration != -1ull) {
+            if (keep) {
+                ddtrace_close_span(span_fci);
+            } else {
+                ddtrace_drop_top_open_span();
+            }
+        }
+        OBJ_RELEASE(&span_fci->span.std);
+        zend_hash_index_del(&DDTRACE_G(traced_spans), index);
+    }
+}
+
+ddtrace_span_fci *ddtrace_init_span(enum ddtrace_span_type type) {
+    zval fci_zv;
+    object_init_ex(&fci_zv, ddtrace_ce_span_data);
+    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)Z_OBJ(fci_zv);
+    span_fci->type = type;
+    return span_fci;
+}
+
+void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span(DDTRACE_AUTOROOT_SPAN)); }
 
 DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
     ddtrace_span_fci *root = DDTRACE_G(root_span);
@@ -149,7 +197,7 @@ bool ddtrace_has_top_internal_span(ddtrace_span_fci *end) {
         if (span_fci == end) {
             return true;
         }
-        if (span_fci->execute_data != NULL) {
+        if (span_fci->type != DDTRACE_USER_SPAN) {
             return false;
         }
         span_fci = span_fci->next;
@@ -159,9 +207,8 @@ bool ddtrace_has_top_internal_span(ddtrace_span_fci *end) {
 
 void ddtrace_close_userland_spans_until(ddtrace_span_fci *until) {
     ddtrace_span_fci *span_fci;
-    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until &&
-           (span_fci->execute_data != NULL || span_fci->next)) {
-        if (span_fci->execute_data) {
+    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until && span_fci->type != DDTRACE_AUTOROOT_SPAN) {
+        if (span_fci->type == DDTRACE_INTERNAL_SPAN) {
             ddtrace_log_err("Found internal span data while closing userland spans");
         }
 
@@ -194,11 +241,6 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
     span_fci->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = span_fci;
 
-    if (span_fci->dispatch) {
-        ddtrace_dispatch_release(span_fci->dispatch);
-        span_fci->dispatch = NULL;
-    }
-
     if (DDTRACE_G(open_spans_top) == NULL) {
         // Enforce a sampling decision here
         ddtrace_fetch_prioritySampling_from_root();
@@ -211,6 +253,19 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
     }
+}
+
+void ddtrace_close_all_open_spans(bool force_close_root_span) {
+    ddtrace_span_fci *span_fci;
+    while ((span_fci = DDTRACE_G(open_spans_top))) {
+        if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span_fci->type == DDTRACE_AUTOROOT_SPAN)) {
+            dd_trace_stop_span_time(&span_fci->span);
+            ddtrace_close_span(span_fci);
+        } else {
+            ddtrace_drop_top_open_span();
+        }
+    }
+    DDTRACE_G(open_spans_top) = span_fci;
 }
 
 void ddtrace_drop_top_open_span(void) {

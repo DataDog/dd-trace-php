@@ -146,25 +146,7 @@ static inline bool zai_hook_installed_func(zend_function *func) {
     return zend_hash_index_exists(&zai_hook_resolved, zai_hook_install_address(func));
 }
 static inline bool zai_hook_installed_user(zend_op_array *op_array) {
-#if PHP_VERSION_ID >= 80000
-    zval *zv = zend_hash_index_find(&zai_hook_resolved, zai_hook_install_address_user(op_array));
-    if (zv) {
-        return Z_PTR_P(zv) != NULL;
-    } else {
-        if (op_array->scope) {
-            zend_string *lcname = zend_string_tolower(op_array->function_name);
-            zai_hook_resolve_function((zend_function *) op_array, lcname);
-            zend_string_release(lcname);
-        } else {
-            zend_string *lcname = zend_string_tolower(op_array->scope->name);
-            zai_hook_resolve_class(op_array->scope, lcname);
-            zend_string_release(lcname);
-        }
-        return zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address_user(op_array)) != NULL;
-    }
-#else
     return zend_hash_index_exists(&zai_hook_resolved, zai_hook_install_address_user(op_array));
-#endif
 }
 static inline bool zai_hook_installed_internal(zend_internal_function *function) {
     return zend_hash_index_exists(&zai_hook_resolved, zai_hook_install_address_internal(function));

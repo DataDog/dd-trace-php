@@ -37,9 +37,6 @@ static void php_call_shutdown_functions(TSRMLS_D) /* {{{ */
 
     static PHP_MINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_minit();
-#if PHP_VERSION_ID >= 80000
-        zai_interceptor_minit();
-#endif
         return SUCCESS;
     }
 
@@ -61,9 +58,11 @@ static void php_call_shutdown_functions(TSRMLS_D) /* {{{ */
         return SUCCESS;
     }
 
-    static zend_result_t ddtrace_testing_startup() {
+    static int ddtrace_testing_startup() {
 #if PHP_VERSION_ID < 80000
         zai_interceptor_startup(tea_extension_dummy());
+#else
+        zai_interceptor_startup();
 #endif
         return SUCCESS;
     }

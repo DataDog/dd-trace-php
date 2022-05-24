@@ -3,7 +3,7 @@
 #include <php.h>
 #include <stdbool.h>
 
-#include "ext/php7/ddtrace_string.h"
+#include "../ddtrace_string.h"
 
 #define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
 

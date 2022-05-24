@@ -41,13 +41,21 @@ static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle
     return op_array;
 }
 
-static zend_op_array *(*prev_compile_string)(zval *source_string, char *filename);
-static zend_op_array *zai_interceptor_compile_string(zval *source_string, char *filename) {
+#if PHP_VERSION_ID < 80200
+#define ZAI_COMPILE_STRING_ARGS zend_string *source_string, const char *filename
+#define ZAI_COMPILE_STRING_PASSTHRU source_string, filename
+#else
+#define ZAI_COMPILE_STRING_ARGS zend_string *source_string, const char *filename, zend_compile_position position
+#define ZAI_COMPILE_STRING_PASSTHRU source_string, filename, position
+#endif
+
+static zend_op_array *(*prev_compile_string)(ZAI_COMPILE_STRING_ARGS);
+static zend_op_array *zai_interceptor_compile_string(ZAI_COMPILE_STRING_ARGS) {
     HashPosition classpos, funcpos;
     zend_hash_internal_pointer_end_ex(CG(class_table), &classpos);
     zend_hash_internal_pointer_end_ex(CG(function_table), &funcpos);
 
-    zend_op_array *op_array = prev_compile_string(source_string, filename);
+    zend_op_array *op_array = prev_compile_string(ZAI_COMPILE_STRING_PASSTHRU);
 
     zai_interceptor_add_new_entries(classpos, funcpos);
 
@@ -68,7 +76,7 @@ PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
     }
 }
 
-#define ZAI_INTERCEPTOR_POST_DECLARE_OP 224 // random 8 bit number greater than ZEND_VM_LAST_OPCODE
+#define ZAI_INTERCEPTOR_POST_DECLARE_OP (ZEND_VM_LAST_OPCODE + 1) // random 8 bit number greater than ZEND_VM_LAST_OPCODE, but with index in zend_spec_handlers
 static zend_op zai_interceptor_post_declare_op;
 static __thread zend_op zai_interceptor_post_declare_ops[4];
 struct zai_interceptor_opline { const zend_op *op; struct zai_interceptor_opline *prev; };
@@ -79,8 +87,7 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
     zend_op *opline = &zai_interceptor_post_declare_ops[0];
     *opline = *EX(opline);
     zai_interceptor_post_declare_ops[1] = zai_interceptor_post_declare_op;
-#if PHP_VERSION_ID >= 70300 && !ZEND_USE_ABS_CONST_ADDR
-    // on PHP 7.3+ literals are opline-relative and thus need to be relocated
+    // literals are opline-relative and thus need to be relocated
     zval *constant = (zval *)&zai_interceptor_post_declare_ops[2];
     if (opline->op1_type == IS_CONST) {
         // DECLARE_* ops all have two consecutive literals in op1
@@ -93,7 +100,6 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
         ZVAL_COPY_VALUE(&constant[3], RT_CONSTANT(EX(opline), opline->op2) + 1);
         opline->op2.constant = sizeof(zend_op) * 2 + sizeof(zval) * 2;
     }
-#endif
 
     if (zai_interceptor_opline_before_binding.op) {
         struct zai_interceptor_opline *backup = ecalloc(1, sizeof(*zai_interceptor_opline_before_binding.prev));
@@ -112,7 +118,6 @@ static void zai_interceptor_pop_opline_before_binding() {
         zend_op *opline = (zend_op *)zai_interceptor_opline_before_binding.op;
         zend_op *target_op = &zai_interceptor_post_declare_ops[0];
         *target_op = *opline;
-#if PHP_VERSION_ID >= 70300 && !ZEND_USE_ABS_CONST_ADDR
         zval *constant = (zval *)&zai_interceptor_post_declare_ops[2];
         if (opline->op1_type == IS_CONST) {
             // DECLARE_* ops all have two consecutive literals in op1
@@ -125,7 +130,6 @@ static void zai_interceptor_pop_opline_before_binding() {
             ZVAL_COPY_VALUE(&constant[3], RT_CONSTANT(opline, opline->op2) + 1);
             target_op->op2.constant = sizeof(zend_op) * 2 + sizeof(zval) * 2;
         }
-#endif
     } else {
         zai_interceptor_opline_before_binding.op = NULL;
     }
@@ -134,32 +138,16 @@ static void zai_interceptor_pop_opline_before_binding() {
 static user_opcode_handler_t prev_post_declare_handler;
 static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data) {
     if (EX(opline) == &zai_interceptor_post_declare_ops[0] || EX(opline) == &zai_interceptor_post_declare_ops[1]) {
-#if PHP_VERSION_ID < 70400
-        if (zai_interceptor_post_declare_ops[0].opcode == ZEND_BIND_TRAITS) {
-            zend_class_entry *ce = Z_CE_P(EX_VAR(zai_interceptor_post_declare_ops[0].op1.var));
-            zend_string *lcname = zend_string_tolower(ce->name);
-            zai_hook_resolve_class(ce, lcname);
-            zend_string_release(lcname);
-        } else
-#endif
-        {
-#if PHP_VERSION_ID >= 70300
-            zend_string *lcname = Z_STR_P(RT_CONSTANT(&zai_interceptor_post_declare_ops[0], zai_interceptor_post_declare_ops[0].op1));
-#elif PHP_VERSION_ID >= 70100
-            zend_string *lcname = Z_STR_P(EX_CONSTANT(zai_interceptor_post_declare_ops[0].op1));
-#else
-            zend_string *lcname = Z_STR_P(EX_CONSTANT(zai_interceptor_post_declare_ops[0].op2));
-#endif
-            if (zai_interceptor_post_declare_ops[0].opcode == ZEND_DECLARE_FUNCTION) {
-                zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
-                if (function) {
-                    zai_hook_resolve_function(function, lcname);
-                }
-            } else {
-                zend_class_entry *ce = zend_hash_find_ptr(CG(class_table), lcname);
-                if (ce) {
-                    zai_hook_resolve_class(ce, lcname);
-                }
+        zend_string *lcname = Z_STR_P(RT_CONSTANT(&zai_interceptor_post_declare_ops[0], zai_interceptor_post_declare_ops[0].op1));
+        if (zai_interceptor_post_declare_ops[0].opcode == ZEND_DECLARE_FUNCTION) {
+            zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
+            if (function) {
+                zai_hook_resolve_function(function, lcname);
+            }
+        } else {
+            zend_class_entry *ce = zend_hash_find_ptr(CG(class_table), lcname);
+            if (ce) {
+                zai_hook_resolve_class(ce, lcname);
             }
         }
         // preserve offset
@@ -189,7 +177,6 @@ static int zai_interceptor_declare_class_handler(zend_execute_data *execute_data
     return prev_declare_class_handler ? prev_declare_class_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-#if PHP_VERSION_ID >= 70400
 static user_opcode_handler_t prev_declare_class_delayed_handler;
 static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *execute_data) {
     if (ZEND_DECLARE_CLASS_DELAYED == EX(opline)->opcode) {
@@ -197,31 +184,6 @@ static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *exec
     }
     return prev_declare_class_delayed_handler ? prev_declare_class_delayed_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
-#else
-static user_opcode_handler_t prev_declare_inherited_class_handler;
-static int zai_interceptor_declare_inherited_class_handler(zend_execute_data *execute_data) {
-    if (ZEND_DECLARE_INHERITED_CLASS == EX(opline)->opcode) {
-        zai_interceptor_install_post_declare_op(execute_data);
-    }
-    return prev_declare_inherited_class_handler ? prev_declare_inherited_class_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
-}
-
-static user_opcode_handler_t prev_declare_inherited_class_delayed_handler;
-static int zai_interceptor_declare_inherited_class_delayed_handler(zend_execute_data *execute_data) {
-    if (ZEND_DECLARE_INHERITED_CLASS_DELAYED == EX(opline)->opcode) {
-        zai_interceptor_install_post_declare_op(execute_data);
-    }
-    return prev_declare_inherited_class_delayed_handler ? prev_declare_inherited_class_delayed_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
-}
-
-static user_opcode_handler_t prev_bind_traits_handler;
-static int zai_interceptor_bind_traits_handler(zend_execute_data *execute_data) {
-    if (ZEND_BIND_TRAITS == EX(opline)->opcode) {
-        zai_interceptor_install_post_declare_op(execute_data);
-    }
-    return prev_bind_traits_handler ? prev_bind_traits_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
-}
-#endif
 
 void zai_interceptor_check_for_opline_before_exception(void) {
     if (EG(opline_before_exception) == zai_interceptor_post_declare_ops) {
@@ -230,8 +192,8 @@ void zai_interceptor_check_for_opline_before_exception(void) {
     }
 }
 
-static void (*prev_exception_hook)(zval *);
-static void zai_interceptor_exception_hook(zval *ex) {
+static void (*prev_exception_hook)(zend_object *);
+static void zai_interceptor_exception_hook(zend_object *ex) {
     zend_function *func = EG(current_execute_data)->func;
     if (func && ZEND_USER_CODE(func->type) && EG(current_execute_data)->opline == zai_interceptor_post_declare_ops) {
         // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
@@ -258,17 +220,8 @@ void zai_interceptor_setup_resolving_startup(void) {
     zend_set_user_opcode_handler(ZEND_DECLARE_FUNCTION, zai_interceptor_declare_function_handler);
     prev_declare_class_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS);
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS, zai_interceptor_declare_class_handler);
-#if PHP_VERSION_ID > 70400
     prev_declare_class_delayed_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED);
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, zai_interceptor_declare_class_delayed_handler);
-#else
-    prev_declare_inherited_class_handler = zend_get_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS);
-    zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS, zai_interceptor_declare_inherited_class_handler);
-    prev_declare_inherited_class_delayed_handler = zend_get_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS_DELAYED);
-    zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS_DELAYED, zai_interceptor_declare_inherited_class_delayed_handler);
-    prev_bind_traits_handler = zend_get_user_opcode_handler(ZEND_BIND_TRAITS);
-    zend_set_user_opcode_handler(ZEND_BIND_TRAITS, zai_interceptor_bind_traits_handler);
-#endif
 
     prev_post_declare_handler = zend_get_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP);
     zend_set_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP, zai_interceptor_post_declare_handler);

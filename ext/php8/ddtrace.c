@@ -12,6 +12,7 @@
 #include <headers/headers.h>
 #include <hook/hook.h>
 #include <inttypes.h>
+#include <interceptor/php8/interceptor.h>
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
@@ -34,7 +35,6 @@
 #include "ddshared.h"
 #include "ddtrace.h"
 #include "ddtrace_string.h"
-#include "dispatch.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "excluded_modules.h"
@@ -77,9 +77,7 @@ STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, On
 PHP_INI_END()
 
 static int ddtrace_startup(zend_extension *extension) {
-    UNUSED(extension);
-    ddtrace_resource = zend_get_resource_handle(PHP_DDTRACE_EXTNAME);
-    ddtrace_op_array_extension = zend_get_op_array_extension_handle(PHP_DDTRACE_EXTNAME);
+    zai_interceptor_startup();
 
     ddtrace_excluded_modules_startup();
     // We deliberately leave handler replacement during startup, even though this uses some config
@@ -198,6 +196,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_untrace, 0, 0, 1)
 ZEND_ARG_INFO(0, function_name)
+ZEND_ARG_INFO(0, class_name)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
@@ -267,11 +266,6 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
 }
 
 static void ddtrace_span_data_free_storage(zend_object *object) {
-    ddtrace_span_fci *span_fci = (ddtrace_span_fci *)object;
-    if (span_fci->dispatch) {
-        ddtrace_dispatch_release(span_fci->dispatch);
-        span_fci->dispatch = NULL;
-    }
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP 8.0]
     memset(object->properties_table, 0, sizeof(((ddtrace_span_t *)NULL)->properties_table_placeholder));
@@ -378,7 +372,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
     zai_hook_minit();
-
     zai_uhook_minit();
 
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -454,7 +447,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zai_uhook_mshutdown();
-
     zai_hook_mshutdown();
 
     UNREGISTER_INI_ENTRIES();
@@ -537,6 +529,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zai_hook_rinit();
+    zai_interceptor_rinit();
+    zai_uhook_rinit();
+    zend_hash_init(&DDTRACE_G(traced_spans), 8, shhhht, NULL, 0);
 
     if (ddtrace_has_excluded_module == true) {
         DDTRACE_G(disable) = 2;
@@ -554,11 +549,11 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         ddtrace_disable_tracing_in_current_request();
     }
 
-    DDTRACE_G(request_init_hook_loaded) = 0;
+    if (!DDTRACE_G(disable)) {
+        zai_hook_activate();
+    }
 
-    ddtrace_dispatch_init();
-    // Initialize C integrations and deferred loading
-    ddtrace_integrations_rinit();
+    DDTRACE_G(request_init_hook_loaded) = 0;
 
     if (!get_DD_TRACE_ENABLED()) {
         return SUCCESS;
@@ -594,33 +589,36 @@ static void dd_clean_globals() {
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-    zai_hook_rshutdown();
+    zai_interceptor_rshutdown();
+    zend_hash_destroy(&DDTRACE_G(traced_spans));
 
     if (!get_DD_TRACE_ENABLED()) {
-        ddtrace_dispatch_destroy();
+        if (!DDTRACE_G(disable)) {
+            zai_hook_clean();
+        }
+
         return SUCCESS;
     }
 
-    ddtrace_close_all_open_spans();  // All remaining non-internal userland spans
-    if (DDTRACE_G(open_spans_top) && DDTRACE_G(open_spans_top)->execute_data == NULL) {
-        // we have a root span. Close it.
-        dd_trace_stop_span_time(&DDTRACE_G(open_spans_top)->span);
-        ddtrace_close_span(DDTRACE_G(open_spans_top));
-    }
+    ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
     if (ddtrace_flush_tracer() == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
 
-    // we here need to disable the tracer, so that further dispatches do not trigger
+    // we here need to disable the tracer, so that further hooks do not trigger
     ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
 
-    // The dispatches shall not be reset, just disabled at runtime.
-    ddtrace_dispatch_destroy();
+    // The hooks shall not be reset, just disabled at runtime.
+    zai_hook_clean();
 
     return SUCCESS;
 }
 
 zend_result ddtrace_post_deactivate(void) {
+    // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run
+    zai_hook_rshutdown();
+    zai_uhook_rshutdown();
+
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
     return SUCCESS;
@@ -643,7 +641,7 @@ bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
     if (Z_TYPE_P(old_value) == IS_FALSE) {
         dd_initialize_request();
     } else if (!DDTRACE_G(disable)) {  // if this is true, the request has not been initialized at all
-        ddtrace_close_all_open_spans();
+        ddtrace_close_all_open_spans(false);  // All remaining userland spans (and root span)
         dd_clean_globals();
     }
 
@@ -742,59 +740,6 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     DISPLAY_INI_ENTRIES();
 }
 
-static bool _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options) {
-    if (Z_TYPE_P(config_array) != IS_ARRAY) {
-        ddtrace_log_debug("Expected config_array to be an associative array");
-        return false;
-    }
-
-    zval *value;
-    zend_string *key;
-
-    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(config_array), key, value) {
-        if (!key) {
-            ddtrace_log_debug("Expected config_array to be an associative array");
-            return false;
-        }
-        // TODO Optimize this
-        if (strcmp("posthook", ZSTR_VAL(key)) == 0) {
-            if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
-                *tracing_closure = value;
-                *options |= DDTRACE_DISPATCH_POSTHOOK;
-            } else {
-                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
-                return false;
-            }
-        } else if (strcmp("prehook", ZSTR_VAL(key)) == 0) {
-            if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
-                *tracing_closure = value;
-                *options |= DDTRACE_DISPATCH_PREHOOK;
-            } else {
-                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
-                return false;
-            }
-        } else if (strcmp("instrument_when_limited", ZSTR_VAL(key)) == 0) {
-            if (Z_TYPE_P(value) == IS_LONG) {
-                if (Z_LVAL_P(value)) {
-                    *options |= DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED;
-                }
-            } else {
-                ddtrace_log_debugf("Expected '%s' to be an int", ZSTR_VAL(key));
-                return false;
-            }
-        } else {
-            ddtrace_log_debugf("Unknown option '%s' in config_array", ZSTR_VAL(key));
-            return false;
-        }
-    }
-    ZEND_HASH_FOREACH_END();
-    if (!*tracing_closure) {
-        ddtrace_log_debug("Required key 'posthook' or 'prehook' not found in config_array");
-        return false;
-    }
-    return true;
-}
-
 static bool ddtrace_should_warn_legacy(void) {
     int expected = 1;
     return atomic_compare_exchange_strong(&ddtrace_warn_legacy_api, &expected, 0) &&
@@ -842,128 +787,6 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_FALSE;
 }
 
-static PHP_FUNCTION(trace_method) {
-    zval *class_name = NULL;
-    zval *function = NULL;
-    zval *tracing_closure = NULL;
-    zval *config_array = NULL;
-    uint32_t options = 0;
-
-    if (!get_DD_TRACE_ENABLED()) {
-        RETURN_BOOL(0);
-    }
-
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zzO", &class_name, &function,
-                                 &tracing_closure, zend_ce_closure) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zza", &class_name, &function,
-                                 &config_array) != SUCCESS) {
-        ddtrace_log_debug("Unexpected parameters, expected (class_name, method_name, tracing_closure | config_array)");
-        RETURN_BOOL(0);
-    }
-
-    if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING) {
-        ddtrace_log_debug("class_name and method_name must be a string");
-        RETURN_BOOL(0);
-    }
-
-    if (config_array) {
-        if (_parse_config_array(config_array, &tracing_closure, &options) == false) {
-            RETURN_BOOL(0);
-        }
-    } else {
-        options |= DDTRACE_DISPATCH_POSTHOOK;
-    }
-
-    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, options);
-    RETURN_BOOL(rv);
-}
-
-/*
- * In PHP 7 we don't bind $this as we want only public access.
- * In PHP 5 we have to bind $this; see PHP5's hook_method for details.
- */
-static PHP_FUNCTION(hook_method) {
-    zend_string *class_name = NULL, *method_name = NULL;
-    zval *prehook = NULL, *posthook = NULL;
-
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 2, 4)
-    // clang-format off
-        Z_PARAM_STR(class_name)
-        Z_PARAM_STR(method_name)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_OBJECT_OF_CLASS_EX(prehook, zend_ce_closure, 1, 0)
-        Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
-    // clang-format on
-    ZEND_PARSE_PARAMETERS_END_EX({
-        ddtrace_log_debug(
-            "Unable to parse parameters for DDTrace\\hook_method; expected "
-            "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)");
-    });
-
-    if (prehook && posthook) {
-        // both callbacks given; not yet supported
-        ddtrace_log_debug(
-            "DDTrace\\hook_method was given both prehook and posthook. This is not yet supported; ignoring call.");
-        RETURN_FALSE;
-    }
-
-    if (!prehook && !posthook) {
-        ddtrace_log_debug("DDTrace\\hook_method was given neither prehook nor posthook.");
-        RETURN_FALSE;
-    }
-
-    // at this point we know we have a posthook XOR posthook
-    zval *callable = prehook ?: posthook;
-    uint32_t options = (prehook ? DDTRACE_DISPATCH_PREHOOK : DDTRACE_DISPATCH_POSTHOOK) | DDTRACE_DISPATCH_NON_TRACING;
-
-    // massage zend_string * into zval
-    zval class_name_zv, method_name_zv;
-    ZVAL_STR(&class_name_zv, class_name);
-    ZVAL_STR(&method_name_zv, method_name);
-
-    RETURN_BOOL(ddtrace_trace(&class_name_zv, &method_name_zv, callable, options));
-}
-
-static PHP_FUNCTION(hook_function) {
-    zend_string *function_name = NULL;
-    zval *prehook = NULL, *posthook = NULL;
-
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 3)
-    // clang-format off
-        Z_PARAM_STR(function_name)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_OBJECT_OF_CLASS_EX(prehook, zend_ce_closure, 1, 0)
-        Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
-    // clang-format on
-    ZEND_PARSE_PARAMETERS_END_EX({
-        ddtrace_log_debug(
-            "Unable to parse parameters for DDTrace\\hook_function; expected "
-            "(string $function_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)");
-    });
-
-    if (prehook && posthook) {
-        // both callbacks given; not yet supported
-        ddtrace_log_debug(
-            "DDTrace\\hook_function was given both prehook and posthook. This is not yet supported; ignoring call.");
-        RETURN_FALSE;
-    }
-
-    if (!prehook && !posthook) {
-        ddtrace_log_debug("DDTrace\\hook_function was given neither prehook nor posthook.");
-        RETURN_FALSE;
-    }
-
-    // at this point we know we have a posthook XOR posthook
-    zval *callable = prehook ?: posthook;
-    uint32_t options = (prehook ? DDTRACE_DISPATCH_PREHOOK : DDTRACE_DISPATCH_POSTHOOK) | DDTRACE_DISPATCH_NON_TRACING;
-
-    // massage zend_string * into zval
-    zval function_name_zv;
-    ZVAL_STR(&function_name_zv, function_name);
-
-    RETURN_BOOL(ddtrace_trace(NULL, &function_name_zv, callable, options));
-}
-
 static PHP_FUNCTION(additional_trace_meta) {
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "")) {
         ddtrace_log_debug("Unexpected parameters to DDTrace\\additional_trace_meta");
@@ -997,40 +820,6 @@ static PHP_FUNCTION(add_global_tag) {
     RETURN_NULL();
 }
 
-static PHP_FUNCTION(trace_function) {
-    zval *function = NULL;
-    zval *tracing_closure = NULL;
-    zval *config_array = NULL;
-    uint32_t options = 0;
-
-    if (!get_DD_TRACE_ENABLED()) {
-        RETURN_BOOL(0);
-    }
-
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "zO", &function, &tracing_closure,
-                                 zend_ce_closure) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "za", &function, &config_array) != SUCCESS) {
-        ddtrace_log_debug("Unexpected parameters, expected (function_name, tracing_closure | config_array)");
-        RETURN_BOOL(0);
-    }
-
-    if (Z_TYPE_P(function) != IS_STRING) {
-        ddtrace_log_debug("function_name must be a string");
-        RETURN_BOOL(0);
-    }
-
-    if (config_array) {
-        if (_parse_config_array(config_array, &tracing_closure, &options) == false) {
-            RETURN_BOOL(0);
-        }
-    } else {
-        options |= DDTRACE_DISPATCH_POSTHOOK;
-    }
-
-    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, options);
-    RETURN_BOOL(rv);
-}
-
 static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     UNUSED(execute_data);
     ddtrace_serialize_closed_spans(return_value);
@@ -1059,34 +848,6 @@ static PHP_FUNCTION(dd_trace_env_config) {
     }
 }
 
-// This function allows untracing a function.
-static PHP_FUNCTION(dd_untrace) {
-    UNUSED(execute_data);
-
-    if (!get_DD_TRACE_ENABLED()) {
-        RETURN_BOOL(0);
-    }
-
-    zval *function = NULL;
-
-    // Remove the traced function from the global lookup
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "z", &function) != SUCCESS) {
-        ddtrace_log_debug("unexpected parameter. the function name must be provided");
-        RETURN_BOOL(0);
-    }
-
-    // Remove the traced function from the global lookup
-    if (!function || Z_TYPE_P(function) != IS_STRING) {
-        RETURN_BOOL(0);
-    }
-
-    if (DDTRACE_G(function_lookup)) {
-        zend_hash_del(DDTRACE_G(function_lookup), Z_STR_P(function));
-    }
-
-    RETURN_BOOL(1);
-}
-
 static PHP_FUNCTION(dd_trace_disable_in_request) {
     UNUSED(execute_data);
 
@@ -1097,8 +858,13 @@ static PHP_FUNCTION(dd_trace_disable_in_request) {
 
 static PHP_FUNCTION(dd_trace_reset) {
     UNUSED(execute_data);
-    ddtrace_log_debug("Cannot reset traced functions on PHP 8+");
-    RETURN_BOOL(0);
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+
+// TODO ??
+    RETURN_BOOL(1);
 }
 
 /* {{{ proto string dd_trace_serialize_msgpack(array trace_array) */
@@ -1449,7 +1215,7 @@ static PHP_FUNCTION(close_spans_until) {
 
     if (until) {
         span_fci = DDTRACE_G(open_spans_top);
-        while (span_fci && span_fci != until && span_fci->execute_data == NULL) {
+        while (span_fci && span_fci != until && span_fci->type != DDTRACE_INTERNAL_SPAN) {
             span_fci = span_fci->next;
         }
         if (span_fci != until) {
@@ -1458,7 +1224,7 @@ static PHP_FUNCTION(close_spans_until) {
     }
 
     int closed_spans = 0;
-    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until && span_fci->execute_data == NULL) {
+    while ((span_fci = DDTRACE_G(open_spans_top)) && span_fci != until && span_fci->type != DDTRACE_INTERNAL_SPAN) {
         dd_trace_stop_span_time(&span_fci->span);
         ddtrace_close_span(span_fci);
         ++closed_spans;
@@ -1528,12 +1294,7 @@ static PHP_FUNCTION(active_span) {
             RETURN_NULL();
         }
     }
-    // To be removed once the new hooking mechanism is implemented
-    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
-    while (span_fci->span.start == 0 && span_fci->next) {  // skip placeholder span from dd_create_duplicate_span
-        span_fci = span_fci->next;
-    }
-    RETURN_OBJ_COPY(&span_fci->span.std);
+    RETURN_OBJ_COPY(&DDTRACE_G(open_spans_top)->span.std);
 }
 
 /* {{{ proto string DDTrace\root_span() */
@@ -1560,7 +1321,7 @@ static PHP_FUNCTION(start_span) {
         RETURN_FALSE;
     }
 
-    ddtrace_span_fci *span_fci = ddtrace_init_span();
+    ddtrace_span_fci *span_fci = ddtrace_init_span(DDTRACE_USER_SPAN);
 
     if (get_DD_TRACE_ENABLED()) {
         GC_ADDREF(&span_fci->span.std);
@@ -1582,8 +1343,7 @@ static PHP_FUNCTION(close_span) {
         RETURN_FALSE;
     }
 
-    if (!DDTRACE_G(open_spans_top) || DDTRACE_G(open_spans_top)->execute_data ||
-        (get_DD_TRACE_GENERATE_ROOT_SPAN() && DDTRACE_G(open_spans_top)->next == NULL)) {
+    if (!DDTRACE_G(open_spans_top) || DDTRACE_G(open_spans_top)->type != DDTRACE_USER_SPAN) {
         ddtrace_log_err("There is no user-span on the top of the stack. Cannot close.");
         RETURN_NULL();
     }

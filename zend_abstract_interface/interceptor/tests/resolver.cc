@@ -5,10 +5,10 @@ extern "C" {
 #include <hook/table.h>
 #include <value/value.h>
 #include <tea/extension.h>
-#if PHP_VERSION_ID >= 70000
+#if PHP_VERSION_ID < 80000
 #include <interceptor/php7/interceptor.h>
 #else
-#include <interceptor/php5/interceptor.h>
+#include <interceptor/php8/interceptor.h>
 #endif
 
     static PHP_MINIT_FUNCTION(ddtrace_testing_hook) {
@@ -21,7 +21,7 @@ extern "C" {
         zai_hook_activate();
         // test ZEND_DECLARE_*_DELAYED opcodes for opcache
         CG(compiler_options) |= ZEND_COMPILE_DELAYED_BINDING;
-        zai_interceptor_rinit(ZAI_TSRMLS_C);
+        zai_interceptor_rinit();
         return SUCCESS;
     }
 
@@ -37,13 +37,17 @@ extern "C" {
     }
 
     static int ddtrace_testing_startup() {
+#if PHP_VERSION_ID < 80000
         zai_interceptor_startup(tea_extension_dummy());
+#else
+        zai_interceptor_startup();
+#endif
         return SUCCESS;
     }
 
     static void init_interceptor_test() {
+#if PHP_VERSION_ID < 80000
         tea_extension_op_array_ctor(zai_interceptor_op_array_ctor);
-#if PHP_VERSION_ID >= 70000
         tea_extension_op_array_handler(zai_interceptor_op_array_pass_two);
 #endif
         tea_extension_startup(ddtrace_testing_startup);
@@ -61,6 +65,10 @@ static bool zai_hook_test_begin(zend_ulong invocation, zend_execute_data *ex, vo
 
 static void zai_hook_test_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, void *fixed, void *dynamic TEA_TSRMLS_DC) {
     REQUIRE_FALSE(1);
+}
+
+static bool hook_is_installed(zend_op_array *op_array) {
+    return zai_hook_installed_user(op_array);
 }
 
 #define INTERCEPTOR_TEST_CASE(description, ...) \
@@ -100,78 +108,78 @@ TEA_TEST_CASE_WITH_PROLOGUE("interceptor", "runtime top-level resolving", init_i
     REQUIRE(stub);
 
     {
-        zend_function *fn = zai_symbol_lookup_function_literal(ZEND_STRL("doAlias") ZAI_TSRMLS_CC);
-        CHECK(zai_hook_installed_func(fn));
+        zend_function *fn = zai_symbol_lookup_function_literal(ZEND_STRL("doAlias"));
+        CHECK(hook_is_installed(&fn->op_array));
     }
     {
-        zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("TopLevel") ZAI_TSRMLS_CC);
+        zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("TopLevel"));
         zai_string_view name = ZAI_STRL_VIEW("foo");
-        zend_function *classfn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
-        CHECK(zai_hook_installed_func(classfn));
+        zend_function *classfn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
+        CHECK(hook_is_installed(&classfn->op_array));
     }
 });
 
 INTERCEPTOR_TEST_CASE("runtime eval resolving", {
     INSTALL_HOOK("dynamicFunction");
     CALL_FN("doEval");
-    zend_function *fn = zai_symbol_lookup_function_literal(ZEND_STRL("dynamicFunction") ZAI_TSRMLS_CC);
-    REQUIRE(zai_hook_installed_func(fn));
+    zend_function *fn = zai_symbol_lookup_function_literal(ZEND_STRL("dynamicFunction"));
+    REQUIRE(hook_is_installed(&fn->op_array));
 });
 
 INTERCEPTOR_TEST_CASE("runtime function resolving", {
     INSTALL_HOOK("aFunction");
     CALL_FN("defineFunc");
-    zend_function *fn = zai_symbol_lookup_function_literal(ZEND_STRL("aFunction") ZAI_TSRMLS_CC);
-    REQUIRE(zai_hook_installed_func(fn));
+    zend_function *fn = zai_symbol_lookup_function_literal(ZEND_STRL("aFunction"));
+    REQUIRE(hook_is_installed(&fn->op_array));
 });
 
 INTERCEPTOR_TEST_CASE("runtime simple class resolving", {
     INSTALL_CLASS_HOOK("Normal", "foo");
     CALL_FN("defineNormal");
-    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("Normal") ZAI_TSRMLS_CC);
+    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("Normal"));
     zai_string_view name = ZAI_STRL_VIEW("foo");
-    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
-    REQUIRE(zai_hook_installed_func(fn));
+    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
+    REQUIRE(hook_is_installed(&fn->op_array));
 });
 
 INTERCEPTOR_TEST_CASE("runtime inherited class resolving", {
     INSTALL_CLASS_HOOK("Inherited", "bar");
     CALL_FN("defineInherited");
-    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("Inherited") ZAI_TSRMLS_CC);
+    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("Inherited"));
     zai_string_view name = ZAI_STRL_VIEW("bar");
-    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
-    REQUIRE(zai_hook_installed_func(fn));
+    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
+    REQUIRE(hook_is_installed(&fn->op_array));
 });
 
 INTERCEPTOR_TEST_CASE("runtime inherited delayed class resolving", {
     INSTALL_CLASS_HOOK("Inherited", "bar");
     CALL_FN("defineNormal");
     CALL_FN("defineDelayedInherited");
-    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("Inherited") ZAI_TSRMLS_CC);
+    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("Inherited"));
     zai_string_view name = ZAI_STRL_VIEW("bar");
-    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
-    REQUIRE(zai_hook_installed_func(fn));
+    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
+    REQUIRE(hook_is_installed(&fn->op_array));
 });
 
 INTERCEPTOR_TEST_CASE("runtime trait using class resolving", {
     INSTALL_CLASS_HOOK("TraitImport", "bar");
     CALL_FN("defineTraitUser");
-    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("TraitImport") ZAI_TSRMLS_CC);
+    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("TraitImport"));
     zai_string_view name = ZAI_STRL_VIEW("bar");
-    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
-    REQUIRE(zai_hook_installed_func(fn));
+    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
+    REQUIRE(hook_is_installed(&fn->op_array));
 });
 
 INTERCEPTOR_TEST_CASE("runtime class_alias resolving", {
     INSTALL_CLASS_HOOK("Aliased", "foo");
     CALL_FN("doAlias");
-    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("Aliased") ZAI_TSRMLS_CC);
+    zend_class_entry *ce = zai_symbol_lookup_class_literal(ZEND_STRL("Aliased"));
     zai_string_view name = ZAI_STRL_VIEW("foo");
-    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name ZAI_TSRMLS_CC);
-    REQUIRE(zai_hook_installed_func(fn));
+    zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
+    REQUIRE(hook_is_installed(&fn->op_array));
 });
 
-#if PHP_VERSION_ID >= 70000  // not a scenario which can happen on PHP 5
+#if PHP_VERSION_ID < 80000  // not a scenario which can happen on PHP 8
 INTERCEPTOR_TEST_CASE("ensure runtime post-declare resolving does not impact error", {
     INSTALL_CLASS_HOOK("Inherited", "bar");
     CALL_FN("failDeclare", REQUIRE(zval_is_true(result)););

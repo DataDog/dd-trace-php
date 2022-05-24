@@ -5,6 +5,9 @@
 
 #if PHP_VERSION_ID < 80000
 #include "php7/compatibility.h"
+#include "php7/configuration.h"
+#else
+#include "php8/configuration.h"
 #endif
 
 #include "uhook_arginfo.h"
@@ -12,7 +15,6 @@
 #include <hook/hook.h>
 
 #include "uhook.h"
-#include "php7/configuration.h"
 
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 

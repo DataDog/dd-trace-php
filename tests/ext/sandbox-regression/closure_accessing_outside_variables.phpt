@@ -17,8 +17,7 @@ function setup($variable){
     });
 }
 
-// Cannot call a function while it is not traced and later expect it to trace
-//(new Test())->m();
+(new Test())->m();
 setup(1);
 (new Test())->m();
 setup(3);
@@ -26,6 +25,7 @@ setup(3);
 
 ?>
 --EXPECT--
+METHOD
 METHOD
 HOOK 1
 METHOD

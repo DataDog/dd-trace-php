@@ -220,7 +220,6 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/coms.c \
       ext/php8/configuration.c \
       ext/php8/ddshared.c \
-      ext/php8/dispatch.c \
       ext/php8/dogstatsd_client.c \
       ext/php8/engine_api.c \
       ext/php8/engine_hooks.c \
@@ -228,17 +227,10 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/handlers_curl.c \
       ext/php8/handlers_exception.c \
       ext/php8/handlers_internal.c \
-      ext/php8/handlers_memcached.c \
-      ext/php8/handlers_mongodb.c \
-      ext/php8/handlers_mysqli.c \
       ext/php8/handlers_pcntl.c \
-      ext/php8/handlers_pdo.c \
-      ext/php8/handlers_phpredis.c \
       ext/php8/integrations/integrations.c \
       ext/php8/logging.c \
       ext/php8/memory_limit.c \
-      ext/php8/php8/dispatch.c \
-      ext/php8/php8/engine_hooks.c \
       ext/php8/priority_sampling/priority_sampling.c \
       ext/php8/profiling_context.c \
       ext/php8/random.c \
@@ -267,6 +259,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/headers/php7-8/headers.c \
       zend_abstract_interface/hook/hook.c \
       zend_abstract_interface/interceptor/php8/interceptor.c \
+      zend_abstract_interface/interceptor/php8/resolver.c \
       zend_abstract_interface/json/json.c \
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \

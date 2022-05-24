@@ -1,8 +1,4 @@
-if(PHP_VERSION_ID GREATER_EQUAL "80000")
-    add_executable(interceptor interceptor.cc)
-else()
-    add_executable(interceptor interceptor.cc resolver.cc)
-endif()
+add_executable(interceptor interceptor.cc resolver.cc)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

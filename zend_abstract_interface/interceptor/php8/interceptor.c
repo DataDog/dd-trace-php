@@ -3,11 +3,13 @@
 #include <hook/table.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_generators.h>
+#include "interceptor.h"
 
 static int registered_observers = 0;
 
 typedef struct {
     zai_hook_memory_t hook_data;
+    zend_execute_data *ex;
     bool resumed;
     bool implicit;
 } zai_interceptor_frame_memory;
@@ -55,6 +57,7 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
 static void zai_interceptor_observer_begin_handler(zend_execute_data *execute_data) {
     zai_interceptor_frame_memory frame_memory;
     if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
+        frame_memory.ex = execute_data;
         zai_hook_memory_table_insert(execute_data, &frame_memory);
     }
 }
@@ -62,10 +65,8 @@ static void zai_interceptor_observer_begin_handler(zend_execute_data *execute_da
 static void zai_interceptor_observer_end_handler(zend_execute_data *execute_data, zval *retval) {
     zai_interceptor_frame_memory *frame_memory;
     if (zai_hook_memory_table_find(execute_data, &frame_memory)) {
-        zval rv;
         if (!retval) {
-            ZVAL_NULL(&rv);
-            retval = &rv;
+            retval = &EG(uninitialized_zval);
         }
         zai_hook_safe_finish(execute_data, retval, frame_memory);
         zai_hook_memory_table_del(execute_data);
@@ -182,7 +183,7 @@ static void zai_interceptor_iterator_wrapper_iterator_move_forward(zend_object_i
     it->iterator->funcs->move_forward(it->iterator);
 }
 
-const static zend_object_iterator_funcs zai_interceptor_iterator_wrapper_iterator_funcs = {
+static const zend_object_iterator_funcs zai_interceptor_iterator_wrapper_iterator_funcs = {
     .dtor = zai_interceptor_iterator_wrapper_dtor,
     .get_gc = zai_interceptor_iterator_wrapper_get_gc,
     .valid = zai_interceptor_iterator_wrapper_iterator_valid,
@@ -215,7 +216,7 @@ static void zai_interceptor_iterator_wrapper_array_move_forward(zend_object_iter
     zend_hash_move_forward_ex(it->array, &Z_FE_POS(it->zv));
 }
 
-const static zend_object_iterator_funcs zai_interceptor_iterator_wrapper_array_funcs = {
+static const zend_object_iterator_funcs zai_interceptor_iterator_wrapper_array_funcs = {
     .dtor = zai_interceptor_iterator_wrapper_dtor,
     .get_gc = zai_interceptor_iterator_wrapper_get_gc,
     .valid = zai_interceptor_iterator_wrapper_array_valid,
@@ -270,6 +271,7 @@ static void zai_interceptor_observer_generator_yield(zend_execute_data *execute_
                 zai_interceptor_frame_memory generator_memory;
                 generator_memory.implicit = true;
                 generator_memory.resumed = false;
+                generator_memory.ex = generator->execute_data;
                 zai_hook_memory_table_insert((zend_execute_data *)generator, &generator_memory);
                 generator = generator->node.parent;
                 if (!generator) {
@@ -317,10 +319,8 @@ static void zai_interceptor_observer_generator_end_handler(zend_execute_data *ex
         if (!EG(exception) && Z_ISUNDEF(generator->retval)) {
             zai_interceptor_observer_generator_yield(execute_data, retval, generator, frame_memory);
         } else {
-            zval rv;
             if (!retval) {
-                ZVAL_NULL(&rv);
-                retval = &rv;
+                retval = &EG(uninitialized_zval);
             }
             zai_interceptor_handle_ended_generator(generator, execute_data, retval, frame_memory);
         }
@@ -468,16 +468,29 @@ void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
     }
 }
 
+static zend_always_inline bool zai_interceptor_shall_install_handlers(zend_op_array *op_array) {
+    // We opt to always install observers for runtime op_arrays with dynamic runtime cache, as we cannot find them reliably and inexpensively at runtime (e.g. dynamic closures) when observers change
+    if (UNEXPECTED((op_array->fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0)) {
+        // Note that only run-time constructs like Closures and top-level code (which we ignore) are HEAP_RT_CACHE. Given that closures are always hooked at runtime only, there's no need for runtime resolving
+        return true;
+    } else {
+        if (zai_hook_installed_user(op_array) ||
+            ((op_array->fn_flags & ZEND_ACC_GENERATOR) && zend_hash_index_exists(&zai_interceptor_implicit_generators, zai_hook_install_address_user(op_array)))) {
+            return true;
+        }
+    }
+    return false;
+}
 
 static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_execute_data *execute_data) {
     zend_op_array *op_array = &execute_data->func->op_array;
-    // We opt to always install observers for runtime op_arrays with dynamic runtime cache, as we cannot find them reliably and inexpensively at runtime (e.g. dynamic closures) when observers change
-    if (UNEXPECTED((op_array->fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) || UNEXPECTED(zai_hook_installed_user(op_array)) || (UNEXPECTED(op_array->fn_flags & ZEND_ACC_GENERATOR) && zend_hash_index_find(&zai_interceptor_implicit_generators, zai_hook_install_address_user(op_array)))) {
+    if (UNEXPECTED(zai_interceptor_shall_install_handlers(op_array))) {
         return zai_interceptor_determine_handlers(op_array);
     }
-    // Use one-time begin handler which will remove itself
+
 #if PHP_VERSION_ID < 80200
 #undef zai_interceptor_replace_observer
+    // Use one-time begin handler which will remove itself
     return (zend_observer_fcall_handlers){zai_interceptor_replace_observer == zai_interceptor_replace_observer_current ? NULL : zai_interceptor_observer_placeholder_handler, NULL};
 #else
     return (zend_observer_fcall_handlers){NULL, NULL};
@@ -489,9 +502,11 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
     zend_generator *generator = (zend_generator *)generator_create_prev(class_type);
 
     zai_interceptor_frame_memory frame_memory;
-    if (zai_hook_continue(EG(current_execute_data), &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
+    zend_execute_data *execute_data = EG(current_execute_data);
+    if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
         frame_memory.resumed = false;
         frame_memory.implicit = false;
+        frame_memory.ex = execute_data;
         zai_hook_memory_table_insert((zend_execute_data *)generator, &frame_memory);
     }
 
@@ -527,14 +542,36 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
         if (zai_hook_continue(execute_data, &frame_memory.hook_data) != ZAI_HOOK_CONTINUED) {
             goto skip;
         }
+        frame_memory.ex = execute_data;
         zai_hook_memory_table_insert(execute_data, &frame_memory);
 
-        // we do not use try / catch here as to preserve order of hooks, LIFO style, in bailout handler
-        if (prev) {
-            prev_execute_internal(execute_data, return_value);
-        } else {
-            func->internal_function.handler(execute_data, return_value);
-        }
+        zend_try {
+            if (prev) {
+                prev_execute_internal(execute_data, return_value);
+            } else {
+                func->internal_function.handler(execute_data, return_value);
+            }
+        } zend_catch {
+            zend_execute_data *active_execute_data = EG(current_execute_data);
+
+            // We need to ensure order of hooks being preserved
+            zai_interceptor_frame_memory *frame;
+            ZEND_HASH_REVERSE_FOREACH_PTR(&zai_hook_memory, frame) {
+                // TODO: fibers. We probably need a hashtable _per fiber_?
+                if (!(frame->ex->func->common.fn_flags & ZEND_ACC_GENERATOR)) {
+                    // generators are freed separately, upon their normal destruction
+                    EG(current_execute_data) = execute_data; // otherwise we're confusing the observers, with prev_execute_data getting set to current_execute_data which is NULL in zai symbol calls.
+                    zai_hook_safe_finish(execute_data, &EG(uninitialized_zval), frame);
+                    zai_hook_memory_table_del(execute_data);
+                }
+                if (frame->ex == execute_data) {
+                    break;
+                }
+            } ZEND_HASH_FOREACH_END();
+
+            EG(current_execute_data) = active_execute_data;
+            zend_bailout();
+        } zend_end_try()
 
         zai_hook_finish(execute_data, return_value, &frame_memory.hook_data);
         zai_hook_memory_table_del(execute_data);
@@ -558,13 +595,15 @@ static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zv
 
 // extension handles are supposed to be frozen at post_startup time and observer extension handle allocation
 // incidentally is right before the defacto freeze via zend_finalize_system_id
-static zend_result (*prev_post_startup)();
-zend_result zai_interceptor_post_startup() {
+static zend_result (*prev_post_startup)(void);
+zend_result zai_interceptor_post_startup(void) {
     registered_observers = zend_op_array_extension_handles - zend_observer_fcall_op_array_extension;
     return prev_post_startup ? prev_post_startup() : SUCCESS;
 }
 
-void zai_interceptor_minit() {
+void zai_interceptor_setup_resolving_startup(void);
+
+void zai_interceptor_startup() {
 #if PHP_VERSION_ID < 80200
 #if PHP_VERSION_ID < 80100
 #define RUN_TIME_CACHE_OBSERVER_PATCH_VERSION 18
@@ -608,6 +647,8 @@ void zai_interceptor_minit() {
     zend_post_startup_cb = zai_interceptor_post_startup;
 
     zai_hook_on_update = zai_interceptor_replace_observer;
+
+    zai_interceptor_setup_resolving_startup();
 }
 
 static void zai_hook_memory_dtor(zval *zv) {

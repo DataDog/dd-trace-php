@@ -416,7 +416,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
     zai_hook_minit();
-
     zai_uhook_minit();
 
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -491,7 +490,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zai_uhook_mshutdown();
-
     zai_hook_mshutdown();
 
     UNREGISTER_INI_ENTRIES();

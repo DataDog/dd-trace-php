@@ -330,18 +330,6 @@ void ddtrace_exception_handlers_startup(void) {
     for (size_t i = 0; i < handlers_len; ++i) {
         dd_install_handler(handlers[i]);
     }
-
-    if (ddtrace_resource != -1) {
-        ddtrace_string handlers[] = {
-            DDTRACE_STRING_LITERAL("header"),
-            DDTRACE_STRING_LITERAL("http_response_code"),
-            DDTRACE_STRING_LITERAL("set_error_handler"),
-            DDTRACE_STRING_LITERAL("set_exception_handler"),
-            DDTRACE_STRING_LITERAL("restore_exception_handler"),
-        };
-        size_t handlers_len = sizeof handlers / sizeof handlers[0];
-        ddtrace_replace_internal_functions(CG(function_table), handlers_len, handlers);
-    }
 }
 
 void ddtrace_exception_handlers_shutdown(void) { ddtrace_free_unregistered_class(&dd_exception_or_error_handler_ce); }
