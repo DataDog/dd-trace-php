@@ -55,7 +55,7 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
 
 #ifdef __SANITIZE_ADDRESS__
         void *volatile fake_stack;
-    	__sanitizer_start_switch_fiber(&fake_stack, stacktop, stack_size);
+    	__sanitizer_start_switch_fiber((void**) &fake_stack, stacktop, stack_size);
 #endif
 
 #if defined(__x86_64__)
@@ -440,12 +440,8 @@ void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
         return;
     }
 
-    zend_observer_fcall_begin_handler *beginHandler = ZEND_OBSERVER_DATA(op_array), *beginEnd = beginHandler + registered_observers - 1;
+    zend_observer_fcall_begin_handler *beginHandler = (zend_observer_fcall_begin_handler *)&ZEND_OBSERVER_DATA(op_array), *beginEnd = beginHandler + registered_observers - 1;
     zend_observer_fcall_end_handler *endHandler = (zend_observer_fcall_end_handler *)beginEnd + 1, *endEnd = endHandler + registered_observers - 1;
-
-    if (!beginHandler) {
-        return;
-    }
 
     if (remove) {
         for (zend_observer_fcall_begin_handler *curHandler = beginHandler; curHandler <= beginEnd; ++curHandler) {
@@ -589,14 +585,16 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
             zai_interceptor_frame_memory *frame;
             ZEND_HASH_REVERSE_FOREACH_PTR(&zai_hook_memory, frame) {
                 // TODO: fibers. We probably need a hashtable _per fiber_?
-                if (!(frame->ex->func->common.fn_flags & ZEND_ACC_GENERATOR)) {
+                zend_execute_data *frame_ex = frame->ex;
+                if (!(frame_ex->func->common.fn_flags & ZEND_ACC_GENERATOR)) {
                     // generators are freed separately, upon their normal destruction
                     EG(current_execute_data) = execute_data; // otherwise we're confusing the observers, with prev_execute_data getting set to current_execute_data which is NULL in zai symbol calls.
                     zai_hook_safe_finish(execute_data, &EG(uninitialized_zval), frame);
                     zai_hook_memory_table_del(execute_data);
-                }
-                if (frame->ex == execute_data) {
-                    break;
+
+                    if (frame_ex == execute_data) {
+                        break;
+                    }
                 }
             } ZEND_HASH_FOREACH_END();
 
@@ -628,7 +626,7 @@ static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zv
 // incidentally is right before the defacto freeze via zend_finalize_system_id
 static zend_result (*prev_post_startup)(void);
 zend_result zai_interceptor_post_startup(void) {
-    registered_observers = zend_op_array_extension_handles - zend_observer_fcall_op_array_extension;
+    registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
     return prev_post_startup ? prev_post_startup() : SUCCESS;
 }
 
