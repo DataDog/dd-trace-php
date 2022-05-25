@@ -5,6 +5,10 @@
 #include <Zend/zend_generators.h>
 #include "interceptor.h"
 
+#ifdef __SANITIZE_ADDRESS__
+# include <sanitizer/common_interface_defs.h>
+#endif
+
 static int registered_observers = 0;
 
 typedef struct {
@@ -37,20 +41,46 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
         return;
     }
 
+#ifdef __SANITIZE_ADDRESS__
+    const void *bottom;
+    size_t capacity;
+#endif
+
     // executing code may write to the stack as normal part of its execution. Jump onto a temporary stack here... to avoid messing with stack allocated data
     JMP_BUF target;
     const size_t stack_size = 1 << 17;
     void *volatile stack = malloc(stack_size);
     if (SETJMP(target) == 0) {
         void *stacktop = stack + stack_size;
+
+#ifdef __SANITIZE_ADDRESS__
+        void *volatile fake_stack;
+    	__sanitizer_start_switch_fiber(&fake_stack, stacktop, stack_size);
+#endif
+
 #if defined(__x86_64__)
         __asm__ volatile("mov %0, %%rsp" : : "r"(stacktop));
 #elif defined(__aarch64__)
         __asm__ volatile("mov sp, %0" : : "r"(stacktop));
 #endif
+
+#ifdef __SANITIZE_ADDRESS__
+        __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
+#endif
+
         zai_hook_finish(execute_data, retval, &frame_memory->hook_data);
+
+#ifdef __SANITIZE_ADDRESS__
+    	__sanitizer_start_switch_fiber(NULL, bottom, capacity);
+#endif
+
         LONGJMP(target, 1);
     }
+
+#ifdef __SANITIZE_ADDRESS__
+    __sanitizer_finish_switch_fiber(NULL, &bottom, &capacity);
+#endif
+
     free(stack);
 }
 
