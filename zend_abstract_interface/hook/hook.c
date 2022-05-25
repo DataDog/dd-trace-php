@@ -599,6 +599,9 @@ zend_long zai_hook_install_resolved(
 static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool persistent) {
     zend_string *str = zend_string_alloc(len, persistent);
     zend_str_tolower_copy(ZSTR_VAL(str), ptr, len);
+    if (persistent) {
+        str = zend_new_interned_string(str);
+    }
     return str;
 }
 

@@ -55,6 +55,9 @@
 
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
+#if PHP_VERSION_ID < 80200
+static bool dd_has_other_observers;
+#endif
 
 atomic_int ddtrace_warn_legacy_api;
 
@@ -77,6 +80,9 @@ STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, On
 PHP_INI_END()
 
 static int ddtrace_startup(zend_extension *extension) {
+#if PHP_VERSION_ID < 80200
+    dd_has_other_observers = ZEND_OBSERVER_ENABLED;
+#endif
     zai_interceptor_startup();
 
     ddtrace_excluded_modules_startup();
@@ -586,6 +592,27 @@ static void dd_clean_globals() {
     }
 }
 
+static void dd_shutdown_hooks_and_observer() {
+    zai_hook_clean();
+
+#if PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID < 80100
+#define RUN_TIME_CACHE_OBSERVER_PATCH_VERSION 18
+#else
+#define RUN_TIME_CACHE_OBSERVER_PATCH_VERSION 4
+#endif
+
+    zend_long patch_version = Z_LVAL_P(zend_get_constant_str(ZEND_STRL("PHP_RELEASE_VERSION")));
+    if (patch_version < RUN_TIME_CACHE_OBSERVER_PATCH_VERSION) {
+        // Just do it if we think to be the only observer ... don't want to break other functionalities
+        if (!dd_has_other_observers) {
+            // We really should not have to do it. But there is a bug before PHP 8.0.18 and 8.1.4 respectively, causing observer fcall info being freed before stream shutdown (which may still invoke user code)
+            zend_observer_fcall_op_array_extension = -1;
+        }
+    }
+#endif
+}
+
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
@@ -594,7 +621,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     if (!get_DD_TRACE_ENABLED()) {
         if (!DDTRACE_G(disable)) {
-            zai_hook_clean();
+            dd_shutdown_hooks_and_observer();
         }
 
         return SUCCESS;
@@ -609,7 +636,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
 
     // The hooks shall not be reset, just disabled at runtime.
-    zai_hook_clean();
+    dd_shutdown_hooks_and_observer();
 
     return SUCCESS;
 }

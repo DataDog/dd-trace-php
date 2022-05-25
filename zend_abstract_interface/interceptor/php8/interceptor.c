@@ -430,6 +430,7 @@ static void zai_interceptor_observer_placeholder_handler(zend_execute_data *exec
 }
 #endif
 
+// This function MUST NOT be called with remove = false if there is already an observer installed and it also MUST NOT be called with remove = true if there is no observer installed yet
 void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
     if (!RUN_TIME_CACHE(op_array)) {
         return;
