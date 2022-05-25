@@ -57,6 +57,7 @@ bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
 #if PHP_VERSION_ID < 80200
 static bool dd_has_other_observers;
+static int dd_observer_extension_backup = -1;
 #endif
 
 atomic_int ddtrace_warn_legacy_api;
@@ -100,7 +101,14 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
 }
 
 static void ddtrace_activate(void) {}
-static void ddtrace_deactivate(void) {}
+static void ddtrace_deactivate(void) {
+#if PHP_VERSION_ID < 80200
+    if (dd_observer_extension_backup != -1) {
+        zend_observer_fcall_op_array_extension = dd_observer_extension_backup;
+        dd_observer_extension_backup = -1;
+    }
+#endif
+}
 
 static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   PHP_DDTRACE_VERSION,
@@ -607,6 +615,7 @@ static void dd_shutdown_hooks_and_observer() {
         // Just do it if we think to be the only observer ... don't want to break other functionalities
         if (!dd_has_other_observers) {
             // We really should not have to do it. But there is a bug before PHP 8.0.18 and 8.1.4 respectively, causing observer fcall info being freed before stream shutdown (which may still invoke user code)
+            dd_observer_extension_backup = zend_observer_fcall_op_array_extension;
             zend_observer_fcall_op_array_extension = -1;
         }
     }

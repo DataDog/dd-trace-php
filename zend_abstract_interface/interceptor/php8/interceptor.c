@@ -558,6 +558,8 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
             ZVAL_NULL(&retval);
             zai_interceptor_handle_ended_generator(generator, &ex, &retval, frame_memory);
         }
+    } else {
+        zai_interceptor_generator_dtor_obj(object);
     }
 }
 
