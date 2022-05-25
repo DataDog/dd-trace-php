@@ -51,7 +51,7 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
     const size_t stack_size = 1 << 17;
     void *volatile stack = malloc(stack_size);
     if (SETJMP(target) == 0) {
-        void *stacktop = stack + stack_size;
+        void *stacktop = stack + stack_size, *stacktarget = stacktop - 0x400;
 
 #ifdef __SANITIZE_ADDRESS__
         void *volatile fake_stack;
@@ -59,9 +59,9 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
 #endif
 
 #if defined(__x86_64__)
-        __asm__ volatile("mov %0, %%rsp" : : "r"(stacktop));
+        __asm__ volatile("mov %0, %%rsp" : : "r"(stacktarget));
 #elif defined(__aarch64__)
-        __asm__ volatile("mov sp, %0" : : "r"(stacktop));
+        __asm__ volatile("mov sp, %0" : : "r"(stacktarget));
 #endif
 
 #ifdef __SANITIZE_ADDRESS__

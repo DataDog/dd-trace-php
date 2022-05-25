@@ -144,7 +144,7 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
     zai_hook_test_begin, \
     zai_hook_test_end, \
     ZAI_HOOK_AUX(NULL, NULL), \
-    0 TEA_TSRMLS_CC) != -1)
+    4 TEA_TSRMLS_CC) != -1)
 #define INSTALL_GENERATOR_HOOK(fn, resume, yield) REQUIRE(zai_hook_install_generator( \
                                                ZAI_STRL_VIEW(""), \
                                                ZAI_STRL_VIEW(fn), \
@@ -153,7 +153,7 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
                                                yield, \
                                                zai_hook_test_end, \
                                                ZAI_HOOK_AUX(NULL, NULL), \
-                                               0 TEA_TSRMLS_CC) != -1)
+                                               4 TEA_TSRMLS_CC) != -1)
 #define CALL_FN(fn, ...) do { \
     zval *result; \
     ZAI_VALUE_INIT(result); \
