@@ -205,6 +205,10 @@ PHP_FUNCTION(install_hook) {
 #endif
         if (Z_TYPE_P(_arg) == IS_STRING) {
             name = Z_STR_P(_arg);
+// We disable hooking closures for *now*. The zend_function * of the closure may have a smaller lifetime than any hook. (leading to use after free)
+// Also disabling generators as these may reference closures...
+// A possibility would be that hooking closures only affects the specific closure (override closure dtor / weakref it)? To be evaluated...
+#if 0
         } else if (Z_TYPE_P(_arg) == IS_OBJECT && (Z_OBJCE_P(_arg) == zend_ce_closure || Z_OBJCE_P(_arg) == zend_ce_generator)) {
             if (Z_OBJCE_P(_arg) == zend_ce_closure) {
 #if PHP_VERSION_ID >= 80000
@@ -222,6 +226,7 @@ PHP_FUNCTION(install_hook) {
                     break;
                 }
             }
+#endif
         } else {
             // we're silent here, right?
             _error_code = ZPP_ERROR_FAILURE;
@@ -304,7 +309,7 @@ PHP_FUNCTION(remove_hook) {
             }
             zai_hook_remove(scope, function, id);
         } else {
-            zai_hook_remove_resolved(def->resolved, id);
+            zai_hook_remove_resolved(zai_hook_install_address(def->resolved), id);
         }
     }
 }

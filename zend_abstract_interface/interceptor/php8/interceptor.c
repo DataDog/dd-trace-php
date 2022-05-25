@@ -284,7 +284,7 @@ static void zai_interceptor_observer_generator_yield(zend_execute_data *execute_
             }
 
             generator = generator->node.parent;
-            zend_ulong genaddr = zai_hook_install_address_user(&generator->execute_data->func->op_array);
+            zai_install_address genaddr = zai_hook_install_address_user(&generator->execute_data->func->op_array);
             while (!zend_hash_index_exists(&zai_hook_resolved, genaddr)) {
                 zval *count = zend_hash_index_find(&zai_interceptor_implicit_generators, genaddr);
                 if (!count) {
@@ -327,7 +327,7 @@ static void zai_interceptor_observer_generator_yield(zend_execute_data *execute_
 
 static void zai_interceptor_handle_ended_generator(zend_generator *generator, zend_execute_data *execute_data, zval *retval, zai_interceptor_frame_memory *frame_memory) {
     if (frame_memory->implicit) {
-        zend_ulong genaddr = zai_hook_install_address_user(&generator->execute_data->func->op_array);
+        zai_install_address genaddr = zai_hook_install_address_user(&generator->execute_data->func->op_array);
         zval *count = zend_hash_index_find(&zai_interceptor_implicit_generators, genaddr);
         if (count && !--Z_LVAL_P(count)) {
             zend_hash_index_del(&zai_interceptor_implicit_generators, genaddr);

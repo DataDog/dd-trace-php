@@ -61,9 +61,11 @@ zend_long zai_hook_install_resolved(
         size_t dynamic,
         zend_function *function); /* }}} */
 
+typedef zend_ulong zai_install_address;
+
 /* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
 void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index);
-void zai_hook_remove_resolved(zend_function *function, zend_long index); /* }}} */
+void zai_hook_remove_resolved(zai_install_address function_address, zend_long index); /* }}} */
 
 /* {{{ zai_hook_memory_t structure is passed between
         continue and finish and managed by the hook interface */
@@ -120,13 +122,13 @@ void zai_hook_iterator_advance(zai_hook_iterator *iterator);
 void zai_hook_iterator_free(zai_hook_iterator *iterator);
 
 /* {{{ */
-static inline zend_ulong zai_hook_install_address_user(zend_op_array *op_array) {
+static inline zai_install_address zai_hook_install_address_user(zend_op_array *op_array) {
     return ((zend_ulong)op_array->opcodes) >> 5;
 }
-static inline zend_ulong zai_hook_install_address_internal(zend_internal_function *function) {
+static inline zai_install_address zai_hook_install_address_internal(zend_internal_function *function) {
     return ((zend_ulong)function) >> 5;
 }
-static inline zend_ulong zai_hook_install_address(zend_function *function) {
+static inline zai_install_address zai_hook_install_address(zend_function *function) {
     if (function->type == ZEND_INTERNAL_FUNCTION) {
         return zai_hook_install_address_internal(&function->internal_function);
     }
@@ -134,7 +136,7 @@ static inline zend_ulong zai_hook_install_address(zend_function *function) {
 } /* }}} */
 
 /* {{{ */
-static inline zend_ulong zai_hook_frame_address(zend_execute_data *ex) {
+static inline zai_install_address zai_hook_frame_address(zend_execute_data *ex) {
     return zai_hook_install_address(ex->func);
 } /* }}} */
 

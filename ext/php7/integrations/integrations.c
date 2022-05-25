@@ -90,7 +90,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
             zai_hook_remove((*auxArray)->scope, (*auxArray)->function, (*auxArray)->id);
         }
     } else {
-        zai_hook_remove_resolved(EX(func), aux->id);
+        zai_hook_remove_resolved(zai_hook_install_address(EX(func)), aux->id);
     }
 }
 

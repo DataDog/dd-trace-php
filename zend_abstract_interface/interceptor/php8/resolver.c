@@ -185,11 +185,15 @@ static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *exec
     return prev_declare_class_delayed_handler ? prev_declare_class_delayed_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-void zai_interceptor_check_for_opline_before_exception(void) {
+static user_opcode_handler_t prev_handle_exception_handler;
+static int zai_interceptor_handle_exception_handler(zend_execute_data *execute_data) {
+    // not everything goes through zend_throw_exception_hook, in particular when zend_rethrow_exception alone is used (e.g. during zend_call_function)
     if (EG(opline_before_exception) == zai_interceptor_post_declare_ops) {
         EG(opline_before_exception) = zai_interceptor_opline_before_binding.op;
         zai_interceptor_pop_opline_before_binding();
     }
+
+    return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
 static void (*prev_exception_hook)(zend_object *);
@@ -234,6 +238,15 @@ void zai_interceptor_setup_resolving_startup(void) {
     op->opcode = ZAI_INTERCEPTOR_POST_DECLARE_OP;
     ZEND_VM_SET_OPCODE_HANDLER(op);
 
+    prev_handle_exception_handler = zend_get_user_opcode_handler(ZEND_HANDLE_EXCEPTION);
+    zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, zai_interceptor_handle_exception_handler);
+
     prev_exception_hook = zend_throw_exception_hook;
     zend_throw_exception_hook = zai_interceptor_exception_hook;
+
+#ifndef ZTS
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op)+1);
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op)+2);
+#endif
 }

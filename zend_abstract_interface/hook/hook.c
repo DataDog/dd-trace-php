@@ -250,7 +250,7 @@ static zai_hooks_entry *zai_hook_alloc_hooks_entry(zend_function *resolved) {
 }
 
 static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *resolved) {
-    zend_ulong addr = zai_hook_install_address(resolved);
+    zai_install_address addr = zai_hook_install_address(resolved);
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, addr);
     if (!hooks) {
         hooks = zai_hook_alloc_hooks_entry(resolved);
@@ -267,7 +267,7 @@ static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *reso
 }
 
 static zend_long zai_hook_request_install(zai_hook_t *hook) {
-    zend_class_entry *ce;
+    zend_class_entry *ce = NULL;
     zend_function *function = zai_hook_lookup_function(hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STRING_EMPTY, ZAI_STRING_FROM_ZSTR(hook->function), &ce);
     if (function) {
         hook->resolved_scope = ce;
@@ -301,7 +301,7 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, ze
         return;
     }
 
-    zend_ulong addr = zai_hook_install_address(function);
+    zai_install_address addr = zai_hook_install_address(function);
     if (!zend_hash_index_add_ptr(&zai_hook_resolved, addr, hooks)) {
         // it's already there (e.g. thanks to aliases, traits, ...), merge it
         zai_hooks_entry *existingHooks = zend_hash_index_find_ptr(&zai_hook_resolved, addr);
@@ -507,7 +507,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
         }
 
         if (!--hook->refcount) {
-            zai_hooks_entry *hooks;
+            zai_hooks_entry *hooks = NULL;
             zai_hook_table_find(&zai_hook_resolved, zai_hook_frame_address(ex), (void**)&hooks);
             zend_hash_index_del(&hooks->hooks, (zend_ulong) -hook->id);
             if (zend_hash_num_elements(&hooks->hooks) == 0) {
@@ -656,8 +656,8 @@ zend_long zai_hook_install(
     return zai_hook_install_generator(scope, function, begin, NULL, NULL, end, aux, dynamic);
 } /* }}} */
 
-void zai_hook_remove_resolved(zend_function *function, zend_long index) {
-    zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(function));
+void zai_hook_remove_resolved(zai_install_address function_address, zend_long index) {
+    zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, function_address);
     if (hooks) {
         zai_hook_remove_from_entry(hooks, (zend_ulong)index);
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
@@ -670,7 +670,7 @@ void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
     zend_class_entry *ce;
     zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
     if (resolved) {
-        zai_hook_remove_resolved(resolved, index);
+        zai_hook_remove_resolved(zai_hook_install_address(resolved), index);
         return;
     }
 
