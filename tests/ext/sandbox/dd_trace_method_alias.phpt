@@ -30,5 +30,6 @@ Foo::bar(hello)
 spans(\DDTrace\SpanData) (1) {
   Foo.bar (alias, Foo.bar, cli)
     system.pid => %d
-    _dd.p.upstream_services => YWxpYXM|1|1|1.000
+    _dd.dm.service_hash => 1a0a6a36ca
+    _dd.p.dm => 1a0a6a36ca-1
 }

@@ -2,8 +2,10 @@
 
 #include <mt19937-64.h>
 
+#include <ext/hash/php_hash.h>
+#include <ext/hash/php_hash_sha.h>
 #include <ext/pcre/php_pcre.h>
-#include <ext/standard/base64.h>
+#include <ext/standard/md5.h>
 
 #include "../compat_string.h"
 #include "../configuration.h"
@@ -18,63 +20,49 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_MANUAL = 4,
 };
 
-static void dd_update_upstream_services(ddtrace_span_fci *span, ddtrace_span_fci *deciding_span,
-                                        enum dd_sampling_mechanism mechanism TSRMLS_DC) {
+static void dd_update_decision_maker_tag(ddtrace_span_fci *span, ddtrace_span_fci *deciding_span,
+                                         enum dd_sampling_mechanism mechanism TSRMLS_DC) {
     zval *meta = ddtrace_spandata_property_meta(&span->span);
     if (Z_TYPE_P(meta) != IS_ARRAY) {
         zval_ptr_dtor(&meta);
         array_init(meta);
     }
 
-    zval **current_services_zv = NULL;
-
-    zend_hash_find(&DDTRACE_G(root_span_tags_preset), "_dd.p.upstream_services", sizeof("_dd.p.upstream_services"),
-                   (void **)&current_services_zv);
-
-    char *current_services = current_services_zv ? Z_STRVAL_PP(current_services_zv) : "";
-
     long sampling_priority = ddtrace_fetch_prioritySampling_from_root(TSRMLS_C);
-    if (DDTRACE_G(propagated_priority_sampling) == sampling_priority ||
-        sampling_priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-        if (strlen(current_services)) {
-            add_assoc_string(meta, "_dd.p.upstream_services", current_services, 1);
-        } else {
-            zend_hash_del(Z_ARRVAL_P(meta), "_dd.p.upstream_services", sizeof("_dd.p.upstream_services"));
-        }
+    if (DDTRACE_G(propagated_priority_sampling) == sampling_priority) {
         return;
     }
 
-    zval *service = ddtrace_spandata_property_service(&deciding_span->span);
+    if (sampling_priority > 0 && sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNSET) {
+        if (!zend_hash_exists(Z_ARRVAL_P(meta), "_dd.p.dm", sizeof("_dd.p.dm"))) {
+            const int hexshadigits = 10;
 
-    zval service_string;
-    ddtrace_convert_to_string(&service_string, service TSRMLS_CC);
+            zval servicename;
+            ddtrace_convert_to_string(&servicename, ddtrace_spandata_property_service(&deciding_span->span) TSRMLS_CC);
 
-    int b64_servicename_length = 0;
-    unsigned char *b64_servicename =
-        php_base64_encode((unsigned char *)Z_STRVAL(service_string), Z_STRLEN(service_string), &b64_servicename_length);
-    while (b64_servicename_length > 0 && b64_servicename[b64_servicename_length - 1] == '=') {
-        b64_servicename[--b64_servicename_length] = 0;  // remove padding
+            PHP_SHA256_CTX sha_context;
+            unsigned char service_sha256[32];
+            char service_hexsha256[hexshadigits + 1];
+            PHP_SHA256Init(&sha_context);
+            PHP_SHA256Update(&sha_context, (unsigned char *)Z_STRVAL(servicename), Z_STRLEN(servicename));
+            PHP_SHA256Final(service_sha256, &sha_context);
+            make_digest_ex(service_hexsha256, service_sha256, hexshadigits / 2);
+
+            zval_dtor(&servicename);
+
+            zval *dm_service;
+            MAKE_STD_ZVAL(dm_service);
+            ZVAL_STRINGL(dm_service, service_hexsha256,
+                         get_DD_TRACE_X_DATADOG_TAGS_PROPAGATE_SERVICE() ? hexshadigits : 0, 1);
+            zend_hash_update(Z_ARRVAL_P(meta), "_dd.dm.service_hash", sizeof("_dd.dm.service_hash"), &dm_service,
+                             sizeof(zval *), NULL);
+            char *dm_service_str;
+            spprintf(&dm_service_str, 0, "%s-%d", Z_STRVAL_P(dm_service), mechanism);
+            add_assoc_string(meta, "_dd.p.dm", dm_service_str, 0);
+        }
+    } else {
+        zend_hash_del(Z_ARRVAL_P(meta), "_dd.p.dm", sizeof("_dd.p.dm"));
     }
-
-    zval_dtor(&service_string);
-
-    char sampling_rate[7] = {0};
-    zval *metrics = ddtrace_spandata_property_metrics(&span->span), **sample_rate;
-    if (Z_TYPE_P(metrics) == IS_ARRAY && (zend_hash_find(Z_ARRVAL_P(metrics), "_dd.rule_psr", sizeof("_dd.rule_psr"),
-                                                         (void **)&sample_rate) == SUCCESS)) {
-        snprintf(sampling_rate, 6, "%f", Z_DVAL_PP(sample_rate));
-    }
-
-    char *new_services;
-    spprintf(&new_services, 0, "%s%s%s|%d|%d|%s",
-             current_services_zv && Z_TYPE_PP(current_services_zv) == IS_STRING ? Z_STRVAL_PP(current_services_zv) : "",
-             current_services_zv && (Z_TYPE_PP(current_services_zv) == IS_STRING) && Z_STRLEN_PP(current_services_zv)
-                 ? ";"
-                 : "",
-             b64_servicename, (int)sampling_priority, mechanism, sampling_rate);
-    add_assoc_string(meta, "_dd.p.upstream_services", new_services, 0);
-
-    efree(b64_servicename);
 }
 
 static bool dd_rule_matches(zval *pattern, zval *prop TSRMLS_DC) {
@@ -149,7 +137,7 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span TSRMLS_DC) {
     add_assoc_long_ex(ddtrace_spandata_property_metrics(&span->span), "_sampling_priority_v1",
                       sizeof("_sampling_priority_v1"), priority);
 
-    dd_update_upstream_services(span, span, mechanism TSRMLS_CC);
+    dd_update_decision_maker_tag(span, span, mechanism TSRMLS_CC);
 }
 
 long ddtrace_fetch_prioritySampling_from_root(TSRMLS_D) {
@@ -197,6 +185,6 @@ void ddtrace_set_prioritySampling_on_root(long priority TSRMLS_DC) {
         zend_hash_update(root_metrics, "_sampling_priority_v1", sizeof("_sampling_priority_v1"), &zv, sizeof(zval *),
                          NULL);
 
-        dd_update_upstream_services(root_span, DDTRACE_G(open_spans_top), DD_MECHANISM_MANUAL TSRMLS_CC);
+        dd_update_decision_maker_tag(root_span, DDTRACE_G(open_spans_top), DD_MECHANISM_MANUAL TSRMLS_CC);
     }
 }

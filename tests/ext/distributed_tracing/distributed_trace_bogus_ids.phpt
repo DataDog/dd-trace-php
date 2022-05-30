@@ -36,13 +36,15 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["system.pid"]=>
       string(%d) "%d"
       ["_dd.origin"]=>
       string(7) "datadog"
-      ["_dd.p.upstream_services"]=>
-      string(52) "ZGlzdHJpYnV0ZWRfdHJhY2VfYm9ndXNfaWRzLnBocA|1|1|1.000"
+      ["_dd.dm.service_hash"]=>
+      string(10) "2f8110d3de"
+      ["_dd.p.dm"]=>
+      string(12) "2f8110d3de-1"
     }
     ["metrics"]=>
     array(3) {

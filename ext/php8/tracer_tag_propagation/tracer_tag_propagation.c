@@ -77,11 +77,10 @@ void ddtrace_get_propagated_tags(zend_array *tags) {
 }
 
 zend_string *ddtrace_format_propagated_tags(void) {
-    return NULL;
-
     // we propagate all tags on the current root span which were originally propagated, including the explicitly
     // defined tags here
-    zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.upstream_services"));
+    zend_hash_str_del(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.upstream_services"));
+    zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.dm"));
 
     zend_array *tags = &DDTRACE_G(root_span_tags_preset);
     if (DDTRACE_G(root_span)) {

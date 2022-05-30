@@ -39,13 +39,15 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["system.pid"]=>
       string(%d) "%d"
       ["after"]=>
       string(9) "root_span"
-      ["_dd.p.upstream_services"]=>
-      string(38) "cm9vdF9zcGFuX2FkZF90YWcucGhw|1|1|1.000"
+      ["_dd.dm.service_hash"]=>
+      string(10) "f1999f9456"
+      ["_dd.p.dm"]=>
+      string(12) "f1999f9456-1"
     }
     ["metrics"]=>
     array(3) {

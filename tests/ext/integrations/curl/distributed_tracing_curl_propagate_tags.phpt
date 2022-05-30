@@ -6,7 +6,7 @@ Distributed tracing header tags propagate with curl_exec()
 <?php die('skip: disabled functionality'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
-HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,foo=bar,_dd.p.upstream_services=abcdef|0|2|1.000
+HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,foo=bar,_dd.p.dm=abcdef|0|2|1.000
 --FILE--
 <?php
 
@@ -36,4 +36,4 @@ dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-tags']);
 
 ?>
 --EXPECT--
-x-datadog-tags: custom_tag=inherited,foo=buzz,_dd.p.upstream_services=abcdef|0|2|1.000;ZGQ|-1|4|
+x-datadog-tags: custom_tag=inherited,foo=buzz,_dd.p.dm=abcdef|0|2|1.000;ZGQ|-1|4|
