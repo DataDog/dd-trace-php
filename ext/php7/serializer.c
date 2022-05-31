@@ -33,9 +33,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace);
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level);
 
-static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
+static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
     zval *tmp;
     zend_string *string_key;
     zend_long num_key;
@@ -64,7 +64,8 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
             }
             mpack_write_cstr(writer, key);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
-            if (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key)) {
+            if (level <= 3 &&
+                (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key))) {
                 zval_string_as_uint64 = true;
             }
         }
@@ -72,7 +73,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
         // Writing the value
         if (zval_string_as_uint64) {
             mpack_write_u64(writer, strtoull(Z_STRVAL_P(tmp), NULL, 10));
-        } else if (msgpack_write_zval(writer, tmp) != 1) {
+        } else if (msgpack_write_zval(writer, tmp, level) != 1) {
             return 0;
         }
     }
@@ -86,14 +87,14 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
     return 1;
 }
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace) {
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
     if (Z_TYPE_P(trace) == IS_REFERENCE) {
         trace = Z_REFVAL_P(trace);
     }
 
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
-            if (write_hash_table(writer, Z_ARRVAL_P(trace)) != 1) {
+            if (write_hash_table(writer, Z_ARRVAL_P(trace), level + 1) != 1) {
                 return 0;
             }
             break;
@@ -127,7 +128,7 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    if (msgpack_write_zval(&writer, trace) != 1) {
+    if (msgpack_write_zval(&writer, trace, 0) != 1) {
         mpack_writer_destroy(&writer);
         free(data);
         return 0;
