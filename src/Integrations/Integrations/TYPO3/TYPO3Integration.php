@@ -61,7 +61,6 @@ class TYPO3Integration extends Integration
             \TYPO3\CMS\Frontend\Http\Application::class,
             'run',
             function (SpanData $span, $args, $retval) use ($rootSpan, $integration) {
-                $rootSpan->overwriteOperationName('typo3.request');
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getServiceName());
 
