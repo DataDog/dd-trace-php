@@ -27,11 +27,11 @@
     INTEGRATION(PREDIS, "predis")               \
     INTEGRATION(SLIM, "slim")                   \
     INTEGRATION(SYMFONY, "symfony")             \
+    INTEGRATION(TYPO3, "typo3")                 \
     INTEGRATION(WEB, "web")                     \
     INTEGRATION(WORDPRESS, "wordpress")         \
     INTEGRATION(YII, "yii")                     \
-    INTEGRATION(ZENDFRAMEWORK, "zendframework") \
-    INTEGRATION(TYPO3, "typo3")
+    INTEGRATION(ZENDFRAMEWORK, "zendframework")
 
 #define INTEGRATION(id, ...) DDTRACE_INTEGRATION_##id,
 typedef enum { DD_INTEGRATIONS } ddtrace_integration_name;

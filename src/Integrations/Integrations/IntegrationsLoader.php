@@ -80,6 +80,11 @@ class IntegrationsLoader
             return;
         }
 
+        if (\PHP_MAJOR_VERSION >= 7) {
+            $this->integrations[TYPO3Integration::NAME] =
+                '\DDTrace\Integrations\TYPO3\TYPO3Integration';
+        }
+
         $this->integrations[CakePHPIntegration::NAME] =
             '\DDTrace\Integrations\CakePHP\CakePHPIntegration';
         $this->integrations[CodeIgniterIntegration::NAME] =
@@ -102,8 +107,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Symfony\SymfonyIntegration';
         $this->integrations[ZendFrameworkIntegration::NAME] =
             '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
-        $this->integrations[TYPO3Integration::NAME] =
-            '\DDTrace\Integrations\TYPO3\TYPO3Integration';
 
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION < 7) {
