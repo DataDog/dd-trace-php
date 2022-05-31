@@ -1,5 +1,5 @@
 --TEST--
-dd_trace_serialize_msgpack() properly handles exceptions for *_id, but only outside of nested arrays
+dd_trace_serialize_msgpack() properly handles span_id, trace_id and parent_id, but only outside of nested arrays
 --SKIPIF--
 <?php if (PHP_INT_SIZE !== 8) die('skip test for 64-bit platforms only'); ?>
 --FILE--
