@@ -31,6 +31,20 @@ void ddtrace_add_tracer_tags_from_header(zai_string_view headerstr TSRMLS_DC) {
 
     char *header = (char *)headerstr.ptr, *headerend = header + headerstr.len;
 
+    HashTable *tags = &DDTRACE_G(root_span_tags_preset);
+    if (DDTRACE_G(root_span)) {
+        tags = Z_ARRVAL_P(ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span));
+    }
+
+    if (headerstr.len > 512) {
+        zval *error_zv;
+        MAKE_STD_ZVAL(error_zv);
+        ZVAL_STRING(error_zv, "extract_max_size", 1);
+        zend_hash_update(tags, "_dd.propagation_error", sizeof("_dd.propagation_error"), (void *)&error_zv,
+                         sizeof(zval *), NULL);
+        return;
+    }
+
     for (char *tagstart = header; header < headerend; ++header) {
         if (*header == '=') {
             zai_string_view tag_name = {header - tagstart, tagstart};
@@ -54,6 +68,12 @@ void ddtrace_add_tracer_tags_from_header(zai_string_view headerstr TSRMLS_DC) {
             ddtrace_log_debugf("Found x-datadog-tags header without key-separating equals character; raw input: %.*s",
                                headerstr.len, headerstr.ptr);
             tagstart = ++header;
+
+            zval *error_zv;
+            MAKE_STD_ZVAL(error_zv);
+            ZVAL_STRING(error_zv, "decoding_error", 1);
+            zend_hash_update(tags, "_dd.propagation_error", sizeof("_dd.propagation_error"), (void *)&error_zv,
+                             sizeof(zval *), NULL);
         }
     }
 }
@@ -144,19 +164,21 @@ zai_string_view ddtrace_format_propagated_tags(TSRMLS_D) {
             }
 
             if ((taglist.c ? taglist.len : 0) + (klen - 1) + Z_STRLEN(str) + 2 <=
-                (size_t)get_DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH()) {
+                (size_t)get_DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH()) {
                 if (taglist.c) {
                     smart_str_appendc(&taglist, ',');
                 }
                 smart_str_appendl(&taglist, key, klen - 1);
                 smart_str_appendc(&taglist, '=');
                 smart_str_appendl(&taglist, Z_STRVAL(str), Z_STRLEN(str));
-            } else {
+            } else if (get_DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH()) {
                 ddtrace_log_errf(
                     "The to be propagated tag '%s=%.*s' is too long and exceeds the maximum limit of %ld characters and is thus dropped.",
-                    key, Z_STRLEN(str), Z_STRVAL(str), get_DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH());
+                    key, Z_STRLEN(str), Z_STRVAL(str), get_DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH());
 
-                error = "max_size";
+                error = "inject_max_size";
+            } else {
+                error = "disabled";
             }
 
         error:
