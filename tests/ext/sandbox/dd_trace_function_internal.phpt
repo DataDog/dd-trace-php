@@ -42,11 +42,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(50) "ZGRfdHJhY2VfZnVuY3Rpb25faW50ZXJuYWwucGhw|1|1|1.000"
+      ["_dd.dm.service_hash"]=>
+      string(10) "e23c636b43"
+      ["_dd.p.dm"]=>
+      string(12) "e23c636b43-1"
     }
     ["metrics"]=>
     array(3) {

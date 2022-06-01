@@ -44,13 +44,15 @@ array(1) {
     ["error"]=>
     int(1)
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["system.pid"]=>
       string(%d) "%d"
       ["error.msg"]=>
       string(9) "Foo error"
-      ["_dd.p.upstream_services"]=>
-      string(58) "ZXJyb3JzX2FyZV9mbGFnZ2VkX2Zyb21fdXNlcmxhbmQucGhw|1|1|1.000"
+      ["_dd.dm.service_hash"]=>
+      string(10) "ce20576ee7"
+      ["_dd.p.dm"]=>
+      string(12) "ce20576ee7-1"
     }
     ["metrics"]=>
     array(3) {

@@ -61,11 +61,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(52) "c3Bhbl93aXRoX3JlbW92ZWRfZXhjZXB0aW9uLnBocA|1|1|1.000"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
+      ["_dd.p.dm"]=>
+      string(12) "df6da0e28f-1"
     }
     ["metrics"]=>
     array(3) {
@@ -98,11 +100,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(52) "c3Bhbl93aXRoX3JlbW92ZWRfZXhjZXB0aW9uLnBocA|1|1|1.000"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
+      ["_dd.p.dm"]=>
+      string(12) "df6da0e28f-1"
     }
     ["metrics"]=>
     array(3) {
@@ -135,11 +139,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(52) "c3Bhbl93aXRoX3JlbW92ZWRfZXhjZXB0aW9uLnBocA|1|1|1.000"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
+      ["_dd.p.dm"]=>
+      string(12) "df6da0e28f-1"
     }
     ["metrics"]=>
     array(3) {

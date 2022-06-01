@@ -158,6 +158,7 @@ aliases:
           sed 's/[()]//g' \
         );
         echo "Resolved httpbin_integration: HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME}";
+        echo "export HTTPBIN_HOSTNAME='${HTTPBIN_HOSTNAME}'" >> $BASH_ENV
 
   - &STEP_PERSIST_TO_WORKSPACE
     persist_to_workspace:

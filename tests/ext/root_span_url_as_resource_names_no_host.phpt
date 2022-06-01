@@ -18,15 +18,17 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(5) {
+array(6) {
   ["system.pid"]=>
   %s
   ["http.method"]=>
   string(3) "GET"
   ["http.url"]=>
   string(25) "http://localhost:8888/foo"
-  ["_dd.p.upstream_services"]=>
-  string(25) "d2ViLnJlcXVlc3Q|1|1|1.000"
+  ["_dd.dm.service_hash"]=>
+  string(10) "9753902159"
+  ["_dd.p.dm"]=>
+  string(12) "9753902159-1"
   ["http.status_code"]=>
   string(3) "200"
 }

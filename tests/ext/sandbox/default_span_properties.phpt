@@ -35,7 +35,8 @@ dd_dump_spans();
 spans(\DDTrace\SpanData) (5) {
   main (default_span_properties.php, main, cli)
     max => 6
-    _dd.p.upstream_services => ZGVmYXVsdF9zcGFuX3Byb3BlcnRpZXMucGhw|1|1|1.000
+    _dd.dm.service_hash => b43b371c6f
+    _dd.p.dm => b43b371c6f-1
   array_sum (default_span_properties.php, array_sum, cli)
     retval => 28
   MyRange (default_span_properties.php, MyRange, cli)
