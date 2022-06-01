@@ -57,7 +57,7 @@ extern bool runtime_config_first_init;
     CALIAS(STRING, DD_TRACE_REQUEST_INIT_HOOK, DD_DEFAULT_REQUEST_INIT_HOOK_PATH,                             \
            CALIASES("DDTRACE_REQUEST_INIT_HOOK"), .ini_change = zai_config_system_ini_change)                 \
     CONFIG(STRING, DD_TRACE_AGENT_URL, "", .ini_change = zai_config_system_ini_change)                        \
-    CONFIG(STRING, DD_AGENT_HOST, "localhost", .ini_change = zai_config_system_ini_change)                    \
+    CONFIG(STRING, DD_AGENT_HOST, "", .ini_change = zai_config_system_ini_change)                             \
     CONFIG(BOOL, DD_DISTRIBUTED_TRACING, "true")                                                              \
     CONFIG(STRING, DD_DOGSTATSD_PORT, "8125")                                                                 \
     CONFIG(STRING, DD_ENV, "")                                                                                \
