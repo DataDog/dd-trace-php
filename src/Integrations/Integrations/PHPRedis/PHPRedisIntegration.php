@@ -55,6 +55,29 @@ class PHPRedisIntegration extends Integration
         \DDTrace\trace_method('Redis', 'open', $traceConnectOpen);
         \DDTrace\trace_method('Redis', 'popen', $traceConnectOpen);
 
+        $traceNewCluster = function (SpanData $span, $args) {
+            if (isset($args[0]) && \is_string($args[0])) {
+                $hostOrUDS = $args[0];
+            } else {
+                $hostOrUDS = (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) ? $args[1][0] : '127.0.0.1';
+            }
+            $url = parse_url($hostOrUDS);
+            $span->meta[Tag::TARGET_HOST] = (is_array($url) && isset($url["host"])) ? $url["host"] : '127.0.0.1';
+            $span->meta[Tag::TARGET_PORT] = (is_array($url) && isset($url["port"])) ? $url["port"] : 6379;
+
+            // Service name
+            if (empty($hostOrUDS) || !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
+                $serviceName = 'phpredis';
+            } else {
+                $serviceName = 'redis-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($hostOrUDS);
+            }
+
+            ObjectKVStore::put($this, 'service', $serviceName);
+
+            PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster');
+        };
+        \DDTrace\trace_method('RedisCluster', '__construct', $traceNewCluster);
+
         self::traceMethodNoArgs('close');
         self::traceMethodNoArgs('auth');
         self::traceMethodNoArgs('ping');

@@ -51,6 +51,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
     public function ddTearDown()
     {
         $this->redis->close();
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST']);
         parent::ddTearDown();
     }
 
@@ -1748,6 +1749,57 @@ class PHPRedisClusterTest extends IntegrationTestCase
             $binarySafeString .= pack('H*', dechex(bindec($binary)));
         }
         return $binarySafeString;
+    }
+
+    public function testSplitByDomainWithClusterName()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
+        $redis = new \RedisCluster('redis_integration', [
+            \implode(':', $this->connection1),
+            \implode(':', $this->connection2),
+            \implode(':', $this->connection3),
+        ]);
+
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->set('key', 'value');
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.set",
+                'redis-redis_integration',
+                'redis',
+                "RedisCluster.set"
+            )->withExactTags(['redis.raw_command' => 'set key value'])
+        ]);
+
+        $redis->close();
+    }
+
+    public function testSplitByDomainWithFirstNodeIP()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
+        $redis = new \RedisCluster(null, [
+            \implode(':', $this->connection1),
+            \implode(':', $this->connection2),
+            \implode(':', $this->connection3),
+        ]);
+
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->set('key', 'value');
+        });
+
+        $serviceName = 'redis-' . $this->connection1[0] . '-' . $this->connection1[1];
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.set",
+                $serviceName,
+                'redis',
+                "RedisCluster.set"
+            )->withExactTags(['redis.raw_command' => 'set key value'])
+        ]);
+
+        $redis->close();
     }
 
     private function invokeInIsolatedTracerWithArgs($method, $args, &$result = null)
