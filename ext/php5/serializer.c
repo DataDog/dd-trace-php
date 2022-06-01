@@ -29,9 +29,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC);
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level TSRMLS_DC);
 
-static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
+static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level TSRMLS_DC) {
     zval **tmp;
     char *string_key;
     uint str_len;
@@ -67,8 +67,8 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
             }
             mpack_write_cstr(writer, string_key);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
-            if (0 == strcmp(KEY_TRACE_ID, string_key) || 0 == strcmp(KEY_SPAN_ID, string_key) ||
-                0 == strcmp(KEY_PARENT_ID, string_key)) {
+            if (level <= 3 && (0 == strcmp(KEY_TRACE_ID, string_key) || 0 == strcmp(KEY_SPAN_ID, string_key) ||
+                               0 == strcmp(KEY_PARENT_ID, string_key))) {
                 zval_string_as_uint64 = true;
             }
         }
@@ -76,7 +76,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
         // Writing the value
         if (zval_string_as_uint64) {
             mpack_write_u64(writer, strtoull(Z_STRVAL_PP(tmp), NULL, 10));
-        } else if (msgpack_write_zval(writer, *tmp TSRMLS_CC) != 1) {
+        } else if (msgpack_write_zval(writer, *tmp, level TSRMLS_CC) != 1) {
             return 0;
         }
     }
@@ -89,10 +89,10 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) {
     return 1;
 }
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) {
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level TSRMLS_DC) {
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
-            if (write_hash_table(writer, Z_ARRVAL_P(trace) TSRMLS_CC) != 1) {
+            if (write_hash_table(writer, Z_ARRVAL_P(trace), level + 1 TSRMLS_CC) != 1) {
                 return 0;
             }
             break;
@@ -124,7 +124,7 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    if (msgpack_write_zval(&writer, trace TSRMLS_CC) != 1) {
+    if (msgpack_write_zval(&writer, trace, 0 TSRMLS_CC) != 1) {
         mpack_writer_destroy(&writer);
         free(data);
         return 0;

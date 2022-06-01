@@ -1878,6 +1878,7 @@ workflows:
                 - alpine:3.10
                 - alpine:3.11
                 - alpine:3.12
+                - alpine:3.15
                 - alpine:latest
       - verify_alpine:
           requires: [ "package extension" ]
@@ -1896,7 +1897,7 @@ workflows:
                 - alpine:3.10
                 - alpine:3.11
                 - alpine:3.12
-                - alpine:latest
+                - alpine:3.15
       - verify_alpine:
           requires: [ "package extension" ]
           matrix:
