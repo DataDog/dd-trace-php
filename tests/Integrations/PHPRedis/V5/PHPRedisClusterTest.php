@@ -52,6 +52,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
     {
         $this->redis->close();
         $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST']);
+        \ini_restore('redis.clusters.seeds');
         parent::ddTearDown();
     }
 
@@ -1754,17 +1755,54 @@ class PHPRedisClusterTest extends IntegrationTestCase
     public function testSplitByDomainWithClusterName()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
-        $redis = new \RedisCluster('redis_integration', [
-            \implode(':', $this->connection1),
-            \implode(':', $this->connection2),
-            \implode(':', $this->connection3),
-        ]);
-
-        $traces = $this->isolateTracer(function () use ($redis) {
+        $redis = null;
+        $traces = $this->isolateTracer(function () use (&$redis) {
+            $redis = new \RedisCluster('cluster_name', [
+                \implode(':', $this->connection1),
+                \implode(':', $this->connection2),
+                \implode(':', $this->connection3),
+            ]);
             $redis->set('key', 'value');
         });
 
         $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.__construct",
+                'redis-cluster_name',
+                'redis',
+                "RedisCluster.__construct"
+            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1]]),
+            SpanAssertion::build(
+                "RedisCluster.set",
+                'redis-cluster_name',
+                'redis',
+                "RedisCluster.set"
+            )->withExactTags(['redis.raw_command' => 'set key value'])
+        ]);
+
+        $redis->close();
+    }
+
+    public function testSplitByDomainWithClusterNameAndSeeds()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
+        \ini_set(
+            'redis.clusters.seeds',
+            sprintf('redis_integration[]=%s', \implode(':', $this->connection1))
+        );
+        $redis = null;
+        $traces = $this->isolateTracer(function () use (&$redis) {
+            $redis = new \RedisCluster('redis_integration');
+            $redis->set('key', 'value');
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.__construct",
+                'redis-redis_integration',
+                'redis',
+                "RedisCluster.__construct"
+            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1]]),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'redis-redis_integration',
@@ -1779,18 +1817,24 @@ class PHPRedisClusterTest extends IntegrationTestCase
     public function testSplitByDomainWithFirstNodeIP()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
-        $redis = new \RedisCluster(null, [
-            \implode(':', $this->connection1),
-            \implode(':', $this->connection2),
-            \implode(':', $this->connection3),
-        ]);
-
-        $traces = $this->isolateTracer(function () use ($redis) {
+        $redis = null;
+        $traces = $this->isolateTracer(function () use (&$redis) {
+            $redis = new \RedisCluster(null, [
+                \implode(':', $this->connection1),
+                \implode(':', $this->connection2),
+                \implode(':', $this->connection3),
+            ]);
             $redis->set('key', 'value');
         });
 
         $serviceName = 'redis-' . $this->connection1[0] . '-' . $this->connection1[1];
         $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.__construct",
+                $serviceName,
+                'redis',
+                "RedisCluster.__construct"
+            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1]]),
             SpanAssertion::build(
                 "RedisCluster.set",
                 $serviceName,

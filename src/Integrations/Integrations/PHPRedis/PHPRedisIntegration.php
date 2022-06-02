@@ -18,6 +18,9 @@ class PHPRedisIntegration extends Integration
     const VALUE_MAX_LEN = 100;
     const VALUE_PLACEHOLDER = "?";
 
+    const DEFAULT_HOST = '127.0.0.1';
+    const DEFAULT_PORT = 6379;
+
     /**
      * @return string The integration name.
      */
@@ -29,9 +32,9 @@ class PHPRedisIntegration extends Integration
     public function init()
     {
         $traceConnectOpen = function (SpanData $span, $args) {
-            $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : '127.0.0.1';
+            $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : self::DEFAULT_HOST;
             $span->meta[Tag::TARGET_HOST] = $hostOrUDS;
-            $span->meta[Tag::TARGET_PORT] = (isset($args[1]) && \is_numeric($args[1])) ? $args[1] : 6379;
+            $span->meta[Tag::TARGET_PORT] = (isset($args[1]) && \is_numeric($args[1])) ? $args[1] : self::DEFAULT_PORT;
 
             // Service name
             if (empty($hostOrUDS) || !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
@@ -56,20 +59,31 @@ class PHPRedisIntegration extends Integration
         \DDTrace\trace_method('Redis', 'popen', $traceConnectOpen);
 
         $traceNewCluster = function (SpanData $span, $args) {
-            if (isset($args[0]) && \is_string($args[0])) {
-                $hostOrUDS = $args[0];
+            if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
+                $hostOrUDS = $args[1][0];
             } else {
-                $hostOrUDS = (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) ? $args[1][0] : '127.0.0.1';
+                $seeds = \ini_get('redis.clusters.seeds');
+                if (!empty($seeds)) {
+                    $clusters = [];
+                    parse_str($seeds, $clusters);
+                    if (array_key_exists($args[0], $clusters) && !empty($clusters[$args[0]])) {
+                        $hostOrUDS = $clusters[$args[0]][0];
+                    }
+                }
             }
+            if (empty($hostOrUDS)) {
+                $hostOrUDS = self::DEFAULT_HOST;
+            }
+            $clusterName = (isset($args[0]) && \is_string($args[0])) ? $args[0] : $hostOrUDS;
             $url = parse_url($hostOrUDS);
-            $span->meta[Tag::TARGET_HOST] = (is_array($url) && isset($url["host"])) ? $url["host"] : '127.0.0.1';
-            $span->meta[Tag::TARGET_PORT] = (is_array($url) && isset($url["port"])) ? $url["port"] : 6379;
+            $span->meta[Tag::TARGET_HOST] = (is_array($url) && isset($url["host"])) ? $url["host"] : self::DEFAULT_HOST;
+            $span->meta[Tag::TARGET_PORT] = (is_array($url) && isset($url["port"])) ? $url["port"] : self::DEFAULT_PORT;
 
             // Service name
-            if (empty($hostOrUDS) || !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
+            if (empty($clusterName) || !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
                 $serviceName = 'phpredis';
             } else {
-                $serviceName = 'redis-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($hostOrUDS);
+                $serviceName = 'redis-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($clusterName);
             }
 
             ObjectKVStore::put($this, 'service', $serviceName);
