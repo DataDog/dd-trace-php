@@ -62,7 +62,10 @@ dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, int buffer_len,
   }
 
   if (addr->ai_family == PF_UNIX) {
-    if (!bind(client.socket, addr->ai_addr, addr->ai_addrlen)) {
+    if (!connect(client.socket, addr->ai_addr, addr->ai_addrlen)) {
+      free(addr->ai_addr);
+      free(client.addresslist);
+      client.addresslist = NULL;
       close(client.socket);
       client.socket = -1;
       return client;

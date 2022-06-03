@@ -15,6 +15,20 @@ void ddtrace_dogstatsd_client_minit(TSRMLS_D) { DDTRACE_G(dogstatsd_client) = do
 
 static void _set_dogstatsd_client_globals(dogstatsd_client client TSRMLS_DC) { DDTRACE_G(dogstatsd_client) = client; }
 
+static struct addrinfo *dd_alloc_unix_addr(const char *path, size_t len) {
+    struct addrinfo *addrs = malloc(sizeof(*addrs));
+    addrs->ai_next = NULL;
+    addrs->ai_family = PF_UNIX;
+    addrs->ai_protocol = 0;
+    addrs->ai_socktype = SOCK_STREAM;
+    addrs->ai_addrlen = sizeof(struct sockaddr_un);
+    struct sockaddr_un *unixaddr = calloc(1, sizeof(struct sockaddr_un));
+    addrs->ai_addr = (struct sockaddr *)unixaddr;
+    memcpy(unixaddr->sun_path, path, len);
+    unixaddr->sun_family = AF_UNIX;
+    return addrs;
+}
+
 void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
     bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
     dogstatsd_client client = dogstatsd_client_default_ctor();
@@ -22,36 +36,34 @@ void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
     while (health_metrics_enabled) {
         struct addrinfo *addrs;
         const char *host = get_DD_AGENT_HOST().ptr;
+        const char *port = get_DD_DOGSTATSD_PORT().ptr;
         if (!*host) {
             if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
-                addrs = malloc(sizeof(*addrs));
-                addrs->ai_next = NULL;
-                addrs->ai_family = PF_UNIX;
-                addrs->ai_protocol = 0;
-                addrs->ai_socktype = SOCK_STREAM;
-                struct sockaddr_un *unixaddr = calloc(1, sizeof(struct sockaddr_un));
-                addrs->ai_addr = (struct sockaddr *)unixaddr;
-                memcpy(unixaddr->sun_path, DEFAULT_UDS_PATH, sizeof(DEFAULT_UDS_PATH));
-                unixaddr->sun_family = AF_UNIX;
-                host = NULL;
+                addrs = dd_alloc_unix_addr(DEFAULT_UDS_PATH, sizeof(DEFAULT_UDS_PATH));
+                host = "unix://" DEFAULT_UDS_PATH;
+                port = NULL;
             } else {
                 host = "localhost";
             }
         }
 
-        const char *port = get_DD_DOGSTATSD_PORT().ptr;
-        if (host) {
-            int err;
-            if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
-                ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", host, port,
-                                   (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
-                break;
+        if (port) {
+            if (strlen(host) > 7 && strncmp("unix://", host, 7) == 0) {
+                addrs = dd_alloc_unix_addr(host + 7, strlen(host) - 7);
+                port = NULL;
+            } else {
+                int err;
+                if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
+                    ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", host, port,
+                                       (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
+                    break;
+                }
             }
         }
 
         client = dogstatsd_client_ctor(addrs, DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE, METRICS_CONST_TAGS);
         if (dogstatsd_client_is_default_client(client)) {
-            ddtrace_log_debugf("Dogstatsd client failed opening socket to %s:%s", host, port);
+            ddtrace_log_debugf("Dogstatsd client failed opening socket to %s%s%s", host, port ? ":" : "", port ? port : "");
             break;
         }
 

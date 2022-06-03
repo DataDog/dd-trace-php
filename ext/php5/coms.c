@@ -718,6 +718,10 @@ char *ddtrace_agent_url(void) {
     }
 
     zai_string_view hostname = get_global_DD_AGENT_HOST();
+    if (hostname.len > 7 && strncmp(hostname.ptr, "unix://", 7) == 0) {
+        return zend_strndup(hostname.ptr, hostname.len);
+    }
+
     if (hostname.len > 0) {
         int64_t port = get_global_DD_TRACE_AGENT_PORT();
         if (port <= 0 || port > 65535) {
