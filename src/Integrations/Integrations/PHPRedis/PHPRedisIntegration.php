@@ -32,9 +32,11 @@ class PHPRedisIntegration extends Integration
     public function init()
     {
         $traceConnectOpen = function (SpanData $span, $args) {
-            $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : self::DEFAULT_HOST;
+            $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : PHPRedisIntegration::DEFAULT_HOST;
             $span->meta[Tag::TARGET_HOST] = $hostOrUDS;
-            $span->meta[Tag::TARGET_PORT] = (isset($args[1]) && \is_numeric($args[1])) ? $args[1] : self::DEFAULT_PORT;
+            $span->meta[Tag::TARGET_PORT] = isset($args[1]) && \is_numeric($args[1]) ?
+                $args[1] :
+                PHPRedisIntegration::DEFAULT_PORT;
 
             // Service name
             if (empty($hostOrUDS) || !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
@@ -72,12 +74,16 @@ class PHPRedisIntegration extends Integration
                 }
             }
             if (empty($hostOrUDS)) {
-                $hostOrUDS = self::DEFAULT_HOST;
+                $hostOrUDS = PHPRedisIntegration::DEFAULT_HOST;
             }
-            $clusterName = (isset($args[0]) && \is_string($args[0])) ? $args[0] : $hostOrUDS;
+            $clusterName = isset($args[0]) && \is_string($args[0]) ? $args[0] : $hostOrUDS;
             $url = parse_url($hostOrUDS);
-            $span->meta[Tag::TARGET_HOST] = (is_array($url) && isset($url["host"])) ? $url["host"] : self::DEFAULT_HOST;
-            $span->meta[Tag::TARGET_PORT] = (is_array($url) && isset($url["port"])) ? $url["port"] : self::DEFAULT_PORT;
+            $span->meta[Tag::TARGET_HOST] = is_array($url) && isset($url["host"]) ?
+                    $url["host"] :
+                    PHPRedisIntegration::DEFAULT_HOST;
+            $span->meta[Tag::TARGET_PORT] = is_array($url) && isset($url["port"]) ?
+                $url["port"] :
+                PHPRedisIntegration::DEFAULT_PORT;
 
             // Service name
             if (empty($clusterName) || !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
