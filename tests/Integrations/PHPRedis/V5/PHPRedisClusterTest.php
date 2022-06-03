@@ -144,7 +144,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
     {
         return [
             'ping' => ['ping', null],
+/* broken arginfo on phpredis 5.3
             'echo' => ['echo', 'hey'],
+*/
             'save' => ['save', null],
             'bgRewriteAOF' => ['bgRewriteAOF', null],
             'flushAll' => ['flushAll', null],
@@ -210,12 +212,6 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'decr k1', // raw command
             ],
             [
-                'decr', // method
-                [ 'k1', '10' ], // arguments
-                '-10', // expected final value
-                'decr k1 10', // raw command
-            ],
-            [
                 'decrBy', // method
                 [ 'k1', '10' ], // arguments
                 '-10', // expected final value
@@ -226,12 +222,6 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 [ 'k1' ], // arguments
                 '1', // expected final value
                 'incr k1', // raw command
-            ],
-            [
-                'incr', // method
-                [ 'k1', '10' ], // arguments
-                '10', // expected final value
-                'incr k1 10', // raw command
             ],
             [
                 'incrBy', // method
@@ -780,16 +770,18 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 ], // expected final value
                 'lRange l1{fixed_hash} 0 0', // raw command
             ],
+/* broken arginfo on phpredis 5.3
             [
                 'lRem', // method
-                [ 'l1{fixed_hash}', 'v1', '2' ], // arguments
+                [ 'l1{fixed_hash}', '2', 'v1' ], // arguments
                 1, // expected result
                 [
                     'l1{fixed_hash}' => [ 'v2' ],
                     'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lRem l1{fixed_hash} v1 2', // raw command
+                'lRem l1{fixed_hash} 2 v1', // raw command
             ],
+*/
             [
                 'lSet', // method
                 [ 'l1{fixed_hash}', 1, 'changed' ], // arguments
@@ -848,8 +840,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
      */
     public function testSetFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
     {
-        $this->redis->sAdd('s1{hash}', 'v1', 'v2', 'v3');
-        $this->redis->sAdd('s2{hash}', 'z1', 'v2' /* 'v2' not a typo */, 'z3');
+        $this->redis->sAddArray('s1{hash}', ['v1', 'v2', 'v3']);
+        $this->redis->sAddArray('s2{hash}', ['z1', 'v2' /* 'v2' not a typo */, 'z3']);
         $result = null;
 
         $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
@@ -964,10 +956,10 @@ class PHPRedisClusterTest extends IntegrationTestCase
             ],
             [
                 'sPop', // method
-                [ 's1{hash}', 2 ], // arguments
-                self::ARRAY_COUNT_2, // expected result
-                [ 's1{hash}' => 1, 's2{hash}' => 3 ], // expected final value
-                'sPop s1{hash} 2', // raw command
+                [ 's1{hash}' ], // arguments
+                self::A_STRING, // expected result
+                [ 's1{hash}' => 2 ], // expected final value
+                'sPop s1{hash}', // raw command
             ],
             [
                 'sRandMember', // method
@@ -1172,6 +1164,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
                 'zRevRange s1{hash} 0 -2', // raw command
             ],
+/* broken arginfo on phpredis 5.3
             [
                 'zPopMax', // method
                 [ 's1{hash}', 1 ], // arguments
@@ -1186,6 +1179,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 [ 's1{hash}' => 2, 's2{hash}' => 3, ], // expected final sizes
                 'zPopMin s1{hash} 1', // raw command
             ],
+*/
             [
                 'zScore', // method
                 [ 's1{hash}', 'v3' ], // arguments

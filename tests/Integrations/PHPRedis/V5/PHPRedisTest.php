@@ -328,12 +328,6 @@ class PHPRedisTest extends IntegrationTestCase
                 'decr k1', // raw command
             ],
             [
-                'decr', // method
-                [ 'k1', '10' ], // arguments
-                '-10', // expected final value
-                'decr k1 10', // raw command
-            ],
-            [
                 'decrBy', // method
                 [ 'k1', '10' ], // arguments
                 '-10', // expected final value
@@ -344,12 +338,6 @@ class PHPRedisTest extends IntegrationTestCase
                 [ 'k1' ], // arguments
                 '1', // expected final value
                 'incr k1', // raw command
-            ],
-            [
-                'incr', // method
-                [ 'k1', '10' ], // arguments
-                '10', // expected final value
-                'incr k1 10', // raw command
             ],
             [
                 'incrBy', // method
@@ -1043,8 +1031,8 @@ class PHPRedisTest extends IntegrationTestCase
      */
     public function testSetFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
     {
-        $this->redis->sAdd('s1', 'v1', 'v2', 'v3');
-        $this->redis->sAdd('s2', 'z1', 'v2' /* 'v2' not a typo */, 'z3');
+        $this->redis->sAddArray('s1', ['v1', 'v2', 'v3']);
+        $this->redis->sAddArray('s2', ['z1', 'v2' /* 'v2' not a typo */, 'z3']);
         $result = null;
 
         $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
@@ -1180,10 +1168,10 @@ class PHPRedisTest extends IntegrationTestCase
             ],
             [
                 'sPop', // method
-                [ 's1', 2 ], // arguments
-                self::ARRAY_COUNT_2, // expected result
-                [ 's1' => 1, 's2' => 3 ], // expected final value
-                'sPop s1 2', // raw command
+                [ 's1' ], // arguments
+                self::A_STRING, // expected result
+                [ 's1' => 2 ], // expected final value
+                'sPop s1', // raw command
             ],
             [
                 'sRandMember', // method
@@ -1437,6 +1425,7 @@ class PHPRedisTest extends IntegrationTestCase
                 [ 's1' => 3, 's2' => 3, ], // expected final sizes
                 'zRevRange s1 0 -2', // raw command
             ],
+/* broken arginfo on phpredis 5.3
             [
                 'zPopMax', // method
                 [ 's1', 1 ], // arguments
@@ -1451,6 +1440,7 @@ class PHPRedisTest extends IntegrationTestCase
                 [ 's1' => 2, 's2' => 3, ], // expected final sizes
                 'zPopMin s1 1', // raw command
             ],
+*/
             [
                 'zScore', // method
                 [ 's1', 'v3' ], // arguments
