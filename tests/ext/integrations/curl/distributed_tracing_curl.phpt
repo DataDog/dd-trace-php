@@ -36,7 +36,7 @@ dt_dump_headers_from_httpbin($headers, [
 ]);
 
 $spans = dd_trace_serialize_closed_spans();
-var_dump($headers['x-datadog-parent-id'] === (string) $spans[0]['span_id']);
+var_dump($headers['x-datadog-parent-id'][0] === (string) $spans[0]['span_id']);
 var_dump($spans[0]["meta"]["_dd.propagation_error"]);
 
 echo 'Done.' . PHP_EOL;
