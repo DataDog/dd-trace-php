@@ -1,8 +1,11 @@
 <?php
 
+error_reporting(\E_ALL);
+
 include __DIR__ . '/vendor/autoload.php';
 
-use MessagePack\MessagePack;
+use MessagePack\BufferUnpacker;
+use MessagePack\UnpackOptions;
 
 if ('cli-server' !== PHP_SAPI) {
     echo "For use via the CLI SAPI's built-in web server only.\n";
@@ -21,6 +24,11 @@ function logRequest($message, $data = '')
         sprintf('[%s | %s] %s', $_SERVER['REQUEST_URI'], REQUEST_LATEST_DUMP_FILE, $message)
     );
 }
+
+set_error_handler(function ($number, $message) {
+    logRequest('Triggered error ' . $number . ' ' . $message);
+    trigger_error($message, $number);
+});
 
 switch ($_SERVER['REQUEST_URI']) {
     case '/replay':
@@ -52,7 +60,45 @@ switch ($_SERVER['REQUEST_URI']) {
 
         $raw = file_get_contents('php://input');
         if (isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack') {
-            $body = json_encode(MessagePack::unpack($raw));
+            // We unpack in two phases:
+            //  1) using UnpackOptions::BIGINT_AS_GMP and only asserting that trace_id, span_id and parent_id are either
+            //     integers (when <= PHP_INT_MAX) or GMP (when > PHP_INT_MAX);
+            //  2) using UnpackOptions::BIGINT_AS_STR and storing the actual result.
+            // We cannot use the first unpacked payload as when, later, we json_encode() the payload, GMPs larger than
+            // PHP_INT_MAX would be serialized to PHP_INT_MAX
+            $gmpUnpacker = new BufferUnpacker($raw, UnpackOptions::BIGINT_AS_GMP);
+            $gmpTraces = $gmpUnpacker->unpack();
+            foreach ($gmpTraces as $trace) {
+                foreach ($trace as $span) {
+                    foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
+                        if (!isset($span[$field])) {
+                            continue;
+                        }
+
+                        $value = $span[$field];
+                        if (!is_int($value) && !is_a($value, 'GMP')) {
+                            logRequest("Wrong type for $field: " . var_export($value, 1));
+                            exit();
+                        }
+                    }
+                }
+            }
+
+            $strUnpacker = new BufferUnpacker($raw, UnpackOptions::BIGINT_AS_STR);
+            $strTraces = $strUnpacker->unpack();
+            foreach ($strTraces as &$trace) {
+                foreach ($trace as &$span) {
+                    foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
+                        if (!isset($span[$field])) {
+                            continue;
+                        }
+
+                        $span[$field] = (string)$span[$field];
+                    }
+                }
+            }
+
+            $body = json_encode($strTraces);
         } else {
             $body = $raw;
         }
