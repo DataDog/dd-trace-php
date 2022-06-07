@@ -35,23 +35,58 @@ void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
 
     while (health_metrics_enabled) {
         struct addrinfo *addrs;
-        const char *host = get_DD_AGENT_HOST().ptr;
-        const char *port = get_DD_DOGSTATSD_PORT().ptr;
-        if (!*host) {
-            if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
-                addrs = dd_alloc_unix_addr(DEFAULT_UDS_PATH, sizeof(DEFAULT_UDS_PATH));
-                host = "unix://" DEFAULT_UDS_PATH;
-                port = NULL;
-            } else {
-                host = "localhost";
-            }
-        }
+        const char *url = get_DD_DOGSTATSD_URL().ptr;
+        const char *host, *port;
+        if (*url) {
+            if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
+                addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
+            } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
+                char *colon = strchr(url + 6, ':');
+                if (!colon) {
+                    ddtrace_log_debugf(
+                        "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
+                        url);
+                    break;
+                }
 
-        if (port) {
+                char *hostname = estrndup(url + 6, colon - url - 6);
+
+                port = colon + 1;
+                int err;
+                if ((err = dogstatsd_client_getaddrinfo(&addrs, hostname, port))) {
+                    ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", hostname, port,
+                                       (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
+                    efree(hostname);
+                    break;
+                }
+                efree(hostname);
+            } else {
+                ddtrace_log_debugf(
+                    "Dogstatsd client encountered an invalid DD_DOGSTATSD_URL: %s, expecting url starting with unix:// or udp://",
+                    url);
+                break;
+            }
+
+            host = url;
+            port = NULL;
+        } else {
+            host = get_DD_AGENT_HOST().ptr;
+            port = get_DD_DOGSTATSD_PORT().ptr;
+
+            if (!*host) {
+                if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
+                    addrs = dd_alloc_unix_addr(DEFAULT_UDS_PATH, sizeof(DEFAULT_UDS_PATH));
+                    host = "unix://" DEFAULT_UDS_PATH;
+                    port = NULL;
+                } else {
+                    host = "localhost";
+                }
+            }
+
             if (strlen(host) > 7 && strncmp("unix://", host, 7) == 0) {
                 addrs = dd_alloc_unix_addr(host + 7, strlen(host) - 7);
                 port = NULL;
-            } else {
+            } else if (port) {
                 int err;
                 if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
                     ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", host, port,
