@@ -454,7 +454,7 @@ jobs:
   test_arm:
     machine:
       image: ubuntu-2004:202101-01
-    resource_class: arm.large
+    resource_class: arm.xlarge
     parameters:
       php_major_minor:
         # Expected in the format: <major>.<minor>, e.g. 7.4
