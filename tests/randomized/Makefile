@@ -6,6 +6,7 @@ LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
+VERSIONS := *
 
 build: build.centos7
 
@@ -69,7 +70,7 @@ library.version:
 	@echo "Done"
 
 generate: clean results_folder
-	@php generate-scenarios.php --seed=$(SEED) --number=$(NUMBER_OF_SCENARIOS)
+	@php generate-scenarios.php --seed=$(SEED) --number=$(NUMBER_OF_SCENARIOS) --versions=$(VERSIONS)
 	@cp -r $(LIBRARY_DOWNLOAD_PATH) $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
 generate.%: clean results_folder
