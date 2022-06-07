@@ -63,7 +63,8 @@ void ddtrace_dogstatsd_client_rinit(void) {
 
         client = dogstatsd_client_ctor(addrs, DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE, METRICS_CONST_TAGS);
         if (dogstatsd_client_is_default_client(client)) {
-            ddtrace_log_debugf("Dogstatsd client failed opening socket to %s%s%s", host, port ? ":" : "", port ? port : "");
+            ddtrace_log_debugf("Dogstatsd client failed opening socket to %s%s%s", host, port ? ":" : "",
+                               port ? port : "");
             break;
         }
 

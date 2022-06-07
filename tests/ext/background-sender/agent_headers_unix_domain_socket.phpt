@@ -12,10 +12,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
 
-$socketPath = getenv("DD_TRACE_AGENT_URL");
-@unlink($socketPath);
-$p = popen(PHP_BINARY . ' -r \'$s=stream_socket_server("' . $socketPath . '");print 1;$c=stream_socket_accept($s);$t=stream_socket_client("request-replayer:80");$a=$r=[$c,$t];foreach($r as $f)stream_set_blocking($f, false);while(stream_select($r,$w,$e,null)){$d=fread($f=reset($r),4096);if($d=="")exit;fwrite($f==$t?$c:$t,$d);$r=$a;}\'', 'r');
-fread($p, 1); // ready
+RequestReplayer::launchUnixProxy(str_replace("unix://", "", getenv("DD_TRACE_AGENT_URL")));
 
 // payload = [[]]
 $payload = "\x91\x90";
