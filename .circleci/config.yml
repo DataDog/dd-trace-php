@@ -1081,7 +1081,7 @@ jobs:
           command: make -C tests/randomized pull
       - run:
           name: Generate scenarios
-          command: make -C tests/randomized generate
+          command: make -C tests/randomized generate VERSIONS=7.4
       - run:
           name: Execute tests
           command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m30s
@@ -1931,6 +1931,11 @@ workflows:
   #         matrix:
   #           parameters:
   #             batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
+      - randomized_tests_arm:
+          requires: [ 'package extension' ]
+          matrix:
+            parameters:
+              batch: [ 1 ]
   #     - installer_tests:
   #         requires: [ 'package extension' ]
   #     - placeholder:
