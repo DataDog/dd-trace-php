@@ -1075,7 +1075,7 @@ jobs:
           command: sudo sysctl -w vm.max_map_count=262144
       - run:
           name: Copy tracer package
-          command: make -C tests/randomized library.local
+          command: make -C tests/randomized library.local.arm
       - run:
           name: Pull docker images
           command: make -C tests/randomized pull
