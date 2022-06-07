@@ -1054,6 +1054,46 @@ jobs:
       - store_artifacts:
           path: 'tests/randomized/.tmp.scenarios/.results'
 
+  randomized_tests_arm:
+    working_directory: ~/datadog
+    machine:
+      image: ubuntu-2004:202101-01
+    resource_class: arm.xlarge
+    parameters:
+      batch:
+        # Batch is only used to run a number of this jobs in parallel via a testing matrix.
+        type: integer
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          command: ls -al
+      - run:
+          name: Install required packages
+          command: sudo apt update && sudo apt install -y php git
+      - run:
+          name: "Increase virtual memory limit for elasticsearch"
+          command: sudo sysctl -w vm.max_map_count=262144
+      - run:
+          name: Copy tracer package
+          command: make -C tests/randomized library.local
+      - run:
+          name: Pull docker images
+          command: make -C tests/randomized pull
+      - run:
+          name: Generate scenarios
+          command: make -C tests/randomized generate
+      - run:
+          name: Execute tests
+          command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m30s
+      - run:
+          name: Fix PHP-FPM logs permissions before storing artifacts
+          command: sudo chown -R circleci:circleci tests/randomized/.tmp.scenarios/.results
+      - run:
+          name: Analyze results
+          command: make -C tests/randomized analyze
+      - store_artifacts:
+          path: 'tests/randomized/.tmp.scenarios/.results'
+
   pecl_build:
     working_directory: ~/datadog
     executor:
