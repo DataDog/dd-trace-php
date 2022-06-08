@@ -590,7 +590,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
                 if (ZSTR_LEN(lowerheader) == (sizeof("user-agent") - 1) &&
                     memcmp(ZSTR_VAL(lowerheader), "user-agent", sizeof("user-agent") - 1) == 0) {
                     zval http_useragent;
-                    ZVAL_STR(&http_useragent, Z_STR_P(headerval));
+                    ZVAL_STR_COPY(&http_useragent, Z_STR_P(headerval));
                     zend_hash_str_add_new(meta, "http.useragent", sizeof("http.useragent") - 1, &http_useragent);
                 }
 
