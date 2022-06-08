@@ -532,38 +532,41 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
         zend_hash_str_add_new(meta, "runtime-id", sizeof("runtime-id") - 1, &zv);
     }
 
+    zval http_url;
+    ZVAL_STR(&http_url, dd_build_req_url());
+    if (Z_STRLEN(http_url)) {
+        zend_hash_str_add_new(meta, "http.url", sizeof("http.url") - 1, &http_url);
+    }
+
     const char *method = SG(request_info).request_method;
-    if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {
+    if (method) {
         zval http_method;
         ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
         zend_hash_str_add_new(meta, "http.method", sizeof("http.method") - 1, &http_method);
 
-        zval http_url;
-        ZVAL_STR(&http_url, dd_build_req_url());
-        if (Z_STRLEN(http_url)) {
-            zend_hash_str_add_new(meta, "http.url", sizeof("http.url") - 1, &http_url);
-        }
+        if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
+            const char *uri = dd_get_req_uri();
+            zval *prop_resource = ddtrace_spandata_property_resource(span);
+            if (uri) {
+                zend_string *path = zend_string_init(uri, strlen(uri), 0);
+                zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
+                zend_string *query_string = ZSTR_EMPTY_ALLOC();
+                const char *query_str = dd_get_query_string();
+                if (query_str) {
+                    query_string =
+                        zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
+                                                get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED());
+                }
 
-        const char *uri = dd_get_req_uri();
-        zval *prop_resource = ddtrace_spandata_property_resource(span);
-        if (uri) {
-            zend_string *path = zend_string_init(uri, strlen(uri), 0);
-            zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
-            zend_string *query_string = ZSTR_EMPTY_ALLOC();
-            const char *query_str = dd_get_query_string();
-            if (query_str) {
-                query_string = zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
-                                                       get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED());
+                ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s%s%.*s", method, ZSTR_VAL(normalized),
+                                                        ZSTR_LEN(query_string) ? "?" : "", (int)ZSTR_LEN(query_string),
+                                                        ZSTR_VAL(query_string)));
+                zend_string_release(query_string);
+                zend_string_release(normalized);
+                zend_string_release(path);
+            } else {
+                ZVAL_COPY(prop_resource, &http_method);
             }
-
-            ZVAL_STR(prop_resource,
-                     zend_strpprintf(0, "%s %s%s%.*s", method, ZSTR_VAL(normalized), ZSTR_LEN(query_string) ? "?" : "",
-                                     (int)ZSTR_LEN(query_string), ZSTR_VAL(query_string)));
-            zend_string_release(query_string);
-            zend_string_release(normalized);
-            zend_string_release(path);
-        } else {
-            ZVAL_COPY(prop_resource, &http_method);
         }
     }
 

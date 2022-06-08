@@ -21,10 +21,10 @@ var_dump($spans[0]['meta']);
 array(6) {
   ["system.pid"]=>
   %s
-  ["http.method"]=>
-  string(3) "GET"
   ["http.url"]=>
   string(25) "http://localhost:8888/foo"
+  ["http.method"]=>
+  string(3) "GET"
   ["_dd.dm.service_hash"]=>
   string(10) "9753902159"
   ["_dd.p.dm"]=>
