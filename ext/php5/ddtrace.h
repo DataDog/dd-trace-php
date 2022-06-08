@@ -58,9 +58,6 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
     dogstatsd_client dogstatsd_client;
-    char *dogstatsd_host;
-    char *dogstatsd_port;
-    char *dogstatsd_buffer;
 
     // Distributed tracing & curl
     HashTable *curl_headers;

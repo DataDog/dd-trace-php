@@ -653,6 +653,7 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
 
 #define TRACE_PATH_STR "/v0.4/traces"
 #define HOST_FORMAT_STR "http://%s:%u"
+#define DEFAULT_UDS_PATH "/var/run/datadog/apm.socket"
 
 static struct curl_slist *dd_agent_curl_headers = NULL;
 
@@ -717,6 +718,10 @@ char *ddtrace_agent_url(void) {
     }
 
     zai_string_view hostname = get_global_DD_AGENT_HOST();
+    if (hostname.len > 7 && strncmp(hostname.ptr, "unix://", 7) == 0) {
+        return zend_strndup(hostname.ptr, hostname.len);
+    }
+
     if (hostname.len > 0) {
         int64_t port = get_global_DD_TRACE_AGENT_PORT();
         if (port <= 0 || port > 65535) {
@@ -727,15 +732,30 @@ char *ddtrace_agent_url(void) {
         return formatted_url;
     }
 
-    return zend_strndup(ZEND_STRL("http://localhost:8126"));
+    if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
+        return zend_strndup(ZEND_STRL("unix://" DEFAULT_UDS_PATH));
+    }
+
+    int64_t port = get_global_DD_TRACE_AGENT_PORT();
+    if (port <= 0 || port > 65535) {
+        port = 8126;
+    }
+    char *formatted_url;
+    asprintf(&formatted_url, HOST_FORMAT_STR, "localhost", (uint32_t)port);
+    return formatted_url;
 }
 
 void ddtrace_curl_set_hostname(CURL *curl) {
     char *url = ddtrace_agent_url();
     if (url && url[0]) {
-        size_t agent_url_len = strlen(url) + sizeof(TRACE_PATH_STR);
+        char *http_url = url;
+        if (strlen(url) > 7 && strncmp(url, "unix://", 7) == 0) {
+            curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, url + 7);
+            http_url = "http://localhost";
+        }
+        size_t agent_url_len = strlen(http_url) + sizeof(TRACE_PATH_STR);
         char *agent_url = malloc(agent_url_len);
-        sprintf(agent_url, "%s%s", url, TRACE_PATH_STR);
+        sprintf(agent_url, "%s%s", http_url, TRACE_PATH_STR);
         curl_easy_setopt(curl, CURLOPT_URL, agent_url);
         free(agent_url);
     }

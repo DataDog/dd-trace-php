@@ -11,6 +11,7 @@ x-aliases:
         - .:/home/circleci/app
         - .composer:/home/circleci/.composer
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
+        - agent-socket:/var/run/datadog
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec', '/home/circleci/app/tests/vendor:uid=3434,gid=3434,exec' ]
       depends_on:
         - agent
@@ -141,10 +142,12 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - agent-socket:/var/run/datadog
     environment:
       - DD_API_KEY=${DATADOG_API_KEY}
       - DD_APM_ENABLED=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
+      - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
     ports:
       - "8126:8126"
 
@@ -153,3 +156,6 @@ services:
     working_dir: /app
     volumes:
       - .:/app
+
+volumes:
+  agent-socket:
