@@ -270,7 +270,7 @@ jobs:
   "Lint files":
     working_directory: ~/datadog
     docker:
-      - image: circleci/php:7.2-cli-node-browsers
+      - image: cimg/php:8.1-node
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
@@ -801,7 +801,7 @@ jobs:
         default: all
     executor:
       name: with_agent
-      docker_image: circleci/php:7.3
+      docker_image: cimg/php:7.3
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
@@ -1506,7 +1506,7 @@ jobs:
 
   "Prepare Code":
     working_directory: ~/datadog
-    docker: [ image: 'circleci/php:7.3-cli' ]
+    docker: [ image: 'cimg/php:7.3' ]
     steps:
       - restore_cache:
           keys:
@@ -2391,7 +2391,7 @@ workflows:
       - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 71"
-          docker_image: circleci/php:7.1
+          docker_image: cimg/php:7.1
           scenario: opentracing_beta6
       - static_analysis:
           requires: [ 'Prepare Code' ]
