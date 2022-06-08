@@ -495,6 +495,17 @@ static zend_string *dd_build_req_url() {
     return url;
 }
 
+static zend_string *dd_get_user_agent() {
+    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
+    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+        zval *user_agent = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("HTTP_USER_AGENT"));
+        if (user_agent && Z_TYPE_P(user_agent) == IS_STRING) {
+            return Z_STR_P(user_agent);
+        }
+    }
+    return ZSTR_EMPTY_ALLOC();
+}
+
 void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
 
@@ -555,6 +566,14 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
             ZVAL_COPY(prop_resource, &http_method);
         }
     }
+
+    zend_string *user_agent = dd_get_user_agent();
+    if (user_agent && ZSTR_LEN(user_agent) > 0) {
+        zval http_useragent;
+        ZVAL_STR_COPY(&http_useragent, user_agent);
+        zend_hash_str_add_new(meta, "http.useragent", sizeof("http.useragent") - 1, &http_useragent);
+    }
+
     zval *prop_type = ddtrace_spandata_property_type(span);
     zval *prop_name = ddtrace_spandata_property_name(span);
     if (strcmp(sapi_module.name, "cli") == 0) {
@@ -585,13 +604,6 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
                     } else if (*ptr == '_') {
                         *ptr = '-';
                     }
-                }
-
-                if (ZSTR_LEN(lowerheader) == (sizeof("user-agent") - 1) &&
-                    memcmp(ZSTR_VAL(lowerheader), "user-agent", sizeof("user-agent") - 1) == 0) {
-                    zval http_useragent;
-                    ZVAL_STR_COPY(&http_useragent, Z_STR_P(headerval));
-                    zend_hash_str_add_new(meta, "http.useragent", sizeof("http.useragent") - 1, &http_useragent);
                 }
 
                 dd_add_header_to_meta(meta, "request", lowerheader, Z_STR_P(headerval));
