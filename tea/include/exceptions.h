@@ -1,10 +1,10 @@
 #ifndef TEA_EXCEPTIONS_H
 #define TEA_EXCEPTIONS_H
 
+#include "common.h"
+// common must come first.
 #include <Zend/zend_exceptions.h>
 #include <main/php_variables.h>
-
-#include "common.h"
 
 /* Throws an exception using the default exception class entry and sets the
  * 'Exception::$message' string to 'message'. Returns the class entry used for

@@ -8,9 +8,9 @@
 #ifndef TEA_SAPI_H
 #define TEA_SAPI_H
 
-#include <main/SAPI.h>
-
 #include "common.h"
+// common must come first
+#include <main/SAPI.h>
 
 /*
  * TODO reset 'tea_sapi_module' every SINIT to make sure no state lingers from
