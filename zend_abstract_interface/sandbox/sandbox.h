@@ -195,7 +195,11 @@ inline void zai_sandbox_close(zai_sandbox *sandbox) {
 }
 
 inline bool zai_sandbox_timed_out(void) {
+#if PHP_VERSION_ID >= 80200
+    if (zend_atomic_bool_load(&EG(timed_out))) {
+#else
     if (EG(timed_out)) {
+#endif
         return true;
     }
 

@@ -9,40 +9,97 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #define METRICS_CONST_TAGS "lang:php,lang_version:" PHP_VERSION ",tracer_version:" PHP_DDTRACE_VERSION
+#define DEFAULT_UDS_PATH "/var/run/datadog/dsd.socket"
 
 void ddtrace_dogstatsd_client_minit(TSRMLS_D) { DDTRACE_G(dogstatsd_client) = dogstatsd_client_default_ctor(); }
 
-static void _set_dogstatsd_client_globals(dogstatsd_client client, char *host, char *port, char *buffer TSRMLS_DC) {
-    DDTRACE_G(dogstatsd_client) = client;
-    DDTRACE_G(dogstatsd_host) = host;
-    DDTRACE_G(dogstatsd_port) = port;
-    DDTRACE_G(dogstatsd_buffer) = buffer;
+static void _set_dogstatsd_client_globals(dogstatsd_client client TSRMLS_DC) { DDTRACE_G(dogstatsd_client) = client; }
+
+static struct addrinfo *dd_alloc_unix_addr(const char *path, size_t len) {
+    struct addrinfo *addrs = malloc(sizeof(*addrs));
+    addrs->ai_next = NULL;
+    addrs->ai_family = PF_UNIX;
+    addrs->ai_protocol = 0;
+    addrs->ai_socktype = SOCK_STREAM;
+    addrs->ai_addrlen = sizeof(struct sockaddr_un);
+    struct sockaddr_un *unixaddr = calloc(1, sizeof(struct sockaddr_un));
+    addrs->ai_addr = (struct sockaddr *)unixaddr;
+    memcpy(unixaddr->sun_path, path, len);
+    unixaddr->sun_family = AF_UNIX;
+    return addrs;
 }
 
 void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
     bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
     dogstatsd_client client = dogstatsd_client_default_ctor();
-    const char *host = NULL;
-    const char *port = NULL;
-    char *buffer = NULL;
 
     while (health_metrics_enabled) {
-        host = get_DD_AGENT_HOST().ptr;
-        port = get_DD_DOGSTATSD_PORT().ptr;
-        buffer = malloc(DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE);
-        size_t len = DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE;
-
         struct addrinfo *addrs;
-        int err;
-        if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
-            ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", host, port,
-                               (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
-            break;
+        const char *url = get_DD_DOGSTATSD_URL().ptr;
+        const char *host, *port;
+        if (*url) {
+            if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
+                addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
+            } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
+                char *colon = strchr(url + 6, ':');
+                if (!colon) {
+                    ddtrace_log_debugf(
+                        "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
+                        url);
+                    break;
+                }
+
+                char *hostname = estrndup(url + 6, colon - url - 6);
+
+                port = colon + 1;
+                int err;
+                if ((err = dogstatsd_client_getaddrinfo(&addrs, hostname, port))) {
+                    ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", hostname, port,
+                                       (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
+                    efree(hostname);
+                    break;
+                }
+                efree(hostname);
+            } else {
+                ddtrace_log_debugf(
+                    "Dogstatsd client encountered an invalid DD_DOGSTATSD_URL: %s, expecting url starting with unix:// or udp://",
+                    url);
+                break;
+            }
+
+            host = url;
+            port = NULL;
+        } else {
+            host = get_DD_AGENT_HOST().ptr;
+            port = get_DD_DOGSTATSD_PORT().ptr;
+
+            if (!*host) {
+                if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
+                    addrs = dd_alloc_unix_addr(DEFAULT_UDS_PATH, sizeof(DEFAULT_UDS_PATH));
+                    host = "unix://" DEFAULT_UDS_PATH;
+                    port = NULL;
+                } else {
+                    host = "localhost";
+                }
+            }
+
+            if (strlen(host) > 7 && strncmp("unix://", host, 7) == 0) {
+                addrs = dd_alloc_unix_addr(host + 7, strlen(host) - 7);
+                port = NULL;
+            } else if (port) {
+                int err;
+                if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
+                    ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", host, port,
+                                       (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
+                    break;
+                }
+            }
         }
 
-        client = dogstatsd_client_ctor(addrs, buffer, len, METRICS_CONST_TAGS);
+        client = dogstatsd_client_ctor(addrs, DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE, METRICS_CONST_TAGS);
         if (dogstatsd_client_is_default_client(client)) {
-            ddtrace_log_debugf("Dogstatsd client failed opening socket to %s:%s", host, port);
+            ddtrace_log_debugf("Dogstatsd client failed opening socket to %s%s%s", host, port ? ":" : "",
+                               port ? port : "");
             break;
         }
 
@@ -55,18 +112,13 @@ void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
             ddtrace_log_errf("Health metric '%s' failed to send: %s", metric, status_str);
         }
 
-        host = zend_strndup(host, strlen(host));
-        port = zend_strndup(port, strlen(port));
         break;
     }
-    _set_dogstatsd_client_globals(client, (char *)host, (char *)port, buffer TSRMLS_CC);
+    _set_dogstatsd_client_globals(client TSRMLS_CC);
 }
 
 void ddtrace_dogstatsd_client_rshutdown(TSRMLS_D) {
     dogstatsd_client_dtor(&DDTRACE_G(dogstatsd_client));
-    free(DDTRACE_G(dogstatsd_host));
-    free(DDTRACE_G(dogstatsd_port));
-    free(DDTRACE_G(dogstatsd_buffer));
 
-    _set_dogstatsd_client_globals(dogstatsd_client_default_ctor(), NULL, NULL, NULL TSRMLS_CC);
+    _set_dogstatsd_client_globals(dogstatsd_client_default_ctor() TSRMLS_CC);
 }
