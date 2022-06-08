@@ -114,8 +114,10 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
  */
 #define DDTRACE_ARG_INFO_SIZE(arg_info) ((zend_uint)(sizeof(arg_info) / sizeof(struct _zend_arg_info) - 1))
 
-#define DDTRACE_FENTRY(zend_name, name, arg_info, flags) \
-    { #zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }
+#define DDTRACE_FENTRY(zend_name, name, arg_info, flags)                   \
+    {                                                                      \
+#zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags \
+    }
 #define DDTRACE_RAW_FENTRY(zend_name, name, arg_info, flags) \
     { zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }
 

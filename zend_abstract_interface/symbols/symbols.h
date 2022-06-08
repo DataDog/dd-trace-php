@@ -12,13 +12,12 @@
  *
  * zai_symbol_new is a single interface for object construction
  */
-#include "php.h"
-
-#include "../zai_string/string.h"
-#include "zai_compat.h"
-
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "../zai_string/string.h"
+#include "php.h"
+#include "zai_compat.h"
 
 // clang-format off
 typedef enum {
