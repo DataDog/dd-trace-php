@@ -297,10 +297,11 @@ jobs:
       - run:
           name: Install Clang
           command: |
+              codename=$(cat /etc/os-release | awk -F = '/UBUNTU_CODENAME/ { print $2 }')
               wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
               (
-                echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-12 main"
-                echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-12 main"
+                echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename} main"
+                echo "deb-src http://apt.llvm.org/${codename}/ llvm-toolchain-${codename} main"
               ) | sudo tee /etc/apt/sources.list.d/llvm-toolchain.list
               sudo apt-get update
               sudo apt-get -y install clang-format
