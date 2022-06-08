@@ -510,15 +510,17 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span TSRMLS_DC) {
 
     add_assoc_long(meta, "system.pid", (long)getpid());
 
+    smart_str http_url = dd_build_req_url(TSRMLS_C);
+    if (http_url.c) {
+        add_assoc_string(meta, "http.url", http_url.c, 0);
+    }
+
     const char *method = SG(request_info).request_method;
-    if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {
+    if (method) {
         add_assoc_string(meta, "http.method", (char *)method, 1);
+    }
 
-        smart_str http_url = dd_build_req_url(TSRMLS_C);
-        if (http_url.c) {
-            add_assoc_string(meta, "http.url", http_url.c, 0);
-        }
-
+    if (method && get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
         const char *uri = dd_get_req_uri(TSRMLS_C);
         zval **prop_resource = ddtrace_spandata_property_resource_write(span);
         MAKE_STD_ZVAL(*prop_resource);
