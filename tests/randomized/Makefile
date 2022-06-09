@@ -71,7 +71,7 @@ library.local:
 library.local.arm:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@cp ../../build/packages/dd-library-php-*-arm64*.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-arm64-linux-gnu.tar.gz
+	@cp ../../build/packages/datadog-php-tracer-*-arm64*.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-arm64-linux-gnu.tar.gz
 
 library.download:
 	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
