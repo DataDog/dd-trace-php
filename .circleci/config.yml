@@ -270,7 +270,7 @@ jobs:
   "Lint files":
     working_directory: ~/datadog
     docker:
-      - image: circleci/php:7.2-cli-node-browsers
+      - image: cimg/php:8.1-node
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
@@ -297,10 +297,11 @@ jobs:
       - run:
           name: Install Clang
           command: |
+              codename=$(cat /etc/os-release | awk -F = '/UBUNTU_CODENAME/ { print $2 }')
               wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
               (
-                echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-12 main"
-                echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-12 main"
+                echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename} main"
+                echo "deb-src http://apt.llvm.org/${codename}/ llvm-toolchain-${codename} main"
               ) | sudo tee /etc/apt/sources.list.d/llvm-toolchain.list
               sudo apt-get update
               sudo apt-get -y install clang-format
@@ -801,7 +802,7 @@ jobs:
         default: all
     executor:
       name: with_agent
-      docker_image: circleci/php:7.3
+      docker_image: cimg/php:7.3
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
@@ -1506,7 +1507,7 @@ jobs:
 
   "Prepare Code":
     working_directory: ~/datadog
-    docker: [ image: 'circleci/php:7.3-cli' ]
+    docker: [ image: 'cimg/php:7.3' ]
     steps:
       - restore_cache:
           keys:
@@ -2391,7 +2392,7 @@ workflows:
       - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 71"
-          docker_image: circleci/php:7.1
+          docker_image: cimg/php:7.1
           scenario: opentracing_beta6
       - static_analysis:
           requires: [ 'Prepare Code' ]

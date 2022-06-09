@@ -2,6 +2,7 @@
 #define ZAI_STRING_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef struct zai_string_view_s {
     size_t len;

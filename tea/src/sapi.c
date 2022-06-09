@@ -1,8 +1,6 @@
 #include <include/sapi.h>
-
 #include <main/php_main.h>
 #include <main/php_variables.h>
-
 #include <private/error.h>
 #include <private/extension.h>
 #include <private/frame.h>

@@ -9,7 +9,7 @@
 #define TEA_SAPI_H
 
 #include "common.h"
-
+// common must come first
 #include <main/SAPI.h>
 
 /*

@@ -4,10 +4,9 @@
 #include <Zend/zend_observer.h>
 #endif
 
+#include <Zend/zend_closures.h>
 #include <ctype.h>
 #include <sandbox/sandbox.h>
-
-#include <Zend/zend_closures.h>
 
 #if PHP_VERSION_ID >= 70000 && PHP_VERSION_ID <= 70200
 #define ZEND_ACC_FAKE_CLOSURE ZEND_ACC_INTERFACE

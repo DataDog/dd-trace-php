@@ -2,7 +2,7 @@
 #define TEA_EXCEPTIONS_H
 
 #include "common.h"
-
+// common must come first.
 #include <Zend/zend_exceptions.h>
 #include <main/php_variables.h>
 
