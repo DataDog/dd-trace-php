@@ -85,10 +85,10 @@ array(1) {
     array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "8cfa685fde"
       ["_dd.p.dm"]=>
       string(12) "8cfa685fde-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "8cfa685fde"
     }
     ["metrics"]=>
     array(3) {

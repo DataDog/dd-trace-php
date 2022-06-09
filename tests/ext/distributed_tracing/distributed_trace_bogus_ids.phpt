@@ -41,10 +41,10 @@ array(1) {
       string(%d) "%d"
       ["_dd.origin"]=>
       string(7) "datadog"
-      ["_dd.dm.service_hash"]=>
-      string(10) "2f8110d3de"
       ["_dd.p.dm"]=>
       string(12) "2f8110d3de-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "2f8110d3de"
     }
     ["metrics"]=>
     array(3) {

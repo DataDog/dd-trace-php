@@ -117,10 +117,10 @@ array(3) {
       string(%d) "%d"
       ["args.0"]=>
       string(18) "tracing is awesome"
-      ["_dd.dm.service_hash"]=>
-      string(10) "24565f64fe"
       ["_dd.p.dm"]=>
       string(12) "24565f64fe-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "24565f64fe"
     }
     ["metrics"]=>
     array(5) {
@@ -184,10 +184,10 @@ array(3) {
     array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "afd2f82e39"
       ["_dd.p.dm"]=>
       string(12) "afd2f82e39-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "afd2f82e39"
     }
     ["metrics"]=>
     array(3) {

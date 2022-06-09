@@ -26,6 +26,6 @@ bar(hello)
 spans(\DDTrace\SpanData) (1) {
   bar (alias, bar, cli)
     system.pid => %d
-    _dd.dm.service_hash => 1a0a6a36ca
     _dd.p.dm => 1a0a6a36ca-1
+    _dd.dm.service_hash => 1a0a6a36ca
 }

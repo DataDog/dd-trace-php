@@ -76,10 +76,10 @@ array(2) {
     array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "a98551ac2e"
       ["_dd.p.dm"]=>
       string(12) "a98551ac2e-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "a98551ac2e"
     }
     ["metrics"]=>
     array(3) {
@@ -115,10 +115,10 @@ array(2) {
       string(%d) "%d"
       ["aa"]=>
       string(2) "bb"
-      ["_dd.dm.service_hash"]=>
-      string(10) "9f86d08188"
       ["_dd.p.dm"]=>
       string(12) "9f86d08188-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "9f86d08188"
     }
     ["metrics"]=>
     array(4) {

@@ -64,10 +64,10 @@ array(1) {
     array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "df6da0e28f"
       ["_dd.p.dm"]=>
       string(12) "df6da0e28f-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
     }
     ["metrics"]=>
     array(3) {
@@ -103,10 +103,10 @@ array(1) {
     array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "df6da0e28f"
       ["_dd.p.dm"]=>
       string(12) "df6da0e28f-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
     }
     ["metrics"]=>
     array(3) {
@@ -142,10 +142,10 @@ array(1) {
     array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "df6da0e28f"
       ["_dd.p.dm"]=>
       string(12) "df6da0e28f-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
     }
     ["metrics"]=>
     array(3) {

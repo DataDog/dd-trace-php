@@ -46,11 +46,14 @@ static void dd_update_decision_maker_tag(ddtrace_span_fci *span, ddtrace_span_fc
 
             zval dm, dm_service;
             ZVAL_STR(&dm_service,
-                     zend_string_init(service_hexsha256,
-                                      get_DD_TRACE_X_DATADOG_TAGS_PROPAGATE_SERVICE() ? hexshadigits : 0, 0));
-            zend_hash_str_update(meta, "_dd.dm.service_hash", sizeof("_dd.dm.service_hash") - 1, &dm_service);
+                     zend_string_init(service_hexsha256, get_DD_TRACE_PROPAGATE_SERVICE() ? hexshadigits : 0, 0));
             ZVAL_STR(&dm, zend_strpprintf(0, "%s-%d", Z_STRVAL(dm_service), mechanism));
             zend_hash_str_add_new(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1, &dm);
+            if (get_DD_TRACE_PROPAGATE_SERVICE()) {
+                zend_hash_str_update(meta, "_dd.dm.service_hash", sizeof("_dd.dm.service_hash") - 1, &dm_service);
+            } else {
+                zend_string_release(Z_STR(dm_service));
+            }
         }
     } else {
         zend_hash_str_del(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1);

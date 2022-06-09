@@ -49,10 +49,10 @@ array(1) {
       string(%d) "%d"
       ["error.msg"]=>
       string(9) "Foo error"
-      ["_dd.dm.service_hash"]=>
-      string(10) "ce20576ee7"
       ["_dd.p.dm"]=>
       string(12) "ce20576ee7-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "ce20576ee7"
     }
     ["metrics"]=>
     array(3) {
