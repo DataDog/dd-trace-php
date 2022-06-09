@@ -149,20 +149,14 @@ unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     static mut EXTENSION_ENTRY: MaybeUninit<ZendExtension> = MaybeUninit::uninit();
     EXTENSION_ENTRY.write(extension);
 
-    zend::zend_interrupt_function = if let Some(interrupt_fn) = zend::zend_interrupt_function {
-        PREV_INTERRUPT_FUNCTION.write(Some(interrupt_fn));
-        Some(interrupt_function_wrapper)
+    PREV_INTERRUPT_FUNCTION.write(zend::zend_interrupt_function);
+    zend::zend_interrupt_function = Some(if zend::zend_interrupt_function.is_some() {
+        interrupt_function_wrapper
     } else {
-        PREV_INTERRUPT_FUNCTION.write(None);
-        Some(interrupt_function)
-    };
+        interrupt_function
+    });
 
-    let prev_execute_internal = match zend::zend_execute_internal {
-        None => zend::execute_internal,
-        Some(prev) => prev,
-    };
-
-    PREV_EXECUTE_INTERNAL.write(prev_execute_internal);
+    PREV_EXECUTE_INTERNAL.write(zend::zend_execute_internal.unwrap_or(zend::execute_internal));
     zend::zend_execute_internal = Some(execute_internal);
 
     zend::zend_register_extension(&mut *EXTENSION_ENTRY.as_mut_ptr(), handle);
@@ -511,7 +505,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 }
 
 unsafe fn stop_profiling() {
-    if let Some(profiler) = PROFILER.replace(None) {
+    if let Some(profiler) = PROFILER.take() {
         profiler.stop();
     }
 }

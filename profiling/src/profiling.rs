@@ -13,7 +13,6 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::ffi::CStr;
 use std::hash::Hash;
-use std::mem::ManuallyDrop;
 use std::os::raw::c_char;
 use std::str::{FromStr, Utf8Error};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -51,7 +50,7 @@ impl WallTime {
 #[repr(C, align(16))]
 #[derive(Debug, Copy, Clone)]
 pub struct Uuid {
-    pub data: [u8; 16usize],
+    pub data: [u8; 16],
 }
 
 impl Uuid {
@@ -170,7 +169,9 @@ impl Default for Globals {
 
 #[derive(Default, Debug)]
 pub struct ZendFrame {
-    pub function: Option<String>,
+    // Most tools don't like frames that don't have function names, so use a
+    // fake name if you need to like "<php>".
+    pub function: String,
     pub file: Option<String>,
     pub line: u32, // use 0 for no line info
 }
@@ -194,105 +195,60 @@ unsafe fn zend_string_to_bytes<'a>(ptr: *const zend_string) -> &'a [u8] {
 ///     {module}|{function_name}
 /// Where the "{module}|" is present only if it's an internal function.
 /// Namespaces are part of the class_name or function_name respectively.
-/// Closures currently repeat the namespace for both class and method, but this
-/// could be changed (should be changed? we don't know yet)
-unsafe fn extract_function_name(func: &zend_function) -> Result<String, Utf8Error> {
+/// Closures and anonymous classes get reformatted by the backend (or maybe
+/// frontend, either way it's not our concern, at least not right now).
+unsafe fn extract_function_name(func: &zend_function) -> String {
     let method_name: &[u8] = zend_string_to_bytes(func.common.function_name);
 
     /* The top of the stack seems to reasonably often not have a function, but
      * still has a scope. I don't know if this intentional, or if it's more of
-     * as situation where scope is only valid if the func is present. So,
-     * erring on the side of caution.
+     * a situation where scope is only valid if the func is present. So, I'm
+     * erring on the side of caution and returning early.
      */
     if method_name.is_empty() {
-        return Ok(String::new());
+        return String::new();
     }
 
+    let mut buffer = Vec::<u8>::new();
+
     // User functions do not have a "module". Maybe one day use composer info?
-    let module: &[u8] = if func.type_ == ZEND_INTERNAL_FUNCTION as u8
+    if func.type_ == ZEND_INTERNAL_FUNCTION as u8
         && !func.internal_function.module.is_null()
         && !(*func.internal_function.module).name.is_null()
     {
-        CStr::from_ptr((*func.internal_function.module).name as *const c_char).to_bytes()
-    } else {
-        b""
-    };
-
-    let class_name: &[u8] = if !func.common.scope.is_null() {
-        zend_string_to_bytes((*func.common.scope).name)
-    } else {
-        b""
-    };
-
-    let mut buffer = Vec::<u8>::new();
-    // +1 for "|"
-    let module_len = if module.is_empty() {
-        0
-    } else {
-        module.len() + 1
-    };
-    // +2 for "::"
-    let class_len = if class_name.is_empty() {
-        0
-    } else {
-        class_name.len() + 1
-    };
-
-    // todo: try_reserve
-    buffer.reserve(module_len + class_len + method_name.len());
-
-    // todo: assuming the above was all correct, no memory allocations should take place below:
-    if !module.is_empty() {
-        module.iter().for_each(|byte| buffer.push(*byte));
-        buffer.push(b'|');
+        let ptr = (*func.internal_function.module).name as *const c_char;
+        let bytes = CStr::from_ptr(ptr).to_bytes();
+        if !bytes.is_empty() {
+            buffer.extend_from_slice(bytes);
+            buffer.push(b'|');
+        }
     }
 
-    if !class_name.is_empty() {
-        class_name.iter().for_each(|byte| buffer.push(*byte));
-        buffer.push(b':');
-        buffer.push(b':');
+    if !func.common.scope.is_null() {
+        let class_name = zend_string_to_bytes((*func.common.scope).name);
+        if !class_name.is_empty() {
+            buffer.extend_from_slice(class_name);
+            buffer.extend_from_slice(b"::");
+        }
     }
 
-    // eprintln!("{:?}|{:?}::{:?}", module, class_name, method_name);
+    buffer.extend_from_slice(method_name);
 
-    method_name.iter().for_each(|byte| buffer.push(*byte));
-
-    buffer_try_into_string(buffer)
+    String::from_utf8_lossy(buffer.as_slice()).to_string()
 }
 
-unsafe fn buffer_try_into_string(buffer: Vec<u8>) -> Result<String, Utf8Error> {
-    // Use from_utf8 to verify UTF8; unused Ok result.
-    let _ = std::str::from_utf8(buffer.as_slice())?;
-
-    // The buffer is valid UTF8; convert it to a string without reallocating.
-    let mut wrapper = ManuallyDrop::new(buffer);
-
-    // SAFETY: this was verified with std::str::from_utf8 above
-    Ok(String::from_raw_parts(
-        wrapper.as_mut_ptr(),
-        wrapper.len(),
-        wrapper.capacity(),
-    ))
-}
-
-unsafe fn extract_file_name(execute_data: &zend_execute_data) -> Result<String, Utf8Error> {
+unsafe fn extract_file_name(execute_data: &zend_execute_data) -> String {
     // this is supposed to be verified by the caller
     if execute_data.func.is_null() {
-        return Ok(String::new());
+        return String::new();
     }
 
     let func = &*execute_data.func;
     if func.type_ == ZEND_USER_FUNCTION as u8 {
         let filename = zend_string_to_bytes(func.op_array.filename);
-        if !filename.is_empty() {
-            let mut buffer = Vec::new();
-            // todo: buffer.try_reserve(filename.len())?;
-            buffer.reserve(filename.len());
-            filename.iter().for_each(|byte| buffer.push(*byte));
-            return buffer_try_into_string(buffer);
-        }
+        return String::from_utf8_lossy(filename).to_string();
     }
-    Ok(String::new())
+    String::new()
 }
 
 unsafe fn extract_line_no(execute_data: &zend_execute_data) -> u32 {
@@ -318,34 +274,23 @@ unsafe fn collect_stack_sample(
     while !execute_data.is_null() && samples.len() < samples.capacity() {
         let func = (*execute_data).func;
         if !func.is_null() {
-            let zend_function = &*func;
-            let function_result = extract_function_name(zend_function);
+            let function = extract_function_name(&*func);
+            let file: String = extract_file_name(&*execute_data);
 
-            // ensure that str in Some(str) is non-empty, simplifies code below
-            let function = if let Ok(str) = function_result {
-                if !str.is_empty() {
-                    Some(str)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            let file = extract_file_name(&*execute_data)?;
+            // Normalize empty strings into None.
+            let function = (!function.is_empty()).then(|| function);
+            let file = (!file.is_empty()).then(|| file);
 
-            // Only insert it if there's a file or function.
-            if function.is_some() || !file.is_empty() {
-                let line = extract_line_no(&*execute_data);
-                let mut frame = ZendFrame {
+            // Only insert a new frame if there's file or function info.
+            if file.is_some() || function.is_some() {
+                // If there's no function name, use the fake name "<php>".
+                let function = function.unwrap_or("<php>".to_owned());
+                let frame = ZendFrame {
                     function,
-                    file: if file.is_empty() { None } else { Some(file) },
-                    line,
+                    file,
+                    line: extract_line_no(&*execute_data),
                 };
 
-                // If there's a file but no function, then use a fake name.
-                if frame.function.is_none() && frame.file.is_some() {
-                    frame.function = Some(String::from("<php>"));
-                }
                 samples.push(frame);
             }
         }
@@ -474,7 +419,7 @@ impl TimeCollector {
             let location = Location {
                 lines: vec![Line {
                     function: Function {
-                        name: frame.function.as_deref().unwrap_or(""),
+                        name: frame.function.as_str(),
                         system_name: "",
                         filename: frame.file.as_deref().unwrap_or(""),
                         start_line: 0,

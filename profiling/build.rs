@@ -66,7 +66,7 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
 fn generate_bindings(php_config_includes: &str) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     let ignored_macros = IgnoreMacros(
-        vec![
+        [
             "FP_INFINITE".into(),
             "FP_NAN".into(),
             "FP_NORMAL".into(),
