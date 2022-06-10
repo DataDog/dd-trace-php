@@ -2,6 +2,7 @@
 Clone DDTrace\SpanData
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 use DDTrace\SpanData;
