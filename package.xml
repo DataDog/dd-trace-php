@@ -48,7 +48,27 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ## Tracer
+    ### Added
+    - Add a new decision maker mechanism #1598
+    - Rename DD_TRACE_X_DATADOG_TAGS_PROPAGATE_SERVICE to DD_TRACE_PROPAGATE_SERVICE #1612, #1613
+    - Add support for unix domain sockets #1601
+    - Add RedisCluster split by host #1602 (Thanks to @radykal-com)
+    - Add http.useragent to root span #1607
+
+    ### Fixed
+    - Fix #1582: *_id keys in meta and metrics are wrongly encoded #1599
+    - Fix dlerror logging format #1605
+    - Fix DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED accidentally guarding http.method and http.url as well #1608
+
+    ### Internal changes
+    - Fix downstream job trigger for deployments to rel-env #1597
+    - Update dd-trace-php link for reliability environment #1595
+    - Move request-replayer from our internal deprecated repository to dd-trace-php #1600
+    - Support restricting PHP versions while running randomized tests #1604
+    - Transition to non-legacy circleci images #1609
+    </notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
