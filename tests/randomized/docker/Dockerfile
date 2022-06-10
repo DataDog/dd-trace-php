@@ -9,6 +9,7 @@ RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline
 RUN \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
     && yum install -y \
+        autoconf \
         bzip2-devel \
         elinks \
         gcc \
@@ -16,6 +17,7 @@ RUN \
         git \
         httpd \
         libcurl-devel \
+        libmemcached-devel \
         libsodium-devel \
         libsqlite3x-devel \
         libxml2-devel \
@@ -78,6 +80,7 @@ RUN set -eux; \
         --with-config-file-scan-dir=/etc/php.d \
         --enable-calendar \
         --enable-exif \
+        --enable-fpm \
         --enable-ftp \
         --enable-mysqlnd \
         --enable-pcntl \
@@ -88,10 +91,13 @@ RUN set -eux; \
         --enable-sysvshm \
         --with-bz2 \
         --with-curl \
+        --with-fpm-group=www-data \
+        --with-fpm-user=www-data \
         --with-gettext \
         --with-mysqli \
         --with-openssl \
         --with-pdo-mysql \
+        --with-pear \
         --with-readline \
         --with-sodium \
         --with-xsl \
@@ -100,40 +106,57 @@ RUN set -eux; \
     make -j "$((`nproc`+1))"; \
     make install
 
-CMD bash
-# # Installing vegeta
-# RUN curl -L -o /tmp/vegeta.tar.gz https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz \
-#     && tar -C /usr/bin -zxvf /tmp/vegeta.tar.gz vegeta \
-#     && rm /tmp/vegeta.tar.gz
+# Enabling Opcache, which is disabled by default
+RUN echo "zend_extension=opcache.so" > /etc/php.d/opache.ini
 
-# # Installing composer
-# RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Igbinary
+RUN set -eux; \
+    pecl install igbinary; \
+    echo "extension=igbinary.so" > /etc/php.d/igbinary.ini
 
-# # Preparing PHP
-# RUN echo "date.timezone = UTC" > "/etc/php.d/00-adjust-timezones.ini"
+# Memached
+RUN set -eux; \
+    printf 'yes' | pecl install memcached; \
+    echo "extension=memcached.so" > /etc/php.d/memcached.ini
 
-# # Preparing PHP-FPM
-# RUN mkdir -p /run/php-fpm
-# RUN sed -i 's/^listen = .*$/listen = 9000/g' /etc/php-fpm.d/www.conf
+# Memached
+RUN set -eux; \
+    printf 'yes' | pecl install redis; \
+    echo "extension=redis.so" > /etc/php.d/redis.ini
 
-# # Preparing NGINX
-# RUN groupadd www-data
-# RUN adduser -M --system -g www-data www-data
-# ADD nginx.conf /etc/nginx/nginx.conf
-# ADD nginx.site.conf /etc/nginx/conf.d/default.conf
+# Installing vegeta
+RUN curl -L -o /tmp/vegeta.tar.gz https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz \
+    && tar -C /usr/bin -zxvf /tmp/vegeta.tar.gz vegeta \
+    && rm /tmp/vegeta.tar.gz
 
-# # Preparing HTTPD
-# RUN sed -i 's/Listen 80/Listen 81/' /etc/httpd/conf/httpd.conf
-# RUN echo "CoreDumpDirectory /tmp/corefiles" >> /etc/httpd/conf/httpd.conf
+# Installing composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# ADD run.sh /scripts/run.sh
-# ADD prepare.sh /scripts/prepare.sh
+# Preparing PHP
+RUN echo "date.timezone = UTC" > "/etc/php.d/00-adjust-timezones.ini"
 
-# WORKDIR /var/www/html
+# Preparing PHP-FPM
+RUN mkdir -p /run/php-fpm
+RUN sed -i 's/^listen = .*$/listen = 9000/g' /etc/php-fpm.d/www.conf
 
-# ENV COMPOSER_CACHE_DIR /composer-cache
-# RUN mkdir -p ${COMPOSER_CACHE_DIR}
-# ENV COMPOSER_VENDOR_DIR /composer-vendor
-# RUN mkdir -p ${COMPOSER_VENDOR_DIR}
+# Preparing NGINX
+RUN groupadd www-data
+RUN adduser -M --system -g www-data www-data
+ADD nginx.conf /etc/nginx/nginx.conf
+ADD nginx.site.conf /etc/nginx/conf.d/default.conf
 
-# CMD [ "bash", "/scripts/run.sh" ]
+# Preparing HTTPD
+RUN sed -i 's/Listen 80/Listen 81/' /etc/httpd/conf/httpd.conf
+RUN echo "CoreDumpDirectory /tmp/corefiles" >> /etc/httpd/conf/httpd.conf
+
+ADD run.sh /scripts/run.sh
+ADD prepare.sh /scripts/prepare.sh
+
+WORKDIR /var/www/html
+
+ENV COMPOSER_CACHE_DIR /composer-cache
+RUN mkdir -p ${COMPOSER_CACHE_DIR}
+ENV COMPOSER_VENDOR_DIR /composer-vendor
+RUN mkdir -p ${COMPOSER_VENDOR_DIR}
+
+CMD [ "bash", "/scripts/run.sh" ]
