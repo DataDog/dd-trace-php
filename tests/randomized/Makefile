@@ -1,12 +1,15 @@
 TMP_SCENARIO_FOLDER := ./.tmp.scenarios
 TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
-DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-dev-
+DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
+DOCKER_IMAGE_VERSION := 1
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
+
+PHP_DOWNLOAD_URL_7.4=https://www.php.net/distributions/php-7.4.30.tar.gz
 
 build: build.centos7
 
@@ -14,8 +17,15 @@ publish: publish.centos7
 
 pull: pull.centos7
 
+A_1 := a_1
+A_2 := a_2
+VARIANT := 2
+
+aaa:
+	echo $(A_$(VARIANT))
+
 build.centos7:
-	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=1 -t $(DOCKER_IMAGE_PREFIX)centos7-8.1 ./docker
+	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=1 -t $(DOCKER_IMAGE_PREFIX)centos7-8.1-$(DOCKER_IMAGE_VERSION) ./docker
 	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=0 -t $(DOCKER_IMAGE_PREFIX)centos7-8.0 ./docker
 	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-7.4 ./docker
 	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=3 -t $(DOCKER_IMAGE_PREFIX)centos7-7.3 ./docker
@@ -25,6 +35,21 @@ build.centos7:
 	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=6 -t $(DOCKER_IMAGE_PREFIX)centos7-5.6 ./docker
 	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=5 -t $(DOCKER_IMAGE_PREFIX)centos7-5.5 ./docker
 	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-5.4 ./docker
+
+build.centos7.%:
+	docker build \
+		--build-arg PHP_DOWNLOAD_URL="$(PHP_DOWNLOAD_URL_$(*))" \
+		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
+		./docker
+# build.centos7.%:
+# 	docker build \
+# 		--build-arg PHP_MAJOR="$(firstword $(subst ., ,$(*)))" \
+# 		--build-arg PHP_MINOR="$(lastword $(subst ., ,$(*)))" \
+# 		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
+# 		./docker
+
+publish.centos7.%: build.centos7.%
+	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)
 
 publish.centos7: build.centos7
 	@docker push $(DOCKER_IMAGE_PREFIX)centos7-8.1
