@@ -523,6 +523,8 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
     }
 
     efree(memory->dynamic);
+
+    memory->dynamic = NULL;
 } /* }}} */
 
 /* {{{ */
