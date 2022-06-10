@@ -42,8 +42,8 @@ dd_dump_spans();
 spans(\DDTrace\SpanData) (3) {
   Foo.main (default_span_properties_method.php, Foo.main, cli)
     year => 2020
-    _dd.dm.service_hash => ac317c120d
     _dd.p.dm => ac317c120d-1
+    _dd.dm.service_hash => ac317c120d
   MyDateTimeFormat (default_span_properties_method.php, MyDateTimeFormat, cli)
     format => m
   DateTime.__construct (default_span_properties_method.php, DateTime.__construct, cli)

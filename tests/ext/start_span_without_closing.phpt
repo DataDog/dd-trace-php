@@ -48,10 +48,10 @@ array(1) {
     array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "1b8a8775ac"
       ["_dd.p.dm"]=>
       string(12) "1b8a8775ac-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "1b8a8775ac"
     }
     ["metrics"]=>
     array(3) {

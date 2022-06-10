@@ -52,13 +52,16 @@ static void dd_update_decision_maker_tag(ddtrace_span_fci *span, ddtrace_span_fc
 
             zval *dm_service;
             MAKE_STD_ZVAL(dm_service);
-            ZVAL_STRINGL(dm_service, service_hexsha256,
-                         get_DD_TRACE_X_DATADOG_TAGS_PROPAGATE_SERVICE() ? hexshadigits : 0, 1);
-            zend_hash_update(Z_ARRVAL_P(meta), "_dd.dm.service_hash", sizeof("_dd.dm.service_hash"), &dm_service,
-                             sizeof(zval *), NULL);
+            ZVAL_STRINGL(dm_service, service_hexsha256, get_DD_TRACE_PROPAGATE_SERVICE() ? hexshadigits : 0, 1);
             char *dm_service_str;
             spprintf(&dm_service_str, 0, "%s-%d", Z_STRVAL_P(dm_service), mechanism);
             add_assoc_string(meta, "_dd.p.dm", dm_service_str, 0);
+            if (get_DD_TRACE_PROPAGATE_SERVICE()) {
+                zend_hash_update(Z_ARRVAL_P(meta), "_dd.dm.service_hash", sizeof("_dd.dm.service_hash"), &dm_service,
+                                 sizeof(zval *), NULL);
+            } else {
+                zval_ptr_dtor(&dm_service);
+            }
         }
     } else {
         zend_hash_del(Z_ARRVAL_P(meta), "_dd.p.dm", sizeof("_dd.p.dm"));

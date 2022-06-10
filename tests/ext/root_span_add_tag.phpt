@@ -44,10 +44,10 @@ array(1) {
       string(%d) "%d"
       ["after"]=>
       string(9) "root_span"
-      ["_dd.dm.service_hash"]=>
-      string(10) "f1999f9456"
       ["_dd.p.dm"]=>
       string(12) "f1999f9456-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "f1999f9456"
     }
     ["metrics"]=>
     array(3) {

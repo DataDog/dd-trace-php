@@ -28,10 +28,10 @@ array(6) {
   string(26) "https://localhost:9999/foo"
   ["http.method"]=>
   string(3) "GET"
-  ["_dd.dm.service_hash"]=>
-  string(10) "9753902159"
   ["_dd.p.dm"]=>
   string(12) "9753902159-1"
+  ["_dd.dm.service_hash"]=>
+  string(10) "9753902159"
   ["http.status_code"]=>
   string(3) "200"
 }

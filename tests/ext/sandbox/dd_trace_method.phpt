@@ -3,6 +3,7 @@ DDTrace\trace_method() can trace with internal spans
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand
+DD_TRACE_PROPAGATE_SERVICE=0
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -119,7 +120,7 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(7) {
+    array(6) {
       ["system.pid"]=>
       string(%d) "%d"
       ["args.0"]=>
@@ -130,10 +131,8 @@ array(3) {
       string(5) "first"
       ["retval.rand"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "24565f64fe"
       ["_dd.p.dm"]=>
-      string(12) "24565f64fe-1"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(5) {
@@ -196,13 +195,11 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "afd2f82e39"
       ["_dd.p.dm"]=>
-      string(12) "afd2f82e39-1"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {
