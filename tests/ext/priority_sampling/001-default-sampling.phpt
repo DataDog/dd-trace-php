@@ -2,7 +2,6 @@
 priority_sampling default sampling
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=1
-DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
