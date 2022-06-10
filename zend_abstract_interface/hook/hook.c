@@ -354,11 +354,11 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
     }
 }
 
-static void zai_hook_remove_from_entry(zai_hooks_entry *hooks, zend_ulong index) {
+static bool zai_hook_remove_from_entry(zai_hooks_entry *hooks, zend_ulong index) {
     zai_hook_t *hook = zend_hash_index_find_ptr(&hooks->hooks, index);
 
     if (!hook || hook->id < 0) {
-        return;
+        return false;
     }
 
     hooks->dynamic -= hook->dynamic;
@@ -367,6 +367,8 @@ static void zai_hook_remove_from_entry(zai_hooks_entry *hooks, zend_ulong index)
     } else {
         hook->id = -hook->id;
     }
+
+    return true;
 }
 
 /* {{{ */
@@ -496,6 +498,10 @@ void zai_hook_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded,
 void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory) {
     // iterating in reverse order to properly have LIFO style
     // clang-format off
+    if (!memory->dynamic) {
+        return;
+    }
+
     for (zai_hook_info *hook_start = memory->dynamic, *hook_info = hook_start + memory->hook_count - 1; hook_info >= hook_start; --hook_info) {
         zai_hook_t *hook = hook_info->hook;
 
@@ -565,37 +571,6 @@ void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 
 // clang-format off
 
-/* {{{ */
-zend_long zai_hook_install_resolved(
-        zai_hook_begin begin,
-        zai_hook_end end,
-        zai_hook_aux aux,
-        size_t dynamic,
-        zend_function *function) {
-    if (!PG(modules_activated)) {
-        /* not allowed: can only do resolved install during request */
-        return false;
-    }
-
-    zai_hook_t *hook = emalloc(sizeof(*hook));
-    *hook = (zai_hook_t){
-        .scope = NULL,
-        .function = NULL,
-        .resolved_scope = function->common.scope,
-        .begin = begin,
-        .generator_resume = NULL,
-        .generator_yield = NULL,
-        .end = end,
-        .aux = aux,
-        .is_global = false,
-        .id = 0,
-        .dynamic = dynamic,
-        .refcount = 1,
-    };
-
-    return hook->id = zai_hook_resolved_install(hook, function);
-} /* }}} */
-
 static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool persistent) {
     zend_string *str = zend_string_alloc(len, persistent);
     zend_str_tolower_copy(ZSTR_VAL(str), ptr, len);
@@ -656,43 +631,55 @@ zend_long zai_hook_install(
     return zai_hook_install_generator(scope, function, begin, NULL, NULL, end, aux, dynamic);
 } /* }}} */
 
-void zai_hook_remove_resolved(zai_install_address function_address, zend_long index) {
+bool zai_hook_remove_resolved(zai_install_address function_address, zend_long index) {
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, function_address);
     if (hooks) {
-        zai_hook_remove_from_entry(hooks, (zend_ulong)index);
+        if (!zai_hook_remove_from_entry(hooks, (zend_ulong)index)) {
+            return false;
+        }
+
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
             zend_hash_index_del(&zai_hook_resolved, zai_hook_install_address(hooks->resolved));
         }
+
+        return true;
     }
+    return false;
 }
 
-void zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index) {
+bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index) {
     zend_class_entry *ce;
     zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
     if (resolved) {
-        zai_hook_remove_resolved(zai_hook_install_address(resolved), index);
-        return;
+        return zai_hook_remove_resolved(zai_hook_install_address(resolved), index);
     }
 
     HashTable *base_ht;
     if (scope.len) {
         base_ht = zend_hash_str_find_ptr_lc(&zai_hook_request_classes, scope.ptr, scope.len);
         if (!base_ht) {
-            return;
+            return false;
         }
     } else {
         base_ht = &zai_hook_request_functions;
     }
     zai_hooks_entry *hooks = zend_hash_str_find_ptr_lc(base_ht, function.ptr, function.len);
     if (hooks) {
-        zai_hook_remove_from_entry(hooks, (zend_ulong)index);
+        if (!zai_hook_remove_from_entry(hooks, (zend_ulong)index)) {
+            return false;
+        }
+
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
             zend_hash_str_del(base_ht, function.ptr, function.len);
             if (zend_hash_num_elements(base_ht) == 0 && scope.len) {
                 zend_hash_str_del(&zai_hook_request_classes, scope.ptr, scope.len);
             }
         }
+
+        return true;
     }
+
+    return false;
 }
 
 void zai_hook_clean(void) {

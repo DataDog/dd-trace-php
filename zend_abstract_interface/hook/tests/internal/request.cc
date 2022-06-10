@@ -21,6 +21,8 @@ extern "C" {
         uint32_t u;
     } zai_hook_test_fixed_t;
 
+    zai_string_view zai_hook_test_nonexistent = {.len = sizeof("zai_hook_test_nonexistent")-1, .ptr = "zai_hook_test_nonexistent"};
+
     static zai_hook_test_fixed_t zai_hook_test_fixed_first = {42};
     static zai_hook_test_fixed_t zai_hook_test_fixed_second = {42};
 
@@ -42,6 +44,7 @@ extern "C" {
 }
 
 static zai_string_view zai_hook_test_target = ZAI_STRL_VIEW("phpversion");
+static zend_long zai_hook_test_index;
 
 #define HOOK_TEST_CASE(description, statics, request, ...) \
     TEA_TEST_CASE_BARE("hook/internal/request", description, {  \
@@ -279,4 +282,56 @@ HOOK_TEST_CASE("stop with static", {
     CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_first);
 
     ZAI_VALUE_DTOR(result);
+});
+
+HOOK_TEST_CASE("nonexistent removal", {
+    zai_hook_test_reset(false);
+}, {
+}, {
+    REQUIRE(!zai_hook_remove(ZAI_STRING_EMPTY, zai_hook_test_target, 0));
+});
+
+HOOK_TEST_CASE("resolved removal", {
+    zai_hook_test_reset(false);
+}, {
+    zai_hook_test_index = zai_hook_install(
+        ZAI_STRING_EMPTY,
+        zai_hook_test_target,
+        zai_hook_test_begin,
+        zai_hook_test_end,
+        ZAI_HOOK_AUX(&zai_hook_test_fixed_first, NULL),
+        sizeof(zai_hook_test_dynamic_t));
+
+    REQUIRE(zai_hook_test_index != -1);
+}, {
+    REQUIRE(zai_hook_remove(ZAI_STRING_EMPTY, zai_hook_test_target, zai_hook_test_index));
+
+    zval *result;
+    ZAI_VALUE_INIT(result);
+
+    CHECK(zai_symbol_call(
+        ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
+        &result, 0));
+
+    CHECK(zai_hook_test_begin_check == 0);
+    CHECK(zai_hook_test_end_check == 0);
+
+    ZAI_VALUE_DTOR(result);
+});
+
+HOOK_TEST_CASE("unresolved removal", {
+    zai_hook_test_reset(false);
+}, {
+    zai_hook_test_index = zai_hook_install(
+        ZAI_STRING_EMPTY,
+        zai_hook_test_nonexistent,
+        zai_hook_test_begin,
+        zai_hook_test_end,
+        ZAI_HOOK_AUX(&zai_hook_test_fixed_first, NULL),
+        sizeof(zai_hook_test_dynamic_t));
+
+    REQUIRE(zai_hook_test_index != -1);
+}, {
+    REQUIRE(zai_hook_remove(ZAI_STRING_EMPTY, zai_hook_test_nonexistent, zai_hook_test_index));
 });
