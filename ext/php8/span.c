@@ -23,7 +23,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 void ddtrace_init_span_stacks(void) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(closed_spans_top) = NULL;
-    DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
@@ -46,7 +45,6 @@ static void _free_span_stack(ddtrace_span_fci *span_fci) {
 void ddtrace_free_span_stacks(void) {
     _free_span_stack(DDTRACE_G(open_spans_top));
     DDTRACE_G(open_spans_top) = NULL;
-    DDTRACE_G(root_span) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top));
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
@@ -81,10 +79,11 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci) {
     ++DDTRACE_G(open_spans_count);
 
     if (!span_fci->next) {  // root span
-        DDTRACE_G(root_span) = span_fci;
+        span->chunk_root = span_fci;
         ddtrace_set_root_span_properties(&span_fci->span);
     } else {
         ddtrace_span_fci *next_span = span_fci->next;
+        span->chunk_root = next_span->span.chunk_root;
         ZVAL_COPY(ddtrace_spandata_property_service(&span_fci->span),
                   ddtrace_spandata_property_service(&next_span->span));
         ZVAL_COPY(ddtrace_spandata_property_type(&span_fci->span), ddtrace_spandata_property_type(&next_span->span));
@@ -155,12 +154,11 @@ ddtrace_span_fci *ddtrace_init_span(enum ddtrace_span_type type) {
 void ddtrace_push_root_span(void) { ddtrace_open_span(ddtrace_init_span(DDTRACE_AUTOROOT_SPAN)); }
 
 DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
-    ddtrace_span_fci *root = DDTRACE_G(root_span);
-    if (root == NULL) {
+    if (DDTRACE_G(open_spans_top) == NULL) {
         return false;
     }
 
-    return zend_hash_add(ddtrace_spandata_property_meta(&root->span), tag, value) != NULL;
+    return zend_hash_add(ddtrace_spandata_property_meta(&DDTRACE_G(open_spans_top)->span.chunk_root->span), tag, value) != NULL;
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
@@ -241,11 +239,9 @@ void ddtrace_close_span(ddtrace_span_fci *span_fci) {
     span_fci->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = span_fci;
 
-    if (DDTRACE_G(open_spans_top) == NULL) {
+    if (span_fci->span.chunk_root == span_fci) {
         // Enforce a sampling decision here
         ddtrace_fetch_prioritySampling_from_root();
-
-        DDTRACE_G(root_span) = NULL;
 
         // A userland span might still be open so we check the span ID stack instead of the internal span stack
         // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
@@ -278,17 +274,12 @@ void ddtrace_drop_top_open_span(void) {
     ++DDTRACE_G(dropped_spans_count);
     --DDTRACE_G(open_spans_count);
 
-    if (DDTRACE_G(open_spans_top) == NULL) {
-        DDTRACE_G(root_span) = NULL;
-    }
-
     dd_drop_span(span_fci);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
     // The tracer supports only one trace per request so free any remaining open spans
     _free_span_stack(DDTRACE_G(open_spans_top));
-    DDTRACE_G(root_span) = NULL;
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
