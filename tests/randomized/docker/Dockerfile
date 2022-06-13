@@ -15,7 +15,7 @@ RUN \
         gcc \
         gdb \
         git \
-        httpd \
+        httpd-devel \
         libcurl-devel \
         libmemcached-devel \
         libsodium-devel \
@@ -70,8 +70,6 @@ RUN set -eux; \
 
 WORKDIR /usr/local/src/php
 
-# ENV EPREFIX /usr/local
-
 RUN set -eux; \
     mkdir -p /etc/php.d; \
     ./configure \
@@ -89,6 +87,7 @@ RUN set -eux; \
         --enable-sysvmsg \
         --enable-sysvsem \
         --enable-sysvshm \
+        --with-apxs2 \
         --with-bz2 \
         --with-curl \
         --with-fpm-group=www-data \
@@ -136,8 +135,8 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN echo "date.timezone = UTC" > "/etc/php.d/00-adjust-timezones.ini"
 
 # Preparing PHP-FPM
-RUN mkdir -p /run/php-fpm
-RUN sed -i 's/^listen = .*$/listen = 9000/g' /etc/php-fpm.d/www.conf
+RUN mkdir -p /usr/local/etc/php-fpm.d
+ADD php-fpm.conf /usr/local/etc/php-fpm.conf
 
 # Preparing NGINX
 RUN groupadd www-data
