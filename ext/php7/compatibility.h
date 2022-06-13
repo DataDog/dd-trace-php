@@ -57,6 +57,16 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
 #define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
 #define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
+
+// make ZEND_STRL work
+#undef zend_hash_str_update
+#define zend_hash_str_update(...) _zend_hash_str_update(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_update_ind
+#define zend_hash_str_update_ind(...) _zend_hash_str_update_ind(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_add
+#define zend_hash_str_add(...) _zend_hash_str_add(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_add_new
+#define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
 #endif
 
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))

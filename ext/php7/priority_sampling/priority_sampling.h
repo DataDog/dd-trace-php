@@ -12,6 +12,7 @@ static const int PRIORITY_SAMPLING_USER_KEEP = 2;
 static const int PRIORITY_SAMPLING_USER_REJECT = -1;
 
 void ddtrace_set_prioritySampling_on_root(zend_long priority);
+zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_span_fci *root_span);
 zend_long ddtrace_fetch_prioritySampling_from_root(void);
 
 #endif  // DDTRACE_PRIORITY_SAMPLING_H

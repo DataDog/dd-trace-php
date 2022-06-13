@@ -20,7 +20,7 @@ $tests = [
     ["a*a*b.", "aaaacaab"],
 ];
 
-foreach ($tests as [$pattern, $service]) {
+foreach ($tests as list($pattern, $service)) {
     ini_set("datadog.span_sampling_rules", '[{"service":"' . $pattern . '","sample_rate":1}]');
 
     DDTrace\start_span()->service = $service;

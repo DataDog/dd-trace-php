@@ -93,6 +93,8 @@ extern bool runtime_config_first_init;
     CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "*")                                                    \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                    \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
+    CONFIG(JSON, DD_SPAN_SAMPLING_RULES, "[]")                                                                 \
+    CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                            \
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                     \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_SERVICE, "false")                                                          \

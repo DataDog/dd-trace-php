@@ -109,6 +109,9 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
 
 zend_long ddtrace_fetch_prioritySampling_from_root(void) {
     if (!DDTRACE_G(open_spans_top)) {
+        if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
+            return DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+        }
         return DDTRACE_G(default_priority_sampling);
     }
 

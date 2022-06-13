@@ -11,4 +11,7 @@ void ddtrace_save_active_error_to_metadata(void);
 void ddtrace_set_global_span_properties(ddtrace_span_t *span);
 void ddtrace_set_root_span_properties(ddtrace_span_t *span);
 
+void ddtrace_initialize_span_sampling_limiter(void);
+void ddtrace_shutdown_span_sampling_limiter(void);
+
 #endif  // DD_SERIALIZER_H
