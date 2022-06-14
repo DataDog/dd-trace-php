@@ -145,6 +145,7 @@ ADD nginx.conf /etc/nginx/nginx.conf
 ADD nginx.site.conf /etc/nginx/conf.d/default.conf
 
 # Preparing HTTPD
+ADD apache.php.conf /etc/httpd/conf.d/php.conf
 RUN sed -i 's/Listen 80/Listen 81/' /etc/httpd/conf/httpd.conf
 RUN echo "CoreDumpDirectory /tmp/corefiles" >> /etc/httpd/conf/httpd.conf
 
