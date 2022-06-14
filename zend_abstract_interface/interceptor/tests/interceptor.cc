@@ -48,8 +48,8 @@ static void php_call_shutdown_functions(TSRMLS_D) /* {{{ */
     }
 
     static PHP_RSHUTDOWN_FUNCTION(ddtrace_testing_hook) {
-        zai_interceptor_rshutdown();
         zai_hook_rshutdown();
+        zai_interceptor_rshutdown();
         return SUCCESS;
     }
 

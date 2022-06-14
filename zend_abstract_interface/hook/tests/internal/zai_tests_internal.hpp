@@ -11,14 +11,17 @@ extern "C" {
 
     static void zai_hook_test_execute_internal(zend_execute_data *ex, zval *rv) {
         zai_hook_memory_t memory;
+        zai_hook_continued continuation = zai_hook_continue(ex, &memory);
 
-        if (zai_hook_continue(ex, &memory) == ZAI_HOOK_BAILOUT) {
+        if (continuation == ZAI_HOOK_BAILOUT) {
             zend_bailout();
         }
 
         zend_execute_internal_function(ex, rv);
 
-        zai_hook_finish(ex, rv, &memory);
+        if (continuation != ZAI_HOOK_SKIP) {
+            zai_hook_finish(ex, rv, &memory);
+        }
     }
 
     static inline void zai_hook_test_reset(bool rv) {
