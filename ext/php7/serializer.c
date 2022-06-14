@@ -20,6 +20,7 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "runtime.h"
@@ -568,6 +569,13 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
                 ZVAL_COPY(prop_resource, &http_method);
             }
         }
+    }
+
+    zend_string *client_ip = dd_ip_extraction_find(&PG(http_globals)[TRACK_VARS_SERVER]);
+    if (client_ip && ZSTR_LEN(client_ip) > 0) {
+        zval http_client_ip;
+        ZVAL_STR(&http_client_ip, client_ip);
+        zend_hash_str_add_new(meta, "http.client_ip", sizeof("http.client_ip") - 1, &http_client_ip);
     }
 
     zend_string *user_agent = dd_get_user_agent();
