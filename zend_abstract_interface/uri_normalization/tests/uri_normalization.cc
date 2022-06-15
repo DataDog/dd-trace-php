@@ -114,6 +114,12 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
 })
 
 #undef TEST_BODY
+
+#if PHP_VERSION_ID < 70000
+#define zai_filter_query_string(query_string, whitelist, ...) \
+    zai_filter_query_string(query_string, whitelist)
+#endif
+
 #define TEST_BODY(output, query_string, ...)          \
 {                                                     \
     zval whitelist;                                   \
@@ -123,7 +129,7 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
     zend_string_ptr res =                             \
         zai_filter_query_string(                      \
             ZAI_STRL_VIEW(query_string),              \
-            Z_ARRVAL(whitelist));                     \
+            Z_ARRVAL(whitelist), NULL);               \
                                                       \
     REQUIRE(zend_string_equals_literal(res, output)); \
                                                       \

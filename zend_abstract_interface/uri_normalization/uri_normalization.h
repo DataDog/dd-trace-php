@@ -14,6 +14,6 @@ zai_string_view zai_uri_normalize_path(zai_string_view path, HashTable *fragment
 zai_string_view zai_filter_query_string(zai_string_view queryString, HashTable *whitelist);
 #else
 zend_string *zai_uri_normalize_path(zend_string *path, zend_array *fragmentRegex, zend_array *mapping);
-zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist);
+zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist, zend_string *pattern);
 #endif
 #endif  // ZAI_URI_NORMALIZATION_H

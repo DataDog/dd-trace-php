@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <ext/pcre/php_pcre.h>
 #include <ext/standard/php_string.h>
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
@@ -479,9 +480,9 @@ static zend_string *dd_build_req_url() {
     zend_string *query_string = ZSTR_EMPTY_ALLOC();
     if (question_mark) {
         uri_len = question_mark - uri;
-        query_string =
-            zai_filter_query_string((zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
-                                    get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED());
+        query_string = zai_filter_query_string(
+            (zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
+            get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED(), get_DD_OBFUSCATION_QUERY_STRING_REGEXP());
     } else {
         uri_len = strlen(uri);
     }
@@ -555,7 +556,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
                 if (query_str) {
                     query_string =
                         zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
-                                                get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED());
+                                                get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(), NULL);
                 }
 
                 ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s%s%.*s", method, ZSTR_VAL(normalized),
