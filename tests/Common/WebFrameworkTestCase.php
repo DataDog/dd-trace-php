@@ -75,7 +75,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
             'DD_TRACE_DEBUG' => 0,
-            'DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED' => '',
         ];
 
         return $envs;

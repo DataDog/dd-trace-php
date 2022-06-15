@@ -20,13 +20,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected static function getInis()
-    {
-        return array_merge(parent::getInis(), [
-            'ddtrace.http_url_query_param_allowed' => '',
-        ]);
-    }
-
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
