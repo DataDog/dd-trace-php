@@ -9,7 +9,6 @@ DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
 
-PHP_DOWNLOAD_URL_7.4=https://www.php.net/distributions/php-7.4.30.tar.gz
 
 build: build.centos7
 
@@ -17,63 +16,53 @@ publish: publish.centos7
 
 pull: pull.centos7
 
-A_1 := a_1
-A_2 := a_2
-VARIANT := 2
-
-aaa:
-	echo $(A_$(VARIANT))
-
-build.centos7:
-	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=1 -t $(DOCKER_IMAGE_PREFIX)centos7-8.1-$(DOCKER_IMAGE_VERSION) ./docker
-	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=0 -t $(DOCKER_IMAGE_PREFIX)centos7-8.0 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-7.4 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=3 -t $(DOCKER_IMAGE_PREFIX)centos7-7.3 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=2 -t $(DOCKER_IMAGE_PREFIX)centos7-7.2 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=1 -t $(DOCKER_IMAGE_PREFIX)centos7-7.1 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=0 -t $(DOCKER_IMAGE_PREFIX)centos7-7.0 ./docker
-	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=6 -t $(DOCKER_IMAGE_PREFIX)centos7-5.6 ./docker
-	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=5 -t $(DOCKER_IMAGE_PREFIX)centos7-5.5 ./docker
-	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-5.4 ./docker
+build.centos7: \
+	build.centos7.5.4 \
+	build.centos7.5.5 \
+	build.centos7.5.6 \
+	build.centos7.7.0 \
+	build.centos7.7.1 \
+	build.centos7.7.2 \
+	build.centos7.7.3 \
+	build.centos7.7.4 \
+	build.centos7.8.0 \
+	build.centos7.8.1
 
 build.centos7.%:
 	docker build \
-		--build-arg PHP_DOWNLOAD_URL="$(PHP_DOWNLOAD_URL_$(*))" \
+		--build-arg PHP_MAJOR_MINOR="$(*)" \
 		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
 		./docker
-# build.centos7.%:
-# 	docker build \
-# 		--build-arg PHP_MAJOR="$(firstword $(subst ., ,$(*)))" \
-# 		--build-arg PHP_MINOR="$(lastword $(subst ., ,$(*)))" \
-# 		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
-# 		./docker
+
+publish.centos7: \
+	publish.centos7.5.4 \
+	publish.centos7.5.5 \
+	publish.centos7.5.6 \
+	publish.centos7.7.0 \
+	publish.centos7.7.1 \
+	publish.centos7.7.2 \
+	publish.centos7.7.3 \
+	publish.centos7.7.4 \
+	publish.centos7.8.0 \
+	publish.centos7.8.1
 
 publish.centos7.%: build.centos7.%
-	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)
+	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
 
-publish.centos7: build.centos7
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-8.1
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-8.0
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.4
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.3
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.2
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.1
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.0
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.6
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.5
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.4
+pull.centos7: \
+	pull.centos7.5.4 \
+	pull.centos7.5.5 \
+	pull.centos7.5.6 \
+	pull.centos7.7.0 \
+	pull.centos7.7.1 \
+	pull.centos7.7.2 \
+	pull.centos7.7.3 \
+	pull.centos7.7.4 \
+	pull.centos7.8.0 \
+	pull.centos7.8.1
 
-pull.centos7:
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-8.1
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-8.0
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.4
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.3
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.2
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.1
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.0
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.6
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.5
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.4
+pull.centos7.%:
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
 
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)

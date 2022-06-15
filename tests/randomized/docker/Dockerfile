@@ -1,7 +1,6 @@
 FROM centos:7
 
-# ARG PHP_MAJOR
-# ARG PHP_MINOR
+ARG PHP_MAJOR_MINOR
 
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
@@ -33,40 +32,15 @@ RUN \
     && yum clean all \
     && rm -rf /var/cache/yum
 
-    # && rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-7.rpm \
-    # && yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
-    #         php-cli \
-    #         php-curl \
-    #         php-fpm \
-    #         php-memcached \
-    #         php-opcache \
-    #         php-pdo_mysql \
-    #         php-pear \
-    #         php-pecl-redis \
-    #         mod_php \
-    # && debuginfo-install --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} -y php-fpm \
-
-# Create coredumps folder
-# If not generated, see: https://fromdual.com/hunting-the-core
-RUN mkdir -p /tmp/corefiles
-RUN chmod -R a+w /tmp/corefiles
-ADD enable-coredump.sh /scripts/enable-coredump.sh
-
-# Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
-# be changed without an appropriate code review.
-ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /scripts/wait-for.sh
-RUN chmod +x /scripts/wait-for.sh
-
-ARG PHP_DOWNLOAD_URL
-
-RUN echo ${PHP_DOWNLOAD_URL}
+ADD envs /envs
 
 # Downloading / Extracting PHP
 RUN set -eux; \
-        curl -L --output php.tar.gz ${PHP_DOWNLOAD_URL}; \
-        tar -xvf php.tar.gz -C /usr/local/src/; \
-        mv /usr/local/src/php-* /usr/local/src/php; \
-        rm php.tar.gz
+    source /envs/${PHP_MAJOR_MINOR}.env; \
+    curl -L --output php.tar.gz ${PHP_DOWNLOAD_URL}; \
+    tar -xvf php.tar.gz -C /usr/local/src/; \
+    mv /usr/local/src/php-* /usr/local/src/php; \
+    rm php.tar.gz
 
 WORKDIR /usr/local/src/php
 
@@ -110,18 +84,35 @@ RUN echo "zend_extension=opcache.so" > /etc/php.d/opache.ini
 
 # Igbinary
 RUN set -eux; \
-    pecl install igbinary; \
+    source /envs/${PHP_MAJOR_MINOR}.env; \
+    if [[ -z "${IGBINARY_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${IGBINARY_VERSION:-}"; fi; \
+    pecl install "igbinary${PECL_SUFFIX}"; \
     echo "extension=igbinary.so" > /etc/php.d/igbinary.ini
 
 # Memached
 RUN set -eux; \
-    printf 'yes' | pecl install memcached; \
+    source /envs/${PHP_MAJOR_MINOR}.env; \
+    if [[ -z "${MEMCACHED_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${MEMCACHED_VERSION:-}"; fi; \
+    printf 'yes' | pecl install "memcached${PECL_SUFFIX}"; \
     echo "extension=memcached.so" > /etc/php.d/memcached.ini
 
-# Memached
+# Redis
 RUN set -eux; \
-    printf 'yes' | pecl install redis; \
+    source /envs/${PHP_MAJOR_MINOR}.env; \
+    if [[ -z "${REDIS_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${REDIS_VERSION:-}"; fi; \
+    printf 'yes' | pecl install "redis${PECL_SUFFIX}"; \
     echo "extension=redis.so" > /etc/php.d/redis.ini
+
+# Create coredumps folder
+# If not generated, see: https://fromdual.com/hunting-the-core
+RUN mkdir -p /tmp/corefiles
+RUN chmod -R a+w /tmp/corefiles
+ADD enable-coredump.sh /scripts/enable-coredump.sh
+
+# Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
+# be changed without an appropriate code review.
+ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /scripts/wait-for.sh
+RUN chmod +x /scripts/wait-for.sh
 
 # Installing vegeta
 RUN curl -L -o /tmp/vegeta.tar.gz https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz \
