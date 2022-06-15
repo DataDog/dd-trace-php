@@ -52,6 +52,18 @@ zend_long zai_hook_install_generator(
 
 typedef zend_ulong zai_install_address;
 
+/* {{{ zai_hook_install_resolved may only be executed during request
+        this API requires no symbol names, or resolution, it may be used
+        to associate a hook with anonymous symbols
+        ie. generators, closures, fibers */
+zend_long zai_hook_install_resolved(
+        zai_hook_begin  begin,
+        zai_hook_end    end,
+        zai_hook_aux    aux,
+        size_t dynamic,
+        zend_function *function); /* }}} */
+
+
 /* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
 bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index);
 bool zai_hook_remove_resolved(zai_install_address function_address, zend_long index); /* }}} */
