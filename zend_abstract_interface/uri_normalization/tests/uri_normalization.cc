@@ -125,14 +125,17 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
     zval whitelist;                                   \
     array_init(&whitelist);                           \
                                                       \
+    zend_string *regex = NULL;                        \
+                                                      \
     { __VA_ARGS__ }                                   \
     zend_string_ptr res =                             \
         zai_filter_query_string(                      \
             ZAI_STRL_VIEW(query_string),              \
-            Z_ARRVAL(whitelist), NULL);               \
+            Z_ARRVAL(whitelist), regex);              \
                                                       \
     REQUIRE(zend_string_equals_literal(res, output)); \
                                                       \
+    if (regex) { zend_string_release(regex); }        \
     zend_string_release(res);                         \
     zval_dtor(&whitelist);                            \
 }
@@ -162,3 +165,25 @@ TEST_QUERY_STRING("whitelist some: multiple", "a=1&b&de&c=2", "a=1&de&c=2", {
 TEST_QUERY_STRING("whitelist some: repeated values", "&&a=1&a=1&&&b&b", "a=1&a=1", {
     add_assoc_null(&whitelist, "a");
 });
+
+#if PHP_VERSION_ID >= 70000
+TEST_QUERY_STRING("obfuscate: simple", "a=1&b=2&c=3", "a=1&b=2&<redacted>", {
+    add_assoc_null(&whitelist, "*");
+    regex = zend_string_init(ZEND_STRL("c=[0-9]"), 0);
+});
+
+TEST_QUERY_STRING("obfuscate: lowercase", "A=1&B=2&C=3", "A=1&B=2&<redacted>", {
+    add_assoc_null(&whitelist, "*");
+    regex = zend_string_init(ZEND_STRL("(?i)(C=[0-9])"), 0);
+});
+
+TEST_QUERY_STRING("obfuscate: everything", "a=1&b=2&c=3", "<redacted>&<redacted>&<redacted>", {
+    add_assoc_null(&whitelist, "*");
+    regex = zend_string_init(ZEND_STRL("[a-z]=[0-9]"), 0);
+});
+
+TEST_QUERY_STRING("obfuscate: no obfuscation on whitelist", "a=1&b=2&c=3", "c=3", {
+    add_assoc_null(&whitelist, "c");
+    regex = zend_string_init(ZEND_STRL("c=[0-9]"), 0);
+});
+#endif
