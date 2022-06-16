@@ -1,8 +1,10 @@
 --TEST--
 root span with http.url and obfuscated query string
 --SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: Obfuscation only present in PHP 7+"); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED=*
 HTTPS=off
 SERVER_NAME=localhost:8888
 HTTP_HOST=localhost:9999
