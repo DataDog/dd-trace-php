@@ -5,7 +5,6 @@ root span without query string in http.url
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED=''
 HTTPS=off
-SERVER_NAME=localhost:8888
 HTTP_HOST=localhost:9999
 SCRIPT_NAME=/foo.php
 REQUEST_URI=/foo?some=query&param&eters
