@@ -85,21 +85,21 @@ RUN echo "zend_extension=opcache.so" > /etc/php.d/opache.ini
 # Igbinary
 RUN set -eux; \
     source /envs/${PHP_MAJOR_MINOR}.env; \
-    if [[ -z "${IGBINARY_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${IGBINARY_VERSION:-}"; fi; \
+    if [[ -z "${IGBINARY_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${IGBINARY_VERSION}"; fi; \
     pecl install "igbinary${PECL_SUFFIX}"; \
     echo "extension=igbinary.so" > /etc/php.d/igbinary.ini
 
 # Memached
 RUN set -eux; \
     source /envs/${PHP_MAJOR_MINOR}.env; \
-    if [[ -z "${MEMCACHED_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${MEMCACHED_VERSION:-}"; fi; \
+    if [[ -z "${MEMCACHED_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${MEMCACHED_VERSION}"; fi; \
     printf 'yes' | pecl install "memcached${PECL_SUFFIX}"; \
     echo "extension=memcached.so" > /etc/php.d/memcached.ini
 
 # Redis
 RUN set -eux; \
     source /envs/${PHP_MAJOR_MINOR}.env; \
-    if [[ -z "${REDIS_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${REDIS_VERSION:-}"; fi; \
+    if [[ -z "${REDIS_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${REDIS_VERSION}"; fi; \
     printf 'yes' | pecl install "redis${PECL_SUFFIX}"; \
     echo "extension=redis.so" > /etc/php.d/redis.ini
 
