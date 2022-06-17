@@ -9,7 +9,6 @@ DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
 
-
 build: build.centos7
 
 publish: publish.centos7
