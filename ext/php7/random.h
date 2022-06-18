@@ -14,5 +14,7 @@ uint64_t ddtrace_generate_span_id(void);
 uint64_t ddtrace_peek_span_id(void);
 uint64_t ddtrace_peek_trace_id(void);
 uint64_t ddtrace_parse_userland_span_id(zval *zid);
+uint64_t ddtrace_parse_hex_span_id_str(const char *id, size_t len);
+uint64_t ddtrace_parse_hex_span_id(zval *zid);
 
 #endif  // DD_RANDOM_H
