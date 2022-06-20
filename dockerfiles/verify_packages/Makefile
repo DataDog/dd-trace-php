@@ -1,5 +1,5 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-CENTOS6_PHP_VERSIONS:=5.4.centos6 5.5.centos6 5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos6 7.3.centos6 7.4.centos6 8.0.centos6
+CENTOS6_PHP_VERSIONS:=5.4.centos6 5.5.centos6 5.6.centos6
 
 .PHONY: $(CENTOS6_PHP_VERSIONS)
 
@@ -65,9 +65,6 @@ test_legacy_installer_no_ext_json:
 
 test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
-# This scenario cannot be tested until we have at least two versions released with the new release bundle:
-test_appsec_install_disabled.sh \
-test_appsec_install_enabled.sh \
 test_first_install.sh \
 test_install_add_missing_ini_settings.sh \
 test_install_custom_installation_directory.sh \
@@ -75,11 +72,6 @@ test_install_custom_installation_root.sh \
 test_install_non_root_user.sh \
 test_install_subdir_from_file.sh \
 test_install_subdir_from_version.sh \
-test_install_uninstall_install_tracer_appsec.sh \
-test_install_uninstall_install_tracer_profiling.sh \
-test_install_uninstall_install_tracer.sh \
-test_profiler_install_disabled.sh \
-test_profiler_install_enabled.sh \
 test_uninstall.sh \
 test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \

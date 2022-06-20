@@ -14,8 +14,6 @@ const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
 const OPT_FILE = 'file';
 const OPT_UNINSTALL = 'uninstall';
-const OPT_ENABLE_APPSEC = 'enable-appsec';
-const OPT_ENABLE_PROFILING = 'enable-profiling';
 
 // Release version is set while generating the final release files
 const RELEASE_VERSION = '@release_version@';
@@ -55,8 +53,6 @@ Options:
                                 paths. The option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
-    --enable-appsec             Enable the application security monitoring module.
-    --enable-profiling          Enable the BETA profiling module.
 
 EOD;
 }
@@ -80,10 +76,6 @@ function install($options)
     $tmpDirTarGz = $tmpDir . "/dd-library-php-${platform}.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
-    $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
-    $tmpArchiveAppsecBin = "${tmpArchiveAppsecRoot}/bin";
-    $tmpArchiveAppsecEtc = "${tmpArchiveAppsecRoot}/etc";
-    $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
     register_shutdown_function(function () use ($tmpDir) {
@@ -133,17 +125,6 @@ function install($options)
     );
     echo "Installed required source files to '$installDir'\n";
 
-    // Appsec helper and rules
-    execute_or_exit(
-        "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
-        "cp -r " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
-    );
-    execute_or_exit(
-        "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
-        "cp -r " . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
-    );
-    $appSecRulesPath = $installDir . '/etc/recommended.json';
-
     // Actual installation
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
@@ -173,29 +154,6 @@ function install($options)
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so" ;
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
-
-        // Profiling
-        $shouldInstallProfiling =
-            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
-            && !is_truthy($phpProperties[THREAD_SAFETY])
-            && !is_truthy($phpProperties[IS_DEBUG]);
-
-        if ($shouldInstallProfiling) {
-            $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling.so";
-            $profilingExtensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so';
-            safe_copy_extension($profilingExtensionRealPath, $profilingExtensionDestination);
-        }
-
-        // Appsec
-        $shouldInstallAppsec =
-            in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
-            && !is_truthy($phpProperties[IS_DEBUG]);
-        if ($shouldInstallAppsec) {
-            $appsecExtensionRealPath = "${tmpArchiveAppsecRoot}/ext/${extensionVersion}/ddappsec${extensionSuffix}.so";
-            $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
-            safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
-        }
-        $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
         // Writing the ini file
         $iniFileName = '98-ddtrace.ini';
@@ -249,66 +207,8 @@ function install($options)
 
             add_missing_ini_settings(
                 $iniFilePath,
-                get_ini_settings($installDirWrapperPath, $appSecHelperPath, $appSecRulesPath)
+                get_ini_settings($installDirWrapperPath)
             );
-
-            // Enabling profiling
-            if (is_truthy($options[OPT_ENABLE_PROFILING])) {
-                // phpcs:disable Generic.Files.LineLength.TooLong
-                if ($shouldInstallProfiling) {
-                    execute_or_exit(
-                        'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' "
-                            . escapeshellarg($iniFilePath)
-                    );
-                } else {
-                    $enableProfiling = OPT_ENABLE_PROFILING;
-                    print_error_and_exit("Option --${enableProfiling} was provided, but it is not supported on this PHP build or version.\n");
-                }
-                // phpcs:enable Generic.Files.LineLength.TooLong
-            }
-
-            // Load AppSec and enable/disable as required
-
-            // phpcs:disable Generic.Files.LineLength.TooLong
-            if ($shouldInstallAppsec) {
-                // Appsec crashes with missing symbols if tracing is not loaded
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?; \?extension \?= \?ddtrace.so@extension = ddtrace.so@g' "
-                        . escapeshellarg($iniFilePath)
-                );
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
-                        . escapeshellarg($iniFilePath)
-                );
-
-                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                        execute_or_exit(
-                            'Impossible to update the INI settings file.',
-                            "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
-                                . escapeshellarg($iniFilePath)
-                        );
-                } else {
-                    execute_or_exit(
-                        'Impossible to update the INI settings file.',
-                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
-                            . escapeshellarg($iniFilePath)
-                    );
-                }
-            } elseif (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                // Ensure AppSec isn't loaded if not compatible
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@extension \?= \?ddappsec.so@;extension = ddappsec.so@g' "
-                        . escapeshellarg($iniFilePath)
-                );
-
-                $enableAppsec = OPT_ENABLE_APPSEC;
-                print_error_and_exit("Option --${enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
-            }
-            // phpcs:enable Generic.Files.LineLength.TooLong
 
             echo "Installation to '$binaryForLog' was successful\n";
         }
@@ -361,8 +261,6 @@ function uninstall($options)
 
         $extensionDestinations = [
             $phpProperties[EXTENSION_DIR] . '/ddtrace.so',
-            $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so',
-            $phpProperties[EXTENSION_DIR] . '/ddappsec.so',
         ];
 
         // Writing the ini file
@@ -517,8 +415,6 @@ function parse_validate_user_options()
         OPT_FILE . ':',
         OPT_INSTALL_DIR . ':',
         OPT_UNINSTALL,
-        OPT_ENABLE_APPSEC,
-        OPT_ENABLE_PROFILING,
     ];
     $options = getopt($shortOptions, $longOptions);
 
@@ -566,9 +462,6 @@ function parse_validate_user_options()
         ? rtrim($options[OPT_INSTALL_DIR], '/')
         : '/opt/datadog';
     $normalizedOptions[OPT_INSTALL_DIR] =  $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
-
-    $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
-    $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
 
     return $normalizedOptions;
 }
@@ -821,7 +714,7 @@ function search_php_binaries($prefix = '')
          */
         return "${prefix}/opt/remi/php${major}${minor}/root/usr/sbin";
     }, get_supported_php_versions());
-    $escapedSearchLocations =  implode(' ', array_map('escapeshellarg', $standardPaths + $remiSafePaths));
+    $escapedSearchLocations =  implode(' ', array_map('escapeshellarg', array_merge($standardPaths, $remiSafePaths)));
     $escapedCommandNamesForFind = implode(
         ' -o ',
         array_map(
@@ -954,11 +847,9 @@ function get_php_major_minor($binary)
  *                                    the setting.
  *
  * @param string $requestInitHookPath
- * @param string $appsecHelperPath
- * @param string $appsecRulesPath
  * @return array
  */
-function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesPath)
+function get_ini_settings($requestInitHookPath)
 {
     // phpcs:disable Generic.Files.LineLength.TooLong
     return [
@@ -967,18 +858,6 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'default' => 'ddtrace.so',
             'commented' => false,
             'description' => 'Enables or disables tracing (set by the installer, do not change it)',
-        ],
-        [
-            'name' => 'zend_extension',
-            'default' => 'datadog-profiling.so',
-            'commented' => true,
-            'description' => 'Enables the profiling module',
-        ],
-        [
-            'name' => 'extension',
-            'default' => 'ddappsec.so',
-            'commented' => false,
-            'description' => 'Enables the appsec module',
         ],
         [
             'name' => 'datadog.trace.request_init_hook',
@@ -1220,125 +1099,6 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
                 'setcap utility.',
             ],
         ],
-        [
-            'name' => 'datadog.appsec.enabled',
-            'default' => 'Off',
-            'commented' => false,
-            'description' => [
-                'Enables or disables the loaded dd-appsec extension.',
-                'If disabled, the extension will do no work during the requests.',
-                'This value is ignored on the CLI SAPI, see datadog.appsec.enabled_on_cli',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.enabled_on_cli',
-            'default' => 'Off',
-            'commented' => true,
-            'description' => [
-                'Enables or disables the loaded appsec extension for the CLI SAPI.',
-                'This value is only used for the CLI SAPI, see ddappsec.enabled for the',
-                'corresponding setting on other SAPIs',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.block',
-            'default' => 'Off',
-            'commented' => true,
-            'description' => [
-                'Allows dd-appsec to block attacks by committing an error page response (if no',
-                'response has already been committed), and issuing an error that cannot be',
-                'handled, thereby aborting the request',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.log_level',
-            'default' => 'warn',
-            'commented' => true,
-            'description' => [
-                'Sets the verbosity of the logs of the dd-appsec extension.',
-                'The valid values are \'off\', \'error\', \'fatal\', \'warn\' (or \'warning\'), \'info\',',
-                '\'debug\' and \'trace\', in increasing order of verbosity',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.log_file',
-            'default' => 'php_error_reporting',
-            'commented' => true,
-            'description' => [
-                'The destination of the log messages. Valid values are \'php_error_reporting\'',
-                '(issues PHP notices or warnings), \'syslog\', \'stdout\', \'stderr\', or an',
-                'arbitrary file name to which the messages will be appended',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_launch',
-            'default' => 'On',
-            'commented' => true,
-            'description' => [
-                'The dd-appsec extension communicates with a helper process via UNIX sockets.',
-                'This setting determines whether the extension should try to launch the daemon',
-                'in case it cannot obtain a connection.',
-                'If this is disabled, the helper should be launched through some other method.',
-                'The extension expects the helper to run under the same user as the process',
-                'where PHP is running, and will verify it.',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_path',
-            'default' => $appsecHelperPath,
-            'commented' => false,
-            'description' => [
-                'If ddappsec.helper_launch is enabled, this setting determines which binary',
-                'the extension should try to execute.',
-                'Only relevant if ddappsec.helper_launch is enabled.',
-                'This ini setting is configured by the installer',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_extra_args',
-            'default' => '',
-            'commented' => true,
-            'description' => [
-                'Additional arguments that should be used when attempting to launch the helper',
-                'process. The extension always passes \'--lock_path - --socket_path fd:<int>\'',
-                'The arguments should be space separated. Both single and double quotes can',
-                'be used should an argument contain spaces. The backslash (\) can be used to',
-                'escape spaces, quotes, and the blackslash itself.',
-                'Only relevant if ddappsec.helper_launch is enabled',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.rules',
-            'default' => $appsecRulesPath,
-            'commented' => false,
-            'description' => [
-                'The path to the rules json file. The helper process must be able to read the',
-                'file. This ini setting is configured by the installer',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_runtime_path',
-            'default' => '/tmp/',
-            'commented' => true,
-            'description' => [
-                'The location to the UNIX socket that extension uses to communicate with the',
-                'helper and the lock file that the extension processes will use to',
-                'synchronize the launching of the helper.',
-                'Only relevant if datadog.appsec.helper_launch is enabled',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_log_file',
-            'default' => '/dev/null',
-            'commented' => true,
-            'description' => [
-                'The location of the log file of the helper. This default to /dev/null (the log',
-                'messages will be discarded). This file is opened by the extension just before',
-                'launching the daemon and the file descriptor is passed to the helper as its',
-                'stderr, to which it will write its messages; this setting is therefore only',
-                'relevant if ddappsec.helper_launch is enabled',
-            ],
-        ],
     ];
     // phpcs:enable Generic.Files.LineLength.TooLong
 }
@@ -1348,7 +1108,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
  */
 function get_supported_php_versions()
 {
-    return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
+    return ['5.4', '5.5', '5.6'];
 }
 
 main();

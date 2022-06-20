@@ -43,39 +43,15 @@ services:
   '5.4-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.4-debug' }
   '5.5-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.5-debug' }
   '5.6-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.6-debug' }
-  '7.0-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-debug' }
-  '7.1-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-debug' }
-  '7.2-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
-  '7.3-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
-  '7.4-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
-  # --- Alpine ---
-  '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
   # --- Buster ---
   '5.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_buster' }
   '5.4-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4-shared-ext' }
   '5.5-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_buster' }
   '5.6-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_buster' }
-  '7.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }
-  '7.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_buster' }
-  '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
-  '7.3-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
-  '7.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
-  '7.4-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext' }
-  '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
-  '8.0-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
-  '8.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
-  'php-master-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- CentOS 6 ---
   '5.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_centos-6' }
   '5.5-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_centos-6' }
   '5.6-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_centos-6' }
-  '7.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-6' }
-  '7.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
-  '7.2-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_centos-6' }
-  '7.3-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
-  '7.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-6' }
-  '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
-  '8.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-6' }
 
   mysql_integration:
     image: datadog/dd-trace-ci:php-mysql-dev-5.6

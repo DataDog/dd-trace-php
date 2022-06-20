@@ -1,4 +1,4 @@
-FROM datadog/dd-trace-ci:buster AS base
+FROM datadog/dd-trace-ci:php5_buster AS base-php5
 
 ARG phpVersion
 ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/debug-zts
@@ -22,7 +22,7 @@ RUN set -eux; \
     sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a; \
     sudo apt-get install -y libcurl4-nss-dev;
 
-FROM base as build
+FROM base-php5 as build
 ARG phpTarGzUrl
 ARG phpSha256Hash
 RUN set -eux; \
@@ -70,7 +70,7 @@ RUN set -eux; \
     make install; \
     mkdir -p ${PHP_INSTALL_DIR_NTS}/conf.d;
 
-FROM base as final
+FROM base-php5 as final
 COPY --chown=circleci:circleci --from=build $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR_DEBUG_ZTS $PHP_INSTALL_DIR_DEBUG_ZTS
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
