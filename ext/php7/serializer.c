@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <ext/pcre/php_pcre.h>
 #include <ext/standard/php_string.h>
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
