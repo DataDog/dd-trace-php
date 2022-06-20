@@ -1,15 +1,10 @@
-// Unless explicitly stated otherwise all files in this repository are
-// dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
-//
-// This product includes software developed at Datadog
-// (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
-
-#include "logging.h"
-
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <php.h>
 #include <zend_API.h>
+
+#include "compatibility.h"
+#include "logging.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -21,32 +16,39 @@ typedef struct _ipaddr {
     };
 } ipaddr;
 
-static zend_string *_x_forwarded_for_key, *_x_real_ip_key,
-    *_client_ip_key, *_x_forwarded_key,
-    *_x_cluster_client_ip_key, *_forwarded_for_key,
-    *_forwarded_key, *_via_key, *_true_client_ip_key,
-    *_remote_addr_key;
-
 typedef bool (*extract_func_t)(zend_string *value, ipaddr *out);
 
-void dd_ip_extraction_startup()
-{
-    _x_forwarded_for_key =
-        zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED_FOR"), 1);
-    _x_real_ip_key = zend_string_init_interned(ZEND_STRL("HTTP_X_REAL_IP"), 1);
-    _client_ip_key = zend_string_init_interned(ZEND_STRL("HTTP_CLIENT_IP"), 1);
-    _x_forwarded_key =
-        zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED"), 1);
-    _x_cluster_client_ip_key =
-        zend_string_init_interned(ZEND_STRL("HTTP_X_CLUSTER_CLIENT_IP"), 1);
-    _forwarded_for_key =
-        zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED_FOR"), 1);
-    _forwarded_key = zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED"), 1);
-    _via_key = zend_string_init_interned(ZEND_STRL("HTTP_VIA"), 1);
-    _true_client_ip_key =
-        zend_string_init_interned(ZEND_STRL("HTTP_TRUE_CLIENT_IP"), 1);
-    _remote_addr_key = zend_string_init_interned(ZEND_STRL("REMOTE_ADDR"), 1);
-}
+static bool _parse_x_forwarded_for(
+    zend_string *value, ipaddr *out);
+static bool _parse_plain(zend_string *zvalue, ipaddr *out);
+static bool _parse_plain_raw(zend_string *zvalue, ipaddr *out);
+static bool _parse_forwarded(zend_string *zvalue, ipaddr *out);
+static bool _parse_via(zend_string *zvalue, ipaddr *out);
+
+typedef struct _header_map_node {
+    zend_string *name;
+    extract_func_t parse_fn;
+} header_map_node;
+
+static header_map_node header_map[] = {
+    {NULL, &_parse_x_forwarded_for}, // x-forwarded-for
+    {NULL, &_parse_plain}, // x-real-ip
+    {NULL, &_parse_plain}, // client-ip
+    {NULL, &_parse_forwarded}, // x-forwarded
+    {NULL, &_parse_x_forwarded_for}, // x-cluster-client-ip
+    {NULL, &_parse_x_forwarded_for}, // forwarded-for
+    {NULL, &_parse_forwarded}, // forwarded
+    {NULL, &_parse_via}, // via
+    {NULL, &_parse_plain}, // true-client-ip
+};
+
+static zend_string *_remote_addr_key;
+
+#if ZTS
+static __thread zend_string *_ipheader;
+#else
+static zend_string *_ipheader;
+#endif
 
 static zend_string *_fetch_arr_str(
     const zval *server, zend_string *key);
@@ -54,66 +56,125 @@ static bool _is_private(const ipaddr *addr);
 static zend_string *_ipaddr_to_zstr(const ipaddr *ipaddr);
 static zend_string *_try_extract(const zval *server,
     zend_string *key, extract_func_t extract_func);
-static bool _parse_x_forwarded_for(
-    zend_string *value, ipaddr *out);
-static bool _parse_plain(zend_string *zvalue, ipaddr *out);
-static bool _parse_forwarded(zend_string *zvalue, ipaddr *out);
-static bool _parse_via(zend_string *zvalue, ipaddr *out);
+static zend_string *_try_extract_ip_from_custom_header(const zval *server);
 
-zend_string *dd_ip_extraction_find(zval *server)
+void dd_ip_extraction_startup()
 {
-    zend_string *res;
+    header_map[0].name = 
+        zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED_FOR"), 1);
+    header_map[1].name = 
+        zend_string_init_interned(ZEND_STRL("HTTP_X_REAL_IP"), 1);
+    header_map[2].name = 
+        zend_string_init_interned(ZEND_STRL("HTTP_CLIENT_IP"), 1);
+    header_map[3].name =
+        zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED"), 1);
+    header_map[4].name =
+        zend_string_init_interned(ZEND_STRL("HTTP_X_CLUSTER_CLIENT_IP"), 1);
+    header_map[5].name =
+        zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED_FOR"), 1);
+    header_map[6].name =
+        zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED"), 1);
+    header_map[7].name = zend_string_init_interned(ZEND_STRL("HTTP_VIA"), 1);
+    header_map[8].name =
+        zend_string_init_interned(ZEND_STRL("HTTP_TRUE_CLIENT_IP"), 1);
 
-    res = _try_extract(server, _x_forwarded_for_key, &_parse_x_forwarded_for);
-    if (res) {
-        return res;
+    _remote_addr_key = zend_string_init_interned(ZEND_STRL("REMOTE_ADDR"), 1);
+}
+
+bool ddtrace_on_ip_header_change(zval *old_value, zval *new_value)
+{
+    UNUSED(old_value);
+
+    if (_ipheader) {
+        zend_string_release(_ipheader);
     }
 
-    res = _try_extract(server, _x_real_ip_key, &_parse_plain);
-    if (res) {
-        return res;
+    if (!new_value || !Z_STRVAL_P(new_value)[0]) {
+        _ipheader = NULL;
+        return SUCCESS;
     }
 
-    res = _try_extract(server, _client_ip_key, &_parse_plain);
-    if (res) {
-        return res;
+    size_t key_len = (sizeof("HTTP_") - 1) + Z_STRLEN_P(new_value);
+
+    zend_string *normalized_value = zend_string_alloc(key_len, 1);
+    char *out = ZSTR_VAL(normalized_value);
+    memcpy(out, ZEND_STRL("HTTP_"));
+    out += (sizeof("HTTP_") - 1);
+    const char *end = Z_STRVAL_P(new_value) + Z_STRLEN_P(new_value);
+    for (const char *p = Z_STRVAL_P(new_value); p != end; p++) {
+        char c = *p;
+        if (c >= 'a' && c <= 'z') {
+            c = (char)(c - 'a' + 'A');
+        } else if (c == '-') {
+            c = '_';
+        }
+        *out++ = (char)c;
+    }
+    *out = '\0';
+
+    _ipheader = normalized_value;
+
+    return SUCCESS;
+}
+
+void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta)
+{
+    zend_string *res = NULL;
+    if (_ipheader) {
+        res = _try_extract_ip_from_custom_header(server);
+    } else {
+        // Check for multiple XFF headers
+        unsigned count = 0;
+        header_map_node *headers_found[ARRAY_SIZE(header_map)];
+        for (unsigned i = 0; i < ARRAY_SIZE(header_map); i++) {
+            if (zend_hash_find(Z_ARR_P(server), header_map[i].name) != NULL) {
+                headers_found[count++] = &header_map[i];
+            }
+        }
+
+        if (count == 1) {
+            // Found a valid header, extract IP
+            header_map_node node = *headers_found[0];
+            res = _try_extract(server, node.name, node.parse_fn);
+        } else if (count > 1) {
+            // Add headers to _dd.multiple-ip-headers
+            
+            // Don't add a client IP
+            return;
+        }
+
+        // We didn't find any valid IPs, extract from remote_addr
+        if (res == NULL) {
+            res = _try_extract(server, _remote_addr_key, _parse_plain_raw);
+        }
     }
 
-    res = _try_extract(server, _x_forwarded_key, &_parse_forwarded);
-    if (res) {
-        return res;
+    if (res != NULL) {
+        zval http_client_ip;
+        ZVAL_STR(&http_client_ip, res);
+        zend_hash_str_add_new(meta, "http.client_ip", sizeof("http.client_ip") - 1, &http_client_ip);
+    }
+}
+
+static zend_string *_try_extract_ip_from_custom_header(const zval *server)
+{
+    zend_string *value = _fetch_arr_str(server, _ipheader);
+    if (value) {
+        ipaddr out;
+        bool succ;
+        succ = _parse_forwarded(value, &out);
+        if (succ) {
+            return _ipaddr_to_zstr(&out);
+        }
+
+        succ = _parse_x_forwarded_for(value, &out);
+        if (succ) {
+            return _ipaddr_to_zstr(&out);
+        }
     }
 
-    res =
-        _try_extract(server, _x_cluster_client_ip_key, &_parse_x_forwarded_for);
-    if (res) {
-        return res;
-    }
-
-    res = _try_extract(server, _forwarded_for_key, &_parse_x_forwarded_for);
-    if (res) {
-        return res;
-    }
-
-    res = _try_extract(server, _forwarded_key, &_parse_forwarded);
-    if (res) {
-        return res;
-    }
-
-    res = _try_extract(server, _via_key, &_parse_via);
-    if (res) {
-        return res;
-    }
-
-    res = _try_extract(server, _true_client_ip_key, &_parse_plain);
-    if (res) {
-        return res;
-    }
-
-    res = _try_extract(server, _remote_addr_key, &_parse_plain);
-    if (res) {
-        return res;
-    }
+    ddtrace_log_debugf("No available IP from header '%.*s'",
+        ZSTR_LEN(_ipheader), ZSTR_VAL(_ipheader));
 
     return NULL;
 }
@@ -328,6 +389,11 @@ static bool _parse_plain(zend_string *zvalue, ipaddr *out)
 {
     return _parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), out) &&
            !_is_private(out);
+}
+
+static bool _parse_plain_raw(zend_string *zvalue, ipaddr *out)
+{
+    return _parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), out);
 }
 
 static bool _parse_ip_address(

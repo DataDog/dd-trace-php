@@ -571,11 +571,8 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
         }
     }
 
-    zend_string *client_ip = dd_ip_extraction_find(&PG(http_globals)[TRACK_VARS_SERVER]);
-    if (client_ip && ZSTR_LEN(client_ip) > 0) {
-        zval http_client_ip;
-        ZVAL_STR(&http_client_ip, client_ip);
-        zend_hash_str_add_new(meta, "http.client_ip", sizeof("http.client_ip") - 1, &http_client_ip);
+    if (!get_DD_TRACE_CLIENT_IP_HEADER_DISABLED()) {
+        ddtrace_extract_ip_from_headers(&PG(http_globals)[TRACK_VARS_SERVER], meta);
     }
 
     zend_string *user_agent = dd_get_user_agent();
