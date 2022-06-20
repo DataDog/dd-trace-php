@@ -1037,6 +1037,37 @@ static PHP_FUNCTION(add_global_tag) {
     RETURN_NULL();
 }
 
+/* {{{ proto string DDTrace\add_distributed_tag(string $key, string $value) */
+static PHP_FUNCTION(add_distributed_tag) {
+    UNUSED(execute_data);
+
+    zend_string *key, *val;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS", &key, &val) == FAILURE) {
+        ddtrace_log_debug(
+            "Unable to parse parameters for DDTrace\\add_distributed_tag; expected (string $key, string $value)");
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    zend_string *prefixed_key = zend_strpprintf(0, "_dd.p.%s", ZSTR_VAL(key));
+
+    zend_array *target_table = DDTRACE_G(root_span) ? ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span)
+                                                    : &DDTRACE_G(root_span_tags_preset);
+
+    zval value_zv;
+    ZVAL_STR_COPY(&value_zv, val);
+    zend_hash_update(target_table, prefixed_key, &value_zv);
+
+    zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), prefixed_key);
+
+    zend_string_release(prefixed_key);
+
+    RETURN_NULL();
+}
+
 static PHP_FUNCTION(trace_function) {
     zval *function = NULL;
     zval *tracing_closure = NULL;
@@ -1932,6 +1963,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_void),
     DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
+    DDTRACE_NS_FE(add_distributed_tag, arginfo_ddtrace_add_global_tag),
     DDTRACE_NS_FE(add_global_tag, arginfo_ddtrace_add_global_tag),
     DDTRACE_NS_FE(additional_trace_meta, arginfo_ddtrace_void),
     DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
