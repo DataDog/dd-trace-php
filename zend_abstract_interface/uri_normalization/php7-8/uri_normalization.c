@@ -137,7 +137,7 @@ zend_string *zai_uri_normalize_path(zend_string *path, zend_array *fragmentRegex
     return path;
 }
 
-zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist) {
+zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist, zend_string *pattern) {
     if (zend_hash_num_elements(whitelist) == 0) {
         return ZSTR_EMPTY_ALLOC();
     }
@@ -146,7 +146,23 @@ zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *wh
         zend_ulong numkey;
         zend_hash_get_current_key(whitelist, &str, &numkey);
         if (zend_string_equals_literal(str, "*")) {
-            return zend_string_init(queryString.ptr, queryString.len, 0);
+            zend_string *qs = zend_string_init(queryString.ptr, queryString.len, 0);
+            if (pattern) {
+                zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+                zend_string *regex = zend_strpprintf(0, "(%.*s)", (int)ZSTR_LEN(pattern), ZSTR_VAL(pattern));
+
+                zend_string *redacted_qs =
+                    php_pcre_replace(regex, qs, ZSTR_VAL(qs), ZSTR_LEN(qs), replacement, -1, NULL);
+
+                zend_string_release(regex);
+                zend_string_release(replacement);
+
+                if (redacted_qs) {
+                    zend_string_release(qs);
+                    return redacted_qs;
+                }
+            }
+            return qs;
         }
     }
 

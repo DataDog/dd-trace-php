@@ -53,6 +53,9 @@ extern bool runtime_config_first_init;
     CALIAS(DOUBLE, DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE, DD_CFG_EXPSTR(DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT), \
            CALIASES(DD_CFG_STR(DD_##id##_ANALYTICS_SAMPLE_RATE), DD_CFG_STR(DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE)))
 
+#define DD_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT \
+    "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:\\s*=[^&]+|\"\\s*:\\s*\"[^\"]+\")|bearer\\s+[a-z0-9\\._\\-]|token:[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=-]+\\.ey[I-L][\\w=-]+(?:\\.[\\w.+\\/=-]+)?|[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY|ssh-rsa\\s*[a-z0-9\\/\\.+]{100,}"
+
 #define DD_CONFIGURATION                                                                                      \
     CALIAS(STRING, DD_TRACE_REQUEST_INIT_HOOK, DD_DEFAULT_REQUEST_INIT_HOOK_PATH,                             \
            CALIASES("DDTRACE_REQUEST_INIT_HOOK"), .ini_change = zai_config_system_ini_change)                 \
@@ -87,7 +90,7 @@ extern bool runtime_config_first_init;
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                   \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                   \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED, "")                                                \
-    CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "")                                                    \
+    CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "*")                                                   \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                   \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                               \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                           \
@@ -120,6 +123,7 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_TRACE_WARN_LEGACY_DD_TRACE, "true")                                                       \
     CONFIG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false", .ini_change = zai_config_system_ini_change)    \
     CONFIG(STRING, DD_VERSION, "")                                                                            \
+    CONFIG(STRING, DD_OBFUSCATION_QUERY_STRING_REGEXP, DD_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT)            \
     DD_INTEGRATIONS
 
 #define CALIAS CONFIG
