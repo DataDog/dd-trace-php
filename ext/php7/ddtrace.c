@@ -1877,8 +1877,7 @@ static PHP_FUNCTION(startup_logs) {
     ZVAL_NEW_STR(return_value, buf.s);
 }
 
-static PHP_FUNCTION(extract_ip_from_headers)
-{
+static PHP_FUNCTION(extract_ip_from_headers) {
     zval *arr;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &arr) == FAILURE) {
         return;

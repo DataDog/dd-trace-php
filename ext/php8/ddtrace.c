@@ -235,6 +235,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_extract_ip_from_headers, 0, 0, 1)
+ZEND_ARG_INFO(0, headers)
+ZEND_END_ARG_INFO()
+
 /* Legacy API */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace, 0, 0, 2)
 ZEND_ARG_INFO(0, class_or_function_name)
@@ -1814,6 +1818,19 @@ static PHP_FUNCTION(startup_logs) {
     ZVAL_NEW_STR(return_value, buf.s);
 }
 
+static PHP_FUNCTION(extract_ip_from_headers) {
+    zval *arr;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &arr) == FAILURE) {
+        return;
+    }
+
+    zval meta;
+    array_init(&meta);
+    ddtrace_extract_ip_from_headers(arr, Z_ARR(meta));
+
+    RETURN_ARR(Z_ARR(meta));
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace, arginfo_dd_trace),  // Noop legacy API
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
@@ -1872,6 +1889,7 @@ static const zend_function_entry ddtrace_functions[] = {
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
     DDTRACE_SUB_NS_FE("System\\", container_id, arginfo_ddtrace_void),
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
+    DDTRACE_SUB_NS_FE("Testing\\", extract_ip_from_headers, arginfo_extract_ip_from_headers),
     DDTRACE_FE_END};
 
 static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard")
