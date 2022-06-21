@@ -10,6 +10,4 @@ void dd_ip_extraction_startup(void);
 // guarantees cannot be forged
 void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta);
 
-bool ddtrace_on_ip_header_change(zval *old_value, zval *new_value);
-
 #endif

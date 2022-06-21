@@ -112,27 +112,30 @@ void dd_ip_extraction_startup()
     _remote_addr_key = zend_string_init_interned(ZEND_STRL("REMOTE_ADDR"), 1);
 }
 
-bool ddtrace_on_ip_header_change(zval *old_value, zval *new_value)
+static void _update_ipheader(zend_string *value)
 {
-    UNUSED(old_value);
-
     if (_ipheader) {
+        if (ZSTR_LEN(value) == ZSTR_LEN(_ipheader) &&
+            memcmp(ZSTR_VAL(value), ZSTR_VAL(_ipheader), ZSTR_LEN(value)) == 0) {
+            return;
+        }
+
         zend_string_release(_ipheader);
     }
 
-    if (!new_value || !Z_STRVAL_P(new_value)[0]) {
+    if (!value || !ZSTR_VAL(value)[0]) {
         _ipheader = NULL;
-        return SUCCESS;
+        return;
     }
 
-    size_t key_len = (sizeof("HTTP_") - 1) + Z_STRLEN_P(new_value);
+    size_t key_len = (sizeof("HTTP_") - 1) + ZSTR_LEN(value);
 
     zend_string *normalized_value = zend_string_alloc(key_len, 1);
     char *out = ZSTR_VAL(normalized_value);
     memcpy(out, ZEND_STRL("HTTP_"));
     out += (sizeof("HTTP_") - 1);
-    const char *end = Z_STRVAL_P(new_value) + Z_STRLEN_P(new_value);
-    for (const char *p = Z_STRVAL_P(new_value); p != end; p++) {
+    const char *end = ZSTR_VAL(value) + ZSTR_LEN(value);
+    for (const char *p = ZSTR_VAL(value); p != end; p++) {
         char c = *p;
         if (c >= 'a' && c <= 'z') {
             c = (char)(c - 'a' + 'A');
@@ -144,13 +147,14 @@ bool ddtrace_on_ip_header_change(zval *old_value, zval *new_value)
     *out = '\0';
 
     _ipheader = normalized_value;
-
-    return SUCCESS;
 }
 
 void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta)
 {
     zend_string *res = NULL;
+
+    _update_ipheader(get_DD_TRACE_CLIENT_IP_HEADER());
+
     if (_ipheader) {
         res = _try_extract_ip_from_custom_header(server);
     } else {
@@ -471,7 +475,7 @@ static bool _parse_ip_address(
     if (ret != 1) {
         ret = inet_pton(AF_INET6, addr, &out->v6);
         if (ret != 1) {
-            ddtrace_log_debugf("Not recognized as IP address: \"%s\"", addr);
+            ddtrace_log_errf("Not recognized as IP address: \"%s\"", addr);
             res = false;
             goto err;
         }

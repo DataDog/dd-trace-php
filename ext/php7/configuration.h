@@ -126,7 +126,7 @@ extern bool runtime_config_first_init;
     CONFIG(STRING, DD_VERSION, "")                                                                            \
     CONFIG(STRING, DD_OBFUSCATION_QUERY_STRING_REGEXP, DD_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT)            \
     CONFIG(BOOL, DD_TRACE_CLIENT_IP_HEADER_DISABLED, "false")                                                 \
-    CONFIG(STRING, DD_TRACE_CLIENT_IP_HEADER, "", .ini_change = ddtrace_on_ip_header_change)                                                             \
+    CONFIG(STRING, DD_TRACE_CLIENT_IP_HEADER, "")                                                             \
     DD_INTEGRATIONS
 
 #define CALIAS CONFIG
