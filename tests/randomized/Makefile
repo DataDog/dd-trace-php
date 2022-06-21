@@ -1,7 +1,8 @@
 TMP_SCENARIO_FOLDER := ./.tmp.scenarios
 TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
-DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-dev-
+DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
+DOCKER_IMAGE_VERSION := 1
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
@@ -14,41 +15,53 @@ publish: publish.centos7
 
 pull: pull.centos7
 
-build.centos7:
-	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=1 -t $(DOCKER_IMAGE_PREFIX)centos7-8.1 ./docker
-	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=0 -t $(DOCKER_IMAGE_PREFIX)centos7-8.0 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-7.4 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=3 -t $(DOCKER_IMAGE_PREFIX)centos7-7.3 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=2 -t $(DOCKER_IMAGE_PREFIX)centos7-7.2 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=1 -t $(DOCKER_IMAGE_PREFIX)centos7-7.1 ./docker
-	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=0 -t $(DOCKER_IMAGE_PREFIX)centos7-7.0 ./docker
-	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=6 -t $(DOCKER_IMAGE_PREFIX)centos7-5.6 ./docker
-	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=5 -t $(DOCKER_IMAGE_PREFIX)centos7-5.5 ./docker
-	@docker build --build-arg PHP_MAJOR=5 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-5.4 ./docker
+build.centos7: \
+	build.centos7.5.4 \
+	build.centos7.5.5 \
+	build.centos7.5.6 \
+	build.centos7.7.0 \
+	build.centos7.7.1 \
+	build.centos7.7.2 \
+	build.centos7.7.3 \
+	build.centos7.7.4 \
+	build.centos7.8.0 \
+	build.centos7.8.1
 
-publish.centos7: build.centos7
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-8.1
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-8.0
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.4
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.3
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.2
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.1
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-7.0
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.6
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.5
-	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.4
+build.centos7.%:
+	docker build \
+		--build-arg PHP_MAJOR_MINOR="$(*)" \
+		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
+		./docker
 
-pull.centos7:
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-8.1
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-8.0
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.4
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.3
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.2
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.1
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.0
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.6
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.5
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.4
+publish.centos7: \
+	publish.centos7.5.4 \
+	publish.centos7.5.5 \
+	publish.centos7.5.6 \
+	publish.centos7.7.0 \
+	publish.centos7.7.1 \
+	publish.centos7.7.2 \
+	publish.centos7.7.3 \
+	publish.centos7.7.4 \
+	publish.centos7.8.0 \
+	publish.centos7.8.1
+
+publish.centos7.%: build.centos7.%
+	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
+
+pull.centos7: \
+	pull.centos7.5.4 \
+	pull.centos7.5.5 \
+	pull.centos7.5.6 \
+	pull.centos7.7.0 \
+	pull.centos7.7.1 \
+	pull.centos7.7.2 \
+	pull.centos7.7.3 \
+	pull.centos7.7.4 \
+	pull.centos7.8.0 \
+	pull.centos7.8.1
+
+pull.centos7.%:
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
 
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
@@ -95,3 +108,5 @@ clean:
 
 clean_results:
 	@rm -rf $(TMP_RESULTS_FOLDER)
+
+.PHONY: build.centos7 publish.centos7 pull.centos7
