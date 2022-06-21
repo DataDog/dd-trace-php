@@ -39,6 +39,7 @@
 #include "excluded_modules.h"
 #include "handlers_internal.h"
 #include "integrations/integrations.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "priority_sampling/priority_sampling.h"
@@ -438,6 +439,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_coms_minit();
 
     ddtrace_integrations_minit();
+    dd_ip_extraction_startup();
 
     return SUCCESS;
 }

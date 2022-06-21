@@ -7,6 +7,7 @@
 #include "config/config.h"
 #include "ddtrace_string.h"
 #include "integrations/integrations.h"
+#include "ip_extraction.h"
 #include "span.h"
 
 // note: only call this if ddtrace_config_trace_enabled() returns true
@@ -125,7 +126,7 @@ extern bool runtime_config_first_init;
     CONFIG(STRING, DD_VERSION, "")                                                                            \
     CONFIG(STRING, DD_OBFUSCATION_QUERY_STRING_REGEXP, DD_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT)            \
     CONFIG(BOOL, DD_TRACE_CLIENT_IP_HEADER_DISABLED, "false")                                                 \
-    CONFIG(STRING, DD_TRACE_CLIENT_IP_HEADER, "")                                                             \
+    CONFIG(STRING, DD_TRACE_CLIENT_IP_HEADER, "", .ini_change = ddtrace_on_ip_header_change)                                                             \
     DD_INTEGRATIONS
 
 #define CALIAS CONFIG
