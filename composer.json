@@ -33,10 +33,7 @@
         "symfony/process": "<5"
     },
     "config": {
-        "sort-packages": true,
-        "allow-plugins": {
-            "g1a/composer-test-scenarios": true
-        }
+        "sort-packages": true
     },
     "autoload": {
         "psr-4": {
