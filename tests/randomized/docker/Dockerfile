@@ -5,7 +5,7 @@ ARG PHP_MAJOR_MINOR
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
 
-RUN yum install -y centos-release-scl
+RUN yum install -y centos-release-scl-rh
 RUN yum-config-manager --enable centos-sclo-rh-testing
 
 RUN \
