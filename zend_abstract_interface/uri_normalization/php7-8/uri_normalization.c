@@ -5,6 +5,7 @@
 
 #include <ext/pcre/php_pcre.h>
 #include <ext/standard/php_string.h>
+#include <ext/standard/url.h>
 
 #if PHP_VERSION_ID < 70200
 #define zend_strpprintf strpprintf
@@ -151,8 +152,9 @@ zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *wh
                 zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
                 zend_string *regex = zend_strpprintf(0, "(%.*s)", (int)ZSTR_LEN(pattern), ZSTR_VAL(pattern));
 
+                size_t decoded_len = php_raw_url_decode(ZSTR_VAL(qs), ZSTR_LEN(qs));
                 zend_string *redacted_qs =
-                    php_pcre_replace(regex, qs, ZSTR_VAL(qs), ZSTR_LEN(qs), replacement, -1, NULL);
+                    php_pcre_replace(regex, qs, ZSTR_VAL(qs), decoded_len, replacement, -1, NULL);
 
                 zend_string_release(regex);
                 zend_string_release(replacement);
