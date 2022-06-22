@@ -79,20 +79,6 @@ aliases:
       paths:
         - ~/.composer/cache
 
-  - &STEP_COMPOSER_DISABLE_TLS
-    # Disabling TLS by default on 5.4 and 5.5 due to https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update
-    # Note `_generated_*.php` are built on 7.x and are not impacted
-    run:
-      name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-      command: |
-        if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 50600 ]; then
-          composer config disable-tls true
-          composer --working-dir=tests config disable-tls true
-          echo "Disabled TLS"
-        else
-          echo "TLS is enabled"
-        fi
-
   - &STEP_COMPOSER_SELF_UPDATE
     run:
       name: Upgrading composer
@@ -221,7 +207,6 @@ commands:
   prepare_extension_and_composer_with_cache:
     steps:
       - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COMPOSER_DISABLE_TLS
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
@@ -410,7 +395,7 @@ jobs:
   test: &TEST_BASE
     parameters:
       php_major_minor:
-        # Expected in the format: <major>.<minor>, e.g. 5.6
+        # Expected in the format: <major>.<minor>, e.g. 8.2
         type: string
       make_target:
         type: string
@@ -454,7 +439,7 @@ jobs:
   coverage: &TEST_BASE
     parameters:
       php_major_minor:
-        # Expected in the format: <major>.<minor>, e.g. 5.6
+        # Expected in the format: <major>.<minor>, e.g. 8.2
         type: string
       make_target:
         type: string
@@ -502,7 +487,7 @@ jobs:
     working_directory: ~/datadog
     parameters:
       php_major_minor:
-        # Expected in the format: <major>.<minor>, e.g. 5.6
+        # Expected in the format: <major>.<minor>, e.g. 8.2
         type: string
       make_target:
         type: string
@@ -530,7 +515,6 @@ jobs:
           php_version: << parameters.switch_php_version >>
       - install_extension
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_DISABLE_TLS
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
@@ -1342,9 +1326,6 @@ jobs:
       - when:
           condition:
             or:
-              - equal: [ "5.4", << parameters.php_version >> ]
-              - equal: [ "5.5", << parameters.php_version >> ]
-              - equal: [ "5.6", << parameters.php_version >> ]
               - equal: [ "7.0", << parameters.php_version >> ]
               - equal: [ "7.1", << parameters.php_version >> ]
               - equal: [ "7.2", << parameters.php_version >> ]
@@ -1399,7 +1380,7 @@ jobs:
     working_directory: ~/datadog
     parameters:
       php_major_minor:
-        # Expected in the format: <major>.<minor>, e.g. 5.6
+        # Expected in the format: <major>.<minor>, e.g. 8.2
         type: string
     docker:
       - image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
@@ -1525,6 +1506,17 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
+          name: Fetch PHP 5 packages
+          command: |
+            set -eu
+            sudo apt-get install jq
+            PIPELINE_ID=$(curl 'https://circleci.com/api/v2/project/gh/DataDog/dd-trace-php/pipeline?branch=PHP-5' | jq -r '.items[0].id')
+            WORKFLOW_ID=$(curl "https://circleci.com/api/v2/pipeline/$PIPELINE_ID/workflow" | jq -r '.items[]|select(.name == "build_packages").id')
+            JOB_ID=$(curl "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/job" | jq -r '.items[]|select(.name == "package extension").id')
+            curl -Lo php5.tar.gz "https://output.circle-artifacts.com/output/job/$JOB_ID/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz"
+            tar xzf php5.tar.gz
+            mv opt/datadog-php/extensions/* extensions/
+      - run:
           name: Build packages
           command: make packages
       - store_artifacts: { path: 'build/packages', destination: / }
@@ -1639,9 +1631,6 @@ workflows:
                 # TODO Add CentOS & Alpine
                 - "buster"
               php_version:
-                - "5.4"
-                - "5.5"
-                - "5.6"
                 - "7.0"
                 - "7.1"
                 - "7.2"
@@ -1663,7 +1652,6 @@ workflows:
           matrix:
             parameters:
               php_version:
-                - "5.4"
                 - "7.4"
                 - "8.0"
 
@@ -1675,9 +1663,6 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-                - '5.4'
-                - '5.5'
-                - '5.6'
                 - '7.0'
                 - '7.1'
                 - '7.2'
@@ -1685,26 +1670,6 @@ workflows:
                 - '7.4'
                 - '8.0'
                 - '8.1'
-      - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 54 nts + zts + debug"
-          php_version: "5.4"
-          docker_image: "datadog/dd-trace-ci:php-5.4_centos-6"
-          so_suffix: "20100412"
-          catch_warnings: false
-      - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 55 nts + zts + debug"
-          php_version: "5.5"
-          docker_image: "datadog/dd-trace-ci:php-5.5_centos-6"
-          so_suffix: "20121113"
-          catch_warnings: false
-      - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 56 nts + zts + debug"
-          php_version: "5.6"
-          docker_image: "datadog/dd-trace-ci:php-5.6_centos-6"
-          so_suffix: "20131106"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 70 nts + zts + debug"
@@ -1754,9 +1719,6 @@ workflows:
       - "package extension":
           requires:
             - compile_alpine
-            - "Compile PHP 54 nts + zts + debug"
-            - "Compile PHP 55 nts + zts + debug"
-            - "Compile PHP 56 nts + zts + debug"
             - "Compile PHP 70 nts + zts + debug"
             - "Compile PHP 71 nts + zts + debug"
             - "Compile PHP 72 nts + zts + debug"
@@ -1888,20 +1850,6 @@ workflows:
                 - alpine:3.15
       - verify_alpine:
           requires: [ "package extension" ]
-          matrix:
-            parameters:
-              php_package:
-                - php5 php5-fpm php5-json
-              install_type:
-                - php_installer
-                - native_package
-              docker_image:
-                - alpine:3.5
-                - alpine:3.6
-                - alpine:3.7
-                - alpine:3.8
-      - verify_alpine:
-          requires: [ "package extension" ]
           php_package: ''
           matrix:
             parameters:
@@ -1909,7 +1857,6 @@ workflows:
                 - php_installer
                 - native_package
               docker_image:
-                - php:5.6-fpm-alpine
                 - php:7.0-fpm-alpine
                 - php:7.1-fpm-alpine
                 - php:7.2-fpm-alpine
@@ -1927,9 +1874,6 @@ workflows:
                 - php_installer
                 - native_package
               configuration:
-                - PHP_MAJOR=5 PHP_MINOR=4
-                - PHP_MAJOR=5 PHP_MINOR=5
-                - PHP_MAJOR=5 PHP_MINOR=6
                 - PHP_MAJOR=7 PHP_MINOR=0
                 - PHP_MAJOR=7 PHP_MINOR=1
                 - PHP_MAJOR=7 PHP_MINOR=2
@@ -1957,7 +1901,6 @@ workflows:
                 - debian:buster
                 - debian:stretch
               configuration:
-                - PHP_VERSION=5.6
                 - PHP_VERSION=7.0
                 - PHP_VERSION=7.1
                 - PHP_VERSION=7.2
@@ -1965,22 +1908,6 @@ workflows:
                 - PHP_VERSION=7.4
                 - PHP_VERSION=8.0
                 - PHP_VERSION=8.1
-      - verify_debian:
-          requires: [ "package extension" ]
-          matrix:
-            parameters:
-              install_mode:
-                - native
-              install_type:
-                - php_installer
-                - native_package
-              docker_image:
-                - debian:jessie
-              configuration:
-                  # Sury.org no longer provides PHP packages for Jessie
-                  # https://www.linuxcompatible.org/story/suryorg-has-discontinued-debian-8-support/
-                  # So we just test the PHP version in the default repo (5.6)
-                - PHP_PACKAGE="php5 php5-fpm libapache2-mod-php5" PHP_FPM_BIN="php5-fpm"
 
       - verify_tar_gz:
           requires: [ "package extension" ]
@@ -1994,20 +1921,6 @@ workflows:
       - verify_no_json_ext:
           requires: [ "package extension" ]
 
-      - pecl_tests:
-          requires: [ "Build PECL" ]
-          name: "PHP 54 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
-          # PHP 5.4's pecl doesn't support showdiff
-          showdiff: false
-      - pecl_tests:
-          requires: [ "Build PECL" ]
-          name: "PHP 55 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
-      - pecl_tests:
-          requires: [ "Build PECL" ]
-          name: "PHP 56 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.6_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 70 PECL tests"
@@ -2036,13 +1949,6 @@ workflows:
           requires: [ "Build PECL" ]
           name: "PHP 81 PECL tests"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 54 web tests with nginx + FastCGI"
-          resource_class: medium+
-          sapi: cgi-fcgi
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
@@ -2080,13 +1986,6 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
-          name: "PHP 55 custom autoloaded web tests with nginx + PHP-FPM"
-          resource_class: medium+
-          sapi: fpm-fcgi
-          integration_testsuite: "test_web_custom"
-          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
           resource_class: medium+
           sapi: fpm-fcgi
@@ -2110,26 +2009,11 @@ workflows:
 
       - "Prepare Code"
 
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 55 Compilation test"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 56-zts Compilation test"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-zts"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-
       - test:
           requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_major_minor:
-                - "5.4"
-                - "5.5"
-                - "5.6"
                 - "7.0"
                 - "7.1"
                 - "7.2"
@@ -2150,9 +2034,6 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-                - "5.4"
-                - "5.5"
-                - "5.6"
                 - "7.0"
                 - "7.1"
                 - "7.2"
@@ -2183,9 +2064,6 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-                - '5.4'
-                - '5.5'
-                - '5.6'
                 - '7.0'
                 - '7.1'
                 - '7.2'
@@ -2207,9 +2085,6 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-                - '5.4'
-                - '5.5'
-                - '5.6'
                 - '7.0'
                 - '7.1'
                 - '7.2'
@@ -2228,9 +2103,6 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-                - '5.4'
-                - '5.5'
-                - '5.6'
                 - '7.0'
                 - '7.1'
                 - '7.2'
@@ -2353,21 +2225,6 @@ workflows:
           name: "PHP 70 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.0.list
           docker_image: "datadog/dd-trace-ci:php-7.0_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 56 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/5.6.list
-          docker_image: "datadog/dd-trace-ci:php-5.6_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 55 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/5.5.list
-          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 54 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/5.4.list
-          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
       - internal_integrations:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 curl integration tests a shared lib"
