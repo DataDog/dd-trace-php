@@ -5,16 +5,12 @@ ARG PHP_MAJOR_MINOR
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
 
-RUN yum install -y centos-release-scl-rh
-RUN yum-config-manager --enable centos-sclo-rh-testing
-
-RUN \
-    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-    && yum install -y \
+RUN set -eux; \
+    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
+    yum install -y \
         autoconf \
         automake \
         bzip2-devel \
-        devtoolset-7 \
         elinks \
         gdb \
         git \
@@ -32,9 +28,19 @@ RUN \
         unzip \
         vim \
         wget \
-    && debuginfo-install -y httpd \
-    && yum clean all \
-    && rm -rf /var/cache/yum
+    ; \
+    debuginfo-install -y httpd; \
+    yum clean all; \
+    rm -rf /var/cache/yum;
+
+RUN set -eux; \
+    yum install -y centos-release-scl-rh; \
+    yum-config-manager --enable centos-sclo-rh-testing; \
+    yum install -y devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-gdb make; \
+    yum clean all; \
+    rm -rf /var/cache/yum
+
+ENV PATH="/opt/rh/devtoolset-7/root/usr/bin:$PATH"
 
 ADD envs /envs
 
@@ -50,36 +56,35 @@ WORKDIR /usr/local/src/php
 
 RUN set -eux; \
     mkdir -p /etc/php.d; \
-    scl enable devtoolset-7 bash; \
-        ./configure \
-            --prefix=/usr/local \
-            --with-config-file-path=/etc \
-            --with-config-file-scan-dir=/etc/php.d \
-            --enable-calendar \
-            --enable-exif \
-            --enable-fpm \
-            --enable-ftp \
-            --enable-mysqlnd \
-            --enable-pcntl \
-            --enable-shmop \
-            --enable-sockets \
-            --enable-sysvmsg \
-            --enable-sysvsem \
-            --enable-sysvshm \
-            --with-apxs2 \
-            --with-bz2 \
-            --with-curl \
-            --with-fpm-group=www-data \
-            --with-fpm-user=www-data \
-            --with-gettext \
-            --with-mysqli \
-            --with-openssl \
-            --with-pdo-mysql \
-            --with-pear \
-            --with-readline \
-            --with-sodium \
-            --with-xsl \
-            --with-zlib \
+    ./configure \
+        --prefix=/usr/local \
+        --with-config-file-path=/etc \
+        --with-config-file-scan-dir=/etc/php.d \
+        --enable-calendar \
+        --enable-exif \
+        --enable-fpm \
+        --enable-ftp \
+        --enable-mysqlnd \
+        --enable-pcntl \
+        --enable-shmop \
+        --enable-sockets \
+        --enable-sysvmsg \
+        --enable-sysvsem \
+        --enable-sysvshm \
+        --with-apxs2 \
+        --with-bz2 \
+        --with-curl \
+        --with-fpm-group=www-data \
+        --with-fpm-user=www-data \
+        --with-gettext \
+        --with-mysqli \
+        --with-openssl \
+        --with-pdo-mysql \
+        --with-pear \
+        --with-readline \
+        --with-sodium \
+        --with-xsl \
+        --with-zlib \
     ; \
     make -j "$((`nproc`+1))"; \
     make install
