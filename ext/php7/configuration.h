@@ -7,7 +7,6 @@
 #include "config/config.h"
 #include "ddtrace_string.h"
 #include "integrations/integrations.h"
-#include "ip_extraction.h"
 #include "span.h"
 
 // note: only call this if ddtrace_config_trace_enabled() returns true
