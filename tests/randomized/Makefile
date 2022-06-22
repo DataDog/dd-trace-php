@@ -16,13 +16,6 @@ publish: publish.centos7
 pull: pull.centos7
 
 build.centos7.aarch64: \
-	build.centos7.aarch64.5.4 \
-	build.centos7.aarch64.5.5 \
-	build.centos7.aarch64.5.6 \
-	build.centos7.aarch64.7.0 \
-	build.centos7.aarch64.7.1 \
-	build.centos7.aarch64.7.2 \
-	build.centos7.aarch64.7.3 \
 	build.centos7.aarch64.7.4 \
 	build.centos7.aarch64.8.0 \
 	build.centos7.aarch64.8.1
@@ -32,6 +25,14 @@ build.centos7.aarch64.%:
 		--build-arg PHP_MAJOR_MINOR="$(*)" \
 		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 \
 		./docker
+
+publish.centos7.aarch64: \
+	publish.centos7.aarch64.7.4 \
+	publish.centos7.aarch64.8.0 \
+	publish.centos7.aarch64.8.1
+
+publish.centos7.aarch64.%: build.centos7.aarch64.%
+	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64
 
 build.centos7.x86_64: \
 	build.centos7.x86_64.5.4 \
@@ -51,20 +52,17 @@ build.centos7.x86_64.%:
 		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 \
 		./docker
 
-publish.centos7: \
-	publish.centos7.5.4 \
-	publish.centos7.5.5 \
-	publish.centos7.5.6 \
-	publish.centos7.7.0 \
-	publish.centos7.7.1 \
-	publish.centos7.7.2 \
-	publish.centos7.7.3 \
-	publish.centos7.7.4 \
-	publish.centos7.8.0 \
-	publish.centos7.8.1
-
-publish.centos7.%: build.centos7.%
-	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
+publish.centos7.x86_64: \
+	publish.centos7.x86_64.5.4 \
+	publish.centos7.x86_64.5.5 \
+	publish.centos7.x86_64.5.6 \
+	publish.centos7.x86_64.7.0 \
+	publish.centos7.x86_64.7.1 \
+	publish.centos7.x86_64.7.2 \
+	publish.centos7.x86_64.7.3 \
+	publish.centos7.x86_64.7.4 \
+	publish.centos7.x86_64.8.0 \
+	publish.centos7.x86_64.8.1
 
 pull.centos7: \
 	pull.centos7.5.4 \
