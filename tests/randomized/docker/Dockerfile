@@ -9,6 +9,7 @@ RUN \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
     && yum install -y \
         autoconf \
+        automake \
         bzip2-devel \
         elinks \
         gcc \
