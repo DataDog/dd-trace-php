@@ -5,14 +5,17 @@ ARG PHP_MAJOR_MINOR
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
 
+RUN yum install -y centos-release-scl
+RUN yum-config-manager --enable rhel-server-rhscl-7-rpms
+
 RUN \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
     && yum install -y \
         autoconf \
         automake \
         bzip2-devel \
+        devtoolset-7 \
         elinks \
-        gcc \
         gdb \
         git \
         httpd-devel \
@@ -47,35 +50,36 @@ WORKDIR /usr/local/src/php
 
 RUN set -eux; \
     mkdir -p /etc/php.d; \
-    ./configure \
-        --prefix=/usr/local \
-        --with-config-file-path=/etc \
-        --with-config-file-scan-dir=/etc/php.d \
-        --enable-calendar \
-        --enable-exif \
-        --enable-fpm \
-        --enable-ftp \
-        --enable-mysqlnd \
-        --enable-pcntl \
-        --enable-shmop \
-        --enable-sockets \
-        --enable-sysvmsg \
-        --enable-sysvsem \
-        --enable-sysvshm \
-        --with-apxs2 \
-        --with-bz2 \
-        --with-curl \
-        --with-fpm-group=www-data \
-        --with-fpm-user=www-data \
-        --with-gettext \
-        --with-mysqli \
-        --with-openssl \
-        --with-pdo-mysql \
-        --with-pear \
-        --with-readline \
-        --with-sodium \
-        --with-xsl \
-        --with-zlib \
+    scl enable devtoolset-7 bash; \
+        ./configure \
+            --prefix=/usr/local \
+            --with-config-file-path=/etc \
+            --with-config-file-scan-dir=/etc/php.d \
+            --enable-calendar \
+            --enable-exif \
+            --enable-fpm \
+            --enable-ftp \
+            --enable-mysqlnd \
+            --enable-pcntl \
+            --enable-shmop \
+            --enable-sockets \
+            --enable-sysvmsg \
+            --enable-sysvsem \
+            --enable-sysvshm \
+            --with-apxs2 \
+            --with-bz2 \
+            --with-curl \
+            --with-fpm-group=www-data \
+            --with-fpm-user=www-data \
+            --with-gettext \
+            --with-mysqli \
+            --with-openssl \
+            --with-pdo-mysql \
+            --with-pear \
+            --with-readline \
+            --with-sodium \
+            --with-xsl \
+            --with-zlib \
     ; \
     make -j "$((`nproc`+1))"; \
     make install
