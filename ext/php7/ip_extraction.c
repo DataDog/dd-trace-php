@@ -88,7 +88,6 @@ static zend_string *dd_get_ipheader(zend_string *value) {
     }
 
     size_t key_len = (sizeof("HTTP_") - 1) + ZSTR_LEN(value);
-
     zend_string *normalized_value = zend_string_alloc(key_len, 1);
     char *out = ZSTR_VAL(normalized_value);
     memcpy(out, ZEND_STRL("HTTP_"));
@@ -112,9 +111,9 @@ void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta) {
     zend_string *res = NULL;
 
     zend_string *ipheader = dd_get_ipheader(get_DD_TRACE_CLIENT_IP_HEADER());
-
     if (ipheader) {
         res = dd_try_extract_ip_from_custom_header(server, ipheader);
+        zend_string_release(ipheader);
     } else {
         // Check for multiple XFF headers
         size_t final_len = 0;
