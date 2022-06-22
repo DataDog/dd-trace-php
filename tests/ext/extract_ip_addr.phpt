@@ -31,6 +31,11 @@ test('x_real_ip', '127.0.0.1');
 test('x_real_ip', '::ffff:4.4.4.4');
 test('x_real_ip', '::ffff:127.0.0.1');
 test('x_real_ip', 42);
+test('x_real_ip', 'fec0::1');
+test('x_real_ip', 'fe80::1');
+test('x_real_ip', 'fd00::1');
+test('x_real_ip', 'fc22:11:22:33::1');
+test('x_real_ip', 'fd12:3456:789a:1::1');
 
 test('client_ip', '2.2.2.2');
 
@@ -108,6 +113,21 @@ x_real_ip: ::ffff:127.0.0.1
 NULL
 
 x_real_ip: 42
+NULL
+
+x_real_ip: fec0::1
+NULL
+
+x_real_ip: fe80::1
+NULL
+
+x_real_ip: fd00::1
+NULL
+
+x_real_ip: fc22:11:22:33::1
+NULL
+
+x_real_ip: fd12:3456:789a:1::1
 NULL
 
 client_ip: 2.2.2.2

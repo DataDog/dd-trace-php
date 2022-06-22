@@ -572,7 +572,9 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     }
 
     if (!get_DD_TRACE_CLIENT_IP_HEADER_DISABLED()) {
-        ddtrace_extract_ip_from_headers(&PG(http_globals)[TRACK_VARS_SERVER], meta);
+        if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+            ddtrace_extract_ip_from_headers(&PG(http_globals)[TRACK_VARS_SERVER], meta);
+        }
     }
 
     zend_string *user_agent = dd_get_user_agent();
