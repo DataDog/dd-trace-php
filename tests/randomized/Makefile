@@ -3,6 +3,9 @@ TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 DOCKER_IMAGE_VERSION := 1
+DOCKER_IMAGE := $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
+DOCKER_IMAGE_AARCH64 := $(DOCKER_IMAGE)-aarch64
+DOCKER_IMAGE_X86_64 := $(DOCKER_IMAGE)-x86_64
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
@@ -15,16 +18,17 @@ publish: publish.centos7
 
 pull: pull.centos7
 
+#################################################################
+# aarch64 section, to be build on an aarch64 machine, i.e. on AWS
+#################################################################
+
 build.centos7.aarch64: \
 	build.centos7.aarch64.7.4 \
 	build.centos7.aarch64.8.0 \
 	build.centos7.aarch64.8.1
 
 build.centos7.aarch64.%:
-	docker build \
-		--build-arg PHP_MAJOR_MINOR="$(*)" \
-		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 \
-		./docker
+	docker build --build-arg PHP_MAJOR_MINOR="$(*)" -t $(DOCKER_IMAGE_AARCH64) ./docker
 
 publish.centos7.aarch64: \
 	publish.centos7.aarch64.7.4 \
@@ -32,7 +36,15 @@ publish.centos7.aarch64: \
 	publish.centos7.aarch64.8.1
 
 publish.centos7.aarch64.%: build.centos7.aarch64.%
-	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64
+	docker push $(DOCKER_IMAGE_AARCH64)
+
+#################################################################
+# end of aarch64
+#################################################################
+
+#################################################################
+# x86_64 section, to be build on an x86_64 machine, i.e. on AWS
+#################################################################
 
 build.centos7.x86_64: \
 	build.centos7.x86_64.5.4 \
@@ -47,10 +59,7 @@ build.centos7.x86_64: \
 	build.centos7.x86_64.8.1
 
 build.centos7.x86_64.%:
-	docker build \
-		--build-arg PHP_MAJOR_MINOR="$(*)" \
-		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 \
-		./docker
+	docker build --build-arg PHP_MAJOR_MINOR="$(*)" -t $(DOCKER_IMAGE_X86_64) ./docker
 
 publish.centos7.x86_64: \
 	publish.centos7.x86_64.5.4 \
@@ -63,6 +72,22 @@ publish.centos7.x86_64: \
 	publish.centos7.x86_64.7.4 \
 	publish.centos7.x86_64.8.0 \
 	publish.centos7.x86_64.8.1
+
+#################################################################
+# end of x86_64
+#################################################################
+
+manifest.create:
+	docker pull $(DOCKER_IMAGE_AARCH64)
+	docker pull $(DOCKER_IMAGE_X86_64)
+	docker manifest create \
+		$(DOCKER_IMAGE) \
+		--amend \
+			$(DOCKER_IMAGE_AARCH64) \
+			$(DOCKER_IMAGE_X86_64)
+
+manifest.push: manifest.create
+	docker manifest push $(DOCKER_IMAGE)
 
 pull.centos7: \
 	pull.centos7.5.4 \
