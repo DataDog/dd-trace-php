@@ -92,6 +92,7 @@ manifest.create: \
 	manifest.create.multi.8.1 \
 
 manifest.create.x86_64.%:
+	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) || true
 	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 || true
 	docker manifest create \
 		$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
@@ -99,6 +100,7 @@ manifest.create.x86_64.%:
 			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
 
 manifest.create.multi.%:
+	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) || true
 	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 || true
 	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 || true
 	docker manifest create \
