@@ -79,16 +79,45 @@ push.centos7.x86_64.%: build.centos7.x86_64.%
 # end of x86_64
 #################################################################
 
-manifest.create:
-	docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64
-	docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
+manifest.create: \
+	manifest.create.x86_64.5.4 \
+	manifest.create.x86_64.5.5 \
+	manifest.create.x86_64.5.6 \
+	manifest.create.x86_64.7.0 \
+	manifest.create.x86_64.7.1 \
+	manifest.create.x86_64.7.2 \
+	manifest.create.x86_64.7.3 \
+	manifest.create.multi.7.4 \
+	manifest.create.multi.8.0 \
+	manifest.create.multi.8.1 \
+
+manifest.create.x86_64.%:
+	docker manifest create \
+		$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
+		--amend \
+			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
+
+manifest.create.multi.%:
 	docker manifest create \
 		$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
 		--amend \
 			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 \
 			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
 
-manifest.push: manifest.create
+manifest.push: \
+	manifest.create \
+	manifest.push.5.4 \
+	manifest.push.5.5 \
+	manifest.push.5.6 \
+	manifest.push.7.0 \
+	manifest.push.7.1 \
+	manifest.push.7.2 \
+	manifest.push.7.3 \
+	manifest.push.7.4 \
+	manifest.push.8.0 \
+	manifest.push.8.1
+
+manifest.push.%:
 	docker manifest push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
 
 pull.centos7: \
