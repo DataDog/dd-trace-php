@@ -10,3 +10,7 @@ redis_publish: redis_build
 # It requires buildx to be able to build cross-architecture images
 request-replayer_push:
 	docker buildx build --platform=linux/arm64,linux/amd64 -t datadog/dd-trace-ci:php-request-replayer-2.0 ./request-replayer --push
+
+# It requires buildx to be able to build cross-architecture images
+mysql_push:
+	docker buildx build --platform=linux/arm64,linux/amd64 -t datadog/dd-trace-ci:php-mysql-5.7 ./mysql --push
