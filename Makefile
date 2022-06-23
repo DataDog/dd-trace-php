@@ -403,7 +403,7 @@ $(PACKAGES_BUILD_DIR):
 .apk: $(PACKAGES_BUILD_DIR)
 	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=bash --depends=curl --depends=libexecinfo $(FPM_FILES)
 
-# Example .tar.gz.arm64, .tar.gz.x86_64
+# Example .tar.gz.aarch64, .tar.gz.x86_64
 .tar.gz.%: ARCHITECTURE=$(*)
 .tar.gz.%: $(PACKAGES_BUILD_DIR)
 	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)
@@ -426,7 +426,7 @@ build_pecl_package:
 	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
-packages: .tar.gz.x86_64 .tar.gz.arm64 # bundle.tar.gz
+packages: .tar.gz.x86_64 .tar.gz.aarch64 # bundle.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
 verify_version:

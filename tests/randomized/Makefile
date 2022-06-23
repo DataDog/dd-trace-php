@@ -128,7 +128,7 @@ manifest.push.%:
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@cp ../../build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz
+	@cp ../../build/packages/dd-library-php-*-*-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
 
 library.local.arm:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
@@ -139,14 +139,14 @@ library.download:
 	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "$(LIBRARY_TEST_URL)"
+	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz "$(LIBRARY_TEST_URL)"
 	@echo "Done"
 
 library.version:
 	@echo "Downloading library version: $(LIBRARY_VERSION)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-$(LIBRARY_VERSION)-x86_64-linux-gnu.tar.gz"
+	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php.tar.gz"
 	@echo "Done"
 
 generate: clean results_folder
