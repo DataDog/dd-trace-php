@@ -1074,9 +1074,6 @@ jobs:
           name: Copy tracer package
           command: make -C tests/randomized library.local.arm
       - run:
-          name: Pull docker images
-          command: make -C tests/randomized pull
-      - run:
           name: Generate scenarios
           command: make -C tests/randomized generate VERSIONS=7.4
       - run:
