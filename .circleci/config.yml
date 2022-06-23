@@ -1075,7 +1075,7 @@ jobs:
           command: make -C tests/randomized library.local.arm
       - run:
           name: Generate scenarios
-          command: make -C tests/randomized generate VERSIONS=7.4
+          command: make -C tests/randomized generate VERSIONS=7.4 NUMBER_OF_SCENARIOS=1
       - run:
           name: Execute tests
           command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m30s
