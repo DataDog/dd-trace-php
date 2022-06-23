@@ -120,21 +120,6 @@ manifest.push: \
 manifest.push.%:
 	docker manifest push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
 
-pull.centos7: \
-	pull.centos7.5.4 \
-	pull.centos7.5.5 \
-	pull.centos7.5.6 \
-	pull.centos7.7.0 \
-	pull.centos7.7.1 \
-	pull.centos7.7.2 \
-	pull.centos7.7.3 \
-	pull.centos7.7.4 \
-	pull.centos7.8.0 \
-	pull.centos7.8.1
-
-pull.centos7.%:
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
-
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
