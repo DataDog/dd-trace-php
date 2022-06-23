@@ -1563,17 +1563,17 @@ jobs:
     working_directory: ~/datadog
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - run: mkdir -p extensions_arm64
+      - run: mkdir -p extensions_aarch64
       - run:
           name: Build ndebug, nts configuration
           command: docker-compose run --rm << parameters.php_major_minor >>-centos7 tooling/bin/build-extension.sh << parameters.php_variant >>
       - run:
           name: Copy file to destination
           command: |
-            cp tmp/build_extension/.libs/ddtrace.so extensions_arm64/ddtrace-<< parameters.so_suffix >>.so
+            cp tmp/build_extension/.libs/ddtrace.so extensions_aarch64/ddtrace-<< parameters.so_suffix >>.so
       - persist_to_workspace:
           root: '.'
-          paths: [ './extensions_arm64' ]
+          paths: [ './extensions_aarch64' ]
 
   compile_extension_centos:
     working_directory: ~/datadog
