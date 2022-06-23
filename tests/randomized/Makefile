@@ -3,9 +3,6 @@ TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 DOCKER_IMAGE_VERSION := 2
-DOCKER_IMAGE := $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
-DOCKER_IMAGE_AARCH64 := $(DOCKER_IMAGE)-aarch64
-DOCKER_IMAGE_X86_64 := $(DOCKER_IMAGE)-x86_64
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
@@ -24,7 +21,10 @@ build.centos7.aarch64: \
 	build.centos7.aarch64.8.1
 
 build.centos7.aarch64.%:
-	docker build --build-arg PHP_MAJOR_MINOR="$(*)" -t $(DOCKER_IMAGE_AARCH64) ./docker
+	docker build \
+		--build-arg PHP_MAJOR_MINOR="$(*)" \
+		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 \
+		./docker
 
 push.centos7.aarch64: \
 	push.centos7.aarch64.7.4 \
@@ -32,7 +32,7 @@ push.centos7.aarch64: \
 	push.centos7.aarch64.8.1
 
 push.centos7.aarch64.%: build.centos7.aarch64.%
-	docker push $(DOCKER_IMAGE_AARCH64)
+	docker push $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-AARCH64
 
 #################################################################
 # end of aarch64
@@ -55,7 +55,10 @@ build.centos7.x86_64: \
 	build.centos7.x86_64.8.1
 
 build.centos7.x86_64.%:
-	docker build --build-arg PHP_MAJOR_MINOR="$(*)" -t $(DOCKER_IMAGE_X86_64) ./docker
+	docker build \
+		--build-arg PHP_MAJOR_MINOR="$(*)" \
+		-t $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-X86_64 \
+		./docker
 
 push.centos7.x86_64: \
 	push.centos7.x86_64.5.4 \
@@ -70,23 +73,23 @@ push.centos7.x86_64: \
 	push.centos7.x86_64.8.1
 
 push.centos7.x86_64.%: build.centos7.x86_64.%
-	docker push $(DOCKER_IMAGE_X86_64)
+	docker push $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-X86_64
 
 #################################################################
 # end of x86_64
 #################################################################
 
 manifest.create:
-	docker pull $(DOCKER_IMAGE_AARCH64)
-	docker pull $(DOCKER_IMAGE_X86_64)
+	docker pull $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-AARCH64
+	docker pull $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-X86_64
 	docker manifest create \
-		$(DOCKER_IMAGE) \
+		$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
 		--amend \
-			$(DOCKER_IMAGE_AARCH64) \
-			$(DOCKER_IMAGE_X86_64)
+			$(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-AARCH64 \
+			$(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-X86_64
 
 manifest.push: manifest.create
-	docker manifest push $(DOCKER_IMAGE)
+	docker manifest push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
 
 pull.centos7: \
 	pull.centos7.5.4 \
