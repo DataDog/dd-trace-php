@@ -32,7 +32,7 @@ push.centos7.aarch64: \
 	push.centos7.aarch64.8.1
 
 push.centos7.aarch64.%: build.centos7.aarch64.%
-	docker push $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64
+	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64
 
 #################################################################
 # end of aarch64
@@ -57,7 +57,7 @@ build.centos7.x86_64: \
 build.centos7.x86_64.%:
 	docker build \
 		--build-arg PHP_MAJOR_MINOR="$(*)" \
-		-t $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 \
+		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 \
 		./docker
 
 push.centos7.x86_64: \
@@ -73,20 +73,20 @@ push.centos7.x86_64: \
 	push.centos7.x86_64.8.1
 
 push.centos7.x86_64.%: build.centos7.x86_64.%
-	docker push $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
+	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
 
 #################################################################
 # end of x86_64
 #################################################################
 
 manifest.create:
-	docker pull $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64
-	docker pull $(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
+	docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64
+	docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
 	docker manifest create \
 		$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
 		--amend \
-			$(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 \
-			$(DOCKER_IMAGE_PREFIX)CENTOS7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
+			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 \
+			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
 
 manifest.push: manifest.create
 	docker manifest push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
