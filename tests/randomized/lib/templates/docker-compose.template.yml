@@ -22,7 +22,7 @@ services:
     image: "memcached:1.5-alpine"
 
   elasticsearch:
-    image: "elasticsearch:6.8.13"
+    image: "elasticsearch:7.17.4"
     environment:
       - discovery.type=single-node
 
