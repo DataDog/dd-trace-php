@@ -12,10 +12,6 @@ DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
 
-build: build.centos7
-
-publish: publish.centos7
-
 pull: pull.centos7
 
 #################################################################
@@ -30,12 +26,12 @@ build.centos7.aarch64: \
 build.centos7.aarch64.%:
 	docker build --build-arg PHP_MAJOR_MINOR="$(*)" -t $(DOCKER_IMAGE_AARCH64) ./docker
 
-publish.centos7.aarch64: \
-	publish.centos7.aarch64.7.4 \
-	publish.centos7.aarch64.8.0 \
-	publish.centos7.aarch64.8.1
+push.centos7.aarch64: \
+	push.centos7.aarch64.7.4 \
+	push.centos7.aarch64.8.0 \
+	push.centos7.aarch64.8.1
 
-publish.centos7.aarch64.%: build.centos7.aarch64.%
+push.centos7.aarch64.%: build.centos7.aarch64.%
 	docker push $(DOCKER_IMAGE_AARCH64)
 
 #################################################################
@@ -61,17 +57,20 @@ build.centos7.x86_64: \
 build.centos7.x86_64.%:
 	docker build --build-arg PHP_MAJOR_MINOR="$(*)" -t $(DOCKER_IMAGE_X86_64) ./docker
 
-publish.centos7.x86_64: \
-	publish.centos7.x86_64.5.4 \
-	publish.centos7.x86_64.5.5 \
-	publish.centos7.x86_64.5.6 \
-	publish.centos7.x86_64.7.0 \
-	publish.centos7.x86_64.7.1 \
-	publish.centos7.x86_64.7.2 \
-	publish.centos7.x86_64.7.3 \
-	publish.centos7.x86_64.7.4 \
-	publish.centos7.x86_64.8.0 \
-	publish.centos7.x86_64.8.1
+push.centos7.x86_64: \
+	push.centos7.x86_64.5.4 \
+	push.centos7.x86_64.5.5 \
+	push.centos7.x86_64.5.6 \
+	push.centos7.x86_64.7.0 \
+	push.centos7.x86_64.7.1 \
+	push.centos7.x86_64.7.2 \
+	push.centos7.x86_64.7.3 \
+	push.centos7.x86_64.7.4 \
+	push.centos7.x86_64.8.0 \
+	push.centos7.x86_64.8.1
+
+push.centos7.x86_64.%: build.centos7.x86_64.%
+	docker push $(DOCKER_IMAGE_X86_64)
 
 #################################################################
 # end of x86_64
@@ -155,4 +154,7 @@ clean:
 clean_results:
 	@rm -rf $(TMP_RESULTS_FOLDER)
 
-.PHONY: build.centos7.aarch64 publish.centos7.aarch64 build.centos7.x86_64 publish.centos7.x86_64 pull.centos7
+.PHONY: build.centos7.aarch64 push.centos7.aarch64 \
+		build.centos7.x86_64 push.centos7.x86_64 \
+		pull.centos7 \
+		manifest.create manifest.push
