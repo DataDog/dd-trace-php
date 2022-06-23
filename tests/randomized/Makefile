@@ -130,4 +130,4 @@ clean:
 clean_results:
 	@rm -rf $(TMP_RESULTS_FOLDER)
 
-.PHONY: build.centos7 publish.centos7 pull.centos7
+.PHONY: build.centos7.aarch64 publish.centos7.aarch64 build.centos7.x86_64 publish.centos7.x86_64 pull.centos7
