@@ -8,6 +8,7 @@ CONCURRENT_JOBS := 5
 DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
+ARCHITECTURE := $(shell uname -m)
 
 pull: pull.centos7
 
@@ -128,12 +129,7 @@ manifest.push.%:
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@cp ../../build/packages/dd-library-php-*-*-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
-
-library.local.arm:
-	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
-#	For now we only handle centos in randomized tests
-	@cp ../../build/packages/datadog-php-tracer-*-arm64*.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-arm64-linux-gnu.tar.gz
+	@cp ../../build/packages/dd-library-php-*-$(ARCHITECTURE).tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
 
 library.download:
 	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"

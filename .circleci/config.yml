@@ -1072,7 +1072,7 @@ jobs:
           command: sudo sysctl -w vm.max_map_count=262144
       - run:
           name: Copy tracer package
-          command: make -C tests/randomized library.local.arm
+          command: make -C tests/randomized library.local
       - run:
           name: Generate scenarios
           command: make -C tests/randomized generate VERSIONS=7.4 NUMBER_OF_SCENARIOS=1
