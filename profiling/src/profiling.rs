@@ -709,7 +709,7 @@ impl Profiler {
 
                 let mut tags = locals.tags.clone();
 
-                if let Some(version) = &PHP_VERSION {
+                if let Some(version) = PHP_VERSION.get() {
                     /* This should probably be "language_version", but this is
                      * the tag that was standardized for this purpose. */
                     let tag = Tag::new("runtime_version", version)

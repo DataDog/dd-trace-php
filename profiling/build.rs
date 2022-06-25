@@ -23,7 +23,8 @@ fn main() {
     generate_bindings(php_config_includes);
     build_zend_php_ffis(php_config_includes);
 
-    cfg_zts()
+    cfg_php_major_version();
+    cfg_zts();
 }
 
 fn build_zend_php_ffis(php_config_includes: &str) {
@@ -83,13 +84,14 @@ fn generate_bindings(php_config_includes: &str) {
         .raw_line("extern crate libc;")
         .header("src/php_ffi.h")
         // Block some zend items that we'll provide manual definitions for
+        .blocklist_item("sapi_getenv")
         .blocklist_item("zend_bool")
-        .blocklist_item("zend_result")
         .blocklist_item("_zend_extension")
         .blocklist_item("zend_extension")
         .blocklist_item("_zend_module_entry")
         .blocklist_item("zend_module_entry")
-        .blocklist_item("sapi_getenv")
+        .blocklist_item("zend_result")
+        .blocklist_item("zend_register_extension")
         // Block our own globals
         .blocklist_item("zend_datadog_php_profiling_globals")
         .blocklist_item("datadog_php_profiling_globals_get")
@@ -118,6 +120,35 @@ fn generate_bindings(php_config_includes: &str) {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("bindings to be written successfully");
+}
+
+fn cfg_php_major_version() {
+    let output = Command::new("php")
+        .arg("-r")
+        .arg("echo PHP_MAJOR_VERSION, PHP_EOL;")
+        .output()
+        .expect("Unable to run `php`. Is it in your PATH?");
+
+    if !output.status.success() {
+        match String::from_utf8(output.stderr) {
+            Ok(stderr) => panic!("`php failed: {}", stderr),
+            Err(err) => panic!("`php` failed, not utf8: {}", err),
+        }
+    }
+
+    let version =
+        std::str::from_utf8(output.stdout.as_slice()).expect("`php`'s stdout to be valid utf8");
+
+    // Clean up surrounding whitespace for both printing and parsing.
+    let version = version.trim();
+
+    let parsed_version: u8 = version.parse().expect("version string to fit in u8");
+
+    if parsed_version == 7 || parsed_version == 8 {
+        println!("cargo:rustc-cfg=php{}", parsed_version);
+    } else {
+        panic!("Unidentified major PHP version: {}", version);
+    }
 }
 
 fn cfg_zts() {

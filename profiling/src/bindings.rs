@@ -39,7 +39,7 @@ impl From<c_int> for zend_result {
     }
 }
 
-// In general, modify definitions which return int to return zend_result iff
+// In general, modify definitions which return int to return zend_result if
 // they are suppose to be doing that already.
 // Across PHP versions, some things switch from mut to const; use const.
 
@@ -109,6 +109,9 @@ pub struct ZendExtension {
     pub handle: *mut c_void,
     pub resource_number: c_int,
 }
+
+unsafe impl Sync for ZendExtension {}
+unsafe impl Send for ZendExtension {}
 
 pub use ZendExtension as _zend_extension;
 pub use ZendExtension as zend_extension;
@@ -226,8 +229,22 @@ impl<T> Drop for EfreePtr<T> {
 }
 
 extern "C" {
+    /// Get the env var from the SAPI. May be NULL. If non-null, it must be
+    /// efree'd, hence custom definition.
     pub fn sapi_getenv(name: *const c_char, name_len: size_t) -> EfreePtr<c_char>;
+
+    /// This is just here for IDE completion; the bindgen'd code doesn't
+    /// autocomplete and I use this function quite a bit.
     pub fn datadog_php_profiling_globals_get<'a>() -> &'a mut DatadogPhpProfilingGlobals;
+
+    /// Registers the extension. Note that it's kept in a zend_llist and gets
+    /// pemalloc'd + memcpy'd into place. The engine says this is a mutable
+    /// pointer, but in practice it's const.
+    #[cfg(php8)]
+    pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void);
+
+    #[cfg(php7)]
+    pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
 }
 
 #[repr(C)]

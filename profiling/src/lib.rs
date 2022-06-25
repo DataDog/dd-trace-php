@@ -11,6 +11,7 @@ use bindings::{
 use ddprof::exporter::{Tag, Uri};
 use libc::{c_char, c_int, c_ulong, c_void};
 use log::{debug, error, info, trace, warn, LevelFilter};
+use once_cell::sync::OnceCell;
 use sapi::Sapi;
 use std::cell::{RefCell, RefMut};
 use std::ffi::CStr;
@@ -21,9 +22,36 @@ use std::sync::atomic::Ordering;
 use std::sync::Once;
 use std::time::Instant;
 
-static NAME: &[u8] = b"datadog-profiling\0";
-static VERSION: &[u8] = b"0.7.0\0";
-static mut SAPI: RefCell<Sapi> = RefCell::new(Sapi::Unknown);
+/// The version of PHP at runtime, not the version compiled against. Sent as
+/// a profile tag.
+static PHP_VERSION: OnceCell<String> = OnceCell::new();
+
+/// The global profiler. Can be None before serving a request. Remember that
+/// Apache can reuse processes so minit may be called more than once, and that
+/// outside of mshutdown -> first request it will also be None.
+static mut PROFILER: RefCell<Option<Profiler>> = RefCell::new(None);
+
+/// Name of the profiling module and zend_extension. Must not contain any
+/// interior null bytes and must be null terminated.
+static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
+
+/// Version of the profiling module and zend_extension. Must not contain any
+/// interior null bytes and must be null terminated.
+static PROFILER_VERSION: &[u8] = b"0.7.0\0";
+
+/// The runtime ID, which is basically a universally unique "pid", so it can
+/// change on minit, as well as theoretically on fork. It should only be
+/// changed from thread-safe contexts.
+/// todo: support forking.
+static mut RUNTIME_ID: profiling::Uuid = profiling::Uuid::new();
+
+/// The Server API the profiler is running under.
+static SAPI: OnceCell<Sapi> = OnceCell::new();
+
+/// The version of the ZendEngine at runtime, not the version compiled against.
+/// It's currently unused, but I hope to send it as a metric or something soon
+/// so I'm keeping it here so I don't have to look up how to get it again.
+static ZEND_VERSION: OnceCell<String> = OnceCell::new();
 
 #[no_mangle]
 pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
@@ -46,13 +74,13 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     unsafe {
         ONCE.call_once(|| {
             let mut module = zend::ModuleEntry {
-                name: NAME.as_ptr(),
+                name: PROFILER_NAME.as_ptr(),
                 module_startup_func: Some(minit),
                 module_shutdown_func: Some(mshutdown),
                 request_startup_func: Some(rinit),
                 request_shutdown_func: Some(rshutdown),
                 info_func: Some(minfo),
-                version: VERSION.as_ptr(),
+                version: PROFILER_VERSION.as_ptr(),
                 globals_size: std::mem::size_of::<DatadogPhpProfilingGlobals>() as u64,
                 globals_ctor: Some(ginit),
                 globals_dtor: Some(gshutdown),
@@ -102,29 +130,39 @@ unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MINIT({}, {})", r#type, module_number);
 
-    // SAPI shouldn't ever change
-    let sapi_module = zend::sapi_module;
-    if !sapi_module.name.is_null() {
-        let mut sapi = SAPI.borrow_mut();
-        let sapi_name = CStr::from_ptr(sapi_module.name);
-        *sapi = Sapi::from_name(sapi_name.to_string_lossy().as_ref())
-    }
+    // Ignore unused result; use SAPI.get() which returns an Option if it's uninitialized.
+    let _ = SAPI.get_or_try_init(|| {
+        let sapi_module = zend::sapi_module;
+        if !sapi_module.name.is_null() {
+            let sapi_name = CStr::from_ptr(sapi_module.name);
+            Ok(Sapi::from_name(sapi_name.to_string_lossy().as_ref()))
+        } else {
+            Err(())
+        }
+    });
 
     /* Use a hybrid extension hack to load as a module but have the
      * zend_extension hooks available:
      * https://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
+     * In this case, use the same technique as the tracer: transfer the module
+     * handle to the zend_extension as extensions have longer lifetimes than
+     * modules in the engine.
      */
-    // Transfer the module handle to the zend_extension. Extensions have
-    // longer lifetimes than modules in the engine.
     let handle = {
-        // The engine copies the module entry we provide it, so we have to
-        // lookup the module entry in the registry and modify it there
-        // instead of just modifying the result of get_module().
-        let str = NAME.as_ptr();
-        let len = NAME.len() - 1; // ignore trailing null byte
+        /* The engine copies the module entry we provide it, so we have to
+         * lookup the module entry in the registry and modify it there
+         * instead of just modifying the result of get_module().
+         *
+         * I modified the engine for PHP 8.2 to stop copying the module:
+         * https://github.com/php/php-src/pull/8551
+         * At the time of this writing, PHP 8.2 isn't out yet so it's possible
+         * it may get reverted if issues are found.
+         */
+        let str = PROFILER_NAME.as_ptr();
+        let len = PROFILER_NAME.len() - 1; // ignore trailing null byte
         let ptr = zend::datadog_get_module_entry(str, len);
         if ptr.is_null() {
-            // todo: error message
+            error!("Unable to locate our own module in the engine registry.");
             return ZendResult::Failure;
         }
 
@@ -135,9 +173,14 @@ unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         handle
     };
 
+    /* Currently, the engine is always copying this struct. Every time a new
+     * PHP version is released, we should double check zend_register_extension
+     * to ensure the address is not mutated nor stored. Well, hopefully we
+     * catch it _before_ a release.
+     */
     let extension = ZendExtension {
-        name: NAME.as_ptr(),
-        version: VERSION.as_ptr(),
+        name: PROFILER_NAME.as_ptr(),
+        version: PROFILER_VERSION.as_ptr(),
         author: b"Datadog\0".as_ptr(),
         url: b"https://github.com/DataDog\0".as_ptr(),
         copyright: b"Copyright Datadog\0".as_ptr(),
@@ -145,9 +188,6 @@ unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         shutdown: Some(shutdown),
         ..Default::default()
     };
-
-    static mut EXTENSION_ENTRY: MaybeUninit<ZendExtension> = MaybeUninit::uninit();
-    EXTENSION_ENTRY.write(extension);
 
     PREV_INTERRUPT_FUNCTION.write(zend::zend_interrupt_function);
     zend::zend_interrupt_function = Some(if zend::zend_interrupt_function.is_some() {
@@ -159,7 +199,7 @@ unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     PREV_EXECUTE_INTERNAL.write(zend::zend_execute_internal.unwrap_or(zend::execute_internal));
     zend::zend_execute_internal = Some(execute_internal);
 
-    zend::zend_register_extension(&mut *EXTENSION_ENTRY.as_mut_ptr(), handle);
+    zend::zend_register_extension(&extension, handle);
 
     // Set up runtime-id for Code Hotspots
     RUNTIME_ID = profiling::Uuid::from(uuid::Uuid::new_v4());
@@ -168,15 +208,21 @@ unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 }
 
 extern "C" fn ginit(global: *mut c_void) {
+    /* When developing the extension, it's useful to see log messages that
+     * occur before the user can configure the log level. However, if we
+     * initialized the logger here unconditionally then they'd have no way to
+     * hide these messages. That's why it's done only for debug builds.
+     */
     #[cfg(debug_assertions)]
     {
         logging::log_init(LevelFilter::Trace);
         trace!("GINIT({:p})", global);
     }
 
-    // Safety: The engine has allocated the globals to the right size and
-    // alignment, so it is safe to dereference this, but only when cast to
-    // MaybeUninit, as it's uninitialized (which is the point of this hook).
+    /* Safety: The engine has allocated the globals to the right size and
+     * alignment, so it is safe to dereference this, but only when cast to
+     * MaybeUninit, as it's uninitialized (which is the point of this hook).
+     */
     unsafe {
         let global = global as *mut MaybeUninit<DatadogPhpProfilingGlobals>;
         (*global).write(DatadogPhpProfilingGlobals::default());
@@ -194,23 +240,6 @@ extern "C" fn prshutdown() -> ZendResult {
 
     ZendResult::Success
 }
-
-/// The version of PHP at runtime, not the version compiled against. Sent as
-/// a profile tag.
-static mut PHP_VERSION: Option<String> = None;
-
-static mut PROFILER: RefCell<Option<Profiler>> = RefCell::new(None);
-
-/// The runtime ID, which is basically a universally unique "pid", so it can
-/// change on minit, as well as theoretically on fork. It should only be
-/// changed from thread-safe contexts.
-/// todo: support forking.
-static mut RUNTIME_ID: profiling::Uuid = profiling::Uuid::new();
-
-/// The version of the ZendEngine at runtime, not the version compiled against.
-/// It's currently unused, but I hope to send it as a metric or something soon
-/// so I'm keeping it here so I don't have to look up how to get it again.
-static mut ZEND_VERSION: Option<String> = None;
 
 /// # Safety
 /// Only call during an active request from the PHP thread!
@@ -355,41 +384,40 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         #[cfg(debug_assertions)]
         log::set_max_level(globals.profiling_log_level);
 
-        unsafe {
-            // reminder: this cannot be done in minit because of Apache forking model
-            PROFILER.replace(Some(Profiler::new()));
-
-            if globals.profiling_enabled {
-                let sapi_module = zend::sapi_module;
-                if sapi_module.pretty_name.is_null() {
-                    let name = CStr::from_ptr(sapi_module.name).to_string_lossy();
-                    warn!("The SAPI module {}'s pretty name was not set!", name)
+        if globals.profiling_enabled {
+            let sapi_module = zend::sapi_module;
+            if sapi_module.pretty_name.is_null() {
+                let name = unsafe { CStr::from_ptr(sapi_module.name) }.to_string_lossy();
+                warn!("The SAPI module {}'s pretty name was not set!", name)
+            } else {
+                let pretty_name =
+                    unsafe { CStr::from_ptr(sapi_module.pretty_name) }.to_string_lossy();
+                if SAPI.get().unwrap_or(&Sapi::Unknown) != &Sapi::Unknown {
+                    debug!("Recognized SAPI: {}.", pretty_name);
                 } else {
-                    let pretty_name = CStr::from_ptr(sapi_module.pretty_name).to_string_lossy();
-                    if *SAPI.borrow() != Sapi::Unknown {
-                        debug!("Recognized SAPI: {}.", pretty_name);
-                    } else {
-                        warn!("Unrecognized SAPI: {}.", pretty_name);
-                    }
+                    warn!("Unrecognized SAPI: {}.", pretty_name);
                 }
-                if let Err(err) = cpu_time::ThreadTime::try_now() {
-                    if globals.profiling_experimental_cpu_time_enabled {
-                        warn!(
-                            "CPU Time collection was enabled but collection failed: {}",
-                            err
-                        );
-                    } else {
-                        debug!(
-                            "CPU Time collection was not enabled and isn't available: {}",
-                            err
-                        );
-                    }
-                } else if globals.profiling_experimental_cpu_time_enabled {
-                    info!("CPU Time profiling enabled.");
+            }
+            if let Err(err) = cpu_time::ThreadTime::try_now() {
+                if globals.profiling_experimental_cpu_time_enabled {
+                    warn!(
+                        "CPU Time collection was enabled but collection failed: {}",
+                        err
+                    );
+                } else {
+                    debug!(
+                        "CPU Time collection was not enabled and isn't available: {}",
+                        err
+                    );
                 }
+            } else if globals.profiling_experimental_cpu_time_enabled {
+                info!("CPU Time profiling enabled.");
             }
         }
     });
+
+    // reminder: this cannot be done in minit because of Apache forking model
+    unsafe { PROFILER.replace(Some(Profiler::new())) };
 
     if globals.profiling_enabled {
         unsafe {
@@ -603,23 +631,24 @@ unsafe extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 
     zend::datadog_php_profiling_startup(extension);
 
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        // Safety: CStr string is null-terminated.
-        let module_name = CStr::from_bytes_with_nul_unchecked(b"Core\0");
-        // Safety: ZEND_VERSION is written to inside a protected call_once, and
-        // the version string is defensibly copied.
-        ZEND_VERSION = get_module_version(module_name);
+    // Ignore a failure as ZEND_VERSION.get() will return an Option if it's not set.
+    let _ = ZEND_VERSION.get_or_try_init(|| {
+        // Safety: CStr string is null-terminated without any interior null bytes.
+        let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Core\0") };
+        get_module_version(module_name).ok_or(())
+    });
 
+    // Ignore a failure as PHP_VERSION.get() will return an Option if it's not set.
+    let _ = PHP_VERSION.get_or_try_init(|| {
         // Reflection uses the PHP_VERSION as its version, see:
         // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.h#L25
         // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.c#L7157
         // It goes back to at least PHP 7.1:
         // https://github.com/php/php-src/blob/PHP-7.1/ext/reflection/php_reflection.h
-        // Safety: string is null-terminated.
+
+        // Safety: CStr string is null-terminated without any interior null bytes.
         let module_name = CStr::from_bytes_with_nul_unchecked(b"Reflection\0");
-        // Safety: same as ZEND_VERSION above.
-        PHP_VERSION = get_module_version(module_name);
+        get_module_version(module_name).ok_or(())
     });
 
     ZendResult::Success

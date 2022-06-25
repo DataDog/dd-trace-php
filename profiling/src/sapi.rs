@@ -1,6 +1,5 @@
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
-use std::mem::MaybeUninit;
-use std::sync::Once;
 
 // todo: unify with ../component/sapi
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -20,10 +19,9 @@ pub enum Sapi {
 
 impl Sapi {
     pub fn from_name(name: &str) -> Sapi {
-        static mut SAPIS: MaybeUninit<HashMap<&str, Sapi>> = MaybeUninit::uninit();
-        static ONCE: Once = Once::new();
-        ONCE.call_once(|| {
-            let sapis = HashMap::from([
+        static SAPIS: OnceCell<HashMap<&str, Sapi>> = OnceCell::new();
+        let sapis = SAPIS.get_or_init(|| {
+            HashMap::from_iter([
                 ("apache2handler", Sapi::Apache2Handler),
                 ("cgi-fcgi", Sapi::CgiFcgi),
                 ("cli", Sapi::Cli),
@@ -33,16 +31,12 @@ impl Sapi {
                 ("litespeed", Sapi::Litespeed),
                 ("phpdbg", Sapi::PhpDbg),
                 ("tea", Sapi::Tea),
-            ]);
-            unsafe { SAPIS.write(sapis) };
+            ])
         });
 
-        // Safety: it was initialized above in the call_once.
-        unsafe {
-            match SAPIS.assume_init_ref().get(name) {
-                None => Sapi::Unknown,
-                Some(sapi) => *sapi,
-            }
+        match sapis.get(name) {
+            None => Sapi::Unknown,
+            Some(sapi) => *sapi,
         }
     }
 }
