@@ -64,6 +64,7 @@ EOD;
 function install($options)
 {
     $platform = is_alpine() ? PLATFORM_X86_LINUX_MUSL : PLATFORM_X86_LINUX_GNU;
+    $architecture = get_architecture();
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
@@ -170,7 +171,7 @@ function install($options)
         }
 
         // Trace
-        $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so" ;
+        $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so";
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
@@ -178,7 +179,8 @@ function install($options)
         $shouldInstallProfiling =
             in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
             && !is_truthy($phpProperties[THREAD_SAFETY])
-            && !is_truthy($phpProperties[IS_DEBUG]);
+            && !is_truthy($phpProperties[IS_DEBUG])
+            && in_array($architecture, ["x86_64"]);
 
         if ($shouldInstallProfiling) {
             $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling.so";
@@ -189,7 +191,9 @@ function install($options)
         // Appsec
         $shouldInstallAppsec =
             in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
-            && !is_truthy($phpProperties[IS_DEBUG]);
+            && !is_truthy($phpProperties[IS_DEBUG])
+            && in_array($architecture, ["x86_64"]);
+
         if ($shouldInstallAppsec) {
             $appsecExtensionRealPath = "${tmpArchiveAppsecRoot}/ext/${extensionVersion}/ddappsec${extensionSuffix}.so";
             $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
@@ -501,6 +505,19 @@ function is_alpine()
         return false;
     }
     return false !== stripos(file_get_contents($osInfoFile), 'alpine');
+}
+
+/**
+ * Returns the host architecture, e.g. x86_64, aarch64
+ *
+ * @return string
+ */
+function get_architecture()
+{
+    return execute_or_exit(
+        "Cannot detect host architecture (uname -m)",
+        "unme -m"
+    );
 }
 
 /**
