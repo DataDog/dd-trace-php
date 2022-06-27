@@ -39,7 +39,7 @@ static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
 
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
-static PROFILER_VERSION: &[u8] = b"0.7.0\0";
+static PROFILER_VERSION: &[u8] = b"0.8.0\0";
 
 lazy_static! {
     /// The runtime ID, which is basically a universally unique "pid", so it
