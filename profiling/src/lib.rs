@@ -41,11 +41,12 @@ static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = b"0.7.0\0";
 
-/// The runtime ID, which is basically a universally unique "pid", so it can
-/// change on minit, as well as theoretically on fork. It should only be
-/// changed from thread-safe contexts.
-/// todo: support forking.
-static mut RUNTIME_ID: profiling::Uuid = profiling::Uuid::new();
+lazy_static! {
+    /// The runtime ID, which is basically a universally unique "pid", so it
+    /// theoretically can change on fork.
+    /// todo: support forking.
+    static ref RUNTIME_ID: profiling::Uuid = profiling::Uuid::from(uuid::Uuid::new_v4());
+}
 
 /// The Server API the profiler is running under.
 static SAPI: OnceCell<Sapi> = OnceCell::new();
@@ -109,8 +110,15 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     }
 }
 
+/// The engine's previous `zend_interrupt_function` value, if there is one.
+/// Note that because of things like Apache reload which call minit more than
+/// once per process, this cannot be made into a OnceCell nor lazy_static.
 static mut PREV_INTERRUPT_FUNCTION: MaybeUninit<Option<zend::VmInterruptFn>> =
     MaybeUninit::uninit();
+
+/// The engine's previous `zend::zend_execute_internal` value, or
+/// `zend::execute_internal` if none. This is a highly active path, so although
+/// it could be made safe with Mutex, the cost is too high.
 static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
@@ -128,15 +136,20 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
  * mechanisms like std::sync::Once::call_once may not be suitable.
  * Be careful out there!
  */
-unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MINIT({}, {})", r#type, module_number);
 
     // Ignore unused result; use SAPI.get() which returns an Option if it's uninitialized.
     let _ = SAPI.get_or_try_init(|| {
-        let sapi_module = zend::sapi_module;
+        // Safety: sapi_module is initialized by minit; should be no concurrent threads.
+        let sapi_module = unsafe { zend::sapi_module };
         if !sapi_module.name.is_null() {
-            let sapi_name = CStr::from_ptr(sapi_module.name);
+            /* Safety: value has been checked for NULL; I haven't checked that
+             * the engine ensures its length is less than `isize::MAX`, but it
+             * is a risk I'm willing to take.
+             */
+            let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
             Ok(Sapi::from_name(sapi_name.to_string_lossy().as_ref()))
         } else {
             Err(())
@@ -162,17 +175,25 @@ unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
          */
         let str = PROFILER_NAME.as_ptr();
         let len = PROFILER_NAME.len() - 1; // ignore trailing null byte
-        let ptr = zend::datadog_get_module_entry(str, len);
+
+        // Safety: str is valid for at least len values.
+        let ptr = unsafe { zend::datadog_get_module_entry(str, len) };
         if ptr.is_null() {
             error!("Unable to locate our own module in the engine registry.");
             return ZendResult::Failure;
         }
 
-        // Safety: checked nullability above; engine did the rest.
-        let module = &mut *ptr;
-        let handle = module.handle;
-        module.handle = std::ptr::null_mut();
-        handle
+        /* Safety: `ptr` was checked for nullability already. Transferring the
+         * handle from the module to the extension extends the lifetime, not
+         * shortens it, so it's safe. But of course, be sure the code below
+         * actually passes it to the extension.
+         */
+        unsafe {
+            let module = &mut *ptr;
+            let handle = module.handle;
+            module.handle = std::ptr::null_mut();
+            handle
+        }
     };
 
     /* Currently, the engine is always copying this struct. Every time a new
@@ -191,20 +212,24 @@ unsafe extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         ..Default::default()
     };
 
-    PREV_INTERRUPT_FUNCTION.write(zend::zend_interrupt_function);
-    zend::zend_interrupt_function = Some(if zend::zend_interrupt_function.is_some() {
-        interrupt_function_wrapper
-    } else {
-        interrupt_function
-    });
+    // Safety: during minit there shouldn't be any threads to race against these writes.
+    unsafe {
+        PREV_INTERRUPT_FUNCTION.write(zend::zend_interrupt_function);
+        PREV_EXECUTE_INTERNAL.write(zend::zend_execute_internal.unwrap_or(zend::execute_internal));
 
-    PREV_EXECUTE_INTERNAL.write(zend::zend_execute_internal.unwrap_or(zend::execute_internal));
-    zend::zend_execute_internal = Some(execute_internal);
+        zend::zend_interrupt_function = Some(if zend::zend_interrupt_function.is_some() {
+            interrupt_function_wrapper
+        } else {
+            datadog_profiling_interrupt_function
+        });
 
-    zend::zend_register_extension(&extension, handle);
+        zend::zend_execute_internal = Some(execute_internal);
+    };
 
-    // Set up runtime-id for Code Hotspots
-    RUNTIME_ID = profiling::Uuid::from(uuid::Uuid::new_v4());
+    /* Safety: all arguments are valid for this C call.
+     * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
+     */
+    unsafe { zend::zend_register_extension(&extension, handle) };
 
     ZendResult::Success
 }
@@ -231,7 +256,7 @@ extern "C" fn ginit(global: *mut c_void) {
     }
 }
 
-unsafe extern "C" fn gshutdown(_global: *mut c_void) {
+extern "C" fn gshutdown(_global: *mut c_void) {
     #[cfg(debug_assertions)]
     trace!("GSHUTDOWN({:p})", _global);
 }
@@ -249,17 +274,24 @@ unsafe fn getenv(name: &CStr) -> Option<String> {
     // CStr doesn't have a len() so turn it into a slice.
     let name = name.to_bytes();
 
+    // Safety: called CStr, so invariants have all been checked by this point.
     let val = sapi_getenv(name.as_ptr() as *const c_char, name.len() as c_ulong);
     let val = val.into_string();
     if !val.is_empty() {
         return Some(val);
     }
 
-    // If the sapi didn't have an env var, try the libc.
+    /* If the sapi didn't have an env var, try the libc.
+     * Safety: pointer comes from valid CStr.
+     */
     let val = libc::getenv(name.as_ptr() as *const c_char);
     if val.is_null() {
         return None;
     }
+
+    /* Safety: `val` has been checked for NULL, though I haven't checked that
+     * `libc::getenv` always return a string less than `isize::MAX`.
+     */
     let val = CStr::from_ptr(val);
     return Some(String::from_utf8_lossy(val.to_bytes()).into_owned());
 }
@@ -295,7 +327,7 @@ unsafe fn intern(string: &Option<String>) -> datadog_php_str {
 }
 
 /// # Safety
-/// Must be called exactly once during first rinit!
+/// This is only meant to be called during rinit!
 unsafe fn read_env(globals: &mut zend::zend_datadog_php_profiling_globals) {
     // We don't handle INIs yet -- we store the env vars on first rinit
     let profiling_enabled = getenv(CStr::from_bytes_with_nul_unchecked(
@@ -371,10 +403,13 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RINIT({}, {})", r#type, module_number);
 
+    // Safety: it's safe to call during rinit.
     unsafe { zend::datadog_php_profiling_rinit() };
 
-    // SAFETY: globals pointer is valid during rinit.
+    // Safety: globals pointer is valid during rinit.
     let globals = unsafe { zend::datadog_php_profiling_globals_get() };
+
+    // Safety: called during rinit.
     unsafe { read_env(globals) };
 
     // At the moment, logging is truly global, so init it exactly once whether
@@ -392,9 +427,11 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
              */
             let sapi_module = unsafe { &zend::sapi_module };
             if sapi_module.pretty_name.is_null() {
+                // Safety: I'm willing to bet the module name is less than `isize::MAX`.
                 let name = unsafe { CStr::from_ptr(sapi_module.name) }.to_string_lossy();
                 warn!("The SAPI module {}'s pretty name was not set!", name)
             } else {
+                // Safety: I'm willing to bet the module pretty name is less than `isize::MAX`.
                 let pretty_name =
                     unsafe { CStr::from_ptr(sapi_module.pretty_name) }.to_string_lossy();
                 if SAPI.get().unwrap_or(&Sapi::Unknown) != &Sapi::Unknown {
@@ -435,59 +472,57 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     };
 
     if globals.profiling_enabled {
-        unsafe {
-            REQUEST_LOCALS.with(|cell| {
-                let mut locals = cell.borrow_mut();
+        REQUEST_LOCALS.with(|cell| {
+            let mut locals = cell.borrow_mut();
 
-                locals.last_wall_time = Instant::now();
-                if globals.profiling_experimental_cpu_time_enabled {
-                    let now = cpu_time::ThreadTime::try_now()
-                        .expect("CPU time to work since it's worked before during this process");
-                    locals.last_cpu_time = Some(now);
-                }
+            locals.last_wall_time = Instant::now();
+            if globals.profiling_experimental_cpu_time_enabled {
+                let now = cpu_time::ThreadTime::try_now()
+                    .expect("CPU time to work since it's worked before during this process");
+                locals.last_cpu_time = Some(now);
+            }
 
-                let vars = [
-                    ("service", globals.service, "unnamed-php-service"),
-                    ("env", globals.env, ""),
-                    ("version", globals.version, ""),
-                ];
+            let vars = [
+                ("service", globals.service, "unnamed-php-service"),
+                ("env", globals.env, ""),
+                ("version", globals.version, ""),
+            ];
 
-                for (key, value, default_value) in vars {
-                    if value.size > 0 && !value.ptr.is_null() {
-                        let result: Result<&str, _> = (&value).try_into();
-                        if let Ok(value) = result {
-                            log_add_tag(&mut locals, key, value);
-                        }
-                    } else if !default_value.is_empty() {
-                        log_add_tag(&mut locals, key, default_value);
+            for (key, value, default_value) in vars {
+                if value.size > 0 && !value.ptr.is_null() {
+                    let result: Result<&str, _> = (&value).try_into();
+                    if let Ok(value) = result {
+                        log_add_tag(&mut locals, key, value);
                     }
+                } else if !default_value.is_empty() {
+                    log_add_tag(&mut locals, key, default_value);
                 }
+            }
 
-                let runtime_id: uuid::Uuid = RUNTIME_ID.into();
-                if !runtime_id.is_nil() {
-                    match Tag::new("runtime-id", runtime_id.to_string().as_str()) {
-                        Ok(tag) => {
-                            locals.tags.push(tag);
-                        }
-                        Err(err) => {
-                            warn!("invalid tag: {}", err);
-                        }
-                    }
-                }
-
-                match detect_url_from_globals(globals) {
-                    Ok(url) => {
-                        locals.uri = url.to_string();
+            let runtime_id: uuid::Uuid = (*RUNTIME_ID).into();
+            if !runtime_id.is_nil() {
+                match Tag::new("runtime-id", runtime_id.to_string().as_str()) {
+                    Ok(tag) => {
+                        locals.tags.push(tag);
                     }
                     Err(err) => {
-                        error!("Failed to identify HTTP url: {}", err);
+                        warn!("invalid tag: {}", err);
                     }
-                };
-            });
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                profiler.add_interrupt(globals.vm_interrupt_addr, &globals.interrupt_count);
+                }
             }
+
+            match detect_url_from_globals(globals) {
+                Ok(url) => {
+                    locals.uri = url.to_string();
+                }
+                Err(err) => {
+                    error!("Failed to identify HTTP url: {}", err);
+                }
+            };
+        });
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.add_interrupt(globals.vm_interrupt_addr, &globals.interrupt_count);
         }
     }
     ZendResult::Success
@@ -545,13 +580,16 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-unsafe fn stop_profiling() {
+fn stop_profiling() {
     let mut profiler = PROFILER.lock().unwrap();
     if let Some(profiler) = profiler.take() {
         profiler.stop();
     }
 }
 
+/// Prints the module info. Calls many C functions from the Zend Engine,
+/// including calling variadic functions. It's essentially all unsafe, so be
+/// careful, and do not call this manually (only let the engine call it).
 unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
     #[cfg(debug_assertions)]
     trace!("MINFO({:p})", module);
@@ -613,7 +651,7 @@ unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
     zend::php_info_print_table_end();
 }
 
-unsafe extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({}, {})", r#type, module_number);
 
@@ -639,11 +677,12 @@ fn get_module_version(module_name: &CStr) -> Option<String> {
     Some(version)
 }
 
-unsafe extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
+extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("startup({:p})", extension);
 
-    zend::datadog_php_profiling_startup(extension);
+    // Safety: called during startup hook with correct params.
+    unsafe { zend::datadog_php_profiling_startup(extension) };
 
     // Ignore a failure as ZEND_VERSION.get() will return an Option if it's not set.
     let _ = ZEND_VERSION.get_or_try_init(|| {
@@ -661,7 +700,7 @@ unsafe extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         // https://github.com/php/php-src/blob/PHP-7.1/ext/reflection/php_reflection.h
 
         // Safety: CStr string is null-terminated without any interior null bytes.
-        let module_name = CStr::from_bytes_with_nul_unchecked(b"Reflection\0");
+        let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Reflection\0") };
         get_module_version(module_name).ok_or(())
     });
 
@@ -673,12 +712,9 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
     trace!("shutdown({:p})", _extension);
 }
 
-/// # Safety
-/// This is safe to call except that it cannot be called concurrently with
-/// MINIT. This _should_ be guaranteed by the PHP request model.
 #[no_mangle]
-pub unsafe extern "C" fn datadog_profiling_runtime_id() -> profiling::Uuid {
-    RUNTIME_ID
+pub extern "C" fn datadog_profiling_runtime_id() -> profiling::Uuid {
+    *RUNTIME_ID
 }
 
 /// Used internally to gather time samples when the configured period has
@@ -689,10 +725,10 @@ pub unsafe extern "C" fn datadog_profiling_runtime_id() -> profiling::Uuid {
 /// # Safety
 /// The zend_execute_data pointer should come from the engine to ensure it and
 /// its sub-objects are valid.
-#[export_name = "datadog_profiling_interrupt_function"]
-pub unsafe extern "C" fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
+#[no_mangle]
+pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend::zend_execute_data) {
     // SAFETY: globals pointer is valid during interrupt handler.
-    let globals = zend::datadog_php_profiling_globals_get();
+    let globals = unsafe { zend::datadog_php_profiling_globals_get() };
     if !globals.profiling_enabled {
         return;
     }
@@ -710,18 +746,24 @@ pub unsafe extern "C" fn interrupt_function(execute_data: *mut zend::zend_execut
 
     if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
         REQUEST_LOCALS.with(|cell| {
-            // borrow locals mutably to adjust time
-            profiler.collect_time(execute_data, interrupt_count, cell.borrow_mut().deref_mut());
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            unsafe {
+                profiler.collect_time(execute_data, interrupt_count, cell.borrow_mut().deref_mut())
+            };
         });
     }
 }
 
-/// A wrapper for the `interrupt_function` to call the previous interrupt handler, if there was one.
-unsafe extern "C" fn interrupt_function_wrapper(execute_data: *mut zend::zend_execute_data) {
-    interrupt_function(execute_data);
+/// A wrapper for the `datadog_profiling_interrupt_function` to call the
+/// previous interrupt handler, if there was one.
+extern "C" fn interrupt_function_wrapper(execute_data: *mut zend::zend_execute_data) {
+    datadog_profiling_interrupt_function(execute_data);
 
-    if let Some(prev_interrupt) = *PREV_INTERRUPT_FUNCTION.as_mut_ptr() {
-        prev_interrupt(execute_data);
+    // Safety: PREV_INTERRUPT_FUNCTION was written during minit, doesn't change during runtime.
+    unsafe {
+        if let Some(prev_interrupt) = *PREV_INTERRUPT_FUNCTION.as_mut_ptr() {
+            prev_interrupt(execute_data);
+        }
     }
 }
 
@@ -734,13 +776,16 @@ unsafe extern "C" fn interrupt_function_wrapper(execute_data: *mut zend::zend_ex
 /// we'd then attribute all that time spent sleeping to whatever runs next. This is why we intercept
 /// `zend_execute_internal` and process our own VM interrupts, but it doesn't delegate to the
 /// previous VM interrupt hook, as it's not expecting to be called from this state.
-unsafe extern "C" fn execute_internal(
+extern "C" fn execute_internal(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    let prev_execute_internal = *PREV_EXECUTE_INTERNAL.as_mut_ptr();
-    prev_execute_internal(execute_data, return_value);
-    interrupt_function(execute_data);
+    // Safety: PREV_EXECUTE_INTERNAL was written during minit, doesn't change during runtime.
+    unsafe {
+        let prev_execute_internal = *PREV_EXECUTE_INTERNAL.as_mut_ptr();
+        prev_execute_internal(execute_data, return_value);
+    }
+    datadog_profiling_interrupt_function(execute_data);
 }
 
 #[cfg(test)]
