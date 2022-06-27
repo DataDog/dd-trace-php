@@ -180,6 +180,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/handlers_pdo.c \
       ext/php7/handlers_phpredis.c \
       ext/php7/integrations/integrations.c \
+      ext/php7/ip_extraction.c \
       ext/php7/logging.c \
       ext/php7/memory_limit.c \
       ext/php7/php7/dispatch.c \
@@ -236,6 +237,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/handlers_pdo.c \
       ext/php8/handlers_phpredis.c \
       ext/php8/integrations/integrations.c \
+      ext/php8/ip_extraction.c \
       ext/php8/logging.c \
       ext/php8/memory_limit.c \
       ext/php8/php8/dispatch.c \

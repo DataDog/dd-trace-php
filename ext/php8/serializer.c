@@ -20,6 +20,7 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "runtime.h"
@@ -566,6 +567,12 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
             } else {
                 ZVAL_COPY(prop_resource, &http_method);
             }
+        }
+    }
+
+    if (!get_DD_TRACE_CLIENT_IP_HEADER_DISABLED()) {
+        if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+            ddtrace_extract_ip_from_headers(&PG(http_globals)[TRACK_VARS_SERVER], meta);
         }
     }
 
