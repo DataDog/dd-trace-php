@@ -1,5 +1,6 @@
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 
 // todo: unify with ../component/sapi
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -41,6 +42,24 @@ impl Sapi {
     }
 }
 
+impl Display for Sapi {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Sapi::Unknown => "unknown",
+            Sapi::Apache2Handler => "apache2handler",
+            Sapi::CgiFcgi => "cgi-fcgi",
+            Sapi::Cli => "cli",
+            Sapi::CliServer => "cli-server",
+            Sapi::Embed => "embed",
+            Sapi::FpmFcgi => "fpm-fcgi",
+            Sapi::Litespeed => "litespeed",
+            Sapi::PhpDbg => "phpdbg",
+            Sapi::Tea => "tea",
+        };
+        f.write_str(name)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::Sapi;
@@ -59,9 +78,9 @@ mod tests {
             ("tea", Sapi::Tea),
         ];
 
-        assert!(recognized_sapis
-            .into_iter()
-            .all(|(name, expected_sapi)| { Sapi::from_name(name) == expected_sapi }));
+        assert!(recognized_sapis.iter().all(|(name, expected_sapi)| {
+            Sapi::from_name(name) == *expected_sapi && expected_sapi.to_string() == *name
+        }));
 
         /* These used to be SAPIs, but have since been removed. I think
          * that makes them good testing candidates for unknown SAPIs.

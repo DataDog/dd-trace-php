@@ -110,9 +110,6 @@ pub struct ZendExtension {
     pub resource_number: c_int,
 }
 
-unsafe impl Sync for ZendExtension {}
-unsafe impl Send for ZendExtension {}
-
 pub use ZendExtension as _zend_extension;
 pub use ZendExtension as zend_extension;
 

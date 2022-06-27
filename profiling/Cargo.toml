@@ -17,6 +17,7 @@ cpu-time = { version = "1.0" }
 ddprof = { path = "./libdatadog/ddprof" }
 env_logger = { version = "0.9" }
 indexmap = { version = "1.8" }
+lazy_static = { version = "1.4" }
 libc = "0.2"
 # TRACE is max to support runtime configuration.
 log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"]}

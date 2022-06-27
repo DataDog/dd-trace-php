@@ -9,6 +9,7 @@ use bindings::{
     datadog_php_str, sapi_getenv, DatadogPhpProfilingGlobals, ZendExtension, ZendResult,
 };
 use ddprof::exporter::{Tag, Uri};
+use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_ulong, c_void};
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
@@ -16,20 +17,21 @@ use sapi::Sapi;
 use std::cell::{RefCell, RefMut};
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
-use std::sync::Once;
+use std::sync::{Mutex, Once};
 use std::time::Instant;
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
-/// The global profiler. Can be None before serving a request. Remember that
-/// Apache can reuse processes so minit may be called more than once, and that
-/// outside of mshutdown -> first request it will also be None.
-static mut PROFILER: RefCell<Option<Profiler>> = RefCell::new(None);
+lazy_static! {
+    /// The global profiler. In Rust 1.63+, Mutex::new is const and this can be
+    /// made a regular global instead of a lazy_static one.
+    static ref PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
+}
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
@@ -385,7 +387,10 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         log::set_max_level(globals.profiling_log_level);
 
         if globals.profiling_enabled {
-            let sapi_module = zend::sapi_module;
+            /* Safety: sapi_module is initialized by rinit and shouldn't be
+             * modified at this point (safe to read values).
+             */
+            let sapi_module = unsafe { &zend::sapi_module };
             if sapi_module.pretty_name.is_null() {
                 let name = unsafe { CStr::from_ptr(sapi_module.name) }.to_string_lossy();
                 warn!("The SAPI module {}'s pretty name was not set!", name)
@@ -417,7 +422,17 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     });
 
     // reminder: this cannot be done in minit because of Apache forking model
-    unsafe { PROFILER.replace(Some(Profiler::new())) };
+    {
+        /* It would be nice if this could be cheaper. OnceCell would be cheaper
+         * but it doesn't quite fit the model, as going back to uninitialized
+         * requires either a &mut or .take(), and neither works for us (unless
+         * we go for unsafe, which is what we are trying to avoid).
+         */
+        let mut profiler = PROFILER.lock().unwrap();
+        if profiler.is_none() {
+            *profiler = Some(Profiler::new())
+        }
+    };
 
     if globals.profiling_enabled {
         unsafe {
@@ -470,7 +485,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 };
             });
 
-            if let Some(profiler) = PROFILER.borrow().deref() {
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 profiler.add_interrupt(globals.vm_interrupt_addr, &globals.interrupt_count);
             }
         }
@@ -517,10 +532,8 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     // SAFETY: globals pointer is valid during rshutdown.
     let globals = unsafe { zend::datadog_php_profiling_globals_get() };
     if globals.profiling_enabled {
-        unsafe {
-            if let Some(profiler) = PROFILER.borrow().deref() {
-                profiler.remove_interrupt(globals.vm_interrupt_addr, &globals.interrupt_count);
-            }
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.remove_interrupt(globals.vm_interrupt_addr, &globals.interrupt_count);
         }
 
         REQUEST_LOCALS.with(|cell| {
@@ -533,7 +546,8 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 }
 
 unsafe fn stop_profiling() {
-    if let Some(profiler) = PROFILER.take() {
+    let mut profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.take() {
         profiler.stop();
     }
 }
@@ -694,7 +708,7 @@ pub unsafe extern "C" fn interrupt_function(execute_data: *mut zend::zend_execut
         return;
     }
 
-    if let Some(profiler) = PROFILER.borrow().as_ref() {
+    if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
         REQUEST_LOCALS.with(|cell| {
             // borrow locals mutably to adjust time
             profiler.collect_time(execute_data, interrupt_count, cell.borrow_mut().deref_mut());

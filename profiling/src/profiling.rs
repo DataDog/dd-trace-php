@@ -284,7 +284,7 @@ unsafe fn collect_stack_sample(
             // Only insert a new frame if there's file or function info.
             if file.is_some() || function.is_some() {
                 // If there's no function name, use the fake name "<php>".
-                let function = function.unwrap_or("<php>".to_owned());
+                let function = function.unwrap_or_else(|| "<php>".to_owned());
                 let frame = ZendFrame {
                     function,
                     file,
@@ -715,6 +715,13 @@ impl Profiler {
                     let tag = Tag::new("runtime_version", version)
                         .expect("runtime_version to be a valid tag");
                     tags.push(tag);
+                }
+
+                if let Some(sapi) = crate::SAPI.get() {
+                    match Tag::new("php_version", sapi.to_string()) {
+                        Ok(tag) => tags.push(tag),
+                        Err(err) => warn!("Tag error: {}", err),
+                    }
                 }
 
                 let message = SampleMessage {
