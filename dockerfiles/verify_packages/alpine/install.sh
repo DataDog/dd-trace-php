@@ -21,9 +21,6 @@ fi
 if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php7 || true)
 fi
-if [ -z "$PHP_BIN" ]; then
-    PHP_BIN=$(command -v php5 || true)
-fi
 
 # Installing dd-trace-php
 INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
@@ -64,13 +61,6 @@ if [ ! -f "${WWW_CONF}" ]; then
 fi
 if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/etc/php7/php-fpm.d/www.conf
-fi
-if [ ! -f "${WWW_CONF}" ]; then
-    WWW_CONF=/etc/php5/php-fpm.d/www.conf
-fi
-if [ ! -f "${WWW_CONF}" ]; then
-    # Some versions of php5 alpine use the root php-fpm.conf file for pools configuration
-    WWW_CONF=/etc/php5/php-fpm.conf
 fi
 # For cases when it defaults to UDS
 sed -i 's/^listen = .*$/listen = 9000/g' ${WWW_CONF}

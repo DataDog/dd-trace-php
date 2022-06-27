@@ -1,7 +1,5 @@
 --TEST--
-Exceptions from original call are passed to tracing closure (PHP 7+)
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip PHP 5 tested in separate test'); ?>
+Exceptions from original call are passed to tracing closure
 --FILE--
 <?php
 use DDTrace\SpanData;

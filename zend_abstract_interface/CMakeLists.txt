@@ -91,8 +91,6 @@ if(NOT TARGET Tea::Tea)
   message(FATAL_ERROR "TEA is required but not found")
 endif()
 
-add_subdirectory(value)
-
 add_subdirectory(env)
 add_subdirectory(exceptions)
 add_subdirectory(config)

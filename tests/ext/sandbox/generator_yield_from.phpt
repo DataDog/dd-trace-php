@@ -1,7 +1,7 @@
 --TEST--
 [PHP 7 generator smoke test] Functions return generators with 'yield from'
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000 || PHP_VERSION_ID >= 80000) die('skip: Test is for PHP 7'); ?>
+<?php if (PHP_VERSION_ID >= 80000) die('skip: Test is for PHP 7'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--

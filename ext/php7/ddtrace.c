@@ -60,7 +60,7 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)
-#if defined(ZTS) && PHP_VERSION_ID >= 70000
+#ifdef ZTS
 ZEND_TSRMLS_CACHE_DEFINE();
 #endif
 #endif

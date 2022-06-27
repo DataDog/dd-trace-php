@@ -31,11 +31,7 @@ bool zai_json_setup_bindings(void) {
     }
 
     zend_module_entry *json_me = NULL;
-#if PHP_VERSION_ID < 70000
-    zend_hash_find(&module_registry, ZEND_STRS("json"), (void **)&json_me);
-#else
     json_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("json"));
-#endif
 
     if (!json_me) return false;
 

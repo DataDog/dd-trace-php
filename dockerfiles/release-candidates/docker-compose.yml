@@ -92,45 +92,12 @@ services:
       args:
         - ddtracePkgUrl=${DDTRACE_PKG_URL_RPM}
 
-  centos-5.4:
-    <<: *base_php_service
-    build:
-      context: .
-      dockerfile: Dockerfile_centos_54
-      args:
-        - ddtracePkgUrl=${DDTRACE_PKG_URL_RPM}
-
-  centos-5.5:
-    <<: *base_php_service
-    build:
-      context: .
-      dockerfile: Dockerfile_centos_55
-      args:
-        - ddtracePkgUrl=${DDTRACE_PKG_URL_RPM}
-
   # PECL install
   pecl-7.2:
     <<: *base_php_service
     build:
       context: .
       dockerfile: Dockerfile_pecl_amazon_72
-      args:
-        - ddtracePkgUrl=${DDTRACE_PKG_URL_PECL}
-
-  pecl-5.6:
-    <<: *base_php_service
-    build:
-      context: .
-      dockerfile: Dockerfile_pecl_alpine_56
-      args:
-        - ddtracePkgUrl=${DDTRACE_PKG_URL_PECL}
-
-  # TODO Get PHP-FPM configured properly
-  pecl-5.5:
-    <<: *base_php_service
-    build:
-      context: .
-      dockerfile: Dockerfile_pecl_amazon_55
       args:
         - ddtracePkgUrl=${DDTRACE_PKG_URL_PECL}
 

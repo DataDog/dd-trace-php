@@ -25,14 +25,6 @@ $ PHP_FPM_CONTAINER=debian-8.0 docker-compose up -d nginx
 # CentOS 7 (PHP-FPM) on PHP 7.2
 $ docker-compose build centos-7.2
 $ PHP_FPM_CONTAINER=centos-7.2 docker-compose up -d nginx
-
-# CentOS 7 (PHP-FPM) on PHP 5.5
-$ docker-compose build centos-5.5
-$ PHP_FPM_CONTAINER=centos-5.5 docker-compose up -d nginx
-
-# CentOS 7 (PHP-FPM) on PHP 5.4
-$ docker-compose build centos-5.4
-$ PHP_FPM_CONTAINER=centos-5.4 docker-compose up -d nginx
 ```
 
 To view PHP-FPM logs:
@@ -68,11 +60,6 @@ $ PHP_FPM_CONTAINER=pecl-5.5 docker-compose up -d nginx
 ## Wishlist
 
 - [x] Add PHP 7.4 on Apache
-- [x] Add PHP 5.6 PECL container
-- [x] Add PHP 5.4 CentOS container
-- [x] Add PHP 5.5 PECL container
 - [x] Add PHP 8.0 on PHP-FPM
 - [ ] Add PHP 8.0 on Apache
-- [ ] Add PHP 5.4-zts PECL container
-- [ ] Add PHP 5.6 CentOS container
 - [ ] Add `php:7.4-apache` and install ZTS build of ddtrace

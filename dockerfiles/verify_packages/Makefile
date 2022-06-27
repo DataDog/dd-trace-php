@@ -1,5 +1,5 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-CENTOS6_PHP_VERSIONS:=5.4.centos6 5.5.centos6 5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos6 7.3.centos6 7.4.centos6 8.0.centos6
+CENTOS6_PHP_VERSIONS:=7.0.centos6 7.1.centos6 7.2.centos6 7.3.centos6 7.4.centos6 8.0.centos6
 
 .PHONY: $(CENTOS6_PHP_VERSIONS)
 

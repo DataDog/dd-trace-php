@@ -31,7 +31,7 @@ TEA_TEST_CASE("config/decode", "bool", {
         ret = zai_config_decode_value(name, type, &value, false);
 
         REQUIRE(ret == true);
-        REQUIRE(ZVAL_IS_TRUE(&value));
+        REQUIRE(Z_TYPE(value) == IS_TRUE);
     }
 
     // ---
@@ -51,7 +51,7 @@ TEA_TEST_CASE("config/decode", "bool", {
         ret = zai_config_decode_value(name, type, &value, false);
 
         REQUIRE(ret == true);
-        REQUIRE(ZVAL_IS_FALSE(&value));
+        REQUIRE(Z_TYPE(value) == IS_FALSE);
     }
 })
 
@@ -279,7 +279,6 @@ TEA_TEST_CASE_BARE("config/decode", "json", {
     zai_config_type type = ZAI_CONFIG_TYPE_JSON;
 
     REQUIRE(tea_sapi_spinup());
-    TEA_TSRMLS_FETCH();
     TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
     REQUIRE(zai_json_setup_bindings());
 

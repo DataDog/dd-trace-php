@@ -1,7 +1,5 @@
 --TEST--
 Extract client IP address (no ip header set)
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: http.client_ip only available on php 7 and 8'); ?>
 --FILE--
 <?php
 use function DDTrace\Testing\extract_ip_from_headers;

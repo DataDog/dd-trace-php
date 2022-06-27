@@ -4,12 +4,7 @@
 #include <stdbool.h>
 
 #include "php.h"
-
-#if PHP_VERSION_ID < 70000
-#include "ext/standard/php_smart_str.h"
-#else
 #include "zend_smart_str.h"
-#endif
 
 #define PHP_JSON_OBJECT_AS_ARRAY (1 << 0)
 

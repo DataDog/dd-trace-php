@@ -7,14 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if PHP_VERSION_ID < 70000
-#define ZVAL_UNDEF(z)  \
-    {                  \
-        INIT_PZVAL(z); \
-        ZVAL_NULL(z);  \
-    }
-#endif
-
 HashTable zai_config_name_map = {0};
 
 _Static_assert(ZAI_CONFIG_ENTRIES_COUNT_MAX < 256, "zai config entry count is overflowing uint8_t");

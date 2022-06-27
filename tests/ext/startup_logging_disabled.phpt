@@ -1,7 +1,6 @@
 --TEST--
 Startup logging is disabled
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: run-tests crashes with shell commands on PHP 5'); ?>
 <?php include 'startup_logging_skipif.inc'; ?>
 --ENV--
 DD_TRACE_STARTUP_LOGS=0

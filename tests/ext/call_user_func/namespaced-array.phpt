@@ -1,7 +1,9 @@
 --TEST--
 Test that call_user_func_array can trace inside a namespace
+--XFAIL--
+Not supported on PHP 7 yet
 --SKIPIF--
-<?php if (PHP_MAJOR_VERSION != 5) die("skip: only supported on PHP 5 atm"); ?>
+<?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pear/pecl test runner does not support XFAIL tests"); ?>
 --FILE--
 <?php
 

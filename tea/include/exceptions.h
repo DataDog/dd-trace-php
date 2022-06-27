@@ -14,17 +14,17 @@
  * with tea_exception_ignore() before RSHUTDOWN to prevent a ZMM
  * leak.
  */
-zend_class_entry *tea_exception_throw(const char *message TEA_TSRMLS_DC);
+zend_class_entry *tea_exception_throw(const char *message);
 
 /* Returns true if there is an exception that matches the class entry
  * 'ce' and the 'Exception::$message' string is equal to 'message'.
  */
-bool tea_exception_eq(zend_class_entry *ce, const char *message TEA_TSRMLS_DC);
+bool tea_exception_eq(zend_class_entry *ce, const char *message);
 
 /* Returns true if there is an exception. */
-bool tea_exception_exists(TEA_TSRMLS_D);
+bool tea_exception_exists();
 
 /* Frees exception from the executor globals. */
-void tea_exception_ignore(TEA_TSRMLS_D);
+void tea_exception_ignore();
 
 #endif  // TEA_EXCEPTIONS_H

@@ -1,7 +1,5 @@
 --TEST--
 Exceptions thrown in tracing closure and original call
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip PHP 5 tested in separate test'); ?>
 --FILE--
 <?php
 class SubException extends Exception { }

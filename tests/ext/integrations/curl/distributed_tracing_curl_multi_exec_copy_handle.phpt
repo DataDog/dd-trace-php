@@ -1,7 +1,6 @@
 --TEST--
 Distributed tracing headers propagate with curl_multi_exec() after curl_copy_handle()
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50616) die('skip: PHP < 5.6.16 has a separate test due to bug #71523'); ?>
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --INI--

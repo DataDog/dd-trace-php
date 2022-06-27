@@ -146,7 +146,7 @@ static PHP_MINIT_FUNCTION(tea_extension) {
             NULL,
             tea_extension_functions_list.entries,
             NULL,
-            __tea_extension_module.type TEA_TSRMLS_CC);
+            __tea_extension_module.type);
     }
 
     zend_register_extension(&__tea_zend_extension, __tea_extension_module.handle);
@@ -160,7 +160,7 @@ static PHP_MSHUTDOWN_FUNCTION(tea_extension) {
         zend_unregister_functions(
             tea_extension_functions_list.entries,
             tea_extension_functions_list.size - 1,
-            NULL TEA_TSRMLS_CC);
+            NULL);
     }
 
     return tea_extension_shutdown_run(

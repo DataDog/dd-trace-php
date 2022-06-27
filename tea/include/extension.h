@@ -6,26 +6,9 @@
 
 #include "common.h"
 
-#if PHP_VERSION_ID < 70000
-#ifdef ZTS
-#define TEA_EXTENSION_PARAMETERS_UNUSED() \
-    (void)(ht);                           \
-    (void)(return_value_ptr);             \
-    (void)(return_value_used);            \
-    (void)(this_ptr);                     \
-    (void)(TEA_TSRMLS_C)
-#else
-#define TEA_EXTENSION_PARAMETERS_UNUSED() \
-    (void)(ht);                           \
-    (void)(return_value_ptr);             \
-    (void)(return_value_used);            \
-    (void)(this_ptr)
-#endif
-#else
 #define TEA_EXTENSION_PARAMETERS_UNUSED() \
     (void)(execute_data);                 \
     (void)(return_value)
-#endif
 
 /* {{{ public typedefs */
 #if PHP_VERSION_ID < 80000
