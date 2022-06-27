@@ -426,7 +426,7 @@ build_pecl_package:
 	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
-packages: .tar.gz.x86_64 .tar.gz.aarch64 # bundle.tar.gz
+packages: .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
 verify_version:
