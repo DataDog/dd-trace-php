@@ -718,7 +718,7 @@ impl Profiler {
                 }
 
                 if let Some(sapi) = crate::SAPI.get() {
-                    match Tag::new("php_version", sapi.to_string()) {
+                    match Tag::new("php.sapi", sapi.to_string()) {
                         Ok(tag) => tags.push(tag),
                         Err(err) => warn!("Tag error: {}", err),
                     }
