@@ -105,7 +105,7 @@ function install($options)
         // For testing purposes, we need an alternate repo where we can push bundles that includes changes that we are
         // trying to test, as the previously released versions would not have those changes.
         $url = (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php")
-                . "/releases/download/${version}/dd-library-php-${version}-${platform}.tar.gz";
+            . "/releases/download/${version}/dd-library-php-${version}-${platform}.tar.gz";
         // phpcs:enable Generic.Files.LineLength.TooLong
         download($url, $tmpDirTarGz);
         unset($version);
@@ -289,11 +289,11 @@ function install($options)
                 );
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                        execute_or_exit(
-                            'Impossible to update the INI settings file.',
-                            "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
-                                . escapeshellarg($iniFilePath)
-                        );
+                    execute_or_exit(
+                        'Impossible to update the INI settings file.',
+                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
+                            . escapeshellarg($iniFilePath)
+                    );
                 } else {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
@@ -933,16 +933,16 @@ function add_missing_ini_settings($iniFilePath, $settings)
         // Formatting the setting to be added.
         $description =
             is_string($setting['description'])
-                ? '; ' . $setting['description']
-                : implode(
-                    "\n",
-                    array_map(
-                        function ($line) {
-                            return '; ' . $line;
-                        },
-                        $setting['description']
-                    )
-                );
+            ? '; ' . $setting['description']
+            : implode(
+                "\n",
+                array_map(
+                    function ($line) {
+                        return '; ' . $line;
+                    },
+                    $setting['description']
+                )
+            );
         $setting = ($setting['commented'] ? ';' : '') . $setting['name'] . ' = ' . $setting['default'];
         $formattedMissingProperties .= "\n$description\n$setting\n";
     }
