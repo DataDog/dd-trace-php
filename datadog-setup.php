@@ -516,7 +516,7 @@ function get_architecture()
 {
     return execute_or_exit(
         "Cannot detect host architecture (uname -m)",
-        "unme -m"
+        "uname -m"
     );
 }
 
