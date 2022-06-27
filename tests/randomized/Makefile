@@ -129,7 +129,7 @@ manifest.push.%:
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@cp ../../build/packages/dd-library-php-*-$(ARCHITECTURE).tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
+	@cp ../../build/packages/dd-library-php-*-$(ARCHITECTURE)-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
 
 library.download:
 	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
