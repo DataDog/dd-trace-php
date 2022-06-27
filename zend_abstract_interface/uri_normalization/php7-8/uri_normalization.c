@@ -5,7 +5,6 @@
 
 #include <ext/pcre/php_pcre.h>
 #include <ext/standard/php_string.h>
-#include <ext/standard/url.h>
 
 #if PHP_VERSION_ID < 70200
 #define zend_strpprintf strpprintf
