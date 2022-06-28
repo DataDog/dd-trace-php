@@ -773,30 +773,27 @@ static bool dd_rule_matches(zval *pattern, zend_string* value) {
             while (*p == '*') {
                 ++p;
             }
-            if (*p) {
-                return false;
-            }
+            free_alloca(backtrack_points, use_heap);
+            return !*p;
         }
         if (*s == *p || *p == '.') {
             ++s, ++p;
-            continue;
         } else if (*p == '*') {
             backtrack_points[backtrack_idx++] = ++p;
             backtrack_points[backtrack_idx++] = s;
-            continue;
+        } else {
+            do {
+                if (backtrack_idx > 0) {
+                    backtrack_idx -= 2;
+                    p = backtrack_points[backtrack_idx];
+                    s = ++backtrack_points[backtrack_idx + 1];
+                } else {
+                    free_alloca(backtrack_points, use_heap);
+                    return false;
+                }
+            } while (!*s);
+            backtrack_idx += 2;
         }
-
-        do {
-            if (backtrack_idx > 0) {
-                backtrack_idx -= 2;
-                p = backtrack_points[backtrack_idx];
-                s = ++backtrack_points[backtrack_idx + 1];
-            } else {
-                free_alloca(backtrack_points, use_heap);
-                return false;
-            }
-        } while (!*s);
-        backtrack_idx += 2;
     }
 
     free_alloca(backtrack_points, use_heap);
