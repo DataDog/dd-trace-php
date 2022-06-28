@@ -9,7 +9,6 @@ echo "Running with PHP variant: $php_variant"
 switch-php $php_variant
 php -v
 
-
-make sudo debug install install_ini BUILD_DIR=tmp/build_extension
+make clean sudo debug install install_ini BUILD_DIR=tmp/build_extension
 
 ${@}
