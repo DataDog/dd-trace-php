@@ -1,7 +1,6 @@
 --TEST--
 If an agent unix domain socket exists it will try to connect to it
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: run-tests crashes with shell commands on PHP 5'); ?>
 <?php include __DIR__ . '/../startup_logging_skipif.inc'; ?>
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php @mkdir("/var/run/datadog"); if (!is_dir("/var/run/datadog")) { `sudo mkdir /var/run/datadog <&-; sudo chown $(id -u) /var/run/datadog`; } if (!is_file("/var/run/datadog/apm.socket") && !is_writable("/var/run/datadog")) die("skip: no permissions to create a /var/run/datadog/apm.socket"); ?>

@@ -1,7 +1,5 @@
 --TEST--
 Verify the client ip is added from the peer IP  when no XFF header is available.
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: http.client_ip only available on php 7 and 8'); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 REMOTE_ADDR=127.0.0.1

@@ -59,33 +59,21 @@ static PHP_MINIT_FUNCTION(zai_config_ini) {
 /********************* zai_config_get_value() (from INI) **********************/
 
 static bool zai_config_set_runtime_ini(const char *name, size_t name_len, const char *value, size_t value_len, int stage) {
-#if PHP_VERSION_ID < 70000
-    TEA_TSRMLS_FETCH();
-    return zend_alter_ini_entry_ex((char *) name, name_len + 1, (char *) value, value_len, PHP_INI_USER, stage, /* force_change */ 0 TEA_TSRMLS_CC) == SUCCESS;
-#else
     zend_string *zs_name = zend_string_init(name, name_len, /* persistent */ 0);
     zend_string *zs_value = zend_string_init(value, value_len, /* persistent */ 0);
     bool ret = zend_alter_ini_entry_ex(zs_name, zs_value, PHP_INI_USER, stage, /* force_change */ 0) == SUCCESS;
     zend_string_release(zs_name);
     zend_string_release(zs_value);
     return ret;
-#endif
 }
 
 static void zai_config_restore_runtime_ini(const char *name, size_t name_len) {
-#if PHP_VERSION_ID < 70000
-    zend_restore_ini_entry((char *) name, name_len + 1, PHP_INI_STAGE_RUNTIME);
-#else
     zend_string *zs_name = zend_string_init(name, name_len, /* persistent */ 0);
     zend_restore_ini_entry(zs_name, ZEND_INI_STAGE_RUNTIME);
     zend_string_release(zs_name);
-#endif
 }
 
 static char *zai_config_ini_string(const char *name, size_t name_len) {
-#if PHP_VERSION_ID < 70000
-    ++name_len;
-#endif
     return zend_ini_string((char *) name, name_len, 0);
 }
 
@@ -100,7 +88,7 @@ TEST_INI("bool INI: default value", {}, {
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(ZVAL_IS_TRUE(value));
+    REQUIRE(Z_TYPE_P(value) == IS_TRUE);
 
     REQUEST_END()
 })
@@ -113,7 +101,7 @@ TEST_INI("bool INI: system value", {
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(ZVAL_IS_FALSE(value));
+    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
 
     REQUEST_END()
 })
@@ -126,7 +114,7 @@ TEST_INI("bool INI: user value", {}, {
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(ZVAL_IS_FALSE(value));
+    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
 
     REQUEST_END()
 })

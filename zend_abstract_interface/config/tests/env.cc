@@ -17,7 +17,7 @@ TEST_ENV("bool", {
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
     REQUIRE(value != NULL);
-    REQUIRE(ZVAL_IS_FALSE(value));
+    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
 
     REQUEST_END()
 })

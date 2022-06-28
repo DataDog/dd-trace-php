@@ -178,7 +178,7 @@ RUN set -xe; \
 RUN set -xe; \
     git clone --depth 1 --branch ${WORDPRESS_VERSION_TAG} git://develop.git.wordpress.org/ /home/wordpress; \
     cd /home/wordpress; \
-    switch_php 5.6; \
+    switch_php 7.0; \
     composer require --dev phpunit/phpunit ^5
 
 WORKDIR /home/wordpress

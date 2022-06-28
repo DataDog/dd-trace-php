@@ -1,7 +1,5 @@
 --TEST--
 Extract client IP address (ip header set)
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: http.client_ip only available on php 7 and 8'); ?>
 --INI--
 datadog.trace.client_ip_header=foo-Bar
 --FILE--

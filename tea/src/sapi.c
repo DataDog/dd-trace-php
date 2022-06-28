@@ -26,50 +26,30 @@
 
 static ssize_t ini_entries_len = -1;
 
-void (*tea_sapi_register_custom_server_variables)(zval *track_vars_server_array TEA_TSRMLS_DC);
+void (*tea_sapi_register_custom_server_variables)(zval *track_vars_server_array);
 
 static int ts_startup(sapi_module_struct *sapi_module) {
     return php_module_startup(sapi_module, tea_extension_module(), 1);
 }
 
-static int ts_deactivate(TEA_TSRMLS_D) {
-#ifdef ZTS
-#if PHP_VERSION_ID < 70000
-    UNUSED(TEA_TSRMLS_C);
-#endif
-#endif
-    return SUCCESS;
-}
+static int ts_deactivate() { return SUCCESS; }
 
-static void ts_send_header(sapi_header_struct *sapi_header, void *server_context TEA_TSRMLS_DC) {
+static void ts_send_header(sapi_header_struct *sapi_header, void *server_context) {
     UNUSED(sapi_header);
     UNUSED(server_context);
-#ifdef ZTS
-#if PHP_VERSION_ID < 70000
-    UNUSED(TEA_TSRMLS_C);
-#endif
-#endif
 }
 
-static char *ts_read_cookies(TEA_TSRMLS_D) {
-#ifdef ZTS
-#if PHP_VERSION_ID < 70000
-    UNUSED(TEA_TSRMLS_C);
-#endif
-#endif
-    return NULL;
-}
+static char *ts_read_cookies() { return NULL; }
 
-static void ts_register_variables(zval *track_vars_array TEA_TSRMLS_DC) {
-    php_import_environment_variables(track_vars_array TEA_TSRMLS_CC);
+static void ts_register_variables(zval *track_vars_array) {
+    php_import_environment_variables(track_vars_array);
     if (tea_sapi_register_custom_server_variables) {
-        tea_sapi_register_custom_server_variables(track_vars_array TEA_TSRMLS_CC);
+        tea_sapi_register_custom_server_variables(track_vars_array);
     }
 }
 
 static inline void ts_flush_noop(void *server_context) { UNUSED(server_context); }
 
-#if PHP_VERSION_ID >= 70000
 static size_t ts_write_stdout(const char *str, size_t str_length) {
     size_t len = tea_io_write_stdout(str, str_length);
     if (len == 0) {
@@ -77,29 +57,13 @@ static size_t ts_write_stdout(const char *str, size_t str_length) {
     }
     return len;
 }
-#else
-static int ts_write_stdout(const char *str, unsigned int str_length TEA_TSRMLS_DC) {
-#ifdef ZTS
-#if PHP_VERSION_ID < 70000
-    UNUSED(TEA_TSRMLS_C);
-#endif
-#endif
-    size_t len = tea_io_write_stdout(str, (size_t)str_length);
-    if (len == 0) {
-        php_handle_aborted_connection();
-    }
-    return (int)len;
-}
-#endif
 
 #if PHP_VERSION_ID >= 80000
 static void ts_log_message(const char *message, int syslog_type_int) {
 #elif PHP_VERSION_ID >= 70100
 static void ts_log_message(char *message, int syslog_type_int) {
-#elif PHP_VERSION_ID >= 70000
-static void ts_log_message(char *message) {
 #else
-static void ts_log_message(char *message TEA_TSRMLS_DC) {
+static void ts_log_message(char *message) {
 #endif
     char buf[TEA_IO_ERROR_LOG_MAX_BUF_SIZE];
     size_t len = tea_io_format_error_log(message, buf, sizeof buf);
@@ -175,7 +139,7 @@ static inline void ts_tsrm_startup(void) {
 #if PHP_VERSION_ID >= 80000
     php_tsrm_startup();
     ZEND_TSRMLS_CACHE_UPDATE();
-#elif PHP_VERSION_ID >= 70000
+#else
 #if PHP_VERSION_ID >= 70400
     php_tsrm_startup();
 #else
@@ -183,9 +147,6 @@ static inline void ts_tsrm_startup(void) {
     (void)ts_resource(0);
 #endif
     ZEND_TSRMLS_CACHE_UPDATE();
-#else
-    tsrm_startup(1, 1, 0, NULL);
-    (void)ts_resource(0);
 #endif
 }
 #endif
@@ -193,7 +154,6 @@ static inline void ts_tsrm_startup(void) {
 bool tea_sapi_sinit(void) {
 #ifdef ZTS
     ts_tsrm_startup();
-    TEA_TSRMLS_FETCH();
 #endif
 
 #if TEA_SAPI_HAS_ZEND_SIGNALS
@@ -260,20 +220,18 @@ bool tea_sapi_minit(void) {
 }
 
 void tea_sapi_mshutdown(void) {
-    TEA_TSRMLS_FETCH();
-    php_module_shutdown(TEA_TSRMLS_C);
+    php_module_shutdown();
 }
 
 bool tea_sapi_rinit(void) {
-    TEA_TSRMLS_FETCH();
-    if (php_request_startup(TEA_TSRMLS_C) == FAILURE) {
+    if (php_request_startup() == FAILURE) {
         return false;
     }
 
     SG(headers_sent) = 1;
     SG(request_info).no_headers = 1;
 
-    php_register_variable("PHP_SELF", "-", NULL TEA_TSRMLS_CC);
+    php_register_variable("PHP_SELF", "-", NULL);
 
     return true;
 }

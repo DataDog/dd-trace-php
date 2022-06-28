@@ -24,13 +24,9 @@ curl -s -L request-replayer/clear-dumped-data
 # We attempt in this order the following binary names:
 #    1. php
 #    2. php7 (some versions install php 7.x to this binary)
-#    3. php5 (some versions install php 5.x to this binary)
 DD_TRACE_PHP_BIN=$(command -v php || true)
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
     DD_TRACE_PHP_BIN=$(command -v php7 || true)
-fi
-if [ -z "$DD_TRACE_PHP_BIN" ]; then
-    DD_TRACE_PHP_BIN=$(command -v php5 || true)
 fi
 
 echo "PHP version: $(${DD_TRACE_PHP_BIN} -v)"

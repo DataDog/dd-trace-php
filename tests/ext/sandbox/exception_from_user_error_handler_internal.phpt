@@ -1,7 +1,5 @@
 --TEST--
 Exceptions from user error handler are tracked for instrumented internal functions
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=chmod
 --FILE--

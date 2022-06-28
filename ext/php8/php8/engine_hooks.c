@@ -11,7 +11,6 @@
 #include <exceptions/exceptions.h>
 #include <stdbool.h>
 #include <symbols/symbols.h>
-#include <value/value.h>
 
 #include "ext/php8/compatibility.h"
 #include "ext/php8/ddtrace.h"
@@ -117,11 +116,10 @@ static void dd_load_deferred_integration(zend_class_entry *scope, zval *fname, d
                            Z_STRVAL_P(fname));
     }
 
-    zval *rv;
-    ZAI_VALUE_INIT(rv);
+    zval rv;
     bool success =
-        zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
-    ZAI_VALUE_DTOR(rv);
+        zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, integration);
+    zval_ptr_dtor(&rv);
 
     ddtrace_dispatch_release(*dispatch);
 

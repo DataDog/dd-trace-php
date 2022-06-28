@@ -81,7 +81,6 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too big", {
 TEA_TEST_CASE_BARE("env/host", "outside request context", {
     REQUIRE(tea_sapi_sinit());
     REQUIRE(tea_sapi_minit());
-    TEA_TSRMLS_FETCH();
     TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
 
     REQUIRE_SETENV("FOO", "bar");

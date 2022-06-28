@@ -6,20 +6,6 @@ extern "C" {
 #include <cstdlib>
 #include <cstring>
 
-#if PHP_VERSION_ID >= 70000
-typedef zend_string *zend_string_ptr;
-#else
-typedef zai_string_view zend_string_ptr;
-static inline zai_string_view zend_string_init(const char *str, size_t len, zend_bool persistent) {
-    return (zai_string_view){ .len = len, .ptr = pestrndup(str, len, persistent) };
-}
-static inline void zend_string_release(zai_string_view str) {
-    efree((void *) str.ptr);
-}
-#define zend_string_equals_literal(str, literal) \
-    (str.len == sizeof(literal) - 1 && strncmp(str.ptr, literal, sizeof(literal) - 1) == 0)
-#endif
-
 #define TEST_BODY(output, path, ...)                  \
 {                                                     \
     zval fragment_regex, mapping;                     \
@@ -27,9 +13,9 @@ static inline void zend_string_release(zai_string_view str) {
     array_init(&mapping);                             \
                                                       \
     { __VA_ARGS__ }                                   \
-    zend_string_ptr path_str =                        \
+    zend_string *path_str =                        \
         zend_string_init(ZEND_STRL(path), 0);         \
-    zend_string_ptr res =                             \
+    zend_string *res =                             \
         zai_uri_normalize_path(                       \
             path_str,                                 \
             Z_ARRVAL(fragment_regex),                 \
@@ -114,24 +100,6 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
 })
 
 #undef TEST_BODY
-#if PHP_VERSION_ID < 70000
-#define TEST_BODY(output, query_string, ...)          \
-{                                                     \
-    zval whitelist;                                   \
-    array_init(&whitelist);                           \
-                                                      \
-    { __VA_ARGS__ }                                   \
-    zend_string_ptr res =                             \
-        zai_filter_query_string(                      \
-            ZAI_STRL_VIEW(query_string),              \
-            Z_ARRVAL(whitelist));                     \
-                                                      \
-    REQUIRE(zend_string_equals_literal(res, output)); \
-                                                      \
-    zend_string_release(res);                         \
-    zval_dtor(&whitelist);                            \
-}
-#else
 #define TEST_BODY(output, query_string, ...)          \
 {                                                     \
     zval whitelist;                                   \
@@ -140,7 +108,7 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
     zend_string *regex = NULL;                        \
                                                       \
     { __VA_ARGS__ }                                   \
-    zend_string_ptr res =                             \
+    zend_string *res =                             \
         zai_filter_query_string(                      \
             ZAI_STRL_VIEW(query_string),              \
             Z_ARRVAL(whitelist), regex);              \
@@ -151,7 +119,6 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
     zend_string_release(res);                         \
     zval_dtor(&whitelist);                            \
 }
-#endif
 
 #define TEST_QUERY_STRING(description, query_string, output, ...) \
     TEA_TEST_CASE("query_string", description,                    \
@@ -179,7 +146,6 @@ TEST_QUERY_STRING("whitelist some: repeated values", "&&a=1&a=1&&&b&b", "a=1&a=1
     add_assoc_null(&whitelist, "a");
 });
 
-#if PHP_VERSION_ID >= 70000
 TEST_QUERY_STRING("obfuscate: simple", "a=1&b=2&c=3", "a=1&b=2&<redacted>", {
     add_assoc_null(&whitelist, "*");
     regex = zend_string_init(ZEND_STRL("c=[0-9]"), 0);
@@ -199,4 +165,3 @@ TEST_QUERY_STRING("obfuscate: no obfuscation on whitelist", "a=1&b=2&c=3", "c=3"
     add_assoc_null(&whitelist, "c");
     regex = zend_string_init(ZEND_STRL("c=[0-9]"), 0);
 });
-#endif
