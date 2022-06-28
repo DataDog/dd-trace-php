@@ -1,6 +1,5 @@
 #include <hook/hook.h>
 #include <hook/table.h>
-#include <value/value.h>
 
 // clang-format off
 
@@ -273,7 +272,7 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
         hook->resolved_scope = ce;
         return zai_hook_resolved_install(hook, function);
     }
-    
+
     HashTable *funcs;
     if (hook->scope) {
         funcs = zend_hash_find_ptr(&zai_hook_request_classes, hook->scope);
@@ -764,7 +763,7 @@ zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_v
     if (resolved) {
         return zai_hook_iterate_resolved(resolved);
     }
-    
+
     HashTable *base_ht;
     if (scope.len) {
         base_ht = zend_hash_str_find_ptr(&zai_hook_request_classes, scope.ptr, scope.len);

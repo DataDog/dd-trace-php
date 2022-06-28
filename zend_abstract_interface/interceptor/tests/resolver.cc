@@ -3,7 +3,6 @@
 extern "C" {
 #include <hook/hook.h>
 #include <hook/table.h>
-#include <value/value.h>
 #include <tea/extension.h>
 #if PHP_VERSION_ID < 80000
 #include <interceptor/php7/interceptor.h>
@@ -58,12 +57,12 @@ extern "C" {
     }
 }
 
-static bool zai_hook_test_begin(zend_ulong invocation, zend_execute_data *ex, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static bool zai_hook_test_begin(zend_ulong invocation, zend_execute_data *ex, void *fixed, void *dynamic) {
     REQUIRE_FALSE(1);
     return true;
 }
 
-static void zai_hook_test_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, void *fixed, void *dynamic TEA_TSRMLS_DC) {
+static void zai_hook_test_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, void *fixed, void *dynamic) {
     REQUIRE_FALSE(1);
 }
 
@@ -85,14 +84,13 @@ static bool hook_is_installed(zend_op_array *op_array) {
     zai_hook_test_begin, \
     zai_hook_test_end, \
     ZAI_HOOK_AUX(NULL, NULL), \
-    0 TEA_TSRMLS_CC) != -1)
+    0) != -1)
 #define CALL_FN(fn, ...) do { \
-    zval *result; \
-    ZAI_VALUE_INIT(result); \
+    zval result; \
     zai_string_view _fn_name = ZAI_STRL_VIEW(fn);               \
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result TEA_TSRMLS_CC, 0)); \
+    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0)); \
     __VA_ARGS__               \
-    ZAI_VALUE_DTOR(result);                          \
+    zval_ptr_dtor(&result);                          \
 } while (0)
 
 TEA_TEST_CASE_WITH_PROLOGUE("interceptor", "runtime top-level resolving", init_interceptor_test();, {
@@ -101,7 +99,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("interceptor", "runtime top-level resolving", init_i
 
     volatile bool stub = true;
     zend_try {
-        stub = tea_execute_script("./stubs/unresolved.php" TEA_TSRMLS_CC);
+        stub = tea_execute_script("./stubs/unresolved.php");
     } zend_catch {
         stub = false;
     } zend_end_try();
@@ -182,7 +180,7 @@ INTERCEPTOR_TEST_CASE("runtime class_alias resolving", {
 #if PHP_VERSION_ID < 80000  // not a scenario which can happen on PHP 8
 INTERCEPTOR_TEST_CASE("ensure runtime post-declare resolving does not impact error", {
     INSTALL_CLASS_HOOK("Inherited", "bar");
-    CALL_FN("failDeclare", REQUIRE(zval_is_true(result)););
+    CALL_FN("failDeclare", REQUIRE(zval_is_true(&result)););
     REQUIRE(zend_hash_num_elements(&zai_hook_resolved) == 0);
 });
 #endif

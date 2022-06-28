@@ -222,6 +222,8 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_assert])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_string])
 
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/hook])
+
   PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor])
 

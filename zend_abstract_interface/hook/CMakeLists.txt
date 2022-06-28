@@ -6,7 +6,7 @@ target_include_directories(
 
 target_compile_features(zai_hook PUBLIC c_std_99)
 
-target_link_libraries(zai_hook PUBLIC "${PHP_LIB}" Zai::Value Zai::Symbols)
+target_link_libraries(zai_hook PUBLIC "${PHP_LIB}" Zai::Symbols)
 
 set_target_properties(zai_hook PROPERTIES EXPORT_NAME Hook
                                             VERSION ${PROJECT_VERSION})
@@ -14,9 +14,7 @@ set_target_properties(zai_hook PROPERTIES EXPORT_NAME Hook
 add_library(Zai::Hook ALIAS zai_hook)
 
 if(${BUILD_ZAI_TESTING})
-  if (PHP_VERSION_ID GREATER_EQUAL 50500)
-      add_subdirectory(tests)
-  endif()
+  add_subdirectory(tests)
 endif()
 
 install(

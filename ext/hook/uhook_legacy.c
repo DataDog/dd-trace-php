@@ -32,8 +32,7 @@ typedef struct {
 } dd_uhook_dynamic;
 
 static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *dyn, zend_execute_data *execute_data, zval *retval) {
-    zval rv = {0}, *rvp = &rv;
-    zval closure_zv, args_zv, exception_zv;
+    zval rv, closure_zv, args_zv, exception_zv;
     ZVAL_OBJ(&closure_zv, closure);
     ZVAL_ARR(&args_zv, dyn->args);
     if (EG(exception)) {
@@ -46,7 +45,6 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
     if (tracing) {
         zval span_zv;
         ZVAL_OBJ(&span_zv, &dyn->span->span.std);
-        zval *span_zvp = &span_zv, *args_zvp = &args_zv, *retvalp = retval, *exception_zvp = &exception_zv;
         zai_symbol_scope_t scope_type = ZAI_SYMBOL_SCOPE_GLOBAL;
         void *scope = NULL;
         if (getThis()) {
@@ -59,20 +57,19 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
             }
         }
         success = zai_symbol_call(scope_type, scope,
-                        ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zvp, &args_zvp, &retvalp, &exception_zvp);
+                        ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rv, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv, &args_zv, retval, &exception_zv);
     } else {
-        zval *args_zvp = &args_zv, *retvalp = retval, *exception_zvp = &exception_zv;
-        zval *Thisp = getThis() ? &EX(This) : &EG(uninitialized_zval);
         if (EX(func)->common.scope) {
-            zval scope, *scopep = &scope;
+            zval *This = getThis() ? &EX(This) : &EG(uninitialized_zval);
+            zval scope;
             ZVAL_NULL(&scope);
             zend_class_entry *scope_ce = zend_get_called_scope(execute_data);
             if (scope_ce) {
                 ZVAL_STR(&scope, scope_ce->name);
             }
-            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 5 | ZAI_SYMBOL_SANDBOX, &sandbox, &Thisp, &scopep, &args_zvp, &retvalp, &exception_zvp);
+            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rv, 5 | ZAI_SYMBOL_SANDBOX, &sandbox, This, &scope, &args_zv, retval, &exception_zv);
         } else {
-            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rvp, 3 | ZAI_SYMBOL_SANDBOX, &sandbox, &args_zvp, &retvalp, &exception_zvp);
+            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rv, 3 | ZAI_SYMBOL_SANDBOX, &sandbox, &args_zv, retval, &exception_zv);
         }
     }
 
@@ -126,7 +123,7 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
     }
     zai_sandbox_close(&sandbox);
 
-    zval_ptr_dtor(rvp);
+    zval_ptr_dtor(&rv);
 
     return Z_TYPE(rv) != IS_FALSE;
 }

@@ -1,9 +1,5 @@
 --TEST--
 Test that call_user_func can trace inside a namespace
---XFAIL--
-Not supported on PHP 7 yet
---SKIPIF--
-<?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pear/pecl test runner does not support XFAIL tests"); ?>
 --FILE--
 <?php
 

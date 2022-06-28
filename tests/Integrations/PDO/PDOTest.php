@@ -90,7 +90,8 @@ final class PDOTest extends IntegrationTestCase
             $objId = spl_object_id($brokenStatement);
             try {
                 $pdo->prepare($brokenStatement);
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),

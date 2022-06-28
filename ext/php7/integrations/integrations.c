@@ -2,7 +2,6 @@
 
 #include "../configuration.h"
 #include "../logging.h"
-#include "value/value.h"
 #include <hook/hook.h>
 #undef INTEGRATION
 
@@ -61,22 +60,18 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
     (void) dynamic, (void) retval, (void) invocation;
 
     dd_integration_aux *aux = auxiliary;
-    zval integration, *integrationp = &integration;
+    zval integration;
     ZVAL_STR(&integration, aux->classname);
 
     if (aux->name == -1u || ddtrace_config_integration_enabled(aux->name)) {
-        zval *rv;
-        ZAI_VALUE_INIT(rv);
+        zval rv;
         bool success;
         zval *thisp = getThis();
         if (thisp) {
-            success = zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 2,
-                                              &integrationp, &thisp);
+            success = zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 2, &integration, thisp);
         } else {
-            success = zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1,
-                                              &integrationp);
+            success = zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
         }
-        ZAI_VALUE_DTOR(rv);
 
         if (UNEXPECTED(!success)) {
             ddtrace_log_debugf(

@@ -5,7 +5,6 @@
 
 extern "C" {
 #include <hook/hook.h>
-#include <value/value.h>
 
     static void (*zend_execute_internal_function)(zend_execute_data *ex, zval *rv);
 

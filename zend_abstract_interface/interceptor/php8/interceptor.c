@@ -35,7 +35,8 @@ static inline bool zai_hook_memory_table_del(zend_execute_data *index) {
     return zend_hash_index_del(&zai_hook_memory, ((zend_ulong)index) >> 4);
 }
 
-static void zai_hook_safe_finish(register zend_execute_data *execute_data, register zval *retval, register zai_interceptor_frame_memory *frame_memory) {
+#if defined(__x86_64__) || defined(__aarch64__)
+static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, zai_interceptor_frame_memory *frame_memory) {
     if (!CG(unclean_shutdown)) {
         zai_hook_finish(execute_data, retval, &frame_memory->hook_data);
         return;
@@ -55,26 +56,41 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
 
 #ifdef __SANITIZE_ADDRESS__
         void *volatile fake_stack;
-    	__sanitizer_start_switch_fiber((void**) &fake_stack, stacktop, stack_size);
+        __sanitizer_start_switch_fiber((void**) &fake_stack, stacktop, stack_size);
+#define STACK_REG "5"
+#else
+#define STACK_REG "4"
 #endif
 
+        register zend_execute_data *ex = execute_data;
+        register zval *rv = retval;
+        register zai_hook_memory_t *hook_data = &frame_memory->hook_data;
+        register JMP_BUF *jump_target = &target;
+
+        // Add values as register inputs so that compilers are forced to not reorder the variable read below the stack switch
+        __asm__ volatile(
 #if defined(__x86_64__)
-        __asm__ volatile("mov %0, %%rsp" : : "r"(stacktarget));
+            "mov %" STACK_REG ", %%rsp"
 #elif defined(__aarch64__)
-        __asm__ volatile("mov sp, %0" : : "r"(stacktarget));
+            "mov sp, %" STACK_REG
 #endif
+            : "+r"(ex), "+r"(rv), "+r"(hook_data), "+r"(jump_target)
+#ifdef __SANITIZE_ADDRESS__
+                , "+r"(fake_stack)
+#endif
+            : "r"(stacktarget));
 
 #ifdef __SANITIZE_ADDRESS__
         __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
 #endif
 
-        zai_hook_finish(execute_data, retval, &frame_memory->hook_data);
+        zai_hook_finish(ex, rv, hook_data);
 
 #ifdef __SANITIZE_ADDRESS__
-    	__sanitizer_start_switch_fiber(NULL, bottom, capacity);
+        __sanitizer_start_switch_fiber(NULL, bottom, capacity);
 #endif
 
-        LONGJMP(target, 1);
+        LONGJMP(*jump_target, 1);
     }
 
 #ifdef __SANITIZE_ADDRESS__
@@ -83,6 +99,11 @@ static void zai_hook_safe_finish(register zend_execute_data *execute_data, regis
 
     free(stack);
 }
+#else
+static inline void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, zai_interceptor_frame_memory *frame_memory) {
+    zai_hook_finish(execute_data, retval, &frame_memory->hook_data);
+}
+#endif
 
 static void zai_interceptor_observer_begin_handler(zend_execute_data *execute_data) {
     zai_interceptor_frame_memory frame_memory;
@@ -126,7 +147,7 @@ static void zai_interceptor_generator_yielded(zend_execute_data *ex, zval *key, 
         } else {
             /* As per get_new_root():
              * We have reached a multi-child node haven't found the root yet. We don't know which
-	     * child to follow, so perform the search from the other direction instead. */
+             * child to follow, so perform the search from the other direction instead. */
             zend_generator *child = leaf;
             while (child->node.parent != generator) {
                 child = child->node.parent;
@@ -365,7 +386,7 @@ static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(ze
 }
 
 #define ZEND_OBSERVER_DATA(op_array) \
-	ZEND_OP_ARRAY_EXTENSION(op_array, zend_observer_fcall_op_array_extension)
+    ZEND_OP_ARRAY_EXTENSION(op_array, zend_observer_fcall_op_array_extension)
 
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
@@ -417,13 +438,13 @@ static void zai_interceptor_observer_placeholder_handler(zend_execute_data *exec
     zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(&execute_data->func->op_array);
     for (zend_observer_fcall_handlers *handlers = data->handlers, *end = data->end; handlers != end; ++handlers) {
         if (handlers->begin == zai_interceptor_observer_placeholder_handler) {
+            data->end = end - 1;
             if (handlers == end - 1) {
                 handlers->begin = NULL;
             } else {
                 *handlers = *(end - 1);
                 handlers->begin(execute_data);
             }
-            data->end = end - 1;
             break;
         }
     }

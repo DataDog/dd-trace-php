@@ -51,7 +51,7 @@ void ddtrace_message_handler(int message, void *arg) {
         if (EXPECTED(runtime_id)) {
             ddtrace_profiling_runtime_id = runtime_id;
         } else {
-            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: \n",
+            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n",
                                extension->version, DL_ERROR());
         }
     }

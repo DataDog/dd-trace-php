@@ -444,7 +444,7 @@ static void zai_interceptor_generator_yielded(zend_execute_data *ex, zval *key, 
         } else {
             /* As per get_new_root():
              * We have reached a multi-child node haven't found the root yet. We don't know which
-	         * child to follow, so perform the search from the other direction instead. */
+             * child to follow, so perform the search from the other direction instead. */
             zend_generator *child = leaf;
             while (child->node.parent != generator) {
                 child = child->node.parent;
