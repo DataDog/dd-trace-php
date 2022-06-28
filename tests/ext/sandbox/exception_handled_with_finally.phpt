@@ -1,7 +1,7 @@
 --TEST--
 Return value from finally block is passed to tracing closure
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70100) die('skip: This causes an unpatched memory leak from php-src on PHP 5.6 and 7.0'); ?>
+<?php if (PHP_VERSION_ID < 70100) die('skip: This causes an unpatched memory leak from php-src on 7.0'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

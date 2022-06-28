@@ -2,6 +2,7 @@
 Clone DDTrace\SpanData
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -82,11 +83,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(29) "c3Bhbl9jbG9uZS5waHA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(12) "8cfa685fde-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "8cfa685fde"
     }
     ["metrics"]=>
     array(3) {

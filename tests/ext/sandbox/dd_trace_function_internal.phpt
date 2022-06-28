@@ -3,6 +3,7 @@ DDTrace\trace_function() can trace internal functions with internal spans
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -42,11 +43,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(50) "ZGRfdHJhY2VfZnVuY3Rpb25faW50ZXJuYWwucGhw|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(12) "e23c636b43-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "e23c636b43"
     }
     ["metrics"]=>
     array(3) {

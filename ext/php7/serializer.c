@@ -20,6 +20,7 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "runtime.h"
@@ -33,9 +34,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace);
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level);
 
-static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
+static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
     zval *tmp;
     zend_string *string_key;
     zend_long num_key;
@@ -64,7 +65,8 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
             }
             mpack_write_cstr(writer, key);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
-            if (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key)) {
+            if (level <= 3 &&
+                (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key))) {
                 zval_string_as_uint64 = true;
             }
         }
@@ -72,7 +74,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
         // Writing the value
         if (zval_string_as_uint64) {
             mpack_write_u64(writer, strtoull(Z_STRVAL_P(tmp), NULL, 10));
-        } else if (msgpack_write_zval(writer, tmp) != 1) {
+        } else if (msgpack_write_zval(writer, tmp, level) != 1) {
             return 0;
         }
     }
@@ -86,14 +88,14 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht) {
     return 1;
 }
 
-static int msgpack_write_zval(mpack_writer_t *writer, zval *trace) {
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
     if (Z_TYPE_P(trace) == IS_REFERENCE) {
         trace = Z_REFVAL_P(trace);
     }
 
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
-            if (write_hash_table(writer, Z_ARRVAL_P(trace)) != 1) {
+            if (write_hash_table(writer, Z_ARRVAL_P(trace), level + 1) != 1) {
                 return 0;
             }
             break;
@@ -127,7 +129,7 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    if (msgpack_write_zval(&writer, trace) != 1) {
+    if (msgpack_write_zval(&writer, trace, 0) != 1) {
         mpack_writer_destroy(&writer);
         free(data);
         return 0;
@@ -478,9 +480,9 @@ static zend_string *dd_build_req_url() {
     zend_string *query_string = ZSTR_EMPTY_ALLOC();
     if (question_mark) {
         uri_len = question_mark - uri;
-        query_string =
-            zai_filter_query_string((zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
-                                    get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED());
+        query_string = zai_filter_query_string(
+            (zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
+            get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED(), get_DD_OBFUSCATION_QUERY_STRING_REGEXP());
     } else {
         uri_len = strlen(uri);
     }
@@ -492,6 +494,17 @@ static zend_string *dd_build_req_url() {
     zend_string_release(query_string);
 
     return url;
+}
+
+static zend_string *dd_get_user_agent() {
+    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
+    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+        zval *user_agent = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("HTTP_USER_AGENT"));
+        if (user_agent && Z_TYPE_P(user_agent) == IS_STRING) {
+            return Z_STR_P(user_agent);
+        }
+    }
+    return ZSTR_EMPTY_ALLOC();
 }
 
 void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
@@ -520,40 +533,57 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
         zend_hash_str_add_new(meta, "runtime-id", sizeof("runtime-id") - 1, &zv);
     }
 
+    zval http_url;
+    ZVAL_STR(&http_url, dd_build_req_url());
+    if (Z_STRLEN(http_url)) {
+        zend_hash_str_add_new(meta, "http.url", sizeof("http.url") - 1, &http_url);
+    }
+
     const char *method = SG(request_info).request_method;
-    if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED() && method) {
+    if (method) {
         zval http_method;
         ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
         zend_hash_str_add_new(meta, "http.method", sizeof("http.method") - 1, &http_method);
 
-        zval http_url;
-        ZVAL_STR(&http_url, dd_build_req_url());
-        if (Z_STRLEN(http_url)) {
-            zend_hash_str_add_new(meta, "http.url", sizeof("http.url") - 1, &http_url);
-        }
+        if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
+            const char *uri = dd_get_req_uri();
+            zval *prop_resource = ddtrace_spandata_property_resource(span);
+            if (uri) {
+                zend_string *path = zend_string_init(uri, strlen(uri), 0);
+                zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
+                zend_string *query_string = ZSTR_EMPTY_ALLOC();
+                const char *query_str = dd_get_query_string();
+                if (query_str) {
+                    query_string = zai_filter_query_string(
+                        (zai_string_view){.len = strlen(query_str), .ptr = query_str},
+                        get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(), get_DD_OBFUSCATION_QUERY_STRING_REGEXP());
+                }
 
-        const char *uri = dd_get_req_uri();
-        zval *prop_resource = ddtrace_spandata_property_resource(span);
-        if (uri) {
-            zend_string *path = zend_string_init(uri, strlen(uri), 0);
-            zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
-            zend_string *query_string = ZSTR_EMPTY_ALLOC();
-            const char *query_str = dd_get_query_string();
-            if (query_str) {
-                query_string = zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
-                                                       get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED());
+                ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s%s%.*s", method, ZSTR_VAL(normalized),
+                                                        ZSTR_LEN(query_string) ? "?" : "", (int)ZSTR_LEN(query_string),
+                                                        ZSTR_VAL(query_string)));
+                zend_string_release(query_string);
+                zend_string_release(normalized);
+                zend_string_release(path);
+            } else {
+                ZVAL_COPY(prop_resource, &http_method);
             }
-
-            ZVAL_STR(prop_resource,
-                     zend_strpprintf(0, "%s %s%s%.*s", method, ZSTR_VAL(normalized), ZSTR_LEN(query_string) ? "?" : "",
-                                     (int)ZSTR_LEN(query_string), ZSTR_VAL(query_string)));
-            zend_string_release(query_string);
-            zend_string_release(normalized);
-            zend_string_release(path);
-        } else {
-            ZVAL_COPY(prop_resource, &http_method);
         }
     }
+
+    if (!get_DD_TRACE_CLIENT_IP_HEADER_DISABLED()) {
+        if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+            ddtrace_extract_ip_from_headers(&PG(http_globals)[TRACK_VARS_SERVER], meta);
+        }
+    }
+
+    zend_string *user_agent = dd_get_user_agent();
+    if (user_agent && ZSTR_LEN(user_agent) > 0) {
+        zval http_useragent;
+        ZVAL_STR_COPY(&http_useragent, user_agent);
+        zend_hash_str_add_new(meta, "http.useragent", sizeof("http.useragent") - 1, &http_useragent);
+    }
+
     zval *prop_type = ddtrace_spandata_property_type(span);
     zval *prop_name = ddtrace_spandata_property_name(span);
     if (strcmp(sapi_module.name, "cli") == 0) {

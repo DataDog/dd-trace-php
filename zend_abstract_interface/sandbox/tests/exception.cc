@@ -15,7 +15,7 @@ TEA_TEST_CASE("sandbox/exception", "state: throw exception", {
      * frame before throwing the exception.
      */
     zend_execute_data fake_frame;
-    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
+    REQUIRE(tea_frame_push(&fake_frame));
 
     zai_exception_state es;
     zai_sandbox_exception_state_backup(&es);
@@ -25,16 +25,16 @@ TEA_TEST_CASE("sandbox/exception", "state: throw exception", {
     zend_class_entry *ce;
 
     TEA_TEST_CODE_WITHOUT_BAILOUT({
-        ce = tea_exception_throw("Foo exception" TEA_TSRMLS_CC);
+        ce = tea_exception_throw("Foo exception");
     });
 
-    REQUIRE(tea_exception_eq(ce, "Foo exception" TEA_TSRMLS_CC));
+    REQUIRE(tea_exception_eq(ce, "Foo exception"));
 
     zai_sandbox_exception_state_restore(&es);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
+    tea_frame_pop(&fake_frame);
 })
 
 TEA_TEST_CASE("sandbox/exception", "state: existing unhandled exception", {
@@ -42,10 +42,10 @@ TEA_TEST_CASE("sandbox/exception", "state: existing unhandled exception", {
 
     /* Throwing exceptions require an active execution context. */
     zend_execute_data fake_frame;
-    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
+    REQUIRE(tea_frame_push(&fake_frame));
 
-    zend_class_entry *orig_exception_ce = tea_exception_throw("Original exception" TEA_TSRMLS_CC);
-    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception" TEA_TSRMLS_CC));
+    zend_class_entry *orig_exception_ce = tea_exception_throw("Original exception");
+    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception"));
 
     zai_exception_state es;
     zai_sandbox_exception_state_backup(&es);
@@ -55,17 +55,17 @@ TEA_TEST_CASE("sandbox/exception", "state: existing unhandled exception", {
     zend_class_entry *ce;
 
     TEA_TEST_CODE_WITHOUT_BAILOUT({
-        ce = tea_exception_throw("Foo exception" TEA_TSRMLS_CC);
+        ce = tea_exception_throw("Foo exception");
     })
 
-    REQUIRE(tea_exception_eq(ce, "Foo exception" TEA_TSRMLS_CC));
+    REQUIRE(tea_exception_eq(ce, "Foo exception"));
 
     zai_sandbox_exception_state_restore(&es);
 
-    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception" TEA_TSRMLS_CC));
-    tea_exception_ignore(TEA_TSRMLS_C);
+    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception"));
+    tea_exception_ignore();
 
-    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
+    tea_frame_pop(&fake_frame);
 })
 
 /* TODO Test 'EG(prev_exception)' handling. The previous exception in the
@@ -92,11 +92,11 @@ TEA_TEST_CASE("sandbox/exception", "state: throw exception (userland)", {
      * https://github.com/php/php-src/blob/php-8.0.0/Zend/zend_exceptions.c#L976-L978
      */
     TEA_TEST_CODE_WITHOUT_BAILOUT({
-        tea_execute_script("./stubs/throw_exception.php" TEA_TSRMLS_CC);
+        tea_execute_script("./stubs/throw_exception.php");
     });
 #else
     TEA_TEST_CODE_WITH_BAILOUT({
-        tea_execute_script("./stubs/throw_exception.php" TEA_TSRMLS_CC);
+        tea_execute_script("./stubs/throw_exception.php");
     });
 #endif
 
@@ -107,16 +107,16 @@ TEA_TEST_CASE("sandbox/exception", "state: throw exception (userland)", {
      * fire after the exception is thrown and before ZEND_HANDLE_EXCEPTION is
      * called.
      */
-    //REQUIRE(tea_exception_eq(userland_ce, "My foo exception" TEA_TSRMLS_CC));
+    //REQUIRE(tea_exception_eq(userland_ce, "My foo exception"));
 
     zai_sandbox_exception_state_restore(&es);
 
-    REQUIRE(false == tea_exception_exists(TEA_TSRMLS_C));
+    REQUIRE(false == tea_exception_exists());
     /* An uncaught exception changes the error state.
      *
      * TODO Support scanf-style formatted errors.
      */
-    //REQUIRE(tea_error_eq(E_ERROR, "Fatal error - Uncaught Exception: My foo exception in %s:%d" TEA_TSRMLS_CC));
+    //REQUIRE(tea_error_eq(E_ERROR, "Fatal error - Uncaught Exception: My foo exception in %s:%d"));
 })
 
 static int zai_throw_exception_hook_calls_count = 0;
@@ -138,16 +138,15 @@ TEA_TEST_CASE_BARE("sandbox/exception", "zend_throw_exception_hook called once",
     zend_throw_exception_hook = zai_throw_exception_hook;
 
     REQUIRE(tea_sapi_rinit());
-    TEA_TSRMLS_FETCH();
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
     /* Throwing exceptions require an active execution context. */
     zend_execute_data fake_frame;
-    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
+    REQUIRE(tea_frame_push(&fake_frame));
 
-    zend_class_entry *orig_exception_ce = tea_exception_throw("Original exception" TEA_TSRMLS_CC);
-    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception" TEA_TSRMLS_CC));
+    zend_class_entry *orig_exception_ce = tea_exception_throw("Original exception");
+    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception"));
     REQUIRE(zai_throw_exception_hook_calls_count == 1);
 
     zai_exception_state es;
@@ -158,22 +157,22 @@ TEA_TEST_CASE_BARE("sandbox/exception", "zend_throw_exception_hook called once",
     zend_class_entry *ce;
 
     TEA_TEST_CASE_WITHOUT_BAILOUT_BEGIN()
-    ce = tea_exception_throw("Foo exception" TEA_TSRMLS_CC);
+    ce = tea_exception_throw("Foo exception");
     TEA_TEST_CASE_WITHOUT_BAILOUT_END()
 
-    REQUIRE(tea_exception_eq(ce, "Foo exception" TEA_TSRMLS_CC));
+    REQUIRE(tea_exception_eq(ce, "Foo exception"));
     REQUIRE(zai_throw_exception_hook_calls_count == 2);
 
     zai_sandbox_exception_state_restore(&es);
 
-    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception" TEA_TSRMLS_CC));
+    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception"));
     /* The sandbox should not invoke zend_throw_exception_hook a third time
      * when restoring the original exception.
      */
     REQUIRE(zai_throw_exception_hook_calls_count == 2);
-    tea_exception_ignore(TEA_TSRMLS_C);
+    tea_exception_ignore();
 
-    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
+    tea_frame_pop(&fake_frame);
 
     tea_sapi_spindown();
 })
@@ -183,7 +182,7 @@ TEA_TEST_CASE("sandbox/exception", "throw exception", {
 
     /* Throwing exceptions require an active execution context. */
     zend_execute_data fake_frame;
-    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
+    REQUIRE(tea_frame_push(&fake_frame));
 
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
@@ -191,16 +190,16 @@ TEA_TEST_CASE("sandbox/exception", "throw exception", {
     zend_class_entry *ce;
 
     TEA_TEST_CODE_WITHOUT_BAILOUT({
-        ce = tea_exception_throw("Foo exception" TEA_TSRMLS_CC);
+        ce = tea_exception_throw("Foo exception");
     });
 
-    REQUIRE(tea_exception_eq(ce, "Foo exception" TEA_TSRMLS_CC));
+    REQUIRE(tea_exception_eq(ce, "Foo exception"));
 
     zai_sandbox_close(&sandbox);
 
     REQUIRE_ERROR_AND_EXCEPTION_CLEAN_SLATE();
 
-    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
+    tea_frame_pop(&fake_frame);
 })
 
 TEA_TEST_CASE("sandbox/exception", "existing unhandled exception", {
@@ -208,13 +207,13 @@ TEA_TEST_CASE("sandbox/exception", "existing unhandled exception", {
 
     /* Throwing exceptions require an active execution context. */
     zend_execute_data fake_frame;
-    REQUIRE(tea_frame_push(&fake_frame TEA_TSRMLS_CC));
+    REQUIRE(tea_frame_push(&fake_frame));
 
     zend_class_entry *orig_exception_ce;
     TEA_TEST_CODE_WITHOUT_BAILOUT({
-        orig_exception_ce = tea_exception_throw("Original exception" TEA_TSRMLS_CC);
+        orig_exception_ce = tea_exception_throw("Original exception");
     });
-    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception" TEA_TSRMLS_CC));
+    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception"));
 
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
@@ -225,18 +224,18 @@ TEA_TEST_CASE("sandbox/exception", "existing unhandled exception", {
         zend_class_entry *ce;
 
         TEA_TEST_CODE_WITHOUT_BAILOUT({
-            ce = tea_exception_throw("Foo exception" TEA_TSRMLS_CC);
+            ce = tea_exception_throw("Foo exception");
         });
 
-        REQUIRE(tea_exception_eq(ce, "Foo exception" TEA_TSRMLS_CC));
+        REQUIRE(tea_exception_eq(ce, "Foo exception"));
     }
 
     zai_sandbox_close(&sandbox);
 
-    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception" TEA_TSRMLS_CC));
-    tea_exception_ignore(TEA_TSRMLS_C);
+    REQUIRE(tea_exception_eq(orig_exception_ce, "Original exception"));
+    tea_exception_ignore();
 
-    tea_frame_pop(&fake_frame TEA_TSRMLS_CC);
+    tea_frame_pop(&fake_frame);
 })
 
 TEA_TEST_CASE("sandbox/exception", "throw exception (userland)", {
@@ -250,16 +249,16 @@ TEA_TEST_CASE("sandbox/exception", "throw exception (userland)", {
 #if PHP_VERSION_ID >= 80000
     /* Uncaught exceptions have a clean shutdown in PHP 8. */
     TEA_TEST_CODE_WITHOUT_BAILOUT({
-        tea_execute_script("./stubs/throw_exception.php" TEA_TSRMLS_CC);
+        tea_execute_script("./stubs/throw_exception.php");
     });
 #else
     TEA_TEST_CODE_WITH_BAILOUT({
-        tea_execute_script("./stubs/throw_exception.php" TEA_TSRMLS_CC);
+        tea_execute_script("./stubs/throw_exception.php");
     });
 #endif
 
     /* TODO See comment from "exception state: throw exception (userland)". */
-    //REQUIRE(tea_exception_eq(userland_ce, "My foo exception" TEA_TSRMLS_CC));
+    //REQUIRE(tea_exception_eq(userland_ce, "My foo exception"));
 
     zai_sandbox_close(&sandbox);
 

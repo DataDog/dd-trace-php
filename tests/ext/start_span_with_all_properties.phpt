@@ -2,6 +2,7 @@
 Set DDTrace\start_span() properties
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 
@@ -73,11 +74,13 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(56) "c3RhcnRfc3Bhbl93aXRoX2FsbF9wcm9wZXJ0aWVzLnBocA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(12) "a98551ac2e-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "a98551ac2e"
     }
     ["metrics"]=>
     array(3) {
@@ -108,13 +111,15 @@ array(2) {
     ["type"]=>
     string(6) "runner"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["system.pid"]=>
       string(%d) "%d"
       ["aa"]=>
       string(2) "bb"
-      ["_dd.p.upstream_services"]=>
-      string(16) "dGVzdA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(12) "9f86d08188-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "9f86d08188"
     }
     ["metrics"]=>
     array(4) {

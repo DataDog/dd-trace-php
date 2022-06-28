@@ -53,108 +53,10 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_VERSION_ID=$("$PHP_CONFIG" --vernum)
   fi
 
-  if test $PHP_VERSION_ID -lt 50500; then
-    dnl PHP 5.4
-    dnl ddtrace.c comes first, then everything else alphabetically
-    DD_TRACE_PHP_SOURCES="ext/php5/ddtrace.c \
-      ext/php5/arrays.c \
-      ext/php5/auto_flush.c \
-      ext/php5/circuit_breaker.c \
-      ext/php5/comms_php.c \
-      ext/php5/compat_string.c \
-      ext/php5/coms.c \
-      ext/php5/configuration.c \
-      ext/php5/ddshared.c \
-      ext/php5/dispatch.c \
-      ext/php5/dogstatsd_client.c \
-      ext/php5/engine_api.c \
-      ext/php5/engine_hooks.c \
-      ext/php5/excluded_modules.c \
-      ext/php5/handlers_curl.c \
-      ext/php5/handlers_exception.c \
-      ext/php5/handlers_internal.c \
-      ext/php5/handlers_pcntl.c \
-      ext/php5/integrations/integrations.c \
-      ext/php5/logging.c \
-      ext/php5/memory_limit.c \
-      ext/php5/php5_4/dispatch.c \
-      ext/php5/php5_4/engine_hooks.c \
-      ext/php5/priority_sampling/priority_sampling.c \
-      ext/php5/random.c \
-      ext/php5/request_hooks.c \
-      ext/php5/serializer.c \
-      ext/php5/signals.c \
-      ext/php5/span.c \
-      ext/php5/startup_logging.c \
-      ext/php5/tracer_tag_propagation/tracer_tag_propagation.c \
-    "
-
-    ZAI_SOURCES="\
-      zend_abstract_interface/config/config.c \
-      zend_abstract_interface/config/config_decode.c \
-      zend_abstract_interface/config/php5/config_ini.c \
-      zend_abstract_interface/config/php5/config_runtime.c \
-      zend_abstract_interface/env/env.c \
-      zend_abstract_interface/exceptions/php5/exceptions.c \
-      zend_abstract_interface/headers/php5/headers.c \
-      zend_abstract_interface/hook/hook.c \
-      zend_abstract_interface/json/json.c \
-      zend_abstract_interface/symbols/lookup.c \
-      zend_abstract_interface/symbols/call.c \
-      zend_abstract_interface/sandbox/php5/sandbox.c \
-      zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
-    "
-  elif test $PHP_VERSION_ID -lt 70000; then
-    dnl PHP 5.5 + PHP 5.6
-    dnl ddtrace.c comes first, then everything else alphabetically
-    DD_TRACE_PHP_SOURCES="ext/php5/ddtrace.c \
-      ext/php5/arrays.c \
-      ext/php5/auto_flush.c \
-      ext/php5/circuit_breaker.c \
-      ext/php5/comms_php.c \
-      ext/php5/compat_string.c \
-      ext/php5/coms.c \
-      ext/php5/configuration.c \
-      ext/php5/ddshared.c \
-      ext/php5/dispatch.c \
-      ext/php5/dogstatsd_client.c \
-      ext/php5/engine_api.c \
-      ext/php5/engine_hooks.c \
-      ext/php5/excluded_modules.c \
-      ext/php5/handlers_curl.c \
-      ext/php5/handlers_exception.c \
-      ext/php5/handlers_internal.c \
-      ext/php5/handlers_pcntl.c \
-      ext/php5/integrations/integrations.c \
-      ext/php5/logging.c \
-      ext/php5/memory_limit.c \
-      ext/php5/php5/dispatch.c \
-      ext/php5/php5/engine_hooks.c \
-      ext/php5/priority_sampling/priority_sampling.c \
-      ext/php5/random.c \
-      ext/php5/request_hooks.c \
-      ext/php5/serializer.c \
-      ext/php5/signals.c \
-      ext/php5/span.c \
-      ext/php5/startup_logging.c \
-      ext/php5/tracer_tag_propagation/tracer_tag_propagation.c \
-    "
-
-    ZAI_SOURCES="\
-      zend_abstract_interface/config/config.c \
-      zend_abstract_interface/config/config_decode.c \
-      zend_abstract_interface/config/php5/config_ini.c \
-      zend_abstract_interface/config/php5/config_runtime.c \
-      zend_abstract_interface/env/env.c \
-      zend_abstract_interface/exceptions/php5/exceptions.c \
-      zend_abstract_interface/headers/php5/headers.c \
-      zend_abstract_interface/hook/hook.c \
-      zend_abstract_interface/json/json.c \
-      zend_abstract_interface/symbols/lookup.c \
-      zend_abstract_interface/symbols/call.c \
-      zend_abstract_interface/sandbox/php5/sandbox.c \
-      zend_abstract_interface/uri_normalization/php5/uri_normalization.c \
-    "
+  if test $PHP_VERSION_ID -lt 70000; then
+    dnl PHP 5
+    echo "PHP 5 is not supported on this branch. Use the PHP-5 branch to build PHP 5."
+    exit 1
   elif test $PHP_VERSION_ID -lt 80000; then
     dnl PHP 7.x
     dnl ddtrace.c comes first, then everything else alphabetically
@@ -176,6 +78,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/handlers_internal.c \
       ext/php7/handlers_pcntl.c \
       ext/php7/integrations/integrations.c \
+      ext/php7/ip_extraction.c \
       ext/php7/logging.c \
       ext/php7/memory_limit.c \
       ext/php7/priority_sampling/priority_sampling.c \
@@ -194,11 +97,11 @@ if test "$PHP_DDTRACE" != "no"; then
     ZAI_SOURCES="\
       zend_abstract_interface/config/config.c \
       zend_abstract_interface/config/config_decode.c \
-      zend_abstract_interface/config/php7-8/config_ini.c \
-      zend_abstract_interface/config/php7-8/config_runtime.c \
+      zend_abstract_interface/config/config_ini.c \
+      zend_abstract_interface/config/config_runtime.c \
       zend_abstract_interface/env/env.c \
-      zend_abstract_interface/exceptions/php7-8/exceptions.c \
-      zend_abstract_interface/headers/php7-8/headers.c \
+      zend_abstract_interface/exceptions/exceptions.c \
+      zend_abstract_interface/headers/headers.c \
       zend_abstract_interface/hook/hook.c \
       zend_abstract_interface/interceptor/php7/interceptor.c \
       zend_abstract_interface/interceptor/php7/resolver.c \
@@ -206,7 +109,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
       zend_abstract_interface/sandbox/php7/sandbox.c \
-      zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
+      zend_abstract_interface/uri_normalization/uri_normalization.c \
     "
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
@@ -229,6 +132,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/handlers_internal.c \
       ext/php8/handlers_pcntl.c \
       ext/php8/integrations/integrations.c \
+      ext/php8/ip_extraction.c \
       ext/php8/logging.c \
       ext/php8/memory_limit.c \
       ext/php8/priority_sampling/priority_sampling.c \
@@ -252,11 +156,11 @@ if test "$PHP_DDTRACE" != "no"; then
     ZAI_SOURCES="\
       zend_abstract_interface/config/config.c \
       zend_abstract_interface/config/config_decode.c \
-      zend_abstract_interface/config/php7-8/config_ini.c \
-      zend_abstract_interface/config/php7-8/config_runtime.c \
+      zend_abstract_interface/config/config_ini.c \
+      zend_abstract_interface/config/config_runtime.c \
       zend_abstract_interface/env/env.c \
-      zend_abstract_interface/exceptions/php7-8/exceptions.c \
-      zend_abstract_interface/headers/php7-8/headers.c \
+      zend_abstract_interface/exceptions/exceptions.c \
+      zend_abstract_interface/headers/headers.c \
       zend_abstract_interface/hook/hook.c \
       zend_abstract_interface/interceptor/php8/interceptor.c \
       zend_abstract_interface/interceptor/php8/resolver.c \
@@ -264,7 +168,7 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/symbols/lookup.c \
       zend_abstract_interface/symbols/call.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
-      zend_abstract_interface/uri_normalization/php7-8/uri_normalization.c \
+      zend_abstract_interface/uri_normalization/uri_normalization.c \
     "
   fi
 
@@ -303,27 +207,18 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/symbols])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/env])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/headers/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/hook])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php7])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/uri_normalization])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/uri_normalization/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/uri_normalization/php7-8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_assert])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_string])
 
@@ -343,24 +238,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
 
-  if test $PHP_VERSION_ID -lt 50500; then
-    dnl PHP 5.4
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/php5_4])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/priority_sampling])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/tracer_tag_propagation])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/integrations])
-    PHP_ADD_INCLUDE([$ext_builddir/ext/php5/integrations])
-  elif test $PHP_VERSION_ID -lt 70000; then
-    dnl PHP 5.5 + PHP 5.6
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5])
-    dnl Temp dir until we merge dispatch.c and engine_hooks.c
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/php5])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/priority_sampling])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/tracer_tag_propagation])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php5/integrations])
-    PHP_ADD_INCLUDE([$ext_builddir/ext/php5/integrations])
-  elif test $PHP_VERSION_ID -lt 80000; then
+  if test $PHP_VERSION_ID -lt 80000; then
     dnl PHP 7.0
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7])
     dnl Temp dir until we merge dispatch.c and engine_hooks.c

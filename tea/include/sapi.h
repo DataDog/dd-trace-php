@@ -9,7 +9,7 @@
 #define TEA_SAPI_H
 
 #include "common.h"
-
+// common must come first
 #include <main/SAPI.h>
 
 /*
@@ -70,6 +70,6 @@ void tea_sapi_rshutdown(void);
 bool tea_sapi_append_system_ini_entry(const char *key, const char *value);
 
 /* Called from sapi_module_struct.register_server_variables */
-extern void (*tea_sapi_register_custom_server_variables)(zval *track_vars_server_array TEA_TSRMLS_DC);
+extern void (*tea_sapi_register_custom_server_variables)(zval *track_vars_server_array);
 
 #endif  // TEA_SAPI_H

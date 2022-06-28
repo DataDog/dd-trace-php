@@ -17,8 +17,8 @@ if (!isset($root->metrics["_dd.rule_psr"])) {
     echo "metrics[_dd.rule_psr] = {$root->metrics["_dd.rule_psr"]}\n";
 }
 
-if (isset($root->meta["_dd.p.upstream_services"])) {
-    echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
+if (isset($root->meta["_dd.p.dm"])) {
+    echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
 }
 ?>
 --EXPECT--

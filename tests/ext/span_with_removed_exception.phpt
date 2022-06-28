@@ -2,6 +2,7 @@
 Unset, nulled and generally invalid data in exception property is ignored
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 
@@ -61,11 +62,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(52) "c3Bhbl93aXRoX3JlbW92ZWRfZXhjZXB0aW9uLnBocA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(12) "df6da0e28f-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
     }
     ["metrics"]=>
     array(3) {
@@ -98,11 +101,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(52) "c3Bhbl93aXRoX3JlbW92ZWRfZXhjZXB0aW9uLnBocA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(12) "df6da0e28f-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
     }
     ["metrics"]=>
     array(3) {
@@ -135,11 +140,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(52) "c3Bhbl93aXRoX3JlbW92ZWRfZXhjZXB0aW9uLnBocA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(12) "df6da0e28f-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "df6da0e28f"
     }
     ["metrics"]=>
     array(3) {

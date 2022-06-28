@@ -44,9 +44,11 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(4) {
+    array(5) {
       ["custom_tag"]=>
       string(9) "inherited"
+      ["_dd.propagation_error"]=>
+      string(14) "decoding_error"
       ["other_tag"]=>
       string(4) "also"
       ["system.pid"]=>

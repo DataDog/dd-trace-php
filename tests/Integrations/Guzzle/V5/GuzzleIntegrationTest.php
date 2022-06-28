@@ -361,7 +361,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                         ])
                         ->withChildren([
-                            SpanAssertion::exists('curl_exec')->skipIf(\PHP_VERSION_ID < 50500),
+                            SpanAssertion::exists('curl_exec'),
                         ])
                 ]),
         ]);

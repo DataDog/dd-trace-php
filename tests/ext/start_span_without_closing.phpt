@@ -3,6 +3,7 @@ Use DDTrace\close_span() on span started within internal span
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 
@@ -45,11 +46,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(50) "c3RhcnRfc3Bhbl93aXRob3V0X2Nsb3NpbmcucGhw|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(12) "1b8a8775ac-1"
+      ["_dd.dm.service_hash"]=>
+      string(10) "1b8a8775ac"
     }
     ["metrics"]=>
     array(3) {

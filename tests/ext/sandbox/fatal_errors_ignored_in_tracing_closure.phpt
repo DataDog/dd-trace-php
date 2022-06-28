@@ -1,7 +1,5 @@
 --TEST--
 Fatal errors are ignored inside a tracing closure (PHP 7+)
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip Fatal errors cannot be ignored in PHP 5'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum

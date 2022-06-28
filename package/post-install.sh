@@ -36,9 +36,6 @@ fi
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
     DD_TRACE_PHP_BIN=$(command -v php7 || true)
 fi
-if [ -z "$DD_TRACE_PHP_BIN" ]; then
-    DD_TRACE_PHP_BIN=$(command -v php5 || true)
-fi
 
 function invoke_php() {
     # In case of .apk post-install hooks the script has no access the set of exported ENVS.

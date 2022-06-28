@@ -3,6 +3,7 @@ priority_sampling rule with service match
 --ENV--
 DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.7, "service": "bar"},{"sample_rate": 0.3, "service": "foo"}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
+DD_TRACE_PROPAGATE_SERVICE=1
 --SKIPIF--
 <?php
 if (getenv("USE_ZEND_ALLOC") === "0") {
@@ -21,8 +22,8 @@ if ($root->metrics["_dd.rule_psr"] == 0.3) {
 } else {
     var_dump($root->metrics);
 }
-echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
+echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
 ?>
 --EXPECTREGEX--
 Rule OK
-_dd.p.upstream_services = Zm9vc2VydmljZQ\|(-1|2)\|3\|0.300
+_dd.p.dm = (a31069e7b4-3|-)

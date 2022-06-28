@@ -7,29 +7,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
-#include <zai_compat.h>
 
-#if PHP_VERSION_ID < 70000
-#undef zval_internal_ptr_dtor
-#define zval_internal_ptr_dtor zval_internal_dtor
-#define ZVAL_UNDEF(z)  \
-    {                  \
-        INIT_PZVAL(z); \
-        ZVAL_NULL(z);  \
-    }
-static void zai_config_dtor_ppzval(void *ptr) {
-    zval **zval_ptr = ptr;
-    Z_DELREF_PP(zval_ptr);
-    if (Z_REFCOUNT_PP(zval_ptr) == 0) {
-        zai_config_dtor_pzval(*zval_ptr);
-        free(*zval_ptr);
-    } else if (Z_REFCOUNT_PP(zval_ptr) == 1) {
-        Z_UNSET_ISREF_PP(zval_ptr);
-    }
-}
-#endif
-
-#if PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID < 80000
 #if PHP_VERSION_ID < 70300
 #define GC_DELREF(x) (--GC_REFCOUNT(x))
 #endif
@@ -144,13 +123,7 @@ static bool zai_config_decode_int(zai_string_view value, zval *decoded_value) {
 
 static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bool persistent) {
     zval tmp;
-#if PHP_VERSION_ID < 70000
-    INIT_PZVAL(&tmp);
-    Z_ARRVAL(tmp) = pemalloc(sizeof(HashTable), persistent);
-    Z_TYPE(tmp) = IS_ARRAY;
-#else
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
-#endif
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
 
     char *data = (char *)value.ptr;
@@ -177,23 +150,9 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
 
                         size_t key_len = key_end - key_start + 1;
                         size_t value_len = value_end - value_start + 1;
-#if PHP_VERSION_ID < 70000
-                        zval *val;
-                        if (persistent) {
-                            ALLOC_PERMANENT_ZVAL(val);
-                        } else {
-                            ALLOC_ZVAL(val);
-                        }
-                        INIT_PZVAL(val);
-                        ZVAL_STRINGL(val, pestrndup(value_start, value_len, persistent), value_len, 0);
-                        char *zero_terminated_key = pestrndup(key_start, key_len, persistent);
-                        zend_hash_update(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1, &val, sizeof(void *), NULL);
-                        pefree(zero_terminated_key, persistent);
-#else
                         zval val;
                         ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
                         zend_hash_str_update(Z_ARRVAL(tmp), key_start, key_len, &val);
-#endif
                         break;
                     }
                     if (*data != ' ' && *data != '\t' && *data != '\n') {
@@ -218,14 +177,7 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
 
 static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bool persistent, bool lowercase) {
     zval tmp;
-#if PHP_VERSION_ID < 70000
-    INIT_PZVAL(&tmp);
-    zval *nullval = NULL;
-    Z_ARRVAL(tmp) = pemalloc(sizeof(HashTable), persistent);
-    Z_TYPE(tmp) = IS_ARRAY;
-#else
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
-#endif
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
 
     char *data = (char *)value.ptr;
@@ -240,35 +192,12 @@ static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bo
                     }
                 }
                 size_t key_len = key_end - key_start + 1;
-#if PHP_VERSION_ID < 70000
-                char *zero_terminated_key = pemalloc(key_len + 1, persistent);
-                if (lowercase) {
-                    zend_str_tolower_copy(zero_terminated_key, key_start, key_len);
-                } else {
-                    memcpy(zero_terminated_key, key_start, key_len);
-                    zero_terminated_key[key_len] = 0;
-                }
-                if (nullval) {
-                    zval_addref_p(nullval);
-                } else {
-                    if (persistent) {
-                        ALLOC_PERMANENT_ZVAL(nullval);
-                    } else {
-                        ALLOC_ZVAL(nullval);
-                    }
-                    INIT_PZVAL(nullval);
-                    ZVAL_NULL(nullval);
-                }
-                zend_hash_update(Z_ARRVAL(tmp), zero_terminated_key, key_len + 1, &nullval, sizeof(zval *), NULL);
-                pefree(zero_terminated_key, persistent);
-#else
                 zend_string *key = zend_string_init(key_start, key_len, persistent);
                 if (lowercase) {
                     zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key));
                 }
                 zend_hash_add_empty_element(Z_ARRVAL(tmp), key);
                 zend_string_release(key);
-#endif
             } else {
                 ++data;
             }
@@ -285,33 +214,6 @@ static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bo
     return true;
 }
 
-#if PHP_VERSION_ID < 70000
-static void zai_config_persist_zval(zval *in);
-static void zai_config_persist_zval_ptr(void *ptr) {
-    zval **in = ptr, *out;
-    ALLOC_PERMANENT_ZVAL(out);
-    *out = **in;
-    zai_config_persist_zval(out);
-    efree(*in);
-    *in = out;
-}
-
-static void zai_config_persist_zval(zval *in) {
-    if (Z_TYPE_P(in) == IS_ARRAY) {
-        HashTable *array = Z_ARRVAL_P(in);
-        Z_ARRVAL_P(in) = malloc(sizeof(HashTable));
-        zend_hash_init(Z_ARRVAL_P(in), 8, NULL, zai_config_dtor_ppzval, 1);
-        zend_hash_copy(Z_ARRVAL_P(in), array, zai_config_persist_zval_ptr, NULL, sizeof(zval *));
-        array->pDestructor = NULL;
-        zend_hash_destroy(array);
-        FREE_HASHTABLE(array);
-    } else if (Z_TYPE_P(in) == IS_STRING) {
-        char *str = Z_STRVAL_P(in);
-        Z_STRVAL_P(in) = strndup(str, Z_STRLEN_P(in));
-        efree(str);
-    }
-}
-#else
 static void zai_config_persist_zval(zval *in) {
     if (Z_TYPE_P(in) == IS_ARRAY) {
         zend_array *array = Z_ARR_P(in);
@@ -353,12 +255,9 @@ static void zai_config_persist_zval(zval *in) {
         }
     }
 }
-#endif
 
 static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, bool persistent) {
-    ZAI_TSRMLS_FETCH();
-
-    zai_json_decode_assoc(decoded_value, (char *)value.ptr, (int)value.len, 20 ZAI_TSRMLS_CC);
+    zai_json_decode_assoc(decoded_value, (char *)value.ptr, (int)value.len, 20);
 
     if (Z_TYPE_P(decoded_value) != IS_ARRAY) {
         zval_dtor(decoded_value);
@@ -375,11 +274,7 @@ static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, b
 }
 
 static bool zai_config_decode_string(zai_string_view value, zval *decoded_value, bool persistent) {
-#if PHP_VERSION_ID < 70000
-    ZVAL_STRINGL(decoded_value, pestrndup(value.ptr, value.len, persistent), value.len, 0);
-#else
     ZVAL_NEW_STR(decoded_value, zend_string_init(value.ptr, value.len, persistent));
-#endif
     return true;
 }
 

@@ -199,7 +199,11 @@ inline void zai_sandbox_close(zai_sandbox *sandbox) {
 }
 
 inline bool zai_sandbox_timed_out(void) {
+#if PHP_VERSION_ID >= 80200
+    if (zend_atomic_bool_load(&EG(timed_out))) {
+#else
     if (EG(timed_out)) {
+#endif
         return true;
     }
 
@@ -220,7 +224,7 @@ inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
     zend_bailout();
 }
 /********************************** </PHP 8> *********************************/
-#elif PHP_VERSION_ID >= 70000
+#else
 /********************************** <PHP 7> **********************************/
 #include <Zend/zend_exceptions.h>
 
@@ -357,162 +361,6 @@ inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
     zend_bailout();
 }
 /********************************** </PHP 7> *********************************/
-#else
-/********************************** <PHP 5> **********************************/
-typedef struct zai_error_state_s {
-    int type;
-    int lineno;
-    char *message;
-    char *file;
-    int error_reporting;
-    zend_error_handling error_handling;
-} zai_error_state;
-
-typedef struct zai_exception_state_s {
-    zval *exception;
-    zval *prev_exception;
-    zend_op *opline_before_exception;
-} zai_exception_state;
-
-typedef struct zai_engine_state_s {
-    zend_execute_data *current_execute_data;
-} zai_engine_state;
-
-typedef struct zai_sandbox_s {
-    zai_error_state error_state;
-    zai_exception_state exception_state;
-    zai_engine_state engine_state;
-} zai_sandbox;
-
-inline void zai_sandbox_error_state_backup_ex(zai_error_state *es TSRMLS_DC) {
-    es->type = PG(last_error_type);
-    es->lineno = PG(last_error_lineno);
-    es->message = PG(last_error_message);
-    es->file = PG(last_error_file);
-
-    PG(last_error_type) = 0;
-    PG(last_error_lineno) = 0;
-    /* We need to null these so that if another error comes along they do not
-     * get double-freed.
-     */
-    PG(last_error_message) = NULL;
-    PG(last_error_file) = NULL;
-
-    es->error_reporting = EG(error_reporting);
-    EG(error_reporting) = 0;
-    zend_replace_error_handling(EH_SUPPRESS, NULL, &es->error_handling TSRMLS_CC);
-}
-
-inline void zai_sandbox_error_state_restore_ex(zai_error_state *es TSRMLS_DC) {
-    if (PG(last_error_message)) {
-        if (PG(last_error_message) != es->message) {
-            free(PG(last_error_message));
-        }
-        if (PG(last_error_file) != es->file) {
-            free(PG(last_error_file));
-        }
-    }
-    zend_restore_error_handling(&es->error_handling TSRMLS_CC);
-    PG(last_error_type) = es->type;
-    PG(last_error_message) = es->message;
-    PG(last_error_file) = es->file;
-    PG(last_error_lineno) = es->lineno;
-    EG(error_reporting) = es->error_reporting;
-}
-
-inline void zai_sandbox_exception_state_backup_ex(zai_exception_state *es TSRMLS_DC) {
-    if (UNEXPECTED(EG(exception) != NULL)) {
-        es->opline_before_exception = EG(opline_before_exception);
-        es->exception = EG(exception);
-        es->prev_exception = EG(prev_exception);
-        EG(exception) = NULL;
-        EG(prev_exception) = NULL;
-    } else {
-        es->exception = NULL;
-        es->prev_exception = NULL;
-    }
-}
-
-inline void zai_sandbox_exception_state_restore_ex(zai_exception_state *es TSRMLS_DC) {
-    if (EG(exception)) {
-        /* We cannot use zend_clear_exception() here in PHP 5 since there is no
-         * NULL check on the opline.
-         */
-        zval_ptr_dtor(&EG(exception));
-        EG(exception) = NULL;
-        if (EG(prev_exception)) {
-            zval_ptr_dtor(&EG(prev_exception));
-            EG(prev_exception) = NULL;
-        }
-        if (EG(current_execute_data)) {
-            EG(current_execute_data)->opline = EG(opline_before_exception);
-        }
-    }
-
-    if (es->exception) {
-        EG(exception) = es->exception;
-        EG(prev_exception) = es->prev_exception;
-        EG(opline_before_exception) = es->opline_before_exception;
-#if PHP_VERSION_ID >= 50500
-        if (EG(current_execute_data)) {
-            // ensure that we continue handling an exception if we were handling one before the sandbox call
-            EG(current_execute_data)->opline = EG(exception_op);
-        }
-#endif
-    }
-}
-
-inline void zai_sandbox_engine_state_backup_ex(zai_engine_state *es TSRMLS_DC) {
-    es->current_execute_data = EG(current_execute_data);
-}
-
-inline void zai_sandbox_engine_state_restore_ex(zai_engine_state *es TSRMLS_DC) {
-    EG(current_execute_data) = es->current_execute_data;
-}
-
-inline void zai_sandbox_open_ex(zai_sandbox *sandbox TSRMLS_DC) {
-    zai_sandbox_exception_state_backup_ex(&sandbox->exception_state TSRMLS_CC);
-    zai_sandbox_error_state_backup_ex(&sandbox->error_state TSRMLS_CC);
-    zai_sandbox_engine_state_backup_ex(&sandbox->engine_state TSRMLS_CC);
-}
-
-inline void zai_sandbox_close_ex(zai_sandbox *sandbox TSRMLS_DC) {
-    zai_sandbox_error_state_restore_ex(&sandbox->error_state TSRMLS_CC);
-    zai_sandbox_exception_state_restore_ex(&sandbox->exception_state TSRMLS_CC);
-}
-
-inline bool zai_sandbox_timed_out_ex(TSRMLS_D) {
-    if (PG(connection_status) & PHP_CONNECTION_TIMEOUT) {
-        return true;
-    }
-
-    return false;
-}
-
-inline void zai_sandbox_bailout_ex(zai_sandbox *sandbox TSRMLS_DC) {
-    if (!zai_sandbox_timed_out_ex(TSRMLS_C)) {
-        zai_sandbox_engine_state_restore_ex(&sandbox->engine_state TSRMLS_CC);
-
-        return;
-    }
-
-    zend_bailout();
-}
-
-/* Mask away the TSRMLS_* macros with more macros */
-#define zai_sandbox_open(sandbox) zai_sandbox_open_ex(sandbox TSRMLS_CC)
-#define zai_sandbox_close(sandbox) zai_sandbox_close_ex(sandbox TSRMLS_CC)
-#define zai_sandbox_bailout(sandbox) zai_sandbox_bailout_ex(sandbox TSRMLS_CC)
-#define zai_sandbox_timed_out() zai_sandbox_timed_out_ex(TSRMLS_C)
-
-#define zai_sandbox_error_state_backup(es) zai_sandbox_error_state_backup_ex(es TSRMLS_CC)
-#define zai_sandbox_error_state_restore(es) zai_sandbox_error_state_restore_ex(es TSRMLS_CC)
-
-#define zai_sandbox_exception_state_backup(es) zai_sandbox_exception_state_backup_ex(es TSRMLS_CC)
-#define zai_sandbox_exception_state_restore(es) zai_sandbox_exception_state_restore_ex(es TSRMLS_CC)
-#define zai_sandbox_engine_state_backup(es) zai_sandbox_engine_state_backup_ex(es TSRMLS_CC)
-#define zai_sandbox_engine_state_restore(es) zai_sandbox_engine_state_restore_ex(es TSRMLS_CC)
-/********************************** </PHP 5> *********************************/
 #endif
 
 #endif  // ZAI_SANDBOX_H

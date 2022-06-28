@@ -15,10 +15,10 @@
  * execution context). A fake frame provides an execution context for these
  * cases.
  */
-bool tea_frame_push(zend_execute_data *frame TEA_TSRMLS_DC);
+bool tea_frame_push(zend_execute_data *frame);
 
 /* Removes a fake frame from the active execution context. This should be done
  * before the parent frame closes.
  */
-void tea_frame_pop(zend_execute_data *frame TEA_TSRMLS_DC);
+void tea_frame_pop(zend_execute_data *frame);
 #endif

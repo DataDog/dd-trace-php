@@ -39,10 +39,14 @@ function generate()
     } else {
         // If a scenario number has not been provided, we generate a number of different scenarios based on based
         // configuration
-        $options = getopt('', ['seed:', 'number:']);
+        $options = getopt('', ['seed:', 'number:', 'versions:']);
         $seed = isset($options['seed']) ? intval($options['seed']) : rand();
         srand($seed);
         echo "Using seed: $seed\n";
+        // Versions as a CSV, e.g. '7.4,8.0'
+        $restrictedPHPVersions = isset($options['versions'])
+            ? array_map('trim', explode(',', $options['versions']))
+            : null;
 
         if (empty($options['number'])) {
             echo "Error: --number option is required to set the number of scenarios to create.\n";
@@ -52,18 +56,21 @@ function generate()
 
         for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
             $scenarioSeed = rand();
-            $testIdentifiers[] = generateOne($scenarioSeed);
+            $testIdentifiers[] = generateOne($scenarioSeed, $restrictedPHPVersions);
         }
     }
 
     (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
 }
 
-function generateOne($scenarioSeed)
+function generateOne($scenarioSeed, array $restrictedPHPVersions)
 {
     srand($scenarioSeed);
     $selectedOs = array_rand(OS);
     $availablePHPVersions = OS[$selectedOs]['php'];
+    if ($restrictedPHPVersions && $restrictedPHPVersions[0] !== '*') {
+        $availablePHPVersions = array_intersect($availablePHPVersions, $restrictedPHPVersions);
+    }
     $selectedPhpVersion = $availablePHPVersions[array_rand($availablePHPVersions)];
     $selectedInstallationMethod = INSTALLATION[array_rand(INSTALLATION)];
 
@@ -108,7 +115,7 @@ function generateOne($scenarioSeed)
         [
             'identifier' => $identifier,
             'scenario_folder' => $scenarioFolder,
-            'image' => "datadog/dd-trace-ci:php-randomizedtests-dev-$selectedOs-$selectedPhpVersion",
+            'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion-1",
             'installation_method' => $selectedInstallationMethod,
             'project_root' => '../../../../',
         ]

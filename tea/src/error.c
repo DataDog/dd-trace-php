@@ -12,18 +12,11 @@ ZEND_END_ARG_INFO()
 
 static PHP_FUNCTION(trigger_error) {
     TEA_EXTENSION_PARAMETERS_UNUSED();
-#if PHP_VERSION_ID < 70000
-    char *msg;
-    int msg_len = 0;
-    long error_type = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl", &msg, &msg_len, &error_type) != SUCCESS) RETURN_NULL();
-#else
     zend_string *message;
     zend_long error_type = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sl", &message, &error_type) != SUCCESS) RETURN_NULL();
 
     const char *msg = ZSTR_VAL(message);
-#endif
 
     int level = (int)error_type;
     switch (level) {
