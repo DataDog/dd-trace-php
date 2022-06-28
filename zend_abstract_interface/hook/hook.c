@@ -573,6 +573,37 @@ void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 
 // clang-format off
 
+/* {{{ */
+zend_long zai_hook_install_resolved(
+        zai_hook_begin begin,
+        zai_hook_end end,
+        zai_hook_aux aux,
+        size_t dynamic,
+        zend_function *function) {
+    if (!PG(modules_activated)) {
+        /* not allowed: can only do resolved install during request */
+        return false;
+    }
+
+    zai_hook_t *hook = emalloc(sizeof(*hook));
+    *hook = (zai_hook_t){
+        .scope = NULL,
+        .function = NULL,
+        .resolved_scope = function->common.scope,
+        .begin = begin,
+        .generator_resume = NULL,
+        .generator_yield = NULL,
+        .end = end,
+        .aux = aux,
+        .is_global = false,
+        .id = 0,
+        .dynamic = dynamic,
+        .refcount = 1,
+    };
+
+    return hook->id = zai_hook_resolved_install(hook, function);
+} /* }}} */
+
 static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool persistent) {
     zend_string *str = zend_string_alloc(len, persistent);
     zend_str_tolower_copy(ZSTR_VAL(str), ptr, len);
