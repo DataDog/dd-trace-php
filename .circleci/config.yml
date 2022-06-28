@@ -2304,7 +2304,7 @@ workflows:
                 - "7.4"
               make_target:
                 - test_extension_ci
-                - test_asan_ci
+                - test_c_asan
 
   #     - coverage:
   #         requires: [ 'Prepare Code' ]
