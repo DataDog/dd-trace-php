@@ -2302,10 +2302,18 @@ workflows:
             parameters:
               php_major_minor:
                 - "7.4"
+              make_target:
+                - test_extension_ci
+
+      - test_arm:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.4"
               switch_php_version:
                 - debug-zts-asan
               make_target:
-                - test_extension_ci
                 - test_c_asan
 
   #     - coverage:
