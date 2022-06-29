@@ -652,9 +652,9 @@ static int zai_interceptor_generator_create_handler(zend_execute_data *execute_d
         zval *retval = EX(return_value);
         if (retval) {
             // ZEND_CALL_TOP means execute_ex (the VM) will return. We don't want to return immediately, but continue
-            // execution in our own execuet_data frame. Drop this flag if present and preserve it for later restoring.
+            // execution in our own execute_data frame. Drop this flag if present and preserve it for later restoring.
             int top_flag = EX_CALL_INFO() & ZEND_CALL_TOP;
-            ZEND_SET_CALL_INFO(execute_data, 0, EX_CALL_INFO() & ~ZEND_CALL_TOP);
+            ZEND_SET_CALL_INFO(execute_data, Z_TYPE(EX(This)), EX_CALL_INFO() & ~ZEND_CALL_TOP);
 
             zend_execute_data *prev = EX(prev_execute_data);
             EX(prev_execute_data) = &zai_interceptor_generator_create_frame;
