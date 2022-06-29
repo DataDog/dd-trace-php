@@ -275,7 +275,7 @@ class RandomExecutionPath
             // accept (200, 510 - expected exceptions, 511 - expected user errors)
             http_response_code(510);
         } else {
-            error_log("Unexpected Exception: " . $ex->getMessage());
+            error_log("Unexpected Exception: " . $ex);
             http_response_code(500);
         }
         $this->logLeave(__FUNCTION__);
