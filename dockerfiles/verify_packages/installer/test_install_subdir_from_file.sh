@@ -12,7 +12,7 @@ if [ "$CIRCLECI" = "true" ]; then
     exit 0
 fi
 
-new_version="0.68.0"
+new_version="0.74.0"
 generate_installers "${new_version}"
 repo_url=${DD_TEST_INSTALLER_REPO:-"https://github.com/DataDog/dd-trace-php"}
 curl -L -o /tmp/downloaded.tar.gz "${repo_url}/releases/download/${new_version}/dd-library-php-${new_version}-x86_64-linux-gnu.tar.gz"
