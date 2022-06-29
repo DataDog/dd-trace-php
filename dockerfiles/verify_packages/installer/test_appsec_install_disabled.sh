@@ -13,7 +13,7 @@ generate_installers "${new_version}"
 php ./build/packages/datadog-setup.php --php-bin php
 
 assert_ddtrace_version "${new_version}"
-assert_appsec_version 0.2.0
+assert_appsec_version 0.3.2
 assert_appsec_disabled
 
 assert_file_exists "$(get_php_extension_dir)"/ddappsec.so

@@ -22,7 +22,7 @@ assert_no_appsec
 assert_no_profiler
 
 php ./build/packages/datadog-setup.php --enable-appsec --php-bin php
-assert_appsec_version 0.2.0
+assert_appsec_version 0.3.2
 assert_appsec_enabled
 
 # Appsec requires ddtrace to be enabled, otherwise it crashes with missing symbols.
