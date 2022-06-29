@@ -419,20 +419,16 @@ INTERCEPTOR_TEST_CASE("generator yield intercepting of nested yield from generat
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
-// TODO check this, maybe just don't start the span if it's a generator creating span
-// OR: TODO PHP 8 support, by doing the ZEND_GENERATOR_CREATE overload, which does an open followed by an immediate close if retval unused
-#if PHP_VERSION_ID >= 70100 && PHP_VERSION_ID < 80000
-// On PHP 7.0 the call to create a generator is completely elided and not hookable
+// On PHP 7.0 the call to create a generator is completely elided and not hookable - on PHP 8 it's shortcicuited, but could be detected
+// We decide to not trace that edge case at all, for consistency.
 INTERCEPTOR_TEST_CASE("unused generator function intercepting", {
     INSTALL_HOOK("generator");
     CALL_FN("createGeneratorUnused", {
-        CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
-        CHECK(zai_hook_test_end_invocations == 1);
+        CHECK(zai_hook_test_end_invocations == 0);
     });
-    CHECK(zai_hook_test_begin_invocations == 1);
-    CHECK(zai_hook_test_end_invocations == 1);
+    CHECK(zai_hook_test_begin_invocations == 0);
+    CHECK(zai_hook_test_end_invocations == 0);
 });
-#endif
 
 INTERCEPTOR_TEST_CASE("throwing generator intercepting", {
     INSTALL_HOOK("throwingGenerator");

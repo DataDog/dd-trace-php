@@ -133,8 +133,8 @@ static inline int zai_interceptor_ext_nop_handler_no_prev(zend_execute_data *exe
     zend_op_array *op_array = &execute_data->func->op_array;
     if (UNEXPECTED(zai_hook_installed_user(op_array))) {
         zai_interceptor_frame_memory frame_memory, *tmp;
-        // do not execute a hook twice
-        if (!zai_hook_memory_table_find(execute_data, &tmp)) {
+        // do not execute a hook twice, skip unused generators
+        if (!zai_hook_memory_table_find(execute_data, &tmp) && ((op_array->fn_flags & ZEND_ACC_GENERATOR) == 0 || EX(return_value))) {
             if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
                 frame_memory.execute_data = execute_data;
                 frame_memory.implicit = false;
@@ -649,31 +649,24 @@ static user_opcode_handler_t prev_generator_create_handler;
 static int zai_interceptor_generator_create_handler(zend_execute_data *execute_data) {
     zai_interceptor_frame_memory *frame_memory;
     if (ZEND_GENERATOR_CREATE == EX(opline)->opcode && zai_hook_memory_table_find(execute_data, &frame_memory)) {
+        // ZEND_CALL_TOP means execute_ex (the VM) will return. We don't want to return immediately, but continue
+        // execution in our own execute_data frame. Drop this flag if present and preserve it for later restoring.
+        int top_flag = EX_CALL_INFO() & ZEND_CALL_TOP;
+        ZEND_SET_CALL_INFO(execute_data, Z_TYPE(EX(This)), EX_CALL_INFO() & ~ZEND_CALL_TOP);
+
         zval *retval = EX(return_value);
-        if (retval) {
-            // ZEND_CALL_TOP means execute_ex (the VM) will return. We don't want to return immediately, but continue
-            // execution in our own execute_data frame. Drop this flag if present and preserve it for later restoring.
-            int top_flag = EX_CALL_INFO() & ZEND_CALL_TOP;
-            ZEND_SET_CALL_INFO(execute_data, Z_TYPE(EX(This)), EX_CALL_INFO() & ~ZEND_CALL_TOP);
 
-            zend_execute_data *prev = EX(prev_execute_data);
-            EX(prev_execute_data) = &zai_interceptor_generator_create_frame;
-            Z_PTR(zai_interceptor_generator_create_frame.This) = execute_data; // some place to store it
+        zend_execute_data *prev = EX(prev_execute_data);
+        EX(prev_execute_data) = &zai_interceptor_generator_create_frame;
+        Z_PTR(zai_interceptor_generator_create_frame.This) = execute_data; // some place to store it
 
-            execute_data = EX(prev_execute_data);
-            EX(opline) = zai_interceptor_generator_create_wrapper;
-            EX(return_value) = retval;
-            EX(prev_execute_data) = prev;
-            EX(func) = (zend_function *) &zai_interceptor_empty_op_array; // for i_free_compiled_variables
-            ZEND_SET_CALL_INFO(execute_data, 0, top_flag);
-            EX_NUM_ARGS() = 0;
-        } else {
-            // Never executed generators are handled like immediately destroyed generators
-            zval rv;
-            ZVAL_NULL(&rv);
-            zai_hook_finish(execute_data, &rv, &frame_memory->hook_data);
-            zai_hook_memory_table_del(execute_data);
-        }
+        execute_data = EX(prev_execute_data);
+        EX(opline) = zai_interceptor_generator_create_wrapper;
+        EX(return_value) = retval;
+        EX(prev_execute_data) = prev;
+        EX(func) = (zend_function *) &zai_interceptor_empty_op_array; // for i_free_compiled_variables
+        ZEND_SET_CALL_INFO(execute_data, 0, top_flag);
+        EX_NUM_ARGS() = 0;
     }
 
     return prev_generator_create_handler ? prev_generator_create_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
