@@ -3,6 +3,9 @@
 
 #include "coms.h"
 #include "ddtrace.h"
+#include "span.h"
+#include "configuration.h"
+#include "random.h"
 #include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -13,11 +16,13 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     dd_pcntl_fork_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
-        // Until we full support pcntl tracing:
-        //   - kill the BGS
-        //   - disable further tracing on the forked process (also ensures all spans are dropped)
         ddtrace_coms_kill_background_sender();
-        ddtrace_disable_tracing_in_current_request();
+        ddtrace_init_span_stacks();
+        ddtrace_seed_prng();
+        if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
+            ddtrace_push_root_span();
+        }
+        ddtrace_coms_init_and_start_writer();
     }
 }
 
