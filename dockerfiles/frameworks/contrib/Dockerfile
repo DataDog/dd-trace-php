@@ -23,7 +23,7 @@ RUN set -xe; \
         php${V}-dom \
         php${V}-gd \
         php${V}-iconv \
-        php${V}-imagick \
+        # php${V}-imagick \
         php${V}-json \
         php${V}-intl \
         php${V}-fileinfo\
@@ -35,7 +35,7 @@ RUN set -xe; \
         php${V}-phar \
         php${V}-tokenizer \
         php${V}-simplexml \
-        php${V}-xdebug \
+        # php${V}-xdebug \
         php${V}-zip \
         php${V}-xmlwriter \
         php${V}-mysql \
@@ -179,7 +179,7 @@ RUN set -xe; \
     git clone --depth 1 --branch ${WORDPRESS_VERSION_TAG} git://develop.git.wordpress.org/ /home/wordpress; \
     cd /home/wordpress; \
     switch_php 7.0; \
-    composer require --dev phpunit/phpunit ^5
+    composer require --dev phpunit/phpunit ^6
 
 WORKDIR /home/wordpress
 ADD wordpress/wp-tests-config.php ./
