@@ -2,7 +2,6 @@
 Test ddtrace_root_span_add_tag
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 // Fail if root span not available
@@ -38,15 +37,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(4) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["after"]=>
       string(9) "root_span"
       ["_dd.p.dm"]=>
-      string(12) "f1999f9456-1"
-      ["_dd.dm.service_hash"]=>
-      string(10) "f1999f9456"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

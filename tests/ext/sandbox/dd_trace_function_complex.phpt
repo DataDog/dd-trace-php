@@ -3,7 +3,6 @@ DDTrace\trace_function() can trace with internal spans
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand
-DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -112,7 +111,7 @@ array(5) {
     ["type"]=>
     string(7) "BarType"
     ["meta"]=>
-    array(7) {
+    array(6) {
       ["system.pid"]=>
       string(%d) "%d"
       ["args.0"]=>
@@ -124,9 +123,7 @@ array(5) {
       ["retval.rand"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
-      string(12) "3f89c4ec87-1"
-      ["_dd.dm.service_hash"]=>
-      string(10) "3f89c4ec87"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(5) {
@@ -203,13 +200,11 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
-      string(12) "2606321bce-1"
-      ["_dd.dm.service_hash"]=>
-      string(10) "2606321bce"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {
@@ -240,13 +235,11 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
-      string(12) "2606321bce-1"
-      ["_dd.dm.service_hash"]=>
-      string(10) "2606321bce"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {
