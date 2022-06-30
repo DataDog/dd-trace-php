@@ -92,7 +92,6 @@ extern bool runtime_config_first_init;
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                               \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                           \
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                    \
-    CONFIG(BOOL, DD_TRACE_PROPAGATE_SERVICE, "false")                                                         \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                       \
     CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_TIMEOUT_VAL),                            \
            .ini_change = zai_config_system_ini_change)                                                        \

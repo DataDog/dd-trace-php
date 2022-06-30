@@ -2,10 +2,7 @@
 
 #include <mt19937-64.h>
 
-#include <ext/hash/php_hash.h>
-#include <ext/hash/php_hash_sha.h>
 #include <ext/pcre/php_pcre.h>
-#include <ext/standard/md5.h>
 
 #include "../compat_string.h"
 #include "../configuration.h"
@@ -20,8 +17,7 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_MANUAL = 4,
 };
 
-static void dd_update_decision_maker_tag(ddtrace_span_fci *span, ddtrace_span_fci *deciding_span,
-                                         enum dd_sampling_mechanism mechanism TSRMLS_DC) {
+static void dd_update_decision_maker_tag(ddtrace_span_fci *span, enum dd_sampling_mechanism mechanism TSRMLS_DC) {
     zval *meta = ddtrace_spandata_property_meta(&span->span);
     if (Z_TYPE_P(meta) != IS_ARRAY) {
         zval_ptr_dtor(&meta);
@@ -35,33 +31,9 @@ static void dd_update_decision_maker_tag(ddtrace_span_fci *span, ddtrace_span_fc
 
     if (sampling_priority > 0 && sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNSET) {
         if (!zend_hash_exists(Z_ARRVAL_P(meta), "_dd.p.dm", sizeof("_dd.p.dm"))) {
-            const int hexshadigits = 10;
-
-            zval servicename;
-            ddtrace_convert_to_string(&servicename, ddtrace_spandata_property_service(&deciding_span->span) TSRMLS_CC);
-
-            PHP_SHA256_CTX sha_context;
-            unsigned char service_sha256[32];
-            char service_hexsha256[hexshadigits + 1];
-            PHP_SHA256Init(&sha_context);
-            PHP_SHA256Update(&sha_context, (unsigned char *)Z_STRVAL(servicename), Z_STRLEN(servicename));
-            PHP_SHA256Final(service_sha256, &sha_context);
-            make_digest_ex(service_hexsha256, service_sha256, hexshadigits / 2);
-
-            zval_dtor(&servicename);
-
-            zval *dm_service;
-            MAKE_STD_ZVAL(dm_service);
-            ZVAL_STRINGL(dm_service, service_hexsha256, get_DD_TRACE_PROPAGATE_SERVICE() ? hexshadigits : 0, 1);
             char *dm_service_str;
-            spprintf(&dm_service_str, 0, "%s-%d", Z_STRVAL_P(dm_service), mechanism);
+            spprintf(&dm_service_str, 0, "-%d", mechanism);
             add_assoc_string(meta, "_dd.p.dm", dm_service_str, 0);
-            if (get_DD_TRACE_PROPAGATE_SERVICE()) {
-                zend_hash_update(Z_ARRVAL_P(meta), "_dd.dm.service_hash", sizeof("_dd.dm.service_hash"), &dm_service,
-                                 sizeof(zval *), NULL);
-            } else {
-                zval_ptr_dtor(&dm_service);
-            }
         }
     } else {
         zend_hash_del(Z_ARRVAL_P(meta), "_dd.p.dm", sizeof("_dd.p.dm"));
@@ -140,7 +112,7 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span TSRMLS_DC) {
     add_assoc_long_ex(ddtrace_spandata_property_metrics(&span->span), "_sampling_priority_v1",
                       sizeof("_sampling_priority_v1"), priority);
 
-    dd_update_decision_maker_tag(span, span, mechanism TSRMLS_CC);
+    dd_update_decision_maker_tag(span, mechanism TSRMLS_CC);
 }
 
 long ddtrace_fetch_prioritySampling_from_root(TSRMLS_D) {
@@ -188,6 +160,6 @@ void ddtrace_set_prioritySampling_on_root(long priority TSRMLS_DC) {
         zend_hash_update(root_metrics, "_sampling_priority_v1", sizeof("_sampling_priority_v1"), &zv, sizeof(zval *),
                          NULL);
 
-        dd_update_decision_maker_tag(root_span, DDTRACE_G(open_spans_top), DD_MECHANISM_MANUAL TSRMLS_CC);
+        dd_update_decision_maker_tag(root_span, DD_MECHANISM_MANUAL TSRMLS_CC);
     }
 }

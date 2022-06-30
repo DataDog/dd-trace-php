@@ -2,7 +2,6 @@
 Errors from userland will be flagged on span
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -45,15 +44,13 @@ array(1) {
     ["error"]=>
     int(1)
     ["meta"]=>
-    array(4) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["error.msg"]=>
       string(9) "Foo error"
       ["_dd.p.dm"]=>
-      string(12) "ce20576ee7-1"
-      ["_dd.dm.service_hash"]=>
-      string(10) "ce20576ee7"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {
