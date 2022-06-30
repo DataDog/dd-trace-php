@@ -41,11 +41,13 @@ assert_no_profiler() {
 }
 
 assert_ddtrace_version() {
-    output="$(php -v)"
-    if [ -z "${output##*ddtrace v${1}*}" ]; then
-        echo "---\nOk: ddtrace version '${1}' is correctly installed\n---\n${output}\n---\n"
+    expected_version=${1}
+    php_bin=${2:-php}
+    output="$($php_bin -v)"
+    if [ -z "${output##*ddtrace v${expected_version}*}" ]; then
+        echo "---\nOk: ddtrace version '${expected_version}' is correctly installed\n---\n${output}\n---\n"
     else
-        echo "---\nError: Wrong ddtrace version. Expected: ${1}\n---\n${output}\n---\n"
+        echo "---\nError: Wrong ddtrace version. Expected: ${expected_version}\n---\n${output}\n---\n"
         exit 1
     fi
 }
