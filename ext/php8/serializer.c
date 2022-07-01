@@ -532,12 +532,6 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
         zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
     }
 
-    zval http_url;
-    ZVAL_STR(&http_url, dd_build_req_url());
-    if (Z_STRLEN(http_url)) {
-        zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &http_url);
-    }
-
     const char *method = SG(request_info).request_method;
     if (method) {
         zval http_method;
@@ -682,6 +676,12 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
                     ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
                 }
             }
+        }
+
+        zval http_url;
+        ZVAL_STR(&http_url, dd_build_req_url());
+        if (Z_STRLEN(http_url)) {
+            zend_hash_str_update(Z_ARR_P(meta), ZEND_STRL("http.url"), &http_url);
         }
 
         zend_llist_position pos;
