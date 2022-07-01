@@ -605,7 +605,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
         zval *headerval;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR(PG(http_globals)[TRACK_VARS_SERVER]), headername, headerval) {
             ZVAL_DEREF(headerval);
-            if (Z_TYPE_P(headerval) == IS_STRING && ZSTR_LEN(headername) > 5 &&
+            if (Z_TYPE_P(headerval) == IS_STRING && headername && ZSTR_LEN(headername) > 5 &&
                 memcmp(ZSTR_VAL(headername), "HTTP_", 5) == 0) {
                 zend_string *lowerheader = zend_string_init(ZSTR_VAL(headername) + 5, ZSTR_LEN(headername) - 5, 0);
                 for (char *ptr = ZSTR_VAL(lowerheader); *ptr; ++ptr) {
