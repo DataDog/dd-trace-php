@@ -490,7 +490,7 @@ jobs:
               -e PHP_VARIANT=<< parameters.switch_php_version >> \
               -e PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" \
               << parameters.php_major_minor >>-buster-arm64 \
-                ./tooling/bin/run-in-docker-with-ext.sh make << parameters.make_target >>
+                ./tooling/bin/run-in-docker-with-ext.sh make fix_socket_permissions << parameters.make_target >>
       # - <<: *STEP_COMPOSER_TESTS_UPDATE
       # - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       # - <<: *STEP_EXPORT_CI_ENV

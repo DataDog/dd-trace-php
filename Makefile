@@ -90,8 +90,13 @@ install_ini: $(INI_FILE)
 
 install_all: install install_ini
 
+
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/configure
 	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
+
+fix_socket_permissions:
+	sudo mkdir -p /var/run/datadog
+	sudo chmod a+w /var/run/datadog
 
 test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)

@@ -1,0 +1,2 @@
+tests/ext/background-sender/background_sender_survives_setuid.phpt
+tests/ext/sandbox/hook_function/01.phpt
