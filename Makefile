@@ -15,7 +15,7 @@ CFLAGS := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 -g || echo -O2) 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
-PHP_MAJOR_DOT_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;')
+PHP_MAJOR_DOT_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
 ARCHITECTURE=$(shell uname -m)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
@@ -150,9 +150,9 @@ test_c_asan: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 xfail_asan:
 	set -eux; \
 	for testPath in $(shell cat dockerfiles/ci/xfail_tests/ext/$(ARCHITECTURE)/asan/$(PHP_MAJOR_DOT_MINOR).list || true); do \
-		echo "--XFAIL--\nNot supported on this architecture" | sudo tee -a "tmp/build_extension/$testPath"; \
+		echo "Processing $$testPath"; \
+		echo "--XFAIL--\nNot supported on this architecture" | sudo tee -a "$$testPath" | (sudo tee -a "tmp/build_extension/$$testPath" || true) \
 	done
-
 
 test_extension: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
@@ -177,7 +177,8 @@ test_extension_valgrind: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 xfail_valgrind:
 	set -eux; \
 	for testPath in $(shell cat dockerfiles/ci/xfail_tests/ext/$(ARCHITECTURE)/valgrind/$(PHP_MAJOR_DOT_MINOR).list || true); do \
-		echo "--XFAIL--\nNot supported on this architecture" | sudo tee -a "tmp/build_extension/$testPath"; \
+		echo "Processing $$testPath"; \
+		echo "--XFAIL--\nNot supported on this architecture" | sudo tee -a "$$testPath" | (sudo tee -a "tmp/build_extension/$$testPath" || true) \
 	done
 
 test_extension_ci: test_extension test_extension_valgrind

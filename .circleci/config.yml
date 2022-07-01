@@ -482,7 +482,7 @@ jobs:
           command: |
             sudo useradd -u 3434 docker-circleci
             sudo chown -R docker-circleci . tests
-      # - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
           name: Run tests
           command: |
