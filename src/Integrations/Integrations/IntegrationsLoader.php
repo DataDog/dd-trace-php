@@ -154,7 +154,7 @@ class IntegrationsLoader
             return;
         }
 
-        self::logDebug('Attempting integrations load');
+        self::logDebug('Attempting integrations load; note: some integrations are only loaded on first usage');
 
         foreach ($this->integrations as $name => $class) {
             if (!\ddtrace_config_integration_enabled($name)) {
@@ -177,7 +177,7 @@ class IntegrationsLoader
 
             $integration = new $class();
             $this->loadings[$name] = $integration->init();
-            $this->logResult($name, $this->loadings[$name]);
+            self::logResult($name, $this->loadings[$name]);
         }
     }
 
@@ -187,7 +187,7 @@ class IntegrationsLoader
      * @param string $name
      * @param int $result
      */
-    private function logResult($name, $result)
+    public static function logResult($name, $result)
     {
         if ($result === Integration::LOADED) {
             self::logDebug('Loaded integration {name}', ['name' => $name]);
