@@ -13,7 +13,7 @@ ARCHITECTURE := $(shell uname -m)
 pull: pull.centos7
 
 #################################################################
-# aarch64 section, to be build on an aarch64 machine, i.e. on AWS
+# aarch64 section, to be built on an aarch64 machine, i.e. on AWS
 #################################################################
 
 build.centos7.aarch64: \
@@ -40,7 +40,7 @@ push.centos7.aarch64.%: build.centos7.aarch64.%
 #################################################################
 
 #################################################################
-# x86_64 section, to be build on an x86_64 machine, i.e. on AWS
+# x86_64 section, to be built on an x86_64 machine, i.e. on AWS
 #################################################################
 
 build.centos7.x86_64: \
