@@ -293,6 +293,11 @@ class Snippets
 
     public function curlVariant6()
     {
+        if (PHP_VERSION_ID <= 50500) {
+            # curl_multi_setopt() was added in PHP 5.5
+            return;
+        }
+
         $version = curl_version();
         if (!isset($version['version_number']) || $version['version_number'] < 0x072e00) {
             /* CURLMOPT_PUSHFUNCTION is only available in curl v7.46.0

@@ -2,84 +2,147 @@ TMP_SCENARIO_FOLDER := ./.tmp.scenarios
 TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
-DOCKER_IMAGE_VERSION := 1
+DOCKER_IMAGE_VERSION := 2
 LIBRARY_DOWNLOAD_PATH := ./.library-versions
 CONCURRENT_JOBS := 5
 DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
-
-build: build.centos7
-
-publish: publish.centos7
+ARCHITECTURE := $(shell uname -m)
 
 pull: pull.centos7
 
-build.centos7: \
-	build.centos7.5.4 \
-	build.centos7.5.5 \
-	build.centos7.5.6 \
-	build.centos7.7.0 \
-	build.centos7.7.1 \
-	build.centos7.7.2 \
-	build.centos7.7.3 \
-	build.centos7.7.4 \
-	build.centos7.8.0 \
-	build.centos7.8.1
+#################################################################
+# aarch64 section, to be built on an aarch64 machine, i.e. on AWS
+#################################################################
 
-build.centos7.%:
+build.centos7.aarch64: \
+	build.centos7.aarch64.7.4 \
+	build.centos7.aarch64.8.0 \
+	build.centos7.aarch64.8.1
+
+build.centos7.aarch64.%:
 	docker build \
 		--build-arg PHP_MAJOR_MINOR="$(*)" \
-		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
+		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 \
 		./docker
 
-publish.centos7: \
-	publish.centos7.5.4 \
-	publish.centos7.5.5 \
-	publish.centos7.5.6 \
-	publish.centos7.7.0 \
-	publish.centos7.7.1 \
-	publish.centos7.7.2 \
-	publish.centos7.7.3 \
-	publish.centos7.7.4 \
-	publish.centos7.8.0 \
-	publish.centos7.8.1
+push.centos7.aarch64: \
+	push.centos7.aarch64.7.4 \
+	push.centos7.aarch64.8.0 \
+	push.centos7.aarch64.8.1
 
-publish.centos7.%: build.centos7.%
-	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
+push.centos7.aarch64.%: build.centos7.aarch64.%
+	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64
 
-pull.centos7: \
-	pull.centos7.5.4 \
-	pull.centos7.5.5 \
-	pull.centos7.5.6 \
-	pull.centos7.7.0 \
-	pull.centos7.7.1 \
-	pull.centos7.7.2 \
-	pull.centos7.7.3 \
-	pull.centos7.7.4 \
-	pull.centos7.8.0 \
-	pull.centos7.8.1
+#################################################################
+# end of aarch64
+#################################################################
 
-pull.centos7.%:
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
+#################################################################
+# x86_64 section, to be built on an x86_64 machine, i.e. on AWS
+#################################################################
+
+build.centos7.x86_64: \
+	build.centos7.x86_64.5.4 \
+	build.centos7.x86_64.5.5 \
+	build.centos7.x86_64.5.6 \
+	build.centos7.x86_64.7.0 \
+	build.centos7.x86_64.7.1 \
+	build.centos7.x86_64.7.2 \
+	build.centos7.x86_64.7.3 \
+	build.centos7.x86_64.7.4 \
+	build.centos7.x86_64.8.0 \
+	build.centos7.x86_64.8.1
+
+build.centos7.x86_64.%:
+	docker build \
+		--build-arg PHP_MAJOR_MINOR="$(*)" \
+		-t $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 \
+		./docker
+
+push.centos7.x86_64: \
+	push.centos7.x86_64.5.4 \
+	push.centos7.x86_64.5.5 \
+	push.centos7.x86_64.5.6 \
+	push.centos7.x86_64.7.0 \
+	push.centos7.x86_64.7.1 \
+	push.centos7.x86_64.7.2 \
+	push.centos7.x86_64.7.3 \
+	push.centos7.x86_64.7.4 \
+	push.centos7.x86_64.8.0 \
+	push.centos7.x86_64.8.1
+
+push.centos7.x86_64.%: build.centos7.x86_64.%
+	docker push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
+
+#################################################################
+# end of x86_64
+#################################################################
+
+manifest.create: \
+	manifest.create.x86_64.5.4 \
+	manifest.create.x86_64.5.5 \
+	manifest.create.x86_64.5.6 \
+	manifest.create.x86_64.7.0 \
+	manifest.create.x86_64.7.1 \
+	manifest.create.x86_64.7.2 \
+	manifest.create.x86_64.7.3 \
+	manifest.create.multi.7.4 \
+	manifest.create.multi.8.0 \
+	manifest.create.multi.8.1 \
+
+manifest.create.x86_64.%:
+	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) || true
+	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 || true
+	docker manifest create \
+		$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
+		--amend \
+			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
+
+manifest.create.multi.%:
+	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) || true
+	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64 || true
+	docker manifest rm $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 || true
+	docker manifest create \
+		$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION) \
+		--amend \
+			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-aarch64 \
+			$(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)-x86_64
+
+manifest.push: \
+	manifest.create \
+	manifest.push.5.4 \
+	manifest.push.5.5 \
+	manifest.push.5.6 \
+	manifest.push.7.0 \
+	manifest.push.7.1 \
+	manifest.push.7.2 \
+	manifest.push.7.3 \
+	manifest.push.7.4 \
+	manifest.push.8.0 \
+	manifest.push.8.1
+
+manifest.push.%:
+	docker manifest push $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
 
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@cp ../../build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz
+	@cp ../../build/packages/dd-library-php-*-$(ARCHITECTURE)-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
 
 library.download:
 	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "$(LIBRARY_TEST_URL)"
+	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz "$(LIBRARY_TEST_URL)"
 	@echo "Done"
 
 library.version:
 	@echo "Downloading library version: $(LIBRARY_VERSION)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
 #	For now we only handle centos in randomized tests
-	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-$(LIBRARY_VERSION)-x86_64-linux-gnu.tar.gz"
+	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php-x86_64-linux-gnu.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php.tar.gz"
 	@echo "Done"
 
 generate: clean results_folder
@@ -109,4 +172,7 @@ clean:
 clean_results:
 	@rm -rf $(TMP_RESULTS_FOLDER)
 
-.PHONY: build.centos7 publish.centos7 pull.centos7
+.PHONY: build.centos7.aarch64 push.centos7.aarch64 \
+		build.centos7.x86_64 push.centos7.x86_64 \
+		pull.centos7 \
+		manifest.create manifest.push

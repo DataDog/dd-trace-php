@@ -14,6 +14,14 @@ Additional platforms and settings can be provided in the `./config` folder.
 - `./config/inis.php`: all tested INI modifications;
 - `./config/platforms.php`: all possible OSes and PHP versions.
 
+## Pre-requisites
+
+If a new build and push of the required docker images is needed, follow the steps below:
+
+1. In an `x86_64` machine (either locally or on AWS) run `make push.centos7.x86_64` that builds the proper images and pushes them.
+2. In an `aarch64` machine (either locally or on AWS) run `make push.centos7.aarch64` that builds the proper images and pushes them.
+3. Run `manifest.push`
+
 ## Usage
 
 ### Overview

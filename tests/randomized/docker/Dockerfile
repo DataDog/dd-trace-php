@@ -5,13 +5,13 @@ ARG PHP_MAJOR_MINOR
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
 
-RUN \
-    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-    && yum install -y \
+RUN set -eux; \
+    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
+    yum install -y \
         autoconf \
+        automake \
         bzip2-devel \
         elinks \
-        gcc \
         gdb \
         git \
         httpd-devel \
@@ -28,9 +28,19 @@ RUN \
         unzip \
         vim \
         wget \
-    && debuginfo-install -y httpd \
-    && yum clean all \
-    && rm -rf /var/cache/yum
+    ; \
+    debuginfo-install -y httpd; \
+    yum clean all; \
+    rm -rf /var/cache/yum;
+
+RUN set -eux; \
+    yum install -y centos-release-scl-rh; \
+    yum-config-manager --enable centos-sclo-rh-testing; \
+    yum install -y devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-gdb make; \
+    yum clean all; \
+    rm -rf /var/cache/yum
+
+ENV PATH="/opt/rh/devtoolset-7/root/usr/bin:$PATH"
 
 ADD envs /envs
 
@@ -114,10 +124,19 @@ ADD enable-coredump.sh /scripts/enable-coredump.sh
 ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /scripts/wait-for.sh
 RUN chmod +x /scripts/wait-for.sh
 
-# Installing vegeta
-RUN curl -L -o /tmp/vegeta.tar.gz https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz \
-    && tar -C /usr/bin -zxvf /tmp/vegeta.tar.gz vegeta \
-    && rm /tmp/vegeta.tar.gz
+# Installing vegeta (not released for aarch64)
+#    - Install golang
+RUN set -eux; \
+    GO_ARCHITECTURE=$(if [ `uname -m` = "aarch64" ]; then echo "arm64"; else echo "amd64"; fi); \
+    curl -L --output golang.tar.gz https://go.dev/dl/go1.18.3.linux-${GO_ARCHITECTURE}.tar.gz; \
+    rm -rf /usr/local/go && tar -C /usr/local -xzf golang.tar.gz;
+#    - Download vegeta
+RUN set -eux; \
+    curl -L --output src-vegeta.tar.gz https://github.com/tsenart/vegeta/archive/refs/tags/v12.8.4.tar.gz; \
+    tar -xvf src-vegeta.tar.gz; \
+    cd vegeta*; \
+    /usr/local/go/bin/go install; \
+    cp /root/go/bin/vegeta /usr/local/bin
 
 # Installing composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
