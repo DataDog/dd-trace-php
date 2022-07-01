@@ -1,5 +1,7 @@
 --TEST--
 Test invalid $_SERVER values are properly ignored
+--SKIPIF--
+<?php if (!extension_loaded('pcntl')) die('skip: pcntl extension required'); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HEADER_TAGS=0
