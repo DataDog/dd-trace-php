@@ -2303,7 +2303,7 @@ workflows:
               php_major_minor:
                 - "7.4"
               make_target:
-                - test_extension_ci
+                - xfail_valgrind test_extension_ci
 
       - test_arm:
           requires: [ 'Prepare Code' ]
@@ -2314,7 +2314,7 @@ workflows:
               switch_php_version:
                 - debug-zts-asan
               make_target:
-                - test_c_asan
+                - xfail_asan test_c_asan
 
   #     - coverage:
   #         requires: [ 'Prepare Code' ]

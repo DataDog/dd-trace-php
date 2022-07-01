@@ -15,6 +15,7 @@ CFLAGS := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 -g || echo -O2) 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
+ARCHITECTURE=$(shell uname -m)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.6.1/datadog-profiling.tar.gz
@@ -144,6 +145,18 @@ test_c_asan: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) --asan $(BUILD_DIR)/$(TESTS); \
 	)
+
+xfail_asan:
+	set -eux; \
+	for testPath in $(shell cat dockerfiles/ci/xfail_tests/ext/$(ARCHITECTURE)/asan/$(PHP_MAJOR_MINOR).list || true); do \
+		echo "--XFAIL--\nNot supported on this architecture" | sudo tee -a "tmp/build_extension/$testPath"; \
+	done
+
+xfail_valgrind:
+	set -eux; \
+	for testPath in $(shell cat dockerfiles/ci/xfail_tests/ext/$(ARCHITECTURE)/valgrind/$(PHP_MAJOR_MINOR).list || true); do \
+		echo "--XFAIL--\nNot supported on this architecture" | sudo tee -a "tmp/build_extension/$testPath"; \
+	done
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
@@ -383,7 +396,6 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
-ARCHITECTURE=x86_64
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
 FPM_INFO_OPTS=-a native -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
