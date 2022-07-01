@@ -200,17 +200,27 @@ class Normalizer
         }
 
         $queryString = $m[0];
+        if ($queryString === "") {
+            return "";
+        }
 
-        $allowedSet = array_flip(self::decodeConfigSet($allowedSetting));
+        $allowedSet = self::decodeConfigSet($allowedSetting);
 
         if (empty($allowedSet)) {
             return "";
         }
 
         if ($allowedSet == ["*"]) {
-            return $queryString === "" ? "" : "?$queryString";
+            $obfuscationRegex = \ini_get('datadog.trace.obfuscation_query_string_regexp');
+            if ($obfuscationRegex !== "") {
+                $obfuscationRegex = '(' . $obfuscationRegex . ')';
+                $queryString = preg_replace($obfuscationRegex, '<redacted>', $queryString);
+            }
+
+            return "?$queryString";
         }
 
+        $allowedSet = array_flip($allowedSet);
         $preserve = array_filter(explode('&', $queryString), function ($part) use ($allowedSet) {
             return isset($allowedSet[explode('=', $part)[0]]);
         });

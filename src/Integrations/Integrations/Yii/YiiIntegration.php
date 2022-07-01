@@ -131,14 +131,13 @@ class YiiIntegration extends Integration
                         }
                     }
 
-                    $routePath = \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($namedParams)));
+                    $routePath = \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($namedParams)), false, true);
                     $rootSpan->meta['app.route.path'] = $routePath;
 
-                    error_log('Url to route: ' . var_export(\urldecode(Url::toRoute($placeholders)), true));
                     $resourceName = \str_replace(
                         $placeholder,
                         '?',
-                        \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($placeholders)))
+                        \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($placeholders)), false, true)
                     );
                     $rootSpan->resource = "{$_SERVER['REQUEST_METHOD']} {$resourceName}";
                 }

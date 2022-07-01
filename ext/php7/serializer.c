@@ -679,10 +679,12 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
             }
         }
 
-        zval http_url;
-        ZVAL_STR(&http_url, dd_build_req_url());
-        if (Z_STRLEN(http_url)) {
-            zend_hash_str_update(Z_ARR_P(meta), "http.url", sizeof("http.url") - 1, &http_url);
+        if (!zend_hash_str_exists(Z_ARR_P(meta), "http.url", sizeof("http.url") - 1)) {
+            zval http_url;
+            ZVAL_STR(&http_url, dd_build_req_url());
+            if (Z_STRLEN(http_url)) {
+                zend_hash_str_update(Z_ARR_P(meta), "http.url", sizeof("http.url") - 1, &http_url);
+            }
         }
 
         zend_llist_position pos;
