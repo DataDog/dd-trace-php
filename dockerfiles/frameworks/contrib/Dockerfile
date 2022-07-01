@@ -23,7 +23,6 @@ RUN set -xe; \
         php${V}-dom \
         php${V}-gd \
         php${V}-iconv \
-        # php${V}-imagick \
         php${V}-json \
         php${V}-intl \
         php${V}-fileinfo\
