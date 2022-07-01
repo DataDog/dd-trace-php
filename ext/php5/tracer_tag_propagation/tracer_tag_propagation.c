@@ -54,14 +54,18 @@ void ddtrace_add_tracer_tags_from_header(zai_string_view headerstr TSRMLS_DC) {
                 ++header;
             }
 
-            zval *zv;
-            MAKE_STD_ZVAL(zv);
-            ZVAL_STRINGL(zv, valuestart, header - valuestart, 1);
+            // tags not starting with _dd.p. must not be propagated to prevent information leaks or arbitrary
+            // information injection
+            if (tag_name.len >= sizeof("_dd.p.") && strncmp(tag_name.ptr, "_dd.p.", sizeof("_dd.p.") - 1) == 0) {
+                zval *zv;
+                MAKE_STD_ZVAL(zv);
+                ZVAL_STRINGL(zv, valuestart, header - valuestart, 1);
 
-            char *key = estrndup(tag_name.ptr, tag_name.len);
-            zend_hash_update(&DDTRACE_G(root_span_tags_preset), key, tag_name.len + 1, &zv, sizeof(zval *), NULL);
-            zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), key, tag_name.len + 1);
-            efree(key);
+                char *key = estrndup(tag_name.ptr, tag_name.len);
+                zend_hash_update(&DDTRACE_G(root_span_tags_preset), key, tag_name.len + 1, &zv, sizeof(zval *), NULL);
+                zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), key, tag_name.len + 1);
+                efree(key);
+            }
         }
         // we skip invalid tags without = within
         if (*header == ',') {

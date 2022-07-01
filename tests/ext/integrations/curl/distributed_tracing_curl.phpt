@@ -10,7 +10,7 @@ DD_TRACE_DEBUG=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH=25
 HTTP_X_DATADOG_ORIGIN=phpt-test
-HTTP_X_DATADOG_TAGS=very=looooooooooooooooooooooong
+HTTP_X_DATADOG_TAGS=_dd.p.very=looooooooooooooooong
 --FILE--
 <?php
 include 'curl_helper.inc';
@@ -43,7 +43,7 @@ echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-The to be propagated tag 'very=looooooooooooooooooooooong' is too long and exceeds the maximum limit of 25 characters and is thus dropped.
+The to be propagated tag '_dd.p.very=looooooooooooooooong' is too long and exceeds the maximum limit of 25 characters and is thus dropped.
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 bool(true)
