@@ -2303,7 +2303,8 @@ workflows:
               php_major_minor:
                 - "7.4"
               make_target:
-                - xfail_valgrind test_extension_ci
+                - test_extension
+                - xfail_valgrind test_extension_valgrind
 
       - test_arm:
           requires: [ 'Prepare Code' ]
