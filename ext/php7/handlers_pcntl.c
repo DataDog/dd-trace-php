@@ -17,7 +17,7 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
         ddtrace_coms_kill_background_sender();
-        ddtrace_init_span_stacks();
+        ddtrace_free_span_stacks();
         ddtrace_seed_prng();
         if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
             ddtrace_push_root_span();
