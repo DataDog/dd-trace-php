@@ -2065,7 +2065,7 @@ void dd_read_distributed_tracing_ids(void) {
         DDTRACE_G(distributed_parent_trace_id) = ddtrace_parse_hex_span_id(&parent_zv);
     }
 
-    if (parse_datadog && zai_read_header_literal("X_DATADOG_ORIGIN", &DDTRACE_G(dd_origin)) == ZAI_HEADER_SUCCESS) {
+    if (zai_read_header_literal("X_DATADOG_ORIGIN", &DDTRACE_G(dd_origin)) == ZAI_HEADER_SUCCESS) {
         GC_ADDREF(DDTRACE_G(dd_origin));
     }
 
