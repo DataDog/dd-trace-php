@@ -1679,11 +1679,11 @@ workflows:
           name: "PHPRedis 5 baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
-          framework_target: wordpress
+          framework_target: wordpress_php5
           name: "WordPress testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
-          framework_target: wordpress_no_ddtrace
+          framework_target: wordpress_php5_no_ddtrace
           name: "WordPress baseline testsuite"
       - verify_alpine:
           requires: [ "package extension" ]

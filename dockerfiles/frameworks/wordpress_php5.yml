@@ -1,9 +1,9 @@
 version: "3.6"
 
 services:
-  wordpress:
+  wordpress_php5:
     depends_on: ['mysql', 'nginx_file_server']
-    image: 'datadog/dd-trace-ci:php-framework-wordpress'
+    image: 'datadog/dd-trace-ci:php-framework-wordpress_php5'
     build:
       context: contrib
       target: wordpress
