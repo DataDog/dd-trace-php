@@ -61,9 +61,9 @@ class Normalizer
         }
 
         $uriPath = self::urlSanitize($inputUriPath, false, true);
-	if ($uriPath === '') {
-	    return '/' . self::cleanQueryString($inputUriPath, "datadog.trace.resource_uri_query_param_allowed");
-	}
+        if ($uriPath === '') {
+            return '/' . self::cleanQueryString($inputUriPath, "datadog.trace.resource_uri_query_param_allowed");
+        }
 
         // We always expect leading slash if it is a pure path, while urls with RFC3986 complaint schemes are preserved.
         // See: https://tools.ietf.org/html/rfc3986#page-17
@@ -184,9 +184,10 @@ class Normalizer
             $url
         );
 
-	$urlNoQueryString = strstr($sanitizedUserinfo, '?', true);
-	return ($urlNoQueryString === '' ? '' : \str_replace('<sanitized>', '?', $urlNoQueryString ?: $sanitizedUserinfo))
-             . ($trimQueryString ? "" : self::cleanQueryString($url, "datadog.trace.http_url_query_param_allowed"));
+        $urlNoQueryString = strstr($sanitizedUserinfo, '?', true);
+        return ($urlNoQueryString === '' ? '' : 
+                    \str_replace('<sanitized>', '?', $urlNoQueryString ?: $sanitizedUserinfo))
+            . ($trimQueryString ? "" : self::cleanQueryString($url, "datadog.trace.http_url_query_param_allowed"));
     }
 
     public static function sanitizedQueryString()
