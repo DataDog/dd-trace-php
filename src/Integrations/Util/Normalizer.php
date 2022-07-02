@@ -185,7 +185,7 @@ class Normalizer
         );
 
         $urlNoQueryString = strstr($sanitizedUserinfo, '?', true);
-        return ($urlNoQueryString === '' ? '' : 
+        return ($urlNoQueryString === '' ? '' :
                     \str_replace('<sanitized>', '?', $urlNoQueryString ?: $sanitizedUserinfo))
             . ($trimQueryString ? "" : self::cleanQueryString($url, "datadog.trace.http_url_query_param_allowed"));
     }
