@@ -10,10 +10,10 @@ NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
 ARCHITECTURE := $(shell uname -m)
 
-# Steps:
+# Steps to build images:
 #  - On a x86_64 machine run `make push.centos7.x86_64`
 #  - On a aarch64/arm64 machine run `make push.centos7.aarch64`
-#  - On any machine run `manifest.push`
+#  - After the previous steps have completed successfully, on any machine run `manifest.push`
 
 #################################################################
 # aarch64 section, to be built on an aarch64 machine, i.e. on AWS
