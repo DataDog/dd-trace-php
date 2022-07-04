@@ -1,9 +1,7 @@
 #ifndef DD_COMPATIBILITY_H
 #define DD_COMPATIBILITY_H
 
-#include <TSRM/TSRM.h>
-#include <Zend/zend.h>
-#include <php_version.h>
+#include <php.h>
 
 #if !defined(ZEND_ASSERT)
 #if ZEND_DEBUG
@@ -71,5 +69,28 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
     return zend_new_interned_string(zend_string_init(str, len, persistent));
 }
 #endif
+
+static inline zend_string *ddtrace_vstrpprintf(size_t max_len, const char *format, va_list ap)
+{
+    zend_string *str = zend_vstrpprintf(max_len, format, ap);
+    return zend_string_realloc(str, ZSTR_LEN(str), 0);
+}
+
+#undef zend_vstrpprintf
+#define zend_vstrpprintf ddtrace_vstrpprintf
+
+static inline zend_string *ddtrace_strpprintf(size_t max_len, const char *format, ...)
+{
+    va_list arg;
+    zend_string *str;
+
+    va_start(arg, format);
+    str = zend_vstrpprintf(max_len, format, arg);
+    va_end(arg);
+    return str;
+}
+
+#undef zend_strpprintf
+#define zend_strpprintf ddtrace_strpprintf
 
 #endif  // DD_COMPATIBILITY_H
