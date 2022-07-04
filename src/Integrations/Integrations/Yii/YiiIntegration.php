@@ -115,8 +115,9 @@ class YiiIntegration extends Integration
                     $controller = \get_class($this);
                     $endpoint = "{$controller}::{$this->action->actionMethod}";
                     $rootSpan->meta["app.endpoint"] = $endpoint;
-                    $rootSpan->meta[Tag::HTTP_URL] =
-                        \DDTrace\Util\Normalizer::urlSanitize(Url::base(true) . Url::current());
+
+		$rootSpan->meta[Tag::HTTP_URL] =
+		    \DDTrace\Util\Normalizer::urlSanitize(Url::base(true) . Url::current());
                 }
 
                 if (empty($rootSpan->meta['app.route.path'])) {

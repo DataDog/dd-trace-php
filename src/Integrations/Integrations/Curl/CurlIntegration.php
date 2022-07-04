@@ -75,8 +75,10 @@ final class CurlIntegration extends Integration
 
                 /* Special case the Datadog Standard Attributes
                  * See https://docs.datadoghq.com/logs/processing/attributes_naming_convention/
-                 */
-                $span->meta[Tag::HTTP_URL] = $sanitizedUrl;
+                 */ 
+                if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
+                    $span->meta[Tag::HTTP_URL] = $sanitizedUrl;
+                }
 
                 addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
 

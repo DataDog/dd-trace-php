@@ -26,7 +26,9 @@ class WordPressIntegrationLoader
             $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
             $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
             \DDTrace\hook_function('wp_plugin_directory_constants', function () use ($rootSpan) {
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+                }
             });
         }
 
