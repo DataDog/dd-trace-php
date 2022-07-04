@@ -1,6 +1,8 @@
 #ifndef ZAI_UHOOK_H
 #define ZAI_UHOOK_H
 
+#include <php.h>
+
 HashTable *dd_uhook_collect_args(zend_execute_data *execute_data);
 
 void zai_uhook_rinit();

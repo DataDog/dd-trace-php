@@ -80,6 +80,7 @@ HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
             num_args -= first_extra_arg;
         }
 
+        // collect trailing variadic args
         for (zval *end = p + num_args; p < end; ++p) {
             if (Z_OPT_REFCOUNTED_P(p)) {
                 Z_ADDREF_P(p);
@@ -136,9 +137,9 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         /* If the profiler doesn't handle a potential pending interrupt before
          * the observer's end function, then the callback will be at the top of
          * the stack even though it's not responsible.
-         * This is why the profiler's interrupt function is called here, to
+         * This is why the profilers interrupt function is called here, to
          * give the profiler an opportunity to take a sample before calling the
-         * tracing funcation.
+         * tracing function.
          */
         if (profiling_interrupt_function) {
             profiling_interrupt_function(execute_data);
@@ -184,7 +185,6 @@ static void dd_uhook_dtor(void *data) {
     efree(def);
 }
 
-// clang-format off
 #if PHP_VERSION_ID < 70400
 #define _error_code error_code
 #endif
@@ -288,7 +288,6 @@ PHP_FUNCTION(install_hook) {
     zend_hash_index_add_ptr(&dd_active_hooks, (zend_ulong)def->id, def);
     RETURN_LONG(def->id);
 } /* }}} */
-// clang-foramt on
 
 /* {{{ proto void DDTrace\remove_hook(int $id) */
 PHP_FUNCTION(remove_hook) {
