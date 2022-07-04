@@ -49,7 +49,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/simple',
+                        Tag::HTTP_URL => 'http://localhost:9999/simple?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple::index',
                     ])->withChildren([
@@ -69,7 +69,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple_view'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/simple_view',
+                        Tag::HTTP_URL => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple_View::index',
                     ])->withChildren([
@@ -96,7 +96,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /error'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/error',
+                        Tag::HTTP_URL => 'http://localhost:9999/error?key=value&<redacted>',
                         // CodeIgniter's error handler does not adjust the status code
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Error_::index',

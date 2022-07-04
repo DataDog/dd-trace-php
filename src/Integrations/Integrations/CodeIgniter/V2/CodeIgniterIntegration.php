@@ -80,8 +80,11 @@ class CodeIgniterIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $this->load->helper('url');
-                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
-                    . Normalizer::sanitizedQueryString();
+
+                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                        . Normalizer::sanitizedQueryString();
+                }
                 $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
             }
         );

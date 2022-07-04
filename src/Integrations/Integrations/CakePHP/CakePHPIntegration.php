@@ -72,8 +72,11 @@ class CakePHPIntegration extends Integration
 
                     $integration->rootSpan->resource =
                         $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action'];
-                    $integration->rootSpan->meta[Tag::HTTP_URL] = Router::url($request->here, true)
-                        . Normalizer::sanitizedQueryString();
+
+                    if (!array_key_exists(Tag::HTTP_URL, $integration->rootSpan->meta)) {
+                        $integration->rootSpan->meta[Tag::HTTP_URL] = Router::url($request->here, true)
+                            . Normalizer::sanitizedQueryString();
+                    }
                     $integration->rootSpan->meta['cakephp.route.controller'] = $request->params['controller'];
                     $integration->rootSpan->meta['cakephp.route.action'] = $request->params['action'];
                     if (isset($request->params['plugin'])) {

@@ -49,7 +49,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'simple_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple')
@@ -71,7 +71,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view',
+                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
@@ -108,7 +108,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error',
+                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
                     ])->setError('Exception', 'Controller error', true)->withChildren([
                         SpanAssertion::exists('laravel.action'),
