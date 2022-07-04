@@ -93,7 +93,7 @@ class LaravelIntegration extends Integration
 
                 $rootSpan->meta['laravel.route.name'] = $routeName;
                 $rootSpan->meta['laravel.route.action'] = $route->getActionName();
-                
+
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }

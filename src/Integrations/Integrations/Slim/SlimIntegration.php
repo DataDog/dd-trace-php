@@ -110,7 +110,8 @@ class SlimIntegration extends Integration
                     $request = $args[1];
 
                     if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize((string) $request->getUri());
+                        $rootSpan->meta[Tag::HTTP_URL] =
+                                \DDTrace\Util\Normalizer::urlSanitize((string) $request->getUri());
                     }
 
                     if ('4' === $majorVersion) {
