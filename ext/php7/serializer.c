@@ -536,7 +536,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     zval http_url;
     ZVAL_STR(&http_url, dd_build_req_url());
     if (Z_STRLEN(http_url)) {
-        zend_hash_str_update(meta, "http.url", sizeof("http.url") - 1, &http_url);
+        zend_hash_str_add_new(meta, "http.url", sizeof("http.url") - 1, &http_url);
     }
 
     const char *method = SG(request_info).request_method;

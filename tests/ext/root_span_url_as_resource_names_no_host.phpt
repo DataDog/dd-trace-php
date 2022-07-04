@@ -22,6 +22,8 @@ var_dump($spans[0]['meta']);
 array(6) {
   ["system.pid"]=>
   %s
+  ["http.url"]=>
+  string(25) "http://localhost:8888/foo"
   ["http.method"]=>
   string(3) "GET"
   ["_dd.p.dm"]=>
@@ -30,6 +32,4 @@ array(6) {
   string(10) "9753902159"
   ["http.status_code"]=>
   string(3) "200"
-  ["http.url"]=>
-  string(25) "http://localhost:8888/foo"
 }
