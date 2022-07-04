@@ -42,6 +42,20 @@ RUN set -eux; \
 
 ENV PATH="/opt/rh/devtoolset-7/root/usr/bin:$PATH"
 
+# Installing vegeta (not released for aarch64)
+#    - Install golang
+RUN set -eux; \
+    GO_ARCHITECTURE=$(if [ `uname -m` = "aarch64" ]; then echo "arm64"; else echo "amd64"; fi); \
+    curl -L --output golang.tar.gz https://go.dev/dl/go1.18.3.linux-${GO_ARCHITECTURE}.tar.gz; \
+    rm -rf /usr/local/go && tar -C /usr/local -xzf golang.tar.gz;
+#    - Download vegeta
+RUN set -eux; \
+    curl -L --output src-vegeta.tar.gz https://github.com/tsenart/vegeta/archive/refs/tags/v12.8.4.tar.gz; \
+    tar -xvf src-vegeta.tar.gz; \
+    cd vegeta*; \
+    /usr/local/go/bin/go install; \
+    cp /root/go/bin/vegeta /usr/local/bin
+
 ADD envs /envs
 
 # Downloading / Extracting PHP
@@ -123,20 +137,6 @@ ADD enable-coredump.sh /scripts/enable-coredump.sh
 # be changed without an appropriate code review.
 ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /scripts/wait-for.sh
 RUN chmod +x /scripts/wait-for.sh
-
-# Installing vegeta (not released for aarch64)
-#    - Install golang
-RUN set -eux; \
-    GO_ARCHITECTURE=$(if [ `uname -m` = "aarch64" ]; then echo "arm64"; else echo "amd64"; fi); \
-    curl -L --output golang.tar.gz https://go.dev/dl/go1.18.3.linux-${GO_ARCHITECTURE}.tar.gz; \
-    rm -rf /usr/local/go && tar -C /usr/local -xzf golang.tar.gz;
-#    - Download vegeta
-RUN set -eux; \
-    curl -L --output src-vegeta.tar.gz https://github.com/tsenart/vegeta/archive/refs/tags/v12.8.4.tar.gz; \
-    tar -xvf src-vegeta.tar.gz; \
-    cd vegeta*; \
-    /usr/local/go/bin/go install; \
-    cp /root/go/bin/vegeta /usr/local/bin
 
 # Installing composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
