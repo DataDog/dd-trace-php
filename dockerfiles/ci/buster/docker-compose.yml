@@ -7,24 +7,6 @@ services:
     build:
       context: .
 
-  php-8.1:
-    image: datadog/dd-trace-ci:php-8.1_buster
-    build:
-      context: ./php-8.1
-      args:
-        phpVersion: 8.1
-        phpTarGzUrl: https://www.php.net/distributions/php-8.1.4.tar.gz
-        phpSha256Hash: a9951c1c8fd5d2eefde28de0f646c344eb61d751319d220713a6da26f986abde
-
-  php-8.0:
-    image: datadog/dd-trace-ci:php-8.0_buster
-    build:
-      context: ./php-8.0
-      args:
-        phpVersion: 8.0
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.17.tar.gz
-        phpSha256Hash: bdbd792901c156c4d1710c9d266732d3c17f6ff63850d6660b9d8d3411188424
-
   php-8.0-shared-ext:
     image: datadog/dd-trace-ci:php-8.0-shared-ext
     build:
@@ -35,15 +17,6 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.13.tar.gz
         phpSha256Hash: b4c2d27c954e1b0d84fd4bfef4d252e154ba479e7db11abd89358f2164ee7cc8
 
-  php-7.4:
-    image: datadog/dd-trace-ci:php-7.4_buster
-    build:
-      context: ./php-7.4
-      args:
-        phpVersion: 7.4
-        phpTarGzUrl: https://www.php.net/distributions/php-7.4.21.tar.gz
-        phpSha256Hash: 4b9623accbe4b8923a801212f371f784069535009185e7bf7e4dec66bbea61db
-
   php-7.4-shared-ext:
     image: datadog/dd-trace-ci:php-7.4-shared-ext
     build:
@@ -53,42 +26,6 @@ services:
         phpVersion: 7.4
         phpTarGzUrl: https://www.php.net/distributions/php-7.4.26.tar.gz
         phpSha256Hash: 890a7e730f96708a68a77b19fd57fec33cc81573f7249111c870edac42b91a72
-
-  php-7.3:
-    image: datadog/dd-trace-ci:php-7.3_buster
-    build:
-      context: ./php-7.3
-      args:
-        phpVersion: 7.3
-        phpTarGzUrl: https://www.php.net/distributions/php-7.3.29.tar.gz
-        phpSha256Hash: ba4de3955b0cbd33baee55a83568acc4347605e210a54b5654e4c1e09b544659
-
-  php-7.2:
-    image: datadog/dd-trace-ci:php-7.2_buster
-    build:
-      context: ./php-7.2
-      args:
-        phpVersion: 7.2
-        phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
-        phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
-
-  php-7.1:
-    image: datadog/dd-trace-ci:php-7.1_buster
-    build:
-      context: ./php-7.1
-      args:
-        phpVersion: 7.1
-        phpTarGzUrl: https://www.php.net/distributions/php-7.1.33.tar.gz
-        phpSha256Hash: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
-
-  php-7.0:
-    image: datadog/dd-trace-ci:php-7.0_buster
-    build:
-      context: ./php-7.0
-      args:
-        phpVersion: 7.0
-        phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
-        phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
 
   php-master:
     image: datadog/dd-trace-ci:php-master_buster
