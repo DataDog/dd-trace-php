@@ -5,7 +5,7 @@ HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
 HTTP_X_DATADOG_SAMPLING_PRIORITY=3
-HTTP_X_DATADOG_TAGS=custom_tag=inherited,dropped,other_tag=also,drop
+HTTP_X_DATADOG_TAGS=_dd.p.custom_tag=inherited,_dd.p.dropped,_dd.p.other_tag=also,_dd.p.drop
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -45,11 +45,11 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(5) {
-      ["custom_tag"]=>
+      ["_dd.p.custom_tag"]=>
       string(9) "inherited"
       ["_dd.propagation_error"]=>
       string(14) "decoding_error"
-      ["other_tag"]=>
+      ["_dd.p.other_tag"]=>
       string(4) "also"
       ["system.pid"]=>
       string(%d) "%d"

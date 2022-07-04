@@ -482,7 +482,7 @@ static zend_string *dd_build_req_url() {
         uri_len = question_mark - uri;
         query_string = zai_filter_query_string(
             (zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
-            get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED(), get_DD_OBFUSCATION_QUERY_STRING_REGEXP());
+            get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED(), get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
     } else {
         uri_len = strlen(uri);
     }
@@ -554,9 +554,10 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
                 zend_string *query_string = ZSTR_EMPTY_ALLOC();
                 const char *query_str = dd_get_query_string();
                 if (query_str) {
-                    query_string = zai_filter_query_string(
-                        (zai_string_view){.len = strlen(query_str), .ptr = query_str},
-                        get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(), get_DD_OBFUSCATION_QUERY_STRING_REGEXP());
+                    query_string =
+                        zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
+                                                get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(),
+                                                get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
                 }
 
                 ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s%s%.*s", method, ZSTR_VAL(normalized),
@@ -605,7 +606,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
         zval *headerval;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR(PG(http_globals)[TRACK_VARS_SERVER]), headername, headerval) {
             ZVAL_DEREF(headerval);
-            if (Z_TYPE_P(headerval) == IS_STRING && ZSTR_LEN(headername) > 5 &&
+            if (Z_TYPE_P(headerval) == IS_STRING && headername && ZSTR_LEN(headername) > 5 &&
                 memcmp(ZSTR_VAL(headername), "HTTP_", 5) == 0) {
                 zend_string *lowerheader = zend_string_init(ZSTR_VAL(headername) + 5, ZSTR_LEN(headername) - 5, 0);
                 for (char *ptr = ZSTR_VAL(lowerheader); *ptr; ++ptr) {

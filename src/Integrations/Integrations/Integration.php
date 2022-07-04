@@ -157,13 +157,14 @@ abstract class Integration
 
 function load_deferred_integration($integrationName, $hookedObject = null)
 {
-    // it should have already been loaded (in current architecture)
+    // it should have already been autoloaded (in current architecture)
     if (
         \class_exists($integrationName, $autoload = false)
         && \is_subclass_of($integrationName, 'DDTrace\\Integrations\\Integration')
     ) {
         /** @var Integration $integration */
         $integration = new $integrationName();
-        $integration->init($hookedObject);
+        $result = $integration->init($hookedObject);
+        IntegrationsLoader::logResult($integrationName, $result);
     }
 }

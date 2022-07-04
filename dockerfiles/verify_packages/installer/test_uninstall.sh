@@ -11,12 +11,12 @@ extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
 # Install using the php installer
-new_version="0.68.2"
+new_version="0.75.0"
 generate_installers "${new_version}"
 php ./build/packages/datadog-setup.php --php-bin php --enable-profiling --enable-appsec
 assert_ddtrace_version "${new_version}"
-assert_appsec_version "0.2.0"
-assert_profiler_version "0.3.0"
+assert_appsec_version "0.3.2"
+assert_profiler_version "0.6.1"
 
 # Uninstall
 php ./build/packages/datadog-setup.php --php-bin php --uninstall

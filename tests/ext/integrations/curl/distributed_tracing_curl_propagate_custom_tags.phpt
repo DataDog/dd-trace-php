@@ -5,7 +5,6 @@ Distributed tracing header tags propagate with curl_exec()
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
-HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,_dd.p.foo=bar,_dd.p.dm=abcdef-2
 --FILE--
 <?php
 
@@ -22,17 +21,13 @@ function query_headers() {
     return dt_decode_headers_from_httpbin($response);
 }
 
-$meta = &DDTrace\root_span()->meta;
-unset($meta["to_remove"]);
-$meta["foo"] = "buzz";
-
-$span = DDTrace\start_span();
-$span->service = "dd";
-
-DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_USER_KEEP);
+DDTrace\add_distributed_tag("usr.id", "1234");
+$meta = DDTrace\root_span()->meta;
+var_dump($meta["_dd.p.usr.id"]);
 
 dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-tags']);
 
 ?>
 --EXPECT--
-x-datadog-tags: _dd.p.foo=bar,_dd.p.dm=abcdef-2
+string(4) "1234"
+x-datadog-tags: _dd.p.usr.id=1234,_dd.p.dm=-1

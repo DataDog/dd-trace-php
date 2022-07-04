@@ -12,6 +12,11 @@
         "symfony/process": "<5",
         "g1a/composer-test-scenarios": "~3.0"
     },
+    "config": {
+        "allow-plugins": {
+            "g1a/composer-test-scenarios": true
+        }
+    },
     "extra": {
         "scenarios": {
             "elasticsearch1": {
