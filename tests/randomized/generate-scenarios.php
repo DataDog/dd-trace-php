@@ -118,6 +118,7 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions)
             'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion-2",
             'installation_method' => $selectedInstallationMethod,
             'project_root' => '../../../../',
+            'mysql_image' => ($selectedPhpVersion > '5.5' ? 'mysql/mysql-server:8.0' : ''),
         ]
     );
 
