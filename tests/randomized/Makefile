@@ -10,7 +10,10 @@ NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
 ARCHITECTURE := $(shell uname -m)
 
-pull: pull.centos7
+# Steps:
+#  - On a x86_64 machine run `make push.centos7.x86_64`
+#  - On a aarch64/arm64 machine run `make push.centos7.aarch64`
+#  - On any machine run `manifest.push`
 
 #################################################################
 # aarch64 section, to be built on an aarch64 machine, i.e. on AWS
