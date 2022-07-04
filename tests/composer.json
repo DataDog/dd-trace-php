@@ -133,7 +133,7 @@
     },
     "config": {
         "allow-plugins": {
-	   "g1a/composer-test-scenarios": true 
+            "g1a/composer-test-scenarios": true
         }
     }
 }
