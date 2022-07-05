@@ -17,8 +17,13 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
         ddtrace_coms_kill_background_sender();
+        int parent_span_id = 0;
+        if (DDTRACE_G(open_spans_top) != NULL) {
+            parent_span_id = DDTRACE_G(open_spans_top)->span.span_id;
+        }
         ddtrace_free_span_stacks();
         ddtrace_seed_prng();
+        DDTRACE_G(distributed_parent_trace_id) = parent_span_id;
         if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
             ddtrace_push_root_span();
         }
