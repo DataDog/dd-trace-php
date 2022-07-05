@@ -1899,7 +1899,7 @@ workflows:
                 - sury
               docker_image:
                 - debian:buster
-                - debian:stretch
+                - debian:bullseye
               configuration:
                 - PHP_VERSION=7.0
                 - PHP_VERSION=7.1
