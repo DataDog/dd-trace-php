@@ -3,7 +3,6 @@ priority_sampling rule with service reject
 --ENV--
 DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.3, "service": "foo"}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
-DD_TRACE_PROPAGATE_SERVICE=1
 --SKIPIF--
 <?php
 if (getenv("USE_ZEND_ALLOC") === "0") {
@@ -26,4 +25,4 @@ echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 Rule OK
-_dd.p.dm = df0d0df4cc-1
+_dd.p.dm = -1
