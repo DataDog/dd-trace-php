@@ -57,7 +57,8 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
             }
         }
         success = zai_symbol_call(scope_type, scope,
-                        ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rv, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv, &args_zv, retval, &exception_zv);
+                        ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
+                        &rv, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv, &args_zv, retval, &exception_zv);
     } else {
         if (EX(func)->common.scope) {
             zval *This = getThis() ? &EX(This) : &EG(uninitialized_zval);
@@ -67,9 +68,13 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
             if (scope_ce) {
                 ZVAL_STR(&scope, scope_ce->name);
             }
-            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rv, 5 | ZAI_SYMBOL_SANDBOX, &sandbox, This, &scope, &args_zv, retval, &exception_zv);
+            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
+                                      ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
+                                      &rv, 5 | ZAI_SYMBOL_SANDBOX, &sandbox, This, &scope, &args_zv, retval, &exception_zv);
         } else {
-            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rv, 3 | ZAI_SYMBOL_SANDBOX, &sandbox, &args_zv, retval, &exception_zv);
+            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
+                                      ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
+                                      &rv, 3 | ZAI_SYMBOL_SANDBOX, &sandbox, &args_zv, retval, &exception_zv);
         }
     }
 
@@ -400,15 +405,9 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     zai_string_view class_str = method ? ZAI_STRING_FROM_ZSTR(class_name) : ZAI_STRING_EMPTY;
     zai_string_view func_str = ZAI_STRING_FROM_ZSTR(method_name);
 
-    RETURN_BOOL(zai_hook_install_generator(
-            class_str,
-            func_str,
-            dd_uhook_begin,
-            dd_uhook_generator_resumption,
-            dd_uhook_generator_yield,
-            dd_uhook_end,
-            ZAI_HOOK_AUX(def, dd_uhook_dtor),
-            sizeof(dd_uhook_dynamic)) != -1);
+    RETURN_BOOL(zai_hook_install_generator(class_str,func_str,
+            dd_uhook_begin,dd_uhook_generator_resumption,dd_uhook_generator_yield,dd_uhook_end,
+            ZAI_HOOK_AUX(def, dd_uhook_dtor),sizeof(dd_uhook_dynamic)) != -1);
 }
 
 PHP_FUNCTION(hook_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, false); }

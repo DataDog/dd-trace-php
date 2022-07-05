@@ -8,13 +8,17 @@ static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition 
     zend_ulong index;
 
     zend_hash_move_forward_ex(CG(class_table), &classpos); // move past previous end
-    for (zend_class_entry *ce; (ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &classpos)); zend_hash_move_forward_ex(CG(class_table), &classpos)) {
+    for (zend_class_entry *ce;
+            (ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &classpos));
+            zend_hash_move_forward_ex(CG(class_table), &classpos)) {
         zend_hash_get_current_key_ex(CG(class_table), &lcname, &index, &classpos);
         zai_hook_resolve_class(ce, lcname);
     }
 
     zend_hash_move_forward_ex(CG(function_table), &funcpos); // move past previous end
-    for (zend_function *func; (func = zend_hash_get_current_data_ptr_ex(CG(function_table), &funcpos)); zend_hash_move_forward_ex(CG(function_table), &funcpos)) {
+    for (zend_function *func;
+            (func = zend_hash_get_current_data_ptr_ex(CG(function_table), &funcpos));
+            zend_hash_move_forward_ex(CG(function_table), &funcpos)) {
         zend_hash_get_current_key_ex(CG(function_table), &lcname, &index, &funcpos);
         zai_hook_resolve_function(func, lcname);
     }
@@ -76,7 +80,9 @@ PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
     }
 }
 
-#define ZAI_INTERCEPTOR_POST_DECLARE_OP (ZEND_VM_LAST_OPCODE + 1) // random 8 bit number greater than ZEND_VM_LAST_OPCODE, but with index in zend_spec_handlers
+// random 8 bit number greater than ZEND_VM_LAST_OPCODE, but with index in zend_spec_handlers
+#define ZAI_INTERCEPTOR_POST_DECLARE_OP (ZEND_VM_LAST_OPCODE + 1)
+
 static zend_op zai_interceptor_post_declare_op;
 static __thread zend_op zai_interceptor_post_declare_ops[4];
 struct zai_interceptor_opline { const zend_op *op; struct zai_interceptor_opline *prev; };

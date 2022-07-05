@@ -35,7 +35,6 @@ static inline void *zend_hash_str_find_ptr_lc(const HashTable *ht, const char *s
 
     return result;
 }
-
 #endif
 
 #endif

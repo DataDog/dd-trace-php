@@ -14,7 +14,14 @@ static ZEND_FUNCTION(pass)
 }
 
 // HACK: define a name for XDebug compatibility...
-static const struct __attribute__((__packed__)) { zend_string str; char value[]; } zend_pass_function_name = { .str.gc.refcount = 2, .str.gc.u.v.type = IS_STRING, .str.gc.u.v.flags = IS_STR_INTERNED, .str.len = 11, .str.h = 0xc0ff0fab5cdbc6c4, .str.val = { '{' }, .value = {'z', 'e', 'n', 'd', '_', 'p', 'a', 's', 's', '}'} };
+static const struct __attribute__((__packed__)) { zend_string str; char value[]; } zend_pass_function_name = {
+        .str.gc.refcount = 2,
+        .str.gc.u.v.type = IS_STRING,
+        .str.gc.u.v.flags = IS_STR_INTERNED,
+        .str.len = 11,
+        .str.h = 0xc0ff0fab5cdbc6c4,
+        .str.val = { '{' }, .value = {'z', 'e', 'n', 'd', '_', 'p', 'a', 's', 's', '}'}
+};
 
 static const zend_internal_function zend_pass_function = {
         ZEND_INTERNAL_FUNCTION, /* type              */
@@ -101,17 +108,17 @@ void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
         }
     }
     // technically not necessary, but we do it as to not hinder the default optimization of skipping the first RECV ops
-    uint32_t ext_nop_index = 0;
-    while (op_array->last > ext_nop_index && (opcodes[ext_nop_index].opcode != ZEND_EXT_NOP || opcodes[ext_nop_index].extended_value != ZAI_INTERCEPTOR_CUSTOM_EXT)) {
-        ++ext_nop_index;
+    uint32_t nop_i = 0;
+    while (op_array->last > nop_i && (opcodes[nop_i].opcode != ZEND_EXT_NOP || opcodes[nop_i].extended_value != ZAI_INTERCEPTOR_CUSTOM_EXT)) {
+        ++nop_i;
     }
-    if (op_array->last > ext_nop_index && opcodes[ext_nop_index].opcode == ZEND_EXT_NOP && opcodes[ext_nop_index].extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
-        uint32_t i = ext_nop_index + 1;
+    if (op_array->last > nop_i && opcodes[nop_i].opcode == ZEND_EXT_NOP && opcodes[nop_i].extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
+        uint32_t i = nop_i + 1;
         while (zai_is_func_recv_opcode(opcodes[i].opcode)) {
             ++i;
         }
-        if (--i > ext_nop_index) {
-            memmove(&opcodes[ext_nop_index], &opcodes[ext_nop_index + 1], (i - ext_nop_index) * sizeof(zend_op));
+        if (--i > nop_i) {
+            memmove(&opcodes[nop_i], &opcodes[nop_i + 1], (i - nop_i) * sizeof(zend_op));
             zai_set_ext_nop(&opcodes[i]);
         }
 
@@ -167,8 +174,8 @@ static inline zval *zai_interceptor_get_zval_ptr(const zend_op *opline, int op_t
     }
     return NULL;
 }
-#define zai_interceptor_get_zval_ptr_op1(execute_data) zai_interceptor_get_zval_ptr((execute_data)->opline, (execute_data)->opline->op1_type, &(execute_data)->opline->op1, execute_data)
-#define zai_interceptor_get_zval_ptr_op2(execute_data) zai_interceptor_get_zval_ptr((execute_data)->opline, (execute_data)->opline->op2_type, &(execute_data)->opline->op2, execute_data)
+#define zai_interceptor_get_zval_ptr_op1(ex) zai_interceptor_get_zval_ptr((ex)->opline, (ex)->opline->op1_type, &(ex)->opline->op1, ex)
+#define zai_interceptor_get_zval_ptr_op2(ex) zai_interceptor_get_zval_ptr((ex)->opline, (ex)->opline->op2_type, &(ex)->opline->op2, ex)
 
 static inline void zai_interceptor_return_impl(zend_execute_data *execute_data) {
     zai_interceptor_frame_memory *frame_memory;
@@ -357,7 +364,7 @@ void zai_interceptor_terminate_all_pending_observers() {
     ZVAL_NULL(&retval);
     ZEND_HASH_REVERSE_FOREACH_PTR(&zai_hook_memory, frame_memory) {
         if (!frame_memory->implicit) {
-            // the individual execute_data contents here may point to bogus (but allocated) memory, but it's just used as key here, hence there's no issue.
+            // the individual execute_data contents here may point to bogus (allocated) memory, but it's just used as key here, hence there's no issue
             zai_hook_finish(frame_memory->execute_data, &retval, &frame_memory->hook_data);
         }
     } ZEND_HASH_FOREACH_END();
@@ -418,10 +425,15 @@ static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zv
 }
 
 static zend_generator *zai_interceptor_get_original_executing_generator(zend_generator *gen) {
-   return gen->node.children ? (zend_generator *)(((char *)gen->execute_data->prev_execute_data) - (uintptr_t)(&((zend_generator*)0)->execute_fake)) : gen;
+   if (gen->node.children) {
+       return (zend_generator *)(((char *)gen->execute_data->prev_execute_data) - (uintptr_t)(&((zend_generator*)0)->execute_fake));
+   }
+    return gen;
 }
 
-// Note: This is not optimized. I.e. a scenario where an observed generator yields from other generators which do a recursive yield from, every single yield in that generator will have an O(nested generators) performance.
+// Note: This is not optimized.
+// I.e. a scenario where an observed generator yields from other generators which do a recursive yield from,
+// every single yield in that generator will have an O(nested generators) performance.
 // In real world I've yet to see excessive recursion of generators, but here is room for potential future optimizations
 static void zai_interceptor_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded, zai_interceptor_generator_frame_memory *frame_memory) {
     zend_generator *generator = (zend_generator *)ex->return_value, *leaf = zai_interceptor_get_original_executing_generator(generator);
@@ -458,9 +470,11 @@ static void zai_interceptor_generator_resumption(zend_execute_data *ex, zval *se
     zend_generator *generator = zai_interceptor_get_original_executing_generator((zend_generator *)ex->return_value);
     // resumptions occur from outside to inside
     do {
-        if (zai_hook_memory_table_find(generator->execute_data, (zai_interceptor_frame_memory **) &frame_memory) && !frame_memory->frame.implicit && !frame_memory->resumed) {
-            frame_memory->resumed = true;
-            zai_hook_generator_resumption(generator->execute_data, sent, &frame_memory->frame.hook_data);
+        if (zai_hook_memory_table_find(generator->execute_data, (zai_interceptor_frame_memory **) &frame_memory)) {
+            if (!frame_memory->frame.implicit && !frame_memory->resumed) {
+                frame_memory->resumed = true;
+                zai_hook_generator_resumption(generator->execute_data, sent, &frame_memory->frame.hook_data);
+            }
         }
     } while ((generator = generator->node.parent));
 }
@@ -476,10 +490,10 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
     zend_generator *generator = (zend_generator *)object;
     zend_execute_data *execute_data = generator->execute_data;
 
-    zai_interceptor_generator_frame_memory *generator_memory;
-    if (execute_data && zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &generator_memory)) {
-        if (execute_data->opline == &generator_memory->resumption_ops[1]) {
-            execute_data->opline = generator_memory->return_op;
+    zai_interceptor_generator_frame_memory *gen_memory;
+    if (execute_data && zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &gen_memory)) {
+        if (execute_data->opline == &gen_memory->resumption_ops[1]) {
+            execute_data->opline = gen_memory->return_op;
         }
 
         if (UNEXPECTED(!(EX(func)->op_array.fn_flags & ZEND_ACC_HAS_FINALLY_BLOCK))) {
@@ -501,7 +515,7 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
                 }
                 if (finally_op_num) {
                     generator->flags |= ZEND_GENERATOR_FORCED_CLOSE;
-                    zai_hook_generator_resumption(execute_data, &EG(uninitialized_zval), &generator_memory->frame.hook_data);
+                    zai_hook_generator_resumption(execute_data, &EG(uninitialized_zval), &gen_memory->frame.hook_data);
                 }
             }
         }
@@ -509,14 +523,14 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
 
     zai_interceptor_generator_dtor_obj(object);
 
-    if (execute_data && zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &generator_memory)) {
-        if (!generator_memory->frame.implicit) {
+    if (execute_data && zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &gen_memory)) {
+        if (!gen_memory->frame.implicit) {
             zval retval;
             ZVAL_NULL(&retval);
             if (!Z_ISUNDEF(generator->retval)) {
                 ZVAL_COPY_VALUE(&retval, &generator->retval);
             }
-            zai_hook_finish(execute_data, &retval, &generator_memory->frame.hook_data);
+            zai_hook_finish(execute_data, &retval, &gen_memory->frame.hook_data);
         }
         zai_hook_memory_table_del(execute_data);
     }
@@ -544,15 +558,15 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
 #if PHP_VERSION_ID < 70100
     zend_execute_data *execute_data = (zend_execute_data *)ZEND_VM_STACK_ELEMETS(EG(vm_stack));
     if ((EX_CALL_INFO() & ZEND_CALL_ALLOCATED) && execute_data->prev_execute_data == NULL) {
-        zai_interceptor_generator_frame_memory generator_memory;
-        if (zai_hook_continue(execute_data, &generator_memory.frame.hook_data) == ZAI_HOOK_CONTINUED) {
-            generator_memory.frame.execute_data = execute_data;
-            generator_memory.resumed = false;
-            generator_memory.temporary = zai_interceptor_generator_find_temporary(&EX(func)->op_array);
-            generator_memory.frame.implicit = false;
+        zai_interceptor_generator_frame_memory gen_memory;
+        if (zai_hook_continue(execute_data, &gen_memory.frame.hook_data) == ZAI_HOOK_CONTINUED) {
+            gen_memory.frame.execute_data = execute_data;
+            gen_memory.resumed = false;
+            gen_memory.temporary = zai_interceptor_generator_find_temporary(&EX(func)->op_array);
+            gen_memory.frame.implicit = false;
 
             zai_interceptor_generator_frame_memory *memory_ptr = zai_hook_memory_table_insert_generator(execute_data,
-                                                                                                        &generator_memory);
+                                                                                                        &gen_memory);
 
             memory_ptr->resumption_ops[0].lineno = EX(opline)->lineno;
             zai_interceptor_install_generator_resumption_op(memory_ptr);
@@ -570,7 +584,8 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
 
 #if PHP_VERSION_ID >= 70100
 // On PHP 7.1+ calling a generator does not directly instantiate a generator, but enters a new execute_data frame, which invokes ZEND_GENERATOR_CREATE
-// ZEND_GENERATOR_CREATE in turn then copies the current frame onto a newly allocated chunk of memory, which represents the execute_data for all future operations within that generator.
+// ZEND_GENERATOR_CREATE in turn then copies the current frame onto a newly allocated chunk of memory,
+// which represents the execute_data for all future operations within that generator.
 // We thus must move the started hook data which we reference by execute_data to the new address
 
 // Constraints imposed by the VM:
@@ -594,7 +609,7 @@ static zend_op zai_interceptor_generator_create_wrapper[2];
 static user_opcode_handler_t prev_post_generator_create_handler;
 static __thread zend_execute_data zai_interceptor_generator_create_frame;
 static int zai_interceptor_post_generator_create_handler(zend_execute_data *execute_data) {
-    if (execute_data->opline == &zai_interceptor_generator_create_wrapper[0] || execute_data->opline == &zai_interceptor_generator_create_wrapper[1]) {
+    if (EX(opline) == &zai_interceptor_generator_create_wrapper[0] || EX(opline) == &zai_interceptor_generator_create_wrapper[1]) {
         // working around the fact that we cannot modify execute_data directly here.
         // pushing our own frame here is necessary to ensure a consistent EG(vm_stack)
         if (execute_data == &zai_interceptor_generator_create_frame) {
@@ -611,24 +626,24 @@ static int zai_interceptor_post_generator_create_handler(zend_execute_data *exec
             ZEND_SET_CALL_INFO(execute_data, 0, EX_CALL_INFO() & ~ZEND_CALL_TOP);
 
             // Now update the execute_data pointer properly
-            zend_execute_data *initial_generator_execute_data = Z_PTR(EX(This));
-            zend_execute_data *new_generator_execute_data = ((zend_generator *)Z_OBJ_P(EX(return_value)))->execute_data;
+            zend_execute_data *initial_generator_ex = Z_PTR(EX(This));
+            zend_execute_data *new_generator_ex = ((zend_generator *)Z_OBJ_P(EX(return_value)))->execute_data;
             zai_interceptor_frame_memory *frame_memory;
-            if (zai_hook_memory_table_find(initial_generator_execute_data, &frame_memory)) {
-                frame_memory->execute_data = new_generator_execute_data;
+            if (zai_hook_memory_table_find(initial_generator_ex, &frame_memory)) {
+                frame_memory->execute_data = new_generator_ex;
                 zai_interceptor_generator_frame_memory generator_frame;
                 generator_frame.frame = *frame_memory;
                 generator_frame.resumed = false;
-                generator_frame.temporary = zai_interceptor_generator_find_temporary(&new_generator_execute_data->func->op_array);
-                zai_interceptor_generator_frame_memory *generator_memory = zai_hook_memory_table_insert_generator(new_generator_execute_data, &generator_frame);
-                zai_hook_memory_table_del(initial_generator_execute_data);
+                generator_frame.temporary = zai_interceptor_generator_find_temporary(&new_generator_ex->func->op_array);
+                zai_interceptor_generator_frame_memory *gen_memory = zai_hook_memory_table_insert_generator(new_generator_ex, &generator_frame);
+                zai_hook_memory_table_del(initial_generator_ex);
 
                 // Setup detection for resumption
-                const zend_op *opline = new_generator_execute_data->opline;
-                generator_memory->return_op = opline;
-                generator_memory->resumption_ops[0].lineno = opline[-1].lineno;
-                zai_interceptor_install_generator_resumption_op(generator_memory);
-                new_generator_execute_data->opline = &generator_memory->resumption_ops[1];
+                const zend_op *opline = new_generator_ex->opline;
+                gen_memory->return_op = opline;
+                gen_memory->resumption_ops[0].lineno = opline[-1].lineno;
+                zai_interceptor_install_generator_resumption_op(gen_memory);
+                new_generator_ex->opline = &gen_memory->resumption_ops[1];
             }
         } else {
             // second invocation
@@ -673,35 +688,39 @@ static int zai_interceptor_generator_create_handler(zend_execute_data *execute_d
 }
 #endif
 
-static void zai_interceptor_setup_generator_resumption_ops(zend_execute_data *execute_data, zai_interceptor_generator_frame_memory *generator_memory) {
+static void zai_interceptor_setup_generator_resumption_ops(zend_execute_data *execute_data, zai_interceptor_generator_frame_memory *gen_memory) {
     // Setup detection for resumption
     const zend_op *opline = EX(opline);
-    generator_memory->return_op = opline + 1;
-    generator_memory->resumption_ops[0] = *opline;
-    zai_interceptor_install_generator_resumption_op(generator_memory);
+    gen_memory->return_op = opline + 1;
+    gen_memory->resumption_ops[0] = *opline;
+    zai_interceptor_install_generator_resumption_op(gen_memory);
 #if PHP_VERSION_ID >= 70300 && !ZEND_USE_ABS_CONST_ADDR
     // on PHP 7.3+ literals are opline-relative and thus need to be relocated
-    zval *constant = (zval *)&generator_memory->resumption_ops[2];
+    zval *constant = (zval *)&gen_memory->resumption_ops[2];
     if (opline->op1_type == IS_CONST) {
         ZVAL_COPY_VALUE(&constant[0], RT_CONSTANT(opline, opline->op1));
-        generator_memory->resumption_ops[0].op1.constant = sizeof(zend_op) * 2;
+        gen_memory->resumption_ops[0].op1.constant = sizeof(zend_op) * 2;
     }
     if (opline->op2_type == IS_CONST) {
         ZVAL_COPY_VALUE(&constant[1], RT_CONSTANT(opline, opline->op2));
-        generator_memory->resumption_ops[0].op2.constant = sizeof(zend_op) * 2 + sizeof(zval);
+        gen_memory->resumption_ops[0].op2.constant = sizeof(zend_op) * 2 + sizeof(zval);
     }
 #endif
-    EX(opline) = &generator_memory->resumption_ops[0];
+    EX(opline) = &gen_memory->resumption_ops[0];
 }
 
-// ZEND_YIELD may throw (exception from destructor of previous key or value or from exception in error handler when returning a non-reference value from a by-ref generator)
+// ZEND_YIELD may throw
+// (exception from dtor of previous key or value or from exception in error handler when returning a non-reference value from a by-ref generator)
 // These throwing conditions are not reasonably catchable due to ZEND_YIELD doing a direct ZEND_VM_RETURN.
-// Thus, in these rare conditions we report that a yield has happened despite it actually not going to happen. This is a limitation of what's possible in PHP 7.
-// It would be possible to alter the return address of execute_ex with a couple lines of assembly, but this is a platform and ABI specific hack I'm not comfortable relying on here, also considering compatibility with other extensions possibly doing similar hacks, leading to crashes.
+// Thus, in these rare conditions we report that a yield has happened despite it actually not going to happen.
+// This is a limitation of what's possible in PHP 7.
+// It would be possible to alter the return address of execute_ex with a couple lines of assembly,
+// but this is a platform and ABI specific hack I'm not comfortable relying on here,
+// also considering compatibility with other extensions possibly doing similar hacks, leading to crashes.
 static user_opcode_handler_t prev_yield_handler;
 static int zai_interceptor_yield_handler(zend_execute_data *execute_data) {
-    zai_interceptor_generator_frame_memory *generator_memory;
-    if (ZEND_YIELD == EX(opline)->opcode && zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &generator_memory)) {
+    zai_interceptor_generator_frame_memory *gen_memory;
+    if (ZEND_YIELD == EX(opline)->opcode && zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &gen_memory)) {
         zend_generator *generator = (zend_generator *) EX(return_value);
         if (EXPECTED((generator->flags & ZEND_GENERATOR_FORCED_CLOSE) == 0)) {
             zval *value = zai_interceptor_get_zval_ptr_op1(execute_data);
@@ -713,8 +732,8 @@ static int zai_interceptor_yield_handler(zend_execute_data *execute_data) {
                 ZVAL_LONG(&default_key, generator->largest_used_integer_key + 1);
                 key = &default_key;
             }
-            zai_interceptor_generator_yielded(execute_data, key, value, generator_memory);
-            zai_interceptor_setup_generator_resumption_ops(execute_data, generator_memory);
+            zai_interceptor_generator_yielded(execute_data, key, value, gen_memory);
+            zai_interceptor_setup_generator_resumption_ops(execute_data, gen_memory);
         }
     }
 
@@ -814,7 +833,8 @@ static zval *zai_interceptor_iterator_wrapper_array_get_current_data(zend_object
 static void zai_interceptor_iterator_wrapper_array_get_current_key(zend_object_iterator *iter, zval *key) {
     zai_interceptor_iterator_wrapper *it = (zai_interceptor_iterator_wrapper *)iter;
     zend_hash_get_current_key_zval_ex(it->array, key, &Z_FE_POS(it->zv));
-    zai_interceptor_generator_yielded(it->generator->execute_data, key, zend_hash_get_current_data_ex(it->array, &Z_FE_POS(it->zv)), it->frame_memory);
+    zval *yielded = zend_hash_get_current_data_ex(it->array, &Z_FE_POS(it->zv));
+    zai_interceptor_generator_yielded(it->generator->execute_data, key, yielded, it->frame_memory);
 }
 
 static void zai_interceptor_iterator_wrapper_array_move_forward(zend_object_iterator *iter) {
@@ -868,19 +888,20 @@ static zend_object_iterator *zai_interceptor_yield_from_wrapped_iterator(zend_cl
 static __thread zend_class_entry yield_from_iterator_wrapper_class = {0};
 static user_opcode_handler_t prev_yield_from_handler;
 static int zai_interceptor_yield_from_handler(zend_execute_data *execute_data) {
-    zai_interceptor_generator_frame_memory *generator_memory;
-    if (ZEND_YIELD_FROM == EX(opline)->opcode && zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &generator_memory)) {
+    zai_interceptor_generator_frame_memory *gen_memory;
+    if (ZEND_YIELD_FROM == EX(opline)->opcode && zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &gen_memory)) {
         zend_generator *generator = (zend_generator *) EX(return_value);
         if (EXPECTED((generator->flags & ZEND_GENERATOR_FORCED_CLOSE) == 0)) {
             // There are two cases here:
             // a) yield from array or iterator
             //    Here we can just wrap the iterator or array into our custom iterator, transparently without observable side effects
             // b) yield from generator
-            //    It is not possible to just wrap a generator, because using ->send() or ->throw() would not forward the values up in the generator chain;
+            //    It isn't possible to wrap a generator, because using ->send() or ->throw() would not forward the values up in the generator chain;
             //    even worse, using ->throw() stops an iterator completely. Thus our only choice is instrumenting the yielded from generator directly.
 
-            // Now we have our own copy of the yield from op. In case we have an IS_CONST, we need to replace it by a TMP to be able to use the iterator-path. (only can happen with arrays)
-            zai_interceptor_setup_generator_resumption_ops(execute_data, generator_memory);
+            // Now we have our own copy of the yield from op.
+            // In case we have an IS_CONST, we need to replace it by a TMP to be able to use the iterator-path. (only can happen with arrays)
+            zai_interceptor_setup_generator_resumption_ops(execute_data, gen_memory);
 
             zval *val = zai_interceptor_get_zval_ptr_op1(execute_data);
             if (Z_TYPE_P(val) == IS_ARRAY) {
@@ -888,16 +909,16 @@ static int zai_interceptor_yield_from_handler(zend_execute_data *execute_data) {
                 if (EX(opline)->op1_type == IS_CONST) {
                     // We need a zval * within the 4GB of virtual memory after the execute_data...
                     // Thus make use of our temporary here
-                    if (generator_memory->temporary == -1u) {
+                    if (gen_memory->temporary == -1u) {
                         // it's sad, but we cannot support this properly right now?
                         goto end;
                     }
 
                     ((zend_op *)EX(opline))->op1_type = IS_TMP_VAR;
-                    zval *newtemp = EX_VAR(generator_memory->temporary);
+                    zval *newtemp = EX_VAR(gen_memory->temporary);
                     ZVAL_COPY(newtemp, val); // copy the const, as it's now a TMP it'll be freed
                     val = newtemp;
-                    ((zend_op *)EX(opline))->op1.var = generator_memory->temporary;
+                    ((zend_op *)EX(opline))->op1.var = gen_memory->temporary;
                 }
 
                 goto install_wrapper_iterator;
@@ -913,15 +934,15 @@ static int zai_interceptor_yield_from_handler(zend_execute_data *execute_data) {
                         // it is enough to check whether the parent is observed, otherwise we can abort.
                         // if we encounter a non-observed generator, we must mark all instances of that generators yield from chain as observed
                         if (!Z_ISUNDEF(root->value)) {
-                            zai_interceptor_generator_yielded(execute_data, &root->key, &root->value, generator_memory);
+                            zai_interceptor_generator_yielded(execute_data, &root->key, &root->value, gen_memory);
                         }
 
                         generator = from;
-                        while (generator && !zai_hook_memory_table_find(generator->execute_data, (zai_interceptor_frame_memory **) &generator_memory)) {
-                            zai_interceptor_generator_frame_memory new_generator_memory;
-                            new_generator_memory.frame.implicit = true;
-                            new_generator_memory.resumed = false;
-                            zai_hook_memory_table_insert_generator(generator->execute_data, &new_generator_memory);
+                        while (generator && !zai_hook_memory_table_find(generator->execute_data, (zai_interceptor_frame_memory **) &gen_memory)) {
+                            zai_interceptor_generator_frame_memory new_gen_memory;
+                            new_gen_memory.frame.implicit = true;
+                            new_gen_memory.resumed = false;
+                            zai_hook_memory_table_insert_generator(generator->execute_data, &new_gen_memory);
                             generator = generator->node.parent;
                         }
                     }
@@ -936,7 +957,7 @@ install_wrapper_iterator: ;
                     zend_object *obj = zend_objects_new(&yield_from_iterator_wrapper_class);
                     ZVAL_COPY_VALUE(OBJ_PROP_NUM(obj, 0), val);
                     ZVAL_PTR(OBJ_PROP_NUM(obj, 1), generator);
-                    ZVAL_PTR(OBJ_PROP_NUM(obj, 2), generator_memory);
+                    ZVAL_PTR(OBJ_PROP_NUM(obj, 2), gen_memory);
                     ZVAL_OBJ(val, obj);
                 }
             }
@@ -951,12 +972,15 @@ end:
 static user_opcode_handler_t prev_generator_resumption_handler;
 static int zai_interceptor_generator_resumption_handler(zend_execute_data *execute_data) {
     if (execute_data->opline->opcode == ZAI_INTERCEPTOR_GENERATOR_RESUMPTION_OP) {
-        zai_interceptor_generator_frame_memory *generator_memory;
-        if (zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &generator_memory) && execute_data->opline == &generator_memory->resumption_ops[1]) {
-            zend_generator *generator = (zend_generator *) EX(return_value);
-            zai_interceptor_generator_resumption(execute_data, !EG(exception) && generator->send_target ? generator->send_target : &EG(uninitialized_zval), generator_memory);
+        zai_interceptor_generator_frame_memory *gen_memory;
+        if (zai_hook_memory_table_find(execute_data, (zai_interceptor_frame_memory **) &gen_memory)) {
+            if (execute_data->opline == &gen_memory->resumption_ops[1]) {
+                zend_generator *generator = (zend_generator *) EX(return_value);
+                zval *sent = !EG(exception) && generator->send_target ? generator->send_target : &EG(uninitialized_zval);
+                zai_interceptor_generator_resumption(execute_data, sent, gen_memory);
 
-            EX(opline) = generator_memory->return_op;
+                EX(opline) = gen_memory->return_op;
+            }
         }
         return ZEND_USER_OPCODE_CONTINUE;
     } else if (prev_generator_resumption_handler) {
@@ -968,17 +992,20 @@ static int zai_interceptor_generator_resumption_handler(zend_execute_data *execu
 
 static void (*prev_exception_hook)(zval *);
 static void zai_interceptor_exception_hook(zval *ex) {
-    zai_interceptor_generator_frame_memory *generator_memory;
-    if (zai_hook_memory_table_find(EG(current_execute_data), (zai_interceptor_frame_memory **) &generator_memory) && ZEND_USER_CODE(EG(current_execute_data)->func->type)) {
-        // check against resumption_ops[0]: when throwing the engine rolls back to the original yielding opcode (for correct stacktraces)
-        if (EG(current_execute_data)->opline == &generator_memory->resumption_ops[0]) {
-            // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
-            EG(current_execute_data)->opline = generator_memory->return_op - 1;
-            zai_interceptor_generator_resumption(EG(current_execute_data), &EG(uninitialized_zval), generator_memory);
-        } else if (EG(current_execute_data)->opline == &generator_memory->resumption_ops[1]) {
-            // however on versions before php-src commit 2e9e706a8271bbb42ad696c3383912facdd7d45f (< 7.3.23, < 7.4.11) the resumption op is not reset. Handle this case here (and mirror the slightly buggy behaviour...).
-            EG(current_execute_data)->opline = generator_memory->return_op;
-            zai_interceptor_generator_resumption(EG(current_execute_data), &EG(uninitialized_zval), generator_memory);
+    zai_interceptor_generator_frame_memory *gen_memory;
+    if (zai_hook_memory_table_find(EG(current_execute_data), (zai_interceptor_frame_memory **) &gen_memory)) {
+        if (ZEND_USER_CODE(EG(current_execute_data)->func->type)) {
+            // check against resumption_ops[0]: when throwing the engine rolls back to the original yielding opcode (for correct stacktraces)
+            if (EG(current_execute_data)->opline == &gen_memory->resumption_ops[0]) {
+                // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
+                EG(current_execute_data)->opline = gen_memory->return_op - 1;
+                zai_interceptor_generator_resumption(EG(current_execute_data), &EG(uninitialized_zval), gen_memory);
+            } else if (EG(current_execute_data)->opline == &gen_memory->resumption_ops[1]) {
+                // however on versions before php-src commit 2e9e706a8271bbb42ad696c3383912facdd7d45f (< 7.3.23, < 7.4.11)
+                // the resumption op is not reset. Handle this case here (and mirror the slightly buggy behaviour...).
+                EG(current_execute_data)->opline = gen_memory->return_op;
+                zai_interceptor_generator_resumption(EG(current_execute_data), &EG(uninitialized_zval), gen_memory);
+            }
         }
     }
     if (prev_exception_hook) {

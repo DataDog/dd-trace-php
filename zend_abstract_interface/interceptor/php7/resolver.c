@@ -8,13 +8,17 @@ static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition 
     zend_ulong index;
 
     zend_hash_move_forward_ex(CG(class_table), &classpos); // move past previous end
-    for (zend_class_entry *ce; (ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &classpos)); zend_hash_move_forward_ex(CG(class_table), &classpos)) {
+    for (zend_class_entry *ce;
+            (ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &classpos));
+            zend_hash_move_forward_ex(CG(class_table), &classpos)) {
         zend_hash_get_current_key_ex(CG(class_table), &lcname, &index, &classpos);
         zai_hook_resolve_class(ce, lcname);
     }
 
     zend_hash_move_forward_ex(CG(function_table), &funcpos); // move past previous end
-    for (zend_function *func; (func = zend_hash_get_current_data_ptr_ex(CG(function_table), &funcpos)); zend_hash_move_forward_ex(CG(function_table), &funcpos)) {
+    for (zend_function *func;
+            (func = zend_hash_get_current_data_ptr_ex(CG(function_table), &funcpos));
+            zend_hash_move_forward_ex(CG(function_table), &funcpos)) {
         zend_hash_get_current_key_ex(CG(function_table), &lcname, &index, &funcpos);
         zai_hook_resolve_function(func, lcname);
     }

@@ -1,6 +1,5 @@
 #ifndef ZAI_HOOK_H
 #define ZAI_HOOK_H
-// clang-format off
 #include <symbols/symbols.h>
 
 /* The Hook interface intends to abstract away the storage and resolution of hook targets */
@@ -31,24 +30,14 @@ typedef struct {
 /* }}} */
 
 /* {{{ zai_hook_install may be executed after minit and during request */
-zend_long zai_hook_install(
-        zai_string_view scope,
-        zai_string_view function,
-        zai_hook_begin  begin,
-        zai_hook_end    end,
-        zai_hook_aux    aux,
-        size_t dynamic); /* }}} */
+zend_long zai_hook_install(zai_string_view scope, zai_string_view function,
+        zai_hook_begin begin, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic); /* }}} */
 
 /* {{{ zai_hook_install_generator may be executed after minit and during request */
-zend_long zai_hook_install_generator(
-        zai_string_view scope,
-        zai_string_view function,
-        zai_hook_begin begin,
-        zai_hook_generator_resume resumption,
-        zai_hook_generator_yield yield,
-        zai_hook_end end,
-        zai_hook_aux aux,
-        size_t dynamic); /* }}} */
+zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view function,
+        zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic); /* }}} */
 
 typedef zend_ulong zai_install_address;
 
@@ -56,13 +45,9 @@ typedef zend_ulong zai_install_address;
         this API requires no symbol names, or resolution, it may be used
         to associate a hook with anonymous symbols
         ie. generators, closures, fibers */
-zend_long zai_hook_install_resolved(
-        zai_hook_begin  begin,
-        zai_hook_end    end,
-        zai_hook_aux    aux,
-        size_t dynamic,
-        zend_function *function); /* }}} */
-
+zend_long zai_hook_install_resolved(zend_function *function,
+        zai_hook_begin begin, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic); /* }}} */
 
 /* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
 bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index);
@@ -156,5 +141,4 @@ static inline bool zai_hook_installed_internal(zend_internal_function *function)
 }
 /* }}} */
 
-// clang-format on
 #endif  // ZAI_HOOK_H

@@ -1,22 +1,20 @@
 #include <hook/hook.h>
 #include <hook/table.h>
 
-// clang-format off
-
 /* {{{ */
 typedef struct {
-    zend_string    *scope;
-    zend_string    *function;
+    zend_string *scope;
+    zend_string *function;
     zend_class_entry *resolved_scope;
     zai_hook_begin begin;
     zai_hook_generator_resume generator_resume;
     zai_hook_generator_yield generator_yield;
-    zai_hook_end   end;
-    zai_hook_aux   aux;
-    size_t         dynamic;
-    bool           is_global;
-    zend_long      id;
-    int            refcount; // one ref held by the existence in the array, one ref held by each frame
+    zai_hook_end end;
+    zai_hook_aux aux;
+    size_t dynamic;
+    bool is_global;
+    zend_long id;
+    int refcount; // one ref held by the existence in the array, one ref held by each frame
 } zai_hook_t; /* }}} */
 
 typedef struct {
@@ -29,8 +27,6 @@ typedef struct {
     zai_hook_t *hook;
     size_t dynamic_offset;
 } zai_hook_info;
-
-// clang-format on
 
 __thread zend_ulong zai_hook_invocation = 0;
 __thread zend_ulong zai_hook_id;
@@ -169,7 +165,8 @@ static void zai_hook_sort_newest(zai_hooks_entry *hooks) {
             zai_hook_t *check = Z_PTR(bucket->val);
             // Everything except the newest entry is already properly sorted
             if (instanceof_function(check->resolved_scope, hook->resolved_scope)) {
-                // we're iterating from the end, i.e. first the top/parent of the hierarchy. Once the class is instanceof our hooked class, all further classes are either children or in unrelated hierarchies
+                // we're iterating from the end, i.e. first the top/parent of the hierarchy.
+                // Once the class is instanceof our hooked class, all further classes are either children or in unrelated hierarchies
                 // prevPos is the last matching one. Increment to have index 0 or the first one to move respectively.
                 ++prevPos;
                 goto move;
@@ -267,7 +264,8 @@ static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *reso
 
 static zend_long zai_hook_request_install(zai_hook_t *hook) {
     zend_class_entry *ce = NULL;
-    zend_function *function = zai_hook_lookup_function(hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STRING_EMPTY, ZAI_STRING_FROM_ZSTR(hook->function), &ce);
+    zai_string_view scope = hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STRING_EMPTY;
+    zend_function *function = zai_hook_lookup_function(scope, ZAI_STRING_FROM_ZSTR(hook->function), &ce);
     if (function) {
         hook->resolved_scope = ce;
         return zai_hook_resolved_install(hook, function);
@@ -384,7 +382,6 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     memory->dynamic = ecalloc(1, dynamic_size);
     memory->invocation = ++zai_hook_invocation;
 
-    // clang-format off
     // iterate the array in a safe way, i.e. handling possible updates at runtime
     HashPosition pos;
     zend_hash_internal_pointer_reset_ex(&hooks->hooks, &pos);
@@ -396,8 +393,14 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
         zend_hash_move_forward_ex(&hooks->hooks, &pos);
 
-        if (hook->id < 0 || (check_scope && !(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope))) {
+        if (hook->id < 0) {
             continue;
+        }
+
+        if (check_scope) {
+            if (!(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
+                continue;
+            }
         }
 
         // increase dynamic memory if new hooks get added during iteration
@@ -429,10 +432,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
 
         EG(ht_iterators)[ht_iter].pos = pos;
 
-        if (!hook->begin(memory->invocation,
-                ex,
-                hook->aux.data,
-                memory->dynamic + dynamic_offset)) {
+        if (!hook->begin(memory->invocation, ex, hook->aux.data, memory->dynamic + dynamic_offset)) {
             zend_hash_iterator_del(ht_iter);
 
             memory->hook_count = hook_num;
@@ -455,14 +455,12 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     }
 
     zend_hash_iterator_del(ht_iter);
-    // clang-format on
 
     memory->hook_count = hook_num;
     return ZAI_HOOK_CONTINUED;
 } /* }}} */
 
 void zai_hook_generator_resumption(zend_execute_data *ex, zval *sent, zai_hook_memory_t *memory) {
-    // clang-format off
     for (zai_hook_info *hook_info = memory->dynamic, *hook_end = hook_info + memory->hook_count; hook_info < hook_end; ++hook_info) {
         zai_hook_t *hook = hook_info->hook;
 
@@ -470,15 +468,11 @@ void zai_hook_generator_resumption(zend_execute_data *ex, zval *sent, zai_hook_m
             continue;
         }
 
-        hook->generator_resume(memory->invocation,
-            ex, sent,
-            hook->aux.data,
-            memory->dynamic + hook_info->dynamic_offset);
+        hook->generator_resume(memory->invocation, ex, sent, hook->aux.data, memory->dynamic + hook_info->dynamic_offset);
     }
 } /* }}} */
 
 void zai_hook_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded, zai_hook_memory_t *memory) {
-    // clang-format off
     for (zai_hook_info *hook_start = memory->dynamic, *hook_info = hook_start + memory->hook_count - 1; hook_info >= hook_start; --hook_info) {
         zai_hook_t *hook = hook_info->hook;
 
@@ -486,17 +480,13 @@ void zai_hook_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded,
             continue;
         }
 
-        hook->generator_yield(memory->invocation,
-                ex, key, yielded,
-                hook->aux.data,
-                memory->dynamic + hook_info->dynamic_offset);
+        hook->generator_yield(memory->invocation, ex, key, yielded, hook->aux.data, memory->dynamic + hook_info->dynamic_offset);
     }
 } /* }}} */
 
 /* {{{ */
 void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory) {
     // iterating in reverse order to properly have LIFO style
-    // clang-format off
     if (!memory->dynamic) {
         return;
     }
@@ -505,10 +495,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
         zai_hook_t *hook = hook_info->hook;
 
         if (hook->end) {
-            hook->end(memory->invocation,
-                    ex, rv,
-                    hook->aux.data,
-                    memory->dynamic + hook_info->dynamic_offset);
+            hook->end(memory->invocation, ex, rv, hook->aux.data, memory->dynamic + hook_info->dynamic_offset);
         }
 
         if (!--hook->refcount) {
@@ -570,15 +557,10 @@ void zai_hook_rshutdown(void) {
 
 void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 
-// clang-format off
-
 /* {{{ */
-zend_long zai_hook_install_resolved(
-        zai_hook_begin begin,
-        zai_hook_end end,
-        zai_hook_aux aux,
-        size_t dynamic,
-        zend_function *function) {
+zend_long zai_hook_install_resolved(zend_function *function,
+        zai_hook_begin begin, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic) {
     if (!PG(modules_activated)) {
         /* not allowed: can only do resolved install during request */
         return false;
@@ -613,15 +595,9 @@ static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool
 }
 
 /* {{{ */
-zend_long zai_hook_install_generator(
-        zai_string_view scope,
-        zai_string_view function,
-        zai_hook_begin begin,
-        zai_hook_generator_resume resumption,
-        zai_hook_generator_yield yield,
-        zai_hook_end end,
-        zai_hook_aux aux,
-        size_t dynamic) {
+zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view function,
+        zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic) {
     if (!function.len) {
         /* not allowed: target must be known */
         return -1;
@@ -653,13 +629,9 @@ zend_long zai_hook_install_generator(
     }
 }
 
-zend_long zai_hook_install(
-        zai_string_view scope,
-        zai_string_view function,
-        zai_hook_begin begin,
-        zai_hook_end end,
-        zai_hook_aux aux,
-        size_t dynamic) {
+zend_long zai_hook_install(zai_string_view scope, zai_string_view function,
+        zai_hook_begin begin, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic) {
     return zai_hook_install_generator(scope, function, begin, NULL, NULL, end, aux, dynamic);
 } /* }}} */
 
@@ -719,8 +691,6 @@ void zai_hook_clean(void) {
     zend_hash_clean(&zai_hook_request_functions);
     zend_hash_clean(&zai_hook_request_classes);
 }
-
-// clang-format on
 
 static void zai_hook_iterator_set_current_and_advance(zai_hook_iterator *it) {
     HashPosition pos = zend_hash_iterator_pos(it->iterator.iter, it->iterator.ht);

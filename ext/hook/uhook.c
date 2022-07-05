@@ -100,7 +100,9 @@ static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
 
     bool has_this = getThis() != NULL;
     zval rv;
-    zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL, ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv, &rv, 1, &hook_data_zv);
+    zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
+                    ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
+                    &rv, 1, &hook_data_zv);
     zval_ptr_dtor(&rv);
 }
 
@@ -259,11 +261,9 @@ PHP_FUNCTION(install_hook) {
         def->resolved = resolved;
         def->function = NULL;
 
-        def->id = zai_hook_install_resolved(
-            dd_uhook_begin,
-            dd_uhook_end,
-            ZAI_HOOK_AUX(def, dd_uhook_dtor),
-            sizeof(dd_uhook_dynamic), resolved);
+        def->id = zai_hook_install_resolved(resolved,
+            dd_uhook_begin, dd_uhook_end,
+            ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
     } else {
         const char *colon = strchr(ZSTR_VAL(name), ':');
         zai_string_view scope = ZAI_STRING_EMPTY, function = {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
