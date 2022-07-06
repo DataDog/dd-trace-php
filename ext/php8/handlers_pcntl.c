@@ -17,6 +17,7 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
         ddtrace_coms_kill_background_sender();
+        ddtrace_coms_curl_shutdown();
         int parent_span_id = 0;
         if (DDTRACE_G(open_spans_top) != NULL) {
             parent_span_id = DDTRACE_G(open_spans_top)->span.span_id;
