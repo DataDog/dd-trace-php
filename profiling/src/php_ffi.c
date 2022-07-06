@@ -76,25 +76,6 @@ void datadog_php_profiling_rinit(void) {
     DATADOG_PHP_PROFILING(vm_interrupt_addr) = &EG(vm_interrupt);
 }
 
-datadog_php_str datadog_php_profiling_log_level_to_str(uintptr_t log_level) {
-    switch (log_level) {
-        case DATADOG_PHP_PROFILING_LOG_LEVEL_OFF:
-            return (datadog_php_str){"off", sizeof "off" - 1};
-        case DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR:
-            return (datadog_php_str){"error", sizeof "error" - 1};
-        case DATADOG_PHP_PROFILING_LOG_LEVEL_WARN:
-            return (datadog_php_str){"warn", sizeof "warn" - 1};
-        case DATADOG_PHP_PROFILING_LOG_LEVEL_INFO:
-            return (datadog_php_str){"info", sizeof "info" - 1};
-        case DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG:
-            return (datadog_php_str){"debug", sizeof "debug" - 1};
-        case DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE:
-            return (datadog_php_str){"trace", sizeof "trace" - 1};
-        default:
-            return (datadog_php_str){"unknown", sizeof "unknown" - 1};
-    }
-}
-
 datadog_php_str datadog_php_profiling_intern(const char *str, size_t size, bool permanent) {
     zend_string *string = zend_string_init_interned(str, size, permanent);
     datadog_php_str interned = {

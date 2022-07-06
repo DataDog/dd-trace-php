@@ -40,26 +40,6 @@ const char *datadog_extension_build_id(void);
  */
 const char *datadog_module_build_id(void);
 
-/**
- * Represents a log level filter setting. Store these in uintptr_t, as the Rust
- * type is repr(usize) aka uintptr_t.
- * todo: unify with ../component/log
- */
-typedef enum datadog_php_profiling_log_level {
-    DATADOG_PHP_PROFILING_LOG_LEVEL_OFF = 0,
-    DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR,
-    DATADOG_PHP_PROFILING_LOG_LEVEL_WARN,
-    DATADOG_PHP_PROFILING_LOG_LEVEL_INFO,
-    DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG,
-    DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE,
-} datadog_php_profiling_log_level;
-
-/**
- * Converts the `log_level` into a `datadog_php_str`. It also guarantees NULL
- * termination for convenience for use in debuggers, c string functions, etc.
- */
-datadog_php_str datadog_php_profiling_log_level_to_str(uintptr_t log_level);
-
 /* Expose globals so we can bridge them with Rust. */
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(datadog_php_profiling)
@@ -67,7 +47,7 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog_php_profiling)
     bool profiling_experimental_cpu_time_enabled;
     uint32_t interrupt_count;
 
-    // datadog_php_profiling_log_level maps to LevelFilter which is repr(usize)
+    // Maps to Rust's log::LevelFilter which is repr(usize).
     uintptr_t profiling_log_level;
 
     zend_bool *vm_interrupt_addr;
