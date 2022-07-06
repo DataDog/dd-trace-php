@@ -350,6 +350,12 @@ unsafe fn read_env(globals: &mut zend::zend_datadog_php_profiling_globals) {
     globals.profiling_enabled = profiling_enabled.and_then(parse_boolean).unwrap_or(false);
 
     globals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled
+        .or_else(|| {
+            // This is the older, undocumented name.
+            getenv(CStr::from_bytes_with_nul_unchecked(
+                b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0",
+            ))
+        })
         .and_then(parse_boolean)
         .unwrap_or(false);
 
