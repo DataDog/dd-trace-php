@@ -789,13 +789,4 @@ extern "C" fn execute_internal(
 }
 
 #[cfg(test)]
-mod tests {
-    extern "C" {
-        fn test_datadog_php_profiling_log_level_parse_success() -> bool;
-    }
-
-    #[test]
-    fn test_log_level_parsing() {
-        assert!(unsafe { test_datadog_php_profiling_log_level_parse_success() });
-    }
-}
+mod tests {}
