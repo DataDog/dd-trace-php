@@ -5,6 +5,13 @@ use std::fs::File;
 use std::os::unix::io::FromRawFd;
 
 pub fn log_init(level_filter: LevelFilter) {
+    /* This duplicates the stderr file descriptor and writes to the dup. This
+     * is done because on nearly all released PHP versions, the PHP CLI will
+     * close the stderr stream after rshutdown. However, we still log things
+     * after that. In connection with this, various other log implementations
+     * were panicking when writing to the closed stderr.
+     */
+
     // Safety: this is safe, it's just "unsafe" because it's a call into C.
     let fd = unsafe { libc::dup(libc::STDERR_FILENO) };
     if fd != -1 {
