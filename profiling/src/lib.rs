@@ -56,6 +56,11 @@ static SAPI: OnceCell<Sapi> = OnceCell::new();
 /// so I'm keeping it here so I don't have to look up how to get it again.
 static ZEND_VERSION: OnceCell<String> = OnceCell::new();
 
+/// The function `get_module` is what makes this a PHP module. Please do not
+/// call this directly; only let it be called by the engine. Generally it is
+/// only called once, but if someone accidentally loads the module twice then
+/// it might get called more than once, though it will warn and not use the
+/// consecutive return value.
 #[no_mangle]
 pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     /* In PHP modules written in C, this just returns the address of a global,
@@ -73,6 +78,9 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         zend::ModuleDep::end(),
     ];
 
+    /* Safety: the engine should ensure this is called in thread-safe position,
+     * so the mutability should be fine.
+     */
     let _ = unsafe { &MODULE }.get_or_try_init(|| -> Result<_, ()> {
         let mut module = zend::ModuleEntry {
             name: PROFILER_NAME.as_ptr(),
@@ -105,6 +113,9 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         Ok(module)
     });
 
+    /* Safety: It's not really safe from Rust's perspective to give out a
+     * mutable reference here, but this is a constraint from PHP.
+     */
     unsafe { MODULE.get_mut().unwrap() }
 }
 
