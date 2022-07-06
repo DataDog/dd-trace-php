@@ -1,18 +1,11 @@
-// Of course, the C API doesn't follow Rust conventions, so suppress lints.
+mod ffi;
 
-#![allow(clippy::all)]
-#![allow(warnings)]
-
-use libc::{c_char, c_int, c_short, c_uchar, c_uint, c_ushort, c_void};
+pub use ffi::*;
+use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use log::LevelFilter;
 use std::ffi::CStr;
-use std::fmt::{Display, Formatter};
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::ptr::NonNull;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32};
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
@@ -30,7 +23,7 @@ pub enum ZendResult {
 
 pub use ZendResult as zend_result;
 
-impl From<c_int> for zend_result {
+impl From<c_int> for ZendResult {
     fn from(value: c_int) -> Self {
         match value {
             0 => Self::Success,
@@ -39,7 +32,7 @@ impl From<c_int> for zend_result {
     }
 }
 
-// In general, modify definitions which return int to return zend_result if
+// In general, modify definitions which return int to return ZendResult if
 // they are suppose to be doing that already.
 // Across PHP versions, some things switch from mut to const; use const.
 
@@ -50,18 +43,18 @@ pub struct ModuleEntry {
     pub zend_debug: c_uchar,
     pub zts: c_uchar,
     pub ini_entry: *const _zend_ini_entry,
-    pub deps: *const _zend_module_dep,
+    pub deps: *const ModuleDep,
     pub name: *const u8,
     pub functions: *const _zend_function_entry,
     pub module_startup_func:
-        Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> zend_result>,
+        Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> ZendResult>,
     pub module_shutdown_func:
-        Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> zend_result>,
+        Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> ZendResult>,
     pub request_startup_func:
-        Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> zend_result>,
+        Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> ZendResult>,
     pub request_shutdown_func:
-        Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> zend_result>,
-    pub info_func: Option<unsafe extern "C" fn(zend_module: *mut zend_module_entry)>,
+        Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> ZendResult>,
+    pub info_func: Option<unsafe extern "C" fn(zend_module: *mut ModuleEntry)>,
     pub version: *const u8,
     pub globals_size: size_t,
     #[cfg(php_zts)]
@@ -70,7 +63,7 @@ pub struct ModuleEntry {
     pub globals_ptr: *mut c_void,
     pub globals_ctor: Option<unsafe extern "C" fn(global: *mut c_void)>,
     pub globals_dtor: Option<unsafe extern "C" fn(global: *mut c_void)>,
-    pub post_deactivate_func: Option<unsafe extern "C" fn() -> zend_result>,
+    pub post_deactivate_func: Option<unsafe extern "C" fn() -> ZendResult>,
     pub module_started: c_int,
     pub type_: c_uchar,
     pub handle: *mut c_void,
@@ -87,7 +80,7 @@ pub struct ZendExtension {
     pub author: *const u8,
     pub url: *const u8,
     pub copyright: *const u8,
-    pub startup: Option<unsafe extern "C" fn(extension: *mut zend_extension) -> zend_result>,
+    pub startup: Option<unsafe extern "C" fn(extension: *mut ZendExtension) -> ZendResult>,
     pub shutdown: shutdown_func_t,
     pub activate: activate_func_t,
     pub deactivate: deactivate_func_t,
@@ -98,8 +91,8 @@ pub struct ZendExtension {
     pub fcall_end_handler: fcall_end_handler_func_t,
     pub op_array_ctor: op_array_ctor_func_t,
     pub op_array_dtor: op_array_dtor_func_t,
-    pub api_no_check: Option<unsafe extern "C" fn(api_no: c_int) -> zend_result>,
-    pub build_id_check: Option<unsafe extern "C" fn(build_id: *const c_char) -> zend_result>,
+    pub api_no_check: Option<unsafe extern "C" fn(api_no: c_int) -> ZendResult>,
+    pub build_id_check: Option<unsafe extern "C" fn(build_id: *const c_char) -> ZendResult>,
     pub op_array_persist_calc: op_array_persist_calc_func_t,
     pub op_array_persist: op_array_persist_func_t,
     pub reserved5: *mut c_void,
@@ -110,7 +103,6 @@ pub struct ZendExtension {
     pub resource_number: c_int,
 }
 
-pub use ZendExtension as _zend_extension;
 pub use ZendExtension as zend_extension;
 
 impl Default for ModuleEntry {
@@ -209,6 +201,9 @@ pub struct EfreePtr<T> {
 impl EfreePtr<c_char> {
     pub fn into_string(self) -> String {
         if !self.ptr.is_null() {
+            /* Safety: If this is invalid when non-null, then someone else has
+             * messed up already, nothing we can do really.
+             */
             let cstr = unsafe { CStr::from_ptr(self.ptr) };
             return String::from_utf8_lossy(cstr.to_bytes()).into_owned();
         } else {
@@ -282,9 +277,9 @@ impl Default for DatadogPhpProfilingGlobals {
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {
-    pub const fn optional(name: &'static [u8]) -> Self {
+    pub const fn optional(name: &CStr) -> Self {
         Self {
-            name: name.as_ptr() as *const c_char,
+            name: name.as_ptr(),
             rel: std::ptr::null(),
             version: std::ptr::null(),
             type_: MODULE_DEP_OPTIONAL as c_uchar,

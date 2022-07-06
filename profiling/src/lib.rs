@@ -65,49 +65,47 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
      * So, borrow an initialization pattern from Rust itself:
      * https://github.com/rust-lang/rust/blob/2a8cb678e61e91c160d80794b5fdd723d0d4211c/src/libstd/io/stdio.rs#L217-L247
      */
-    static mut MODULE: MaybeUninit<zend::ModuleEntry> = MaybeUninit::uninit();
+    static mut MODULE: OnceCell<zend::ModuleEntry> = OnceCell::new();
 
     static DEPS: [zend::ModuleDep; 2] = [
-        zend::ModuleDep::optional(b"ddtrace\0"),
+        // Safety: string is nul terminated with no interior nul bytes.
+        zend::ModuleDep::optional(unsafe { CStr::from_bytes_with_nul_unchecked(b"ddtrace\0") }),
         zend::ModuleDep::end(),
     ];
 
-    static ONCE: Once = Once::new();
+    let _ = unsafe { &MODULE }.get_or_try_init(|| -> Result<_, ()> {
+        let mut module = zend::ModuleEntry {
+            name: PROFILER_NAME.as_ptr(),
+            module_startup_func: Some(minit),
+            module_shutdown_func: Some(mshutdown),
+            request_startup_func: Some(rinit),
+            request_shutdown_func: Some(rshutdown),
+            info_func: Some(minfo),
+            version: PROFILER_VERSION.as_ptr(),
+            globals_size: std::mem::size_of::<DatadogPhpProfilingGlobals>(),
+            globals_ctor: Some(ginit),
+            globals_dtor: Some(gshutdown),
+            post_deactivate_func: Some(prshutdown),
+            deps: DEPS.as_ptr(),
+            ..Default::default()
+        };
+        #[cfg(php_zts)]
+        {
+            // todo: zts
+            module.globals_id_ptr = &mut zend::datadog_php_profiling_globals_id as *mut c_void;
+        }
+        #[cfg(not(php_zts))]
+        {
+            // Safety: the address is from a static value on NTS, and don't support ZTS yet.
+            module.globals_ptr = unsafe { zend::datadog_php_profiling_globals_get() }
+                as *mut zend::zend_datadog_php_profiling_globals
+                as *mut c_void;
+        }
 
-    unsafe {
-        ONCE.call_once(|| {
-            let mut module = zend::ModuleEntry {
-                name: PROFILER_NAME.as_ptr(),
-                module_startup_func: Some(minit),
-                module_shutdown_func: Some(mshutdown),
-                request_startup_func: Some(rinit),
-                request_shutdown_func: Some(rshutdown),
-                info_func: Some(minfo),
-                version: PROFILER_VERSION.as_ptr(),
-                globals_size: std::mem::size_of::<DatadogPhpProfilingGlobals>() as u64,
-                globals_ctor: Some(ginit),
-                globals_dtor: Some(gshutdown),
-                post_deactivate_func: Some(prshutdown),
-                deps: DEPS.as_ptr(),
-                ..Default::default()
-            };
-            #[cfg(php_zts)]
-            {
-                // todo: zts
-                module.globals_id_ptr = &mut zend::datadog_php_profiling_globals_id as *mut c_void;
-            }
-            #[cfg(not(php_zts))]
-            {
-                module.globals_ptr = zend::datadog_php_profiling_globals_get()
-                    as *mut zend::zend_datadog_php_profiling_globals
-                    as *mut c_void;
-            }
+        Ok(module)
+    });
 
-            MODULE.write(module);
-        });
-
-        &mut *MODULE.as_mut_ptr()
-    }
+    unsafe { MODULE.get_mut().unwrap() }
 }
 
 /// The engine's previous `zend_interrupt_function` value, if there is one.
@@ -275,7 +273,7 @@ unsafe fn getenv(name: &CStr) -> Option<String> {
     let name = name.to_bytes();
 
     // Safety: called CStr, so invariants have all been checked by this point.
-    let val = sapi_getenv(name.as_ptr() as *const c_char, name.len() as c_ulong);
+    let val = sapi_getenv(name.as_ptr() as *const c_char, name.len());
     let val = val.into_string();
     if !val.is_empty() {
         return Some(val);
