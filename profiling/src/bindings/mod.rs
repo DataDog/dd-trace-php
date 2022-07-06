@@ -205,9 +205,9 @@ impl EfreePtr<c_char> {
              * messed up already, nothing we can do really.
              */
             let cstr = unsafe { CStr::from_ptr(self.ptr) };
-            return String::from_utf8_lossy(cstr.to_bytes()).into_owned();
+            String::from_utf8_lossy(cstr.to_bytes()).into_owned()
         } else {
-            return String::new();
+            String::new()
         }
     }
 }
