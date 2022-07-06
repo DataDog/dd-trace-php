@@ -35,7 +35,7 @@ static zend_string *zend_string_init_interned(const char *str, size_t len, int p
 #endif
 
 /**
- * Returns true if `a` and `b` have the same size and all their bytes commpare
+ * Returns true if `a` and `b` have the same size and all their bytes compare
  * as equal. The pointers `a.ptr` and `b.ptr` should not be NULL (please use an
  * empty string).
  */
@@ -49,7 +49,9 @@ static bool str_eq(datadog_php_str a, datadog_php_str b) {
  * Converts the ASCII char to its lowercase equivalent if it's a recognized
  * uppercase character; otherwise returns the char without modification.
  */
-static char char_tolower_ascii(char c) { return (char)(c >= 'A' && c <= 'Z' ? (c - ('A' - 'a')) : c); }
+static char char_tolower_ascii(char c) {
+    return (char)(c >= 'A' && c <= 'Z' ? (c - ('A' - 'a')) : c);
+}
 
 static void str_copy_tolower_ascii(size_t len, const char src[static len], char dest[static len]) {
     for (size_t i = 0; i != len; ++i) {
@@ -57,7 +59,8 @@ static void str_copy_tolower_ascii(size_t len, const char src[static len], char 
     }
 }
 
-static zend_result datadog_php_profiling_log_level_parse(datadog_php_str str, uintptr_t *log_level) {
+static zend_result datadog_php_profiling_log_level_parse(datadog_php_str str,
+                                                         uintptr_t *log_level) {
     // If the level string's length is greater than 5, it's definitely unknown.
     if (!str.size || !str.ptr || str.size > 5u) {
         return FAILURE;
@@ -74,9 +77,12 @@ static zend_result datadog_php_profiling_log_level_parse(datadog_php_str str, ui
         datadog_php_str str;
         datadog_php_profiling_log_level level;
     } options[] = {
-        {{"off", 3}, DATADOG_PHP_PROFILING_LOG_LEVEL_OFF},     {{"error", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR},
-        {{"warn", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_WARN},   {{"info", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_INFO},
-        {{"debug", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG}, {{"trace", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE},
+        {{"off", 3}, DATADOG_PHP_PROFILING_LOG_LEVEL_OFF},
+        {{"error", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR},
+        {{"warn", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_WARN},
+        {{"info", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_INFO},
+        {{"debug", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG},
+        {{"trace", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE},
     };
 
     unsigned i, n_options = (sizeof options / sizeof options[0]);
@@ -107,7 +113,9 @@ static bool is_ddtrace_extension(const zend_extension *ext) {
     return ext && ext->name && strcmp(ext->name, "ddtrace") == 0;
 }
 
-static ddtrace_profiling_context noop_get_profiling_context(void) { return (ddtrace_profiling_context){0, 0}; }
+static ddtrace_profiling_context noop_get_profiling_context(void) {
+    return (ddtrace_profiling_context){0, 0};
+}
 
 void datadog_php_profiling_startup(zend_extension *extension) {
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
@@ -126,7 +134,9 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     }
 }
 
-void datadog_php_profiling_rinit(void) { DATADOG_PHP_PROFILING(vm_interrupt_addr) = &EG(vm_interrupt); }
+void datadog_php_profiling_rinit(void) {
+    DATADOG_PHP_PROFILING(vm_interrupt_addr) = &EG(vm_interrupt);
+}
 
 datadog_php_str datadog_php_profiling_log_level_to_str(uintptr_t log_level) {
     switch (log_level) {
@@ -160,7 +170,8 @@ zend_module_entry *datadog_get_module_entry(const uint8_t *str, uintptr_t len) {
     return zend_hash_str_find_ptr(&module_registry, (const char *)str, len);
 }
 
-ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) = noop_get_profiling_context;
+ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =
+    noop_get_profiling_context;
 
 // TODO: can we get an ifdef for cfg(test) or something?
 // At least this code seems to get shaken out, at least some of the time, so
@@ -174,15 +185,24 @@ bool test_datadog_php_profiling_log_level_parse_success(void) {
         datadog_php_str slice;
         uintptr_t log_level;
     } tests[] = {
-        {{"off", 3}, DATADOG_PHP_PROFILING_LOG_LEVEL_OFF},     {{"Off", 3}, DATADOG_PHP_PROFILING_LOG_LEVEL_OFF},
-        {{"OFF", 3}, DATADOG_PHP_PROFILING_LOG_LEVEL_OFF},     {{"error", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR},
-        {{"Error", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR}, {{"ERROR", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR},
-        {{"warn", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_WARN},   {{"Warn", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_WARN},
-        {{"WARN", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_WARN},   {{"info", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_INFO},
-        {{"Info", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_INFO},   {{"INFO", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_INFO},
-        {{"debug", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG}, {{"Debug", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG},
-        {{"DEBUG", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG}, {{"trace", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE},
-        {{"Trace", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE}, {{"TRACE", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE},
+        {{"off", 3}, DATADOG_PHP_PROFILING_LOG_LEVEL_OFF},
+        {{"Off", 3}, DATADOG_PHP_PROFILING_LOG_LEVEL_OFF},
+        {{"OFF", 3}, DATADOG_PHP_PROFILING_LOG_LEVEL_OFF},
+        {{"error", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR},
+        {{"Error", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR},
+        {{"ERROR", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_ERROR},
+        {{"warn", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_WARN},
+        {{"Warn", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_WARN},
+        {{"WARN", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_WARN},
+        {{"info", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_INFO},
+        {{"Info", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_INFO},
+        {{"INFO", 4}, DATADOG_PHP_PROFILING_LOG_LEVEL_INFO},
+        {{"debug", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG},
+        {{"Debug", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG},
+        {{"DEBUG", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_DEBUG},
+        {{"trace", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE},
+        {{"Trace", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE},
+        {{"TRACE", 5}, DATADOG_PHP_PROFILING_LOG_LEVEL_TRACE},
     };
 
     bool success = true;
@@ -199,8 +219,8 @@ bool test_datadog_php_profiling_log_level_parse_success(void) {
         if (log_level != actual_level) {
             datadog_php_str expected = datadog_php_profiling_log_level_to_str(log_level);
             datadog_php_str actual = datadog_php_profiling_log_level_to_str(actual_level);
-            fprintf(stderr, "Log levels do not match; expected %*s, actual %*s.\n", (int)expected.size, expected.ptr,
-                    (int)actual.size, actual.ptr);
+            fprintf(stderr, "Log levels do not match; expected %*s, actual %*s.\n",
+                    (int)expected.size, expected.ptr, (int)actual.size, actual.ptr);
             success = false;
         }
     }
