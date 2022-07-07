@@ -4,7 +4,7 @@ stages:
 
 variables:
   LATEST_URL:
-    value: "https://output.circle-artifacts.com/output/job/f8a527ee-ac58-4012-a47e-1fab9acccb69/artifacts/0/datadog-php-tracer_0.76.0_amd64.deb"
+    value: "https://output.circle-artifacts.com/output/job/08fccc8e-417b-4892-9155-000bfe6b7871/artifacts/0/datadog-php-tracer_0.76.0_amd64.deb"
     description: "Location where to download latest built package"
   DOWNSTREAM_REL_BRANCH:
     value: "master"
