@@ -31,4 +31,5 @@ function long_running_entry_point()
         exit(-1);
     }
     call_httpbin('user-agent');
+    pcntl_waitpid($forkPid, $childStatus);
 }

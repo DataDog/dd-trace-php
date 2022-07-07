@@ -38,14 +38,11 @@ function long_running_entry_point()
 
     $forkPid = pcntl_fork();
 
-    //ob_start();
-
     if ($forkPid > 0) {
         // Main
         if (ddtrace_config_trace_enabled()) {
             echo "parent is enabled\n";
         }
-        call_httpbin();
     } else if ($forkPid === 0) {
         // Child
         usleep(100000);
@@ -64,13 +61,15 @@ function long_running_entry_point()
 ?>
 --EXPECTF--
 parent is enabled
-Successfully triggered flush with trace of size 4
+Successfully triggered flush with trace of size 3
 child is enabled
 Successfully triggered flush with trace of size 1
+Cannot run tracing closure for long_running_entry_point(); spans out of sync
 No finished traces to be sent to the agent
 parent is enabled
-Successfully triggered flush with trace of size 4
+Successfully triggered flush with trace of size 3
 child is enabled
 Successfully triggered flush with trace of size 1
+Cannot run tracing closure for long_running_entry_point(); spans out of sync
 No finished traces to be sent to the agent
 No finished traces to be sent to the agent
