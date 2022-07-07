@@ -48,20 +48,29 @@ M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $
 # Note: while this adds some complexity, as a matter of facts it does not impact production builds in CI which are done
 # from scratch. But the benefits are that we can have the quickest possible `modify --> test` cycle possible.
 $(BUILD_DIR)/tests/%: tests/%
+ifeq ($(BUILD_DIR), .)
+else
 	$(Q) echo Copying tests/$* to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a tests/$* $@
+endif
 
 $(BUILD_DIR)/%.c: %.c
+ifeq ($(BUILD_DIR), .)
+else
 	$(Q) echo Copying $*.c to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $*.c $@
+endif
 
 $(BUILD_DIR)/%: %
+ifeq ($(BUILD_DIR), .)
+else
 	$(Q) echo Copying $* to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $* $@
 	$(Q) rm -f tmp/build_extension/ext/**/*.lo
+endif
 
 JUNIT_RESULTS_DIR := $(shell pwd)
 
@@ -414,6 +423,12 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-installers.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
+
+packages_in_docker:
+	rm -rf ./extensions
+	docker build -f dockerfiles/packaging/Dockerfile . --target export -t tmp_export \
+		&& docker image save tmp_export | tar --strip-components=1 -x 'layer.tar'
+	echo "Artifacts produces in layer.tar"
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \

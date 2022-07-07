@@ -2,4 +2,9 @@
 .composer/
 tests/Frameworks/**
 tmp/
+/dockerfiles/packaging/Dockerfile
 **/vendor/**
+!/ext/vendor/**
+*.tar
+docker-bake.hcl
+/build

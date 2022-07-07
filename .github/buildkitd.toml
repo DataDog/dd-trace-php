@@ -1,0 +1,3 @@
+# .github/buildkitd.toml
+[worker.oci]
+  max-parallelism = 6

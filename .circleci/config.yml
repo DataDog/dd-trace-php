@@ -1500,6 +1500,23 @@ jobs:
           root: '.'
           paths: ['./']
 
+  "package extension - using buildkit":
+    resource_class: 2xlarge
+    machine:
+      image: ubuntu-2004:202010-01
+      docker_layer_caching: true
+    environment:
+      DOCKER_CLI_EXPERIMENTAL: enabled
+    steps:
+      # - <<: *STEP_ATTACH_WORKSPACE
+      # TODO attach workspace didn't work for some reason, and the build files were missing
+      - checkout # TODO: for now
+      - run: ls -la 
+      - run: docker system info
+      - run: docker buildx create --config .circleci/buildkitd.toml --use --name=circleci
+      - run: docker buildx bake package-circleci --progress=plain
+      - store_artifacts: { path: 'build/packages', destination: / }
+
   "package extension":
     working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
@@ -1658,6 +1675,8 @@ workflows:
   build_packages:
     jobs:
       - "Prepare Code"
+      - "package extension - using buildkit":
+          requires: [ 'Prepare Code' ]
       - compile_alpine:
           requires: [ 'Prepare Code' ]
           matrix:
