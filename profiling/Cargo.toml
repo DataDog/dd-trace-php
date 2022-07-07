@@ -31,13 +31,6 @@ profiling = []
 bindgen = { version = "0.59" }
 cc = { version = "1.0" }
 
-
-
-[profile.dev]
-debug = 2
-lto = false
-incremental = true
-
 [profile.release]
 debug = 1
 lto = true
