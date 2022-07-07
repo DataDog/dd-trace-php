@@ -1,7 +1,20 @@
-FROM alpine:3.11
+ARG alpineVersion=3.11
+FROM alpine:${alpineVersion}
 
 ENV PHP_SRC_DIR=/usr/local/src/php
 ENV PHP_INSTALL_DIR=/opt/php
+
+# Profiler deps
+ARG installRust
+RUN set -eux && \
+  if [[ ${installRust} == "yes" ]]; then \
+    apk add --no-cache \
+        build-base \
+        cargo \
+        patchelf \
+        protoc \
+        unzip; \
+  fi
 
 RUN set -eux; \
 # Install deps
@@ -39,7 +52,7 @@ RUN set -eux; \
         postgresql-dev \
         pkgconf \
         py-pip \
-        python-dev \
+        # python-dev \
         re2c \
         sqlite-dev \
         sudo \
