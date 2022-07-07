@@ -358,10 +358,7 @@ final class SpanChecker
 
             $filtered = $out;
             $expectedTags = $exp->getExactTags();
-            // Ignore _dd.dm.service_hash and _dd.p.dm unless explicitly tested
-            if (!isset($expectedTags['_dd.dm.service_hash'])) {
-                unset($filtered['_dd.dm.service_hash']);
-            }
+            // Ignore _dd.p.dm unless explicitly tested
             if (!isset($expectedTags['_dd.p.dm'])) {
                 unset($filtered['_dd.p.dm']);
             }

@@ -4,7 +4,6 @@ root span with DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=1
-DD_TRACE_PROPAGATE_SERVICE=1
 DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED=""
 HTTPS=on
 SERVER_NAME=localhost:8888
@@ -23,7 +22,7 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(6) {
+array(5) {
   ["system.pid"]=>
   %s
   ["http.url"]=>
@@ -31,9 +30,7 @@ array(6) {
   ["http.method"]=>
   string(3) "GET"
   ["_dd.p.dm"]=>
-  string(12) "9753902159-1"
-  ["_dd.dm.service_hash"]=>
-  string(10) "9753902159"
+  string(2) "-1"
   ["http.status_code"]=>
   string(3) "200"
 }
