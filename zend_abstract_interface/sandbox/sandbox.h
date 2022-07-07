@@ -171,6 +171,10 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
     if (es->exception) {
         EG(exception) = es->exception;
         EG(prev_exception) = es->prev_exception;
+        if (EG(current_execute_data)) {
+            // ensure that we continue handling an exception if we were handling one before the sandbox call
+            EG(current_execute_data)->opline = EG(exception_op);
+        }
         EG(opline_before_exception) = es->opline_before_exception;
     }
 }
@@ -306,6 +310,10 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
     if (es->exception) {
         EG(exception) = es->exception;
         EG(prev_exception) = es->prev_exception;
+        if (EG(current_execute_data)) {
+            // ensure that we continue handling an exception if we were handling one before the sandbox call
+            EG(current_execute_data)->opline = EG(exception_op);
+        }
         EG(opline_before_exception) = es->opline_before_exception;
     }
 }

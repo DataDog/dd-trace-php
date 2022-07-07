@@ -469,12 +469,6 @@ class MongoDBTest extends IntegrationTestCase
 
     public function testManagerExecuteQuery()
     {
-        if (\PHP_VERSION_ID >= 80000) {
-            $this->markTestSkipped(
-                'Until PHP 8 supports dispatch chaining or overwriting. See: ' . __FUNCTION__ . 'PHP8.'
-            );
-        }
-
         $expected = [
             SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db cars {"brand":"?"}')
                 ->withExactTags([
@@ -509,63 +503,8 @@ class MongoDBTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, $expected);
     }
 
-    public function testManagerExecuteQueryPHP8()
-    {
-        if (\PHP_VERSION_ID < 80000) {
-            /* Due to dispatch immutability on PHP 8 and chaining not supported, we only support the following scenario
-             *   $client = new Client(...);
-             *   $query = new Query(...)   OR   $command = new Command();
-             * but not the following scenario
-             *   $query = new Query(...)   OR   $command = new Command();
-             *   $client = new Client(...);
-             */
-            $this->markTestSkipped(
-                'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
-            );
-        }
-
-        $expected = [
-            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db cars')
-                ->withExactTags([
-                    'mongodb.db' => self::DATABASE,
-                    'mongodb.collection' => 'cars',
-                    'span.kind' => 'client',
-                    'out.host' => self::HOST,
-                    'out.port' => self::PORT,
-                ]),
-        ];
-
-        // As array
-        $traces = $this->isolateTracer(function () {
-            $query = new \MongoDB\Driver\Query(['brand' => 'ferrari']);
-            $this->manager()->executeQuery('test_db.cars', $query);
-        });
-        $this->assertFlameGraph($traces, $expected);
-
-        // As stdClass
-        $traces = $this->isolateTracer(function () {
-            $query = new \MongoDB\Driver\Query($this->arrayToStdClass(['brand' => 'ferrari']));
-            $this->manager()->executeQuery('test_db.cars', $query);
-        });
-        $this->assertFlameGraph($traces, $expected);
-
-        // As object
-        $traces = $this->isolateTracer(function () {
-            $query = new \MongoDB\Driver\Query($this->arrayToObject(['brand' => 'ferrari']));
-            $this->manager()->executeQuery('test_db.cars', $query);
-        });
-        $this->assertFlameGraph($traces, $expected);
-    }
-
     public function testManagerExecuteCommand()
     {
-        if (\PHP_VERSION_ID >= 80000) {
-            $this->markTestSkipped(
-                'Until PHP 8 supports dispatch chaining or overwriting. See: ' . __FUNCTION__ . 'PHP8.'
-            );
-        }
-
         $collectionName = 'my_collection_' . \rand(1, 10000);
 
         $expected = [
@@ -608,71 +547,8 @@ class MongoDBTest extends IntegrationTestCase
         $this->client()->test_db->$collectionName->drop();
     }
 
-    public function testManagerExecuteCommandPHP8()
-    {
-        if (\PHP_VERSION_ID < 80000) {
-            /* Due to dispatch immutability on PHP 8 and chaining not supported, we only support the following scenario
-             *   $client = new Client(...);
-             *   $query = new Query(...)   OR   $command = new Command();
-             * but not the following scenario
-             *   $query = new Query(...)   OR   $command = new Command();
-             *   $client = new Client(...);
-             */
-            $this->markTestSkipped(
-                'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
-            );
-        }
-
-        $collectionName = 'my_collection_' . \rand(1, 10000);
-
-        $expected = [
-            SpanAssertion::build(
-                'mongodb.driver.cmd',
-                'mongodb',
-                'mongodb',
-                'executeCommand test_db unknown_command'
-            )->withExactTags([
-                'mongodb.db' => self::DATABASE,
-                'span.kind' => 'client',
-                'out.host' => self::HOST,
-                'out.port' => self::PORT,
-            ]),
-        ];
-
-        // As array
-        $traces = $this->isolateTracer(function () use ($collectionName) {
-            $command = new \MongoDB\Driver\Command(['create' => $collectionName]);
-            $this->manager()->executeCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-        $this->client()->test_db->$collectionName->drop();
-
-        // As stdClass
-        $traces = $this->isolateTracer(function () use ($collectionName) {
-            $command = new \MongoDB\Driver\Command($this->arrayToStdClass(['create' => $collectionName]));
-            $this->manager()->executeCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-        $this->client()->test_db->$collectionName->drop();
-
-        // As object
-        $traces = $this->isolateTracer(function () use ($collectionName) {
-            $command = new \MongoDB\Driver\Command($this->arrayToObject(['create' => $collectionName]));
-            $this->manager()->executeCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-        $this->client()->test_db->$collectionName->drop();
-    }
-
     public function testManagerExecuteReadCommand()
     {
-        if (\PHP_VERSION_ID >= 80000) {
-            $this->markTestSkipped(
-                'Until PHP 8 supports dispatch chaining or overwriting. See: ' . __FUNCTION__ . 'PHP8.'
-            );
-        }
-
         $expected = [
             SpanAssertion::build(
                 'mongodb.driver.cmd',
@@ -725,81 +601,8 @@ class MongoDBTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, $expected);
     }
 
-    public function testManagerExecuteReadCommandPHP8()
-    {
-        if (\PHP_VERSION_ID < 80000) {
-            /* Due to dispatch immutability on PHP 8 and chaining not supported, we only support the following scenario
-             *   $client = new Client(...);
-             *   $query = new Query(...)   OR   $command = new Command();
-             * but not the following scenario
-             *   $query = new Query(...)   OR   $command = new Command();
-             *   $client = new Client(...);
-             */
-            $this->markTestSkipped(
-                'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
-            );
-        }
-
-        $expected = [
-            SpanAssertion::build(
-                'mongodb.driver.cmd',
-                'mongodb',
-                'mongodb',
-                'executeReadCommand test_db unknown_command'
-            )->withExactTags([
-                'mongodb.db' => self::DATABASE,
-                'span.kind' => 'client',
-                'out.host' => self::HOST,
-                'out.port' => self::PORT,
-            ]),
-        ];
-
-        // As array
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command(
-                [
-                    'find' => 'cars',
-                    'filter' => ['brand' => 'ferrari'],
-                ]
-            );
-            $this->manager()->executeReadCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-
-        // As stdClass
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command($this->arrayToStdClass(
-                [
-                    'find' => 'cars',
-                    'filter' => $this->arrayToStdClass(['brand' => 'ferrari']),
-                ]
-            ));
-            $this->manager()->executeReadCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-
-        // As object
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command($this->arrayToObject(
-                [
-                    'find' => 'cars',
-                    'filter' => $this->arrayToObject(['brand' => 'ferrari']),
-                ]
-            ));
-            $this->manager()->executeReadCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-    }
-
     public function testManagerExecuteWriteCommand()
     {
-        if (\PHP_VERSION_ID >= 80000) {
-            $this->markTestSkipped(
-                'Until PHP 8 supports dispatch chaining or overwriting. See: ' . __FUNCTION__ . 'PHP8.'
-            );
-        }
-
         $expected = [
             SpanAssertion::build(
                 'mongodb.driver.cmd',
@@ -852,81 +655,8 @@ class MongoDBTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, $expected);
     }
 
-    public function testManagerExecuteWriteCommandPHP8()
-    {
-        if (\PHP_VERSION_ID < 80000) {
-            /* Due to dispatch immutability on PHP 8 and chaining not supported, we only support the following scenario
-             *   $client = new Client(...);
-             *   $query = new Query(...)   OR   $command = new Command();
-             * but not the following scenario
-             *   $query = new Query(...)   OR   $command = new Command();
-             *   $client = new Client(...);
-             */
-            $this->markTestSkipped(
-                'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
-            );
-        }
-
-        $expected = [
-            SpanAssertion::build(
-                'mongodb.driver.cmd',
-                'mongodb',
-                'mongodb',
-                'executeWriteCommand test_db unknown_command'
-            )->withExactTags([
-                'mongodb.db' => self::DATABASE,
-                'span.kind' => 'client',
-                'out.host' => self::HOST,
-                'out.port' => self::PORT,
-            ]),
-        ];
-
-        // As array
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command(
-                [
-                    'insert' => 'cars',
-                    'documents' => [['brand' => 'ferrari']],
-                ]
-            );
-            $this->manager()->executeWriteCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-
-        // As stdClass
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command($this->arrayToStdClass(
-                [
-                    'insert' => 'cars',
-                    'documents' => [['brand' => 'ferrari']],
-                ]
-            ));
-            $this->manager()->executeWriteCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-
-        // As object
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command($this->arrayToObject(
-                [
-                    'insert' => 'cars',
-                    'documents' => [['brand' => 'ferrari']],
-                ]
-            ));
-            $this->manager()->executeWriteCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-    }
-
     public function testManagerExecuteReadWriteCommand()
     {
-        if (\PHP_VERSION_ID >= 80000) {
-            $this->markTestSkipped(
-                'Until PHP 8 supports dispatch chaining or overwriting. See: ' . __FUNCTION__ . 'PHP8.'
-            );
-        }
-
         $expected = [
             SpanAssertion::build(
                 'mongodb.driver.cmd',
@@ -936,73 +666,6 @@ class MongoDBTest extends IntegrationTestCase
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
-                'span.kind' => 'client',
-                'out.host' => self::HOST,
-                'out.port' => self::PORT,
-            ])
-        ];
-
-        // As array
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command(
-                [
-                    'insert' => 'cars',
-                    'documents' => [['brand' => 'ferrari']],
-                ]
-            );
-            $this->manager()->executeReadWriteCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-
-        // As stdClass
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command($this->arrayToStdClass(
-                [
-                    'insert' => 'cars',
-                    'documents' => [['brand' => 'ferrari']],
-                ]
-            ));
-            $this->manager()->executeReadWriteCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-
-        // As object
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command($this->arrayToObject(
-                [
-                    'insert' => 'cars',
-                    'documents' => [['brand' => 'ferrari']],
-                ]
-            ));
-            $this->manager()->executeReadWriteCommand('test_db', $command);
-        });
-        $this->assertFlameGraph($traces, $expected);
-    }
-
-    public function testManagerExecuteReadWriteCommandPHP8()
-    {
-        if (\PHP_VERSION_ID < 80000) {
-            /* Due to dispatch immutability on PHP 8 and chaining not supported, we only support the following scenario
-             *   $client = new Client(...);
-             *   $query = new Query(...)   OR   $command = new Command();
-             * but not the following scenario
-             *   $query = new Query(...)   OR   $command = new Command();
-             *   $client = new Client(...);
-             */
-            $this->markTestSkipped(
-                'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
-            );
-        }
-
-        $expected = [
-            SpanAssertion::build(
-                'mongodb.driver.cmd',
-                'mongodb',
-                'mongodb',
-                'executeReadWriteCommand test_db unknown_command'
-            )->withExactTags([
-                'mongodb.db' => self::DATABASE,
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
@@ -1081,12 +744,6 @@ class MongoDBTest extends IntegrationTestCase
 
     public function testManagerFailure()
     {
-        if (\PHP_VERSION_ID >= 80000) {
-            $this->markTestSkipped(
-                'Until PHP 8 supports dispatch chaining or overwriting. See: ' . __FUNCTION__ . 'PHP8.'
-            );
-        }
-
         $traces = $this->isolateTracer(function () {
             $command = new \MongoDB\Driver\Command(
                 [
@@ -1105,50 +762,6 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb',
                 'mongodb',
                 'executeWriteCommand test_db insert'
-            )->withExactTags([
-                'mongodb.db' => self::DATABASE,
-                'span.kind' => 'client',
-                'out.host' => self::HOST,
-                'out.port' => self::PORT,
-            ])->setError()
-                ->withExistingTagsNames(['error.msg', 'error.stack']),
-        ]);
-    }
-
-    public function testManagerFailurePHP8()
-    {
-        if (\PHP_VERSION_ID < 80000) {
-            /* Due to dispatch immutability on PHP 8 and chaining not supported, we only support the following scenario
-             *   $client = new Client(...);
-             *   $query = new Query(...)   OR   $command = new Command();
-             * but not the following scenario
-             *   $query = new Query(...)   OR   $command = new Command();
-             *   $client = new Client(...);
-             */
-            $this->markTestSkipped(
-                'PHP-8 does not support dispatch chaining/overwriting. When this test will fail, delete it and ' .
-                    'don\'t skip test: ' . substr(__FUNCTION__, 0, \strlen(__FUNCTION__) - \strlen('PHP8')) . '.'
-            );
-        }
-
-        $traces = $this->isolateTracer(function () {
-            $command = new \MongoDB\Driver\Command(
-                [
-                    'insert' => [], // this should be a collection instead
-                ]
-            );
-            try {
-                $this->manager()->executeWriteCommand('test_db', $command);
-            } catch (\MongoDB\Driver\Exception\CommandException $e) {
-            }
-        });
-
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                'mongodb.driver.cmd',
-                'mongodb',
-                'mongodb',
-                'executeWriteCommand test_db unknown_command'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'span.kind' => 'client',

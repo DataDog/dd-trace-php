@@ -25,10 +25,13 @@ function generate_garbage()
         [],
         ["nonempty" => new stdClass()],
         new stdClass(),
-        function () {
+        function ($hook = null) {
             ob_start();
             var_dump(func_get_args());
             ob_end_clean();
+            if ($hook instanceof DDTrace\HookData && rand(1, 3) != 1) {
+                DDTrace\remove_hook($hook->id);
+            }
         }
     ];
     $garbage[] = [
@@ -54,6 +57,7 @@ function call_function(ReflectionFunction $function)
             }
         }
     }
+
     foreach ($invocations as $invocation) {
         try {
             $function->invokeArgs($invocation);

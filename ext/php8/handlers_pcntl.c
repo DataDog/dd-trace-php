@@ -3,7 +3,6 @@
 
 #include "coms.h"
 #include "ddtrace.h"
-#include "engine_hooks.h"       // For 'ddtrace_resource'
 #include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -46,10 +45,5 @@ void ddtrace_pcntl_handlers_startup(void) {
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {
         dd_install_handler(handlers[i]);
-    }
-
-    if (ddtrace_resource != -1) {
-        ddtrace_string pcntl_fork = DDTRACE_STRING_LITERAL("pcntl_fork");
-        ddtrace_replace_internal_function(CG(function_table), pcntl_fork);
     }
 }

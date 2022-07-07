@@ -30,9 +30,9 @@ try {
 }
 
 ?>
---EXPECT--
+--EXPECTF--
 Greeter::greet hooked.
-Exception thrown in ddtrace's closure for Greeter::greet(): !
+Exception thrown in ddtrace's closure defined at %s:%d for Greeter::greet(): !
 Hello, Datadog.
 Done.
 Successfully triggered flush with trace of size 1

@@ -155,7 +155,7 @@ abstract class Integration
     }
 }
 
-function load_deferred_integration($integrationName)
+function load_deferred_integration($integrationName, $hookedObject = null)
 {
     // it should have already been autoloaded (in current architecture)
     if (
@@ -164,7 +164,7 @@ function load_deferred_integration($integrationName)
     ) {
         /** @var Integration $integration */
         $integration = new $integrationName();
-        $result = $integration->init();
+        $result = $integration->init($hookedObject);
         IntegrationsLoader::logResult($integrationName, $result);
     }
 }

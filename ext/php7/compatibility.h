@@ -1,6 +1,7 @@
 #ifndef DD_COMPATIBILITY_H
 #define DD_COMPATIBILITY_H
 
+#include <stdbool.h>
 #include <php.h>
 
 #if !defined(ZEND_ASSERT)
@@ -68,7 +69,28 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 static zend_always_inline zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
     return zend_new_interned_string(zend_string_init(str, len, persistent));
 }
+
+#undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
+#define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
+    static const zend_internal_arg_info name[] = { \
+        { (const char*)(zend_uintptr_t)(required_num_args), NULL, type, return_reference, allow_null, 0 },
+#define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
+    static const zend_internal_arg_info name[] = { \
+        { (const char*)(zend_uintptr_t)(required_num_args), class_name, IS_OBJECT, return_reference, allow_null, 0 },
+
+typedef void zend_type;
 #endif
+
+#if PHP_VERSION_ID < 70100
+#define IS_VOID 0
+#endif
+
+#define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)
+#define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
+#define ZEND_TYPE_INIT_MASK(type) NULL
+#define ZEND_TYPE_INIT_CLASS(class_name, allow_null, extra_flags) NULL; zend_string_release(class_name)
+
+#define ZVAL_OBJ_COPY(z, o) do { zend_object *__o = (o); GC_ADDREF(__o); ZVAL_OBJ(z, __o); } while (0)
 
 static inline zend_string *ddtrace_vstrpprintf(size_t max_len, const char *format, va_list ap)
 {

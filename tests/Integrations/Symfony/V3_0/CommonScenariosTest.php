@@ -49,6 +49,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
                             SpanAssertion::exists('symfony.kernel.handle')->withChildren([
                                 SpanAssertion::exists('symfony.kernel.request'),
+                                SpanAssertion::exists('symfony.controller'),
                                 SpanAssertion::exists('symfony.kernel.controller'),
                                 SpanAssertion::build(
                                     'symfony.controller',
@@ -93,14 +94,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                         'web',
                                         'Symfony\Bundle\TwigBundle\TwigEngine twig_template.html.twig'
                                     )->withExactTags([]),
-                                ])
-                                ->skipIf(\PHP_MAJOR_VERSION !== 5), // call_user_func_array
-                                SpanAssertion::build(
-                                    'symfony.templating.render',
-                                    'symfony',
-                                    'web',
-                                    'Symfony\Bundle\TwigBundle\TwigEngine twig_template.html.twig'
-                                )->withExactTags([])->skipIf(\PHP_MAJOR_VERSION === 5),
+                                ]),
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                             ]),
@@ -136,8 +130,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'AppBundle\Controller\CommonScenariosController::errorAction'
                                 )
                                 ->setError('Exception', 'An exception occurred')
-                                ->withExistingTagsNames(['error.stack'])
-                                ->skipIf(\PHP_MAJOR_VERSION !== 5), // call_user_func_array
+                                ->withExistingTagsNames(['error.stack']),
                                 SpanAssertion::exists('symfony.kernel.handleException')->withChildren([
                                     SpanAssertion::exists('symfony.kernel.exception')->withChildren([
                                         SpanAssertion::exists('symfony.templating.render'),

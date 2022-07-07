@@ -1,15 +1,12 @@
 --TEST--
-[PHP 7 generator smoke test] Functions return generators with 'yield from'
---SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Test is for PHP 7'); ?>
---ENV--
-DD_TRACE_DEBUG=1
+Functions that return generators with 'yield from' are instrumented
 --FILE--
 <?php
 use DDTrace\SpanData;
 
 function getResults() {
     yield from [1337, 42, 0];
+    return 123;
 }
 
 function doSomething() {
@@ -23,7 +20,7 @@ function doSomething() {
 
 DDTrace\trace_function('getResults', function(SpanData $s, $a, $retval) {
     $s->name = 'getResults';
-    $s->resource = $retval[0];
+    $s->resource = $retval;
 });
 
 DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
@@ -32,11 +29,20 @@ DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
 });
 
 echo doSomething() . PHP_EOL;
+
+array_map(function($span) {
+    echo $span['name'];
+    echo isset($span['resource']) ? ', ' . $span['resource'] : '';
+    echo PHP_EOL;
+}, dd_trace_serialize_closed_spans());
 ?>
 --EXPECT--
-Cannot instrument generators on PHP 7.x
 1337
 42
 0
 Done
-Successfully triggered flush with trace of size 2
+doSomething, Done
+getResults, 123
+getResults, 0
+getResults, 42
+getResults, 1337

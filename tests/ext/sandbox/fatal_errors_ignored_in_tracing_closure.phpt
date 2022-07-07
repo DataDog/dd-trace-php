@@ -17,8 +17,8 @@ array_map(function($span) {
 }, dd_trace_serialize_closed_spans());
 var_dump(error_get_last());
 ?>
---EXPECT--
-Error thrown in ddtrace's closure for array_sum(): Call to undefined function this_function_does_not_exist()
+--EXPECTF--
+Error thrown in ddtrace's closure defined at %s:%d for array_sum(): Call to undefined function this_function_does_not_exist()
 int(100)
 array_sum
 NULL

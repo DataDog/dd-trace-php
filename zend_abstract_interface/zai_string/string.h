@@ -15,6 +15,9 @@ typedef struct zai_string_view_s {
 #define ZAI_STRING_EMPTY \
     (zai_string_view) { .len = 0, .ptr = "" }
 
+#define ZAI_STRING_FROM_ZSTR(str) \
+    (zai_string_view) { .len = ZSTR_LEN(str), .ptr = ZSTR_VAL(str) }
+
 static inline bool zai_string_stuffed(zai_string_view s) { return s.ptr && s.len; }
 
 #endif  // ZAI_STRING_H

@@ -53,6 +53,4 @@ function long_running_entry_point()
 --EXPECTF--
 Successfully triggered flush with trace of size 1
 Successfully triggered flush with trace of size 1
-Successfully triggered flush with trace of size 1
-Successfully triggered flush with trace of size 1
 No finished traces to be sent to the agent

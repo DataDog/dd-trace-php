@@ -25,8 +25,8 @@ try {
 }
 
 ?>
---EXPECT--
+--EXPECTF--
 array_sum hooked.
-Exception thrown in ddtrace's closure for array_sum(): !
+Exception thrown in ddtrace's closure defined at %s:%d for array_sum(): !
 Sum = 4.
 Successfully triggered flush with trace of size 1

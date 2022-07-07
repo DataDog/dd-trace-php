@@ -58,6 +58,15 @@
         <exclude-pattern>tests/randomized/generate-scenarios.php</exclude-pattern>
         <exclude-pattern>tests/randomized/lib/RequestTargetsGenerator.php</exclude-pattern>
     </rule>
+    <rule ref="Squiz.WhiteSpace.ScopeClosingBrace.ContentBefore">
+        <exclude-pattern>*.stub.php</exclude-pattern>
+    </rule>
+    <rule ref="Squiz.Functions.MultiLineFunctionDeclaration.BraceOnSameLine">
+        <exclude-pattern>*.stub.php</exclude-pattern>
+    </rule>
+    <rule ref="PSR2.Classes.ClassDeclaration.OpenBraceNewLine">
+        <exclude-pattern>*.stub.php</exclude-pattern>
+    </rule>
 
     <!-- PHP compatibility checks -->
     <config name="testVersion" value="5.4-7.3"/>
