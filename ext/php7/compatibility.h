@@ -69,10 +69,7 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 static zend_always_inline zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
     return zend_new_interned_string(zend_string_init(str, len, persistent));
 }
-#endif
 
-#ifdef ZEND_API_H
-#if PHP_VERSION_ID < 70200
 #undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
 #define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
     static const zend_internal_arg_info name[] = { \
@@ -86,7 +83,6 @@ typedef void zend_type;
 
 #if PHP_VERSION_ID < 70100
 #define IS_VOID 0
-#endif
 #endif
 
 #define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)

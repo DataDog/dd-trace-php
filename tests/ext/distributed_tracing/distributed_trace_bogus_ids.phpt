@@ -5,7 +5,6 @@ HTTP_X_DATADOG_TRACE_ID=foo
 HTTP_X_DATADOG_PARENT_ID=bar
 HTTP_X_DATADOG_ORIGIN=datadog
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_PROPAGATE_SERVICE=1
 --FILE--
 <?php
 
@@ -37,15 +36,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(4) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["_dd.origin"]=>
       string(7) "datadog"
       ["_dd.p.dm"]=>
-      string(12) "2f8110d3de-1"
-      ["_dd.dm.service_hash"]=>
-      string(10) "2f8110d3de"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

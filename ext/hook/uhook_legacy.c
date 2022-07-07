@@ -203,7 +203,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
     }
 
     if (def->tracing && !dyn->dropped_span) {
-        if (dyn->span->span.duration == -1ull) {
+        if (dyn->span->span.duration == DDTRACE_DROPPED_SPAN) {
             dyn->dropped_span = true;
             ddtrace_clear_execute_data_span(invocation, false);
 
@@ -239,7 +239,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
     }
 
     if (def->tracing && !dyn->dropped_span) {
-        if (dyn->span->span.duration == -1ull) {
+        if (dyn->span->span.duration == DDTRACE_DROPPED_SPAN) {
             dyn->dropped_span = true;
             ddtrace_clear_execute_data_span(invocation, false);
 

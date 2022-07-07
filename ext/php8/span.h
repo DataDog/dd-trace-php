@@ -10,6 +10,8 @@
 #include "ddtrace.h"
 #include "ddtrace_export.h"
 
+#define DDTRACE_DROPPED_SPAN (-1ull)
+
 // error.type, error.type, error.stack
 static const int ddtrace_num_error_tags = 3;
 

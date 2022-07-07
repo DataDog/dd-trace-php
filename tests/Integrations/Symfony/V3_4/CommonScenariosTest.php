@@ -49,7 +49,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleAction',
                         'symfony.route.name' => 'simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
@@ -81,7 +81,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleViewAction',
                         'symfony.route.name' => 'simple_view',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view',
+                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
@@ -122,7 +122,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@errorAction',
                             'symfony.route.name' => 'error',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost:9999/error',
+                            'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                             'http.status_code' => '500',
                         ])
                         ->setError('Exception', 'An exception occurred')
@@ -163,7 +163,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )
                         ->withExactTags([
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost:9999/does_not_exist',
+                            'http.url' => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
                             'http.status_code' => '404',
                         ])
                         ->withChildren([

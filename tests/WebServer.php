@@ -67,7 +67,6 @@ final class WebServer
 
     private $defaultInis = [
         'log_errors' => 'on',
-        'datadog.trace.http_url_query_param_allowed' => '',
         'datadog.trace.client_ip_header_disabled' => 'true',
     ];
 

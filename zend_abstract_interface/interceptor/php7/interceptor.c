@@ -13,7 +13,7 @@ static ZEND_FUNCTION(pass)
     (void)execute_data, (void)return_value;
 }
 
-// HACK: define a name for XDebug compatibility...
+// HACK: define a name for XDebug compatibility..., a fully functional zend_string for "{zend_pass}"
 static const struct __attribute__((__packed__)) { zend_string str; char value[]; } zend_pass_function_name = {
         .str.gc.refcount = 2,
         .str.gc.u.v.type = IS_STRING,
@@ -99,6 +99,7 @@ static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
     return opcode == ZEND_RECV || opcode == ZEND_RECV_INIT || opcode == ZEND_RECV_VARIADIC;
 }
 
+// Replace EXT_NOP by EXT_STMT, then move it after RECV ops if possible
 void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
     zend_op *opcodes = op_array->opcodes;
     for (zend_op *cur = opcodes, *last = cur + op_array->last; cur < last; ++cur) {

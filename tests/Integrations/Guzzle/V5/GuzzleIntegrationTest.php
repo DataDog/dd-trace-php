@@ -64,7 +64,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => strtoupper($method),
-                    'http.url' => 'http://example.com/',
+                    'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
                 ]),
         ]);

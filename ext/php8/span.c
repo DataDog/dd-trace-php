@@ -30,7 +30,7 @@ void ddtrace_init_span_stacks(void) {
 }
 
 static void dd_drop_span(ddtrace_span_fci *span) {
-    span->span.duration = -1ull;
+    span->span.duration = DDTRACE_DROPPED_SPAN;
     span->next = NULL;
     OBJ_RELEASE(&span->span.std);
 }
@@ -132,7 +132,7 @@ void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
     zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
     if (--Z_TYPE_INFO_P(span_zv) == 0) {
         ddtrace_span_fci *span_fci = Z_PTR_P(span_zv);
-        if (span_fci->span.duration != -1ull) {
+        if (span_fci->span.duration != DDTRACE_DROPPED_SPAN) {
             if (keep) {
                 ddtrace_close_span(span_fci);
             } else {
