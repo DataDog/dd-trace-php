@@ -1,5 +1,7 @@
 --TEST--
 Check sample rate is in effect
+--SKIPIF--
+<?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip timing sensitive test, does not make sense with valgrind'); ?>
 --ENV--
 DD_SAMPLING_RATE=0
 DD_SPAN_SAMPLING_RULES=[{"sample_rate":0.5,"max_per_second":10}]
