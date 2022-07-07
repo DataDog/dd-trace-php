@@ -63,6 +63,7 @@
     - Add integration loaded output for deferred integrations on DD_TRACE_DEBUG=1 #1639
     - Reduce memory footprint of strpprintf #1640
     - New implementation for hooks #1617
+    - (PHP 5) Add g1a/composer-test-scenarios and symfony/flex to composer allow-plugin list #1647
 
     ### Fixed
     - Fix crash with numerical value in $_SERVER array #1634
@@ -80,6 +81,7 @@
     - Update rel env to use 0.75.0 (#1620)
     - Disable clang format check in CI #1619
     - Add one more allow-plugins in root composer.json #1646
+    - (PHP 5) Add g1a/composer-test-scenarios and symfony/flex to composer allow-plugin list #1647
 
     ## Profiling (v0.7.0)
     # Changed
