@@ -1604,7 +1604,10 @@ workflows:
     jobs:
       # We need to prepare code because centos 6's git is too old for CircleCI, true story:
       # > error: unknown switch `B'
-      - "Prepare Code"
+      - "Prepare Code":
+        filters:
+          branches:
+            ignore: levi/profiling-rs
       - ExtensionComponents:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -1622,7 +1625,10 @@ workflows:
 
   zend_abstract_interface:
     jobs:
-      - "Prepare Code"
+      - "Prepare Code":
+        filters:
+          branches:
+            ignore: levi/profiling-rs
       - Tea:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -1646,7 +1652,10 @@ workflows:
 
   zend_abstract_interface_shared_exts:
     jobs:
-      - "Prepare Code"
+      - "Prepare Code":
+        filters:
+          branches:
+            ignore: levi/profiling-rs
       - ZaiSharedExts:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -2007,7 +2016,10 @@ workflows:
   build:
     jobs:
 
-      - "Prepare Code"
+      - "Prepare Code":
+        filters:
+          branches:
+            ignore: levi/profiling-rs
 
       - test:
           requires: [ 'Prepare Code' ]
