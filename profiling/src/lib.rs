@@ -40,7 +40,7 @@ static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
 
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
-static PROFILER_VERSION: &[u8] = b"0.8.0\0";
+static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
 lazy_static! {
     /// The runtime ID, which is basically a universally unique "pid", so it
@@ -399,6 +399,8 @@ fn static_tags() -> Vec<Tag> {
         Tag::from_value("language:php").expect("static tags to be valid"),
         // Safety: calling getpid() is safe.
         Tag::new("process_id", unsafe { libc::getpid() }.to_string())
+            .expect("static tags to be valid"),
+        Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
             .expect("static tags to be valid"),
     ]
 }
