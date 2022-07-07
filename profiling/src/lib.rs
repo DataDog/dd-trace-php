@@ -68,8 +68,8 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
      * mutable variable. In Rust, you cannot initialize such a complicated
      * global variable because of initialization order issues that have been
      * found through decades of C++ experience.
-     * So, borrow an initialization pattern from Rust itself:
-     * https://github.com/rust-lang/rust/blob/2a8cb678e61e91c160d80794b5fdd723d0d4211c/src/libstd/io/stdio.rs#L217-L247
+     * So, use a once_cell. Unfortunately we still need to use `unsafe` for
+     * the the `mut` bit which is demanded by the extension ecosystem.
      */
     static mut MODULE: OnceCell<zend::ModuleEntry> = OnceCell::new();
 

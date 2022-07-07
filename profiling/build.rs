@@ -13,7 +13,10 @@ fn main() {
     if !php_config_includes_output.status.success() {
         match String::from_utf8(php_config_includes_output.stderr) {
             Ok(stderr) => panic!("`php-config failed: {}", stderr),
-            Err(err) => panic!("`php-config` failed, not utf8: {}", err),
+            Err(err) => panic!(
+                "`php-config` failed, not utf8: {}",
+                String::from_utf8_lossy(err.as_bytes())
+            ),
         }
     }
 
@@ -132,7 +135,10 @@ fn cfg_php_major_version() {
     if !output.status.success() {
         match String::from_utf8(output.stderr) {
             Ok(stderr) => panic!("`php failed: {}", stderr),
-            Err(err) => panic!("`php` failed, not utf8: {}", err),
+            Err(err) => panic!(
+                "`php` failed, not utf8: {}",
+                String::from_utf8_lossy(err.as_bytes())
+            ),
         }
     }
 
