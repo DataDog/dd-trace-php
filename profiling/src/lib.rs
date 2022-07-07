@@ -29,7 +29,8 @@ static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
 lazy_static! {
     /// The global profiler. In Rust 1.63+, Mutex::new is const and this can be
-    /// made a regular global instead of a lazy_static one.
+    /// made a regular global instead of a lazy_static one. It gets made
+    /// during the first rinit after an rinit, and is destroyed on mshutdown.
     static ref PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
 }
 
@@ -595,13 +596,6 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-fn stop_profiling() {
-    let mut profiler = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler.take() {
-        profiler.stop();
-    }
-}
-
 /// Prints the module info. Calls many C functions from the Zend Engine,
 /// including calling variadic functions. It's essentially all unsafe, so be
 /// careful, and do not call this manually (only let the engine call it).
@@ -670,7 +664,10 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({}, {})", r#type, module_number);
 
-    stop_profiling();
+    let mut profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.take() {
+        profiler.stop();
+    }
 
     ZendResult::Success
 }
