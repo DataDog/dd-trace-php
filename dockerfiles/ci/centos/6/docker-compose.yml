@@ -75,3 +75,19 @@ services:
         phpTarGzUrl: https://downloads.php.net/~patrickallaert/php-8.1.0RC1.tar.gz
         phpSha256Hash: 8a4fad22c02909705c740833bf99e3039d7d3971a55deb998206f6d67151c294
     image: 'datadog/dd-trace-ci:php-8.1_centos-6'
+
+  php-7.0-profiling:
+    build:
+      context: .
+      dockerfile: Dockerfile_profiling
+      args:
+        phpImage: datadog/dd-trace-ci:php-7.0_centos-6
+    image: 'datadog/dd-trace-ci:php-7.0_centos-6_profiling'
+  
+  php-7.1-profiling:
+    build:
+      context: .
+      dockerfile: Dockerfile_profiling
+      args:
+        phpImage: datadog/dd-trace-ci:php-7.1_centos-6
+    image: 'datadog/dd-trace-ci:php-7.1_centos-6_profiling'

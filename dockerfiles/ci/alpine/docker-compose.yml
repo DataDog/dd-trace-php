@@ -7,13 +7,13 @@ services:
     build:
       context: .
 
-  base-profiler:
-    image: datadog/dd-trace-ci:alpine-profiler
+  base-3.16:
+    image: localhost:5000/datadog/dd-trace-ci:alpine-3.16 # TO be removed
+    # image: datadog/dd-trace-ci:alpine-3.16
     build:
       context: .
       args:
         alpineVersion: 3.16
-        installRust: "yes"
 
   php-8.0:
     image: datadog/dd-trace-ci:php-8.0_alpine
@@ -24,12 +24,23 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.15.tar.gz
         phpSha256Hash: 47f0be6188b05390bb457eb1968ea19463acada79650afc35ec763348d5c2370
 
-  php-8.0-profiler:
-    image: datadog/dd-trace-ci:php-8.0_alpine-profiler
+  php-8.0-alpine-3.16:
+    # image: datadog/dd-trace-ci:php-8.0_alpine-3.16
+    image: localhost:5000/datadog/dd-trace-ci:php-8.0_alpine-3.16
     build:
       context: ./php-8.0
       args:
         phpVersion: 8.0
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.15.tar.gz
         phpSha256Hash: 47f0be6188b05390bb457eb1968ea19463acada79650afc35ec763348d5c2370
-        baseImage: alpine-profiler
+        # baseImage: datadog/dd-trace-ci:alpine-3.16
+        baseImage: localhost:5000/datadog/dd-trace-ci:alpine-3.16 # To be removed
+
+  php-8.0-profiler:
+    image: datadog/dd-trace-ci:php-8.0_alpine-profiler
+    build:
+      context: ./
+      dockerfile: Dockerfile_profiling
+      args:
+        # baseImage: datadog/dd-trace-ci:php-8.0_alpine-3.16
+        baseImage: localhost:5000/datadog/dd-trace-ci:alpine-3.16
