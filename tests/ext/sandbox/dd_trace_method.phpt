@@ -119,7 +119,7 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(7) {
+    array(6) {
       ["system.pid"]=>
       string(%d) "%d"
       ["args.0"]=>
@@ -130,10 +130,8 @@ array(3) {
       string(5) "first"
       ["retval.rand"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "24565f64fe"
       ["_dd.p.dm"]=>
-      string(12) "24565f64fe-1"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(5) {
@@ -196,13 +194,11 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "afd2f82e39"
       ["_dd.p.dm"]=>
-      string(12) "afd2f82e39-1"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

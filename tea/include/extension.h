@@ -6,26 +6,9 @@
 
 #include "common.h"
 
-#if PHP_VERSION_ID < 70000
-#ifdef ZTS
-#define TEA_EXTENSION_PARAMETERS_UNUSED() \
-    (void)(ht);                           \
-    (void)(return_value_ptr);             \
-    (void)(return_value_used);            \
-    (void)(this_ptr);                     \
-    (void)(TEA_TSRMLS_C)
-#else
-#define TEA_EXTENSION_PARAMETERS_UNUSED() \
-    (void)(ht);                           \
-    (void)(return_value_ptr);             \
-    (void)(return_value_used);            \
-    (void)(this_ptr)
-#endif
-#else
 #define TEA_EXTENSION_PARAMETERS_UNUSED() \
     (void)(execute_data);                 \
     (void)(return_value)
-#endif
 
 /* {{{ public typedefs */
 #if PHP_VERSION_ID < 80000
@@ -37,7 +20,7 @@ typedef zend_result zend_result_t;
 typedef zend_result_t (*tea_extension_init_function)(INIT_FUNC_ARGS);
 typedef zend_result_t (*tea_extension_shutdown_function)(SHUTDOWN_FUNC_ARGS);
 typedef void (*tea_extension_op_array_function)(zend_op_array *op_array);
-typedef zend_result_t (*tea_extension_startup_function)(void); /* }}} */
+typedef int (*tea_extension_startup_function)(void); /* }}} */
 
 /* {{{ prologue symbols */
 /*

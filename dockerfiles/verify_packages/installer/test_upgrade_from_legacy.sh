@@ -13,7 +13,7 @@ install_legacy_ddtrace "${old_version}"
 assert_ddtrace_version "${old_version}"
 
 # Upgrade using the php installer
-new_version="0.68.0"
+new_version="0.74.0"
 generate_installers "${new_version}"
 php ./build/packages/datadog-setup.php --php-bin php
 assert_ddtrace_version "${new_version}"

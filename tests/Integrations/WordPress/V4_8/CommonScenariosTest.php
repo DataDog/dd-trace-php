@@ -102,7 +102,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren($children),
                 ],
@@ -114,7 +114,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple_view'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view',
+                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),
@@ -223,7 +223,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /error'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error',
+                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         // WordPress doesn't appear to automatically set the proper error code
                         'http.status_code' => '200',
                     ])

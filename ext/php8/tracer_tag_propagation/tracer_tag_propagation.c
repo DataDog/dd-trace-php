@@ -45,10 +45,15 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
                 ++header;
             }
 
-            zval zv;
-            ZVAL_STRINGL(&zv, valuestart, header - valuestart);
-            zend_hash_update(&DDTRACE_G(root_span_tags_preset), tag_name, &zv);
-            zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), tag_name);
+            // tags not starting with _dd.p. must not be propagated to prevent information leaks or arbitrary
+            // information injection
+            if (ZSTR_LEN(tag_name) >= sizeof("_dd.p.") &&
+                strncmp(ZSTR_VAL(tag_name), "_dd.p.", sizeof("_dd.p.") - 1) == 0) {
+                zval zv;
+                ZVAL_STRINGL(&zv, valuestart, header - valuestart);
+                zend_hash_update(&DDTRACE_G(root_span_tags_preset), tag_name, &zv);
+                zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), tag_name);
+            }
             zend_string_release(tag_name);
         }
         // we skip invalid tags without = within

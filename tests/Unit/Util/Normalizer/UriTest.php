@@ -582,20 +582,20 @@ class UriTest extends BaseTestCase
             ['some_url.com/path/', 'some_url.com/path/'],
 
             // query and fragment
-            ['some_url.com/path/?some=value', 'some_url.com/path/'],
-            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value', 'some_url.com/path/?some=value'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/?some=value'],
 
             // userinfo
             ['my_user:my_password@some_url.com/path/', '?:?@some_url.com/path/'],
             ['my_user:@some_url.com/path/', '?:@some_url.com/path/'],
-            ['my_user:@some_url.com/path/?key=value', '?:@some_url.com/path/'],
+            ['my_user:@some_url.com/path/?key=value', '?:@some_url.com/path/?key=value'],
             ['https://my_user:my_password@some_url.com/path/', 'https://?:?@some_url.com/path/'],
             ['https://my_user:@some_url.com/path/', 'https://?:@some_url.com/path/'],
 
             // idempotency
-            ['https://?:@some_url.com/path/?key=value', 'https://?:@some_url.com/path/'],
+            ['https://?:@some_url.com/path/?key=value', 'https://?:@some_url.com/path/?key=value'],
             ['?:?@some_url.com/path/', '?:?@some_url.com/path/'],
-            ['?:@some_url.com/path/?some=?#fragment', '?:@some_url.com/path/'],
+            ['?:@some_url.com/path/?some=?#fragment', '?:@some_url.com/path/?some=?'],
 
             // false positives that should not be sanitized, but we accept this lack of correctness to reduce complexity
             ['https://my_user:@some_url.com/before/a:b@/after', 'https://?:@some_url.com/before/?:?@/after'],
@@ -634,21 +634,21 @@ class UriTest extends BaseTestCase
             ['some_url.com/path/', 'some_url.com/path/'],
 
             // query and fragment
-            ['some_url.com/path/?some=value', 'some_url.com/path/'],
-            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/'],
+            ['some_url.com/path/?some=value', 'some_url.com/path/?some=value'],
+            ['some_url.com/path/?some=value#fragment', 'some_url.com/path/?some=value'],
 
             // userinfo
             ['my_user:my_password@some_url.com/path/', 'some_url.com/path/'],
             ['my_user:@some_url.com/path/', 'some_url.com/path/'],
-            ['my_user:@some_url.com/path/?key=value', 'some_url.com/path/'],
+            ['my_user:@some_url.com/path/?key=value', 'some_url.com/path/?key=value'],
             ['https://my_user:my_password@some_url.com/path/', 'https://some_url.com/path/'],
             ['https://my_user:@some_url.com/path/', 'https://some_url.com/path/'],
-            ['https://my_user:@some_url.com/path/?key=value', 'https://some_url.com/path/'],
+            ['https://my_user:@some_url.com/path/?key=value', 'https://some_url.com/path/?key=value'],
 
             // idempotency
-            ['https://?:@some_url.com/path/?key=value', 'https://some_url.com/path/'],
+            ['https://?:@some_url.com/path/?key=value', 'https://some_url.com/path/?key=value'],
             ['?:?@some_url.com/path/', 'some_url.com/path/'],
-            ['?:@some_url.com/path/?some=?#fragment', 'some_url.com/path/'],
+            ['?:@some_url.com/path/?some=?#fragment', 'some_url.com/path/?some=?'],
 
             // false positives that should not be sanitized, but we accept this lack of correctness to reduce complexity
             ['https://my_user:@some_url.com/before/a:b@/after', 'https://some_url.com/before//after'],

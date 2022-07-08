@@ -67,6 +67,7 @@ final class WebServer
 
     private $defaultInis = [
         'log_errors' => 'on',
+        'datadog.trace.client_ip_header_disabled' => 'true',
     ];
 
     /**

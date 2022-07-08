@@ -61,7 +61,7 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
             require $file;
         }
     }
-    $integrationsFiles = include __DIR__ . '/_files_integrations.php';
+    $integrationsFiles = include __DIR__ . '/_files_integrations' . (PHP_MAJOR_VERSION === 5 ? '.PHP5' : '') . '.php';
     foreach ($integrationsFiles as $file) {
         require $file;
     }
@@ -77,7 +77,7 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
         require_once __DIR__ . '/_generated_api.php';
     }
 
-    require_once __DIR__ . '/_generated_integrations.php';
+    require_once __DIR__ . '/_generated_integrations' . (PHP_MAJOR_VERSION === 5 ? '.PHP5' : '') . '.php';
 
     // File `_generated_tracer_api.php` declares all tracer specific APIs for public usage of the legacy API.
     // File `_generated_tracer.php` declares all the classes and functions meant only for internal use, and not meant

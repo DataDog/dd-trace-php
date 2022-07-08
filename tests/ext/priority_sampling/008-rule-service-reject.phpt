@@ -25,4 +25,4 @@ echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 Rule OK
-_dd.p.dm = df0d0df4cc-1
+_dd.p.dm = -1

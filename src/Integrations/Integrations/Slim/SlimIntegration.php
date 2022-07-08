@@ -108,7 +108,11 @@ class SlimIntegration extends Integration
 
                     /** @var ServerRequestInterface $request */
                     $request = $args[1];
-                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize((string) $request->getUri());
+
+                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                        $rootSpan->meta[Tag::HTTP_URL] =
+                                \DDTrace\Util\Normalizer::urlSanitize((string) $request->getUri());
+                    }
 
                     if ('4' === $majorVersion) {
                         $span->name = 'slim.route';

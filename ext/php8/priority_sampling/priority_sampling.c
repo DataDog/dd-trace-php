@@ -2,10 +2,7 @@
 
 #include <mt19937-64.h>
 
-#include <ext/hash/php_hash.h>
-#include <ext/hash/php_hash_sha.h>
 #include <ext/pcre/php_pcre.h>
-#include <ext/standard/md5.h>
 
 #include "../compat_string.h"
 #include "../configuration.h"
@@ -19,8 +16,7 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_MANUAL = 4,
 };
 
-static void dd_update_decision_maker_tag(ddtrace_span_fci *span, ddtrace_span_fci *deciding_span,
-                                         enum dd_sampling_mechanism mechanism) {
+static void dd_update_decision_maker_tag(ddtrace_span_fci *span, enum dd_sampling_mechanism mechanism) {
     zend_array *meta = ddtrace_spandata_property_meta(&span->span);
 
     zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_root();
@@ -30,26 +26,8 @@ static void dd_update_decision_maker_tag(ddtrace_span_fci *span, ddtrace_span_fc
 
     if (sampling_priority > 0 && sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNSET) {
         if (!zend_hash_str_exists(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1)) {
-            const int hexshadigits = 10;
-
-            zend_string *servicename = ddtrace_convert_to_str(ddtrace_spandata_property_service(&deciding_span->span));
-
-            PHP_SHA256_CTX sha_context;
-            unsigned char service_sha256[32];
-            char service_hexsha256[hexshadigits + 1];
-            PHP_SHA256Init(&sha_context);
-            PHP_SHA256Update(&sha_context, (unsigned char *)ZSTR_VAL(servicename), ZSTR_LEN(servicename));
-            PHP_SHA256Final(service_sha256, &sha_context);
-            make_digest_ex(service_hexsha256, service_sha256, hexshadigits / 2);
-
-            zend_string_release(servicename);
-
-            zval dm, dm_service;
-            ZVAL_STR(&dm_service,
-                     zend_string_init(service_hexsha256,
-                                      get_DD_TRACE_X_DATADOG_TAGS_PROPAGATE_SERVICE() ? hexshadigits : 0, 0));
-            zend_hash_str_update(meta, "_dd.dm.service_hash", sizeof("_dd.dm.service_hash") - 1, &dm_service);
-            ZVAL_STR(&dm, zend_strpprintf(0, "%s-%d", Z_STRVAL(dm_service), mechanism));
+            zval dm;
+            ZVAL_STR(&dm, zend_strpprintf(0, "-%d", mechanism));
             zend_hash_str_add_new(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1, &dm);
         }
     } else {
@@ -126,7 +104,7 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
     zend_hash_str_update(ddtrace_spandata_property_metrics(&span->span), ZEND_STRL("_sampling_priority_v1"),
                          &priority_zv);
 
-    dd_update_decision_maker_tag(span, span, mechanism);
+    dd_update_decision_maker_tag(span, mechanism);
 }
 
 zend_long ddtrace_fetch_prioritySampling_from_root(void) {
@@ -165,6 +143,6 @@ void ddtrace_set_prioritySampling_on_root(zend_long priority) {
         ZVAL_LONG(&zv, priority);
         zend_hash_str_update(root_metrics, ZEND_STRL("_sampling_priority_v1"), &zv);
 
-        dd_update_decision_maker_tag(root_span, DDTRACE_G(open_spans_top), DD_MECHANISM_MANUAL);
+        dd_update_decision_maker_tag(root_span, DD_MECHANISM_MANUAL);
     }
 }

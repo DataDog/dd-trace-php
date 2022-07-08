@@ -31,11 +31,14 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         $span->meta['zf1.route_name'] = $route;
         $span->resource = $controller . '@' . $action . ' ' . $route;
         $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
-        $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
-            $request->getScheme() . '://' .
-            $request->getHttpHost() .
-            $request->getRequestUri()
-        );
+
+        if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
+            $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
+                $request->getScheme() . '://' .
+                $request->getHttpHost() .
+                $request->getRequestUri()
+            );
+        }
     }
 
     /**

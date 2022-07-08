@@ -45,13 +45,11 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "1b8a8775ac"
       ["_dd.p.dm"]=>
-      string(12) "1b8a8775ac-1"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

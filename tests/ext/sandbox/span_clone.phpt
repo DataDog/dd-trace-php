@@ -82,13 +82,11 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.dm.service_hash"]=>
-      string(10) "8cfa685fde"
       ["_dd.p.dm"]=>
-      string(12) "8cfa685fde-1"
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

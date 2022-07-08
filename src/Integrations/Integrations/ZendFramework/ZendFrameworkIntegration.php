@@ -78,11 +78,14 @@ class ZendFrameworkIntegration extends Integration
                     $rootSpan->meta['zf1.route_name'] = $route;
                     $rootSpan->resource = $controller . '@' . $action . ' ' . $route;
                     $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
-                        $request->getScheme() . '://' .
-                        $request->getHttpHost() .
-                        $request->getRequestUri()
-                    );
+
+                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                        $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
+                            $request->getScheme() . '://' .
+                            $request->getHttpHost() .
+                            $request->getRequestUri()
+                        );
+                    }
                 } catch (\Exception $e) {
                 }
 

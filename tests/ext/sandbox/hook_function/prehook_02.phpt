@@ -19,12 +19,16 @@ greet('Datadog');
 ?>
 --EXPECT--
 bool(true)
-array(1) {
+array(3) {
   [0]=>
   array(1) {
     [0]=>
     string(7) "Datadog"
   }
+  [1]=>
+  NULL
+  [2]=>
+  NULL
 }
 Hello, Datadog.
 

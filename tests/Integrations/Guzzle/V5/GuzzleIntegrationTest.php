@@ -64,7 +64,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => strtoupper($method),
-                    'http.url' => 'http://example.com/',
+                    'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -361,7 +361,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                         ])
                         ->withChildren([
-                            SpanAssertion::exists('curl_exec')->skipIf(\PHP_VERSION_ID < 50500),
+                            SpanAssertion::exists('curl_exec'),
                         ])
                 ]),
         ]);

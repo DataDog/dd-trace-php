@@ -8,10 +8,8 @@ extern "C" {
 
 #if PHP_VERSION_ID >= 80000
 #define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(const char *name, size_t name_len)
-#elif PHP_VERSION_ID >= 70000
-#define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len)
 #else
-#define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len TSRMLS_DC)
+#define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len)
 #endif
 
 static char zai_str_buf[64];

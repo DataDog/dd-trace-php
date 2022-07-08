@@ -37,4 +37,4 @@ echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
 metrics[_sampling_priority_v1] OK
 metrics[_dd.rule_psr] OK
 \DDTrace\get_priority_sampling() OK
-_dd.p.dm = dd68494d3d-3
+_dd.p.dm = -3

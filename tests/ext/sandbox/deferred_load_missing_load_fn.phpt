@@ -3,8 +3,6 @@ deferred loading doesn't trigger nor crash if DDTrace\Integrations\load_deferred
 --DESCRIPTION--
 This issue was reported in a GitHub issue:
 https://github.com/DataDog/dd-trace-php/issues/1021
---SKIPIF--
-<?php if (PHP_MAJOR_VERSION < 7) die('skip: deferred loading not supported on PHP 5'); ?>
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
 --INI--

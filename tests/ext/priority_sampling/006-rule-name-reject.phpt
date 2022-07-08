@@ -15,10 +15,8 @@ if ($root->metrics["_dd.rule_psr"] != 0.3) {
 } else {
     var_dump($root->metrics);
 }
-echo "_dd.dm.service_hash = {$root->meta["_dd.dm.service_hash"]}\n";
 echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 Rule OK
-_dd.dm.service_hash = 78d5c41f07
-_dd.p.dm = 78d5c41f07-1
+_dd.p.dm = -1

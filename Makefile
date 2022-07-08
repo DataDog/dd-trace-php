@@ -17,7 +17,7 @@ PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
-PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.6.1/datadog-profiling.tar.gz
+PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.0/datadog-profiling.tar.gz
 APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.3.2/dd-appsec-php-0.3.2-amd64.tar.gz
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
@@ -458,85 +458,6 @@ COMPOSER := COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 COMPOSER_TESTS := $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS := $(PHPUNIT_OPTS)
 PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
-
-TEST_INTEGRATIONS_54 := \
-	test_integrations_deferred_loading \
-	test_integrations_curl \
-	test_integrations_memcached \
-	test_integrations_mysqli \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_predis1
-
-TEST_WEB_54 := \
-	test_web_cakephp_28 \
-	test_web_laravel_42 \
-	test_web_yii_2 \
-	test_web_zend_1 \
-	test_web_custom
-
-TEST_INTEGRATIONS_55 := \
-	test_integrations_deferred_loading \
-	test_integrations_curl \
-	test_integrations_memcached \
-	test_integrations_mysqli \
-	test_integrations_mongo \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_predis1
-
-TEST_WEB_55 := \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_lumen_52 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_yii_2 \
-	test_web_wordpress_48 \
-	test_web_zend_1 \
-	test_web_custom
-
-TEST_INTEGRATIONS_56 := \
-	test_integrations_deferred_loading \
-	test_integrations_curl \
-	test_integrations_memcached \
-	test_integrations_mysqli \
-	test_integrations_mongo \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_predis1 \
-	test_opentracing_beta5
-
-TEST_WEB_56 := \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_lumen_52 \
-	test_web_nette_24 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_yii_2 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_zend_1 \
-	test_web_custom
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \

@@ -3,8 +3,7 @@
 #include <php.h>
 #include <stdbool.h>
 
-#include "ext/php7/ddtrace_string.h"
-#include "ext/php7/dispatch.h"
+#include "../ddtrace_string.h"
 
 #define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
 
@@ -44,6 +43,7 @@ struct ddtrace_integration {
     bool (*is_enabled)(void);
     bool (*is_analytics_enabled)(void);
     double (*get_sample_rate)(void);
+    void *aux[5];
 };
 typedef struct ddtrace_integration ddtrace_integration;
 
@@ -52,7 +52,6 @@ extern size_t ddtrace_integrations_len;
 
 void ddtrace_integrations_minit(void);
 void ddtrace_integrations_mshutdown(void);
-void ddtrace_integrations_rinit(void);
 
 ddtrace_integration *ddtrace_get_integration_from_string(ddtrace_string integration);
 

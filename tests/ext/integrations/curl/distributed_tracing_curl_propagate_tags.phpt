@@ -3,10 +3,9 @@ Distributed tracing header tags propagate with curl_exec()
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
-<?php die('skip: disabled functionality'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
-HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,foo=bar,_dd.p.dm=abcdef|0|2|1.000
+HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,_dd.p.foo=bar,_dd.p.dm=abcdef-2
 --FILE--
 <?php
 
@@ -30,10 +29,10 @@ $meta["foo"] = "buzz";
 $span = DDTrace\start_span();
 $span->service = "dd";
 
-DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_USER_REJECT);
+DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_USER_KEEP);
 
 dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-tags']);
 
 ?>
 --EXPECT--
-x-datadog-tags: custom_tag=inherited,foo=buzz,_dd.p.dm=abcdef|0|2|1.000;ZGQ|-1|4|
+x-datadog-tags: _dd.p.foo=bar,_dd.p.dm=abcdef-2

@@ -25,4 +25,4 @@ echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "
 ?>
 --EXPECTREGEX--
 Rule OK
-_dd.p.dm = (a31069e7b4-3|-)
+_dd.p.dm = (-3|-)

@@ -1,7 +1,5 @@
 --TEST--
 Test that call_user_func_array can trace inside a namespace
---SKIPIF--
-<?php if (PHP_MAJOR_VERSION != 5) die("skip: only supported on PHP 5 atm"); ?>
 --FILE--
 <?php
 

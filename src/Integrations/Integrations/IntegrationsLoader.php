@@ -62,50 +62,42 @@ class IntegrationsLoader
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
-            $this->integrations[CodeIgniterIntegration::NAME] =
-                '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
             $this->integrations[CurlIntegration::NAME] =
                 '\DDTrace\Integrations\Curl\CurlIntegration';
-            $this->integrations[EloquentIntegration::NAME] =
-                '\DDTrace\Integrations\Eloquent\EloquentIntegration';
             $this->integrations[GuzzleIntegration::NAME] =
                 '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
             $this->integrations[LaravelIntegration::NAME] =
                 '\DDTrace\Integrations\Laravel\LaravelIntegration';
             $this->integrations[MysqliIntegration::NAME] =
                 '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-            $this->integrations[SymfonyIntegration::NAME] =
-                '\DDTrace\Integrations\Symfony\SymfonyIntegration';
             return;
         }
 
-        $this->integrations[CakePHPIntegration::NAME] =
-            '\DDTrace\Integrations\CakePHP\CakePHPIntegration';
-        $this->integrations[CodeIgniterIntegration::NAME] =
-            '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
         $this->integrations[CurlIntegration::NAME] =
             '\DDTrace\Integrations\Curl\CurlIntegration';
-        $this->integrations[EloquentIntegration::NAME] =
-            '\DDTrace\Integrations\Eloquent\EloquentIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
             '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
         $this->integrations[LaravelIntegration::NAME] =
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
-        $this->integrations[LumenIntegration::NAME] =
-            '\DDTrace\Integrations\Lumen\LumenIntegration';
         $this->integrations[MongoIntegration::NAME] =
             '\DDTrace\Integrations\Mongo\MongoIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[SymfonyIntegration::NAME] =
-            '\DDTrace\Integrations\Symfony\SymfonyIntegration';
         $this->integrations[ZendFrameworkIntegration::NAME] =
             '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION < 7) {
+            $this->integrations[CakePHPIntegration::NAME] =
+                '\DDTrace\Integrations\CakePHP\CakePHPIntegration';
+            $this->integrations[CodeIgniterIntegration::NAME] =
+                '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
             $this->integrations[ElasticSearchIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
+            $this->integrations[EloquentIntegration::NAME] =
+                '\DDTrace\Integrations\Eloquent\EloquentIntegration';
+            $this->integrations[LumenIntegration::NAME] =
+                '\DDTrace\Integrations\Lumen\LumenIntegration';
             $this->integrations[MemcachedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedIntegration';
             $this->integrations[PDOIntegration::NAME] =
@@ -118,6 +110,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Yii\YiiIntegration';
             $this->integrations[NetteIntegration::NAME] =
                 '\DDTrace\Integrations\Nette\NetteIntegration';
+            $this->integrations[SymfonyIntegration::NAME] =
+                '\DDTrace\Integrations\Symfony\SymfonyIntegration';
             $this->integrations[WordPressIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressIntegration';
         }
@@ -154,7 +148,7 @@ class IntegrationsLoader
             return;
         }
 
-        self::logDebug('Attempting integrations load');
+        self::logDebug('Attempting integrations load; note: some integrations are only loaded on first usage');
 
         foreach ($this->integrations as $name => $class) {
             if (!\ddtrace_config_integration_enabled($name)) {
@@ -177,7 +171,7 @@ class IntegrationsLoader
 
             $integration = new $class();
             $this->loadings[$name] = $integration->init();
-            $this->logResult($name, $this->loadings[$name]);
+            self::logResult($name, $this->loadings[$name]);
         }
     }
 
@@ -187,7 +181,7 @@ class IntegrationsLoader
      * @param string $name
      * @param int $result
      */
-    private function logResult($name, $result)
+    public static function logResult($name, $result)
     {
         if ($result === Integration::LOADED) {
             self::logDebug('Loaded integration {name}', ['name' => $name]);

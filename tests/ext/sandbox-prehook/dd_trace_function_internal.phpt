@@ -1,7 +1,5 @@
 --TEST--
 [Prehook Regression] DDTrace\trace_function() can trace internal functions with internal spans
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--

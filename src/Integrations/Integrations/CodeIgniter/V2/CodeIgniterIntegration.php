@@ -23,10 +23,8 @@ class CodeIgniterIntegration extends Integration
     /**
      * Add instrumentation to CodeIgniter requests
      */
-    public function init()
+    public function init(\CI_Router $router = null)
     {
-
-
         $integration = $this;
         $rootSpan = \DDTrace\root_span();
         if (null === $rootSpan) {
@@ -34,23 +32,16 @@ class CodeIgniterIntegration extends Integration
         }
         $service = \ddtrace_config_app_name(self::NAME);
 
-        \DDTrace\hook_method(
-            'CI_Router',
-            '_set_routing',
-            null,
-            function ($router) use ($integration, $rootSpan, $service) {
-                if (!\defined('CI_VERSION') || !isset($router)) {
-                    return;
-                }
-                $majorVersion = \substr(\CI_VERSION, 0, 2);
-                if ('2.' === $majorVersion) {
-                    /* After _set_routing has been called the class and method
-                     * are known, so now we can set up tracing on CodeIgniter.
-                     */
-                    $integration->registerIntegration($router, $rootSpan, $service);
-                }
-            }
-        );
+        if (!\defined('CI_VERSION') || !isset($router)) {
+            return Integration::NOT_LOADED;
+        }
+        $majorVersion = \substr(\CI_VERSION, 0, 2);
+        if ('2.' === $majorVersion) {
+            /* After _set_routing has been called the class and method
+             * are known, so now we can set up tracing on CodeIgniter.
+             */
+            $integration->registerIntegration($router, $rootSpan, $service);
+        }
 
         return parent::LOADED;
     }
@@ -80,8 +71,11 @@ class CodeIgniterIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $this->load->helper('url');
-                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
-                    . Normalizer::sanitizedQueryString();
+
+                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                        . Normalizer::sanitizedQueryString();
+                }
                 $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
             }
         );

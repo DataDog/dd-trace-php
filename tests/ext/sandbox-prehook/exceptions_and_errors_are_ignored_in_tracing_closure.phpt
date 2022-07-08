@@ -1,9 +1,5 @@
 --TEST--
 [Prehook Regression] Exceptions and errors are ignored when inside a tracing closure
---SKIPIF--
-<?php
-if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5');
-?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
@@ -49,9 +45,9 @@ array_map(function($span) {
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-%s in ddtrace's closure for Test::testFoo(): Undefined variable%sthis_normally_raises_an_%s
-Exception thrown in ddtrace's closure for mt_srand(): This should be ignored
-Error raised in ddtrace's closure for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
+%s in ddtrace's closure defined at %s:%d for Test::testFoo(): Undefined variable%sthis_normally_raises_an_%s
+Exception thrown in ddtrace's closure defined at %s:%d for mt_srand(): This should be ignored
+Error raised in ddtrace's closure defined at %s:%d for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
 Test::testFoo() fav num: %d
 TestFoo
 MTRand

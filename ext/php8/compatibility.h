@@ -50,6 +50,27 @@
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
 #if PHP_VERSION_ID < 80200
+static inline zend_string *ddtrace_vstrpprintf(size_t max_len, const char *format, va_list ap)
+{
+    zend_string *str = zend_vstrpprintf(max_len, format, ap);
+    return zend_string_realloc(str, ZSTR_LEN(str), 0);
+}
+
+#define zend_vstrpprintf ddtrace_vstrpprintf
+
+static inline zend_string *ddtrace_strpprintf(size_t max_len, const char *format, ...)
+{
+    va_list arg;
+    zend_string *str;
+
+    va_start(arg, format);
+    str = zend_vstrpprintf(max_len, format, arg);
+    va_end(arg);
+    return str;
+}
+
+#define zend_strpprintf ddtrace_strpprintf
+
 #define zend_weakrefs_hash_add zend_weakrefs_hash_add_fallback
 #define zend_weakrefs_hash_del zend_weakrefs_hash_del_fallback
 #define zend_weakrefs_hash_add_ptr zend_weakrefs_hash_add_ptr_fallback

@@ -11,10 +11,6 @@
 #include "ddtrace.h"
 #include "ddtrace_string.h"
 
-extern int ddtrace_resource;
-extern int ddtrace_op_array_extension;
-#define DDTRACE_OP_ARRAY_EXTENSION(op_array) ZEND_OP_ARRAY_EXTENSION(op_array, ddtrace_op_array_extension)
-
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 void ddtrace_engine_hooks_minit(void);
@@ -90,8 +86,6 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
     }
 }
 
-PHP_FUNCTION(ddtrace_internal_function_handler);
-
 #if PHP_VERSION_ID < 80100
 #define DDTRACE_ERROR_CB_PARAMETERS \
     int orig_type, const char *error_filename, const uint32_t error_lineno, zend_string *message
@@ -104,9 +98,6 @@ PHP_FUNCTION(ddtrace_internal_function_handler);
 
 extern void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 
-zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *execute_data);
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS);
-void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zend_object *exception);
-void ddtrace_close_all_open_spans(void);
 
 #endif  // DD_ENGINE_HOOKS_H

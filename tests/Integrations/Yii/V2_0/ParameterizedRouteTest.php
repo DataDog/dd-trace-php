@@ -25,7 +25,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
     public function testGet()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $spec  = GetSpec::create('homes get', '/homes/new-york/new-york/manhattan?should_be=removed');
+            $spec  = GetSpec::create('homes get', '/homes/new-york/new-york/manhattan?key=value&pwd=should_redact');
             $this->call($spec);
         });
 
@@ -39,7 +39,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                     'GET /homes/?/?/?'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/homes/new-york/new-york/manhattan',
+                    Tag::HTTP_URL => 'http://localhost:9999/homes/new-york/new-york/manhattan?key=value&<redacted>',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/homes/:state/:city/:neighborhood',
                     'app.endpoint' => 'app\controllers\HomesController::actionView',

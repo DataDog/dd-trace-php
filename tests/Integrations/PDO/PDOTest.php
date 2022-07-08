@@ -85,14 +85,13 @@ final class PDOTest extends IntegrationTestCase
         $query = "SELECT * FROM tests WHERE id = ?";
         $objId = 0;
         $traces = $this->isolateTracer(function () use ($query, &$objId) {
-            $pdo = new CustomPDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
+            $pdo = new \PDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
             $brokenStatement = new BrokenPDOStatement($query);
             $objId = spl_object_id($brokenStatement);
-            $stmt = $pdo->prepare($brokenStatement);
-            $stmt->execute([1]);
-            $results = $stmt->fetchAll();
-            $this->assertEquals('Tom', $results[0]['name']);
-            $stmt->closeCursor();
+            try {
+                $pdo->prepare($brokenStatement);
+            } catch (\Throwable $e) {
+            }
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
@@ -101,13 +100,8 @@ final class PDOTest extends IntegrationTestCase
                 'pdo',
                 'sql',
                 'object(DDTrace\Tests\Integrations\PDO\BrokenPDOStatement)#' . $objId
-            )->withExactTags(SpanAssertion::NOT_TESTED),
-            SpanAssertion::build(
-                'PDOStatement.execute',
-                'pdo',
-                'sql',
-                $query
             )
+                ->setError()
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(SpanAssertion::NOT_TESTED),
         ]);

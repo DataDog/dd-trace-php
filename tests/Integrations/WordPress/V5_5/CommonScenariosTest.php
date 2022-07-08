@@ -56,7 +56,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::exists(
@@ -119,7 +119,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple_view'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view',
+                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),
@@ -249,7 +249,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /error'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error',
+                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         // On php 5 WordPress returns 500 on error, as expected, while on 7.x it returns 200
                         // regardless of the extension being installed.
                         'http.status_code' => $this->matchesPhpVersion('5') ? '500' : '200',
@@ -314,7 +314,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /does_not_exist'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/does_not_exist',
+                        'http.url' => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
                         'http.status_code' => '404',
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),

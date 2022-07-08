@@ -61,6 +61,9 @@ class Normalizer
         }
 
         $uriPath = self::urlSanitize($inputUriPath, false, true);
+        if ($uriPath === '') {
+            return '/' . self::cleanQueryString($inputUriPath, "datadog.trace.resource_uri_query_param_allowed");
+        }
 
         // We always expect leading slash if it is a pure path, while urls with RFC3986 complaint schemes are preserved.
         // See: https://tools.ietf.org/html/rfc3986#page-17
@@ -181,7 +184,9 @@ class Normalizer
             $url
         );
 
-        return \str_replace('<sanitized>', '?', strstr($sanitizedUserinfo, '?', true) ?: $sanitizedUserinfo)
+        $urlNoQueryString = strstr($sanitizedUserinfo, '?', true);
+        return ($urlNoQueryString === '' ? '' :
+                    \str_replace('<sanitized>', '?', $urlNoQueryString ?: $sanitizedUserinfo))
             . ($trimQueryString ? "" : self::cleanQueryString($url, "datadog.trace.http_url_query_param_allowed"));
     }
 
@@ -195,22 +200,32 @@ class Normalizer
 
     private static function cleanQueryString($queryString, $allowedSetting)
     {
-        if (!preg_match('(\?(?!:\??@)\K.*)', $queryString, $m)) {
+        if (!preg_match('(\?\K[^:?@#][^#]*)', $queryString, $m)) {
             return "";
         }
 
         $queryString = $m[0];
+        if ($queryString === "") {
+            return "";
+        }
 
-        $allowedSet = array_flip(self::decodeConfigSet($allowedSetting));
+        $allowedSet = self::decodeConfigSet($allowedSetting);
 
         if (empty($allowedSet)) {
             return "";
         }
 
         if ($allowedSet == ["*"]) {
-            return $queryString === "" ? "" : "?$queryString";
+            $obfuscationRegex = \ini_get('datadog.trace.obfuscation_query_string_regexp');
+            if ($obfuscationRegex !== "") {
+                $obfuscationRegex = '(' . $obfuscationRegex . ')';
+                $queryString = preg_replace($obfuscationRegex, '<redacted>', $queryString);
+            }
+
+            return "?$queryString";
         }
 
+        $allowedSet = array_flip($allowedSet);
         $preserve = array_filter(explode('&', $queryString), function ($part) use ($allowedSet) {
             return isset($allowedSet[explode('=', $part)[0]]);
         });
