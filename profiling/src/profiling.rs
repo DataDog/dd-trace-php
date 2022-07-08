@@ -517,7 +517,9 @@ impl Uploader {
         let index = message.index;
         let profile = message.profile;
 
-        let endpoint = ddprof::exporter::config::agent(Uri::from_str(index.uri.as_str())?)?;
+        // For next libdatadog release:
+        // let endpoint = ddprof::exporter::config::agent(Uri::from_str(index.uri.as_str())?)?;
+        let endpoint = ddprof::exporter::Endpoint::agent(Uri::from_str(index.uri.as_str())?)?;
         let exporter = ddprof::exporter::ProfileExporterV3::new("php", Some(index.tags), endpoint)?;
         let serialized = profile.serialize(Some(message.end_time), message.duration)?;
         let start = serialized.start.into();
