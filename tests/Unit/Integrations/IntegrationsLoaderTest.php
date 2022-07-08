@@ -160,7 +160,11 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'phpredis'; // PHP 7 only integration
         } else {
             // Deferred loading integrations
+            $excluded[] = 'cakephp';
+            $excluded[] = 'codeigniter';
             $excluded[] = 'elasticsearch';
+            $excluded[] = 'eloquent';
+            $excluded[] = 'lumen';
             $excluded[] = 'memcached';
             $excluded[] = 'mongodb';
             $excluded[] = 'nette';
@@ -168,13 +172,12 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'phpredis';
             $excluded[] = 'predis';
             $excluded[] = 'slim';
+            $excluded[] = 'symfony';
             $excluded[] = 'wordpress';
             $excluded[] = 'yii';
         }
         if (\PHP_MAJOR_VERSION >= 8) {
             // Integrations that do not support PHP 8
-            $excluded[] = 'cakephp';
-            $excluded[] = 'lumen';
             $excluded[] = 'mongo';
             $excluded[] = 'zendframework';
         }

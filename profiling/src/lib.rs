@@ -40,7 +40,7 @@ static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
 
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
-static PROFILER_VERSION: &[u8] = b"0.8.0\0";
+static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
 lazy_static! {
     /// The runtime ID, which is basically a universally unique "pid", so it
@@ -68,10 +68,10 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
      * mutable variable. In Rust, you cannot initialize such a complicated
      * global variable because of initialization order issues that have been
      * found through decades of C++ experience.
-     * So, use a once_cell. Unfortunately we still need to use `unsafe` for
-     * the the `mut` bit which is demanded by the extension ecosystem.
+     * There are a variety of ways to deal with this. Since this function is
+     * only _supposed_ to be called once, I've taken the stance to just leak
+     * the result which avoids unsafe code and unnecessary locks.
      */
-    static mut MODULE: OnceCell<zend::ModuleEntry> = OnceCell::new();
 
     static DEPS: [zend::ModuleDep; 2] = [
         // Safety: string is nul terminated with no interior nul bytes.
@@ -79,45 +79,35 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         zend::ModuleDep::end(),
     ];
 
-    /* Safety: the engine should ensure this is called in thread-safe position,
-     * so the mutability should be fine.
-     */
-    let _ = unsafe { &MODULE }.get_or_try_init(|| -> Result<_, ()> {
-        let mut module = zend::ModuleEntry {
-            name: PROFILER_NAME.as_ptr(),
-            module_startup_func: Some(minit),
-            module_shutdown_func: Some(mshutdown),
-            request_startup_func: Some(rinit),
-            request_shutdown_func: Some(rshutdown),
-            info_func: Some(minfo),
-            version: PROFILER_VERSION.as_ptr(),
-            globals_size: std::mem::size_of::<DatadogPhpProfilingGlobals>(),
-            globals_ctor: Some(ginit),
-            globals_dtor: Some(gshutdown),
-            post_deactivate_func: Some(prshutdown),
-            deps: DEPS.as_ptr(),
-            ..Default::default()
-        };
-        #[cfg(php_zts)]
-        {
-            // todo: zts
-            module.globals_id_ptr = &mut zend::datadog_php_profiling_globals_id as *mut c_void;
-        }
-        #[cfg(not(php_zts))]
-        {
-            // Safety: the address is from a static value on NTS, and don't support ZTS yet.
-            module.globals_ptr = unsafe { zend::datadog_php_profiling_globals_get() }
-                as *mut zend::zend_datadog_php_profiling_globals
-                as *mut c_void;
-        }
+    let mut module = zend::ModuleEntry {
+        name: PROFILER_NAME.as_ptr(),
+        module_startup_func: Some(minit),
+        module_shutdown_func: Some(mshutdown),
+        request_startup_func: Some(rinit),
+        request_shutdown_func: Some(rshutdown),
+        info_func: Some(minfo),
+        version: PROFILER_VERSION.as_ptr(),
+        globals_size: std::mem::size_of::<DatadogPhpProfilingGlobals>(),
+        globals_ctor: Some(ginit),
+        globals_dtor: Some(gshutdown),
+        post_deactivate_func: Some(prshutdown),
+        deps: DEPS.as_ptr(),
+        ..Default::default()
+    };
+    #[cfg(php_zts)]
+    {
+        // todo: zts
+        module.globals_id_ptr = &mut zend::datadog_php_profiling_globals_id as *mut c_void;
+    }
+    #[cfg(not(php_zts))]
+    {
+        // Safety: the address is from a static value on NTS, and don't support ZTS yet.
+        module.globals_ptr = unsafe { zend::datadog_php_profiling_globals_get() }
+            as *mut zend::zend_datadog_php_profiling_globals
+            as *mut c_void;
+    }
 
-        Ok(module)
-    });
-
-    /* Safety: It's not really safe from Rust's perspective to give out a
-     * mutable reference here, but this is a constraint from PHP.
-     */
-    unsafe { MODULE.get_mut().unwrap() }
+    Box::leak(Box::new(module))
 }
 
 /// The engine's previous `zend_interrupt_function` value, if there is one.
@@ -399,6 +389,8 @@ fn static_tags() -> Vec<Tag> {
         Tag::from_value("language:php").expect("static tags to be valid"),
         // Safety: calling getpid() is safe.
         Tag::new("process_id", unsafe { libc::getpid() }.to_string())
+            .expect("static tags to be valid"),
+        Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
             .expect("static tags to be valid"),
     ]
 }

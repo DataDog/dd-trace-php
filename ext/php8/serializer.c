@@ -918,7 +918,6 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
             if (error.stack) {
                 zend_string_release(error.stack);
             }
-            ddtrace_close_all_open_spans();
         }
     }
 

@@ -69,6 +69,8 @@ typedef enum {
     ZAI_SYMBOL_FUNCTION_CLOSURE,
 } zai_symbol_function_t;
 
+#define ZAI_SYMBOL_SANDBOX (1u << 31)
+
 bool zai_symbol_call_impl(
     zai_symbol_scope_t scope_type, void *scope,
     zai_symbol_function_t function_type, void *function,

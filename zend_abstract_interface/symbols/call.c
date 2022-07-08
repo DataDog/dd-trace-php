@@ -16,7 +16,12 @@
 // stack allocate some memory to avoid overwriting stack allocated things needed for observers
 static char (*throwaway_buffer_pointer)[];
 zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache) {
-    char buffer[2048];  // dynamic runtime symbol resolving can have a 1-2 KB stack overhead
+#ifdef __SANITIZE_ADDRESS__
+#define STACK_BUFFER_SIZE 8192 // asan has more overhead
+#else
+#define STACK_BUFFER_SIZE 6144
+#endif
+    char buffer[STACK_BUFFER_SIZE];  // dynamic runtime symbol resolving can have some stack overhead
     throwaway_buffer_pointer = &buffer;
     return zend_call_function(fci, fci_cache);
 }
@@ -106,21 +111,24 @@ bool zai_symbol_call_impl(
     }
 
     if (scope_type == ZAI_SYMBOL_SCOPE_CLASS) {
-        if (!(fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC)) {
+        if (!(fcc.function_handler->common.fn_flags & (ZEND_ACC_STATIC | ZEND_ACC_CLOSURE))) {
             return false;
         }
     }
 
     // clang-format off
     volatile int  zai_symbol_call_result    = FAILURE;
-    volatile bool zai_symbol_call_exception = false;
     volatile bool zai_symbol_call_bailed    = false;
     volatile bool rebound_closure = false;
     volatile zval new_closure;
     zend_op_array *volatile op_array;
 
-    zai_sandbox sandbox;
+    zai_sandbox sandbox, *sandbox_ptr = NULL;
     zai_sandbox_open(&sandbox);
+    if (argc & ZAI_SYMBOL_SANDBOX) {
+        sandbox_ptr = va_arg(*args, zai_sandbox *);
+    }
+    argc &= ~ZAI_SYMBOL_SANDBOX;
 
     if (function_type == ZAI_SYMBOL_FUNCTION_CLOSURE && fcc.called_scope) {
         zend_class_entry *closure_called_scope;
@@ -234,15 +242,15 @@ bool zai_symbol_call_impl(
         efree(fci.params);
     }
 
-    zai_symbol_call_exception = EG(exception) != NULL;
+    bool success = zai_symbol_call_result == SUCCESS && EG(exception) == NULL;
 
-    zai_sandbox_close(&sandbox);
-
-    if (zai_symbol_call_result == SUCCESS) {
-        return !zai_symbol_call_exception;
+    if (sandbox_ptr) {
+        *sandbox_ptr = sandbox;
+    } else {
+        zai_sandbox_close(&sandbox);
     }
 
-    return false;
+    return success;
 }
 
 bool zai_symbol_new(zval *zv, zend_class_entry *ce, uint32_t argc, ...) {

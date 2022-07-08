@@ -11,7 +11,7 @@ DDTrace\trace_function('array_sum', ['prehook' => function () {
 $sum = array_sum([1, 3, 5]);
 var_dump($sum);
 ?>
---EXPECT--
-RuntimeException thrown in ddtrace's closure for array_sum(): This exception is expected
+--EXPECTF--
+RuntimeException thrown in ddtrace's closure defined at %s:%d for array_sum(): This exception is expected
 int(9)
 Successfully triggered flush with trace of size 2

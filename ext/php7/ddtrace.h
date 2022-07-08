@@ -96,6 +96,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddtrace_span_fci *open_spans_top;
     ddtrace_span_fci *closed_spans_top;
     ddtrace_span_fci *root_span;
+    HashTable traced_spans; // tie a span to a specific active execute_data
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
     uint32_t dropped_spans_count;

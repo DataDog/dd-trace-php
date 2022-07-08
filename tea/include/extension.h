@@ -20,7 +20,7 @@ typedef zend_result zend_result_t;
 typedef zend_result_t (*tea_extension_init_function)(INIT_FUNC_ARGS);
 typedef zend_result_t (*tea_extension_shutdown_function)(SHUTDOWN_FUNC_ARGS);
 typedef void (*tea_extension_op_array_function)(zend_op_array *op_array);
-typedef zend_result_t (*tea_extension_startup_function)(void); /* }}} */
+typedef int (*tea_extension_startup_function)(void); /* }}} */
 
 /* {{{ prologue symbols */
 /*

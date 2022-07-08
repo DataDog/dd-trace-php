@@ -56,7 +56,7 @@ var_dump(array_sum([1, 2, 3]));
 var_dump(array_sum([4, 5, 6]));
 var_dump(array_sum([7, 8, 9]));
 ?>
---EXPECT--
+--EXPECTF--
 int(6)
 int(15)
 int(24)
@@ -68,4 +68,5 @@ array_sum
 array_sum
 array_sum
 array_sum
+Error raised in ddtrace's closure defined at %s:%d for flushTracer(): Allowed memory size of 2097152 bytes exhausted %s in %s on line %d
 No finished traces to be sent to the agent

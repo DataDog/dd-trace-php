@@ -2,6 +2,8 @@
 [Prehook regression] Trace public static method
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
+--SKIPIF--
+<?php die("skip: Not a supported scenario anymore"); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
