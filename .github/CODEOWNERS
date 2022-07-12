@@ -1,1 +1,5 @@
+# Default owners
+* @DataDog/apm-php
+
+# Profiling team
 /profiling/ @DataDog/profiling-php
