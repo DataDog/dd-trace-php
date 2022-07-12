@@ -80,7 +80,7 @@
     <dependencies>
         <required>
             <php>
-                <min>5.4</min>
+                <min>7.0</min>
                 <max>8.1.99</max>
             </php>
             <pearinstaller>
