@@ -53,7 +53,7 @@ static zend_string *_key_server_name_zstr;
 static zend_string *_key_http_user_agent_zstr;
 static zend_string *_key_https_zstr;
 static zend_string *_key_remote_addr_zstr;
-static zval _true_zv;
+static zend_string *_true_zstr;
 static HashTable _relevant_headers;
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
@@ -73,9 +73,7 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_DATA), 1 /* permanent */);
     _dd_tag_event_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_EVENT), 1 /* permanent */);
-    zend_string *true_zstr =
-        zend_string_init_interned(LSTRARG("true"), 1 /* permanent */);
-    ZVAL_STR(&_true_zv, true_zstr);
+    _true_zstr = zend_string_init_interned(LSTRARG("true"), 1 /* permanent */);
 
     _dd_tag_http_method_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_METHOD), 1);
@@ -242,7 +240,9 @@ void dd_tags_rshutdown()
     }
 
     // tag appsec.event
-    res = dd_trace_root_span_add_tag(_dd_tag_event_zstr, &_true_zv);
+    zval true_zv;
+    ZVAL_STR_COPY(&true_zv, _true_zstr);
+    res = dd_trace_root_span_add_tag(_dd_tag_event_zstr, &true_zv);
     if (!res) {
         mlog(dd_log_info, "Failed adding tag " DD_TAG_EVENT " to root span");
         return;
