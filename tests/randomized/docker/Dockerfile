@@ -80,7 +80,7 @@ RUN set -eux; \
     make install
 
 # Enabling Opcache, which is disabled by default
-RUN echo "zend_extension=opcache.so" > /etc/php.d/opache.ini
+RUN (echo "zend_extension=opcache.so"; echo "opcache.enable_cli=1") > /etc/php.d/opache.ini
 
 # Igbinary
 RUN set -eux; \
