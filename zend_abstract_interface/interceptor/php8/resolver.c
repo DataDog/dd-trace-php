@@ -191,6 +191,51 @@ static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *exec
     return prev_declare_class_delayed_handler ? prev_declare_class_delayed_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
+// The JIT *requires* a CALL VM (or HYBRID VM and ZEND_DECLARE_* ops are not marked as HOT handlers)
+// Thus we know that EX(opline)->handler contains a valid zend_vm_opcode_handler_t, which we can call.
+#ifdef HAVE_GCC_GLOBAL_REGS
+typedef void (ZEND_FASTCALL *zend_vm_opcode_handler_t)(void);
+#else
+typedef int (ZEND_FASTCALL *zend_vm_opcode_handler_t)(zend_execute_data *execute_data);
+#endif
+static zend_vm_opcode_handler_t zai_interceptor_handlers[256];
+
+// Alternative implementation when a JIT is active. We have no choice but be a noisy neighbor in this case (on PHP 8.0 at least)
+// Given that the JIT tracing VM very strongly wants to read some data at some (per op_array) offset (see zend_jit_op_array_trace_extension), an
+// offset we are unable to access from here (lacking visibility).
+// Given that the JIT just works under circumstances which would allow us to directly call the handlers, we just can call them here and continue.
+static int zai_interceptor_declare_jit_handler(zend_execute_data *execute_data) {
+    zend_string *lcname = Z_STR_P(RT_CONSTANT(EX(opline), EX(opline)->op1));
+#ifdef HAVE_GCC_GLOBAL_REGS
+    zai_interceptor_handlers[EX(opline)->opcode]();
+    ++EX(opline); // opline increment is register increment, but user opcode handler reads back from EX(opline). Manually increment here.
+#else
+    zai_interceptor_handlers[EX(opline)->opcode](execute_data);
+#endif
+    if (EX(opline)->opcode == ZEND_DECLARE_FUNCTION) {
+        zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
+        if (function) {
+            zai_hook_resolve_function(function, lcname);
+        }
+    } else {
+        zend_class_entry *ce = zend_hash_find_ptr(CG(class_table), lcname);
+        if (ce) {
+            zai_hook_resolve_class(ce, lcname);
+        }
+    }
+    return ZEND_USER_OPCODE_CONTINUE;
+}
+
+static void zai_register_jit_handler(zend_uchar opcode) {
+    zend_op op = {0};
+    op.opcode = opcode;
+    op.op1_type = IS_CONST;
+    op.op2_type = IS_CONST;
+    zend_vm_set_opcode_handler(&op);
+    zai_interceptor_handlers[opcode] = zend_get_opcode_handler_func(&op);
+    zend_set_user_opcode_handler(opcode, zai_interceptor_declare_jit_handler);
+}
+
 static user_opcode_handler_t prev_handle_exception_handler;
 static int zai_interceptor_handle_exception_handler(zend_execute_data *execute_data) {
     // not everything goes through zend_throw_exception_hook, in particular when zend_rethrow_exception alone is used (e.g. during zend_call_function)
@@ -217,6 +262,28 @@ static void zai_interceptor_exception_hook(zend_object *ex) {
 
 // post_startup hook to be after opcache
 void zai_interceptor_setup_resolving_post_startup(void) {
+    zend_module_entry *opcache_me = NULL;
+    opcache_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("zend opcache"));
+
+    bool jit = false;
+    if (opcache_me) {
+        void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_me->handle, "zend_jit_status");
+        if (zend_jit_status == NULL) {
+            zend_jit_status = DL_FETCH_SYMBOL(opcache_me->handle, "_zend_jit_status");
+        }
+        if (zend_jit_status) {
+            zval jit_stats_arr;
+            array_init(&jit_stats_arr);
+            zend_jit_status(&jit_stats_arr);
+
+            zval *jit_stats = zend_hash_str_find(Z_ARR(jit_stats_arr), ZEND_STRL("jit"));
+            zval *jit_buffer = zend_hash_str_find(Z_ARR_P(jit_stats), ZEND_STRL("buffer_size"));
+            jit = Z_LVAL_P(jit_buffer) > 0; // JIT is active!
+
+            zval_ptr_dtor(&jit_stats_arr);
+        }
+    }
+
     prev_compile_file = zend_compile_file;
     zend_compile_file = zai_interceptor_compile_file;
     prev_compile_string = zend_compile_string;
@@ -226,33 +293,39 @@ void zai_interceptor_setup_resolving_post_startup(void) {
     prev_class_alias = function->handler;
     function->handler = PHP_FN(zai_interceptor_resolve_after_class_alias);
 
-    prev_declare_function_handler = zend_get_user_opcode_handler(ZEND_DECLARE_FUNCTION);
-    zend_set_user_opcode_handler(ZEND_DECLARE_FUNCTION, zai_interceptor_declare_function_handler);
-    prev_declare_class_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS);
-    zend_set_user_opcode_handler(ZEND_DECLARE_CLASS, zai_interceptor_declare_class_handler);
-    prev_declare_class_delayed_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED);
-    zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, zai_interceptor_declare_class_delayed_handler);
+    if (jit) {
+        zai_register_jit_handler(ZEND_DECLARE_FUNCTION);
+        zai_register_jit_handler(ZEND_DECLARE_CLASS);
+        zai_register_jit_handler(ZEND_DECLARE_CLASS_DELAYED);
+    } else {
+        prev_declare_function_handler = zend_get_user_opcode_handler(ZEND_DECLARE_FUNCTION);
+        zend_set_user_opcode_handler(ZEND_DECLARE_FUNCTION, zai_interceptor_declare_function_handler);
+        prev_declare_class_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS);
+        zend_set_user_opcode_handler(ZEND_DECLARE_CLASS, zai_interceptor_declare_class_handler);
+        prev_declare_class_delayed_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED);
+        zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, zai_interceptor_declare_class_delayed_handler);
 
-    prev_post_declare_handler = zend_get_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP);
-    zend_set_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP, zai_interceptor_post_declare_handler);
+        prev_post_declare_handler = zend_get_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP);
+        zend_set_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP, zai_interceptor_post_declare_handler);
 
-    zend_op *op = &zai_interceptor_post_declare_op;
-    op->lineno = 0;
-    SET_UNUSED(op->result);
-    SET_UNUSED(op->op1);
-    SET_UNUSED(op->op2);
-    op->opcode = ZAI_INTERCEPTOR_POST_DECLARE_OP;
-    ZEND_VM_SET_OPCODE_HANDLER(op);
+        zend_op *op = &zai_interceptor_post_declare_op;
+        op->lineno = 0;
+        SET_UNUSED(op->result);
+        SET_UNUSED(op->op1);
+        SET_UNUSED(op->op2);
+        op->opcode = ZAI_INTERCEPTOR_POST_DECLARE_OP;
+        ZEND_VM_SET_OPCODE_HANDLER(op);
 
-    prev_handle_exception_handler = zend_get_user_opcode_handler(ZEND_HANDLE_EXCEPTION);
-    zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, zai_interceptor_handle_exception_handler);
+        prev_handle_exception_handler = zend_get_user_opcode_handler(ZEND_HANDLE_EXCEPTION);
+        zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, zai_interceptor_handle_exception_handler);
 
-    prev_exception_hook = zend_throw_exception_hook;
-    zend_throw_exception_hook = zai_interceptor_exception_hook;
+        prev_exception_hook = zend_throw_exception_hook;
+        zend_throw_exception_hook = zai_interceptor_exception_hook;
 
 #ifndef ZTS
-    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
-    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op)+1);
-    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op)+2);
+        ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+        ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op) + 1);
+        ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op) + 2);
 #endif
+    }
 }
