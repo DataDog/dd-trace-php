@@ -1,5 +1,5 @@
 --TEST--
-test caching that calls are not traced works with opcache
+test caching that calls are not traced at first works with opcache
 --INI--
 opcache.enable_cli=1
 opcache.preload={PWD}/include.php
@@ -31,4 +31,6 @@ Datadog\negative_function();
 echo "Done.";
 ?>
 --EXPECT--
+NegativeClass::negative_method
+negative_function
 Done.

@@ -1,5 +1,5 @@
 --TEST--
-test caching that calls are not traced works with opcache's protect_memory
+test caching that calls are not traced at first works with opcache's protect_memory
 --INI--
 opcache.enable_cli=1
 opcache.protect_memory=1
@@ -24,7 +24,7 @@ Datadog\negative_function();
     echo "negative_function\n";
 });
 
-// call again (should not be traced)
+// call again
 Datadog\NegativeClass::negativeMethod();
 Datadog\negative_function();
 
@@ -32,4 +32,6 @@ echo "Done.";
 ?>
 --EXPECT--
 bool(true)
+NegativeClass::negative_method
+negative_function
 Done.
