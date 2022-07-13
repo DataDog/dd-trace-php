@@ -670,9 +670,12 @@ void zai_interceptor_setup_resolving_post_startup(void);
 // incidentally is right before the defacto freeze via zend_finalize_system_id
 static zend_result (*prev_post_startup)(void);
 zend_result zai_interceptor_post_startup(void) {
+    zend_result result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
+
     zai_interceptor_setup_resolving_post_startup();
     registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
-    return prev_post_startup ? prev_post_startup() : SUCCESS;
+
+    return result;
 }
 
 void zai_interceptor_startup() {
