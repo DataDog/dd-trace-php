@@ -4,7 +4,8 @@ ARG phpVersion
 ENV PHP_INSTALL_DIR_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-zts
 ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/${phpVersion}-debug
 ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/${phpVersion}
-ENV PHP_VERSION=${phpVersion}
+ENV PHP_VERSION="${phpVersion}"
+COPY php-${phpVersion}/configure.sh /root/
 
 # Download and extract PHP source
 ARG phpTarGzUrl
@@ -17,10 +18,7 @@ RUN set -eux; \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz;
 
-FROM base as build
-COPY php-${PHP_VERSION}/configure.sh /root/
-
-FROM build as php-zts
+FROM base as php-zts
 RUN bash -c 'set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /root/configure.sh \
@@ -32,7 +30,7 @@ RUN bash -c 'set -eux; \
     make install; \
     mkdir -p ${PHP_INSTALL_DIR_ZTS}/conf.d;'
 
-FROM build as php-debug
+FROM base as php-debug
 RUN bash -c 'set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /root/configure.sh \
@@ -44,7 +42,7 @@ RUN bash -c 'set -eux; \
     make install; \
     mkdir -p ${PHP_INSTALL_DIR_DEBUG_NTS}/conf.d;'
 
-FROM build as php-nts
+FROM base as php-nts
 RUN bash -c 'set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /root/configure.sh \
@@ -55,6 +53,7 @@ RUN bash -c 'set -eux; \
     make install; \
     mkdir -p ${PHP_INSTALL_DIR_NTS}/conf.d;'
 
+FROM base as final
 COPY --from=php-zts $PHP_INSTALL_DIR_ZTS $PHP_INSTALL_DIR_ZTS
 COPY --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
 COPY --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS

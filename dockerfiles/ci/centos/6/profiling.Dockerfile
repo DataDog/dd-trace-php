@@ -54,6 +54,24 @@ RUN source scl_source enable devtoolset-7 \
     && cd - \
     && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
 
-# TODO : llvm and libclang
+# Caution, takes a very long time! Since we have to build one from source,
+# I picked LLVM 14, which matches Rust 1.60.
+FROM rust as clang
+RUN source scl_source enable devtoolset-7 \
+  && yum install -y rh-python36 \
+  && source scl_source enable rh-python36 \
+  && cd /usr/local/src \
+  && mkdir -v llvm \
+  && cd llvm \
+  && git clone --depth 1 -b release/14.x https://github.com/llvm/llvm-project.git \
+  && mkdir -vp llvm-project/build \
+  && cd llvm-project/build \
+  && cmake -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release ../llvm \
+  && cmake --build . --parallel 2 \
+  && cmake --build . --target install \
+  && cd - \
+  && rm -fr llvm-project/build \
+  && yum remove -y rh-python36 \
+  && yum clean all
 
-FROM rust as final
+FROM clang as final
