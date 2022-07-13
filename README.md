@@ -54,9 +54,29 @@ To enable the extension using the environment, make sure `DD_APPSEC_ENABLED=true
 
 ## Development
 
+### Requirements
+
+The following packages are required:
+* `php`
+* `cmake`
+* `git`
+* `python`
+* `clang-tidy`
+* `clang-format`
+* `curl`
+
 ### Building the extension & helper
 
 This project requires cmake to build both the extension and helper, so building the main components is as simple as running the following commands in the root of the repository:
+
+First of all, it is required to initialize all submodules on the repository. If you haven´t done so yet, run:
+
+```
+git submodule update --init --recursive
+````
+
+Once you have all the submodules initialized run:
+
 ```
 mkdir build
 cd build
