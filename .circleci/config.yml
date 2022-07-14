@@ -581,7 +581,7 @@ jobs:
             <?php
             foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))) as $f) {
                 $c = file_get_contents($f);
-                $n = preg_replace("/\)#[0-9]+ \(/", ")#%d (", $c);
+                $n = preg_replace(["/\)#[0-9]+ \(/", "/[0-9]+ is not a valid/"], [")#%d (", "%d is not a valid"], $c);
                 if ($c !== $n) {
                     file_put_contents($f, str_replace("--EXPECT--", "--EXPECTF--", $n));
                 }
