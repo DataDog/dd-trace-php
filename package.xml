@@ -49,50 +49,14 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    ### Added
-    - Add B3 headers injection and extraction #1629
-    - Collect http.client_ip #1621
-
-    ### Changed
-    - Filter x-datadog-tags for _dd.p. prefix and add DDTrace\add_distributed_tag #1618
-    - Rename query string obfuscation variable #1630
-    - Collect query string by default and obfuscate #1615
-    - Update regex to account for URL encoding #1622
-    - Update library versions used in tests + support plesk paths #1632
-    - Remove service name propagation #1635, #1636
-    - Add integration loaded output for deferred integrations on DD_TRACE_DEBUG=1 #1639
-    - Reduce memory footprint of strpprintf #1640
-    - New implementation for hooks #1617
-    - (PHP 5) Add g1a/composer-test-scenarios and symfony/flex to composer allow-plugin list #1647
-
     ### Fixed
-    - Fix crash with numerical value in $_SERVER array #1634
-    - Fix missing query string on http.url from integrations #1642
+
+    - Bump PHP minimum version in PECL #1652
+    - PHP 7.3+ Fix compatibility with opcache #1656
 
     ### Internal changes
-    - Add link to compatibility requirements in README.md #1610
-    - Manually build PHP for randomized tests images #1616
-    - Eliminate PHP 5 references from master #1626
-    - Remove PHP 5 from CI and fetch it instead from the latest PHP-5 branch build #1624
-    - Fix test_web on PHP 8.0 #1631
-    - Add g1a/composer-test-scenarios and symfony/flex to composer allow-plugin list #1637
-    - (PHP 5) Run Wordpress testsuite actually against PHP 5 #1638
-    - Test debian bullseye instead of stretch in CI #1644
-    - Update rel env to use 0.75.0 (#1620)
-    - Disable clang format check in CI #1619
-    - Add one more allow-plugins in root composer.json #1646
-    - (PHP 5) Add g1a/composer-test-scenarios and symfony/flex to composer allow-plugin list #1647
 
-    ## Profiling (v0.7.0)
-    # Changed
-    - Do not upload empty profiles. See DataDog/dd-prof-php@e03ff23e5216f863061285e13170d011d0c04bc8 for details.
-
-    # Fixed
-    - Fix a small memory leak with env var handling.
-
-    # Added
-    - Add SAPI as profile tag.
-    - Add support for `DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED` env var. It previously supported this functionality under a different, undocumented name.
+    - %d resource ids in language tests #1657
     </notes>
     <contents>
         <dir name="/">
