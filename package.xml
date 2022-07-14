@@ -51,12 +51,12 @@
     <notes>
     ### Fixed
 
-    Bump PHP minimum version in PECL #1652
-    PHP 7.3+ Fix compatibility with opcache #1656
+    - Bump PHP minimum version in PECL #1652
+    - PHP 7.3+ Fix compatibility with opcache #1656
 
     ### Internal changes
 
-    %d resource ids in language tests #1657
+    - %d resource ids in language tests #1657
     </notes>
     <contents>
         <dir name="/">
