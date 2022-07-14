@@ -1014,7 +1014,19 @@ static void zai_interceptor_exception_hook(zval *ex) {
     }
 }
 
-void zai_interceptor_setup_resolving_startup(void);
+void zai_interceptor_setup_resolving_post_startup(void);
+
+#if PHP_VERSION_ID >= 70300
+static int (*prev_post_startup)(void);
+int zai_interceptor_post_startup(void) {
+    int result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
+
+    zai_interceptor_setup_resolving_post_startup();
+
+    return result;
+}
+#endif
+
 void zai_interceptor_startup(zend_module_entry *module_entry) {
     prev_execute_internal = zend_execute_internal;
     zend_execute_internal = prev_execute_internal ? zai_interceptor_execute_internal : zai_interceptor_execute_internal_no_prev;
@@ -1087,7 +1099,12 @@ void zai_interceptor_startup(zend_module_entry *module_entry) {
     memcpy(&zai_interceptor_bailout_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     zai_interceptor_bailout_handlers.get_closure = zai_interceptor_bailout_get_closure;
 
-    zai_interceptor_setup_resolving_startup();
+#if PHP_VERSION_ID >= 70300
+    prev_post_startup = zend_post_startup_cb;
+    zend_post_startup_cb = zai_interceptor_post_startup;
+#else
+    zai_interceptor_setup_resolving_post_startup();
+#endif
 }
 
 static void zai_hook_memory_dtor(zval *zv) {
