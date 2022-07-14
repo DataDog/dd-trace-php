@@ -247,8 +247,8 @@ static void zai_interceptor_exception_hook(zval *ex) {
     }
 }
 
-// startup hook to be after opcache
-void zai_interceptor_setup_resolving_startup(void) {
+// post startup hook to be after opcache
+void zai_interceptor_setup_resolving_post_startup(void) {
     prev_compile_file = zend_compile_file;
     zend_compile_file = zai_interceptor_compile_file;
     prev_compile_string = zend_compile_string;

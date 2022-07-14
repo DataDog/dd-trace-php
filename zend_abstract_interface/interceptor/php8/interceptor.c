@@ -664,15 +664,19 @@ static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zv
     zai_interceptor_execute_internal_impl(execute_data, return_value, true);
 }
 
+void zai_interceptor_setup_resolving_post_startup(void);
+
 // extension handles are supposed to be frozen at post_startup time and observer extension handle allocation
 // incidentally is right before the defacto freeze via zend_finalize_system_id
 static zend_result (*prev_post_startup)(void);
 zend_result zai_interceptor_post_startup(void) {
-    registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
-    return prev_post_startup ? prev_post_startup() : SUCCESS;
-}
+    zend_result result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
 
-void zai_interceptor_setup_resolving_startup(void);
+    zai_interceptor_setup_resolving_post_startup();
+    registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
+
+    return result;
+}
 
 void zai_interceptor_startup() {
 #if PHP_VERSION_ID < 80200
@@ -718,8 +722,6 @@ void zai_interceptor_startup() {
     zend_post_startup_cb = zai_interceptor_post_startup;
 
     zai_hook_on_update = zai_interceptor_replace_observer;
-
-    zai_interceptor_setup_resolving_startup();
 }
 
 static void zai_hook_memory_dtor(zval *zv) {

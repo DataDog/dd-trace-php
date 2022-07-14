@@ -1,5 +1,5 @@
 --TEST--
-test caching that calls are not traced works with opcache's file cache script
+test caching that calls are not traced at first works with opcache's file cache script
 --INI--
 opcache.enable=1
 opcache.enable_cli=1
@@ -19,7 +19,7 @@ require __DIR__ . '/include.php';
 Datadog\NegativeClass::negativeMethod();
 Datadog\negative_function();
 
-// Add instrumentation calls (that will not work)
+// Add instrumentation calls
 \DDTrace\trace_method('datadog\\negativeclass', 'negativemethod', function () {
     echo "NegativeClass::negative_method\n";
 });
@@ -27,11 +27,13 @@ Datadog\negative_function();
     echo "negative_function\n";
 });
 
-// call again (should not be traced)
+// call again
 Datadog\NegativeClass::negativeMethod();
 Datadog\negative_function();
 
 echo "Done.";
 ?>
 --EXPECT--
+NegativeClass::negative_method
+negative_function
 Done.

@@ -352,6 +352,7 @@ jobs:
           name: Run opcache tests
           command: |
             export REPORT_EXIT_STATUS=1
+            export DD_TRACE_CLI_ENABLED=1
             cd tmp/build_extension
             php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=opcache.so ../../tests/opcache
 
