@@ -16,8 +16,20 @@ jobs:
     strategy:
       matrix:
         include:
-          - weblog-variant: apache-mod
-          - weblog-variant: php-fpm
+          - weblog-variant: apache-mod-7.0
+          - weblog-variant: php-fpm-7.0
+          - weblog-variant: apache-mod-7.1
+          - weblog-variant: php-fpm-7.1
+          - weblog-variant: apache-mod-7.2
+          - weblog-variant: php-fpm-7.2
+          - weblog-variant: apache-mod-7.3
+          - weblog-variant: php-fpm-7.3
+          - weblog-variant: apache-mod-7.4
+          - weblog-variant: php-fpm-7.4
+          - weblog-variant: apache-mod-8.0
+          - weblog-variant: php-fpm-8.0
+          - weblog-variant: apache-mod-8.1
+          - weblog-variant: php-fpm-8.1
     env:
       TEST_LIBRARY: php
       WEBLOG_VARIANT: ${{ matrix.weblog-variant }}
