@@ -78,6 +78,19 @@ static const dd_ini_setting ini_settings[] = {
 };
 // clang-format on
 
+static void _dd_log_errf(const char *format, ...)
+{
+    va_list args;
+    char *buffer;
+
+    va_start(args, format);
+    vspprintf(&buffer, 0, format, args);
+    php_log_err(buffer);
+
+    efree(buffer);
+    va_end(args);
+}
+
 void dd_log_startup()
 {
 #ifdef ZTS
@@ -487,8 +500,7 @@ static ZEND_INI_MH(_on_update_log_file)
         return FAILURE;
     }
     if (_log_strategy != log_use_nothing && ZSTR_VAL(new_value) != _log_file) {
-        php_error_docref(
-            NULL, E_WARNING, "Cannot change datadog.appsec.log_file anymore");
+        _dd_log_errf("Cannot change datadog.appsec.log_file anymore");
         return FAILURE; // change not possible already
     }
 
@@ -506,12 +518,11 @@ static PHP_FUNCTION(datadog_appsec_testing_mlog)
     }
 
     if (level < dd_log_off || level > dd_log_trace) {
-        php_error_docref(
-            NULL, E_WARNING, "Level %lld is out of range", (long long)level);
+        _dd_log_errf("Level %lld is out of range", (long long)level);
         RETURN_FALSE;
     }
     if (str->len > INT_MAX) {
-        php_error_docref(NULL, E_WARNING, "String is too long");
+        _dd_log_errf("String is too long");
         RETURN_FALSE;
     }
 
