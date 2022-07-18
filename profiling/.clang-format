@@ -1,0 +1,8 @@
+---
+BasedOnStyle: Google
+---
+Language: Cpp
+ColumnLimit: 99
+IndentWidth: 4
+BreakStringLiterals: false
+---
