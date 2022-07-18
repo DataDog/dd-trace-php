@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+phpVersion=$1
+
+if [ -z "${phpVersion}" ] || [ ! -f /opt/php/${phpVersion}/bin/php ]; then
+    echo "Invalid PHP version. Valid versions are:"
+    ls /opt/php
+    exit 1
+fi
+
+ln -sf /opt/php/${phpVersion}/bin/pear /usr/local/bin/pear
+ln -sf /opt/php/${phpVersion}/bin/pecl /usr/local/bin/pecl
+ln -sf /opt/php/${phpVersion}/bin/phar.phar /usr/local/bin/phar
+ln -sf /opt/php/${phpVersion}/bin/php /usr/local/bin/php
+ln -sf /opt/php/${phpVersion}/bin/php-cgi /usr/local/bin/php-cgi
+ln -sf /opt/php/${phpVersion}/bin/php-config /usr/local/bin/php-config
+ln -sf /opt/php/${phpVersion}/bin/phpdbg /usr/local/bin/phpdbg
+ln -sf /opt/php/${phpVersion}/bin/phpize /usr/local/bin/phpize
+ln -sf /opt/php/${phpVersion}/sbin/php-fpm /usr/local/bin/php-fpm

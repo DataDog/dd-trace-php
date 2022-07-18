@@ -1,13 +1,29 @@
-ARG baseImage="datadog/dd-trace-ci:centos-6"
+ARG baseImage="datadog/dd-trace-ci:centos-7"
 FROM ${baseImage} as base
 
-# Newer protobuf
-FROM base as protobuf
-# RUN source scl_source enable devtoolset-7
+# Caution, takes a very long time! Since we have to build one from source,
+# I picked LLVM 14, which matches Rust 1.60.
+# Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
+RUN source scl_source enable devtoolset-7 \
+  && yum install -y rh-python36 \
+  && source scl_source enable rh-python36 \
+  && cd /usr/local/src \
+  && git clone --depth 1 -b release/14.x https://github.com/llvm/llvm-project.git \
+  && mkdir -vp llvm-project/build \
+  && cd llvm-project/build \
+  && cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DLLVM_INCLUDE_TOOLS=no -DLLVM_BUILD_TOOLS=no -DLLVM_INCLUDE_UTILS=no -DLLVM_BUILD_UTILS=no -DLLVM_INCLUDE_EXAMPLES=no -DLLVM_INCLUDE_TESTS=no -DLLVM_INCLUDE_BENCHMARKS=no -DLLVM_INCLUDE_DOCS=no -DLLVM_ENABLE_BINDINGS=no -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
+  && make -j 2 all install \
+  && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
+  && cd - \
+  && rm -fr llvm-project \
+  && yum remove -y rh-python36 \
+  && yum clean all
+
 ARG PROTOBUF_VERSION="3.19.4"
 ARG PROTOBUF_SHA256="89ac31a93832e204db6d73b1e80f39f142d5747b290f17340adce5be5b122f94"
 RUN source scl_source enable devtoolset-7 \
   && FILENAME=protobuf-cpp-${PROTOBUF_VERSION}.tar.gz \
+  && cd /usr/local/src \
   && curl -L -O "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/${FILENAME}" \
   && tar --no-same-owner -xf "$FILENAME" \
   && cd protobuf-${PROTOBUF_VERSION} \
@@ -20,9 +36,8 @@ RUN source scl_source enable devtoolset-7 \
   && make -j $(nproc) \
   && make install \
   && cd - \
-  && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
+  && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
 
-FROM protobuf as protoc-c
 ARG PROTOBUF_C_VERSION="1.4.0"
 ARG PROTOBUF_C_SHA256="26d98ee9bf18a6eba0d3f855ddec31dbe857667d269bc0b6017335572f85bbcb"
 RUN source scl_source enable devtoolset-7 \
@@ -35,27 +50,6 @@ RUN source scl_source enable devtoolset-7 \
   && make install \
   && cd - \
   && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
-
-# Caution, takes a very long time! Since we have to build one from source,
-# I picked LLVM 14, which matches Rust 1.60.
-# Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
-FROM base as clang
-RUN source scl_source enable devtoolset-7 \
-  && yum install -y rh-python36 \
-  && source scl_source enable rh-python36 \
-  && cd /usr/local/src \
-  && git clone --depth 1 -b release/14.x https://github.com/llvm/llvm-project.git \
-  && mkdir -vp llvm-project/build \
-  && cd llvm-project/build \
-  && cmake -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
-  && make -j 2 all install \
-  && cd - \
-  && rm -fr llvm-project \
-  && yum remove -y rh-python36 \
-  && yum clean all
-
-FROM clang as final
-COPY --from=protoc-c /usr/local /usr/local
 
 # rust sha256sum generated locally after verifying it with sha256
 ARG RUST_VERSION="1.60.0"
