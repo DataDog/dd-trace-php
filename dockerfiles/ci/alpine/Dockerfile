@@ -1,8 +1,10 @@
-FROM alpine:3.11
+ARG alpineVersion=3.11
+FROM alpine:${alpineVersion} as base
 
 ENV PHP_SRC_DIR=/usr/local/src/php
 ENV PHP_INSTALL_DIR=/opt/php
 
+FROM base as deps
 RUN set -eux; \
 # Install deps
     apk add --no-cache \
@@ -39,7 +41,7 @@ RUN set -eux; \
         postgresql-dev \
         pkgconf \
         py-pip \
-        python-dev \
+        # python-dev \
         re2c \
         sqlite-dev \
         sudo \
@@ -47,8 +49,10 @@ RUN set -eux; \
         valgrind \
         vim \
         xz \
-        zlib-dev \
-    ; \
+        zlib-dev
+    
+FROM deps as final
+RUN set -eux; \
 # Add user/group for circleci
     addgroup -g 3434 -S circleci; \
     adduser -u 3434 -D -S -G circleci -G wheel circleci; \
@@ -57,9 +61,13 @@ RUN set -eux; \
 # Fix "sudo: setrlimit(RLIMIT_CORE): Operation not permitted" error
     echo "Set disable_coredump false" >> /etc/sudo.conf; \
 # Add www-data user
-    addgroup -g 82 -S www-data; \
+    if [ $(grep -E "^www-data:" /etc/group) ]; then \
+        echo "wwww-data group already exists"; \
+    else \
+        # 82 is the standard uid/gid for "www-data" in Alpine
+        addgroup -g 82 -S www-data; \
+    fi; \
     adduser -u 82 -D -S -G www-data www-data; \
-# 82 is the standard uid/gid for "www-data" in Alpine
 # https://git.alpinelinux.org/aports/tree/main/apache2/apache2.pre-install?h=3.9-stable
 # allow running as an arbitrary user (https://github.com/docker-library/php/issues/743)
     [ ! -d /var/www/html ]; \
