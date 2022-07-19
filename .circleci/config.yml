@@ -1882,13 +1882,6 @@ workflows:
                 - PHP_MAJOR=7 PHP_MINOR=4
                 - PHP_MAJOR=8 PHP_MINOR=0
                 - PHP_MAJOR=8 PHP_MINOR=1
-      - verify_centos_6:
-          requires: [ "package extension" ]
-          matrix:
-            parameters:
-              install_type:
-                - php_installer
-                - native_package
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
