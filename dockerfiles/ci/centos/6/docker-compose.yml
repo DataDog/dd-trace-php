@@ -5,14 +5,7 @@ services:
     image: 'datadog/dd-trace-ci:centos-6'
     build:
       context: .
-
-  profiling:
-    image: 'datadog/dd-trace-ci:profiling_centos-6'
-    build:
-      context: .
-      dockerfile: profiling.Dockerfile
-      args:
-        baseImage: "datadog/dd-trace-ci:centos-6"
+      dockerfile: base.Dockerfile
 
   php-7.0:
     build:
@@ -84,50 +77,3 @@ services:
         phpSha256Hash: 889d910558d2492f7f2236921b9bcde620674c8b684ec02d126060f8ca45dc8d
     image: 'datadog/dd-trace-ci:php-8.1_centos-6'
 
-  php-7.1-profiling:
-    build:
-      context: .
-      dockerfile: php-profiling.Dockerfile
-      args:
-        phpImage: datadog/dd-trace-ci:php-7.1_centos-6
-    image: 'datadog/dd-trace-ci:php-7.1_centos-6_profiling'
-
-  php-7.2-profiling:
-    build:
-      context: .
-      dockerfile: php-profiling.Dockerfile
-      args:
-        phpImage: datadog/dd-trace-ci:php-7.2_centos-6
-    image: 'datadog/dd-trace-ci:php-7.2_centos-6_profiling'
-
-  php-7.3-profiling:
-    build:
-      context: .
-      dockerfile: php-profiling.Dockerfile
-      args:
-        phpImage: datadog/dd-trace-ci:php-7.3_centos-6
-    image: 'datadog/dd-trace-ci:php-7.3_centos-6_profiling'
-
-  php-7.4-profiling:
-    build:
-      context: .
-      dockerfile: php-profiling.Dockerfile
-      args:
-        phpImage: datadog/dd-trace-ci:php-7.4_centos-6
-    image: 'datadog/dd-trace-ci:php-7.4_centos-6_profiling'
-
-  php-8.0-profiling:
-    build:
-      context: .
-      dockerfile: php-profiling.Dockerfile
-      args:
-        phpImage: datadog/dd-trace-ci:php-7.1_centos-6
-    image: 'datadog/dd-trace-ci:php-8.0_centos-6_profiling'
-
-  php-8.1-profiling:
-    build:
-      context: .
-      dockerfile: php-profiling.Dockerfile
-      args:
-        phpImage: datadog/dd-trace-ci:php-8.1_centos-6
-    image: 'datadog/dd-trace-ci:php-8.1_centos-6_profiling'
