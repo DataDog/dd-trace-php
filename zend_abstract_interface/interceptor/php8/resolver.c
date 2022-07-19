@@ -2,6 +2,7 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_vm.h>
 #include "../../hook/hook.h"
+#include "zend_extensions.h"
 
 static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition funcpos) {
     zend_string *lcname;
@@ -260,16 +261,26 @@ static void zai_interceptor_exception_hook(zend_object *ex) {
     }
 }
 
+static void *opcache_handle;
+static void zai_interceptor_find_opcache_handle(void *ext) {
+    zend_extension *extension = (zend_extension *)ext;
+    if (strcmp(extension->name, "Zend OPcache") == 0) {
+        opcache_handle = extension->handle;
+    }
+}
+
+// opcache startup NULLs its handle. MINIT is executed before extension startup.
+void zai_interceptor_minit(void) {
+    zend_llist_apply(&zend_extensions, zai_interceptor_find_opcache_handle);
+}
+
 // post_startup hook to be after opcache
 void zai_interceptor_setup_resolving_post_startup(void) {
-    zend_module_entry *opcache_me = NULL;
-    opcache_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("zend opcache"));
-
     bool jit = false;
-    if (opcache_me) {
-        void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_me->handle, "zend_jit_status");
+    if (opcache_handle) {
+        void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_status");
         if (zend_jit_status == NULL) {
-            zend_jit_status = DL_FETCH_SYMBOL(opcache_me->handle, "_zend_jit_status");
+            zend_jit_status = DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_status");
         }
         if (zend_jit_status) {
             zval jit_stats_arr;
