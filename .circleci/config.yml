@@ -1612,7 +1612,7 @@ workflows:
             parameters:
               docker_image:
                 # Don't need PHP, just basic toolchain
-                - "datadog/dd-trace-ci:centos-6"
+                - "datadog/dd-trace-ci:centos-7"
                 - "datadog/dd-trace-ci:alpine"
                 - "datadog/dd-trace-ci:buster"
               cmake_version:
@@ -1675,43 +1675,43 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 70 nts + zts + debug"
           php_version: "7.0"
-          docker_image: "datadog/dd-trace-ci:php-7.0_centos-6"
+          docker_image: "datadog/dd-trace-ci:php-7.0_centos-7"
           so_suffix: "20151012"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 71 nts + zts + debug"
           php_version: "7.1"
-          docker_image: "datadog/dd-trace-ci:php-7.1_centos-6"
+          docker_image: "datadog/dd-trace-ci:php-7.1_centos-7"
           so_suffix: "20160303"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 72 nts + zts + debug"
           php_version: "7.2"
-          docker_image: "datadog/dd-trace-ci:php-7.2_centos-6"
+          docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
           so_suffix: "20170718"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 73 nts + zts + debug"
           php_version: "7.3"
-          docker_image: "datadog/dd-trace-ci:php-7.3_centos-6"
+          docker_image: "datadog/dd-trace-ci:php-7.3_centos-7"
           so_suffix: "20180731"
           catch_warnings: false # On debug builds: unused parameter '__zend_filename'
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 74 nts + zts + debug"
           php_version: "7.4"
-          docker_image: "datadog/dd-trace-ci:php-7.4_centos-6"
+          docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
           so_suffix: "20190902"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 80 nts + zts + debug"
-          docker_image: "datadog/dd-trace-ci:php-8.0_centos-6"
+          docker_image: "datadog/dd-trace-ci:php-8.0_centos-7"
           php_version: "8.0"
           so_suffix: "20200930"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 81 nts + zts + debug"
-          docker_image: "datadog/dd-trace-ci:php-8.1_centos-6"
+          docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
           php_version: "8.1"
           so_suffix: "20210902"
       - pecl_build:
