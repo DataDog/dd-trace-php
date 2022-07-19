@@ -8,7 +8,7 @@ $mh = curl_multi_init();
 curl_multi_add_handle($mh, $ch);
 
 class A {
-    public static $a;
+    public static $a; // static var to ensure delaying destruction until all object destructors are collectively called
     public $ch;
     public $mh;
 
