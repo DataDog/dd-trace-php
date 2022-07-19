@@ -612,7 +612,10 @@ static void dd_curl_wrap_dtor_obj(zend_object *obj) {
     if (dd_headers) {
         zend_hash_index_del(dd_headers, wrapper->res_handle);
     }
+}
 
+static void dd_curl_wrap_free_obj(zend_object *obj) {
+    struct dd_curl_wrapper *wrapper = (struct dd_curl_wrapper *)obj;
     zend_hash_destroy(&wrapper->multi);
 }
 
@@ -644,6 +647,7 @@ void ddtrace_curl_handlers_startup(void) {
     memcpy(&dd_curl_wrap_handler_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     dd_curl_wrap_handler_handlers.get_closure = dd_curl_wrap_get_closure;
     dd_curl_wrap_handler_handlers.dtor_obj = dd_curl_wrap_dtor_obj;
+    dd_curl_wrap_handler_handlers.free_obj = dd_curl_wrap_free_obj;
 
     // if we cannot find ext/curl then do not instrument it
     zend_string *curl = zend_string_init(ZEND_STRL("curl"), 1);
