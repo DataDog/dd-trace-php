@@ -1434,6 +1434,89 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
+  "cargo fetch":
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+        default: "datadog/dd-trace-ci:centos-7"
+    docker: [ image: << parameters.docker_image >> ]
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cargo Package Cache
+          keys:
+            - profiling-cargo-cache-{{ checksum "profiling/Cargo.toml" }}
+      - run:
+          name: cargo fetch
+          command: |
+            cd profiling
+            cargo fetch
+      - save_cache:
+          name: Save Cargo Package Cache
+          key: profiling-cargo-cache-{{ checksum "profiling/Cargo.toml" }}
+          paths:
+            - /rust/cargo
+
+      - persist_to_workspace:
+          root: /rust
+          paths:
+            - cargo
+
+  "cargo build --release":
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      abi_no:
+        type: string
+      triplet:
+        type: string
+    docker: [ image: << parameters.docker_image >> ]
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /rust
+      - run:
+          name: Build Profiler
+          command: |
+            set -eu
+            libdir=$PWD/datadog-profiling/<< parameters.triplet >>/lib/php
+            mkdir -vp "${libdir}"
+            switch-php ${PHP_VERSION}
+            cd profiling
+            cargo build --release
+            cargo test --release
+            mkdir -vp "${libdir}/"<< parameters.abi_no >>
+            cp -v ./target/release/libdatadog_php_profiling.so "${libdir}/"<< parameters.abi_no >>/datadog-profiling.so
+      - persist_to_workspace:
+          root: .
+          paths:
+            - datadog-profiling
+
+  "package profiler":
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+        default: "datadog/dd-trace-ci:centos-7"
+    docker: [ image: << parameters.docker_image >> ]
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Package profiler extensions"
+          command: |
+            # Add licensing
+            cp -v profiling/LICENSE* profiling/NOTICE datadog-profiling/x86_64-unknown-linux-gnu/
+            mkdir -vp datadog-profiling/x86_64-unknown-linux-gnu/bin
+            # Add undocumented installer currently used by relenv
+            cp -v profiling/datadog-profiling-install.sh datadog-profiling/x86_64-unknown-linux-gnu/bin/
+            tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
+      - store_artifacts:
+          path: datadog-profiling.tar.gz
+
   compile_extension_centos:
     working_directory: ~/datadog
     parameters:
@@ -1456,7 +1539,7 @@ jobs:
           command: |
             switch-php << parameters.php_version >>
             make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
-            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
+            cp -v tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
@@ -1655,6 +1738,54 @@ workflows:
               php_version:
                 - "7.4"
                 - "8.0"
+
+  build_profiling:
+    jobs:
+      - "cargo fetch"
+      - "cargo build --release":
+          requires: [ 'cargo fetch' ]
+          name: "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.1_centos-7"
+          abi_no: "20160303"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          requires: [ 'cargo fetch' ]
+          name: "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
+          abi_no: "20170718"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          requires: [ 'cargo fetch' ]
+          name: "Profiler PHP v7.3 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.3_centos-7"
+          abi_no: "20180731"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          requires: [ 'cargo fetch' ]
+          name: "Profiler PHP v7.4 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
+          abi_no: "20190902"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          requires: [ 'cargo fetch' ]
+          name: "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-8.0_centos-7"
+          abi_no: "20200930"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          requires: [ 'cargo fetch' ]
+          name: "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
+          abi_no: "20210902"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "package profiler":
+          requires:
+            - "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.3 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.4 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
 
   build_packages:
     jobs:

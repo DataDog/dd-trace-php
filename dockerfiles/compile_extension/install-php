@@ -9,19 +9,22 @@ apk add --no-cache --virtual .php-build-deps \
     bison \
     ca-certificates \
     coreutils \
-    g++ \
-    gcc \
-    make \
     re2c \
     wget
 apk add --no-cache --virtual .php-deps \
+    build-base \
+    cargo \
+    clang \
     curl-dev \
+    git \
     libedit-dev \
     libffi-dev \
     libmcrypt-dev \
-    oniguruma-dev \
     libsodium-dev \
-    libxml2-dev
+    libxml2-dev \
+    oniguruma-dev \
+    protoc \
+    unzip
 mkdir -p $PHP_SRC_DIR
 cd $SRC_DIR
 wget -O "${PHP_TAR_FILE}" "$PHP_URL"
@@ -33,19 +36,31 @@ cd $PHP_SRC_DIR
 CFLAGS="$PHP_CFLAGS" CPPFLAGS="$PHP_CPPFLAGS" LDFLAGS="$PHP_LDFLAGS"
 PHP_CONFIG_ARGS=""
 
+PHP_72_API='20170718'
+PHP_74_API='20190902'
+if [ "${PHP_API}" -lt "${PHP_72_API}" ] ; then
+    # Removed in v7.2
+    PHP_CONFIG_ARGS="--with-mcrypt $PHP_CONFIG_ARGS"
+else
+    PHP_CONFIG_ARGS="--with-sodium=shared $PHP_CONFIG_ARGS"
+fi
+
+if [ "${PHP_API}" -ge "${PHP_74_API}" ] ; then
+    PHP_CONFIG_ARGS="--with-ffi $PHP_CONFIG_ARGS"
+fi
+
+srcdir="$PWD"
 # Installing PHP
-./buildconf --force
-./configure \
+mkdir -vp /tmp/build-php
+cd /tmp/build-php
+"$srcdir/configure" \
     --prefix="${PHP_INSTALL_DIR}" \
     --with-config-file-path="${PHP_INI_DIR}" \
     --with-config-file-scan-dir="${PHP_INI_DIR}/conf.d" \
     --with-mhash \
-    --with-mcrypt \
     --enable-ftp \
     --enable-mbstring \
-    --with-sodium=shared \
     --with-curl \
-    --with-ffi \
     --with-libedit \
     --without-pdo-sqlite \
     --without-sqlite3 \
@@ -57,6 +72,8 @@ PHP_CONFIG_ARGS=""
     ${PHP_CONFIG_ARGS}
 make -j "$(nproc)"
 make install clean
+cd -
+rm -fr /tmp/build-php
 
 # Removing sources and unused packages
 docker-php-source delete
