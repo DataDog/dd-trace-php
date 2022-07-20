@@ -1,5 +1,4 @@
-ARG baseImage=datadog/dd-trace-ci:alpine
-FROM ${baseImage} AS base
+FROM datadog/dd-trace-ci:alpine AS base
 
 ARG phpVersion
 ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts
