@@ -66,6 +66,7 @@ bool ddtrace_tracer_is_limited(void);
 void dd_prepare_for_new_trace(void);
 void ddtrace_disable_tracing_in_current_request(void);
 bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value);
+bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value);
 
 typedef struct {
     int type;
@@ -95,7 +96,6 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_long propagated_priority_sampling;
     ddtrace_span_fci *open_spans_top;
     ddtrace_span_fci *closed_spans_top;
-    ddtrace_span_fci *root_span;
     HashTable traced_spans; // tie a span to a specific active execute_data
     uint32_t open_spans_count;
     uint32_t closed_spans_count;

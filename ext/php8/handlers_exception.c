@@ -37,7 +37,7 @@ static void dd_check_exception_in_header(int old_response_code) {
 
     ddtrace_save_active_error_to_metadata();
 
-    ddtrace_span_fci *root_span = DDTRACE_G(root_span);
+    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top)->span.chunk_root;
 
     if (Z_TYPE_P(ddtrace_spandata_property_exception(&root_span->span)) > IS_FALSE) {
         return;

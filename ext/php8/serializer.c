@@ -14,6 +14,7 @@
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
+#include <stdatomic.h>
 
 #include "arrays.h"
 #include "compat_string.h"
@@ -23,6 +24,7 @@
 #include "ip_extraction.h"
 #include "logging.h"
 #include "mpack/mpack.h"
+#include "priority_sampling/priority_sampling.h"
 #include "runtime.h"
 #include "span.h"
 #include "uri_normalization.h"
@@ -746,6 +748,89 @@ static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value
     zval_dtor(&value_as_string);
 }
 
+static bool dd_rule_matches(zval *pattern, zend_string* value) {
+    if (Z_TYPE_P(pattern) != IS_STRING) {
+        return false;
+    }
+
+    char *p = Z_STRVAL_P(pattern);
+    char *s = ZSTR_VAL(value);
+
+    int wildcards = 0;
+    while (*p) {
+        if (*(p++) == '*') {
+            ++wildcards;
+        }
+    }
+    p = Z_STRVAL_P(pattern);
+
+    ALLOCA_FLAG(use_heap)
+    char **backtrack_points = do_alloca(wildcards * 2 * sizeof(char *), use_heap);
+    int backtrack_idx = 0;
+
+    while (*p) {
+        if (!*s) {
+            while (*p == '*') {
+                ++p;
+            }
+            free_alloca(backtrack_points, use_heap);
+            return !*p;
+        }
+        if (*s == *p || *p == '.') {
+            ++s, ++p;
+        } else if (*p == '*') {
+            backtrack_points[backtrack_idx++] = ++p;
+            backtrack_points[backtrack_idx++] = s;
+        } else {
+            do {
+                if (backtrack_idx > 0) {
+                    backtrack_idx -= 2;
+                    p = backtrack_points[backtrack_idx];
+                    s = ++backtrack_points[backtrack_idx + 1];
+                } else {
+                    free_alloca(backtrack_points, use_heap);
+                    return false;
+                }
+            } while (!*s);
+            backtrack_idx += 2;
+        }
+    }
+
+    free_alloca(backtrack_points, use_heap);
+
+    return true;
+}
+
+static HashTable dd_span_sampling_limiters;
+#if ZTS
+static pthread_rwlock_t dd_span_sampling_limiter_lock;
+#endif
+
+struct dd_sampling_bucket {
+    _Atomic int64_t hit_count;
+    _Atomic uint64_t last_update;
+};
+
+void ddtrace_clear_span_sampling_limiter(zval *zv) {
+    free(Z_PTR_P(zv));
+}
+
+void ddtrace_initialize_span_sampling_limiter(void) {
+#if ZTS
+    pthread_rwlock_init(&dd_span_sampling_limiter_lock, NULL);
+#endif
+
+    zend_hash_init(&dd_span_sampling_limiters, 8, obsolete, ddtrace_clear_span_sampling_limiter, 1);
+}
+
+void ddtrace_shutdown_span_sampling_limiter(void) {
+#if ZTS
+    pthread_rwlock_destroy(&dd_span_sampling_limiter_lock);
+#endif
+
+    zend_hash_destroy(&dd_span_sampling_limiters);
+}
+
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     ddtrace_span_t *span = &span_fci->span;
     bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
@@ -791,8 +876,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
     zval *prop_service = ddtrace_spandata_property_service(span);
     ZVAL_DEREF(prop_service);
+    zval prop_service_as_string;
     if (Z_TYPE_P(prop_service) > IS_NULL) {
-        zval prop_service_as_string;
         ddtrace_convert_to_string(&prop_service_as_string, prop_service);
 
         zend_array *service_mappings = get_DD_SERVICE_MAPPING();
@@ -810,6 +895,132 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     ZVAL_DEREF(prop_type);
     if (Z_TYPE_P(prop_type) > IS_NULL) {
         _dd_add_assoc_zval_as_string(el, "type", prop_type);
+    }
+
+    if (ddtrace_fetch_prioritySampling_from_span(span->chunk_root) <= 0) {
+        zval *rule;
+        ZEND_HASH_FOREACH_VAL(get_DD_SPAN_SAMPLING_RULES(), rule) {
+            if (Z_TYPE_P(rule) != IS_ARRAY) {
+                continue;
+            }
+
+            bool rule_matches = true;
+
+            zval *rule_service;
+            if ((rule_service = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("service")))) {
+                if (Z_TYPE_P(prop_service) > IS_NULL) {
+                    rule_matches &= dd_rule_matches(rule_service, Z_STR(prop_service_as_string));
+                } else {
+                    rule_matches &= false;
+                }
+            }
+            zval *rule_name;
+            if ((rule_name = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("name")))) {
+                if (Z_TYPE_P(prop_name) > IS_NULL) {
+                    rule_matches &= dd_rule_matches(rule_name, Z_STR_P(prop_name));
+                } else {
+                    rule_matches = false;
+                }
+            }
+
+            if (!rule_matches) {
+                continue;
+            }
+
+            zval *sample_rate_zv;
+            double sample_rate = 1;
+            if ((sample_rate_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("sample_rate")))) {
+                sample_rate = zval_get_double(sample_rate_zv);
+                if ((double)span->span_id > sample_rate * (double)~0ULL) {
+                    break; // sample_rate not matched
+                }
+            }
+
+            zval *max_per_second_zv;
+            double max_per_second = 0;
+            if ((max_per_second_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("max_per_second")))) {
+                max_per_second = zval_get_double(max_per_second_zv);
+                size_t service_pattern_len = rule_service ? Z_STRLEN_P(rule_service) : 0;
+                zend_string *rule_key = zend_string_alloc(service_pattern_len + (rule_name ? Z_STRLEN_P(rule_name) + (service_pattern_len != 0) : 0), 1);
+                if (rule_service) {
+                    memcpy(ZSTR_VAL(rule_key), Z_STRVAL_P(rule_service), Z_STRLEN_P(rule_service));
+                }
+                if (rule_name) {
+                    ZSTR_VAL(rule_key)[service_pattern_len] = 0;
+                    memcpy(ZSTR_VAL(rule_key) + service_pattern_len + 1, Z_STRVAL_P(rule_name), Z_STRLEN_P(rule_name));
+                }
+                ZSTR_VAL(rule_key)[ZSTR_LEN(rule_key)] = 0;
+
+#if ZTS
+                pthread_rwlock_rdlock(&dd_span_sampling_limiter_lock);
+#endif
+                struct dd_sampling_bucket *sampling_bucket = zend_hash_find_ptr(&dd_span_sampling_limiters, rule_key);
+#if ZTS
+                pthread_rwlock_unlock(&dd_span_sampling_limiter_lock);
+#endif
+
+                struct timespec timespec;
+                clock_gettime(CLOCK_MONOTONIC, &timespec);
+                uint64_t timeval = timespec.tv_sec * 1000000000 + timespec.tv_nsec;
+
+                if (!sampling_bucket) {
+                    struct dd_sampling_bucket *new_sampling_bucket = malloc(sizeof(*new_sampling_bucket));
+                    new_sampling_bucket->hit_count = 1;
+                    new_sampling_bucket->last_update = timeval;
+
+#if ZTS
+                    pthread_rwlock_wrlock(&dd_span_sampling_limiter_lock);
+#endif
+                    if (!zend_hash_add_ptr(&dd_span_sampling_limiters, rule_key, new_sampling_bucket)) {
+                        free(new_sampling_bucket);
+                        sampling_bucket = zend_hash_find_ptr(&dd_span_sampling_limiters, rule_key);
+                    }
+#if ZTS
+                    pthread_rwlock_unlock(&dd_span_sampling_limiter_lock);
+#endif
+                }
+
+                zend_string_release(rule_key);
+
+                if (sampling_bucket) {
+                    const int nanosecond = 1000000000;
+
+                    // restore allowed time basis
+                    uint64_t old_time = atomic_exchange(&sampling_bucket->last_update, timeval);
+                    int64_t clear_counter = (int64_t)((long double)(timeval - old_time) * max_per_second);
+
+                    int64_t previous_hits = atomic_fetch_sub(&sampling_bucket->hit_count, clear_counter);
+                    if (previous_hits < clear_counter) {
+                        atomic_fetch_add(&sampling_bucket->hit_count, previous_hits > 0 ? clear_counter - previous_hits : clear_counter);
+                    }
+
+                    previous_hits = atomic_fetch_add(&sampling_bucket->hit_count, nanosecond);
+                    if ((long double)previous_hits / nanosecond >= max_per_second) {
+                        atomic_fetch_sub(&sampling_bucket->hit_count, nanosecond);
+                        break; // limit exceeded
+                    }
+                }
+            }
+
+            zend_array *metrics = ddtrace_spandata_property_metrics(span);
+
+            zval mechanism;
+            ZVAL_LONG(&mechanism, 8);
+            zend_hash_str_update(metrics, ZEND_STRL("_dd.span_sampling.mechanism"), &mechanism);
+
+            zval rule_rate;
+            ZVAL_DOUBLE(&rule_rate, sample_rate);
+            zend_hash_str_update(metrics, ZEND_STRL("_dd.span_sampling.rule_rate"), &rule_rate);
+
+            if (max_per_second_zv) {
+                zval max_per_sec;
+                ZVAL_DOUBLE(&max_per_sec, max_per_second);
+                zend_hash_str_update(metrics, ZEND_STRL("_dd.span_sampling.max_per_second"), &max_per_sec);
+            }
+
+            break;
+        }
+        ZEND_HASH_FOREACH_END();
     }
 
     _serialize_meta(el, span_fci);

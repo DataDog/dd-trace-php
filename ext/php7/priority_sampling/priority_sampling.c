@@ -19,7 +19,7 @@ enum dd_sampling_mechanism {
 static void dd_update_decision_maker_tag(ddtrace_span_fci *span, enum dd_sampling_mechanism mechanism) {
     zend_array *meta = ddtrace_spandata_property_meta(&span->span);
 
-    zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_root();
+    zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_span(span->span.chunk_root);
     if (DDTRACE_G(propagated_priority_sampling) == sampling_priority) {
         return;
     }
@@ -112,16 +112,18 @@ static void dd_decide_on_sampling(ddtrace_span_fci *span) {
 }
 
 zend_long ddtrace_fetch_prioritySampling_from_root(void) {
-    zval *priority_zv;
-    ddtrace_span_fci *root_span = DDTRACE_G(root_span);
-
-    if (!root_span) {
+    if (!DDTRACE_G(open_spans_top)) {
         if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
             return DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
         }
         return DDTRACE_G(default_priority_sampling);
     }
 
+    return ddtrace_fetch_prioritySampling_from_span(DDTRACE_G(open_spans_top)->span.chunk_root);
+}
+
+zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_span_fci *root_span) {
+    zval *priority_zv;
     zend_array *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
     if (!(priority_zv = zend_hash_str_find(root_metrics, ZEND_STRL("_sampling_priority_v1")))) {
         if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
@@ -136,11 +138,11 @@ zend_long ddtrace_fetch_prioritySampling_from_root(void) {
 }
 
 void ddtrace_set_prioritySampling_on_root(zend_long priority) {
-    ddtrace_span_fci *root_span = DDTRACE_G(root_span);
-
-    if (!root_span) {
+    if (!DDTRACE_G(open_spans_top)) {
         return;
     }
+
+    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top)->span.chunk_root;
 
     zend_array *root_metrics = ddtrace_spandata_property_metrics(&root_span->span);
     if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN || priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {

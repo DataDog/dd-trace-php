@@ -25,8 +25,8 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
     char *header = ZSTR_VAL(headerstr), *headerend = header + ZSTR_LEN(headerstr);
 
     zend_array *tags = &DDTRACE_G(root_span_tags_preset);
-    if (DDTRACE_G(root_span)) {
-        tags = ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span);
+    if (DDTRACE_G(open_spans_top)) {
+        tags = ddtrace_spandata_property_meta(&DDTRACE_G(open_spans_top)->span.chunk_root->span);
     }
 
     if (ZSTR_LEN(headerstr) > 512) {
@@ -104,8 +104,8 @@ zend_string *ddtrace_format_propagated_tags(void) {
     zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.dm"));
 
     zend_array *tags = &DDTRACE_G(root_span_tags_preset);
-    if (DDTRACE_G(root_span)) {
-        tags = ddtrace_spandata_property_meta(&DDTRACE_G(root_span)->span);
+    if (DDTRACE_G(open_spans_top)) {
+        tags = ddtrace_spandata_property_meta(&DDTRACE_G(open_spans_top)->span.chunk_root->span);
     }
 
     smart_str taglist = {0};
