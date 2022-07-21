@@ -27,3 +27,6 @@ ENV PATH ${PATH}:${PHP_INSTALL_DIR}/bin
 ADD ./build-dd-trace-php /usr/bin/build-dd-trace-php
 
 CMD sh
+
+ENV CARGO_HOME=/rust/cargo
+RUN mkdir -vp "${CARGO_HOME}"
