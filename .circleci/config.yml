@@ -1516,8 +1516,11 @@ jobs:
               cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
             done
             tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
-      - store_artifacts:
-          path: datadog-profiling.tar.gz
+            rm -fr "datadog-profiling"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - datadog-profiling.tar.gz
 
   compile_extension_centos:
     working_directory: ~/datadog
@@ -1741,8 +1744,10 @@ workflows:
                 - "7.4"
                 - "8.0"
 
-  build_profiling:
+  build_packages:
     jobs:
+      - "Prepare Code"
+
       - "cargo fetch":
           name: "cargo fetch - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
@@ -1841,9 +1846,6 @@ workflows:
             - "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
             - "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
 
-  build_packages:
-    jobs:
-      - "Prepare Code"
       - compile_alpine:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -1913,6 +1915,7 @@ workflows:
             - "Compile PHP 80 nts + zts + debug"
             - "Compile PHP 81 nts + zts + debug"
             - "Build PECL"
+            - "package profiler"
       - "x-profiling phpt tests on Alpine":
           requires: [ 'package extension' ]
           matrix:

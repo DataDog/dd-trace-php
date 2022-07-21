@@ -83,6 +83,6 @@ cat <<EOF
 
 The Datadog profiler has been installed. Add the following line to an INI file:
 
-extension = datadog-profiling.so
+extension=datadog-profiling.so
 
 EOF
