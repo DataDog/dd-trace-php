@@ -1459,11 +1459,6 @@ jobs:
           paths:
             - /rust/cargo
 
-      - persist_to_workspace:
-          root: /rust
-          paths:
-            - cargo
-
   "cargo build --release":
     working_directory: ~/datadog
     parameters:
@@ -1476,8 +1471,10 @@ jobs:
     docker: [ image: << parameters.docker_image >> ]
     steps:
       - checkout
-      - attach_workspace:
-          at: /rust
+      - restore_cache:
+          name: Restore Cargo Package Cache
+          keys:
+            - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
       - run:
           name: Build Profiler
           command: |
