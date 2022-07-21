@@ -1455,7 +1455,7 @@ jobs:
             cargo fetch --target << parameters.triplet >>
       - save_cache:
           name: Save Cargo Package Cache
-          key: profiling-cargo-cache-{{ checksum "profiling/Cargo.toml" }}
+          key: profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
           paths:
             - /rust/cargo
 
