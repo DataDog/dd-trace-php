@@ -1,8 +1,28 @@
-ARG baseImage=alpine:3.16
-FROM ${baseImage}
+FROM alpine:3.16 as base
 
 RUN mkdir -p /app
 WORKDIR /app
+
+# Break the dependencies into multiple layers to reduce individual layer size.
+# This is just to avoid an upload issue I was hitting with large layers.
+RUN set -eux; \
+    apk add --no-cache \
+        build-base \
+        curl-dev \
+        libedit-dev \
+        libffi-dev \
+        libmcrypt-dev \
+        libsodium-dev \
+        libxml2-dev \
+        oniguruma-dev
+
+# Profiling deps
+RUN apk add --no-cache llvm13-libs
+RUN apk add --no-cache rust-stdlib
+RUN apk add --no-cache cargo
+RUN apk add --no-cache clang git protoc unzip
+
+FROM base
 
 ADD ./docker-php-source /usr/bin/docker-php-source
 ADD ./install-php /usr/bin/install-php

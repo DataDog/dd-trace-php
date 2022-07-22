@@ -11,20 +11,7 @@ apk add --no-cache --virtual .php-build-deps \
     coreutils \
     re2c \
     wget
-apk add --no-cache --virtual .php-deps \
-    build-base \
-    cargo \
-    clang \
-    curl-dev \
-    git \
-    libedit-dev \
-    libffi-dev \
-    libmcrypt-dev \
-    libsodium-dev \
-    libxml2-dev \
-    oniguruma-dev \
-    protoc \
-    unzip
+
 mkdir -p $PHP_SRC_DIR
 cd $SRC_DIR
 wget -O "${PHP_TAR_FILE}" "$PHP_URL"
