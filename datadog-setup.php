@@ -248,6 +248,14 @@ function install($options)
                     "sed -i 's@extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
                         . escapeshellarg($iniFilePath)
                 );
+
+
+                // Support upgrading from the C based zend_extension.
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@zend_extension \?= \?.*datadog-profiling.*\(.*\)@extension = datadog-profiling.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
             }
 
             add_missing_ini_settings(
@@ -261,7 +269,7 @@ function install($options)
                 if ($shouldInstallProfiling) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' "
+                        "sed -i 's@ \?; \?extension \?= \?datadog-profiling.so@extension = datadog-profiling.so@g' "
                             . escapeshellarg($iniFilePath)
                     );
                 } else {
@@ -982,7 +990,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'description' => 'Enables or disables tracing (set by the installer, do not change it)',
         ],
         [
-            'name' => 'zend_extension',
+            'name' => 'extension',
             'default' => 'datadog-profiling.so',
             'commented' => true,
             'description' => 'Enables the profiling module',
