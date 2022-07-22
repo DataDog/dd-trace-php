@@ -1608,6 +1608,7 @@ jobs:
       - run:
           name: Build packages
           command: make packages
+      - run: cd build/packages && find . -type f -exec sha256sum {} +
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
       - store_artifacts: { path: 'pecl', destination: '/pecl' }
