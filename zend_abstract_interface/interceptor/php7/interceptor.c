@@ -14,7 +14,10 @@ static ZEND_FUNCTION(pass)
 }
 
 // HACK: define a name for XDebug compatibility..., a fully functional zend_string for "{zend_pass}"
-static const struct __attribute__((__packed__)) { zend_string str; char value[]; } zend_pass_function_name = {
+static const struct __attribute__((packed, aligned(_Alignof(zend_string)))) {
+    zend_string str;
+    char value[];
+} zend_pass_function_name = {
         .str.gc.refcount = 2,
         .str.gc.u.v.type = IS_STRING,
         .str.gc.u.v.flags = IS_STR_INTERNED,
@@ -27,7 +30,7 @@ static const zend_internal_function zend_pass_function = {
         ZEND_INTERNAL_FUNCTION, /* type              */
         {0, 0, 0},              /* arg_flags         */
         0,                      /* fn_flags          */
-        (zend_string *)&zend_pass_function_name,     /* name              */
+        (zend_string *)&zend_pass_function_name.str,     /* name              */
         NULL,                   /* scope             */
         NULL,                   /* prototype         */
         0,                      /* num_args          */
