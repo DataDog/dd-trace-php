@@ -1127,3 +1127,22 @@ void zai_interceptor_rinit() {
 void zai_interceptor_rshutdown() {
     zend_hash_destroy(&zai_hook_memory);
 }
+
+void zai_interceptor_shutdown_resolving(void);
+void zai_interceptor_shutdown() {
+    zend_set_user_opcode_handler(ZEND_EXT_NOP, NULL);
+    zend_set_user_opcode_handler(ZEND_RETURN, NULL);
+    zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, NULL);
+    zend_set_user_opcode_handler(ZEND_GENERATOR_RETURN, NULL);
+    zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, NULL);
+    zend_set_user_opcode_handler(ZEND_FAST_RET, NULL);
+    zend_set_user_opcode_handler(ZEND_YIELD, NULL);
+    zend_set_user_opcode_handler(ZEND_YIELD_FROM, NULL);
+    zend_set_user_opcode_handler(ZAI_INTERCEPTOR_GENERATOR_RESUMPTION_OP, NULL);
+#if PHP_VERSION_ID >= 70100
+    zend_set_user_opcode_handler(ZAI_INTERCEPTOR_POST_GENERATOR_CREATE_OP, NULL);
+    zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, NULL);
+#endif
+
+    zai_interceptor_shutdown_resolving();
+}

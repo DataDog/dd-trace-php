@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Metrics\SigSegV;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\WebServer;
+use PHPUnit\Framework\AssertionFailedError;
 
 class SigSegVTest extends WebFrameworkTestCase
 {
@@ -37,7 +38,10 @@ class SigSegVTest extends WebFrameworkTestCase
         self::assertFileNotExists($log);
 
         $spec = GetSpec::create('sigsegv', '/sigsegv.php');
-        $this->call($spec);
+        try {
+            $this->call($spec);
+        } catch (AssertionFailedError $e) {
+        }
 
         self::assertFileExists($log);
         $contents = \file_get_contents($log);

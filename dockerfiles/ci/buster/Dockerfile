@@ -158,10 +158,12 @@ RUN set -eux; \
 # delete the "index.html" that installing Apache drops in here
     rm -rvf /var/www/html/*; \
     \
+# disable config depending on env var
+    a2disconf other-vhosts-access-log.conf; \
+    \
 # logs should go to stdout / stderr
     ln -sfT /dev/stderr "$APACHE_LOG_DIR/error.log"; \
     ln -sfT /dev/stdout "$APACHE_LOG_DIR/access.log"; \
-    ln -sfT /dev/stdout "$APACHE_LOG_DIR/other_vhosts_access.log"; \
     chown -R --no-dereference "$APACHE_RUN_USER:$APACHE_RUN_GROUP" "$APACHE_LOG_DIR"; \
     \
 # Apache + PHP requires preforking Apache for best results
@@ -180,7 +182,9 @@ RUN set -eux; \
         echo '\tAllowOverride All'; \
         echo '</Directory>'; \
     } | tee "$APACHE_CONFDIR/conf-available/docker-php.conf" \
-    && a2enconf docker-php;
+    && a2enconf docker-php; \
+# We want to use mod_rewrite
+    a2enmod rewrite
 
 RUN set -eux; \
 # Share welcome message with the world

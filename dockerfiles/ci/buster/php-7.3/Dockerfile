@@ -29,6 +29,11 @@ RUN set -eux; \
         --with-config-file-scan-dir=${PHP_INSTALL_DIR_DEBUG_ZTS}/conf.d; \
     make -j "$((`nproc`+1))"; \
     make install; \
+    # In two steps, because: You've configured multiple SAPIs to be built. You can build only one SAPI module plus CGI, CLI and FPM binaries at the same time. \
+    sed -i 's/--enable-embed/--with-apxs2=\/usr\/bin\/apxs2/' config.nice; \
+    ./config.nice; \
+    make -j "$((`nproc`+1))"; \
+    cp .libs/libphp7.so ${PHP_INSTALL_DIR_DEBUG_ZTS}/lib/apache2handler-libphp.so; \
     mkdir -p ${PHP_INSTALL_DIR_DEBUG_ZTS}/conf.d;
 
 FROM build as php-debug
@@ -41,6 +46,11 @@ RUN set -eux; \
         --with-config-file-scan-dir=${PHP_INSTALL_DIR_DEBUG_NTS}/conf.d; \
     make -j "$((`nproc`+1))"; \
     make install; \
+    # In two steps, because: You've configured multiple SAPIs to be built. You can build only one SAPI module plus CGI, CLI and FPM binaries at the same time. \
+    sed -i 's/--enable-embed/--with-apxs2=\/usr\/bin\/apxs2/' config.nice; \
+    ./config.nice; \
+    make -j "$((`nproc`+1))"; \
+    cp .libs/libphp7.so ${PHP_INSTALL_DIR_DEBUG_NTS}/lib/apache2handler-libphp.so; \
     mkdir -p ${PHP_INSTALL_DIR_DEBUG_NTS}/conf.d;
 
 FROM build as php-nts
@@ -52,6 +62,11 @@ RUN set -eux; \
         --with-config-file-scan-dir=${PHP_INSTALL_DIR_NTS}/conf.d; \
     make -j "$((`nproc`+1))"; \
     make install; \
+    # In two steps, because: You've configured multiple SAPIs to be built. You can build only one SAPI module plus CGI, CLI and FPM binaries at the same time. \
+    sed -i 's/--enable-embed/--with-apxs2=\/usr\/bin\/apxs2/' config.nice; \
+    ./config.nice; \
+    make -j "$((`nproc`+1))"; \
+    cp .libs/libphp7.so ${PHP_INSTALL_DIR_NTS}/lib/apache2handler-libphp.so; \
     mkdir -p ${PHP_INSTALL_DIR_NTS}/conf.d;
 
 FROM base as final
@@ -85,7 +100,9 @@ RUN set -eux; \
     done;
 
 RUN set -eux; \
-# Set the default PHP version
+    # Enable the apache config \
+    echo 'LoadModule php7_module /usr/lib/apache2/modules/libphp.so' | sudo tee /etc/apache2/mods-enabled/php.load; \
+    # Set the default PHP version
     switch-php debug;
 
 # Install Composer

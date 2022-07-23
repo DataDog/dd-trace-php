@@ -100,6 +100,8 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
     UNUSED(extension);
 
     ddtrace_internal_handlers_shutdown();
+
+    zai_interceptor_shutdown();
 }
 
 static void ddtrace_activate(void) {}
