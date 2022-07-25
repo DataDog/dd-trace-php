@@ -14,7 +14,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 void ddtrace_engine_hooks_minit(void);
-void ddtrace_message_handler(int message, void *arg);
+void ddtrace_fetch_profiling_symbols(void);
 void ddtrace_engine_hooks_mshutdown(void);
 
 void ddtrace_compile_time_reset(void);
