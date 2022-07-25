@@ -1,5 +1,7 @@
 --TEST--
 Curl multi objects release order does not crash on shutdown
+--SKIPIF--
+<?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 --FILE--
 <?php
 
