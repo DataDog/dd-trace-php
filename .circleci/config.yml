@@ -1509,7 +1509,7 @@ jobs:
             # The layout matches what the dd-prof-php releases had to minimize
             # transition work.
             for triplet in x86_64-unknown-linux-gnu x86_64-alpine-linux-musl ; do
-              # Add licensing
+              # Add licensing. TODO: generate rust libs to third-party CSV.
               cp -v profiling/LICENSE* profiling/NOTICE "datadog-profiling/${triplet}/"
               mkdir -vp "datadog-profiling/${triplet}/bin"
               # Add undocumented installer currently used by relenv
