@@ -927,7 +927,7 @@ jobs:
   installer_tests:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2022.04.2
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
@@ -1516,11 +1516,12 @@ jobs:
               cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
             done
             tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
-            rm -fr "datadog-profiling"
+            rm -fr "datadog-profiling/*"
       - persist_to_workspace:
           root: .
           paths:
             - datadog-profiling.tar.gz
+            - datadog-profiling
 
   compile_extension_centos:
     working_directory: ~/datadog
