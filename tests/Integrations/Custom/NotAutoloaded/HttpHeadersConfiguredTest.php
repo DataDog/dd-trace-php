@@ -36,6 +36,18 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
+        $tags = [
+            'http.method' => 'GET',
+            'http.url' => 'http://localhost:' . self::PORT . '/',
+            'http.status_code' => 200,
+            'http.request.headers.first-header' => 'some value: with colon',
+            'http.request.headers.forth-header' => '123',
+            'http.response.headers.third-header' => 'separated: with  : colon',
+        ];
+        if (\getenv('DD_TRACE_TEST_SAPI') != 'apache2handler') {
+            $tags['http.request.headers.w__rd-header'] = 'foo';
+        }
+
         $this->assertFlameGraph(
             $traces,
             [
@@ -44,15 +56,7 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
                     'my-service',
                     'web',
                     'GET /'
-                )->withExactTags([
-                    'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/',
-                    'http.status_code' => 200,
-                    'http.request.headers.first-header' => 'some value: with colon',
-                    'http.request.headers.forth-header' => '123',
-                    'http.request.headers.w__rd-header' => 'foo',
-                    'http.response.headers.third-header' => 'separated: with  : colon',
-                ]),
+                )->withExactTags($tags),
             ]
         );
     }

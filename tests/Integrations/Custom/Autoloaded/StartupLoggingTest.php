@@ -71,6 +71,10 @@ final class StartupLoggingTest extends WebFrameworkTestCase
 
     public function testLogsNotGeneratedAfterFirstRequest()
     {
+        if (\getenv('DD_TRACE_TEST_SAPI') == 'apache2handler') {
+            $this->markTestSkipped("Test does not make sense with multi-processing");
+        }
+
         $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Second request: Startup logs test', '/simple');
             $this->call($spec);
