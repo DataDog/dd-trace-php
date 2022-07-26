@@ -151,6 +151,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             if ($headers) {
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             }

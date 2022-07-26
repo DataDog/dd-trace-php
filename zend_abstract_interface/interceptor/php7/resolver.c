@@ -288,3 +288,16 @@ void zai_interceptor_setup_resolving_post_startup(void) {
     prev_exception_hook = zend_throw_exception_hook;
     zend_throw_exception_hook = zai_interceptor_exception_hook;
 }
+
+void zai_interceptor_shutdown_resolving(void) {
+    zend_set_user_opcode_handler(ZEND_DECLARE_FUNCTION, NULL);
+    zend_set_user_opcode_handler(ZEND_DECLARE_CLASS, NULL);
+#if PHP_VERSION_ID > 70400
+    zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, NULL);
+#else
+    zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS, NULL);
+    zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS_DELAYED, NULL);
+    zend_set_user_opcode_handler(ZEND_BIND_TRAITS, NULL);
+#endif
+    zend_set_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP, NULL);
+}

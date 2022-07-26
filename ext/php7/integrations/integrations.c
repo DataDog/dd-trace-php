@@ -135,6 +135,7 @@ void ddtrace_integrations_minit(void) {
     zend_hash_init(&_dd_string_to_integration_name_map, ddtrace_integrations_len, NULL, NULL, 1);
 
     for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
+        memset(ddtrace_integrations[i].aux, 0, sizeof(ddtrace_integrations[i].aux));
         char *name = ddtrace_integrations[i].name_lcase;
         size_t name_len = ddtrace_integrations[i].name_len;
         _dd_add_integration_to_map(name, name_len, &ddtrace_integrations[i]);

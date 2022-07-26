@@ -329,3 +329,11 @@ void zai_interceptor_setup_resolving_post_startup(void) {
 #endif
     }
 }
+
+void zai_interceptor_shutdown(void) {
+    zend_set_user_opcode_handler(ZEND_DECLARE_FUNCTION, NULL);
+    zend_set_user_opcode_handler(ZEND_DECLARE_CLASS, NULL);
+    zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, NULL);
+    zend_set_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP, NULL);
+    zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, NULL);
+}

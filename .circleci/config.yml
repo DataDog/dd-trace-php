@@ -1952,6 +1952,13 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
+          name: "PHP 72 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
@@ -1966,6 +1973,13 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
+          name: "PHP 74 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
@@ -1973,11 +1987,25 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
+          name: "PHP 80 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
           name: "PHP 80 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 81 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 81 web tests with nginx + FastCGI"

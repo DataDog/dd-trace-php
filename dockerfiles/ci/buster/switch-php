@@ -18,3 +18,6 @@ sudo ln -sf /opt/php/${phpVersion}/bin/php-config /usr/local/bin/php-config
 sudo ln -sf /opt/php/${phpVersion}/bin/phpdbg /usr/local/bin/phpdbg
 sudo ln -sf /opt/php/${phpVersion}/bin/phpize /usr/local/bin/phpize
 sudo ln -sf /opt/php/${phpVersion}/sbin/php-fpm /usr/local/bin/php-fpm
+if [ "${phpVersion}" != *asan* ]; then
+    sudo ln -sf /opt/php/${phpVersion}/lib/apache2handler-libphp.so /usr/lib/apache2/modules/libphp.so
+fi

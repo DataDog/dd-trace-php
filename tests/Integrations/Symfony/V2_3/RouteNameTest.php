@@ -26,6 +26,8 @@ class RouteNameTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
+        // Under Apache Symfony does redirection magic
+        $isApache = \getenv('DD_TRACE_TEST_SAPI') == 'apache2handler';
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'web.request',
@@ -34,7 +36,7 @@ class RouteNameTest extends WebFrameworkTestCase
                 'AppBundle\Controller\DefaultController testingRouteNameAction'
             )->withExactTags([
                 'http.method' => 'GET',
-                'http.url' => 'http://localhost:' . self::PORT . '/app.php',
+                'http.url' => 'http://localhost:' . self::PORT . '/' . ($isApache ? '' : 'app.php'),
                 'http.status_code' => '200',
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
