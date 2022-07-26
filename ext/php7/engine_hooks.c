@@ -27,16 +27,8 @@ datadog_php_uuid (*ddtrace_profiling_runtime_id)(void) = dd_profiling_runtime_id
 
 void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
 
-/**
- * The message handler is used to determine if the profiler is loaded, and if
- * so it will locate certain symbols so cross-product features can be enabled.
- */
-void ddtrace_message_handler(int message, void *arg) {
-    if (UNEXPECTED(message != ZEND_EXTMSG_NEW_EXTENSION)) {
-        // There are currently no other defined messages.
-        return;
-    }
-
+// Check if the profiler is loaded, and if, so it will locate certain symbols so cross-product features can be enabled.
+void dd_search_for_profiling_symbols(void *arg) {
     zend_extension *extension = (zend_extension *)arg;
     if (extension->name && strcmp(extension->name, "datadog-profiling") == 0) {
         DL_HANDLE handle = extension->handle;
@@ -55,6 +47,10 @@ void ddtrace_message_handler(int message, void *arg) {
                                extension->version, DL_ERROR());
         }
     }
+}
+
+void ddtrace_fetch_profiling_symbols(void) {
+    zend_llist_apply(&zend_extensions, dd_search_for_profiling_symbols);
 }
 
 void ddtrace_engine_hooks_minit(void) {
