@@ -108,6 +108,7 @@ RUN set -eux; \
         pecl install xdebug-3.1.2; \
         cd $(php-config --extension-dir); \
         mv xdebug.so xdebug-3.1.2.so; \
+        echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini; \
     done;
 
 RUN set -eux; \

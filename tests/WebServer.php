@@ -72,7 +72,8 @@ final class WebServer
     ];
 
     /**
-     * Persisted apache instance for the life time of the testsuite - we use reload instead of restart to apply changes
+     * Persisted apache instance for the lifetime of the testsuite - we use reload instead of restart to apply changes.
+     * The primary use case is verifying repeated MINIT+MSHUTDOWN invocations within a same process.
      *
      * @var PhpApache
      */
