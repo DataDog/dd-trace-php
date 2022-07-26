@@ -20,7 +20,7 @@ void ddtrace_replace_internal_functions(const HashTable *ht, size_t functions_le
 
 void ddtrace_free_unregistered_class(zend_class_entry *ce);
 
-void ddtrace_internal_handlers_startup(zend_extension *ddtrace_extension);
+void ddtrace_internal_handlers_startup(void);
 void ddtrace_internal_handlers_shutdown(void);
 void ddtrace_internal_handlers_rinit(void);
 void ddtrace_internal_handlers_rshutdown(void);

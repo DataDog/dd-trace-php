@@ -83,6 +83,10 @@ STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, On
 PHP_INI_END()
 
 static int ddtrace_startup(zend_extension *extension) {
+    UNUSED(extension);
+
+    ddtrace_fetch_profiling_symbols();
+
 #if PHP_VERSION_ID < 80200
     dd_has_other_observers = ZEND_OBSERVER_ENABLED;
 #endif
@@ -92,7 +96,7 @@ static int ddtrace_startup(zend_extension *extension) {
     // We deliberately leave handler replacement during startup, even though this uses some config
     // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done
     // post-startup
-    ddtrace_internal_handlers_startup(extension);
+    ddtrace_internal_handlers_startup();
     return SUCCESS;
 }
 
@@ -100,6 +104,8 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
     UNUSED(extension);
 
     ddtrace_internal_handlers_shutdown();
+
+    zai_interceptor_shutdown();
 }
 
 static void ddtrace_activate(void) {}
@@ -121,7 +127,7 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   ddtrace_shutdown,
                                                   ddtrace_activate,
                                                   ddtrace_deactivate,
-                                                  ddtrace_message_handler,
+                                                  NULL,
                                                   NULL,
                                                   NULL,
                                                   NULL,
