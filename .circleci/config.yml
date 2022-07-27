@@ -1469,6 +1469,7 @@ jobs:
       triplet:
         type: string
     docker: [ image: << parameters.docker_image >> ]
+    resource_class: xlarge
     steps:
       - checkout
       - restore_cache:
