@@ -136,6 +136,26 @@ generate_installers() {
     sh "$(pwd)/tooling/bin/generate-installers.sh" "${version}" "$(pwd)/build/packages"
 }
 
+fetch_setup_for_version() {
+    version="${1?}"
+    sha256sum="${2?}"
+    destdir="${3?}"
+
+    mkdir -vp "${destdir?}"
+    cd "${destdir}"
+    curl -OL https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php
+    echo "${sha256sum}  datadog-setup.php" | sha256sum -c
+    cd -
+}
+
+parse_trace_version() {
+    awk -F\' '/const VERSION/ {print $2}' < src/DDTrace/Tracer.php
+}
+
+parse_profiling_version() {
+    awk -F\" '/^version[ \t]*=/ {print $2}' < profiling/Cargo.toml
+}
+
 dashed_print() {
     echo "---"
     for line in "$@" ; do

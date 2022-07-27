@@ -16,18 +16,16 @@ ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 # profiling module.
 released_version="0.75.0"
 released_version_sha="76506c5ec222b2975333e1bae85f8b91d7c02eb9ccd4dcc807cdf2f23c667785"
-cd /tmp
-curl -OL https://github.com/DataDog/dd-trace-php/releases/download/${released_version}/datadog-setup.php
-echo "${released_version_sha}  datadog-setup.php" | sha256sum -c
-php datadog-setup.php --php-bin php
-rm -v datadog-setup.php
-cd -
+
+fetch_setup_for_version "$released_version" "$released_version_sha" "/tmp"
+php /tmp/datadog-setup.php --php-bin php
+rm -v /tmp/datadog-setup.php
 
 assert_ddtrace_version "${released_version}"
 
 # Parse current version numbers and generate an installer.
-trace_version=$(awk -F\' '/const VERSION/ {print $2}' < src/DDTrace/Tracer.php)
-profiling_version=$(awk -F\" '/^version[ \t]*=/ {print $2}' < profiling/Cargo.toml)
+trace_version=$(parse_trace_version)
+profiling_version=$(parse_profiling_version)
 generate_installers "${trace_version}"
 
 # Uninstall with new version, since it seems likely users will attempt this.
