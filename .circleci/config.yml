@@ -1469,7 +1469,9 @@ jobs:
       triplet:
         type: string
     docker: [ image: << parameters.docker_image >> ]
-    resource_class: xlarge
+    resource_class: xlarge # mostly for more RAM for ramdisk
+    environment:
+      - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
     steps:
       - checkout
       - restore_cache:
@@ -1486,12 +1488,14 @@ jobs:
             set -e
             cd profiling
             cargo build --release
-            cargo test --release
-            cp -v ./target/release/libdatadog_php_profiling.so "${libdir}/datadog-profiling.so"
+            cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${libdir}/datadog-profiling.so"
       - persist_to_workspace:
           root: .
           paths:
             - datadog-profiling
+      - run:
+          name: Test Profiler
+          command: cd profiling && cargo test --release
 
   "package profiler":
     working_directory: ~/datadog
