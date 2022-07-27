@@ -15,8 +15,7 @@ version="0.75.0"
 sha256sum="76506c5ec222b2975333e1bae85f8b91d7c02eb9ccd4dcc807cdf2f23c667785"
 destdir="/tmp"
 fetch_setup_for_version "$version" "$sha256sum" "$destdir"
-php "$destdir/datadog-setup.php" --php-bin php --enable-profiling --enable-appsec \
-    --file "$destdir/dd-library-php-${version}-x86_64-linux-gnu.tar.gz"
+php "$destdir/datadog-setup.php" --php-bin php --enable-profiling --enable-appsec
 rm -v "$destdir/datadog-setup.php"
 assert_ddtrace_version "${version}"
 assert_appsec_version "0.3.2"
