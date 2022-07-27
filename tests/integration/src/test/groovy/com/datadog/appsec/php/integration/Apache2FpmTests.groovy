@@ -60,4 +60,14 @@ class Apache2FpmTests implements CommonTests {
             'test $(find /tmp/cli/ -maxdepth 1 -type s -name \'ddappsec_*.sock\' | wc -l) -eq 1')
         assert res.exitCode == 0
     }
+
+    @Test
+    void 'Pool environment'() {
+        def trace = container.traceFromRequest('/poolenv.php') { HttpURLConnection conn ->
+            assert conn.responseCode == 200
+            def content = conn.inputStream.text
+
+            assert content.contains('Value of pool env is 10001')
+        }
+    }
 }

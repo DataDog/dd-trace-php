@@ -208,8 +208,25 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     return SUCCESS;
 }
 
+#ifndef ZTS
+static void _dd_rinit_once(void)
+{
+    if (strcmp(sapi_module.name, "fpm-fcgi") == 0) {
+        dd_phpobj_load_env_values();
+    }
+}
+static bool dd_rinit_once_done;
+#endif
+
 static PHP_RINIT_FUNCTION(ddappsec)
 {
+#ifndef ZTS
+    if (!dd_rinit_once_done) {
+        _dd_rinit_once();
+        dd_rinit_once_done = true;
+    }
+#endif
+
     if (!DDAPPSEC_G(enabled)) {
         mlog_g(dd_log_debug, "Appsec disabled");
         return SUCCESS;

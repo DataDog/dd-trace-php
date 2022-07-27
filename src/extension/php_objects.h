@@ -52,6 +52,7 @@ void dd_phpobj_startup(int module_number);
 dd_result dd_phpobj_reg_funcs(const zend_function_entry *entries);
 dd_result dd_phpobj_reg_ini(const zend_ini_entry_def *entries);
 void dd_phpobj_reg_ini_env(const dd_ini_setting *sett);
+dd_result dd_phpobj_load_env_values(void);
 static inline void dd_phpobj_reg_ini_envs(const dd_ini_setting *setts)
 {
     for (__auto_type s = setts; s->name_suff; s++) {
