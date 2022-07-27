@@ -359,7 +359,7 @@ unsafe fn read_env(globals: &mut zend::zend_datadog_php_profiling_globals) {
             ))
         })
         .and_then(parse_boolean)
-        .unwrap_or(false);
+        .unwrap_or(true);
 
     let profiling_log_level = profiling_log_level
         .and_then(|string| {
