@@ -34,5 +34,5 @@ cc = { version = "1.0" }
 
 [profile.release]
 debug = 1
-lto = true
+lto = "thin"
 incremental = false
