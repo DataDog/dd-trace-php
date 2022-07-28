@@ -1434,7 +1434,7 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
-  "cargo fetch":
+  "cache cargo deps":
     working_directory: ~/datadog
     parameters:
       docker_image:
@@ -1755,83 +1755,76 @@ workflows:
     jobs:
       - "Prepare Code"
 
-      - "cargo fetch":
-          name: "cargo fetch - x86_64-alpine-linux-musl"
+      # In the event the cache is broken, all cargo jobs will end up fetching
+      # dependencies. Although this is a bit wasteful, when the cache isn't
+      # broken this saves us about 30+ secs of build time on the critical path.
+      # Since the tracer folks are unlikely to break the cache, they will save
+      # time in their CI cycles and only profiler folks will have to pay.
+      - "cache cargo deps":
+          name: "cache cargo deps - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
           triplet: "x86_64-alpine-linux-musl"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-alpine-linux-musl' ]
           name: "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.1"
           abi_no: "20160303"
           triplet: "x86_64-alpine-linux-musl"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-alpine-linux-musl' ]
           name: "Profiler PHP v7.2 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.2"
           abi_no: "20170718"
           triplet: "x86_64-alpine-linux-musl"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-alpine-linux-musl' ]
           name: "Profiler PHP v7.3 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.3"
           abi_no: "20180731"
           triplet: "x86_64-alpine-linux-musl"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-alpine-linux-musl' ]
           name: "Profiler PHP v7.4 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.4"
           abi_no: "20190902"
           triplet: "x86_64-alpine-linux-musl"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-alpine-linux-musl' ]
           name: "Profiler PHP v8.0 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
           abi_no: "20200930"
           triplet: "x86_64-alpine-linux-musl"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-alpine-linux-musl' ]
           name: "Profiler PHP v8.1 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
           abi_no: "20210902"
           triplet: "x86_64-alpine-linux-musl"
 
-      - "cargo fetch":
-          name: "cargo fetch - x86_64-unknown-linux-gnu"
+      - "cache cargo deps":
+          name: "cache cargo deps - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:centos-7"
           triplet: "x86_64-unknown-linux-gnu"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-unknown-linux-gnu' ]
           name: "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-7.1_centos-7"
           abi_no: "20160303"
           triplet: "x86_64-unknown-linux-gnu"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-unknown-linux-gnu' ]
           name: "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
           abi_no: "20170718"
           triplet: "x86_64-unknown-linux-gnu"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-unknown-linux-gnu' ]
           name: "Profiler PHP v7.3 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-7.3_centos-7"
           abi_no: "20180731"
           triplet: "x86_64-unknown-linux-gnu"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-unknown-linux-gnu' ]
           name: "Profiler PHP v7.4 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
           abi_no: "20190902"
           triplet: "x86_64-unknown-linux-gnu"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-unknown-linux-gnu' ]
           name: "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-8.0_centos-7"
           abi_no: "20200930"
           triplet: "x86_64-unknown-linux-gnu"
       - "cargo build --release":
-          requires: [ 'cargo fetch - x86_64-unknown-linux-gnu' ]
           name: "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
           abi_no: "20210902"
