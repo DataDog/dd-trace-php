@@ -50,13 +50,17 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
     ### Fixed
-
-    - Bump PHP minimum version in PECL #1652
-    - PHP 7.3+ Fix compatibility with opcache #1656
-
+    - Check for datadog-profiling in startup only instead of inside a message_handler #1670. This fixes a possible crash when all of tracer, profiler and appsec are loaded.
+    - Add opcode shutdown handlers, fix integrations after repeated minit #1669. This fixes a crash when using reload on apache (sending SIGUSR1).
+    - (PHP 7) Fix curl wrapper use after free #1662. This fixes a possible crash when curl handles are manually released within destructors inside the PHP shutdown sequence.
+    - Fix -Werror=address-of-packed-member (#1664).
+    
     ### Internal changes
+    - Skip curl test if curl is not loaded #1668
 
-    - %d resource ids in language tests #1657
+    ## Profiling (v0.7.2)
+    - Fix crash with SAPI env vars DataDog/dd-prof-php#46
+    - Avoid .message_handler due to upstream bug DataDog/dd-prof-php#47
     </notes>
     <contents>
         <dir name="/">
