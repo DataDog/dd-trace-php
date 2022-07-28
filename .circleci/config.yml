@@ -1502,7 +1502,7 @@ jobs:
     parameters:
       docker_image:
         type: string
-        default: "datadog/dd-trace-ci:centos-7"
+        default: "cimg/base:2022.07" # small image likely to be cached
     docker: [ image: << parameters.docker_image >> ]
     steps:
       - checkout
