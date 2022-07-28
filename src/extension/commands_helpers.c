@@ -5,8 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "commands_helpers.h"
 #include "ddtrace.h"
+#include "logging.h"
 #include "msgpack_helpers.h"
 #include "tags.h"
+#include <ext/standard/base64.h>
 
 typedef struct _dd_omsg {
     zend_llist iovecs;
@@ -22,6 +24,9 @@ static inline dd_result _omsg_send(
     dd_conn *nonnull conn, dd_omsg *nonnull omsg);
 static inline dd_result _omsg_send_cred(
     dd_conn *nonnull conn, dd_omsg *nonnull omsg);
+static void _dump_in_msg(
+    dd_log_level_t lvl, const char *nonnull data, size_t data_len);
+static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs);
 
 typedef struct _dd_imsg {
     char *unspecnull _data;
@@ -71,6 +76,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
         } else {
             res = _omsg_send(conn, &omsg);
         }
+        _dump_out_msg(dd_log_trace, &omsg.iovecs);
         _omsg_destroy(&omsg);
         if (res) {
             mlog(dd_log_warning, "Error sending message for command %.*s: %s",
@@ -98,7 +104,10 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
         res = spec->incoming_cb(imsg.root, ctx);
         mlog(dd_log_debug, "Processing for command %.*s returned %s", NAME_L,
             dd_result_to_string(res));
-        mpack_error_t err = _imsg_destroy(&imsg);
+        mpack_error_t err = imsg.root.tree->error;
+        _dump_in_msg(err == mpack_ok ? dd_log_trace : dd_log_debug, imsg._data,
+            imsg._size);
+        err = _imsg_destroy(&imsg);
         if (err != mpack_ok) {
             mlog(dd_log_warning,
                 "Response message for %.*s does not "
@@ -201,6 +210,7 @@ static inline dd_result _dd_imsg_recv(
     if (err != mpack_ok) {
         mlog(dd_log_warning, "Error parsing msgpack message: %s",
             mpack_error_to_string(err));
+        _dump_in_msg(dd_log_debug, imsg->_data, imsg->_size);
         UNUSED(_imsg_destroy(imsg));
         return dd_error;
     }
@@ -385,4 +395,39 @@ bool dd_command_process_metrics(mpack_node_t root)
     }
 
     return true;
+}
+
+static void _dump_in_msg(
+    dd_log_level_t lvl, const char *nonnull data, size_t data_len)
+{
+    if (!mlog_should_log(lvl)) {
+        return;
+    }
+    zend_string *zstr =
+        php_base64_encode((const unsigned char *)data, data_len);
+    if (ZSTR_LEN(zstr) > INT_MAX) {
+        return;
+    }
+    mlog(lvl, "Contents of message (base64 encoded): %.*s", (int)ZSTR_LEN(zstr),
+        ZSTR_VAL(zstr));
+    zend_string_release(zstr);
+}
+
+static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs)
+{
+    if (!mlog_should_log(lvl)) {
+        return;
+    }
+    zend_llist_position pos;
+    int i = 1;
+    for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
+         iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
+        zend_string *zstr = php_base64_encode(iov->iov_base, iov->iov_len);
+        if (ZSTR_LEN(zstr) > INT_MAX) {
+            return;
+        }
+        mlog(lvl, "Contents of message (base64 encoded) (part %d): %.*s", i,
+            (int)ZSTR_LEN(zstr), ZSTR_VAL(zstr));
+        zend_string_release(zstr);
+    }
 }

@@ -14,6 +14,7 @@ function match_log() {
 			return;
 		}
 	}
+	echo "None of " . var_export(func_get_args(), true) . " have matched\n";
 	echo "Log contents were:\n", log_contents();
 }
 function truncate_log() {
