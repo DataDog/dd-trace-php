@@ -45,3 +45,11 @@ endif()
 
 include(cmake/clang-tidy.cmake)
 include(cmake/clang-format.cmake)
+
+# When you enable this option. The file cmake/local.cmake will be included as part of the build.
+# The file cmake/local.cmake is ignored by git. Feel free to add anything you need to support
+# your local build. One example this is used for is to tell Clion where to find PHP Sources
+option(DD_APPSEC_LOCAL_CONFIGURATIONS "Whether to include the local.cmake file content as part of the build process" OFF)
+if(DD_APPSEC_LOCAL_CONFIGURATIONS)
+    include(cmake/local.cmake)
+endif()

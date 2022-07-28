@@ -63,3 +63,6 @@ cscope.*
 /build/
 /compile_commands.json
 /.cache/
+
+#This file is only used for custom configurations on developer machines
+cmake/local.cmake
