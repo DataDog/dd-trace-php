@@ -18,9 +18,11 @@ function test($header, $value) {
 test('x_forwarded_for', '2001::1');
 test('x_forwarded_for', '::1, febf::1, fc00::1, fd00::1,2001:0000::1');
 test('x_forwarded_for', '172.16.0.1');
-test('x_forwarded_for', '172.16.0.1, 172.31.255.254, 172.32.255.1, 8.8.8.8');
+test('x_forwarded_for', '172.16.0.1, 172.31.255.254, 172.32.255.1, 8.8.8.8, 1.2.3.4:456, [2001::1]:1111');
 test('x_forwarded_for', '169.254.0.1, 127.1.1.1, 10.255.255.254,');
 test('x_forwarded_for', '127.1.1.1,, ');
+test('x_forwarded_for', '1.2.3.4:456');
+test('x_forwarded_for', '[2001::1]:1111');
 test('x_forwarded_for', 'bad_value, 1.1.1.1');
 
 test('x_real_ip', '2.2.2.2');
@@ -81,7 +83,7 @@ string(7) "2001::1"
 x_forwarded_for: 172.16.0.1
 NULL
 
-x_forwarded_for: 172.16.0.1, 172.31.255.254, 172.32.255.1, 8.8.8.8
+x_forwarded_for: 172.16.0.1, 172.31.255.254, 172.32.255.1, 8.8.8.8, 1.2.3.4:456, [2001::1]:1111
 string(12) "172.32.255.1"
 
 x_forwarded_for: 169.254.0.1, 127.1.1.1, 10.255.255.254,
@@ -89,6 +91,12 @@ NULL
 
 x_forwarded_for: 127.1.1.1,, 
 NULL
+
+x_forwarded_for: 1.2.3.4:456
+string(7) "1.2.3.4"
+
+x_forwarded_for: [2001::1]:1111
+string(7) "2001::1"
 
 x_forwarded_for: bad_value, 1.1.1.1
 Not recognized as IP address: "bad_value"
