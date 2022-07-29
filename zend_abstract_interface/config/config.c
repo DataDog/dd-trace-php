@@ -91,6 +91,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
         assert(0 && "Error decoding default value");
     }
     memoized->name_index = -1;
+    memoized->original_on_modify = NULL;
     memoized->ini_change = entry->ini_change;
 
     return memoized;

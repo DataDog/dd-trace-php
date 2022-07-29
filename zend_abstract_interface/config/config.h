@@ -63,6 +63,7 @@ struct zai_config_memoized_entry_s {
     //     -1 == not set from env or system ini
     int16_t name_index;
     zai_config_apply_ini_change ini_change;
+    ZEND_INI_MH((*original_on_modify)); // when some other extension has registered that INI
 };
 
 // Memoizes config entries to default values
