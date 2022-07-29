@@ -21,6 +21,7 @@ typedef struct {
     bool tracing;
     bool run_if_limited;
     bool active;
+    bool allow_recursion;
 } dd_uhook_def;
 
 typedef struct {
@@ -137,7 +138,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
-    if ((!def->run_if_limited && ddtrace_tracer_is_limited()) || def->active || !get_DD_TRACE_ENABLED()) {
+    if ((!def->run_if_limited && ddtrace_tracer_is_limited()) || (def->active && !def->allow_recursion) || !get_DD_TRACE_ENABLED()) {
         dyn->skipped = true;
         return true;
     }
@@ -293,7 +294,7 @@ static void dd_uhook_dtor(void *data) {
     efree(def);
 }
 
-static bool _parse_config_array(zval *config_array, zval **prehook, zval **posthook, bool *run_when_limited) {
+static bool _parse_config_array(zval *config_array, zval **prehook, zval **posthook, bool *run_when_limited, bool *allow_recursion) {
     if (Z_TYPE_P(config_array) != IS_ARRAY) {
         ddtrace_log_debug("Expected config_array to be an associative array");
         return false;
@@ -331,6 +332,8 @@ static bool _parse_config_array(zval *config_array, zval **prehook, zval **posth
                 ddtrace_log_debugf("Expected '%s' to be an int", ZSTR_VAL(key));
                 return false;
             }
+        } else if (strcmp("recurse", ZSTR_VAL(key)) == 0) {
+            *allow_recursion = zval_is_true(value);
         } else {
             ddtrace_log_debugf("Unknown option '%s' in config_array", ZSTR_VAL(key));
             return false;
@@ -343,7 +346,7 @@ static bool _parse_config_array(zval *config_array, zval **prehook, zval **posth
 static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     zend_string *class_name = NULL, *method_name = NULL;
     zval *prehook = NULL, *posthook = NULL, *config_array = NULL;
-    bool run_when_limited = false;
+    bool run_when_limited = false, allow_recursion = false;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1 + method, 2 + method + !tracing)
         // clang-format off
@@ -375,7 +378,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     });
 
     if (config_array) {
-        if (_parse_config_array(config_array, &prehook, &posthook, &run_when_limited) == false) {
+        if (_parse_config_array(config_array, &prehook, &posthook, &run_when_limited, &allow_recursion) == false) {
             RETURN_FALSE;
         }
     }
@@ -401,6 +404,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     def->tracing = tracing;
     def->run_if_limited = !tracing || run_when_limited;
     def->active = false;
+    def->allow_recursion = allow_recursion;
 
     zai_string_view class_str = method ? ZAI_STRING_FROM_ZSTR(class_name) : ZAI_STRING_EMPTY;
     zai_string_view func_str = ZAI_STRING_FROM_ZSTR(method_name);
