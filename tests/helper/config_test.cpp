@@ -28,6 +28,13 @@ TEST(ConfigTest, NonNullTerminatedListConstruction)
     EXPECT_NO_THROW(config::config(vsize(argv), argv));
 }
 
+TEST(ConfigTest, InvalidParameter)
+{
+    char *argv[] = {const_cast<char *>("tester"),
+        const_cast<char *>("parameter_missing_dashes"), nullptr};
+    EXPECT_NO_THROW(config::config(vsize(argv) - 1, argv));
+}
+
 TEST(ConfigTest, TestDefaultKeys)
 {
     config::config cfg(0, nullptr);
