@@ -1,6 +1,9 @@
+#define _GNU_SOURCE
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <php.h>
+#include <string.h>
 #include <zend_API.h>
 #include <zend_smart_str.h>
 
@@ -8,6 +11,7 @@
 #include "logging.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 
 typedef struct _ipaddr {
     int af;
@@ -242,7 +246,7 @@ static bool dd_parse_x_forwarded_for(zend_string *zvalue, ipaddr *out) {
         while (value < end && *value == ' ') ++value;
         const char *comma = memchr(value, ',', end - value);
         const char *end_cur = comma ? comma : end;
-        succ = dd_parse_ip_address(value, end_cur - value, out);
+        succ = dd_parse_ip_address_maybe_port_pair(value, end_cur - value, out);
         if (succ) {
             succ = !dd_is_private(out);
         }
@@ -444,8 +448,9 @@ static bool dd_parse_ip_address_maybe_port_pair(const char *addr, size_t addr_le
         }
         return dd_parse_ip_address(addr + 1, pos_close - (addr + 1), out);
     }
+
     const char *colon = memchr(addr, ':', addr_len);
-    if (colon) {
+    if (colon && memrchr(addr, ':', addr_len) == colon) { //There is one and only one colon
         return dd_parse_ip_address(addr, colon - addr, out);
     }
 
