@@ -1520,37 +1520,6 @@ jobs:
             cd profiling
             cargo test --release
 
-  "package profiler":
-    working_directory: ~/datadog
-    parameters:
-      docker_image:
-        type: string
-        default: "cimg/base:2022.07" # small image likely to be cached
-    docker: [ image: << parameters.docker_image >> ]
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: "Package profiler extensions"
-          command: |
-            # The layout matches what the dd-prof-php releases had to minimize
-            # transition work.
-            for triplet in x86_64-unknown-linux-gnu x86_64-alpine-linux-musl ; do
-              # Add licensing. TODO: generate rust libs to third-party CSV.
-              cp -v profiling/LICENSE* profiling/NOTICE "datadog-profiling/${triplet}/"
-              mkdir -vp "datadog-profiling/${triplet}/bin"
-              # Add undocumented installer currently used by relenv
-              cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
-            done
-            tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
-            rm -fr "datadog-profiling/*"
-      - persist_to_workspace:
-          root: .
-          paths:
-            - datadog-profiling.tar.gz
-            - datadog-profiling
-
   compile_extension_centos:
     working_directory: ~/datadog
     parameters:
@@ -1634,6 +1603,19 @@ jobs:
             curl -Lo php5.tar.gz "https://output.circle-artifacts.com/output/job/$JOB_ID/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz"
             tar xzf php5.tar.gz
             mv opt/datadog-php/extensions/* extensions/
+      - run:
+          name: Package Profiler
+          command: |
+            # The layout matches what the dd-prof-php releases had to minimize
+            # transition work.
+            for triplet in x86_64-unknown-linux-gnu x86_64-alpine-linux-musl ; do
+              # Add licensing. TODO: generate rust libs to third-party CSV.
+              cp -v profiling/LICENSE* profiling/NOTICE "datadog-profiling/${triplet}/"
+              mkdir -vp "datadog-profiling/${triplet}/bin"
+              # Add undocumented installer currently used by relenv
+              cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
+            done
+            tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
       - run:
           name: Build packages
           command: make packages
@@ -1919,22 +1901,6 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
           triplet: "x86_64-unknown-linux-gnu"
 
-      - "package profiler":
-          requires:
-            - "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v7.2 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v7.3 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v7.4 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v8.0 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v8.1 - x86_64-alpine-linux-musl"
-
-            - "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v7.3 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v7.4 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
-
       - compile_alpine:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -2004,7 +1970,21 @@ workflows:
             - "Compile PHP 80 nts + zts + debug"
             - "Compile PHP 81 nts + zts + debug"
             - "Build PECL"
-            - "package profiler"
+
+            - "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v7.2 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v7.3 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v7.4 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v8.0 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v8.1 - x86_64-alpine-linux-musl"
+
+            - "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.3 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.4 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
+
       - "x-profiling phpt tests on Alpine":
           requires: [ 'package extension' ]
           matrix:
