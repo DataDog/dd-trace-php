@@ -171,6 +171,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
             [
+                'recurse' => true,
                 $hookType => function (SpanData $span, $args) use ($integration) {
                     if (!isset($args[0])) {
                         return false;
