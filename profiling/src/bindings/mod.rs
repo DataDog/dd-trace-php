@@ -260,7 +260,7 @@ impl Default for DatadogPhpProfilingGlobals {
     fn default() -> Self {
         Self {
             profiling_enabled: false,
-            profiling_experimental_cpu_time_enabled: false,
+            profiling_experimental_cpu_time_enabled: true,
             profiling_log_level: LevelFilter::Off,
             vm_interrupt_addr: std::ptr::null(),
             interrupt_count: AtomicU32::new(0),
