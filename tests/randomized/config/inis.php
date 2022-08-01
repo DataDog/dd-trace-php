@@ -6,5 +6,5 @@
 const INIS = [
     'opcache.enable' => [false],
     'opcache.jit_buffer_size' => ['256M'],
-    'zend_extension' => ['datadog-profiling.so'],
+    'extension' => ['datadog-profiling.so'],
 ];
