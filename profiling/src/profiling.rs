@@ -291,8 +291,8 @@ unsafe fn collect_stack_sample(
 
             // Only insert a new frame if there's file or function info.
             if file.is_some() || function.is_some() {
-                // If there's no function name, use the fake name "<php>".
-                let function = function.unwrap_or_else(|| "<php>".to_owned());
+                // If there's no function name, use a fake name.
+                let function = function.unwrap_or_else(|| "<?php".to_owned());
                 let frame = ZendFrame {
                     function,
                     file,
