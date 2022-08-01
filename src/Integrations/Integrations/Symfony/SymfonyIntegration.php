@@ -165,13 +165,12 @@ class SymfonyIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
-        $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
-
         \DDTrace\trace_method(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
             [
-                $hookType => function (SpanData $span, $args) use ($integration) {
+                'recurse' => true,
+                'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
                     if (!isset($args[0])) {
                         return false;
                     }
@@ -227,7 +226,11 @@ class SymfonyIntegration extends Integration
                     if ($event === null) {
                         return;
                     }
-                    $integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan);
+                    if (!$injectedActionInfo) {
+                        if ($integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan)) {
+                            $injectedActionInfo = true;
+                        }
+                    }
                 }
             ]
         );
@@ -309,7 +312,7 @@ class SymfonyIntegration extends Integration
             || $eventName !== KernelEvents::CONTROLLER
             || !method_exists($event, 'getController')
         ) {
-            return;
+            return false;
         }
 
         // Controller and action is provided in the form [$controllerInstance, <actionMethodName>]
@@ -320,10 +323,12 @@ class SymfonyIntegration extends Integration
             || count($controllerAndAction) !== 2
             || !is_object($controllerAndAction[0])
         ) {
-            return;
+            return false;
         }
 
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->meta['symfony.route.action'] = $action;
+
+        return true;
     }
 }

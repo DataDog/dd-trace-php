@@ -160,6 +160,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'GET /does_not_exist'
                     )->withExactTags([
+                        'symfony.route.action' => 'Symfony\Bundle\TwigBundle\Controller\ExceptionController@showAction',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
                         'http.status_code' => '404',
