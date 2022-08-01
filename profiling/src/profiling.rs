@@ -271,7 +271,19 @@ unsafe fn collect_stack_sample(
     samples.reserve(max_depth); // todo: try_reserve
     let mut execute_data = top_execute_data;
 
-    while !execute_data.is_null() && samples.len() < samples.capacity() {
+    while !execute_data.is_null() {
+        /* -1 to reserve room for the [truncated] message. In case the backend
+         * and/or frontend have the same limit, without the -1 we'd ironically
+         * truncate our [truncated] message.
+         */
+        if samples.len() >= max_depth - 1 {
+            samples.push(ZendFrame {
+                function: "[truncated]".to_string(),
+                file: None,
+                line: 0,
+            });
+            break;
+        }
         let func = (*execute_data).func;
         if !func.is_null() {
             let function = extract_function_name(&*func);
