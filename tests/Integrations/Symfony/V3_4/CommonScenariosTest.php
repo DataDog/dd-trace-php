@@ -123,8 +123,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'error'
                     )
                         ->withExactTags([
-                            // TODO: double check what this should be
-                            'symfony.route.action' => 'Symfony\Bundle\TwigBundle\Controller\ExceptionController@showAction',
+                            'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@errorAction',
                             'symfony.route.name' => 'error',
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error?key=value&<redacted>',

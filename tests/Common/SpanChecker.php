@@ -81,12 +81,22 @@ final class SpanChecker
         }
 
         foreach ($expectedNodeRoot->getChildren() as $child) {
-            $this->assertNode(
-                $node['children'],
-                $child,
-                $expectedNodeRoot->getOperationName(),
-                $expectedNodeRoot->getResource()
-            );
+            try {
+                $this->assertNode(
+                    $node['children'],
+                    $child,
+                    $expectedNodeRoot->getOperationName(),
+                    $expectedNodeRoot->getResource()
+                );
+            } catch (\Exception $e) {
+                (function () use ($expectedNodeRoot) {
+                    $this->message .= sprintf(
+                        "\nparent operation/resource: %s/%s",
+                        $expectedNodeRoot->getOperationName(),
+                        $expectedNodeRoot->getResource()
+                    );
+                })->call($e);
+            }
         }
     }
 
