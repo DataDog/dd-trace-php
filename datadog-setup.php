@@ -69,6 +69,16 @@ function install($options)
     check_library_prerequisite_or_exit('libcurl');
     if (is_alpine()) {
         check_library_prerequisite_or_exit('libexecinfo');
+        if (is_truthy($options[OPT_ENABLE_PROFILING])) {
+            check_library_prerequisite_or_exit('libgcc_s');
+        }
+    } else {
+        if (is_truthy($options[OPT_ENABLE_PROFILING])) {
+            check_library_prerequisite_or_exit('libdl.so');
+            check_library_prerequisite_or_exit('libgcc_s');
+            check_library_prerequisite_or_exit('libpthread');
+            check_library_prerequisite_or_exit('librt');
+        }
     }
 
     // Picking the right binaries to install the library
@@ -245,6 +255,14 @@ function install($options)
                     "sed -i 's@extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
                         . escapeshellarg($iniFilePath)
                 );
+
+
+                // Support upgrading from the C based zend_extension.
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@zend_extension \?= \?.*datadog-profiling.*\(.*\)@extension = datadog-profiling.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
             }
 
             add_missing_ini_settings(
@@ -258,7 +276,7 @@ function install($options)
                 if ($shouldInstallProfiling) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' "
+                        "sed -i 's@ \?; \?extension \?= \?datadog-profiling.so@extension = datadog-profiling.so@g' "
                             . escapeshellarg($iniFilePath)
                     );
                 } else {
@@ -979,7 +997,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'description' => 'Enables or disables tracing (set by the installer, do not change it)',
         ],
         [
-            'name' => 'zend_extension',
+            'name' => 'extension',
             'default' => 'datadog-profiling.so',
             'commented' => true,
             'description' => 'Enables the profiling module',

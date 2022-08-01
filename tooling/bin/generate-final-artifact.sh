@@ -43,7 +43,13 @@ cp -r ./bridge ${tmp_folder_final_musl_trace};
 tmp_folder_profiling=$tmp_folder/profiling
 tmp_folder_profiling_archive=$tmp_folder_profiling/datadog-profiling.tar.gz
 mkdir -p $tmp_folder_profiling
-curl -L -o $tmp_folder_profiling_archive $profiling_url
+
+# Profiling: C version
+#curl -L -o $tmp_folder_profiling_archive $profiling_url
+
+# Profiling: Rust version
+cp -v datadog-profiling.tar.gz "$tmp_folder_profiling_archive"
+
 tar -xf $tmp_folder_profiling_archive -C $tmp_folder_profiling
 
 # Extension

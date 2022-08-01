@@ -927,7 +927,7 @@ jobs:
   installer_tests:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2022.04.2
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
@@ -1434,6 +1434,92 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
+  "cache cargo deps":
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      triplet:
+        type: string
+    docker: [ image: << parameters.docker_image >> ]
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cargo Package Cache
+          keys:
+            - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+      - run:
+          name: cargo fetch
+          command: |
+            cd profiling
+            cargo fetch --target << parameters.triplet >>
+      - save_cache:
+          name: Save Cargo Package Cache
+          key: profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+          paths:
+            - /rust/cargo
+
+  "cargo build --release":
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      abi_no:
+        type: string
+      triplet:
+        type: string
+    docker: [ image: << parameters.docker_image >> ]
+    resource_class: xlarge # mostly for more RAM for ramdisk
+    environment:
+      - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cargo Package Cache
+          keys:
+            - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+      - run:
+          name: Build Profiler
+          command: |
+            set -u
+            libdir=$PWD/datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
+            mkdir -vp "${libdir}"
+            command -v switch-php && switch-php "${PHP_VERSION}"
+            set -e
+            cd profiling
+            cargo build --release
+            cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${libdir}/datadog-profiling.so"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - datadog-profiling
+
+  "cargo test":
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      triplet:
+        type: string
+    docker: [ image: << parameters.docker_image >> ]
+    resource_class: xlarge # mostly for more RAM for ramdisk
+    environment:
+      - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cargo Package Cache
+          keys:
+            - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+      - run:
+          name: Test Profiler
+          command: |
+            set -u
+            command -v switch-php && switch-php "${PHP_VERSION}"
+            set -e
+            cd profiling
+            cargo test --release
+
   compile_extension_centos:
     working_directory: ~/datadog
     parameters:
@@ -1456,7 +1542,7 @@ jobs:
           command: |
             switch-php << parameters.php_version >>
             make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
-            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
+            cp -v tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
@@ -1518,8 +1604,22 @@ jobs:
             tar xzf php5.tar.gz
             mv opt/datadog-php/extensions/* extensions/
       - run:
+          name: Package Profiler
+          command: |
+            # The layout matches what the dd-prof-php releases had to minimize
+            # transition work.
+            for triplet in x86_64-unknown-linux-gnu x86_64-alpine-linux-musl ; do
+              # Add licensing. TODO: generate rust libs to third-party CSV.
+              cp -v profiling/LICENSE* profiling/NOTICE "datadog-profiling/${triplet}/"
+              mkdir -vp "datadog-profiling/${triplet}/bin"
+              # Add undocumented installer currently used by relenv
+              cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
+            done
+            tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
+      - run:
           name: Build packages
           command: make packages
+      - run: cd build/packages && find . -type f -exec sha256sum {} +
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
       - store_artifacts: { path: 'pecl', destination: '/pecl' }
@@ -1659,6 +1759,148 @@ workflows:
   build_packages:
     jobs:
       - "Prepare Code"
+
+      # In the event the cache is broken, all cargo jobs will end up fetching
+      # dependencies. Although this is a bit wasteful, when the cache isn't
+      # broken this saves us about 30+ secs of build time on the critical path.
+      # Since the tracer folks are unlikely to break the cache, they will save
+      # time in their CI cycles and only profiler folks will have to pay.
+      - "cache cargo deps":
+          name: "cache cargo deps - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo build --release":
+          name: "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.1"
+          abi_no: "20160303"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo build --release":
+          name: "Profiler PHP v7.2 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.2"
+          abi_no: "20170718"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo build --release":
+          name: "Profiler PHP v7.3 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.3"
+          abi_no: "20180731"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo build --release":
+          name: "Profiler PHP v7.4 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.4"
+          abi_no: "20190902"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo build --release":
+          name: "Profiler PHP v8.0 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
+          abi_no: "20200930"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo build --release":
+          name: "Profiler PHP v8.1 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
+          abi_no: "20210902"
+          triplet: "x86_64-alpine-linux-musl"
+
+      # These don't actually need the other job to complete, but this way
+      # there are fewer resources used when the build step fails.
+      - "cargo test":
+          requires: [ "Profiler PHP v7.1 - x86_64-alpine-linux-musl" ]
+          name: "Profiler test PHP v7.1 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.1"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo test":
+          requires: [ "Profiler PHP v7.2 - x86_64-alpine-linux-musl" ]
+          name: "Profiler test PHP v7.2 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.2"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo test":
+          requires: [ "Profiler PHP v7.3 - x86_64-alpine-linux-musl" ]
+          name: "Profiler test PHP v7.3 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.3"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo test":
+          requires: [ "Profiler PHP v7.4 - x86_64-alpine-linux-musl" ]
+          name: "Profiler test PHP v7.4 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.4"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo test":
+          requires: [ "Profiler PHP v8.0 - x86_64-alpine-linux-musl" ]
+          name: "Profiler test PHP v8.0 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo test":
+          requires: [ "Profiler PHP v8.1 - x86_64-alpine-linux-musl" ]
+          name: "Profiler test PHP v8.1 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
+          triplet: "x86_64-alpine-linux-musl"
+
+      - "cache cargo deps":
+          name: "cache cargo deps - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:centos-7"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          name: "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.1_centos-7"
+          abi_no: "20160303"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          name: "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
+          abi_no: "20170718"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          name: "Profiler PHP v7.3 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.3_centos-7"
+          abi_no: "20180731"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          name: "Profiler PHP v7.4 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
+          abi_no: "20190902"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          name: "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-8.0_centos-7"
+          abi_no: "20200930"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          name: "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
+          abi_no: "20210902"
+          triplet: "x86_64-unknown-linux-gnu"
+
+      # These don't actually need the other job to complete, but this way
+      # there are fewer resources used when the build step fails.
+      - "cargo test":
+          requires: [ "Profiler PHP v7.1 - x86_64-unknown-linux-gnu" ]
+          name: "Profiler test PHP v7.1 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.1_centos-7"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo test":
+          requires: [ "Profiler PHP v7.2 - x86_64-unknown-linux-gnu" ]
+          name: "Profiler test PHP v7.2 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo test":
+          requires: [ "Profiler PHP v7.3 - x86_64-unknown-linux-gnu" ]
+          name: "Profiler test PHP v7.3 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.3_centos-7"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo test":
+          requires: [ "Profiler PHP v7.4 - x86_64-unknown-linux-gnu" ]
+          name: "Profiler test PHP v7.4 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo test":
+          requires: [ "Profiler PHP v8.0 - x86_64-unknown-linux-gnu" ]
+          name: "Profiler test PHP v8.0 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-8.0_centos-7"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo test":
+          requires: [ "Profiler PHP v8.1 - x86_64-unknown-linux-gnu" ]
+          name: "Profiler test PHP v8.1 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
+          triplet: "x86_64-unknown-linux-gnu"
+
       - compile_alpine:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -1728,6 +1970,21 @@ workflows:
             - "Compile PHP 80 nts + zts + debug"
             - "Compile PHP 81 nts + zts + debug"
             - "Build PECL"
+
+            - "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v7.2 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v7.3 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v7.4 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v8.0 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v8.1 - x86_64-alpine-linux-musl"
+
+            - "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.3 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v7.4 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
+
       - "x-profiling phpt tests on Alpine":
           requires: [ 'package extension' ]
           matrix:
