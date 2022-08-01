@@ -271,7 +271,15 @@ unsafe fn collect_stack_sample(
     samples.reserve(max_depth); // todo: try_reserve
     let mut execute_data = top_execute_data;
 
-    while !execute_data.is_null() && samples.len() < samples.capacity() {
+    while !execute_data.is_null() {
+        if samples.len() >= max_depth {
+            samples.push(ZendFrame {
+                function: "[truncated]".to_string(),
+                file: None,
+                line: 0,
+            });
+            break;
+        }
         let func = (*execute_data).func;
         if !func.is_null() {
             let function = extract_function_name(&*func);
