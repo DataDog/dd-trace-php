@@ -44,6 +44,7 @@ struct zai_config_entry_s {
     uint8_t aliases_count;
     // Accept or reject ini changes, potentially apply to the currently running system
     zai_config_apply_ini_change ini_change;
+    zai_custom_parse parser;
 };
 
 struct zai_config_name_s {
@@ -63,6 +64,7 @@ struct zai_config_memoized_entry_s {
     //     -1 == not set from env or system ini
     int16_t name_index;
     zai_config_apply_ini_change ini_change;
+    zai_custom_parse parser;
     ZEND_INI_MH((*original_on_modify)); // when some other extension has registered that INI
 };
 

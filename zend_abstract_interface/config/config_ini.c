@@ -142,17 +142,16 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
         return FAILURE;
     }
 
-    if (zai_config_memoized_entries[id].original_on_modify) {
-        if (zai_config_memoized_entries[id].original_on_modify(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage) == FAILURE) {
-            return FAILURE;
-        }
+    zai_config_memoized_entry *memoized = &zai_config_memoized_entries[id];
+
+    if (memoized->original_on_modify && memoized->original_on_modify(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage) == FAILURE) {
+        return FAILURE;
     }
 
     zval new_zv;
     ZVAL_UNDEF(&new_zv);
 
-    if (!zai_config_decode_value(value_view, zai_config_memoized_entries[id].type, &new_zv,
-                                 /* persistent */ stage != PHP_INI_STAGE_RUNTIME)) {
+    if (!zai_config_decode_value(value_view, memoized->type, memoized->parser, &new_zv, /* persistent */ stage != PHP_INI_STAGE_RUNTIME)) {
         // TODO Log decoding error
 
         return FAILURE;
@@ -165,15 +164,14 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
         return SUCCESS;
     }
 
-    if (zai_config_memoized_entries[id].ini_change &&
-        !zai_config_memoized_entries[id].ini_change(zai_config_get_value(id), &new_zv)) {
+    if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv)) {
         zval_dtor(&new_zv);
         return FAILURE;
     }
 
     bool is_reset = zend_string_equals(new_value, entry->modified ? entry->orig_value : entry->value);
-    for (int i = 0; i < zai_config_memoized_entries[id].names_count; ++i) {
-        zend_ini_entry *alias = zai_config_memoized_entries[id].ini_entries[i];
+    for (int i = 0; i < memoized->names_count; ++i) {
+        zend_ini_entry *alias = memoized->ini_entries[i];
 #if ZTS
         alias = zend_hash_find_ptr(EG(ini_directives), alias->name);  // alias initially contains the global ini
 #endif
@@ -344,7 +342,7 @@ void zai_config_ini_rinit() {
 
                     zval new_zv;
                     ZVAL_UNDEF(&new_zv);
-                    if (zai_config_decode_value(rte_value, memoized->type, &new_zv, /* persistent */ false)) {
+                    if (zai_config_decode_value(rte_value, memoized->type, memoized->parser, &new_zv, /* persistent */ false)) {
                         zai_config_replace_runtime_config(i, &new_zv);
                         zval_ptr_dtor(&new_zv);
                     }

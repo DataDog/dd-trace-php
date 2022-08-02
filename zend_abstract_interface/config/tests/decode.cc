@@ -28,7 +28,7 @@ TEA_TEST_CASE("config/decode", "bool", {
 
     for (zai_string_view name : truthy) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(name, type, &value, false);
+        ret = zai_config_decode_value(name, type, NULL, &value, false);
 
         REQUIRE(ret == true);
         REQUIRE(Z_TYPE(value) == IS_TRUE);
@@ -48,7 +48,7 @@ TEA_TEST_CASE("config/decode", "bool", {
 
     for (zai_string_view name : falsey) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(name, type, &value, false);
+        ret = zai_config_decode_value(name, type, NULL, &value, false);
 
         REQUIRE(ret == true);
         REQUIRE(Z_TYPE(value) == IS_FALSE);
@@ -78,7 +78,7 @@ TEA_TEST_CASE("config/decode", "double", {
 
     for (expected_double expected : successes) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(expected.name, type, &value, false);
+        ret = zai_config_decode_value(expected.name, type, NULL, &value, false);
 
         REQUIRE(ret == true);
         REQUIRE(Z_TYPE(value) == IS_DOUBLE);
@@ -100,7 +100,7 @@ TEA_TEST_CASE("config/decode", "double", {
 
     for (zai_string_view name : errors) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(name, type, &value, false);
+        ret = zai_config_decode_value(name, type, NULL, &value, false);
 
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
@@ -130,7 +130,7 @@ TEA_TEST_CASE("config/decode", "int", {
 
     for (expected_int expected : successes) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(expected.name, type, &value, false);
+        ret = zai_config_decode_value(expected.name, type, NULL, &value, false);
 
         REQUIRE(ret == true);
         REQUIRE(Z_TYPE(value) == IS_LONG);
@@ -152,7 +152,7 @@ TEA_TEST_CASE("config/decode", "int", {
 
     for (zai_string_view name : errors) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(name, type, &value, false);
+        ret = zai_config_decode_value(name, type, NULL, &value, false);
 
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
@@ -183,7 +183,7 @@ TEA_TEST_CASE("config/decode", "map", {
 
     for (expected_map expected : successes) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(expected.name, type, &value, false);
+        ret = zai_config_decode_value(expected.name, type, NULL, &value, false);
 
         REQUIRE(ret == true);
         REQUIRE(Z_TYPE(value) == IS_ARRAY);
@@ -211,7 +211,7 @@ TEA_TEST_CASE("config/decode", "map", {
 
     for (zai_string_view name : errors) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(name, type, &value, false);
+        ret = zai_config_decode_value(name, type, NULL, &value, false);
 
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
@@ -241,7 +241,7 @@ TEA_TEST_CASE("config/decode", "set", {
 
     for (expected_set expected : successes) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(expected.name, type, &value, false);
+        ret = zai_config_decode_value(expected.name, type, NULL, &value, false);
 
         REQUIRE(ret == true);
         REQUIRE(Z_TYPE(value) == IS_ARRAY);
@@ -264,7 +264,7 @@ TEA_TEST_CASE("config/decode", "set", {
 
     for (zai_string_view name : errors) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(name, type, &value, false);
+        ret = zai_config_decode_value(name, type, NULL, &value, false);
 
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
@@ -292,7 +292,7 @@ TEA_TEST_CASE_BARE("config/decode", "json", {
 
     for (zai_string_view name : errors) {
         ZVAL_UNDEF(&value);
-        ret = zai_config_decode_value(name, type, &value, false);
+        ret = zai_config_decode_value(name, type, NULL, &value, false);
 
         REQUIRE(ret == false);
         REQUIRE(Z_TYPE(value) <= IS_NULL);
@@ -301,7 +301,7 @@ TEA_TEST_CASE_BARE("config/decode", "json", {
     // ---
 
     ZVAL_UNDEF(&value);
-    ret = zai_config_decode_value(ZAI_STRL_VIEW("{\"foo\":1,\"bar\":\"str\",\"baz\":[1],\"empty\":[]}"), type, &value, true);
+    ret = zai_config_decode_value(ZAI_STRL_VIEW("{\"foo\":1,\"bar\":\"str\",\"baz\":[1],\"empty\":[]}"), type, NULL, &value, true);
 
     // ---
 
