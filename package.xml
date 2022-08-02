@@ -48,7 +48,40 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>⚠️  The tracer and profiling packages for PHP 7 and 8 are built on CentOS 7. These packages will not run on older GNU Linux versions like CentOS 6, Debian 7, and Ubuntu 12.04.
+
+### Added
+- Add single span ingestion mechanism #1628
+- Add "recurse" =&gt; true option to hook/trace config array #1677
+
+### Changed
+- Allow Symfony EventDispatcher::dispatch hooks to recurse #1678
+
+### Fixed
+- Fix JIT compatibility under macOS #1661
+- Fix -Werror=address-of-packed-member #1664
+- Add support for ports on x-forwarded-for header #1675. Thanks, @estringana!
+
+### Internal changes
+- Move to CentOS 7; begin adding profiling deps #1660
+- Add profiling sources #1606
+- Build and package datadog-profiling in CI #1663
+- Fix profiler config in randomized tests #1682
+
+## Profiling (v0.8.0)
+
+### Added
+ - Add `process_id` and `runtime_version` tags #1606.
+ - Add support for changing env vars per request, such as per-directory env var settings in Apache #1606.
+ - Add fake frame when truncating stacks #1679. This way users can tell when the stack is truncated.
+
+### Changed
+ - Switch &lt;php&gt; to &lt;?php #1680
+ - Raise max stack depth to 512 #1681
+ - Enable CPU Time profile by default #1663. This can disabled by setting the environment variable `DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED` to `0`, `off`, or `no`.
+ - Change logging format #1606. Add a new log level `trace`, which is even more verbose than `debug`.
+ - Stop sending a profile on every `phpinfo()` (or the equivalent command line option `--ri datadog-profiling`) #1606
+</notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
