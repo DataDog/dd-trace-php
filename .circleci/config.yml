@@ -1959,6 +1959,13 @@ workflows:
       - pecl_build:
           requires: [ 'Prepare Code' ]
           name: "Build PECL"
+          # Pecl hates various strings allowed by semver and version_compare,
+          # for example 0.77.0-beta.1.
+          # So, we don't ship pecl packages for prereleases. In practice, if it
+          # contains a dash after the X.Y.Z bit then we ignore it.
+          filters:
+            branches:
+              ignore: /^release-\d+\.\d+\.\d+-.*/
       - "package extension":
           requires:
             - compile_alpine
