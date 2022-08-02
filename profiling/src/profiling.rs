@@ -266,9 +266,8 @@ unsafe fn extract_line_no(execute_data: &zend_execute_data) -> u32 {
 unsafe fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
-    let mut samples = Vec::new();
-    let max_depth = 128;
-    samples.reserve(max_depth); // todo: try_reserve
+    let max_depth = 512;
+    let mut samples = Vec::with_capacity(max_depth >> 3);
     let mut execute_data = top_execute_data;
 
     while !execute_data.is_null() {
