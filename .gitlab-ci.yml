@@ -3,9 +3,12 @@ stages:
   - deploy
 
 variables:
-  LATEST_URL:
-    value: "https://github.com/DataDog/dd-trace-php/releases/download/0.77.0/datadog-php-tracer_0.77.0_amd64.deb"
-    description: "Location where to download latest built package"
+  LATEST_SETUP:
+    value: "https://github.com/DataDog/dd-trace-php/releases/download/0.77.0/datadog-setup.php"
+    description: "Location where to download latest datadog-setup.php script"
+  LATEST_LIBRARY_x86_64_LINUX_GNU:
+    value: "https://github.com/DataDog/dd-trace-php/releases/download/0.77.0/dd-library-php-0.77.0-x86_64-linux-gnu.tar.gz"
+    description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive"
   DOWNSTREAM_REL_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -18,12 +21,14 @@ build:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
   tags: [ "runner:main", "size:large" ]
   script:
-    - echo $LATEST_URL | sed -E 's/.+_(.+)_.+/UPSTREAM_TRACER_VERSION=\1/' >> upstream.env
-    - curl --fail --location --output php-linux-tracer-deb-latest.deb $LATEST_URL
+    - echo $LATEST_SETUP | sed -E 's/.+_(.+)_.+/UPSTREAM_TRACER_VERSION=\1/' >> upstream.env
+    - curl --fail --location --output dd-library-php-x86_64-linux-gnu.tar.gz $LATEST_LIBRARY_x86_64_LINUX_GNU
+    - curl --fail --location -O $LATEST_SETUP
+    - tar -cf datadog-setup-x86_64-linux-gnu.tar datadog-setup.php dd-library-php-x86_64-linux-gnu.tar.gz
   artifacts:
     paths:
       - 'upstream.env'
-      - 'php-linux-tracer-deb-latest.deb'
+      - 'datadog-setup-x86_64-linux-gnu.tar'
 
 deploy_to_reliability_env:
   stage: deploy
