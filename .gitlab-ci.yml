@@ -21,7 +21,7 @@ build:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
   tags: [ "runner:main", "size:large" ]
   script:
-    - echo $LATEST_SETUP | sed -E 's/.+_(.+)_.+/UPSTREAM_TRACER_VERSION=\1/' >> upstream.env
+    - echo $LATEST_SETUP | sed -E 's/.+\/([0-9]+\.[0-9]+\.[^/]+)\/.+/UPSTREAM_TRACER_VERSION=\1/' >> upstream.env
     - curl --fail --location --output dd-library-php-x86_64-linux-gnu.tar.gz $LATEST_LIBRARY_x86_64_LINUX_GNU
     - curl --fail --location -O $LATEST_SETUP
     - tar -cf datadog-setup-x86_64-linux-gnu.tar datadog-setup.php dd-library-php-x86_64-linux-gnu.tar.gz
