@@ -1509,6 +1509,7 @@ jobs:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
     steps:
       - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
