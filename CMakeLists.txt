@@ -7,7 +7,7 @@ HunterGate(
     URL "https://github.com/cpp-pm/hunter/archive/v0.23.314.tar.gz"
     SHA1 "95c47c92f68edb091b5d6d18924baabe02a6962a")
 
-project(ddappsec VERSION 0.3.2)
+project(ddappsec VERSION 0.4.0)
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)

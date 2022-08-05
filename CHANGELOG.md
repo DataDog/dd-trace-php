@@ -1,5 +1,23 @@
 # Datadog AppSec for PHP Release
 
+### v0.4.0
+#### Fixes
+- ([#99](https://github.com/DataDog/dd-appsec-php/pull/99)) Fix interned string invalidation on PHP <= 7.2
+- ([#101](https://github.com/DataDog/dd-appsec-php/pull/101)) Replace `php_error_docref` with `php_log_err`
+
+#### Additions
+- ([#97](https://github.com/DataDog/dd-appsec-php/pull/97)) Log helper communication
+- ([#105](https://github.com/DataDog/dd-appsec-php/pull/105)) Set environment values at rinit on php-fpm
+
+#### Miscellaneous Changes
+- ([#98](https://github.com/DataDog/dd-appsec-php/pull/98)) Update development documentation
+- ([#102](https://github.com/DataDog/dd-appsec-php/pull/102)) Update system tests with new variants
+- ([#108](https://github.com/DataDog/dd-appsec-php/pull/108)) Add helper test for config
+- ([#109](https://github.com/DataDog/dd-appsec-php/pull/109)) Fix missing helper header coverage
+- ([#110](https://github.com/DataDog/dd-appsec-php/pull/110)) Upgrade integration test tracer version to 0.76.1
+- ([#111](https://github.com/DataDog/dd-appsec-php/pull/111)) Add a way to include local changes to the cmake build process
+- ([#116](https://github.com/DataDog/dd-appsec-php/pull/116)) libddwaf upgraded to 1.4.0
+
 ### v0.3.2
 #### Fixes
 - ([#92](https://github.com/DataDog/dd-appsec-php/pull/92)) Fix hybrid extension initialisation

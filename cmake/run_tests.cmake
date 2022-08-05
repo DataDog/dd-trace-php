@@ -51,7 +51,7 @@ if(DD_APPSEC_BUILD_HELPER)
         set(PHP_APACHE_MODULE "${PHP_BIN_DIR}/../lib/libphp.so")
     endif()
 
-    ExternalProject_Get_property(proj_event_rules SOURCE_DIR)
+    ExternalProject_Get_property(event_rules SOURCE_DIR)
     set(EVENT_RULES_SOURCE_DIR ${SOURCE_DIR})
     add_custom_target(ex_apache_mod
         COMMAND ${CMAKE_SOURCE_DIR}/examples/apache_mod/start.sh
@@ -62,7 +62,7 @@ if(DD_APPSEC_BUILD_HELPER)
         $<TARGET_FILE:ddappsec-helper>
         ${EVENT_RULES_SOURCE_DIR}/build/recommended.json
         WORKING_DIRECTORY ${CMAKE_BUILD_DIR})
-    add_dependencies(ex_apache_mod proj_event_rules)
+    add_dependencies(ex_apache_mod event_rules)
 
     add_custom_target(ex_apache_fpm
         COMMAND ${CMAKE_SOURCE_DIR}/examples/apache_fpm/start.sh
@@ -73,7 +73,7 @@ if(DD_APPSEC_BUILD_HELPER)
         $<TARGET_FILE:ddappsec-helper>
         ${EVENT_RULES_SOURCE_DIR}/build/recommended.json
         WORKING_DIRECTORY ${CMAKE_BUILD_DIR})
-    add_dependencies(ex_apache_fpm proj_event_rules)
+    add_dependencies(ex_apache_fpm event_rules)
 endif()
 
 # vim: set et:
