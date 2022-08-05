@@ -1494,10 +1494,12 @@ jobs:
           paths:
             - datadog-profiling
 
-  "cargo test":
+  "profiling tests":
     working_directory: ~/datadog
     parameters:
       docker_image:
+        type: string
+      abi_no:
         type: string
       triplet:
         type: string
@@ -1512,13 +1514,25 @@ jobs:
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
       - run:
-          name: Test Profiler
+          name: cargo tests
           command: |
             set -u
             command -v switch-php && switch-php "${PHP_VERSION}"
             set -e
             cd profiling
             cargo test --release
+      - run:
+          name: phpt tests
+          command: |
+            set -u
+            command -v switch-php && switch-php "${PHP_VERSION}"
+            set -e
+            libdir=$PWD/datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
+            cd profiling/tests
+            # don't anticipate there being more than one
+            run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
+            cp -v "${run_tests_php}" .
+            php run-tests.php -d "extension=${libdir}/datadog-profiling.so" phpt
 
   compile_extension_centos:
     working_directory: ~/datadog
@@ -1802,35 +1816,41 @@ workflows:
 
       # These don't actually need the other job to complete, but this way
       # there are fewer resources used when the build step fails.
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v7.1 - x86_64-alpine-linux-musl" ]
           name: "Profiler test PHP v7.1 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.1"
+          abi_no: "20160303"
           triplet: "x86_64-alpine-linux-musl"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v7.2 - x86_64-alpine-linux-musl" ]
           name: "Profiler test PHP v7.2 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.2"
+          abi_no: "20170718"
           triplet: "x86_64-alpine-linux-musl"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v7.3 - x86_64-alpine-linux-musl" ]
           name: "Profiler test PHP v7.3 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.3"
+          abi_no: "20180731"
           triplet: "x86_64-alpine-linux-musl"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v7.4 - x86_64-alpine-linux-musl" ]
           name: "Profiler test PHP v7.4 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-7.4"
+          abi_no: "20190902"
           triplet: "x86_64-alpine-linux-musl"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v8.0 - x86_64-alpine-linux-musl" ]
           name: "Profiler test PHP v8.0 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
+          abi_no: "20200930"
           triplet: "x86_64-alpine-linux-musl"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v8.1 - x86_64-alpine-linux-musl" ]
           name: "Profiler test PHP v8.1 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
+          abi_no: "20210902"
           triplet: "x86_64-alpine-linux-musl"
 
       - "cache cargo deps":
@@ -1870,35 +1890,41 @@ workflows:
 
       # These don't actually need the other job to complete, but this way
       # there are fewer resources used when the build step fails.
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v7.1 - x86_64-unknown-linux-gnu" ]
           name: "Profiler test PHP v7.1 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-7.1_centos-7"
+          abi_no: "20160303"
           triplet: "x86_64-unknown-linux-gnu"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v7.2 - x86_64-unknown-linux-gnu" ]
           name: "Profiler test PHP v7.2 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
+          abi_no: "20170718"
           triplet: "x86_64-unknown-linux-gnu"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v7.3 - x86_64-unknown-linux-gnu" ]
           name: "Profiler test PHP v7.3 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-7.3_centos-7"
+          abi_no: "20180731"
           triplet: "x86_64-unknown-linux-gnu"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v7.4 - x86_64-unknown-linux-gnu" ]
           name: "Profiler test PHP v7.4 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
+          abi_no: "20190902"
           triplet: "x86_64-unknown-linux-gnu"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v8.0 - x86_64-unknown-linux-gnu" ]
           name: "Profiler test PHP v8.0 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-8.0_centos-7"
+          abi_no: "20200930"
           triplet: "x86_64-unknown-linux-gnu"
-      - "cargo test":
+      - "profiling tests":
           requires: [ "Profiler PHP v8.1 - x86_64-unknown-linux-gnu" ]
           name: "Profiler test PHP v8.1 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
+          abi_no: "20210902"
           triplet: "x86_64-unknown-linux-gnu"
 
       - compile_alpine:

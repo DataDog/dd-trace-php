@@ -424,10 +424,17 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     // profiling is enabled or not.
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
+        // Don't log when profiling is disabled as that can mess up tests.
+        let profiling_log_level = if globals.profiling_enabled {
+            globals.profiling_log_level
+        } else {
+            LevelFilter::Off
+        };
+
         #[cfg(not(debug_assertions))]
-        logging::log_init(unsafe { std::mem::transmute(globals.profiling_log_level) });
+        logging::log_init(profiling_log_level);
         #[cfg(debug_assertions)]
-        log::set_max_level(globals.profiling_log_level);
+        log::set_max_level(profiling_log_level);
 
         if globals.profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
