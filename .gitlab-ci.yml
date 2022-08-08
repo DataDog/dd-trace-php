@@ -3,9 +3,6 @@ stages:
   - deploy
 
 variables:
-  LATEST_SETUP:
-    value: "https://github.com/DataDog/dd-trace-php/releases/download/0.77.0/datadog-setup.php"
-    description: "Location where to download latest datadog-setup.php script"
   LATEST_LIBRARY_x86_64_LINUX_GNU:
     value: "https://github.com/DataDog/dd-trace-php/releases/download/0.77.0/dd-library-php-0.77.0-x86_64-linux-gnu.tar.gz"
     description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive"
@@ -22,9 +19,9 @@ build:
   tags: [ "runner:main", "size:large" ]
   script:
     - echo $LATEST_LIBRARY_x86_64_LINUX_GNU | sed -E 's/.*dd-library-php-(.+)-x86_64-linux-gnu.tar.gz.*/UPSTREAM_TRACER_VERSION=\1/' >> upstream.env
-    - curl --fail --location --output dd-library-php-x86_64-linux-gnu.tar.gz $LATEST_LIBRARY_x86_64_LINUX_GNU
-    - curl --fail --location -O $LATEST_SETUP
-    - tar -cf datadog-setup-x86_64-linux-gnu.tar datadog-setup.php dd-library-php-x86_64-linux-gnu.tar.gz
+    - curl --fail --location --output 'dd-library-php-x86_64-linux-gnu.tar.gz' "$LATEST_LIBRARY_x86_64_LINUX_GNU"
+    - curl --fail --location -O "$(dirname $LATEST_LIBRARY_x86_64_LINUX_GNU)/datadog-setup.php"
+    - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
   artifacts:
     paths:
       - 'upstream.env'
