@@ -1,107 +1,37 @@
-FROM centos:7
-
 ARG PHP_MAJOR_MINOR
+
+FROM datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_centos-7
 
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
 
-RUN \
-    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-    && yum install -y \
-        autoconf \
-        bzip2-devel \
+RUN set -eux; \
+    yum install -y \
         elinks \
-        gcc \
         gdb \
-        git \
-        httpd-devel \
-        libcurl-devel \
-        libmemcached-devel \
-        libsodium-devel \
-        libsqlite3x-devel \
-        libxml2-devel \
-        libxslt-devel \
         nc \
-        nginx \
-        openssl-devel \
-        readline-devel \
-        unzip \
-        vim \
-        wget \
-    && debuginfo-install -y httpd \
-    && yum clean all \
-    && rm -rf /var/cache/yum
-
-ADD envs /envs
-
-# Downloading / Extracting PHP
-RUN set -eux; \
-    source /envs/${PHP_MAJOR_MINOR}.env; \
-    curl -L --output php.tar.gz ${PHP_DOWNLOAD_URL}; \
-    tar -xvf php.tar.gz -C /usr/local/src/; \
-    mv /usr/local/src/php-* /usr/local/src/php; \
-    rm php.tar.gz
-
-WORKDIR /usr/local/src/php
-
-RUN set -eux; \
-    mkdir -p /etc/php.d; \
-    ./configure \
-        --prefix=/usr/local \
-        --with-config-file-path=/etc \
-        --with-config-file-scan-dir=/etc/php.d \
-        --enable-calendar \
-        --enable-exif \
-        --enable-fpm \
-        --enable-ftp \
-        --enable-mysqlnd \
-        --enable-pcntl \
-        --enable-shmop \
-        --enable-sockets \
-        --enable-sysvmsg \
-        --enable-sysvsem \
-        --enable-sysvshm \
-        --with-apxs2 \
-        --with-bz2 \
-        --with-curl \
-        --with-fpm-group=www-data \
-        --with-fpm-user=www-data \
-        --with-gettext \
-        --with-mysqli \
-        --with-openssl \
-        --with-pdo-mysql \
-        --with-pear \
-        --with-readline \
-        --with-sodium \
-        --with-xsl \
-        --with-zlib \
-    ; \
-    make -j "$((`nproc`+1))"; \
-    make install
+        nginx; \
+    yum install -y --enablerepo=base-debuginfo httpd; \
+    yum clean all; \
+    rm -rf /var/cache/yum
 
 # Enabling Opcache, which is disabled by default
-RUN (echo "zend_extension=opcache.so"; echo "opcache.enable_cli=1") > /etc/php.d/opache.ini
+RUN for DIR in /opt/php/*; do (echo "zend_extension=opcache.so"; echo "opcache.enable_cli=1") > $DIR/conf.d/opcache.ini; done
 
 # Igbinary
 RUN set -eux; \
-    source /envs/${PHP_MAJOR_MINOR}.env; \
-    if [[ -z "${IGBINARY_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${IGBINARY_VERSION}"; fi; \
-    pecl install "igbinary${PECL_SUFFIX}"; \
-    echo "extension=igbinary.so" > /etc/php.d/igbinary.ini
+    pecl install "igbinary"; \
+    for DIR in /opt/php/*; do echo "extension=igbinary.so" > $DIR/conf.d/igbinary.ini; done
 
 # Memached
 RUN set -eux; \
-    source /envs/${PHP_MAJOR_MINOR}.env; \
-    if [[ -z "${MEMCACHED_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${MEMCACHED_VERSION}"; fi; \
-    printf 'yes' | pecl install "memcached${PECL_SUFFIX}"; \
-    echo "extension=memcached.so" > /etc/php.d/memcached.ini
+    printf 'yes' | pecl install "memcached"; \
+    for DIR in /opt/php/*; do echo "extension=memcached.so" > $DIR/conf.d/memcached.ini; done
 
 # Redis
 RUN set -eux; \
-    source /envs/${PHP_MAJOR_MINOR}.env; \
-    if [[ -z "${REDIS_VERSION:-}" ]]; then PECL_SUFFIX=""; else PECL_SUFFIX="-${REDIS_VERSION}"; fi; \
-    printf 'yes' | pecl install "redis${PECL_SUFFIX}"; \
-    echo "extension=redis.so" > /etc/php.d/redis.ini
+    printf 'yes' | pecl install "redis"; \
+    for DIR in /opt/php/*; do echo "extension=redis.so" > $DIR/conf.d/redis.ini; done
 
 # Create coredumps folder
 # If not generated, see: https://fromdual.com/hunting-the-core
@@ -114,20 +44,30 @@ ADD enable-coredump.sh /scripts/enable-coredump.sh
 ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /scripts/wait-for.sh
 RUN chmod +x /scripts/wait-for.sh
 
-# Installing vegeta
-RUN curl -L -o /tmp/vegeta.tar.gz https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz \
-    && tar -C /usr/bin -zxvf /tmp/vegeta.tar.gz vegeta \
-    && rm /tmp/vegeta.tar.gz
+# Installing vegeta (not released for aarch64)
+#    - Install golang
+RUN set -eux; \
+    GO_ARCHITECTURE=$(if [ `uname -m` = "aarch64" ]; then echo "arm64"; else echo "amd64"; fi); \
+    curl -L --output golang.tar.gz https://go.dev/dl/go1.18.3.linux-${GO_ARCHITECTURE}.tar.gz; \
+    rm -rf /usr/local/go && tar -C /usr/local -xzf golang.tar.gz;
+#    - Download vegeta
+RUN set -eux; \
+    curl -L --output src-vegeta.tar.gz https://github.com/tsenart/vegeta/archive/refs/tags/v12.8.4.tar.gz; \
+    tar -xvf src-vegeta.tar.gz; \
+    cd vegeta*; \
+    /usr/local/go/bin/go install; \
+    cp /root/go/bin/vegeta /usr/local/bin
 
 # Installing composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Preparing PHP
-RUN echo "date.timezone = UTC" > "/etc/php.d/00-adjust-timezones.ini"
+RUN for DIR in /opt/php/*; do echo "date.timezone = UTC" > $DIR/conf.d/00-adjust-timezones.ini; done
 
 # Preparing PHP-FPM
-RUN mkdir -p /usr/local/etc/php-fpm.d
-ADD php-fpm.conf /usr/local/etc/php-fpm.conf
+RUN for DIR in /opt/php/*; do mkdir -p $DIR/etc/php-fpm.d; done
+ADD php-fpm.conf /home/circleci/php-fpm.conf
+RUN for DIR in /opt/php/*; do cp /home/circleci/php-fpm.conf $DIR/etc/; done; rm /home/circleci/php-fpm.conf
 
 # Preparing NGINX
 RUN groupadd www-data

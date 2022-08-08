@@ -42,7 +42,9 @@ services:
     volumes:
       - {{project_root}}:/dd-trace-php
       - ./app:/var/www/html
-      - ./www.php-fpm.conf:/usr/local/etc/php-fpm.d/www.conf
+      - ./www.php-fpm.conf:/opt/php/{{php_version}}/etc/php-fpm.d/www.conf
+      - ./www.php-fpm.conf:/opt/php/{{php_version}}-debug/etc/php-fpm.d/www.conf
+      - ./www.php-fpm.conf:/opt/php/{{php_version}}-zts/etc/php-fpm.d/www.conf
       - ./www.apache.conf:/etc/httpd/conf.d/www.conf
       - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
       - ./cli-runner.sh:/cli-runner.sh

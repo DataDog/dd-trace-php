@@ -1,5 +1,7 @@
-ARG baseImage="datadog/dd-trace-ci:centos-7"
-FROM ${baseImage} as base
+FROM datadog/dd-trace-ci:centos-7 as base
+
+ENV PHP_SRC_DIR=/usr/local/src/php
+ENV PHP_INSTALL_DIR=/opt/php
 
 ARG phpVersion
 ENV PHP_INSTALL_DIR_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-zts
@@ -17,24 +19,23 @@ RUN set -eux; \
     (echo "${phpSha256Hash}  /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
-    ${PHP_SRC_DIR}/buildconf --force;
-
-FROM base as build
+    [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || ${PHP_SRC_DIR}/buildconf --force;
 COPY php-${PHP_VERSION}/configure.sh /root/
 
-FROM build as php-zts
+FROM base as php-zts
 RUN bash -c 'set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php \
     && /root/configure.sh \
-        --enable-zts \
+        --enable-$(if [ $(expr substr ${PHP_VERSION} 1 1) = 7 ]; then echo maintainer-; fi)zts \
         --prefix=${PHP_INSTALL_DIR_ZTS} \
         --with-config-file-path=${PHP_INSTALL_DIR_ZTS} \
         --with-config-file-scan-dir=${PHP_INSTALL_DIR_ZTS}/conf.d \
     && make -j 2 \
     && make install \
+    && cp .libs/libphp*.so ${PHP_INSTALL_DIR_ZTS}/lib/apache2handler-libphp.so \
     && mkdir -p ${PHP_INSTALL_DIR_ZTS}/conf.d'
 
-FROM build as php-debug
+FROM base as php-debug
 RUN bash -c 'set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php \
     && /root/configure.sh \
@@ -44,9 +45,10 @@ RUN bash -c 'set -eux; \
         --with-config-file-scan-dir=${PHP_INSTALL_DIR_DEBUG_NTS}/conf.d \
     && make -j 2 \
     && make install \
+    && cp .libs/libphp*.so ${PHP_INSTALL_DIR_DEBUG_NTS}/lib/apache2handler-libphp.so \
     && mkdir -p ${PHP_INSTALL_DIR_DEBUG_NTS}/conf.d'
 
-FROM build as php-nts
+FROM base as php-nts
 RUN bash -c 'set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php \
     && /root/configure.sh \
@@ -55,6 +57,7 @@ RUN bash -c 'set -eux; \
         --with-config-file-scan-dir=${PHP_INSTALL_DIR_NTS}/conf.d \
     && make -j 2 \
     && make install \
+    && cp .libs/libphp*.so ${PHP_INSTALL_DIR_NTS}/lib/apache2handler-libphp.so \
     && mkdir -p ${PHP_INSTALL_DIR_NTS}/conf.d'
 
 FROM base as final
@@ -62,6 +65,10 @@ COPY --from=php-zts $PHP_INSTALL_DIR_ZTS $PHP_INSTALL_DIR_ZTS
 COPY --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
 COPY --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS
 
+COPY switch-php /usr/local/bin/
+
 RUN set -eux; \
+    # Enable the apache config \
+    echo "LoadModule php$(if [ $(expr substr ${PHP_VERSION} 1 1) = 7 ]; then echo 7; fi)_module modules/mod_libphp.so" | tee /etc/httpd/conf.modules.d/99-php.conf; \
 # Set the default PHP version
     switch-php ${PHP_VERSION};

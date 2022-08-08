@@ -6,11 +6,16 @@ services:
     build:
       context: .
       dockerfile: base.Dockerfile
+      x-bake: &bake
+        platforms:
+          - linux/arm64
+          - linux/amd64
 
   php-7.0:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.0"
         phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
@@ -20,7 +25,8 @@ services:
   php-7.1:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.1"
         phpTarGzUrl: https://www.php.net/distributions/php-7.1.33.tar.gz
@@ -30,7 +36,8 @@ services:
   php-7.2:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.2"
         phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
@@ -40,7 +47,8 @@ services:
   php-7.3:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.3"
         phpTarGzUrl: https://www.php.net/distributions/php-7.3.33.tar.gz
@@ -50,7 +58,8 @@ services:
   php-7.4:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.4"
         phpTarGzUrl: https://www.php.net/distributions/php-7.4.30.tar.gz
@@ -60,7 +69,8 @@ services:
   php-8.0:
     build:
       context: .
-      dockerfile: php8.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "8.0"
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.21.tar.gz
@@ -70,7 +80,8 @@ services:
   php-8.1:
     build:
       context: .
-      dockerfile: php8.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "8.1"
         phpTarGzUrl: https://www.php.net/distributions/php-8.1.8.tar.gz

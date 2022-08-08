@@ -18,3 +18,4 @@ ln -sf /opt/php/${phpVersion}/bin/php-config /usr/local/bin/php-config
 ln -sf /opt/php/${phpVersion}/bin/phpdbg /usr/local/bin/phpdbg
 ln -sf /opt/php/${phpVersion}/bin/phpize /usr/local/bin/phpize
 ln -sf /opt/php/${phpVersion}/sbin/php-fpm /usr/local/bin/php-fpm
+ln -sf /opt/php/${phpVersion}/lib/apache2handler-libphp.so /etc/httpd/modules/mod_libphp.so
