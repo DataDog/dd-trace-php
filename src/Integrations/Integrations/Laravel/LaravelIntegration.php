@@ -133,6 +133,28 @@ class LaravelIntegration extends Integration
             }
         );
 
+        \DDTrace\trace_method(
+            'Illuminate\Queue\Worker',
+            'process',
+            function (SpanData $span, array $args) {
+                list( , $job) = $args;
+
+                $payload = $job->payload();
+                $span->resource = \Illuminate\Queue\Jobs\JobName::resolve($job->getName(), $payload);
+                $span->name = 'laravel.queue.worker';
+                $span->type = Type::MESSAGE_CONSUMER;
+
+                /** @var ?int $pushedAt */
+                $pushedAt = isset($payload['pushedAt']) &&
+                $payload['pushedAt'] !== '' ?
+                    (int) $payload['pushedAt'] : null;
+                $span->meta = [
+                    'waitTime' => $pushedAt ? (microtime(true) - $pushedAt) : false,
+                    'pushedAt' => $pushedAt ? date('c', $pushedAt) : false,
+                ];
+            }
+        );
+
         \DDTrace\trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
             $span->name = 'laravel.view.render';
             $span->type = Type::WEB_SERVLET;
