@@ -235,8 +235,8 @@ static zend_string *dd_ipaddr_to_zstr(const ipaddr *ipaddr) {
     return zend_string_init(res, strlen(res), 0);
 }
 
-static bool dd_parse_ip_address(const char *_addr, size_t addr_len, ipaddr *out);
-static bool dd_parse_ip_address_maybe_port_pair(const char *addr, size_t addr_len, ipaddr *out);
+static bool dd_parse_ip_address(const char *_addr, size_t addr_len, bool ip_or_error, ipaddr *out);
+static bool dd_parse_ip_address_maybe_port_pair(const char *addr, size_t addr_len, bool ip_or_error, ipaddr *out);
 
 static bool dd_parse_x_forwarded_for(zend_string *zvalue, ipaddr *out) {
     const char *value = ZSTR_VAL(zvalue);
@@ -246,7 +246,7 @@ static bool dd_parse_x_forwarded_for(zend_string *zvalue, ipaddr *out) {
         while (value < end && *value == ' ') ++value;
         const char *comma = memchr(value, ',', end - value);
         const char *end_cur = comma ? comma : end;
-        succ = dd_parse_ip_address_maybe_port_pair(value, end_cur - value, out);
+        succ = dd_parse_ip_address_maybe_port_pair(value, end_cur - value, true, out);
         if (succ) {
             succ = !dd_is_private(out);
         }
@@ -308,7 +308,7 @@ static bool dd_parse_forwarded(zend_string *zvalue, ipaddr *out) {
                     break;
                 }
                 if (consider_value) {
-                    bool succ = dd_parse_ip_address_maybe_port_pair(start, token_end - start, out);
+                    bool succ = dd_parse_ip_address_maybe_port_pair(start, token_end - start, true, out);
                     if (succ && !dd_is_private(out)) {
                         return true;
                     }
@@ -321,7 +321,7 @@ static bool dd_parse_forwarded(zend_string *zvalue, ipaddr *out) {
                     if (consider_value) {
                         // ip addresses can't contain quotes, so we don't try to
                         // unescape them
-                        bool succ = dd_parse_ip_address_maybe_port_pair(start, r - start, out);
+                        bool succ = dd_parse_ip_address_maybe_port_pair(start, r - start, true, out);
                         if (succ && !dd_is_private(out)) {
                             return true;
                         }
@@ -375,7 +375,9 @@ static bool dd_parse_via(zend_string *zvalue, ipaddr *out) {
         // we can have a trailing comment, so try find next whitespace
         end_cur = _skip_non_ws(p, end_cur);
 
-        succ = dd_parse_ip_address_maybe_port_pair(p, end_cur - p, out);
+        //At this point, p can contain either an IP or a pseudonym according to rfc7230
+        //Try to parse IP but if not, avoid logging errors
+        succ = dd_parse_ip_address_maybe_port_pair(p, end_cur - p, false, out);
         if (succ) {
             succ = !dd_is_private(out);
             if (succ) {
@@ -390,14 +392,14 @@ static bool dd_parse_via(zend_string *zvalue, ipaddr *out) {
 }
 
 static bool dd_parse_plain(zend_string *zvalue, ipaddr *out) {
-    return dd_parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), out) && !dd_is_private(out);
+    return dd_parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), true, out) && !dd_is_private(out);
 }
 
 static bool dd_parse_plain_raw(zend_string *zvalue, ipaddr *out) {
-    return dd_parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), out);
+    return dd_parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), true, out);
 }
 
-static bool dd_parse_ip_address(const char *_addr, size_t addr_len, ipaddr *out) {
+static bool dd_parse_ip_address(const char *_addr, size_t addr_len, bool ip_or_error, ipaddr *out) {
     if (addr_len == 0) {
         return false;
     }
@@ -411,7 +413,9 @@ static bool dd_parse_ip_address(const char *_addr, size_t addr_len, ipaddr *out)
     if (ret != 1) {
         ret = inet_pton(AF_INET6, addr, &out->v6);
         if (ret != 1) {
-            ddtrace_log_errf("Not recognized as IP address: \"%s\"", addr);
+            if (ip_or_error) {
+                ddtrace_log_errf("Not recognized as IP address: \"%s\"", addr);
+            }
             res = false;
             goto err;
         }
@@ -437,7 +441,7 @@ err:
     return res;
 }
 
-static bool dd_parse_ip_address_maybe_port_pair(const char *addr, size_t addr_len, ipaddr *out) {
+static bool dd_parse_ip_address_maybe_port_pair(const char *addr, size_t addr_len, bool ip_or_error, ipaddr *out) {
     if (addr_len == 0) {
         return false;
     }
@@ -446,15 +450,15 @@ static bool dd_parse_ip_address_maybe_port_pair(const char *addr, size_t addr_le
         if (!pos_close) {
             return false;
         }
-        return dd_parse_ip_address(addr + 1, pos_close - (addr + 1), out);
+        return dd_parse_ip_address(addr + 1, pos_close - (addr + 1), ip_or_error, out);
     }
 
     const char *colon = memchr(addr, ':', addr_len);
     if (colon && memrchr(addr, ':', addr_len) == colon) { //There is one and only one colon
-        return dd_parse_ip_address(addr, colon - addr, out);
+        return dd_parse_ip_address(addr, colon - addr, ip_or_error, out);
     }
 
-    return dd_parse_ip_address(addr, addr_len, out);
+    return dd_parse_ip_address(addr, addr_len, ip_or_error, out);
 }
 
 #define CT_HTONL(x)                                                                          \

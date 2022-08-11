@@ -66,7 +66,8 @@ test('via', '1.0 127.0.0.1, HTTP/1.1 [2001::1]:8888');
 test('via', 'HTTP/1.1 [2001::1, HTTP/1.1 [2001::2]');
 test('via', '8.8.8.8');
 test('via', '8.8.8.8, 1.0 9.9.9.9:8888,');
-test('via', '1.0 bad_ip_address, 1.0 9.9.9.9:8888,');
+test('via', '1.0 pseudonym, 1.0 9.9.9.9:8888,');
+test('via', '1.0 172.32.255.1 comment');
 test('via', ",,8.8.8.8  127.0.0.1 6.6.6.6, 1.0\t  1.1.1.1\tcomment,");
 test('via', '2001:abcf:1f::55');
 
@@ -213,9 +214,11 @@ NULL
 via: 8.8.8.8, 1.0 9.9.9.9:8888,
 string(7) "9.9.9.9"
 
-via: 1.0 bad_ip_address, 1.0 9.9.9.9:8888,
-Not recognized as IP address: "bad_ip_address"
+via: 1.0 pseudonym, 1.0 9.9.9.9:8888,
 string(7) "9.9.9.9"
+
+via: 1.0 172.32.255.1 comment
+string(12) "172.32.255.1"
 
 via: ,,8.8.8.8  127.0.0.1 6.6.6.6, 1.0	  1.1.1.1	comment,
 string(7) "1.1.1.1"
