@@ -122,7 +122,7 @@ ddtrace_span_fci *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execute
 
         zval zv;
         Z_PTR(zv) = span_fci;
-        Z_TYPE_INFO(zv) = 1;
+        Z_TYPE_INFO(zv) = 2;
         zend_hash_index_add_new(&DDTRACE_G(traced_spans), index, &zv);
     }
     return span_fci;
@@ -130,7 +130,7 @@ ddtrace_span_fci *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execute
 
 void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
     zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
-    if (--Z_TYPE_INFO_P(span_zv) == 0) {
+    if (--Z_TYPE_INFO_P(span_zv) == 1) {
         ddtrace_span_fci *span_fci = Z_PTR_P(span_zv);
         if (span_fci->span.duration != DDTRACE_DROPPED_SPAN) {
             if (keep) {
