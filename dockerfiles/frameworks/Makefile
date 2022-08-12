@@ -13,9 +13,9 @@ all: help
 DDTRACE_DEB=$(ROOT_DIR)/nginx_file_server/ddtrace.deb
 $(DDTRACE_DEB):
 ifdef CI
-	cp build/packages/*.deb "$@"
+	cp build/packages/*$(shell [ $(shell uname -m) = "aarch64" ] && echo aarch64 || echo amd64)*.deb "$@"
 else
-	curl -L -o "$@" "https://github.com/DataDog/dd-trace-php/releases/download/$(VERSION_TO_INSTALL)/datadog-php-tracer_$(VERSION_TO_INSTALL)_amd64.deb"
+	curl -L -o "$@" "https://github.com/DataDog/dd-trace-php/releases/download/$(VERSION_TO_INSTALL)/datadog-php-tracer_$(VERSION_TO_INSTALL)_$(shell [ $(shell uname -m) = "aarch64" ] && echo aarch64 || echo amd64).deb"
 endif
 
 .PHONY: build_file_server publish_file_server

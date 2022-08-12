@@ -895,7 +895,7 @@ static void *_dd_writer_loop(void *_) {
     sigaddset(&sigset, SIGUSR2);
     pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 
-    struct _writer_loop_data_t *writer = _dd_get_writer();
+    struct _writer_loop_data_t *volatile writer = _dd_get_writer();
 
 #if HAVE_LINUX_SECUREBITS_H
     if (writer->set_secbit) {
@@ -920,7 +920,11 @@ static void *_dd_writer_loop(void *_) {
     }
 #endif
 
+    // nothing we can do here, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61118
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclobbered"
     pthread_cleanup_push(_dd_writer_loop_cleanup, writer);
+#pragma GCC diagnostic pop
 
     bool running = true;
     _dd_signal_writer_started(writer);

@@ -105,7 +105,7 @@ services:
     image: "memcached:1.5-alpine"
 
   httpbin_integration:
-    image: kennethreitz/httpbin
+    image: kong/httpbin
     ports:
       - "8765:80"
 
