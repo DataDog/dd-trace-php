@@ -2,19 +2,18 @@ use crate::bindings::{
     datadog_php_profiling_get_profiling_context, zend_execute_data, zend_function, zend_string,
     ZEND_INTERNAL_FUNCTION, ZEND_USER_FUNCTION,
 };
-use crate::{RequestLocals, Uri, PHP_VERSION};
+use crate::{AgentEndpoint, RequestLocals, PHP_VERSION};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use ddprof::exporter::{File, Tag};
-use ddprof::profiles;
-use ddprof::profiles::api::{Function, Line, Location, Period, Sample};
+use datadog_profiling::exporter::{Endpoint, File, Tag};
+use datadog_profiling::profile;
+use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
 use log::{debug, error, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
-use std::error::Error;
 use std::ffi::CStr;
 use std::hash::Hash;
 use std::os::raw::c_char;
-use std::str::{FromStr, Utf8Error};
+use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -99,7 +98,7 @@ pub struct Label {
     pub value: LabelValue,
 }
 
-impl<'a> From<&'a Label> for profiles::api::Label<'a> {
+impl<'a> From<&'a Label> for profile::api::Label<'a> {
     fn from(label: &'a Label) -> Self {
         let key = label.key.as_ref();
         match &label.value {
@@ -136,7 +135,7 @@ pub struct ValueType {
 pub struct ProfileIndex {
     pub sample_types: Vec<ValueType>,
     pub tags: Vec<Tag>,
-    pub uri: String,
+    pub endpoint: Box<AgentEndpoint>,
 }
 
 #[derive(Debug)]
@@ -341,7 +340,7 @@ struct TimeCollector {
 impl TimeCollector {
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<ProfileIndex, profiles::Profile>,
+        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
         last_export: &WallTime,
     ) -> WallTime {
         let wall_export = WallTime::now();
@@ -374,21 +373,21 @@ impl TimeCollector {
     /// makes sense to use an older time than now because if the profiler was
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
-    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> profiles::Profile {
+    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> profile::Profile {
         let sample_types = message
             .key
             .sample_types
             .iter()
-            .map(|sample_type| profiles::api::ValueType {
+            .map(|sample_type| profile::api::ValueType {
                 r#type: sample_type.r#type.borrow(),
                 unit: sample_type.unit.borrow(),
             })
             .collect();
 
         let period = WALL_TIME_PERIOD.as_nanos();
-        profiles::ProfileBuilder::new()
+        profile::ProfileBuilder::new()
             .period(Some(Period {
-                r#type: profiles::api::ValueType {
+                r#type: profile::api::ValueType {
                     r#type: WALL_TIME_PERIOD_TYPE.r#type.borrow(),
                     unit: WALL_TIME_PERIOD_TYPE.unit.borrow(),
                 },
@@ -401,10 +400,10 @@ impl TimeCollector {
 
     fn handle_message(
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, profiles::Profile>,
+        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
         started_at: &WallTime,
     ) {
-        let profile: &mut profiles::Profile = if let Some(value) = profiles.get_mut(&message.key) {
+        let profile: &mut profile::Profile = if let Some(value) = profiles.get_mut(&message.key) {
             value
         } else {
             profiles.insert(
@@ -423,7 +422,7 @@ impl TimeCollector {
             .value
             .labels
             .iter()
-            .map(profiles::api::Label::from)
+            .map(profile::api::Label::from)
             .collect();
 
         for frame in &message.value.frames {
@@ -459,7 +458,7 @@ impl TimeCollector {
 
     pub fn run(&self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, profiles::Profile> = HashMap::with_capacity(1);
+        let mut profiles: HashMap<ProfileIndex, profile::Profile> = HashMap::with_capacity(1);
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
@@ -514,7 +513,7 @@ impl TimeCollector {
 
 struct UploadMessage {
     index: ProfileIndex,
-    profile: profiles::Profile,
+    profile: profile::Profile,
     end_time: SystemTime,
     duration: Option<Duration>,
 }
@@ -524,14 +523,13 @@ struct Uploader {
 }
 
 impl Uploader {
-    fn upload(message: UploadMessage) -> Result<u16, Box<dyn Error>> {
+    fn upload(message: UploadMessage) -> anyhow::Result<u16> {
         let index = message.index;
         let profile = message.profile;
 
-        // For next libdatadog release:
-        // let endpoint = ddprof::exporter::config::agent(Uri::from_str(index.uri.as_str())?)?;
-        let endpoint = ddprof::exporter::Endpoint::agent(Uri::from_str(index.uri.as_str())?)?;
-        let exporter = ddprof::exporter::ProfileExporterV3::new("php", Some(index.tags), endpoint)?;
+        let endpoint: Endpoint = (&*index.endpoint).try_into()?;
+        let exporter =
+            datadog_profiling::exporter::ProfileExporter::new("php", Some(index.tags), endpoint)?;
         let serialized = profile.serialize(Some(message.end_time), message.duration)?;
         let start = serialized.start.into();
         let end = serialized.end.into();
@@ -541,7 +539,7 @@ impl Uploader {
         }];
         let timeout = Duration::from_secs(10);
         let request = exporter.build(start, end, files, None, timeout)?;
-        debug!("Sending profile to: {}", request.uri());
+        debug!("Sending profile to: {}", index.endpoint);
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())
     }
@@ -741,7 +739,7 @@ impl Profiler {
                     key: ProfileIndex {
                         sample_types,
                         tags,
-                        uri: locals.uri.clone(),
+                        endpoint: locals.uri.clone(),
                     },
                     value: SampleData {
                         frames,

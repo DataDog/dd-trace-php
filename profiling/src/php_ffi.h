@@ -53,14 +53,10 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog_php_profiling)
     zend_bool *vm_interrupt_addr;
 
     // The strings will be interned but potentially only for the request, so be
-    // careful to not use them outside of a request (such as from other
-    // threads).
+    // careful to not use them outside a request (such as from other threads).
     datadog_php_str env;
     datadog_php_str service;
     datadog_php_str version;
-    datadog_php_str trace_agent_host;
-    datadog_php_str trace_agent_port;
-    datadog_php_str trace_agent_url;
 ZEND_END_MODULE_GLOBALS(datadog_php_profiling)
 // clang-format on
 
