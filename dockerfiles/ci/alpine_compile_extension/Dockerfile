@@ -7,6 +7,7 @@ WORKDIR /app
 # This is just to avoid an upload issue I was hitting with large layers.
 RUN set -eux; \
     apk add --no-cache \
+        bash \
         build-base \
         curl-dev \
         libedit-dev \

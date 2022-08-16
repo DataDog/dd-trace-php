@@ -7,7 +7,7 @@
 ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚═════╝
 
 The following PHP versions are supported:
-    nts, debug, debug-zts
+    VERSIONS
 
 To switch PHP versions run:
     $ switch-php <version>

@@ -5,11 +5,11 @@ The older images can be found in the [DataDog/dd-trace-ci](https://github.com/Da
 Build and push a specific image:
 
 ```
-docker-compose build --no-cache --pull <image_name> && docker-compose push <image_name>
+docker buildx bake --no-cache --pull --push <image_name>
 ```
 
 Build and push all images:
 
 ```
-docker-compose build --no-cache --pull && docker-compose push
+docker buildx bake --no-cache --pull --push
 ```

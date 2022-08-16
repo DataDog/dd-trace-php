@@ -28,7 +28,6 @@ set -u
 
 apk add --no-cache \
     autoconf \
-    bash \
     coreutils \
     g++ \
     gcc \
