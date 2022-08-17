@@ -95,9 +95,8 @@ fn generate_bindings(php_config_includes: &str) {
         .blocklist_item("zend_module_entry")
         .blocklist_item("zend_result")
         .blocklist_item("zend_register_extension")
-        // Block our own globals
-        .blocklist_item("zend_datadog_php_profiling_globals")
-        .blocklist_item("datadog_php_profiling_globals_get")
+        // Block a few of functions that we'll provide defs for manually
+        .blocklist_item("datadog_php_profiling_vm_interrupt_addr")
         // I had to block these for some reason *shrug*
         .blocklist_item("FP_INFINITE")
         .blocklist_item("FP_INT_DOWNWARD")

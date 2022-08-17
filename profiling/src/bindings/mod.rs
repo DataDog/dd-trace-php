@@ -2,10 +2,8 @@ mod ffi;
 
 pub use ffi::*;
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
-use log::LevelFilter;
-use std::ffi::CStr;
-use std::str::Utf8Error;
-use std::sync::atomic::{AtomicBool, AtomicU32};
+use std::ffi::{CStr, CString};
+use std::sync::atomic::AtomicBool;
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
@@ -174,42 +172,27 @@ impl Default for ZendExtension {
     }
 }
 
-impl<'a> TryFrom<&'a datadog_php_str> for &'a str {
-    type Error = Utf8Error;
-
-    fn try_from(value: &'a datadog_php_str) -> Result<Self, Self::Error> {
-        let slice =
-            unsafe { std::slice::from_raw_parts(value.ptr as *const u8, value.size as usize) };
-        std::str::from_utf8(slice)
-    }
-}
-
-impl Default for datadog_php_str {
-    fn default() -> Self {
-        Self {
-            ptr: b"\0".as_ptr() as *const c_char,
-            size: 0,
-        }
-    }
-}
-
 #[repr(C)]
 pub struct EfreePtr<T> {
     ptr: *mut T,
 }
 
 impl EfreePtr<c_char> {
-    /// Converts the possibly-null string into an Option<String>, treating an
+    /// Converts the possibly-null string into an Option<CString>, treating an
     /// empty string as a None.
-    pub fn into_string(self) -> Option<String> {
+    pub fn into_c_string(self) -> Option<CString> {
         if !self.ptr.is_null() {
             /* Safety: If this is invalid when non-null, then someone else has
              * messed up already, nothing we can do really.
              */
             let cstr = unsafe { CStr::from_ptr(self.ptr) };
-            let maybe_str = cstr.to_str().ok();
+
             // treat empty strings the same as no string
-            maybe_str.filter(|str| !str.is_empty()).map(String::from)
+            if cstr.to_bytes().is_empty() {
+                return None;
+            }
+
+            Some(cstr.to_owned())
         } else {
             None
         }
@@ -229,9 +212,10 @@ extern "C" {
     /// efree'd, hence custom definition.
     pub fn sapi_getenv(name: *const c_char, name_len: size_t) -> EfreePtr<c_char>;
 
-    /// This is just here for IDE completion; the bindgen'd code doesn't
-    /// autocomplete and I use this function quite a bit.
-    pub fn datadog_php_profiling_globals_get<'a>() -> &'a mut DatadogPhpProfilingGlobals;
+    /// Retrieves the VM interrupt address of the calling PHP thread.
+    /// # Safety
+    /// Must be called from a PHP thread during a request.
+    pub fn datadog_php_profiling_vm_interrupt_addr() -> *const AtomicBool;
 
     /// Registers the extension. Note that it's kept in a zend_llist and gets
     /// pemalloc'd + memcpy'd into place. The engine says this is a mutable
@@ -241,35 +225,6 @@ extern "C" {
 
     #[cfg(php7)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
-}
-
-#[repr(C)]
-pub struct DatadogPhpProfilingGlobals {
-    pub profiling_enabled: bool,
-    pub profiling_experimental_cpu_time_enabled: bool,
-    pub interrupt_count: AtomicU32,
-    pub profiling_log_level: LevelFilter,
-    pub vm_interrupt_addr: *const AtomicBool,
-    pub env: datadog_php_str,
-    pub service: datadog_php_str,
-    pub version: datadog_php_str,
-}
-
-pub use DatadogPhpProfilingGlobals as zend_datadog_php_profiling_globals;
-
-impl Default for DatadogPhpProfilingGlobals {
-    fn default() -> Self {
-        Self {
-            profiling_enabled: false,
-            profiling_experimental_cpu_time_enabled: true,
-            profiling_log_level: LevelFilter::Off,
-            vm_interrupt_addr: std::ptr::null(),
-            interrupt_count: AtomicU32::new(0),
-            env: datadog_php_str::default(),
-            service: datadog_php_str::default(),
-            version: datadog_php_str::default(),
-        }
-    }
 }
 
 pub use zend_module_dep as ModuleDep;

@@ -6,23 +6,22 @@ mod sapi;
 
 use crate::profiling::Profiler;
 use bindings as zend;
-use bindings::{
-    datadog_php_str, sapi_getenv, DatadogPhpProfilingGlobals, ZendExtension, ZendResult,
-};
+use bindings::{sapi_getenv, ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
-use libc::{c_char, c_int, c_ulong, c_void};
+use libc::c_int;
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
 use sapi::Sapi;
+use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, Once};
 use std::time::Instant;
 
@@ -82,7 +81,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         zend::ModuleDep::end(),
     ];
 
-    let mut module = zend::ModuleEntry {
+    let module = zend::ModuleEntry {
         name: PROFILER_NAME.as_ptr(),
         module_startup_func: Some(minit),
         module_shutdown_func: Some(mshutdown),
@@ -90,25 +89,10 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         request_shutdown_func: Some(rshutdown),
         info_func: Some(minfo),
         version: PROFILER_VERSION.as_ptr(),
-        globals_size: std::mem::size_of::<DatadogPhpProfilingGlobals>(),
-        globals_ctor: Some(ginit),
-        globals_dtor: Some(gshutdown),
         post_deactivate_func: Some(prshutdown),
         deps: DEPS.as_ptr(),
         ..Default::default()
     };
-    #[cfg(php_zts)]
-    {
-        // todo: zts
-        module.globals_id_ptr = &mut zend::datadog_php_profiling_globals_id as *mut c_void;
-    }
-    #[cfg(not(php_zts))]
-    {
-        // Safety: the address is from a static value on NTS, and don't support ZTS yet.
-        module.globals_ptr = unsafe { zend::datadog_php_profiling_globals_get() }
-            as *mut zend::zend_datadog_php_profiling_globals
-            as *mut c_void;
-    }
 
     Box::leak(Box::new(module))
 }
@@ -140,8 +124,16 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
  * Be careful out there!
  */
 extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
+    /* When developing the extension, it's useful to see log messages that
+     * occur before the user can configure the log level. However, if we
+     * initialized the logger here unconditionally then they'd have no way to
+     * hide these messages. That's why it's done only for debug builds.
+     */
     #[cfg(debug_assertions)]
-    trace!("MINIT({}, {})", r#type, module_number);
+    {
+        logging::log_init(LevelFilter::Trace);
+        trace!("MINIT({}, {})", r#type, module_number);
+    }
 
     // Ignore unused result; use SAPI.get() which returns an Option if it's uninitialized.
     let _ = SAPI.get_or_try_init(|| {
@@ -237,33 +229,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-extern "C" fn ginit(global: *mut c_void) {
-    /* When developing the extension, it's useful to see log messages that
-     * occur before the user can configure the log level. However, if we
-     * initialized the logger here unconditionally then they'd have no way to
-     * hide these messages. That's why it's done only for debug builds.
-     */
-    #[cfg(debug_assertions)]
-    {
-        logging::log_init(LevelFilter::Trace);
-        trace!("GINIT({:p})", global);
-    }
-
-    /* Safety: The engine has allocated the globals to the right size and
-     * alignment, so it is safe to dereference this, but only when cast to
-     * MaybeUninit, as it's uninitialized (which is the point of this hook).
-     */
-    unsafe {
-        let global = global as *mut MaybeUninit<DatadogPhpProfilingGlobals>;
-        (*global).write(DatadogPhpProfilingGlobals::default());
-    }
-}
-
-extern "C" fn gshutdown(_global: *mut c_void) {
-    #[cfg(debug_assertions)]
-    trace!("GSHUTDOWN({:p})", _global);
-}
-
 extern "C" fn prshutdown() -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("PRSHUTDOWN");
@@ -301,27 +266,19 @@ fn parse_boolean(string: &str) -> Option<bool> {
     }
 }
 
-/// Intern the string for the duration of a request.
-/// # Safety
-/// Do not use the string for more than the request lifetime!
-unsafe fn intern(string: &Option<String>) -> datadog_php_str {
-    if let Some(val) = string {
-        if !val.is_empty() {
-            return zend::datadog_php_profiling_intern(
-                val.as_ptr() as *const c_char,
-                val.len() as c_ulong,
-                false,
-            );
-        }
-    }
-    datadog_php_str::default()
-}
-
 pub struct RequestLocals {
-    pub last_wall_time: Instant,
+    pub env: Option<String>,
+    pub interrupt_count: AtomicU32,
     pub last_cpu_time: Option<cpu_time::ThreadTime>,
+    pub last_wall_time: Instant,
+    pub profiling_enabled: bool,
+    pub profiling_experimental_cpu_time_enabled: bool,
+    pub profiling_log_level: LevelFilter, // Only used for minfo
+    pub service: Option<String>,
     pub tags: Vec<Tag>,
     pub uri: Box<AgentEndpoint>,
+    pub version: Option<String>,
+    pub vm_interrupt_addr: *const AtomicBool,
 }
 
 fn static_tags() -> Vec<Tag> {
@@ -337,10 +294,18 @@ fn static_tags() -> Vec<Tag> {
 
 thread_local! {
     static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals {
-        last_wall_time: Instant::now(),
+        env: None,
+        interrupt_count: AtomicU32::new(0),
         last_cpu_time: None,
+        last_wall_time: Instant::now(),
+        profiling_enabled: false,
+        profiling_experimental_cpu_time_enabled: true,
+        profiling_log_level: LevelFilter::Off,
+        service: None,
         tags: static_tags(),
         uri: Box::new(AgentEndpoint::default()),
+        version: None,
+        vm_interrupt_addr: std::ptr::null_mut(),
     });
 }
 
@@ -351,63 +316,51 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RINIT({}, {})", r#type, module_number);
 
-    // Safety: it's safe to call during rinit.
-    unsafe { zend::datadog_php_profiling_rinit() };
-
-    // Safety: globals pointer is valid during rinit.
-    let globals = unsafe { zend::datadog_php_profiling_globals_get() };
-
-    // Select agent endpoint
-    {
-        // Safety: called during rinit.
-        let environment = unsafe { config::Env::get() };
-
-        globals.profiling_enabled = environment
-            .profiling_enabled
-            .as_deref()
-            .and_then(parse_boolean)
-            .unwrap_or(false);
-
-        globals.profiling_experimental_cpu_time_enabled = environment
-            .profiling_experimental_cpu_time_enabled
-            .as_deref()
-            .or(environment.profiling_experimental_cpu_enabled.as_deref())
-            .and_then(parse_boolean)
-            .unwrap_or(true);
-
-        let profiling_log_level = environment
-            .profiling_log_level
-            .as_deref()
-            .and_then(|string| {
-                let string = string.to_ascii_uppercase();
-                LevelFilter::from_str(string.as_str()).ok()
-            })
-            .unwrap_or(LevelFilter::Off);
-
-        globals.profiling_log_level = profiling_log_level;
-        // Safety: these strings will not live past the request
-        unsafe {
-            globals.env = intern(&environment.env);
-            globals.service = intern(&environment.service);
-            globals.version = intern(&environment.version);
-        }
-
-        /* Do this always, not just if profiling is enabled, so that when
-         * phpinfo() or minfo() are queried that we get an accurate value.
-         */
-        REQUEST_LOCALS.with(|cell| {
+    // initialize the thread local storage and cache some items
+    let (log_level, profiling_enabled, profiling_experimental_cpu_time_enabled) = REQUEST_LOCALS
+        .with(|cell| {
             let mut locals = cell.borrow_mut();
+            // Safety: called during rinit.
+            let environment = unsafe { config::Env::get() };
             locals.uri = Box::new(detect_uri_from_env(&environment));
+            locals.env = environment.env;
+            locals.profiling_enabled = environment
+                .profiling_enabled
+                .as_deref()
+                .and_then(parse_boolean)
+                .unwrap_or(false);
+            locals.profiling_experimental_cpu_time_enabled = environment
+                .profiling_experimental_cpu_time_enabled
+                .as_deref()
+                .or(environment.profiling_experimental_cpu_enabled.as_deref())
+                .and_then(parse_boolean)
+                .unwrap_or(true);
+            locals.service = environment.service;
+            locals.version = environment.version;
+
+            // Safety: we are in rinit on a PHP thread.
+            locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
+
+            locals.profiling_log_level = environment
+                .profiling_log_level
+                .as_deref()
+                .and_then(|str| LevelFilter::from_str(str).ok())
+                .unwrap_or(LevelFilter::Off);
+
+            (
+                locals.profiling_log_level,
+                locals.profiling_enabled,
+                locals.profiling_experimental_cpu_time_enabled,
+            )
         });
-    }
 
     // At the moment, logging is truly global, so init it exactly once whether
     // profiling is enabled or not.
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         // Don't log when profiling is disabled as that can mess up tests.
-        let profiling_log_level = if globals.profiling_enabled {
-            globals.profiling_log_level
+        let profiling_log_level = if profiling_enabled {
+            log_level
         } else {
             LevelFilter::Off
         };
@@ -417,7 +370,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         #[cfg(debug_assertions)]
         log::set_max_level(profiling_log_level);
 
-        if globals.profiling_enabled {
+        if profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
              * modified at this point (safe to read values).
              */
@@ -437,7 +390,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 }
             }
             if let Err(err) = cpu_time::ThreadTime::try_now() {
-                if globals.profiling_experimental_cpu_time_enabled {
+                if profiling_experimental_cpu_time_enabled {
                     warn!(
                         "CPU Time collection was enabled but collection failed: {}",
                         err
@@ -448,7 +401,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                         err
                     );
                 }
-            } else if globals.profiling_experimental_cpu_time_enabled {
+            } else if profiling_experimental_cpu_time_enabled {
                 info!("CPU Time profiling enabled.");
             }
         }
@@ -467,31 +420,30 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         }
     };
 
-    if globals.profiling_enabled {
+    if profiling_enabled {
         REQUEST_LOCALS.with(|cell| {
             let mut locals = cell.borrow_mut();
 
             locals.last_wall_time = Instant::now();
-            if globals.profiling_experimental_cpu_time_enabled {
+            if locals.profiling_experimental_cpu_time_enabled {
                 let now = cpu_time::ThreadTime::try_now()
                     .expect("CPU time to work since it's worked before during this process");
                 locals.last_cpu_time = Some(now);
             }
 
+            // I can't figure out how to make the borrow checker happy without copying here :/
             let vars = [
-                ("service", globals.service, "unnamed-php-service"),
-                ("env", globals.env, ""),
-                ("version", globals.version, ""),
+                ("service", locals.service.clone(), "unnamed-php-service"),
+                ("env", locals.env.clone(), ""),
+                ("version", locals.version.clone(), ""),
             ];
 
             for (key, value, default_value) in vars {
-                if value.size > 0 && !value.ptr.is_null() {
-                    let result: Result<&str, _> = (&value).try_into();
-                    if let Ok(value) = result {
-                        log_add_tag(&mut locals, key, value);
-                    }
+                if let Some(value) = value {
+                    // the value should be non-empty here
+                    log_add_tag(&mut locals, key, value.into());
                 } else if !default_value.is_empty() {
-                    log_add_tag(&mut locals, key, default_value);
+                    log_add_tag(&mut locals, key, default_value.into());
                 }
             }
 
@@ -506,16 +458,17 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                     }
                 }
             }
-        });
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.add_interrupt(globals.vm_interrupt_addr, &globals.interrupt_count);
-        }
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                let interrupt_count_ptr = &locals.interrupt_count as *const AtomicU32;
+                profiler.add_interrupt(locals.vm_interrupt_addr, interrupt_count_ptr);
+            }
+        });
     }
     ZendResult::Success
 }
 
-fn log_add_tag(locals: &mut RefMut<RequestLocals>, key: &str, value: &str) {
+fn log_add_tag(locals: &mut RefMut<RequestLocals>, key: &str, value: Cow<'static, str>) {
     match Tag::new(key, value) {
         Ok(tag) => {
             locals.tags.push(tag);
@@ -576,18 +529,15 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RSHUTDOWN({}, {})", r#type, module_number);
 
-    // SAFETY: globals pointer is valid during rshutdown.
-    let globals = unsafe { zend::datadog_php_profiling_globals_get() };
-    if globals.profiling_enabled {
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.remove_interrupt(globals.vm_interrupt_addr, &globals.interrupt_count);
-        }
-
-        REQUEST_LOCALS.with(|cell| {
-            let mut locals = cell.borrow_mut();
+    REQUEST_LOCALS.with(|cell| {
+        let mut locals = cell.borrow_mut();
+        if locals.profiling_enabled {
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                profiler.remove_interrupt(locals.vm_interrupt_addr, &locals.interrupt_count);
+            }
             locals.tags = static_tags();
-        });
-    }
+        }
+    });
 
     ZendResult::Success
 }
@@ -600,60 +550,61 @@ unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
     trace!("MINFO({:p})", module);
 
     let module = &*module;
-    // SAFETY: TODO: is globals pointer valid during minfo?
-    let globals = zend::datadog_php_profiling_globals_get();
-
-    let yes: &[u8] = b"true\0";
-    let no: &[u8] = b"false\0";
-    zend::php_info_print_table_start();
-    zend::php_info_print_table_row(2, b"Version\0".as_ptr(), module.version);
-    zend::php_info_print_table_row(
-        2,
-        b"Profiling Enabled\0".as_ptr(),
-        if globals.profiling_enabled { yes } else { no },
-    );
-
-    zend::php_info_print_table_row(
-        2,
-        b"Experimental CPU Time Profiling Enabled\0".as_ptr(),
-        if globals.profiling_experimental_cpu_time_enabled {
-            yes
-        } else {
-            no
-        },
-    );
-
-    zend::php_info_print_table_row(
-        2,
-        b"Platform's CPU Time API Works\0".as_ptr(),
-        if cpu_time::ThreadTime::try_now().is_ok() {
-            yes
-        } else {
-            no
-        },
-    );
-
-    let mut log_level = format!("{}\0", globals.profiling_log_level);
-    log_level.make_ascii_lowercase();
-    zend::php_info_print_table_row(2, b"Profiling Log Level\0".as_ptr(), log_level.as_ptr());
 
     REQUEST_LOCALS.with(|cell| {
+        let locals = cell.borrow();
+        let yes: &[u8] = b"true\0";
+        let no: &[u8] = b"false\0";
+        zend::php_info_print_table_start();
+        zend::php_info_print_table_row(2, b"Version\0".as_ptr(), module.version);
+        zend::php_info_print_table_row(
+            2,
+            b"Profiling Enabled\0".as_ptr(),
+            if locals.profiling_enabled { yes } else { no },
+        );
+
+        zend::php_info_print_table_row(
+            2,
+            b"Experimental CPU Time Profiling Enabled\0".as_ptr(),
+            if locals.profiling_experimental_cpu_time_enabled {
+                yes
+            } else {
+                no
+            },
+        );
+
+        zend::php_info_print_table_row(
+            2,
+            b"Platform's CPU Time API Works\0".as_ptr(),
+            if cpu_time::ThreadTime::try_now().is_ok() {
+                yes
+            } else {
+                no
+            },
+        );
+
+        let mut log_level = format!("{}\0", locals.profiling_log_level);
+        log_level.make_ascii_lowercase();
+        zend::php_info_print_table_row(2, b"Profiling Log Level\0".as_ptr(), log_level.as_ptr());
+
         let key = b"Profiling Agent Endpoint\0".as_ptr();
-        let agent_endpoint = format!("{}\0", cell.borrow().uri.to_string());
+        let agent_endpoint = format!("{}\0", locals.uri);
         zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
+
+        let vars = [
+            (b"Application's Environment (DD_ENV)\0", &locals.env),
+            (b"Application's Service (DD_SERVICE)\0", &locals.service),
+            (b"Application's Version (DD_VERSION)\0", &locals.version),
+        ];
+
+        for (key, value) in vars {
+            let mut value = value.clone().unwrap_or_default();
+            value.push('\0');
+            zend::php_info_print_table_row(2, key, value.as_ptr());
+        }
+
+        zend::php_info_print_table_end();
     });
-
-    let vars = [
-        (b"Application's Environment (DD_ENV)\0", globals.env.ptr),
-        (b"Application's Service (DD_SERVICE)\0", globals.service.ptr),
-        (b"Application's Version (DD_VERSION)\0", globals.version.ptr),
-    ];
-
-    for (key, value) in vars {
-        zend::php_info_print_table_row(2, key, value);
-    }
-
-    zend::php_info_print_table_end();
 }
 
 extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
@@ -735,31 +686,29 @@ pub extern "C" fn datadog_profiling_runtime_id() -> profiling::Uuid {
 /// its sub-objects are valid.
 #[no_mangle]
 pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend::zend_execute_data) {
-    // SAFETY: globals pointer is valid during interrupt handler.
-    let globals = unsafe { zend::datadog_php_profiling_globals_get() };
-    if !globals.profiling_enabled {
-        return;
-    }
+    REQUEST_LOCALS.with(|cell| {
+        let mut locals = cell.borrow_mut();
+        if !locals.profiling_enabled {
+            return;
+        }
 
-    /* Other extensions/modules or the engine itself may trigger an interrupt,
-     * but given how expensive it is to gather a stack trace, it should only
-     * be done if we triggered it ourselves. So interrupt_count serves dual
-     * purposes 1) to track how many interrupts there were and 2) to ensure we
-     * don't collect on someone else's interrupt.
-     */
-    let interrupt_count = globals.interrupt_count.swap(0, Ordering::SeqCst);
-    if interrupt_count == 0 {
-        return;
-    }
+        /* Other extensions/modules or the engine itself may trigger an
+         * interrupt, but given how expensive it is to gather a stack trace,
+         * it should only be done if we triggered it ourselves. So
+         * interrupt_count serves dual purposes:
+         *  1. Track how many interrupts there were.
+         *  2. Ensure we don't collect on someone else's interrupt.
+         */
+        let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
+        if interrupt_count == 0 {
+            return;
+        }
 
-    if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-        REQUEST_LOCALS.with(|cell| {
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_time(execute_data, interrupt_count, cell.borrow_mut().deref_mut())
-            };
-        });
-    }
+            unsafe { profiler.collect_time(execute_data, interrupt_count, locals.deref_mut()) };
+        }
+    });
 }
 
 /// A wrapper for the `datadog_profiling_interrupt_function` to call the
