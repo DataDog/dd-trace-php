@@ -5,36 +5,6 @@ volumes:
 
 services:
 
-  agent:
-    image: datadog/agent:7
-    environment:
-      - DD_API_KEY=${DATADOG_API_KEY:-not_a_valid_api_key}
-      - DD_APM_ENABLED=true
-      - DD_APM_NON_LOCAL_TRAFFIC=true
-
-  redis:
-    image: redis:latest
-
-  httpbin:
-    image: kong/httpbin
-
-  memcached:
-    image: "memcached:1.5-alpine"
-
-  elasticsearch:
-    image: "elasticsearch:7.17.4"
-    environment:
-      - discovery.type=single-node
-
-  mysql:
-    image: mysql/mysql-server:8.0
-    command: --default-authentication-plugin=mysql_native_password
-    environment:
-      - MYSQL_ROOT_PASSWORD=test
-      - MYSQL_PASSWORD=test
-      - MYSQL_USER=test
-      - MYSQL_DATABASE=test
-
   php-test-{{identifier}}:
     image: {{image}}
     ulimits:
@@ -60,10 +30,12 @@ services:
         DURATION: ${DURATION}
         INSTALL_MODE: {{installation_method}}
         TEST_SCENARIO: {{identifier}}
-    depends_on:
-      - agent
-      - elasticsearch
-      - redis
-      - memcached
-      - mysql
-      - httpbin
+    networks:
+      - default
+      - randomized_tests
+
+
+networks:
+  randomized_tests:
+    name: randomized_tests_baseservices
+    external: true
