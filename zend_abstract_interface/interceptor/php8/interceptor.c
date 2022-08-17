@@ -73,13 +73,23 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
 #if defined(__x86_64__)
             "mov %" STACK_REG ", %%rsp"
 #elif defined(__aarch64__)
-            "mov sp, %" STACK_REG
+#ifdef __SANITIZE_ADDRESS__
+            "ldr x7, [sp, #72]\n\t" // magic, but I have no idea what else to do here
+#endif
+            "mov sp, %" STACK_REG "\n\t"
+#ifdef __SANITIZE_ADDRESS__
+            "str x7, [sp, #72]"
+#endif
 #endif
             : "+r"(ex), "+r"(rv), "+r"(hook_data), "+r"(jump_target)
 #ifdef __SANITIZE_ADDRESS__
                 , "+r"(fake_stack)
 #endif
-            : "r"(stacktarget));
+            : "r"(stacktarget)
+#if defined(__SANITIZE_ADDRESS__) && defined(__aarch64__)
+            : "x7"
+#endif
+            );
 
 #ifdef __SANITIZE_ADDRESS__
         __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);

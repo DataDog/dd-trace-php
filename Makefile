@@ -80,6 +80,9 @@ $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 $(SO_FILE): $(C_FILES) $(BUILD_DIR)/Makefile
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)"
 
+asan: $(C_FILES) $(BUILD_DIR)/Makefile
+	$(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS) -fsanitize=address" LDFLAGS="-fsanitize=address"
+
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
 

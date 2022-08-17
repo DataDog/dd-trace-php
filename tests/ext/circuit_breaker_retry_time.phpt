@@ -1,5 +1,7 @@
 --TEST--
 Test circuit breaker retrying functionality
+--SKIPIF--
+<?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow'); ?>
 --FILE--
 <?php
 function print_dd_tracer_circuit_breaker_is_closed(){
