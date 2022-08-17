@@ -586,12 +586,19 @@ jobs:
           command: |
             set -euo pipefail
             make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
-      - run:
-          name: Install CodeCov Uploader Dependencies
-          command: sudo apt install -y gpg
-      - codecov/upload:
-          file: tmp/coverage.info
-          upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
+      - when:
+          # codecov uploader only on amd64
+          condition:
+            matches:
+              pattern: "^[^.]+$"
+              value: << parameters.resource_class >>
+          steps:
+            - run:
+                name: Install CodeCov Uploader Dependencies
+                command: sudo apt install -y gpg
+            - codecov/upload:
+                file: tmp/coverage.info
+                upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
