@@ -24,7 +24,7 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
                 DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(open_spans_top)->span.span_id;
                 DDTRACE_G(trace_id) = DDTRACE_G(open_spans_top)->span.trace_id;
             }
-            ddtrace_free_span_stacks();
+            ddtrace_free_span_stacks(true);
             if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
                 ddtrace_push_root_span();
             }

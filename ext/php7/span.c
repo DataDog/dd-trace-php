@@ -28,24 +28,24 @@ void ddtrace_init_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static void dd_drop_span(ddtrace_span_fci *span) {
-    span->span.duration = DDTRACE_DROPPED_SPAN;
+static void dd_drop_span(ddtrace_span_fci *span, bool silent) {
+    span->span.duration = silent ? DDTRACE_SILENTLY_DROPPED_SPAN : DDTRACE_DROPPED_SPAN;
     span->next = NULL;
     OBJ_RELEASE(&span->span.std);
 }
 
-static void _free_span_stack(ddtrace_span_fci *span_fci) {
+static void _free_span_stack(ddtrace_span_fci *span_fci, bool silent) {
     while (span_fci != NULL) {
         ddtrace_span_fci *tmp = span_fci;
         span_fci = tmp->next;
-        dd_drop_span(tmp);
+        dd_drop_span(tmp, silent);
     }
 }
 
-void ddtrace_free_span_stacks(void) {
-    _free_span_stack(DDTRACE_G(open_spans_top));
+void ddtrace_free_span_stacks(bool silent) {
+    _free_span_stack(DDTRACE_G(open_spans_top), silent);
     DDTRACE_G(open_spans_top) = NULL;
-    _free_span_stack(DDTRACE_G(closed_spans_top));
+    _free_span_stack(DDTRACE_G(closed_spans_top), silent);
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
@@ -132,7 +132,7 @@ void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
     zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
     if (--Z_TYPE_INFO_P(span_zv) == 1) {
         ddtrace_span_fci *span_fci = Z_PTR_P(span_zv);
-        if (span_fci->span.duration != DDTRACE_DROPPED_SPAN) {
+        if (span_fci->span.duration != DDTRACE_DROPPED_SPAN && span_fci->span.duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
             if (keep) {
                 ddtrace_close_span(span_fci);
             } else {
@@ -275,12 +275,12 @@ void ddtrace_drop_top_open_span(void) {
     ++DDTRACE_G(dropped_spans_count);
     --DDTRACE_G(open_spans_count);
 
-    dd_drop_span(span_fci);
+    dd_drop_span(span_fci, false);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
     // The tracer supports only one trace per request so free any remaining open spans
-    _free_span_stack(DDTRACE_G(open_spans_top));
+    _free_span_stack(DDTRACE_G(open_spans_top), false);
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;

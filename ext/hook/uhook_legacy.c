@@ -211,7 +211,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
             if (get_DD_TRACE_ENABLED()) {
                 ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
             }
-        } else {
+        } else if (dyn->span->span.duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
             zval *exception_zv = ddtrace_spandata_property_exception(&dyn->span->span);
             if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
                 ZVAL_OBJ_COPY(exception_zv, EG(exception));
@@ -247,7 +247,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             if (get_DD_TRACE_ENABLED()) {
                 ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
             }
-        } else {
+        } else if (dyn->span->span.duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
             zval *exception_zv = ddtrace_spandata_property_exception(&dyn->span->span);
             if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
                 ZVAL_OBJ_COPY(exception_zv, EG(exception));
