@@ -79,14 +79,18 @@ final class PCNTLTest extends IntegrationTestCase
         $requests = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertCount(2, $requests);
-        foreach ($requests as $traces) {
-            $this->assertFlameGraph($traces, [
-                SpanAssertion::exists('synthetic.php'),
-            ]);
-        }
+        $this->assertFlameGraph($requests[1], [
+            SpanAssertion::exists('synthetic.php')->withChildren([
+                SpanAssertion::exists('pcntl_fork'),
+            ]),
+        ]);
+
+        $this->assertFlameGraph($requests[0], [
+            SpanAssertion::exists('synthetic.php'),
+        ]);
 
         $childSpan = $requests[0][0][0];
-        $parentSpan = $requests[1][0][0];
+        $parentSpan = $requests[1][0][1];
         $this->assertSame($childSpan["trace_id"], $parentSpan["trace_id"]);
         $this->assertSame($childSpan["parent_id"], $parentSpan["span_id"]);
     }
@@ -107,9 +111,10 @@ final class PCNTLTest extends IntegrationTestCase
         $this->assertSame("", $output);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('access-tracer-after-fork.php')->withChildren(
-                SpanAssertion::exists('parent')
-            ),
+            SpanAssertion::exists('access-tracer-after-fork.php')->withChildren([
+                SpanAssertion::exists('parent'),
+                SpanAssertion::exists('pcntl_fork'),
+            ]),
         ]);
     }
 
@@ -136,6 +141,7 @@ final class PCNTLTest extends IntegrationTestCase
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                SpanAssertion::exists('pcntl_fork'),
             ]),
         ]);
     }
@@ -162,6 +168,11 @@ final class PCNTLTest extends IntegrationTestCase
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                SpanAssertion::exists('pcntl_fork'),
+                SpanAssertion::exists('pcntl_fork'),
+                SpanAssertion::exists('pcntl_fork'),
+                SpanAssertion::exists('pcntl_fork'),
+                SpanAssertion::exists('pcntl_fork'),
             ]),
         ]);
 
@@ -190,6 +201,14 @@ final class PCNTLTest extends IntegrationTestCase
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                SpanAssertion::exists('pcntl_fork'),
+            ]),
+        ]);
+
+        $this->assertFlameGraph(array_shift($requests), [
+            SpanAssertion::exists('short-running-multiple-nested.php')->withChildren([
+                SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
+                SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
             ]),
         ]);
 
@@ -198,6 +217,7 @@ final class PCNTLTest extends IntegrationTestCase
                 SpanAssertion::exists('short-running-multiple-nested.php')->withChildren([
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                    SpanAssertion::exists('pcntl_fork'),
                 ]),
             ]);
         }
@@ -231,6 +251,7 @@ final class PCNTLTest extends IntegrationTestCase
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                    SpanAssertion::exists('pcntl_fork'),
                 ]),
             ]);
         }
@@ -270,11 +291,13 @@ final class PCNTLTest extends IntegrationTestCase
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                SpanAssertion::exists('pcntl_fork'),
             ]),
             SpanAssertion::exists('manual_tracing')->withChildren([
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                SpanAssertion::exists('pcntl_fork'),
             ]),
         ]);
     }

@@ -25,7 +25,7 @@ INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini file
 RUN_TESTS_IS_PARALLEL := $(shell test $(shell php-config --vernum) -gt 70399 && echo 1 || echo 0)
 
 ifeq ($(RUN_TESTS_IS_PARALLEL), 1)
-RUN_TESTS_EXTRA_ARGS := -j$(shell expr $(shell nproc) \* 3)
+RUN_TESTS_EXTRA_ARGS := -j$(shell nproc)
 else
 RUN_TESTS_EXTRA_ARGS :=
 endif

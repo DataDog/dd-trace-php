@@ -19,17 +19,25 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
         ddtrace_coms_clean_background_sender_after_fork();
         ddtrace_coms_curl_shutdown();
         ddtrace_seed_prng();
-        if (get_DD_TRACE_ENABLED()) {
-            if (DDTRACE_G(open_spans_top) != NULL) {
-                DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(open_spans_top)->span.span_id;
-                DDTRACE_G(trace_id) = DDTRACE_G(open_spans_top)->span.trace_id;
+            if (!get_DD_TRACE_FORKED_PROCESS()) {
+                ddtrace_disable_tracing_in_current_request();
             }
-            ddtrace_free_span_stacks(true);
-            if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
-                ddtrace_push_root_span();
+            if (get_DD_TRACE_ENABLED()) {
+                if (get_DD_DISTRIBUTED_TRACING()) {
+                    if (DDTRACE_G(open_spans_top) != NULL) {
+                        DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(open_spans_top)->span.span_id;
+                        DDTRACE_G(trace_id) = DDTRACE_G(open_spans_top)->span.trace_id;
+                    }
+                } else {
+                    DDTRACE_G(distributed_parent_trace_id) = 0;
+                    DDTRACE_G(trace_id) = 0;
+                }
+                ddtrace_free_span_stacks(true);
+                if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
+                    ddtrace_push_root_span();
+                }
             }
-        }
-        ddtrace_coms_init_and_start_writer();
+            ddtrace_coms_init_and_start_writer();
     }
 }
 

@@ -11,18 +11,31 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static void (*dd_pcntl_fork_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+#if PHP_VERSION_ID >= 80100
+static void (*dd_pcntl_rfork_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+#endif
+#if PHP_VERSION_ID >= 80200
+static void (*dd_pcntl_forkx_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+#endif
 
-ZEND_FUNCTION(ddtrace_pcntl_fork) {
-    dd_pcntl_fork_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+static void dd_handle_fork(zval *return_value) {
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
         ddtrace_coms_clean_background_sender_after_fork();
         ddtrace_coms_curl_shutdown();
         ddtrace_seed_prng();
+        if (!get_DD_TRACE_FORKED_PROCESS()) {
+            ddtrace_disable_tracing_in_current_request();
+        }
         if (get_DD_TRACE_ENABLED()) {
-            if (DDTRACE_G(open_spans_top) != NULL) {
-                DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(open_spans_top)->span.span_id;
-                DDTRACE_G(trace_id) = DDTRACE_G(open_spans_top)->span.trace_id;
+            if (get_DD_DISTRIBUTED_TRACING()) {
+                if (DDTRACE_G(open_spans_top) != NULL) {
+                    DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(open_spans_top)->span.span_id;
+                    DDTRACE_G(trace_id) = DDTRACE_G(open_spans_top)->span.trace_id;
+                }
+            } else {
+                DDTRACE_G(distributed_parent_trace_id) = 0;
+                DDTRACE_G(trace_id) = 0;
             }
             ddtrace_free_span_stacks(true);
             if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
@@ -32,6 +45,25 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
         ddtrace_coms_init_and_start_writer();
     }
 }
+
+ZEND_FUNCTION(ddtrace_pcntl_fork) {
+    dd_pcntl_fork_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    dd_handle_fork(return_value);
+}
+
+#if PHP_VERSION_ID >= 80100
+ZEND_FUNCTION(ddtrace_pcntl_rfork) {
+    dd_pcntl_rfork_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    dd_handle_fork(return_value);
+}
+#endif
+
+#if PHP_VERSION_ID >= 80200
+ZEND_FUNCTION(ddtrace_pcntl_forkx) {
+    dd_pcntl_forkx_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    dd_handle_fork(return_value);
+}
+#endif
 
 /* This function is called during process startup so all of the memory allocations should be
  * persistent to avoid using the Zend Memory Manager. This will avoid an accidental use after free.
@@ -53,6 +85,12 @@ void ddtrace_pcntl_handlers_startup(void) {
 
     dd_zif_handler handlers[] = {
         {ZEND_STRL("pcntl_fork"), &dd_pcntl_fork_handler, ZEND_FN(ddtrace_pcntl_fork)},
+#if PHP_VERSION_ID >= 80100
+        {ZEND_STRL("pcntl_rfork"), &dd_pcntl_rfork_handler, ZEND_FN(ddtrace_pcntl_rfork)},
+#endif
+#if PHP_VERSION_ID >= 80200
+        {ZEND_STRL("pcntl_forkx"), &dd_pcntl_forkx_handler, ZEND_FN(ddtrace_pcntl_forkx)},
+#endif
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {
