@@ -175,9 +175,11 @@ function install($options)
                                     "because there is no scan directory and no configuration file loaded.");
             }
 
-            print_warning("Performing an installation without a scan directory may result in fragile installations that are broken " .
-                        "by normal system upgrades. " .
-                        "It is advisable to use the configure switch --with-config-file-scan-dir when building PHP");
+            print_warning("Performing an installation without a scan directory may result in " .
+                        "fragile installations that are broken by normal system upgrades. " .
+                        "It is advisable to use the configure switch " .
+                        "--with-config-file-scan-dir " .
+                        "when building PHP");
         }
 
         // Copying the extension
