@@ -18,10 +18,13 @@ fi
 SCANDIR
 chmod +x $(dirname "$(which php)")/php-without-scan-dir
 
+# Must be a main php.ini file
+echo "" > /tmp/php-empty.ini
+
 # Install using the php installer
 new_version="0.74.0"
 generate_installers "${new_version}"
-php ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
+php -c /tmp/php-empty.ini ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
 assert_ddtrace_version "${new_version}"
 
 ini_file=$(get_php_main_conf)
