@@ -167,14 +167,16 @@ function install($options)
         $phpProperties = ini_values($fullPath);
         if (is_truthy($phpProperties[THREAD_SAFETY]) && is_truthy($phpProperties[IS_DEBUG])) {
             print_error_and_exit('(ZTS DEBUG) builds of PHP are currently not supported');
-        } else if (!isset($phpProperties[INI_SCANDIR])) {
+        }
+
+        if (!isset($phpProperties[INI_SCANDIR])) {
             if (!isset($phpProperties[INI_MAIN])) {
                 print_error_and_exit("It is not possible to perform installation on this system ".
-                                     "because there is no scan directory and no configuration file loaded.");
+                                    "because there is no scan directory and no configuration file loaded.");
             }
 
             print_warning("Performing an installation without a scan directory may result in fragile installations that are broken ".
-                          "by normal system upgrades. It is advisable to use the configure switch --with-config-file-scan-dir when building PHP");
+                            "by normal system upgrades. It is advisable to use the configure switch --with-config-file-scan-dir when building PHP");
         }
 
         // Copying the extension
@@ -417,7 +419,7 @@ function uninstall($options)
         } else {
             if (!isset($phpProperties[INI_MAIN])) {
                 print_error_and_exit("It is not possible to perform uninstallation on this system ".
-                                     "because there is no scan directory and no configuration file loaded.");
+                                    "because there is no scan directory and no configuration file loaded.");
             }
 
             $iniFilePaths = [$phpProperties[INI_MAIN]];
