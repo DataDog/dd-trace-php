@@ -171,12 +171,13 @@ function install($options)
 
         if (!isset($phpProperties[INI_SCANDIR])) {
             if (!isset($phpProperties[INI_MAIN])) {
-                print_error_and_exit("It is not possible to perform installation on this system ".
+                print_error_and_exit("It is not possible to perform installation on this system " .
                                     "because there is no scan directory and no configuration file loaded.");
             }
 
-            print_warning("Performing an installation without a scan directory may result in fragile installations that are broken ".
-                            "by normal system upgrades. It is advisable to use the configure switch --with-config-file-scan-dir when building PHP");
+            print_warning("Performing an installation without a scan directory may result in fragile installations that are broken " .
+                        "by normal system upgrades. " .
+                        "It is advisable to use the configure switch --with-config-file-scan-dir when building PHP");
         }
 
         // Copying the extension
@@ -418,7 +419,7 @@ function uninstall($options)
             }
         } else {
             if (!isset($phpProperties[INI_MAIN])) {
-                print_error_and_exit("It is not possible to perform uninstallation on this system ".
+                print_error_and_exit("It is not possible to perform uninstallation on this system " .
                                     "because there is no scan directory and no configuration file loaded.");
             }
 
