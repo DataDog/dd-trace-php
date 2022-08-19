@@ -26,7 +26,7 @@ new_version="0.74.0"
 generate_installers "${new_version}"
 php ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
 cat /tmp/php-empty.ini
-assert_ddtrace_version "${new_version}"
+assert_ddtrace_version "${new_version}" php-without-scan-dir
 
 ini_file=$(get_php_main_conf)
 
@@ -45,4 +45,4 @@ php ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
 assert_file_contains "${ini_file}" 'datadog.trace.request_init_hook'
 assert_file_contains "${ini_file}" 'datadog.version'
 
-assert_request_init_hook_exists
+assert_request_init_hook_exists php-without-scan-dir

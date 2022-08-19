@@ -102,7 +102,8 @@ assert_appsec_disabled() {
 }
 
 assert_request_init_hook_exists() {
-    assert_file_exists $(php -r 'echo ini_get("datadog.trace.request_init_hook");')
+    php_bin=${1:-php}
+    assert_file_exists $($php_bin -r 'echo ini_get("datadog.trace.request_init_hook");')
 }
 
 assert_file_exists() {
