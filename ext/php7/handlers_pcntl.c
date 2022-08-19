@@ -3,6 +3,9 @@
 
 #include "coms.h"
 #include "ddtrace.h"
+#include "span.h"
+#include "configuration.h"
+#include "random.h"
 #include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -13,11 +16,28 @@ ZEND_FUNCTION(ddtrace_pcntl_fork) {
     dd_pcntl_fork_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
-        // Until we full support pcntl tracing:
-        //   - kill the BGS
-        //   - disable further tracing on the forked process (also ensures all spans are dropped)
-        ddtrace_coms_kill_background_sender();
-        ddtrace_disable_tracing_in_current_request();
+        ddtrace_coms_clean_background_sender_after_fork();
+        ddtrace_coms_curl_shutdown();
+        ddtrace_seed_prng();
+            if (!get_DD_TRACE_FORKED_PROCESS()) {
+                ddtrace_disable_tracing_in_current_request();
+            }
+            if (get_DD_TRACE_ENABLED()) {
+                if (get_DD_DISTRIBUTED_TRACING()) {
+                    if (DDTRACE_G(open_spans_top) != NULL) {
+                        DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(open_spans_top)->span.span_id;
+                        DDTRACE_G(trace_id) = DDTRACE_G(open_spans_top)->span.trace_id;
+                    }
+                } else {
+                    DDTRACE_G(distributed_parent_trace_id) = 0;
+                    DDTRACE_G(trace_id) = 0;
+                }
+                ddtrace_free_span_stacks(true);
+                if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
+                    ddtrace_push_root_span();
+                }
+            }
+            ddtrace_coms_init_and_start_writer();
     }
 }
 

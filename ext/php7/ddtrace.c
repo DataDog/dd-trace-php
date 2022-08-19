@@ -683,7 +683,7 @@ static void dd_clean_globals() {
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown();
 
-    ddtrace_free_span_stacks();
+    ddtrace_free_span_stacks(false);
     ddtrace_coms_rshutdown();
 
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {

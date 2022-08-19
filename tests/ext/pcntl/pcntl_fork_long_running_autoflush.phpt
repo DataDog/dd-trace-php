@@ -1,11 +1,7 @@
 --TEST--
 Long running autoflush
 --SKIPIF--
-<?php
-include __DIR__ . '/../includes/skipif_no_dev_env.inc';
-if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
-if (!extension_loaded('curl')) die('skip: curl extension required');
-?>
+<?php if (!extension_loaded('pcntl')) die('skip: pcntl extension required'); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=false
 DD_TRACE_AUTO_FLUSH_ENABLED=true
@@ -24,7 +20,6 @@ const ITERATIONS = 2;
 
 for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     long_running_entry_point();
-    usleep(200000);
 }
 
 function long_running_entry_point()
@@ -33,24 +28,36 @@ function long_running_entry_point()
 
     $forkPid = pcntl_fork();
 
-    ob_start();
-
     if ($forkPid > 0) {
         // Main
-        call_httpbin();
     } else if ($forkPid === 0) {
         // Child
-        usleep(100000);
+        if (ddtrace_config_trace_enabled()) {
+            echo "child is enabled\n";
+        }
         call_httpbin();
+        exit(0);
     } else {
         error_log('Error');
         exit(-1);
     }
     call_httpbin();
+    pcntl_waitpid($forkPid, $status);
+    if (ddtrace_config_trace_enabled()) {
+        echo "parent is enabled\n";
+    }
 }
 
 ?>
 --EXPECTF--
+child is enabled
 Successfully triggered flush with trace of size 1
+No finished traces to be sent to the agent
+parent is enabled
+Successfully triggered flush with trace of size 3
+child is enabled
 Successfully triggered flush with trace of size 1
+No finished traces to be sent to the agent
+parent is enabled
+Successfully triggered flush with trace of size 3
 No finished traces to be sent to the agent

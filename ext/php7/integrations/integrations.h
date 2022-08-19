@@ -21,6 +21,7 @@
     INTEGRATION(MONGODB, "mongodb")             \
     INTEGRATION(MYSQLI, "mysqli")               \
     INTEGRATION(NETTE, "nette")                 \
+    INTEGRATION(PCNTL, "pcntl")                 \
     INTEGRATION(PDO, "pdo")                     \
     INTEGRATION(PHPREDIS, "phpredis")           \
     INTEGRATION(PREDIS, "predis")               \

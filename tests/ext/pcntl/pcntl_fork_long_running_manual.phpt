@@ -1,11 +1,7 @@
 --TEST--
 Long running manual flush
 --SKIPIF--
-<?php
-include __DIR__ . '/../includes/skipif_no_dev_env.inc';
-if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
-if (!extension_loaded('curl')) die('skip: curl extension required');
-?>
+<?php if (!extension_loaded('pcntl')) die('skip: pcntl extension required'); ?>
 --ENV--
 DD_TRACE_CLI_ENABLED=true
 DD_TRACE_GENERATE_ROOT_SPAN=false

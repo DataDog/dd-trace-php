@@ -11,6 +11,7 @@
 #include "ddtrace_export.h"
 
 #define DDTRACE_DROPPED_SPAN (-1ull)
+#define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
 
 // error.type, error.type, error.stack
 static const int ddtrace_num_error_tags = 3;
@@ -44,7 +45,7 @@ struct ddtrace_span_fci {
 typedef struct ddtrace_span_fci ddtrace_span_fci;
 
 void ddtrace_init_span_stacks(void);
-void ddtrace_free_span_stacks(void);
+void ddtrace_free_span_stacks(bool silent);
 
 void ddtrace_open_span(ddtrace_span_fci *span_fci);
 ddtrace_span_fci *ddtrace_init_span(enum ddtrace_span_type type);

@@ -13,6 +13,7 @@ while ($currentIteration !== NUMBER_OF_CHILDREN) {
     if ($forkPid > 0) {
         // Main
         call_httpbin('headers');
+        pcntl_waitpid($forkPid, $childStatus);
     } else if ($forkPid === 0) {
         // Child
         call_httpbin('ip');
@@ -23,7 +24,5 @@ while ($currentIteration !== NUMBER_OF_CHILDREN) {
 
     $currentIteration++;
 }
-
-pcntl_wait($childStatus);
 
 call_httpbin('user-agent');

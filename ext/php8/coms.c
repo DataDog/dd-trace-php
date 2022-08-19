@@ -167,6 +167,7 @@ static void _dd_coms_stack_shutdown(void) {
             free(current_stack->data);
         }
         free(current_stack);
+        ddtrace_coms_globals.current_stack = NULL;
     }
     if (ddtrace_coms_globals.stacks) {
         free(ddtrace_coms_globals.stacks);
@@ -307,7 +308,7 @@ struct _writer_thread_variables_t {
 
 struct _writer_loop_data_t {
     CURL *curl;
-    struct curl_slist *headers;
+    _Atomic(struct curl_slist *)headers;
     ddtrace_coms_stack_t *tmp_stack;
 
     struct _writer_thread_variables_t *thread;
@@ -779,6 +780,13 @@ static size_t _dd_dummy_write_callback(char *ptr, size_t size, size_t nmemb, voi
     return data_length;
 }
 
+static void _dd_curl_reset_headers(struct _writer_loop_data_t *writer) {
+    struct curl_slist *headers = atomic_exchange(&writer->headers, NULL);
+    if (headers) {
+        curl_slist_free_all(headers);
+    }
+}
+
 #define DD_TRACE_COUNT_HEADER "X-Datadog-Trace-Count: "
 
 static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trace_count) {
@@ -795,9 +803,7 @@ static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trac
         headers = curl_slist_append(headers, buffer);
     }
 
-    if (writer->headers) {
-        curl_slist_free_all(writer->headers);
-    }
+    _dd_curl_reset_headers(writer);
 
     curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
     writer->headers = headers;
@@ -833,8 +839,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         }
 
         _dd_deinit_read_userdata(read_data);
-        curl_slist_free_all(writer->headers);
-        writer->headers = NULL;
+        _dd_curl_reset_headers(writer);
     }
 }
 static void _dd_signal_writer_started(struct _writer_loop_data_t *writer) {
@@ -970,7 +975,9 @@ static void *_dd_writer_loop(void *_) {
             *stack = _dd_coms_attempt_acquire_stack();
         }
 
-        curl_easy_cleanup(writer->curl);
+        CURL *curl = writer->curl;
+        writer->curl = NULL;
+        curl_easy_cleanup(curl);
 
         if (processed_stacks > 0) {
             atomic_fetch_add(&writer->flush_processed_stacks_total, processed_stacks);
@@ -981,8 +988,7 @@ static void *_dd_writer_loop(void *_) {
         _dd_signal_data_processed(writer);
     } while (running);
 
-    curl_slist_free_all(writer->headers);
-    writer->headers = NULL;
+    _dd_curl_reset_headers(writer);
 
     _dd_coms_stack_shutdown();
 
@@ -1064,6 +1070,18 @@ void ddtrace_coms_kill_background_sender(void) {
         free(writer->thread);
         writer->thread = NULL;
     }
+}
+
+void ddtrace_coms_clean_background_sender_after_fork(void) {
+    struct _writer_loop_data_t *writer = _dd_get_writer();
+    ddtrace_coms_kill_background_sender();
+    _dd_curl_reset_headers(writer);
+    curl_easy_cleanup(writer->curl);
+    writer->curl = NULL;
+    _dd_unsafe_cleanup_dirty_stack_area();
+    _dd_coms_stack_shutdown();
+    global_writer = (struct _writer_loop_data_t){0};
+    ddtrace_coms_minit();
 }
 
 bool ddtrace_coms_on_pid_change(void) {
