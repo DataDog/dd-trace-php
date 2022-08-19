@@ -12,11 +12,11 @@ echo "" > /tmp/php-empty.ini
 
 cat <<- "SCANDIR" >$(dirname "$(which php)")/php-without-scan-dir
 #!/usr/bin/env bash
-php="$(dirname "$0")/php -c /tmp/php-empty.ini"
+php="$(dirname "$0")/php"
 if [[ "$@" == *-i* ]]; then
-  "$php" "$@" | grep -v "Scan this dir for additional .ini files"
+  "$php" -c /tmp/php-empty.ini "$@" | grep -v "Scan this dir for additional .ini files"
 else
-  "$php" "$@"
+  "$php" -c /tmp/php-empty.ini "$@"
 fi
 SCANDIR
 chmod +x $(dirname "$(which php)")/php-without-scan-dir
