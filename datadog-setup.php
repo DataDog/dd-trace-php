@@ -2,7 +2,8 @@
 
 // Tests for the installer are in 'dockerfiles/verify_packages/installer'
 
-const INI_CONF = 'Scan this dir for additional .ini files';
+const INI_SCANDIR = 'Scan this dir for additional .ini files';
+const INI_MAIN = 'Loaded Configuration File';
 const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
 const PHP_API = 'PHP API';
@@ -166,6 +167,14 @@ function install($options)
         $phpProperties = ini_values($fullPath);
         if (is_truthy($phpProperties[THREAD_SAFETY]) && is_truthy($phpProperties[IS_DEBUG])) {
             print_error_and_exit('(ZTS DEBUG) builds of PHP are currently not supported');
+        } else if (!isset($phpProperties[INI_SCANDIR])) {
+            if (!isset($phpProperties[INI_MAIN])) {
+                print_error_and_exit("It is not possible to perform installation on this system ".
+                                     "because there is no scan directory and no configuration file loaded.");
+            }
+
+            print_warning("Performing an installation without a scan directory may result in fragile installations that are broken ".
+                          "by normal system upgrades. It is advisable to use the configure switch --with-config-file-scan-dir when building PHP");
         }
 
         // Copying the extension
@@ -208,19 +217,26 @@ function install($options)
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
         // Writing the ini file
-        $iniFileName = '98-ddtrace.ini';
-        $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
-        if (\strpos($phpProperties[INI_CONF], '/cli/conf.d') !== false) {
-            /* debian based distros have INI folders split by SAPI, in a predefined way:
-             *   - <...>/cli/conf.d       <-- we know this from php -i
-             *   - <...>/apache2/conf.d   <-- we derive this from relative path
-             *   - <...>/fpm/conf.d       <-- we derive this from relative path
-             */
-            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
-            if (\is_dir($apacheConfd)) {
-                array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+        if ($phpProperties[INI_SCANDIR]) {
+            $iniFileName = '98-ddtrace.ini';
+            $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
+
+            if (\strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
+                /* debian based distros have INI folders split by SAPI, in a predefined way:
+                 *   - <...>/cli/conf.d       <-- we know this from php -i
+                 *   - <...>/apache2/conf.d   <-- we derive this from relative path
+                 *   - <...>/fpm/conf.d       <-- we derive this from relative path
+                 */
+                $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
+                if (\is_dir($apacheConfd)) {
+                    array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+                }
             }
+        } else {
+            $iniFileName = $phpProperties[INI_MAIN];
+            $iniFilePaths = [$iniFileName];
         }
+
         foreach ($iniFilePaths as $iniFilePath) {
             if (!file_exists($iniFilePath)) {
                 $iniDir = dirname($iniFilePath);
@@ -383,19 +399,28 @@ function uninstall($options)
             $phpProperties[EXTENSION_DIR] . '/ddappsec.so',
         ];
 
-        // Writing the ini file
-        $iniFileName = '98-ddtrace.ini';
-        $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
-        if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
-            /* debian based distros have INI folders split by SAPI, in a predefined way:
-             *   - <...>/cli/conf.d       <-- we know this from php -i
-             *   - <...>/apache2/conf.d    <-- we derive this from relative path
-             *   - <...>/fpm/conf.d       <-- we derive this from relative path
-             */
-            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
-            if (\is_dir($apacheConfd)) {
-                array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+        if (isset($phpProperties[INI_SCANDIR])) {
+            $iniFileName = '98-ddtrace.ini';
+            $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
+
+            if (\strpos('/cli/conf.d', $phpProperties[INI_SCANDIR]) >= 0) {
+                /* debian based distros have INI folders split by SAPI, in a predefined way:
+                 *   - <...>/cli/conf.d       <-- we know this from php -i
+                 *   - <...>/apache2/conf.d    <-- we derive this from relative path
+                 *   - <...>/fpm/conf.d       <-- we derive this from relative path
+                 */
+                $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
+                if (\is_dir($apacheConfd)) {
+                    array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+                }
             }
+        } else {
+            if (!isset($phpProperties[INI_MAIN])) {
+                print_error_and_exit("It is not possible to perform uninstallation on this system ".
+                                     "because there is no scan directory and no configuration file loaded.");
+            }
+
+            $iniFilePaths = [$phpProperties[INI_MAIN]];
         }
 
         /* Actual uninstall
@@ -780,7 +805,7 @@ function on_download_progress($curlHandle, $download_size, $downloaded)
  */
 function ini_values($binary)
 {
-    $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
+    $properties = [INI_MAIN, INI_SCANDIR, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
     $lines = [];
     // Timezone is irrelevant to this script. Quick-and-dirty workaround to the PHP 5 warning with missing timezone
     exec(escapeshellarg($binary) . " -d date.timezone=UTC -i", $lines);
@@ -790,7 +815,13 @@ function ini_values($binary)
         if (count($parts) === 2 || count($parts) === 3) {
             $key = trim($parts[0]);
             if (in_array($key, $properties)) {
-                $found[$key] = trim(count($parts) === 2 ? $parts[1] : $parts[2]);
+                $value = trim(count($parts) === 2 ? $parts[1] : $parts[2]);
+
+                if ($value === "(none)") {
+                    continue;
+                }
+
+                $found[$key] = $value;
             }
         }
     }

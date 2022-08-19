@@ -130,7 +130,8 @@ final class PHPInstallerTest extends BaseTestCase
     public function testIniValues()
     {
         $values = \ini_values(\PHP_BINARY);
-        $this->assertNotEmpty($values[INI_CONF]);
+        $this->assertNotEmpty($values[INI_MAIN]);
+        $this->assertNotEmpty($values[INI_SCANDIR]);
         $this->assertNotEmpty($values[EXTENSION_DIR]);
         $this->assertNotEmpty($values[THREAD_SAFETY]);
         $this->assertNotEmpty($values[PHP_API]);
