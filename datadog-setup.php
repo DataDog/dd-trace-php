@@ -21,10 +21,6 @@ const OPT_ENABLE_PROFILING = 'enable-profiling';
 // Release version is set while generating the final release files
 const RELEASE_VERSION = '@release_version@';
 
-// Supported platforms
-const PLATFORM_X86_LINUX_GNU = 'x86_64-linux-gnu';
-const PLATFORM_X86_LINUX_MUSL = 'x86_64-linux-musl';
-
 function main()
 {
     if (is_truthy(getenv('DD_TEST_EXECUTION'))) {
@@ -64,7 +60,8 @@ EOD;
 
 function install($options)
 {
-    $platform = is_alpine() ? PLATFORM_X86_LINUX_MUSL : PLATFORM_X86_LINUX_GNU;
+    $architecture = get_architecture();
+    $platform = "$architecture-linux-" . (is_alpine() ? 'musl' : 'gnu');
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
@@ -145,15 +142,17 @@ function install($options)
     echo "Installed required source files to '$installDir'\n";
 
     // Appsec helper and rules
-    execute_or_exit(
-        "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
-        "cp -r " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
-    );
-    execute_or_exit(
-        "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
-        "cp -r " . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
-    );
-    $appSecRulesPath = $installDir . '/etc/recommended.json';
+    if ("x86_64" === $architecture) {
+        execute_or_exit(
+            "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
+            "cp -r " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
+        );
+        execute_or_exit(
+            "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
+            "cp -r " . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
+        );
+        $appSecRulesPath = $installDir . '/etc/recommended.json';
+    }
 
     // Actual installation
     foreach ($selectedBinaries as $command => $fullPath) {
@@ -213,7 +212,9 @@ function install($options)
         // Appsec
         $shouldInstallAppsec =
             in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
-            && !is_truthy($phpProperties[IS_DEBUG]);
+            && !is_truthy($phpProperties[IS_DEBUG])
+            && in_array($architecture, ["x86_64"]);
+
         if ($shouldInstallAppsec) {
             $appsecExtensionRealPath = "${tmpArchiveAppsecRoot}/ext/${extensionVersion}/ddappsec${extensionSuffix}.so";
             $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
@@ -549,6 +550,19 @@ function is_alpine()
         return false;
     }
     return false !== stripos(file_get_contents($osInfoFile), 'alpine');
+}
+
+/**
+ * Returns the host architecture, e.g. x86_64, aarch64
+ *
+ * @return string
+ */
+function get_architecture()
+{
+    return execute_or_exit(
+        "Cannot detect host architecture (uname -m)",
+        "uname -m"
+    );
 }
 
 /**
