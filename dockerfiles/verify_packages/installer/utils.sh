@@ -125,15 +125,18 @@ install_legacy_ddtrace() {
 }
 
 get_php_conf_dir() {
-    php -i | grep -i 'scan this dir for additional .ini files' | awk '{print $NF}'
+    php_bin=${1:-php}
+    $php_bin -i | grep -i 'scan this dir for additional .ini files' | awk '{print $NF}'
 }
 
 get_php_main_conf() {
-    php -i | grep -i 'Loaded Configuration File' | awk '{print $NF}'
+    php_bin=${1:-php}
+    $php_bin -i | grep -i 'Loaded Configuration File' | awk '{print $NF}'
 }
 
 get_php_extension_dir() {
-    php -i | grep -i '^extension_dir' | awk '{print $NF}'
+    php_bin=${1:-php}
+    $php_bin -i | grep -i '^extension_dir' | awk '{print $NF}'
 }
 
 generate_installers() {

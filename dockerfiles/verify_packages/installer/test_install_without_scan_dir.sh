@@ -28,7 +28,7 @@ php ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
 cat /tmp/php-empty.ini
 assert_ddtrace_version "${new_version}" php-without-scan-dir
 
-ini_file=$(get_php_main_conf)
+ini_file=$(get_php_main_conf php-without-scan-dir)
 
 assert_file_contains "${ini_file}" 'datadog.trace.request_init_hook'
 assert_file_contains "${ini_file}" 'datadog.version'
