@@ -39,7 +39,7 @@ sed -i 's/datadog\.version.*//g' "${ini_file}"
 assert_file_not_contains "${ini_file}" 'datadog.trace.request_init_hook'
 assert_file_not_contains "${ini_file}" 'datadog.version'
 
-php ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
+php -c /tmp/php-empty.ini ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
 
 assert_file_contains "${ini_file}" 'datadog.trace.request_init_hook'
 assert_file_contains "${ini_file}" 'datadog.version'
