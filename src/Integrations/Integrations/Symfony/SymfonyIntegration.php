@@ -56,14 +56,13 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\HttpKernel\Kernel',
             'boot',
             [
-                "prehook" => function () {
+                "prehook" => function (SpanData $span) {
                     if ($rootSpan = \DDTrace\root_span()) {
                         $this->appName = \ddtrace_config_app_name('symfony');
                         $rootSpan->name = 'symfony.request';
                         $rootSpan->service = $this->appName;
                     }
-                },
-                "posthook" => function (SpanData $span) {
+
                     $span->name = 'symfony.httpkernel.kernel.boot';
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
