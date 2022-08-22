@@ -28,9 +28,9 @@ impl Env {
 
         // Safety: called CStr, so invariants have all been checked by this point.
         let val = sapi_getenv(name.as_ptr() as *const c_char, name.len());
-        let val = val.into_string();
+        let val = val.into_c_string();
         if val.is_some() {
-            return val;
+            return val.map(|c| c.to_string_lossy().to_string());
         }
 
         /* If the sapi didn't have an env var, try the libc.
@@ -45,9 +45,13 @@ impl Env {
          * `libc::getenv` always return a string less than `isize::MAX`.
          */
         let val = CStr::from_ptr(val);
-        let maybe_str = val.to_str().ok();
+
         // treat empty strings the same as no string
-        maybe_str.filter(|str| !str.is_empty()).map(String::from)
+        if val.to_bytes().is_empty() {
+            None
+        } else {
+            Some(val.to_string_lossy().to_string())
+        }
     }
 
     /// # Safety
