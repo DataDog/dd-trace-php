@@ -14,4 +14,4 @@ var_dump($sum);
 --EXPECTF--
 RuntimeException thrown in ddtrace's closure defined at %s:%d for array_sum(): This exception is expected
 int(9)
-Successfully triggered flush with trace of size 2
+Flushing trace of size 2 to send-queue for %s

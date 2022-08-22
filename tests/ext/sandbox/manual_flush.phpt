@@ -20,6 +20,6 @@ DDTrace\flush();
 main();
 
 ?>
---EXPECT--
-Successfully triggered flush with trace of size 1
-Successfully triggered flush with trace of size 1
+--EXPECTF--
+Flushing trace of size 1 to send-queue for %s
+Flushing trace of size 1 to send-queue for %s

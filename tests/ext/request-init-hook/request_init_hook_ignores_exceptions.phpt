@@ -9,8 +9,8 @@ ddtrace.request_init_hook={PWD}/throws_exception.php
 echo "Request start" . PHP_EOL;
 
 ?>
---EXPECT--
+--EXPECTF--
 Throwing an exception...
 Exception thrown in request init hook: Oops!
 Request start
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

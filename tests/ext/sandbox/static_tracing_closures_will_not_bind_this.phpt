@@ -21,7 +21,7 @@ DDTrace\trace_method('Foo', 'test', static function () {
 $foo = new Foo();
 $foo->test();
 ?>
---EXPECT--
+--EXPECTF--
 Foo::test()
 TRACED Foo::test()
-Successfully triggered flush with trace of size 2
+Flushing trace of size 2 to send-queue for %s

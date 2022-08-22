@@ -15,8 +15,8 @@ function greet($name)
 greet('Datadog');
 
 ?>
---EXPECT--
+--EXPECTF--
 DDTrace\hook_function was given neither prehook nor posthook.
 bool(false)
 Hello, Datadog.
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

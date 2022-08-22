@@ -51,13 +51,13 @@ function long_running_entry_point()
 ?>
 --EXPECTF--
 child is enabled
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s
 No finished traces to be sent to the agent
 parent is enabled
-Successfully triggered flush with trace of size 3
+Flushing trace of size 3 to send-queue for %s
 child is enabled
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s
 No finished traces to be sent to the agent
 parent is enabled
-Successfully triggered flush with trace of size 3
+Flushing trace of size 3 to send-queue for %s
 No finished traces to be sent to the agent

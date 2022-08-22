@@ -32,7 +32,7 @@ try {
     echo 'Caught exception: ' . $e->getMessage() . PHP_EOL;
 }
 ?>
---EXPECT--
-Successfully triggered flush with trace of size 1
+--EXPECTF--
+Flushing trace of size 1 to send-queue for %s
 Caught exception: Oops!
 No finished traces to be sent to the agent

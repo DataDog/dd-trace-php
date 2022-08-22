@@ -39,7 +39,7 @@ var_dump(DDTrace\trace_method('foo', 'foo', [
 ]));
 var_dump(DDTrace\trace_method('foo', 'foo', []));
 ?>
---EXPECT--
+--EXPECTF--
 Unable to parse parameters for DDTrace\trace_function; expected (string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)
 bool(false)
 Expected config_array to be an associative array
@@ -69,4 +69,4 @@ Expected 'posthook' to be an instance of Closure
 bool(false)
 DDTrace\trace_method was given neither prehook nor posthook.
 bool(false)
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

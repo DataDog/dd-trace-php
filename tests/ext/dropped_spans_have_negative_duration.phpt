@@ -15,7 +15,7 @@ DDTrace\flush();
 var_dump($outerSpan->getDuration());
 
 ?>
---EXPECT--
-Successfully triggered flush with trace of size 1
+--EXPECTF--
+Flushing trace of size 1 to send-queue for %s
 int(-1)
 No finished traces to be sent to the agent

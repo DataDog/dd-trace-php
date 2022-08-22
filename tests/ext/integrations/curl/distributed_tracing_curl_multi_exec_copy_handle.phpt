@@ -92,4 +92,4 @@ x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 x-foo: not copied
 Done.
-Successfully triggered flush with trace of size 2
+Flushing trace of size 2 to send-queue for %s
