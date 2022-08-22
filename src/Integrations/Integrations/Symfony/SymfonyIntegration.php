@@ -41,11 +41,6 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
-        $rootSpan = \DDTrace\root_span();
-        if (null == $rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'handle',
@@ -60,16 +55,31 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'boot',
-            function (SpanData $span) {
-                $span->name = 'symfony.httpkernel.kernel.boot';
-                $span->resource = \get_class($this);
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('symfony');
-            }
+            [
+                "prehook" => function () {
+                    if ($rootSpan = \DDTrace\root_span()) {
+                        $this->appName = \ddtrace_config_app_name('symfony');
+                        $rootSpan->name = 'symfony.request';
+                        $rootSpan->service = $this->appName;
+                    }
+                },
+                "posthook" => function (SpanData $span) {
+                    $span->name = 'symfony.httpkernel.kernel.boot';
+                    $span->resource = \get_class($this);
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = \ddtrace_config_app_name('symfony');
+                }
+            ]
         );
+
+        $rootSpan = \DDTrace\root_span();
+        if (null == $rootSpan) {
+            return Integration::NOT_LOADED;
+        }
 
         /** @var SpanData $symfonyRequestSpan */
         $this->symfonyRequestSpan = $rootSpan;
+        $this->addTraceAnalyticsIfEnabled($rootSpan);
 
         if (
             defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
@@ -85,11 +95,6 @@ class SymfonyIntegration extends Integration
 
     public function loadSymfony($integration)
     {
-        $integration->appName = \ddtrace_config_app_name('symfony');
-        $integration->symfonyRequestSpan->name = 'symfony.request';
-        $integration->symfonyRequestSpan->service = $integration->appName;
-        $integration->addTraceAnalyticsIfEnabled($integration->symfonyRequestSpan);
-
         /* Move this to its own integration
         $doctrineRepositories = [];
         \DDTrace\hook_method(
