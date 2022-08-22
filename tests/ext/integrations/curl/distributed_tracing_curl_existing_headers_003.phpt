@@ -83,4 +83,4 @@ x-datadog-parent-id: %d
 x-orig-header: foo
 
 Done.
-Successfully triggered flush with trace of size 3
+Flushing trace of size 3 to send-queue for %s

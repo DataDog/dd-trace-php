@@ -96,4 +96,4 @@ x-datadog-trace-id: %d
 x-foo: after-the-copy
 
 Done.
-Successfully triggered flush with trace of size 5
+Flushing trace of size 5 to send-queue for %s

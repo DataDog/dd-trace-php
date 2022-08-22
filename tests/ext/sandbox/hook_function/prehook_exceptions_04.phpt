@@ -29,4 +29,4 @@ try {
 array_sum hooked.
 Exception thrown in ddtrace's closure defined at %s:%d for array_sum(): !
 Sum = 4.
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

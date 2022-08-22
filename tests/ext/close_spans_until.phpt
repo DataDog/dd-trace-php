@@ -30,4 +30,4 @@ int(2)
 int(2)
 int(1)
 int(0)
-Successfully triggered flush with trace of size 7
+Flushing trace of size 7 to send-queue for %s

@@ -1,6 +1,7 @@
 #include "auto_flush.h"
 
 #include "comms_php.h"
+#include "coms.h"
 #include "ddtrace_string.h"
 #include "logging.h"
 #include "serializer.h"
@@ -41,8 +42,10 @@ ZEND_RESULT_CODE ddtrace_flush_tracer() {
         } else {
             success = ddtrace_send_traces_via_thread(1, payload, size);
             if (success) {
-                ddtrace_log_debugf("Successfully triggered flush with trace of size %d",
-                                   zend_hash_num_elements(Z_ARR(trace)));
+                char *url = ddtrace_agent_url();
+                ddtrace_log_debugf("Flushing trace of size %d to send-queue for %s",
+                                   zend_hash_num_elements(Z_ARR(trace)), url);
+                free(url);
             }
             dd_prepare_for_new_trace();
         }

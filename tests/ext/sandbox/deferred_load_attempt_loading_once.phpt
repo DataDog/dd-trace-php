@@ -36,8 +36,8 @@ namespace
     Test::public_static_method();
 }
 ?>
---EXPECT--
+--EXPECTF--
 autoload_attempted
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s
