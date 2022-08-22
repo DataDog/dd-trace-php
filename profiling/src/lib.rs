@@ -1,4 +1,5 @@
 mod bindings;
+mod config;
 mod logging;
 mod profiling;
 mod sapi;
@@ -8,7 +9,8 @@ use bindings as zend;
 use bindings::{
     datadog_php_str, sapi_getenv, DatadogPhpProfilingGlobals, ZendExtension, ZendResult,
 };
-use ddprof::exporter::{Tag, Uri};
+use config::AgentEndpoint;
+use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_ulong, c_void};
 use log::{debug, error, info, trace, warn, LevelFilter};
@@ -18,6 +20,7 @@ use std::cell::{RefCell, RefMut};
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ops::DerefMut;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, Once};
@@ -268,45 +271,33 @@ extern "C" fn prshutdown() -> ZendResult {
     ZendResult::Success
 }
 
-/// # Safety
-/// Only call during an active request from the PHP thread!
-unsafe fn getenv(name: &CStr) -> Option<String> {
-    // CStr doesn't have a len() so turn it into a slice.
-    let name = name.to_bytes();
-
-    // Safety: called CStr, so invariants have all been checked by this point.
-    let val = sapi_getenv(name.as_ptr() as *const c_char, name.len());
-    let val = val.into_string();
-    if !val.is_empty() {
-        return Some(val);
-    }
-
-    /* If the sapi didn't have an env var, try the libc.
-     * Safety: pointer comes from valid CStr.
+fn parse_boolean(string: &str) -> Option<bool> {
+    /* Care was taken to avoid allocating and to not do more than 2 calls to
+     * `eq_ignore_ascii_case` as this function gets called 2+ times on every
+     * single request that comes in. Not particularly performance sensitive,
+     * but it adds directly to latency of the end-user, and we also want to
+     * avoid allocator churn when we can.
      */
-    let val = libc::getenv(name.as_ptr() as *const c_char);
-    if val.is_null() {
+
+    let n_bytes = string.len();
+    // no boolean strings are longer than 5 ASCII characters
+    if n_bytes == 0 || n_bytes > 5 {
         return None;
     }
 
-    /* Safety: `val` has been checked for NULL, though I haven't checked that
-     * `libc::getenv` always return a string less than `isize::MAX`.
+    /* The lookup tables are based on the number of bytes in the string. The
+     * empty string will not match since it was handled above.
      */
-    let val = CStr::from_ptr(val);
-    return Some(String::from_utf8_lossy(val.to_bytes()).into_owned());
-}
+    const TRUTH_TABLE: [&str; 5] = ["1", "on", "yes", "true", ""];
+    const FALSE_TABLE: [&str; 5] = ["0", "no", "off", "", "false"];
 
-fn parse_boolean(mut string: String) -> Option<bool> {
-    // no boolean strings are longer than 5 characters
-    if string.is_empty() || string.len() > 5 {
-        return None;
-    }
-
-    string.make_ascii_lowercase();
-    match string.as_str() {
-        "1" | "on" | "yes" | "true" => Some(true),
-        "0" | "no" | "off" | "false" => Some(false),
-        _ => None,
+    let offset = n_bytes - 1;
+    if TRUTH_TABLE[offset].eq_ignore_ascii_case(string) {
+        Some(true)
+    } else if FALSE_TABLE[offset].eq_ignore_ascii_case(string) {
+        Some(false)
+    } else {
+        None
     }
 }
 
@@ -326,62 +317,11 @@ unsafe fn intern(string: &Option<String>) -> datadog_php_str {
     datadog_php_str::default()
 }
 
-/// # Safety
-/// This is only meant to be called during rinit!
-unsafe fn read_env(globals: &mut zend::zend_datadog_php_profiling_globals) {
-    // We don't handle INIs yet -- we store the env vars on first rinit
-    let profiling_enabled = getenv(CStr::from_bytes_with_nul_unchecked(
-        b"DD_PROFILING_ENABLED\0",
-    ));
-    let profiling_log_level = getenv(CStr::from_bytes_with_nul_unchecked(
-        b"DD_PROFILING_LOG_LEVEL\0",
-    ));
-    let profiling_experimental_cpu_time_enabled = getenv(CStr::from_bytes_with_nul_unchecked(
-        b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
-    ));
-
-    let env = getenv(CStr::from_bytes_with_nul_unchecked(b"DD_ENV\0"));
-    let service = getenv(CStr::from_bytes_with_nul_unchecked(b"DD_SERVICE\0"));
-    let version = getenv(CStr::from_bytes_with_nul_unchecked(b"DD_VERSION\0"));
-    let agent_host = getenv(CStr::from_bytes_with_nul_unchecked(b"DD_AGENT_HOST\0"));
-    let trace_agent_port = getenv(CStr::from_bytes_with_nul_unchecked(
-        b"DD_TRACE_AGENT_PORT\0",
-    ));
-    let trace_agent_url = getenv(CStr::from_bytes_with_nul_unchecked(b"DD_TRACE_AGENT_URL\0"));
-
-    globals.profiling_enabled = profiling_enabled.and_then(parse_boolean).unwrap_or(false);
-
-    globals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled
-        .or_else(|| {
-            // This is the older, undocumented name.
-            getenv(CStr::from_bytes_with_nul_unchecked(
-                b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0",
-            ))
-        })
-        .and_then(parse_boolean)
-        .unwrap_or(true);
-
-    let profiling_log_level = profiling_log_level
-        .and_then(|string| {
-            let string = string.to_ascii_uppercase();
-            LevelFilter::from_str(string.as_str()).ok()
-        })
-        .unwrap_or(LevelFilter::Off);
-
-    globals.profiling_log_level = std::mem::transmute(profiling_log_level);
-    globals.env = intern(&env);
-    globals.service = intern(&service);
-    globals.version = intern(&version);
-    globals.agent_host = intern(&agent_host);
-    globals.trace_agent_port = intern(&trace_agent_port);
-    globals.trace_agent_url = intern(&trace_agent_url);
-}
-
 pub struct RequestLocals {
     pub last_wall_time: Instant,
     pub last_cpu_time: Option<cpu_time::ThreadTime>,
     pub tags: Vec<Tag>,
-    pub uri: String,
+    pub uri: Box<AgentEndpoint>,
 }
 
 fn static_tags() -> Vec<Tag> {
@@ -400,7 +340,7 @@ thread_local! {
         last_wall_time: Instant::now(),
         last_cpu_time: None,
         tags: static_tags(),
-        uri: String::from("http://localhost:8126"),
+        uri: Box::new(AgentEndpoint::default()),
     });
 }
 
@@ -417,8 +357,49 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     // Safety: globals pointer is valid during rinit.
     let globals = unsafe { zend::datadog_php_profiling_globals_get() };
 
-    // Safety: called during rinit.
-    unsafe { read_env(globals) };
+    // Select agent endpoint
+    {
+        // Safety: called during rinit.
+        let environment = unsafe { config::Env::get() };
+
+        globals.profiling_enabled = environment
+            .profiling_enabled
+            .as_deref()
+            .and_then(parse_boolean)
+            .unwrap_or(false);
+
+        globals.profiling_experimental_cpu_time_enabled = environment
+            .profiling_experimental_cpu_time_enabled
+            .as_deref()
+            .or(environment.profiling_experimental_cpu_enabled.as_deref())
+            .and_then(parse_boolean)
+            .unwrap_or(true);
+
+        let profiling_log_level = environment
+            .profiling_log_level
+            .as_deref()
+            .and_then(|string| {
+                let string = string.to_ascii_uppercase();
+                LevelFilter::from_str(string.as_str()).ok()
+            })
+            .unwrap_or(LevelFilter::Off);
+
+        globals.profiling_log_level = profiling_log_level;
+        // Safety: these strings will not live past the request
+        unsafe {
+            globals.env = intern(&environment.env);
+            globals.service = intern(&environment.service);
+            globals.version = intern(&environment.version);
+        }
+
+        /* Do this always, not just if profiling is enabled, so that when
+         * phpinfo() or minfo() are queried that we get an accurate value.
+         */
+        REQUEST_LOCALS.with(|cell| {
+            let mut locals = cell.borrow_mut();
+            locals.uri = Box::new(detect_uri_from_env(&environment));
+        });
+    }
 
     // At the moment, logging is truly global, so init it exactly once whether
     // profiling is enabled or not.
@@ -525,15 +506,6 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                     }
                 }
             }
-
-            match detect_url_from_globals(globals) {
-                Ok(url) => {
-                    locals.uri = url.to_string();
-                }
-                Err(err) => {
-                    error!("Failed to identify HTTP url: {}", err);
-                }
-            };
         });
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
@@ -554,25 +526,50 @@ fn log_add_tag(locals: &mut RefMut<RequestLocals>, key: &str, value: &str) {
     }
 }
 
-fn detect_url_from_globals(globals: &DatadogPhpProfilingGlobals) -> anyhow::Result<Uri> {
-    if globals.trace_agent_url.size > 0 {
-        let maybe_uri: &str = (&globals.trace_agent_url).try_into()?;
-        Ok(Uri::from_str(maybe_uri)?)
-    } else if globals.trace_agent_port.size > 0 || globals.agent_host.size > 0 {
-        let host: &str = if globals.agent_host.size > 0 {
-            (&globals.agent_host).try_into()?
+fn detect_uri_from_env(env: &config::Env) -> AgentEndpoint {
+    /* Priority:
+     *  1. DD_TRACE_AGENT_URL
+     *     - RFC allows unix:///path/to/some/socket so parse these out.
+     *     - Maybe emit diagnostic if an invalid URL is detected or the path is non-existent, but
+     *       continue down the priority list.
+     *  2. DD_AGENT_HOST and/or DD_TRACE_AGENT_PORT. If only one is set, default the other.
+     *  3. Unix Domain Socket at /var/run/datadog/apm.socket
+     *  4. http://localhost:8126
+     */
+    if let Some(trace_agent_url) = &env.trace_agent_url {
+        // check for UDS first
+        if let Some(path) = trace_agent_url.strip_prefix("unix://") {
+            let path = PathBuf::from(path);
+            if path.exists() {
+                return AgentEndpoint::Socket(path);
+            } else {
+                warn!(
+                    "Unix socket specified in DD_TRACE_AGENT_URL does not exist: {} ",
+                    path.to_string_lossy()
+                );
+            }
         } else {
-            "localhost"
-        };
-        let port: &str = if globals.trace_agent_port.size > 0 {
-            (&globals.trace_agent_port).try_into()?
-        } else {
-            "8126"
-        };
-        Ok(Uri::from_str(format!("http://{}:{}", host, port).as_str())?)
-    } else {
-        Ok(Uri::from_str("http://localhost:8126")?)
+            match Uri::from_str(trace_agent_url) {
+                Ok(uri) => return AgentEndpoint::Uri(uri),
+                Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {}", err),
+            }
+        }
+        // continue down priority list
     }
+    if env.trace_agent_port.is_some() || env.agent_host.is_some() {
+        let host = env.agent_host.as_deref().unwrap_or("localhost");
+        let port = env.trace_agent_port.as_deref().unwrap_or("8126");
+
+        match Uri::from_str(format!("http://{}:{}", host, port).as_str()) {
+            Ok(uri) => return AgentEndpoint::Uri(uri),
+            Err(err) => {
+                warn!("The combination of DD_AGENT_HOST ({}) and DD_TRACE_AGENT_PORT ({}) was not a valid URL: {}", host, port, err)
+            }
+        }
+        // continue down priority list
+    }
+
+    AgentEndpoint::default()
 }
 
 extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
@@ -640,11 +637,11 @@ unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
     log_level.make_ascii_lowercase();
     zend::php_info_print_table_row(2, b"Profiling Log Level\0".as_ptr(), log_level.as_ptr());
 
-    let endpoint = match detect_url_from_globals(globals) {
-        Ok(url) => format!("{}\0", url),
-        Err(_) => "{{error detecting endpoint}}\0".to_string(),
-    };
-    zend::php_info_print_table_row(2, b"Profiling Agent Endpoint\0".as_ptr(), endpoint.as_ptr());
+    REQUEST_LOCALS.with(|cell| {
+        let key = b"Profiling Agent Endpoint\0".as_ptr();
+        let agent_endpoint = format!("{}\0", cell.borrow().uri.to_string());
+        zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
+    });
 
     let vars = [
         (b"Application's Environment (DD_ENV)\0", globals.env.ptr),
@@ -800,4 +797,29 @@ extern "C" fn execute_internal(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_boolean() {
+        let truthies = [
+            "1", "on", "yes", "true", "On", "Yes", "True", "ON", "YES", "TRUE",
+        ];
+        for val in truthies {
+            assert_eq!(Some(true), parse_boolean(val), "Testing {}", val);
+        }
+
+        let falsies = [
+            "0", "no", "off", "false", "No", "Off", "False", "NO", "OFF", "FALSE",
+        ];
+        for val in falsies {
+            assert_eq!(Some(false), parse_boolean(val), "Testing {}", val);
+        }
+
+        let non_boolean = ["", "a", "2", "-1", "truuue", "💯", "🦀!", "🔥🔥"];
+        for val in non_boolean {
+            let actual = parse_boolean(val);
+            assert_eq!(None, actual, "Testing {}", val);
+        }
+    }
+}

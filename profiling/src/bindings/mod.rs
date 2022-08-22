@@ -199,15 +199,19 @@ pub struct EfreePtr<T> {
 }
 
 impl EfreePtr<c_char> {
-    pub fn into_string(self) -> String {
+    /// Converts the possibly-null string into an Option<String>, treating an
+    /// empty string as a None.
+    pub fn into_string(self) -> Option<String> {
         if !self.ptr.is_null() {
             /* Safety: If this is invalid when non-null, then someone else has
              * messed up already, nothing we can do really.
              */
             let cstr = unsafe { CStr::from_ptr(self.ptr) };
-            String::from_utf8_lossy(cstr.to_bytes()).into_owned()
+            let maybe_str = cstr.to_str().ok();
+            // treat empty strings the same as no string
+            maybe_str.filter(|str| !str.is_empty()).map(String::from)
         } else {
-            String::new()
+            None
         }
     }
 }
@@ -249,9 +253,6 @@ pub struct DatadogPhpProfilingGlobals {
     pub env: datadog_php_str,
     pub service: datadog_php_str,
     pub version: datadog_php_str,
-    pub agent_host: datadog_php_str,
-    pub trace_agent_port: datadog_php_str,
-    pub trace_agent_url: datadog_php_str,
 }
 
 pub use DatadogPhpProfilingGlobals as zend_datadog_php_profiling_globals;
@@ -267,9 +268,6 @@ impl Default for DatadogPhpProfilingGlobals {
             env: datadog_php_str::default(),
             service: datadog_php_str::default(),
             version: datadog_php_str::default(),
-            agent_host: datadog_php_str::default(),
-            trace_agent_port: datadog_php_str::default(),
-            trace_agent_url: datadog_php_str::default(),
         }
     }
 }
