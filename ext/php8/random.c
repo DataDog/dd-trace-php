@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include <ext/standard/php_rand.h>
+#include <ext/standard/php_random.h>
 
 #include "configuration.h"
 #include "ddtrace.h"
@@ -12,11 +13,13 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_seed_prng(void) {
+    unsigned long long seed;
     if (get_DD_TRACE_DEBUG_PRNG_SEED() > 0) {
-        init_genrand64((unsigned long long)get_DD_TRACE_DEBUG_PRNG_SEED());
-    } else {
-        init_genrand64((unsigned long long)GENERATE_SEED());
+        seed = get_DD_TRACE_DEBUG_PRNG_SEED();
+    } else if (php_random_int_silent(ZEND_LONG_MIN, ZEND_LONG_MAX, (zend_long *)&seed) == FAILURE) {
+        seed = GENERATE_SEED();
     }
+    init_genrand64(seed);
 }
 
 uint64_t ddtrace_parse_userland_span_id(zval *zid) {
