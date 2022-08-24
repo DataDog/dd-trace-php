@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <php.h>
@@ -454,7 +452,7 @@ static bool dd_parse_ip_address_maybe_port_pair(const char *addr, size_t addr_le
     }
 
     const char *colon = memchr(addr, ':', addr_len);
-    if (colon && memrchr(addr, ':', addr_len) == colon) { //There is one and only one colon
+    if (colon && zend_memrchr(addr, ':', addr_len) == colon) { //There is one and only one colon
         return dd_parse_ip_address(addr, colon - addr, ip_or_error, out);
     }
 
