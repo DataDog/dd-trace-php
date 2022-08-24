@@ -387,7 +387,7 @@ PACKAGE_NAME:=datadog-php-tracer
 FPM_INFO_OPTS=-a $(ARCHITECTURE) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
 	--provides $(PACKAGE_NAME) --vendor DataDog  --url "https://docs.datadoghq.com/tracing/setup/php/" --no-depends
 FPM_DIR_OPTS=--directories $(EXT_DIR)/etc --config-files $(EXT_DIR)/etc -s dir
-FPM_FILES=extensions_$(ARCHITECTURE)/=$(EXT_DIR)/extensions \
+FPM_FILES=extensions_$(shell test $(ARCHITECTURE) = arm64 && echo aarch64 || echo $(ARCHITECTURE))/=$(EXT_DIR)/extensions \
 	package/post-install.sh=$(EXT_DIR)/bin/post-install.sh package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 	docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md UPGRADE-0.10.md=$(EXT_DIR)/docs/UPGRADE-0.10.md\
 	src=$(EXT_DIR)/dd-trace-sources \
@@ -432,7 +432,7 @@ build_pecl_package:
 	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
-packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.aarch64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz
+packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
 verify_version:
