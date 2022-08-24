@@ -48,7 +48,60 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+<![CDATA[
+### Added
+- Instrument pcntl_fork and reset tracing when it is called #1633 (Thanks @jlesueur)
+- ARM64 support (Build arm images in CI) #1701
+
+### Changed
+- Accept pseudonym on via header as specified by rfc7230 #1696
+- Add agent target URL to flush-message to help with debugging #1705
+- Add IPv6 support to DD_AGENT_HOST #1707
+
+### Fixed
+- Fix span memory leak and packaging #1697
+- Fix datadog-setup.php failing in environments without scan directory #1702
+- Fix random number generator usage #1704
+- Set root span name only in HttpKernel::boot() to avoid side effects on CLI #1706
+- Fix meta information loss in PDOIntegration #1708
+
+### Internal changes
+- Update artifact URL for v0.77.0 gitlab deployments #1686
+- Update relenv to use datadog-setup.php #1689
+- Add arm support to docker images #1699
+
+## Application Security Monitoring (v0.4.0)
+
+#### Fixed
+- Fix interned string invalidation on PHP <= 7.2 DataDog/dd-appsec-php#99
+- Replace `php_error_docref` with `php_log_err` DataDog/dd-appsec-php#101
+
+#### Changed
+- Log helper communication DataDog/dd-appsec-php#97
+- Set environment values at rinit on php-fpm DataDog/dd-appsec-php#105
+
+#### Internal changes
+- Update development documentation DataDog/dd-appsec-php#98
+- Update system tests with new variants DataDog/dd-appsec-php#102
+- Add helper test for config DataDog/dd-appsec-php#108
+- Fix missing helper header coverage DataDog/dd-appsec-php#109
+- Upgrade integration test tracer version to 0.76.1 DataDog/dd-appsec-php#110
+- Add a way to include local changes to the cmake build process DataDog/dd-appsec-php#111
+- libddwaf upgraded to 1.4.0 DataDog/dd-appsec-php#116
+
+## Profiling (v0.9.0)
+
+#### Added
+ - Add Unix Domain Socket (UDS) support #1698
+
+#### Fixed
+ - Avoid PHP per-request interning #1700
+
+#### Internal changes
+ - Add phpt tests for profiling #1690
+]]>
+    </notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
