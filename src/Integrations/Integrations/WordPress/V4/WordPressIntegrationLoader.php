@@ -118,16 +118,37 @@ class WordPressIntegrationLoader
         });
 
         // Widgets
-        \DDTrace\trace_method('WP_Widget_Factory', '_register_widgets', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP_Widget_Factory._register_widgets';
+        \DDTrace\trace_function('wp_widgets_init', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'wp_widgets_init';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
         });
 
-        \DDTrace\trace_method('WP_Widget', 'display_callback', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP_Widget.display_callback';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
+        /* When a widget is registered, trace its `widget` method. The base
+         * method, WP_Widget::widget, is not called, so we cannot intercept it
+         * generically.
+         */
+        \DDTrace\hook_function('register_widget', function ($args) use ($service) {
+            if (!isset($args[0])) {
+                return;
+            }
+            // Signature: register_widget(string|WP_Widget $widget): void
+            $widget = $args[0];
+            if (\is_string($widget)) {
+                $className = $widget;
+            } elseif (\is_object($widget)) {
+                $className = \get_class($widget);
+            } else {
+                return;
+            }
+
+            \DDTrace\trace_method($className, 'widget', function (SpanData $span) use ($service) {
+                $span->name = 'wordpress.widget';
+                // WP_Widgets have a public $name property.
+                $span->resource = isset($this->name) ? $this->name : $span->name;
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $service;
+            });
         });
 
         // Database
