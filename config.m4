@@ -136,7 +136,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/logging.c \
       ext/php8/memory_limit.c \
       ext/php8/priority_sampling/priority_sampling.c \
-      ext/php8/profiling_context.c \
+      ext/php8/profiling.c \
       ext/php8/random.c \
       ext/php8/request_hooks.c \
       ext/php8/serializer.c \

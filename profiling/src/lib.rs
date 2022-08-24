@@ -1,11 +1,11 @@
 mod bindings;
-mod capi;
+pub mod capi;
 mod config;
 mod logging;
 mod profiling;
 mod sapi;
 
-use crate::profiling::Profiler;
+use crate::profiling::{LocalRootSpanResourceMessage, Profiler};
 use bindings as zend;
 use bindings::{sapi_getenv, ZendExtension, ZendResult};
 use config::AgentEndpoint;
@@ -273,6 +273,7 @@ pub struct RequestLocals {
     pub last_cpu_time: Option<cpu_time::ThreadTime>,
     pub last_wall_time: Instant,
     pub profiling_enabled: bool,
+    pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<String>,
@@ -300,6 +301,7 @@ thread_local! {
         last_cpu_time: None,
         last_wall_time: Instant::now(),
         profiling_enabled: false,
+        profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
@@ -330,6 +332,11 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 .as_deref()
                 .and_then(parse_boolean)
                 .unwrap_or(false);
+            locals.profiling_endpoint_collection_enabled = environment
+                .profiling_endpoint_collection_enabled
+                .as_deref()
+                .and_then(parse_boolean)
+                .unwrap_or(true);
             locals.profiling_experimental_cpu_time_enabled = environment
                 .profiling_experimental_cpu_time_enabled
                 .as_deref()
@@ -576,6 +583,16 @@ unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
 
         zend::php_info_print_table_row(
             2,
+            b"Endpoint Profiling Enabled\0".as_ptr(),
+            if locals.profiling_endpoint_collection_enabled {
+                yes
+            } else {
+                no
+            },
+        );
+
+        zend::php_info_print_table_row(
+            2,
             b"Platform's CPU Time API Works\0".as_ptr(),
             if cpu_time::ThreadTime::try_now().is_ok() {
                 yes
@@ -670,6 +687,39 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
+}
+
+/// Notifies the profiler a trace has finished so it can update information
+/// for Endpoint Profiling.
+fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource: Cow<str>) {
+    REQUEST_LOCALS.with(|cell| {
+        let locals = cell.borrow();
+        if locals.profiling_enabled && locals.profiling_endpoint_collection_enabled {
+            // Only gather Endpoint Profiling data for web spans, partly for PII reasons.
+            if span_type != "web" {
+                debug!(
+                    "Local root span id {} ended but did not have a span type of 'web' (actual: '{}'), so Endpoint Profiling data will not be sent.",
+                    local_root_span_id, span_type
+                );
+                return;
+            }
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                let message = LocalRootSpanResourceMessage {
+                    local_root_span_id,
+                    resource: resource.into_owned(),
+                };
+                if let Err(err) = profiler.send_local_root_span_resource(message) {
+                    warn!("Failed to enqueue endpoint profiling information: {}.", err);
+                } else {
+                    trace!(
+                        "Enqueued endpoint profiling information for span id: {}.",
+                        local_root_span_id
+                    );
+                }
+            }
+        }
+    });
 }
 
 /// Gathers a time sample if the configured period has elapsed and resets the

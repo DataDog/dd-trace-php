@@ -4,10 +4,11 @@
 #include <time.h>
 
 #include "ddtrace.h"
+#include "logging.h"
+#include "profiling.h"
+#include "runtime.h"
 #include "span.h"
 #include "zend_extensions.h"
-#include "logging.h"
-#include "runtime.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -25,6 +26,10 @@ static datadog_php_uuid dd_profiling_runtime_id_nil(void) {
 
 datadog_php_uuid (*ddtrace_profiling_runtime_id)(void) = dd_profiling_runtime_id_nil;
 
+void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
+                                        zai_string_view span_type,
+                                        zai_string_view resource) = NULL;
+
 void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
 
 // Check if the profiler is loaded, and if, so it will locate certain symbols so cross-product features can be enabled.
@@ -35,16 +40,20 @@ void dd_search_for_profiling_symbols(void *arg) {
 
         profiling_interrupt_function = DL_FETCH_SYMBOL(handle, "datadog_profiling_interrupt_function");
         if (UNEXPECTED(!profiling_interrupt_function)) {
-            ddtrace_log_debugf("[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n",
-                               "datadog_profiling_interrupt_function", DL_ERROR());
+            ddtrace_log_debugf("[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "datadog_profiling_interrupt_function",
+                               DL_ERROR());
         }
 
         datadog_php_uuid (*runtime_id)(void) = DL_FETCH_SYMBOL(handle, "datadog_profiling_runtime_id");
         if (EXPECTED(runtime_id)) {
             ddtrace_profiling_runtime_id = runtime_id;
         } else {
-            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n",
-                               extension->version, DL_ERROR());
+            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, DL_ERROR());
+        }
+
+        profiling_notify_trace_finished = DL_FETCH_SYMBOL(handle, "datadog_profiling_notify_trace_finished");
+        if (UNEXPECTED(!profiling_notify_trace_finished)) {
+            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, DL_ERROR());
         }
     }
 }

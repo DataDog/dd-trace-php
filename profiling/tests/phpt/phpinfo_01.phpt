@@ -45,6 +45,7 @@ assert(isset($values["Version"]));
 $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "true"],
+    ["Endpoint Profiling Enabled", "true"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],
     ["Application's Environment (DD_ENV)", "dev"],
