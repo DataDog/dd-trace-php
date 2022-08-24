@@ -337,7 +337,7 @@ function install($options)
                             . escapeshellarg($iniFilePath)
                     );
                 }
-            } elseif (is_truthy($options[OPT_ENABLE_APPSEC])) {
+            } else {
                 // Ensure AppSec isn't loaded if not compatible
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
@@ -345,8 +345,10 @@ function install($options)
                         . escapeshellarg($iniFilePath)
                 );
 
-                $enableAppsec = OPT_ENABLE_APPSEC;
-                print_error_and_exit("Option --${enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
+                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
+                    $enableAppsec = OPT_ENABLE_APPSEC;
+                    print_error_and_exit("Option --${enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
+                }
             }
             // phpcs:enable Generic.Files.LineLength.TooLong
 
