@@ -1,4 +1,5 @@
 mod bindings;
+mod capi;
 mod config;
 mod logging;
 mod profiling;
@@ -48,7 +49,7 @@ lazy_static! {
     /// The runtime ID, which is basically a universally unique "pid", so it
     /// theoretically can change on fork.
     /// todo: support forking.
-    static ref RUNTIME_ID: profiling::Uuid = profiling::Uuid::from(uuid::Uuid::new_v4());
+    static ref RUNTIME_ID: capi::Uuid = capi::Uuid::from(uuid::Uuid::new_v4());
 }
 
 /// The Server API the profiler is running under.
@@ -215,7 +216,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_interrupt_function = Some(if zend::zend_interrupt_function.is_some() {
             interrupt_function_wrapper
         } else {
-            datadog_profiling_interrupt_function
+            capi::datadog_profiling_interrupt_function
         });
 
         zend::zend_execute_internal = Some(execute_internal);
@@ -671,21 +672,9 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
     trace!("shutdown({:p})", _extension);
 }
 
-#[no_mangle]
-pub extern "C" fn datadog_profiling_runtime_id() -> profiling::Uuid {
-    *RUNTIME_ID
-}
-
-/// Used internally to gather time samples when the configured period has
-/// elapsed. Also used by the tracer to handle pending profiler interrupts
-/// before calling a tracing closure from an internal function hook; if this
-/// isn't done then the closure is erroneously at the top of the stack.
-///
-/// # Safety
-/// The zend_execute_data pointer should come from the engine to ensure it and
-/// its sub-objects are valid.
-#[no_mangle]
-pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend::zend_execute_data) {
+/// Gathers a time sample if the configured period has elapsed and resets the
+/// interrupt_count.
+fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
         if !locals.profiling_enabled {
@@ -714,7 +703,7 @@ pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend::
 /// A wrapper for the `datadog_profiling_interrupt_function` to call the
 /// previous interrupt handler, if there was one.
 extern "C" fn interrupt_function_wrapper(execute_data: *mut zend::zend_execute_data) {
-    datadog_profiling_interrupt_function(execute_data);
+    interrupt_function(execute_data);
 
     // Safety: PREV_INTERRUPT_FUNCTION was written during minit, doesn't change during runtime.
     unsafe {
@@ -742,7 +731,7 @@ extern "C" fn execute_internal(
         let prev_execute_internal = *PREV_EXECUTE_INTERNAL.as_mut_ptr();
         prev_execute_internal(execute_data, return_value);
     }
-    datadog_profiling_interrupt_function(execute_data);
+    interrupt_function(execute_data);
 }
 
 #[cfg(test)]

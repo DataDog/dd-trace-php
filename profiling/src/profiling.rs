@@ -46,44 +46,6 @@ impl WallTime {
     }
 }
 
-#[repr(C, align(16))]
-#[derive(Debug, Copy, Clone)]
-pub struct Uuid {
-    pub data: [u8; 16],
-}
-
-impl Uuid {
-    pub const fn new() -> Self {
-        Self {
-            data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        }
-    }
-
-    pub fn as_bytes(&self) -> &uuid::Bytes {
-        &self.data
-    }
-}
-
-impl Default for Uuid {
-    fn default() -> Self {
-        Uuid::new()
-    }
-}
-
-impl From<uuid::Uuid> for Uuid {
-    fn from(uuid: uuid::Uuid) -> Self {
-        Self {
-            data: *uuid.as_bytes(),
-        }
-    }
-}
-
-impl From<Uuid> for uuid::Uuid {
-    fn from(uuid: Uuid) -> Self {
-        Self::from_bytes(*uuid.as_bytes())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum LabelValue {
     Str(Cow<'static, str>),
