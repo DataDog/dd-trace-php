@@ -18,7 +18,7 @@ class SymfonyIntegration extends Integration
     /** @var SpanData */
     public $symfonyRequestSpan;
 
-    /** @var string */
+    /** @var ?string */
     public $appName;
 
     public function getName()
@@ -41,32 +41,45 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
+        $integration = $this;
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'handle',
-            function (SpanData $span) {
-                $span->name = 'symfony.httpkernel.kernel.handle';
-                $span->resource = \get_class($this);
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('symfony');
-            }
+            [
+                'prehook' => function (SpanData $span) use ($integration) {
+                    if ($rootSpan = \DDTrace\root_span()) {
+                        if (!isset($integration->appName)) {
+                            $integration->appName = \ddtrace_config_app_name('symfony');
+                        }
+                        $rootSpan->name = 'symfony.request';
+                        $rootSpan->service = $integration->appName;
+                    }
+
+                    $span->name = 'symfony.httpkernel.kernel.handle';
+                    $span->resource = \get_class($this);
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $integration->appName;
+                }
+            ]
         );
 
+        // In Symfony 6 the boot method may not get called because of a cache.
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'boot',
             [
-                "prehook" => function (SpanData $span) {
+                "prehook" => function (SpanData $span) use ($integration) {
                     if ($rootSpan = \DDTrace\root_span()) {
-                        $this->appName = \ddtrace_config_app_name('symfony');
+                        if (!isset($integration->appName)) {
+                            $integration->appName = \ddtrace_config_app_name('symfony');
+                        }
                         $rootSpan->name = 'symfony.request';
-                        $rootSpan->service = $this->appName;
+                        $rootSpan->service = $integration->appName;
                     }
-
                     $span->name = 'symfony.httpkernel.kernel.boot';
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = \ddtrace_config_app_name('symfony');
+                    $span->service = $integration->appName;
                 }
             ]
         );
