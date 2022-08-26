@@ -902,21 +902,17 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     ZVAL_UNDEF(&prop_type_as_string);
     if (Z_TYPE_P(prop_type) > IS_NULL) {
         ddtrace_convert_to_string(&prop_type_as_string, prop_type);
-        _add_assoc_zval_copy(el, "type", &prop_resource_as_string);
+        _add_assoc_zval_copy(el, "type", &prop_type_as_string);
     }
 
     // Notify profiling for Endpoint Profiling.
-    if (profiling_notify_trace_finished) {
-        bool is_root = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
-        bool resource_is_string = Z_TYPE(prop_resource_as_string) == IS_STRING;
-        if (is_root && resource_is_string) {
-            zai_string_view type = Z_TYPE(prop_type_as_string) == IS_STRING
-                ? ZAI_STRING_FROM_ZSTR(Z_STR(prop_type_as_string))
-                : ZAI_STRL_VIEW("custom");
-            zai_string_view resource = ZAI_STRING_FROM_ZSTR(Z_STR(prop_resource_as_string));
-            ddtrace_log_debug("Notifying profiler of finished local root span.");
-            profiling_notify_trace_finished(span->span_id, type, resource);
-        }
+    if (profiling_notify_trace_finished && top_level_span && Z_TYPE(prop_resource_as_string) == IS_STRING) {
+        zai_string_view type = Z_TYPE(prop_type_as_string) == IS_STRING
+            ? ZAI_STRING_FROM_ZSTR(Z_STR(prop_type_as_string))
+            : ZAI_STRL_VIEW("custom");
+        zai_string_view resource = ZAI_STRING_FROM_ZSTR(Z_STR(prop_resource_as_string));
+        ddtrace_log_debug("Notifying profiler of finished local root span.");
+        profiling_notify_trace_finished(span->span_id, type, resource);
     }
     zval_ptr_dtor(&prop_type_as_string);
     zval_ptr_dtor(&prop_resource_as_string);
