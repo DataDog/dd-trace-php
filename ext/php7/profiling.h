@@ -1,5 +1,7 @@
-#ifndef DDTRACE_PROFILING_CONTEXT_H
-#define DDTRACE_PROFILING_CONTEXT_H
+#ifndef DDTRACE_PROFILING_H
+#define DDTRACE_PROFILING_H
+
+// This file provides definitions for communicating with the profiler.
 
 #include <stdint.h>
 #include <zend_portability.h>
@@ -22,4 +24,4 @@ DDTRACE_PUBLIC struct ddtrace_profiling_context ddtrace_get_profiling_context(vo
 
 END_EXTERN_C()
 
-#endif  // DDTRACE_PROFILING_CONTEXT_H
+#endif  // DDTRACE_PROFILING_H

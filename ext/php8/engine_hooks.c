@@ -5,7 +5,6 @@
 
 #include "ddtrace.h"
 #include "logging.h"
-#include "profiling.h"
 #include "runtime.h"
 #include "span.h"
 #include "zend_extensions.h"

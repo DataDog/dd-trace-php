@@ -26,7 +26,6 @@
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "priority_sampling/priority_sampling.h"
-#include "profiling.h"
 #include "runtime.h"
 #include "span.h"
 #include "uri_normalization.h"

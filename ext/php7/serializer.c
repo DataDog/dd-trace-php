@@ -31,6 +31,10 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
+                                               zai_string_view span_type,
+                                               zai_string_view resource);
+
 #define MAX_ID_BUFSIZ 21  // 1.8e^19 = 20 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
 #define KEY_SPAN_ID "span_id"
@@ -742,13 +746,6 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     }
 }
 
-static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value) {
-    zval value_as_string;
-    ddtrace_convert_to_string(&value_as_string, value);
-    _add_assoc_zval_copy(el, name, &value_as_string);
-    zval_dtor(&value_as_string);
-}
-
 static bool dd_rule_matches(zval *pattern, zend_string* value) {
     if (Z_TYPE_P(pattern) != IS_STRING) {
         return false;
@@ -868,10 +865,16 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     // SpanData::$resource defaults to SpanData::$name
     zval *prop_resource = ddtrace_spandata_property_resource(span);
     ZVAL_DEREF(prop_resource);
+    zval prop_resource_as_string;
+    ZVAL_UNDEF(&prop_resource_as_string);
     if (Z_TYPE_P(prop_resource) > IS_FALSE && (Z_TYPE_P(prop_resource) != IS_STRING || Z_STRLEN_P(prop_resource) > 0)) {
-        _dd_add_assoc_zval_as_string(el, "resource", prop_resource);
+        ddtrace_convert_to_string(&prop_resource_as_string, prop_resource);
     } else if (Z_TYPE_P(prop_name) > IS_NULL) {
-        _add_assoc_zval_copy(el, "resource", prop_name);
+        ZVAL_COPY(&prop_resource_as_string, prop_name);
+    }
+
+    if (Z_TYPE(prop_resource_as_string) == IS_STRING) {
+        _add_assoc_zval_copy(el, "resource", &prop_resource_as_string);
     }
 
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
@@ -894,9 +897,25 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
     zval *prop_type = ddtrace_spandata_property_type(span);
     ZVAL_DEREF(prop_type);
+    zval prop_type_as_string;
+    ZVAL_UNDEF(&prop_type_as_string);
     if (Z_TYPE_P(prop_type) > IS_NULL) {
-        _dd_add_assoc_zval_as_string(el, "type", prop_type);
+        ddtrace_convert_to_string(&prop_type_as_string, prop_type);
+        _add_assoc_zval_copy(el, "type", &prop_type_as_string);
     }
+
+    // Notify profiling for Endpoint Profiling.
+    if (profiling_notify_trace_finished && top_level_span && Z_TYPE(prop_resource_as_string) == IS_STRING) {
+        zai_string_view type = Z_TYPE(prop_type_as_string) == IS_STRING
+                                   ? ZAI_STRING_FROM_ZSTR(Z_STR(prop_type_as_string))
+                                   : ZAI_STRL_VIEW("custom");
+        zai_string_view resource = ZAI_STRING_FROM_ZSTR(Z_STR(prop_resource_as_string));
+        ddtrace_log_debug("Notifying profiler of finished local root span.");
+        profiling_notify_trace_finished(span->span_id, type, resource);
+    }
+
+    zval_ptr_dtor(&prop_type_as_string);
+    zval_ptr_dtor(&prop_resource_as_string);
 
     if (ddtrace_fetch_prioritySampling_from_span(span->chunk_root) <= 0) {
         zval *rule;

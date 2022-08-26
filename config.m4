@@ -82,7 +82,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/logging.c \
       ext/php7/memory_limit.c \
       ext/php7/priority_sampling/priority_sampling.c \
-      ext/php7/profiling_context.c \
+      ext/php7/profiling.c \
       ext/php7/random.c \
       ext/php7/request_hooks.c \
       ext/php7/serializer.c \
