@@ -674,6 +674,33 @@ static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zv
     zai_interceptor_execute_internal_impl(execute_data, return_value, true);
 }
 
+// In PHP 8.1 observer end handlers are not called on bailing fibers by the observer implementation
+#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80200
+struct _zend_fiber_stack {
+    void *pointer;
+    size_t size;
+};
+
+static void zai_interceptor_handle_fiber_error(int type, zend_string *error_filename, uint32_t error_lineno, zend_string *message) {
+    if (EG(main_fiber_context) != EG(current_fiber_context)) {
+        switch (type) { // type may contain E_DONT_BAIL, given that we equality compare here, we don't have to check for it explicitly
+            case E_CORE_ERROR:
+            case E_ERROR:
+            case E_RECOVERABLE_ERROR:
+            case E_PARSE:
+            case E_COMPILE_ERROR:
+            case E_USER_ERROR: {
+                zend_fiber_stack *stack = EG(current_fiber_context)->stack;
+                // empirically determined that the first bailout is in the early bytes of the stack
+                if ((uintptr_t)stack->pointer + stack->size - (uintptr_t)EG(bailout) < 0x300) {
+                    zend_observer_fcall_end_all();
+                }
+            }
+        }
+    }
+}
+#endif
+
 void zai_interceptor_setup_resolving_post_startup(void);
 
 // extension handles are supposed to be frozen at post_startup time and observer extension handle allocation
@@ -732,6 +759,10 @@ void zai_interceptor_startup() {
     zend_post_startup_cb = zai_interceptor_post_startup;
 
     zai_hook_on_update = zai_interceptor_replace_observer;
+
+#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80200
+    zend_observer_error_register(zai_interceptor_handle_fiber_error);
+#endif
 }
 
 static void zai_hook_memory_dtor(zval *zv) {
