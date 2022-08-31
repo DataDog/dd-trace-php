@@ -3,12 +3,8 @@
 #include <zend_closures.h>
 #include <zend_generators.h>
 
-#if PHP_VERSION_ID < 80000
-#include "php7/compatibility.h"
-#include "php7/configuration.h"
-#else
-#include "php8/configuration.h"
-#endif
+#include "../compatibility.h"
+#include "../configuration.h"
 
 #include "uhook_arginfo.h"
 

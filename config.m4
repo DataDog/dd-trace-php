@@ -59,118 +59,80 @@ if test "$PHP_DDTRACE" != "no"; then
     exit 1
   elif test $PHP_VERSION_ID -lt 80000; then
     dnl PHP 7.x
-    dnl ddtrace.c comes first, then everything else alphabetically
-    DD_TRACE_PHP_SOURCES="ext/php7/ddtrace.c \
-      ext/php7/arrays.c \
-      ext/php7/auto_flush.c \
-      ext/php7/circuit_breaker.c \
-      ext/php7/comms_php.c \
-      ext/php7/compat_string.c \
-      ext/php7/coms.c \
-      ext/php7/configuration.c \
-      ext/php7/ddshared.c \
-      ext/php7/dogstatsd_client.c \
-      ext/php7/engine_api.c \
-      ext/php7/engine_hooks.c \
-      ext/php7/excluded_modules.c \
-      ext/php7/handlers_curl.c \
-      ext/php7/handlers_exception.c \
-      ext/php7/handlers_internal.c \
-      ext/php7/handlers_pcntl.c \
-      ext/php7/integrations/integrations.c \
-      ext/php7/ip_extraction.c \
-      ext/php7/logging.c \
-      ext/php7/memory_limit.c \
-      ext/php7/priority_sampling/priority_sampling.c \
-      ext/php7/profiling_context.c \
-      ext/php7/random.c \
-      ext/php7/request_hooks.c \
-      ext/php7/serializer.c \
-      ext/php7/signals.c \
-      ext/php7/span.c \
-      ext/php7/startup_logging.c \
-      ext/php7/tracer_tag_propagation/tracer_tag_propagation.c \
-      ext/hook/uhook.c \
-      ext/hook/uhook_legacy.c \
-    "
 
-    ZAI_SOURCES="\
-      zend_abstract_interface/config/config.c \
-      zend_abstract_interface/config/config_decode.c \
-      zend_abstract_interface/config/config_ini.c \
-      zend_abstract_interface/config/config_runtime.c \
-      zend_abstract_interface/env/env.c \
-      zend_abstract_interface/exceptions/exceptions.c \
-      zend_abstract_interface/headers/headers.c \
-      zend_abstract_interface/hook/hook.c \
+    EXTRA_PHP_SOURCES="ext/handlers_curl_php7.c"
+
+    EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php7/interceptor.c \
       zend_abstract_interface/interceptor/php7/resolver.c \
-      zend_abstract_interface/json/json.c \
-      zend_abstract_interface/symbols/lookup.c \
-      zend_abstract_interface/symbols/call.c \
       zend_abstract_interface/sandbox/php7/sandbox.c \
-      zend_abstract_interface/uri_normalization/uri_normalization.c \
     "
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
-    dnl ddtrace.c comes first, then everything else alphabetically
-    DD_TRACE_PHP_SOURCES="ext/php8/ddtrace.c \
-      ext/php8/arrays.c \
-      ext/php8/auto_flush.c \
-      ext/php8/circuit_breaker.c \
-      ext/php8/comms_php.c \
-      ext/php8/compat_string.c \
-      ext/php8/coms.c \
-      ext/php8/configuration.c \
-      ext/php8/ddshared.c \
-      ext/php8/dogstatsd_client.c \
-      ext/php8/engine_api.c \
-      ext/php8/engine_hooks.c \
-      ext/php8/excluded_modules.c \
-      ext/php8/handlers_curl.c \
-      ext/php8/handlers_exception.c \
-      ext/php8/handlers_internal.c \
-      ext/php8/handlers_pcntl.c \
-      ext/php8/integrations/integrations.c \
-      ext/php8/ip_extraction.c \
-      ext/php8/logging.c \
-      ext/php8/memory_limit.c \
-      ext/php8/priority_sampling/priority_sampling.c \
-      ext/php8/profiling_context.c \
-      ext/php8/random.c \
-      ext/php8/request_hooks.c \
-      ext/php8/serializer.c \
-      ext/php8/signals.c \
-      ext/php8/span.c \
-      ext/php8/startup_logging.c \
-      ext/php8/tracer_tag_propagation/tracer_tag_propagation.c \
-      ext/hook/uhook.c \
-      ext/hook/uhook_legacy.c \
-    "
+    EXTRA_PHP_SOURCES="ext/handlers_curl.c"
+
     if test $PHP_VERSION_ID -lt 80200; then
-      DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
-        ext/php8/weakrefs.c \
-      "
+      EXTRA_PHP_SOURCES="$EXTRA_PHP_SOURCES \
+        ext/weakrefs.c"
     fi
 
-    ZAI_SOURCES="\
-      zend_abstract_interface/config/config.c \
-      zend_abstract_interface/config/config_decode.c \
-      zend_abstract_interface/config/config_ini.c \
-      zend_abstract_interface/config/config_runtime.c \
-      zend_abstract_interface/env/env.c \
-      zend_abstract_interface/exceptions/exceptions.c \
-      zend_abstract_interface/headers/headers.c \
-      zend_abstract_interface/hook/hook.c \
+    EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php8/interceptor.c \
       zend_abstract_interface/interceptor/php8/resolver.c \
-      zend_abstract_interface/json/json.c \
-      zend_abstract_interface/symbols/lookup.c \
-      zend_abstract_interface/symbols/call.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
-      zend_abstract_interface/uri_normalization/uri_normalization.c \
     "
   fi
+
+  dnl ddtrace.c comes first, then everything else alphabetically
+  DD_TRACE_PHP_SOURCES="$EXTRA_PHP_SOURCES \
+    ext/ddtrace.c \
+    ext/arrays.c \
+    ext/auto_flush.c \
+    ext/circuit_breaker.c \
+    ext/comms_php.c \
+    ext/compat_string.c \
+    ext/coms.c \
+    ext/configuration.c \
+    ext/ddshared.c \
+    ext/dogstatsd_client.c \
+    ext/engine_api.c \
+    ext/engine_hooks.c \
+    ext/excluded_modules.c \
+    ext/handlers_exception.c \
+    ext/handlers_internal.c \
+    ext/handlers_pcntl.c \
+    ext/integrations/integrations.c \
+    ext/ip_extraction.c \
+    ext/logging.c \
+    ext/memory_limit.c \
+    ext/priority_sampling/priority_sampling.c \
+    ext/profiling_context.c \
+    ext/random.c \
+    ext/request_hooks.c \
+    ext/serializer.c \
+    ext/signals.c \
+    ext/span.c \
+    ext/startup_logging.c \
+    ext/tracer_tag_propagation/tracer_tag_propagation.c \
+    ext/hook/uhook.c \
+    ext/hook/uhook_legacy.c \
+    \
+  "
+
+  ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
+    zend_abstract_interface/config/config.c \
+    zend_abstract_interface/config/config_decode.c \
+    zend_abstract_interface/config/config_ini.c \
+    zend_abstract_interface/config/config_runtime.c \
+    zend_abstract_interface/env/env.c \
+    zend_abstract_interface/exceptions/exceptions.c \
+    zend_abstract_interface/headers/headers.c \
+    zend_abstract_interface/hook/hook.c \
+    zend_abstract_interface/json/json.c \
+    zend_abstract_interface/symbols/lookup.c \
+    zend_abstract_interface/symbols/call.c \
+    zend_abstract_interface/uri_normalization/uri_normalization.c \
+  "
 
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
@@ -240,23 +202,9 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
 
-  if test $PHP_VERSION_ID -lt 80000; then
-    dnl PHP 7.0
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7])
-    dnl Temp dir until we merge dispatch.c and engine_hooks.c
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/php7])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/priority_sampling])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/tracer_tag_propagation])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/integrations])
-    PHP_ADD_INCLUDE([$ext_builddir/ext/php7/integrations])
-  elif test $PHP_VERSION_ID -lt 90000; then
-    dnl PHP 8.0
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8])
-    dnl Temp dir until we merge dispatch.c and engine_hooks.c
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/php8])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/priority_sampling])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/tracer_tag_propagation])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/integrations])
-    PHP_ADD_INCLUDE([$ext_builddir/ext/php8/integrations])
-  fi
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/priority_sampling])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/tracer_tag_propagation])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
+  PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
 fi
