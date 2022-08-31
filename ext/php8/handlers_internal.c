@@ -31,15 +31,20 @@ void ddtrace_free_unregistered_class(zend_class_entry *ce) {
     if (ce->default_properties_table) {
         free(ce->default_properties_table);
     }
+#if PHP_VERSION_ID >= 70400
     if (ce->properties_info_table) {
         free(ce->properties_info_table);
     }
+#endif
 }
 
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_pcntl_handlers_startup(void);
 
+#if PHP_VERSION_ID < 80000
+void ddtrace_curl_handlers_shutdown(void);
+#endif
 void ddtrace_exception_handlers_shutdown(void);
 
 void ddtrace_curl_handlers_rinit(void);
@@ -58,6 +63,9 @@ void ddtrace_internal_handlers_startup(void) {
 
 void ddtrace_internal_handlers_shutdown(void) {
     ddtrace_exception_handlers_shutdown();
+#if PHP_VERSION_ID < 80000
+    ddtrace_curl_handlers_shutdown();
+#endif
 }
 
 void ddtrace_internal_handlers_rinit(void) {

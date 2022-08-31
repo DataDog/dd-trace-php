@@ -51,7 +51,11 @@ try_again:
             return strpprintf(0, "%.*G", (int)EG(precision), Z_DVAL_P(op));
 
         case IS_ARRAY:
+#if PHP_VERSION_ID < 70400
+            return zend_string_init("Array", sizeof("Array") - 1, 0);
+#else
             return ZSTR_KNOWN(ZEND_STR_ARRAY_CAPITALIZED);
+#endif
 
         case IS_OBJECT: {
             zend_string *class_name = Z_OBJ_HANDLER_P(op, get_class_name)(Z_OBJ_P(op));

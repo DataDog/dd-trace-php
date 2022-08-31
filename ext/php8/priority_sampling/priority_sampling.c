@@ -46,7 +46,11 @@ static bool dd_rule_matches(zval *pattern, zval *prop) {
     zend_string *regex = zend_strpprintf(0, "(%s)", Z_STRVAL_P(pattern));
     pcre_cache_entry *pce = pcre_get_compiled_regex_cache(regex);
     zval ret;
+#if PHP_VERSION_ID < 70400
+    php_pcre_match_impl(pce, Z_STRVAL_P(prop), (int)Z_STRLEN_P(prop), &ret, NULL, 0, 0, 0, 0);
+#else
     php_pcre_match_impl(pce, Z_STR_P(prop), &ret, NULL, 0, 0, 0, 0);
+#endif
     zend_string_release(regex);
     return Z_TYPE(ret) == IS_LONG && Z_LVAL(ret) > 0;
 }

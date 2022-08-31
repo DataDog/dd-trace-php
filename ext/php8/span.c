@@ -2,7 +2,6 @@
 
 #include <SAPI.h>
 #include "priority_sampling/priority_sampling.h"
-#include <interceptor/php8/interceptor.h>
 #include <time.h>
 #include <unistd.h>
 

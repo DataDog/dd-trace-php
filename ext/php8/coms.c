@@ -52,6 +52,10 @@ static bool _dd_is_memory_pressure_high(void) {
     }
 }
 
+/* Is called internally in the context of the PHP thread and actually attempts at storing the payload to send. If
+ * there is not enough memory left in the currently active stack, it does not attempt to generate a new stack, instead
+ * it returns a `ENOMEM` code that should be read by the invoker that can manually decide to ask for a larger stack.
+ */
 static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size) {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
     if (stack == NULL) {
@@ -275,6 +279,9 @@ static bool _dd_coms_unsafe_rotate_stack(bool attempt_allocate_new, size_t min_s
 
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
 
+    /* In this case we are reusing a stack (from the global `stacks` array) that has been already sent and was
+     * recycled, and `current_stack` is just a pointer to one of `<global>.stacks[i]`.
+     */
     if (current_stack && current_stack->size >= min_size && ddtrace_coms_is_stack_free(current_stack)) {
         return true;
     }

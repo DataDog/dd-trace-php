@@ -3,7 +3,9 @@
 
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
+#if PHP_VERSION_ID >= 80000
 #include <Zend/zend_observer.h>
+#endif
 #include <php.h>
 #include <stdint.h>
 
@@ -23,7 +25,11 @@ int64_t ddtrace_compile_time_get(void);
 struct ddtrace_error_handling {
     int type;
     int lineno;
+#if PHP_VERSION_ID < 80000
+    char *message;
+#else
     zend_string *message;
+#endif
 #if PHP_VERSION_ID < 80100
     char *file;
 #else
@@ -86,6 +92,14 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
     }
 }
 
+#if PHP_VERSION_ID < 80000
+PHP_FUNCTION(ddtrace_internal_function_handler);
+
+#define DDTRACE_ERROR_CB_PARAMETERS \
+    int orig_type, const char *error_filename, const uint error_lineno, const char *format, va_list args
+
+#define DDTRACE_ERROR_CB_PARAM_PASSTHRU orig_type, error_filename, error_lineno, format, args
+#else
 #if PHP_VERSION_ID < 80100
 #define DDTRACE_ERROR_CB_PARAMETERS \
     int orig_type, const char *error_filename, const uint32_t error_lineno, zend_string *message
@@ -95,6 +109,7 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
 #endif
 
 #define DDTRACE_ERROR_CB_PARAM_PASSTHRU orig_type, error_filename, error_lineno, message
+#endif
 
 extern void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 

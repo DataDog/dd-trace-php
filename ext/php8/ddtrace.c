@@ -12,7 +12,11 @@
 #include <headers/headers.h>
 #include <hook/hook.h>
 #include <inttypes.h>
+#if PHP_VERSION_ID < 80000
+#include <interceptor/php7/interceptor.h>
+#else
 #include <interceptor/php8/interceptor.h>
+#endif
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
@@ -57,7 +61,7 @@
 
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
-#if PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
 static bool dd_has_other_observers;
 static int dd_observer_extension_backup = -1;
 #endif
@@ -82,15 +86,50 @@ STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, On
                   zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
+#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
+static void ddtrace_sort_modules(void *base, size_t count, size_t siz, compare_func_t compare, swap_func_t swp) {
+    UNUSED(siz);
+    UNUSED(compare);
+    UNUSED(swp);
+
+    // swap ddtrace and opcache for the rest of the modules lifecycle, so that opcache is always executed after ddtrace
+    for (Bucket *module = base, *end = module + count, *ddtrace_module = NULL; module < end; ++module) {
+        zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
+        if (m->name == ddtrace_module_entry.name) {
+            ddtrace_module = module;
+        }
+        if (ddtrace_module && strcmp(m->name, "Zend OPcache") == 0) {
+            Bucket tmp = *ddtrace_module;
+            *ddtrace_module = *module;
+            *module = tmp;
+            break;
+        }
+    }
+}
+#endif
+
 static int ddtrace_startup(zend_extension *extension) {
     UNUSED(extension);
 
     ddtrace_fetch_profiling_symbols();
 
-#if PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
+    // Turns out with zai config we have dynamically allocated INI entries. This does not play well with PHP 7.3
+    // As of PHP 7.3 opcache stores INI entry values in SHM. However, only as of PHP 7.4 opcache delays detaching SHM.
+    // In PHP 7.3 SHM is freed in MSHUTDOWN, which may be executed before our extension, if we do not force an order.
+    // We have to sort this manually here, as opcache only registers itself as extension during zend_extension.startup.
+    zend_hash_sort_ex(&module_registry, ddtrace_sort_modules, NULL, 0);
+#endif
+
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
     dd_has_other_observers = ZEND_OBSERVER_ENABLED;
 #endif
+
+#if PHP_VERSION_ID < 80000
+    zai_interceptor_startup(ddtrace_module);
+#else
     zai_interceptor_startup();
+#endif
 
     ddtrace_excluded_modules_startup();
     // We deliberately leave handler replacement during startup, even though this uses some config
@@ -110,7 +149,7 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
 
 static void ddtrace_activate(void) {}
 static void ddtrace_deactivate(void) {
-#if PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
     if (dd_observer_extension_backup != -1) {
         zend_observer_fcall_op_array_extension = dd_observer_extension_backup;
         dd_observer_extension_backup = -1;
@@ -128,11 +167,19 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   ddtrace_activate,
                                                   ddtrace_deactivate,
                                                   NULL,
+#if PHP_VERSION_ID < 80000
+                                                  zai_interceptor_op_array_pass_two,
+#else
+                                                  NULL,
+#endif
                                                   NULL,
                                                   NULL,
                                                   NULL,
+#if PHP_VERSION_ID < 80000
+                                                  zai_interceptor_op_array_ctor,
+#else
                                                   NULL,
-                                                  NULL,
+#endif
                                                   NULL,
 
                                                   STANDARD_ZEND_EXTENSION_PROPERTIES};
@@ -293,24 +340,48 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
 
 static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
-    // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP 8.0]
+    // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
     memset(object->properties_table, 0, sizeof(((ddtrace_span_t *)NULL)->properties_table_placeholder));
 }
 
-static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member, zval *value, void **cache_slot) {
-    if (zend_string_equals_literal(member, "parent") || zend_string_equals_literal(member, "id")) {
-        zend_throw_error(zend_ce_error, "Cannot modify readonly property %s::$%s", ZSTR_VAL(object->ce->name),
-                         ZSTR_VAL(member));
-        return &EG(uninitialized_zval);
-    }
-
-    return zend_std_write_property(object, member, value, cache_slot);
-}
-
+#if PHP_VERSION_ID < 80000
+static zend_object *ddtrace_span_data_clone_obj(zval *old_zv) {
+    zend_object *old_obj = Z_OBJ_P(old_zv);
+#else
 static zend_object *ddtrace_span_data_clone_obj(zend_object *old_obj) {
+#endif
     zend_object *new_obj = ddtrace_span_data_create(old_obj->ce);
     zend_objects_clone_members(new_obj, old_obj);
     return new_obj;
+}
+
+#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID >= 70400
+static zval *ddtrace_span_data_readonly(zval *object, zval *member, zval *value, void **cache_slot) {
+#else
+static void ddtrace_span_data_readonly(zval *object, zval *member, zval *value, void **cache_slot) {
+#endif
+    zend_object *obj = Z_OBJ_P(object);
+    zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
+#else
+static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member, zval *value, void **cache_slot) {
+    zend_object *obj = object;
+    zend_string *prop_name = member;
+#endif
+    if (zend_string_equals_literal(prop_name, "parent") || zend_string_equals_literal(prop_name, "id")) {
+        zend_throw_error(zend_ce_error, "Cannot modify readonly property %s::$%s", ZSTR_VAL(obj->ce->name), ZSTR_VAL(prop_name));
+#if PHP_VERSION_ID >= 70400
+        return &EG(uninitialized_zval);
+#else
+        return;
+#endif
+    }
+
+#if PHP_VERSION_ID >= 70400
+    return zend_std_write_property(object, member, value, cache_slot);
+#else
+    zend_std_write_property(object, member, value, cache_slot);
+#endif
 }
 
 static PHP_METHOD(DDTrace_SpanData, getDuration) {
@@ -433,7 +504,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     zai_hook_minit();
     zai_uhook_minit();
+#if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
+#endif
 
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP", PRIORITY_SAMPLING_AUTO_KEEP,
@@ -560,15 +633,15 @@ static pthread_once_t dd_rinit_config_once_control = PTHREAD_ONCE_INIT;
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static void dd_initialize_request() {
-    // Things that should only run on the first RINIT
-    pthread_once(&dd_rinit_once_control, dd_rinit_once);
-
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, shhhht, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, shhhht, ZVAL_PTR_DTOR, 0);
+
+    // Things that should only run on the first RINIT
+    pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rinit();
@@ -629,6 +702,12 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     DDTRACE_G(request_init_hook_loaded) = 0;
 
+#if PHP_VERSION_ID < 80000
+    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
+#endif
+
     if (!get_DD_TRACE_ENABLED()) {
         return SUCCESS;
     }
@@ -663,7 +742,7 @@ static void dd_clean_globals() {
 static void dd_shutdown_hooks_and_observer() {
     zai_hook_clean();
 
-#if PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
 #if PHP_VERSION_ID < 80100
 #define RUN_TIME_CACHE_OBSERVER_PATCH_VERSION 18
 #else
@@ -710,7 +789,11 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
+#if PHP_VERSION_ID < 80000
+int ddtrace_post_deactivate(void) {
+#else
 zend_result ddtrace_post_deactivate(void) {
+#endif
     // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run
     zai_hook_rshutdown();
     zai_uhook_rshutdown();
@@ -721,8 +804,11 @@ zend_result ddtrace_post_deactivate(void) {
 }
 
 void ddtrace_disable_tracing_in_current_request(void) {
-    zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_ENABLED].ini_entries[0]->name,
-                         ZSTR_CHAR('0'), ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+    // PHP 8 has ZSTR_CHAR('0') which is nicer...
+    zend_string *zero = zend_string_init("0", 1, 0);
+    zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_ENABLED].ini_entries[0]->name, zero,
+                         ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+    zend_string_release(zero);
 }
 
 bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
@@ -993,8 +1079,7 @@ static PHP_FUNCTION(dd_trace_reset) {
         RETURN_BOOL(0);
     }
 
-
-// TODO ??
+    // TODO ??
     RETURN_BOOL(1);
 }
 
@@ -1556,7 +1641,7 @@ static PHP_FUNCTION(current_context) {
     zval tags;
     array_init(&tags);
     if (get_DD_TRACE_ENABLED()) {
-        ddtrace_get_propagated_tags(Z_ARRVAL(tags));
+        ddtrace_get_propagated_tags(Z_ARR(tags));
     }
     add_assoc_zval_ex(return_value, ZEND_STRL("distributed_tracing_propagated_tags"), &tags);
 }

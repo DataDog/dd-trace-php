@@ -41,8 +41,11 @@ int dd_execute_php_file(const char *filename) {
 #endif
 
     if (get_DD_TRACE_DEBUG() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
-        char *error;
-        error = ZSTR_VAL(PG(last_error_message));
+#if PHP_VERSION_ID < 80000
+        char *error = PG(last_error_message);
+#else
+        char *error = ZSTR_VAL(PG(last_error_message));
+#endif
         ddtrace_log_errf("Error raised while opening request-init-hook stream: %s in %s on line %d", error,
                          PG(last_error_file), PG(last_error_lineno));
     }
@@ -79,8 +82,11 @@ int dd_execute_php_file(const char *filename) {
             zend_execute(new_op_array, &result);
 
             if (get_DD_TRACE_DEBUG() && PG(last_error_message) && eh.message != PG(last_error_message)) {
-                char *error;
-                error = ZSTR_VAL(PG(last_error_message));
+#if PHP_VERSION_ID < 80000
+                char *error = PG(last_error_message);
+#else
+                char *error = ZSTR_VAL(PG(last_error_message));
+#endif
 #if PHP_VERSION_ID < 80100
                 char *error_filename = PG(last_error_file);
 #else
@@ -133,10 +139,12 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file) {
     int ret = zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &prepend_file) == SUCCESS;
     zend_destroy_file_handle(&prepend_file);
 #endif
+#if PHP_VERSION_ID >= 80000
     // Exit no longer calls zend_bailout in PHP 8, so we need to "rethrow" the exit
     if (ret == 0) {
         zend_throw_unwind_exit();
     }
+#endif
     // EG(current_execute_data) = ex;
     return ret;
 }

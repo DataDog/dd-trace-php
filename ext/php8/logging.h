@@ -4,7 +4,13 @@
 
 #include "configuration.h"
 
-inline void ddtrace_log_err(const char *message) { php_log_err(message); }
+inline void ddtrace_log_err(const char *message) {
+#if PHP_VERSION_ID < 80000
+    php_log_err((char *)message);
+#else
+    php_log_err(message);
+#endif
+}
 
 #define ddtrace_log_debugf(...)                                                               \
     do {                                                                                      \

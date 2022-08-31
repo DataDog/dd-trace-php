@@ -178,6 +178,12 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
 
 typedef zend_result (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_string value);
 
+#if PHP_VERSION_ID < 70100
+#define ZEND_STR_LINE "line"
+#define ZEND_STR_FILE "file"
+#define ZEND_STR_PREVIOUS "previous"
+#endif
+
 static zend_result dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag) {
     zend_string *msg = zai_exception_message(exception);
     zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
@@ -259,6 +265,7 @@ static zend_result dd_exception_trace_to_error_stack(zend_string *trace, void *c
     return result;
 }
 
+// Guarantees that add_tag will only be called once per tag, will stop trying to add tags if one fails.
 static zend_result ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta) {
     zend_object *exception_root = exception;
     zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
@@ -478,7 +485,7 @@ static zend_string *dd_build_req_url() {
 
     int uri_len;
     char *question_mark = strchr(uri, '?');
-    zend_string *query_string = zend_empty_string;
+    zend_string *query_string = ZSTR_EMPTY_ALLOC();
     if (question_mark) {
         uri_len = question_mark - uri;
         query_string = zai_filter_query_string(
@@ -505,7 +512,7 @@ static zend_string *dd_get_user_agent() {
             return Z_STR_P(user_agent);
         }
     }
-    return zend_empty_string;
+    return ZSTR_EMPTY_ALLOC();
 }
 
 void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
@@ -552,7 +559,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
             if (uri) {
                 zend_string *path = zend_string_init(uri, strlen(uri), 0);
                 zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
-                zend_string *query_string = zend_empty_string;
+                zend_string *query_string = ZSTR_EMPTY_ALLOC();
                 const char *query_str = dd_get_query_string();
                 if (query_str) {
                     query_string =
@@ -1110,11 +1117,20 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
          * robust way of detecting this, but I'm not sure how yet.
          */
         if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
+#if PHP_VERSION_ID < 80000
+            va_list arg_copy;
+            va_copy(arg_copy, args);
+            zend_string *message = zend_vstrpprintf(0, format, arg_copy);
+            va_end(arg_copy);
+#endif
             dd_error_info error = {
                 .type = dd_error_type(orig_type),
                 .msg = dd_truncate_uncaught_exception(message),
                 .stack = dd_fatal_error_stack(),
             };
+#if PHP_VERSION_ID < 80000
+            zend_string_release(message);
+#endif
             dd_fatal_error_to_meta(Z_ARR(DDTRACE_G(additional_trace_meta)), error);
             ddtrace_span_fci *span;
             for (span = DDTRACE_G(open_spans_top); span; span = span->next) {

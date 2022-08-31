@@ -44,8 +44,4 @@ inline zval ddtrace_zval_undef(void) {
     return zv;
 }
 
-void ddtrace_write_property(zval *obj, const char *prop, size_t prop_len, zval *value);
-bool ddtrace_property_exists(zval *object, zval *property);
-zend_result ddtrace_read_property(zval *dest, zval *obj, const char *prop, size_t prop_len);
-
 #endif  // DDTRACE_ENGINE_API_H

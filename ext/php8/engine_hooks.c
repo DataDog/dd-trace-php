@@ -104,7 +104,11 @@ extern inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zen
 void ddtrace_restore_error_handling(ddtrace_error_handling *eh) {
     if (PG(last_error_message)) {
         if (PG(last_error_message) != eh->message) {
+#if PHP_VERSION_ID < 80000
+            free(PG(last_error_message));
+#else
             zend_string_release(PG(last_error_message));
+#endif
         }
         if (PG(last_error_file) != eh->file) {
 #if PHP_VERSION_ID < 80100
