@@ -5,13 +5,8 @@
 #include <exceptions/exceptions.h>
 #include <sandbox/sandbox.h>
 
-#if PHP_VERSION_ID < 80000
-#include "../php7/logging.h"
-#include "../php7/span.h"
-#else
-#include "../php8/logging.h"
-#include "../php8/span.h"
-#endif
+#include "../logging.h"
+#include "../span.h"
 
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
