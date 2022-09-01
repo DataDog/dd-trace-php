@@ -70,6 +70,35 @@ class SymfonyIntegration extends Integration
             ]
         );
 
+        $symfonyCommandsIntegrated = [];
+        \DDTrace\hook_method(
+            'Symfony\Component\Console\Command\Command',
+            '__construct',
+            null,
+            function ($This, $scope) use (&$symfonyCommandsIntegrated) {
+                if (isset($symfonyCommandsIntegrated[$scope])) {
+                    return;
+                }
+
+                $symfonyCommandsIntegrated[$scope] = true;
+
+                \DDTrace\trace_method($scope, 'run', [
+                    /* Commands can evidently call other commands, so allow recursion:
+                     * > Console events are only triggered by the main command being executed.
+                     * > Commands called by the main command will not trigger any event.
+                     * - https://symfony.com/doc/current/components/console/events.html.
+                     */
+                    'recurse' => true,
+                    'prehook' => function (SpanData $span) use ($scope) {
+                        $span->name = 'symfony.console.command.run';
+                        $span->resource = $this->getName() ?: $span->name;
+                        $span->service = \ddtrace_config_app_name('symfony');
+                        $span->type = Type::CLI;
+                        $span->meta['symfony.console.command.class'] = $scope;
+                    }]);
+            }
+        );
+
         $rootSpan = \DDTrace\root_span();
         if (null == $rootSpan) {
             return Integration::NOT_LOADED;
@@ -168,13 +197,12 @@ class SymfonyIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
-        $commands = [];
         \DDTrace\trace_method(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
             [
                 'recurse' => true,
-                'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo, &$commands) {
+                'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
                     if (!isset($args[0])) {
                         return false;
                     }
@@ -221,26 +249,6 @@ class SymfonyIntegration extends Integration
                                         }
                                     );
                                 }
-                            }
-                        }
-                    } elseif ($eventName === 'console.command') {
-                        if (\method_exists($event, 'getCommand') && ($command = $event->getCommand()) !== null) {
-                            $scope = \get_class($command);
-                            if (!isset($commands[$scope])) {
-                                $commands[$scope] = true;
-                                \DDTrace\trace_method(
-                                    $scope,
-                                    'run',
-                                    [
-                                        'prehook' => function (SpanData $span) use ($scope) {
-                                            $span->name = 'symfony.console.command.run';
-                                            $span->resource = $this->getName() ?: $span->name;
-                                            $span->service = \ddtrace_config_app_name('symfony');
-                                            $span->type = Type::CLI;
-                                            $span->meta['symfony.console.command.class'] = $scope;
-                                        },
-                                    ]
-                                );
                             }
                         }
                     }
