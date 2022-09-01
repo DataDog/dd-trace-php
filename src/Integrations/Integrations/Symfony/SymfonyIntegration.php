@@ -45,6 +45,12 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\HttpKernel\Kernel',
             'handle',
             function (SpanData $span) {
+                if ($rootSpan = \DDTrace\root_span()) {
+                    $this->appName = \ddtrace_config_app_name('symfony');
+                    $rootSpan->name = 'symfony.request';
+                    $rootSpan->service = $this->appName;
+                }
+
                 $span->name = 'symfony.httpkernel.kernel.handle';
                 $span->resource = \get_class($this);
                 $span->type = Type::WEB_SERVLET;
@@ -55,20 +61,12 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'boot',
-            [
-                "prehook" => function (SpanData $span) {
-                    if ($rootSpan = \DDTrace\root_span()) {
-                        $this->appName = \ddtrace_config_app_name('symfony');
-                        $rootSpan->name = 'symfony.request';
-                        $rootSpan->service = $this->appName;
-                    }
-
-                    $span->name = 'symfony.httpkernel.kernel.boot';
-                    $span->resource = \get_class($this);
-                    $span->type = Type::WEB_SERVLET;
-                    $span->service = \ddtrace_config_app_name('symfony');
-                }
-            ]
+            function (SpanData $span) {
+                $span->name = 'symfony.httpkernel.kernel.boot';
+                $span->resource = \get_class($this);
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('symfony');
+            }
         );
 
         $rootSpan = \DDTrace\root_span();
