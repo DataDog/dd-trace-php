@@ -168,12 +168,13 @@ class SymfonyIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
+        $commands = [];
         \DDTrace\trace_method(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
             [
                 'recurse' => true,
-                'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
+                'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo, &$commands) {
                     if (!isset($args[0])) {
                         return false;
                     }
@@ -220,6 +221,26 @@ class SymfonyIntegration extends Integration
                                         }
                                     );
                                 }
+                            }
+                        }
+                    } elseif ($eventName === 'console.command') {
+                        if (\method_exists($event, 'getCommand') && ($command = $event->getCommand()) !== null) {
+                            $scope = \get_class($command);
+                            if (!isset($commands[$scope])) {
+                                $commands[$scope] = true;
+                                \DDTrace\trace_method(
+                                    $scope,
+                                    'run',
+                                    [
+                                        'prehook' => function (SpanData $span) use ($scope) {
+                                            $span->name = 'symfony.console.command.run';
+                                            $span->resource = $this->getName() ?: $span->name;
+                                            $span->service = \ddtrace_config_app_name('symfony');
+                                            $span->type = Type::CLI;
+                                            $span->meta['symfony.console.command.class'] = $scope;
+                                        },
+                                    ]
+                                );
                             }
                         }
                     }
