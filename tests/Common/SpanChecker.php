@@ -96,6 +96,7 @@ final class SpanChecker
                         $expectedNodeRoot->getResource()
                     );
                 })->call($e);
+                throw $e;
             }
         }
     }
