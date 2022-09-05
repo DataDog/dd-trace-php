@@ -738,12 +738,12 @@ static void zai_hook_memory_dtor(zval *zv) {
     efree(Z_PTR_P(zv));
 }
 
-void zai_interceptor_rinit() {
+void zai_interceptor_activate() {
     zend_hash_init(&zai_hook_memory, 8, nothing, zai_hook_memory_dtor, 0);
     zend_hash_init(&zai_interceptor_implicit_generators, 8, nothing, NULL, 0);
 }
 
-void zai_interceptor_rshutdown() {
+void zai_interceptor_deactivate() {
     zend_hash_destroy(&zai_hook_memory);
     zend_hash_destroy(&zai_interceptor_implicit_generators);
 }

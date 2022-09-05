@@ -20,12 +20,15 @@ extern "C" {
         zai_hook_activate();
         // test ZEND_DECLARE_*_DELAYED opcodes for opcache
         CG(compiler_options) |= ZEND_COMPILE_DELAYED_BINDING;
+        zai_interceptor_activate();
+#if PHP_VERSION_ID < 80000
         zai_interceptor_rinit();
+#endif
         return SUCCESS;
     }
 
     static PHP_RSHUTDOWN_FUNCTION(ddtrace_testing_hook) {
-        zai_interceptor_rshutdown();
+        zai_interceptor_deactivate();
         zai_hook_rshutdown();
         return SUCCESS;
     }

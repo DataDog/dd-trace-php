@@ -108,6 +108,7 @@ static void ddtrace_sort_modules(void *base, size_t count, size_t siz, compare_f
 }
 #endif
 
+// put this into startup so that other extensions running code as part of rinit do not crash
 static int ddtrace_startup(zend_extension *extension) {
     UNUSED(extension);
 
@@ -133,8 +134,7 @@ static int ddtrace_startup(zend_extension *extension) {
 
     ddtrace_excluded_modules_startup();
     // We deliberately leave handler replacement during startup, even though this uses some config
-    // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done
-    // post-startup
+    // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done post-startup
     ddtrace_internal_handlers_startup();
     return SUCCESS;
 }
@@ -147,7 +147,82 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
     zai_interceptor_shutdown();
 }
 
-static void ddtrace_activate(void) {}
+bool dd_save_sampling_rules_file_config(zend_string *path, int modify_type, int stage) {
+    if (FG(default_context) == NULL) {
+        FG(default_context) = php_stream_context_alloc();
+    }
+    php_stream_context *context = FG(default_context);
+    php_stream *stream = php_stream_open_wrapper_ex(ZSTR_VAL(path), "rb", USE_PATH | REPORT_ERRORS, NULL, context);
+    if (!stream) {
+        return false;
+    }
+
+    zend_string *file = php_stream_copy_to_mem(stream, (ssize_t) PHP_STREAM_COPY_ALL, 0);
+    php_stream_close(stream);
+
+    if (file && ZSTR_LEN(file) > 0) {
+        zend_alter_ini_entry_ex(zai_config_memoized_entries[DDTRACE_CONFIG_DD_SPAN_SAMPLING_RULES].ini_entries[0]->name, file, modify_type, stage, 1);
+        zend_string_release(file);
+        return true;
+    } else {
+        if (file) {
+            zend_string_release(file);
+        }
+        return false;
+    }
+}
+
+bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) {
+    (void) old_value;
+    if (Z_STRLEN_P(new_value) == 0) {
+        return true;
+    }
+
+    return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
+}
+
+static pthread_once_t dd_activate_config_once_control = PTHREAD_ONCE_INIT;
+
+static void ddtrace_activate(void) {
+    zai_hook_rinit();
+    zai_interceptor_activate();
+    zai_uhook_rinit();
+    zend_hash_init(&DDTRACE_G(traced_spans), 8, shhhht, NULL, 0);
+
+    if (ddtrace_has_excluded_module == true) {
+        DDTRACE_G(disable) = 2;
+    }
+
+    // ZAI config is always set up
+    pthread_once(&dd_activate_config_once_control, ddtrace_config_first_rinit);
+    zai_config_rinit();
+
+    zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
+    if (ZSTR_LEN(sampling_rules_file) > 0 && !zend_string_equals(get_global_DD_SPAN_SAMPLING_RULES_FILE(), sampling_rules_file)) {
+        dd_save_sampling_rules_file_config(sampling_rules_file, PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
+    }
+
+    if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
+        DDTRACE_G(disable) = 2;
+    }
+
+    if (DDTRACE_G(disable)) {
+        ddtrace_disable_tracing_in_current_request();
+    }
+
+    if (!DDTRACE_G(disable)) {
+        zai_hook_activate();
+    }
+
+    DDTRACE_G(request_init_hook_loaded) = 0;
+
+#if PHP_VERSION_ID < 80000
+    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
+#endif
+}
+
 static void ddtrace_deactivate(void) {
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
     if (dd_observer_extension_backup != -1) {
@@ -463,40 +538,6 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
-bool dd_save_sampling_rules_file_config(zend_string *path, int modify_type, int stage) {
-    if (FG(default_context) == NULL) {
-        FG(default_context) = php_stream_context_alloc();
-    }
-    php_stream_context *context = FG(default_context);
-    php_stream *stream = php_stream_open_wrapper_ex(ZSTR_VAL(path), "rb", USE_PATH | REPORT_ERRORS, NULL, context);
-    if (!stream) {
-        return false;
-    }
-
-    zend_string *file = php_stream_copy_to_mem(stream, (ssize_t) PHP_STREAM_COPY_ALL, 0);
-    php_stream_close(stream);
-
-    if (file && ZSTR_LEN(file) > 0) {
-        zend_alter_ini_entry_ex(zai_config_memoized_entries[DDTRACE_CONFIG_DD_SPAN_SAMPLING_RULES].ini_entries[0]->name, file, modify_type, stage, 1);
-        zend_string_release(file);
-        return true;
-    } else {
-        if (file) {
-            zend_string_release(file);
-        }
-        return false;
-    }
-}
-
-bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) {
-    (void) old_value;
-    if (Z_STRLEN_P(new_value) == 0) {
-        return true;
-    }
-
-    return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
-}
-
 static void dd_read_distributed_tracing_ids(void);
 
 static PHP_MINIT_FUNCTION(ddtrace) {
@@ -629,7 +670,6 @@ static void dd_rinit_once(void) {
     ddtrace_coms_init_and_start_writer();
 }
 
-static pthread_once_t dd_rinit_config_once_control = PTHREAD_ONCE_INIT;
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static void dd_initialize_request() {
@@ -671,48 +711,13 @@ static void dd_initialize_request() {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-    zai_hook_rinit();
-    zai_interceptor_rinit();
-    zai_uhook_rinit();
-    zend_hash_init(&DDTRACE_G(traced_spans), 8, shhhht, NULL, 0);
-
-    if (ddtrace_has_excluded_module == true) {
-        DDTRACE_G(disable) = 2;
-    }
-
-    // ZAI config is always set up
-    pthread_once(&dd_rinit_config_once_control, ddtrace_config_first_rinit);
-    zai_config_rinit();
-
-    if (ZSTR_LEN(get_DD_SPAN_SAMPLING_RULES_FILE()) > 0 && !zend_string_equals(get_global_DD_SPAN_SAMPLING_RULES_FILE(), get_DD_SPAN_SAMPLING_RULES_FILE())) {
-        dd_save_sampling_rules_file_config(get_DD_SPAN_SAMPLING_RULES_FILE(), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
-    }
-
-    if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
-        DDTRACE_G(disable) = 2;
-    }
-
-    if (DDTRACE_G(disable)) {
-        ddtrace_disable_tracing_in_current_request();
-    }
-
-    if (!DDTRACE_G(disable)) {
-        zai_hook_activate();
-    }
-
-    DDTRACE_G(request_init_hook_loaded) = 0;
-
 #if PHP_VERSION_ID < 80000
-    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
-    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
-    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
+    zai_interceptor_rinit();
 #endif
 
-    if (!get_DD_TRACE_ENABLED()) {
-        return SUCCESS;
+    if (get_DD_TRACE_ENABLED()) {
+        dd_initialize_request();
     }
-
-    dd_initialize_request();
 
     return SUCCESS;
 }
@@ -764,7 +769,6 @@ static void dd_shutdown_hooks_and_observer() {
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-    zai_interceptor_rshutdown();
     zend_hash_destroy(&DDTRACE_G(traced_spans));
 
     if (!get_DD_TRACE_ENABLED()) {
@@ -794,6 +798,8 @@ int ddtrace_post_deactivate(void) {
 #else
 zend_result ddtrace_post_deactivate(void) {
 #endif
+    zai_interceptor_deactivate();
+
     // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run
     zai_hook_rshutdown();
     zai_uhook_rshutdown();

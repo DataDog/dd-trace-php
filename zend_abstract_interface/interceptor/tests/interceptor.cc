@@ -18,13 +18,16 @@ extern "C" {
     static PHP_RINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_rinit();
         zai_hook_activate();
+        zai_interceptor_activate();
+#if PHP_VERSION_ID < 80000
         zai_interceptor_rinit();
+#endif
         return SUCCESS;
     }
 
     static PHP_RSHUTDOWN_FUNCTION(ddtrace_testing_hook) {
         zai_hook_rshutdown();
-        zai_interceptor_rshutdown();
+        zai_interceptor_deactivate();
         return SUCCESS;
     }
 
