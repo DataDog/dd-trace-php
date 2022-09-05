@@ -48,15 +48,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                             SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
                             SpanAssertion::exists('symfony.kernel.handle')->withChildren([
-                                SpanAssertion::exists('symfony.kernel.request'),
-                                SpanAssertion::exists('symfony.controller'),
+                                SpanAssertion::exists('symfony.kernel.request')->withChildren([
+                                    SpanAssertion::exists('symfony.security.authentication.success'),
+                                ]),
                                 SpanAssertion::exists('symfony.kernel.controller'),
                                 SpanAssertion::build(
                                     'symfony.controller',
                                     'symfony',
                                     'web',
                                     'AppBundle\Controller\CommonScenariosController::simpleAction'
-                                )->skipIf(\PHP_MAJOR_VERSION !== 5), // call_user_func_array
+                                ),
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                             ]),
@@ -80,7 +81,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                             SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
                             SpanAssertion::exists('symfony.kernel.handle')->withChildren([
-                                SpanAssertion::exists('symfony.kernel.request'),
+                                SpanAssertion::exists('symfony.kernel.request')->withChildren([
+                                    SpanAssertion::exists('symfony.security.authentication.success'),
+                                ]),
                                 SpanAssertion::exists('symfony.kernel.controller'),
                                 SpanAssertion::build(
                                     'symfony.controller',
@@ -121,7 +124,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                             SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
                             SpanAssertion::exists('symfony.kernel.handle')->withChildren([
-                                SpanAssertion::exists('symfony.kernel.request'),
+                                SpanAssertion::exists('symfony.kernel.request')->withChildren([
+                                    SpanAssertion::exists('symfony.security.authentication.success'),
+                                ]),
                                 SpanAssertion::exists('symfony.kernel.controller'),
                                 SpanAssertion::build(
                                     'symfony.controller',
@@ -133,7 +138,23 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 ->withExistingTagsNames(['error.stack']),
                                 SpanAssertion::exists('symfony.kernel.handleException')->withChildren([
                                     SpanAssertion::exists('symfony.kernel.exception')->withChildren([
-                                        SpanAssertion::exists('symfony.templating.render'),
+                                        SpanAssertion::exists('symfony.kernel.request'),
+                                        SpanAssertion::exists('symfony.kernel.controller'),
+                                        SpanAssertion::build(
+                                            'symfony.controller',
+                                            'symfony',
+                                            'web',
+                                            'Symfony\Bundle\TwigBundle\Controller\ExceptionController::showAction'
+                                        )->withChildren([
+                                            SpanAssertion::build(
+                                                'symfony.templating.render',
+                                                'symfony',
+                                                'web',
+                                                'Twig\Environment @Twig/Exception/error.html.twig'
+                                            )->withExactTags([]),
+                                        ]),
+                                        SpanAssertion::exists('symfony.kernel.response'),
+                                        SpanAssertion::exists('symfony.kernel.finish_request'),
                                     ]),
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
@@ -162,7 +183,23 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.exception')->withChildren([
-                                        SpanAssertion::exists('symfony.templating.render'),
+                                        SpanAssertion::exists('symfony.kernel.request'),
+                                        SpanAssertion::exists('symfony.kernel.controller'),
+                                        SpanAssertion::build(
+                                            'symfony.controller',
+                                            'symfony',
+                                            'web',
+                                            'Symfony\Bundle\TwigBundle\Controller\ExceptionController::showAction'
+                                        )->withChildren([
+                                            SpanAssertion::build(
+                                                'symfony.templating.render',
+                                                'symfony',
+                                                'web',
+                                                'Twig\Environment @Twig/Exception/error.html.twig'
+                                            )->withExactTags([]),
+                                        ]),
+                                        SpanAssertion::exists('symfony.kernel.response'),
+                                        SpanAssertion::exists('symfony.kernel.finish_request'),
                                     ]),
                                 ]),
                                 SpanAssertion::exists('symfony.kernel.request')
