@@ -10,6 +10,7 @@ pub struct Env {
     pub agent_host: Option<String>,
     pub env: Option<String>,
     pub profiling_enabled: Option<String>,
+    pub profiling_endpoint_collection_enabled: Option<String>,
     pub profiling_experimental_cpu_enabled: Option<String>,
     pub profiling_experimental_cpu_time_enabled: Option<String>,
     pub profiling_log_level: Option<String>,
@@ -65,6 +66,10 @@ impl Env {
             b"DD_PROFILING_LOG_LEVEL\0",
         ));
 
+        let profiling_endpoint_collection_enabled = Self::getenv(
+            CStr::from_bytes_with_nul_unchecked(b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0"),
+        );
+
         // This is the older, undocumented name.
         let profiling_experimental_cpu_enabled = Self::getenv(CStr::from_bytes_with_nul_unchecked(
             b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0",
@@ -84,6 +89,7 @@ impl Env {
             agent_host,
             env,
             profiling_enabled,
+            profiling_endpoint_collection_enabled,
             profiling_experimental_cpu_enabled,
             profiling_experimental_cpu_time_enabled,
             profiling_log_level,

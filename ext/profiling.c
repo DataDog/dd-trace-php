@@ -1,4 +1,4 @@
-#include "profiling_context.h"
+#include "profiling.h"
 
 #include "ddtrace.h"
 #include "span.h"

@@ -106,7 +106,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/logging.c \
     ext/memory_limit.c \
     ext/priority_sampling/priority_sampling.c \
-    ext/profiling_context.c \
+    ext/profiling.c \
     ext/random.c \
     ext/request_hooks.c \
     ext/serializer.c \

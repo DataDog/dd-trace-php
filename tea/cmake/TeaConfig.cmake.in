@@ -1,3 +1,7 @@
 @PACKAGE_INIT@
 
 include("${CMAKE_CURRENT_LIST_DIR}/TeaTargets.cmake")
+set(TEA_PHP_VERNUM "@TEA_PHP_VERNUM@")
+
+check_required_components(Tea)
+

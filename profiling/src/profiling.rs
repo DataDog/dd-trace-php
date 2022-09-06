@@ -113,6 +113,18 @@ pub struct SampleMessage {
     pub value: SampleData,
 }
 
+#[derive(Debug)]
+pub struct LocalRootSpanResourceMessage {
+    pub local_root_span_id: u64,
+    pub resource: String,
+}
+
+#[derive(Debug)]
+pub enum ProfilerMessage {
+    Sample(SampleMessage),
+    LocalRootSpanResource(LocalRootSpanResourceMessage),
+}
+
 pub struct Globals {
     pub interrupt_count: AtomicU32,
     pub last_interrupt: SystemTime,
@@ -284,14 +296,14 @@ unsafe impl Send for VmInterrupt {}
 
 pub struct Profiler {
     vm_interrupt_lock: Arc<Mutex<HashSet<VmInterrupt>>>,
-    message_sender: Sender<SampleMessage>,
+    message_sender: Sender<ProfilerMessage>,
     time_collector_cancel_sender: Sender<()>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
 }
 
 struct TimeCollector {
-    message_receiver: Receiver<SampleMessage>,
+    message_receiver: Receiver<ProfilerMessage>,
     cancel_receiver: Receiver<()>,
     vm_interrupt_lock: Arc<Mutex<HashSet<VmInterrupt>>>,
     upload_sender: Sender<UploadMessage>,
@@ -361,6 +373,37 @@ impl TimeCollector {
     }
 
     fn handle_message(
+        message: ProfilerMessage,
+        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
+        started_at: &WallTime,
+    ) {
+        match message {
+            ProfilerMessage::Sample(sample) => {
+                Self::handle_sample_message(sample, profiles, started_at)
+            }
+            ProfilerMessage::LocalRootSpanResource(message) => {
+                Self::handle_resource_message(message, profiles)
+            }
+        }
+    }
+
+    fn handle_resource_message(
+        message: LocalRootSpanResourceMessage,
+        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
+    ) {
+        trace!(
+            "Received Endpoint Profiling message for span id {}.",
+            message.local_root_span_id
+        );
+        let local_root_span_id = message.local_root_span_id.to_string();
+        for (_, profile) in profiles.iter_mut() {
+            let local_root_span_id = Cow::Borrowed(local_root_span_id.as_ref());
+            let endpoint = Cow::Borrowed(message.resource.as_str());
+            profile.add_endpoint(local_root_span_id, endpoint)
+        }
+    }
+
+    fn handle_sample_message(
         message: SampleMessage,
         profiles: &mut HashMap<ProfileIndex, profile::Profile>,
         started_at: &WallTime,
@@ -588,8 +631,17 @@ impl Profiler {
         };
     }
 
-    pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<SampleMessage>> {
-        self.message_sender.try_send(message)
+    pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<ProfilerMessage>> {
+        self.message_sender
+            .try_send(ProfilerMessage::Sample(message))
+    }
+
+    pub fn send_local_root_span_resource(
+        &self,
+        message: LocalRootSpanResourceMessage,
+    ) -> Result<(), TrySendError<ProfilerMessage>> {
+        self.message_sender
+            .try_send(ProfilerMessage::LocalRootSpanResource(message))
     }
 
     pub fn stop(self) {
