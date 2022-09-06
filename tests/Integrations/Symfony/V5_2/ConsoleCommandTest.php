@@ -21,8 +21,12 @@ class ConsoleCommandTest extends IntegrationTestCase
             [
                 SpanAssertion::build('console', 'console', 'cli', 'console')
                     ->withChildren([
-                        SpanAssertion::exists('symfony.console.terminate', 'symfony.console.terminate'),
+                        SpanAssertion::build('symfony.console.command.run', 'symfony', 'cli', 'about')
+                            ->withExactTags([
+                                'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
+                            ]),
                         SpanAssertion::exists('symfony.console.command', 'symfony.console.command'),
+                        SpanAssertion::exists('symfony.console.terminate', 'symfony.console.terminate'),
                         SpanAssertion::exists('symfony.httpkernel.kernel.boot', 'App\Kernel'),
                     ]),
             ]

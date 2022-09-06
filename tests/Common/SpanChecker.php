@@ -89,13 +89,24 @@ final class SpanChecker
                     $expectedNodeRoot->getResource()
                 );
             } catch (\Exception $e) {
-                (function () use ($expectedNodeRoot) {
+                (function () use ($expectedNodeRoot, $node) {
+                    if (
+                        strpos($this->message, "Cannot find span") === 0
+                        && strpos($this->message, "parent operation/resource") === false
+                    ) {
+                        $actualNames = array_map(function (array $child) {
+                            return $child['span']['name'] . "/" . $child['span']['resource'];
+                        }, $node['children']);
+                        sort($actualNames);
+                        $this->message .= "\n\nAvailable spans:\n" . implode("\n", $actualNames) . "\n";
+                    }
                     $this->message .= sprintf(
                         "\nparent operation/resource: %s/%s",
                         $expectedNodeRoot->getOperationName(),
                         $expectedNodeRoot->getResource()
                     );
                 })->call($e);
+                throw $e;
             }
         }
     }
