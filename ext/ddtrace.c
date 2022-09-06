@@ -206,9 +206,7 @@ static void ddtrace_activate(void) {
 
     if (DDTRACE_G(disable)) {
         ddtrace_disable_tracing_in_current_request();
-    }
-
-    if (!DDTRACE_G(disable)) {
+    } else {
         zai_hook_activate();
     }
 
