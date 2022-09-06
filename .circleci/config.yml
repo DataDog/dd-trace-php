@@ -1027,14 +1027,17 @@ jobs:
 
   verify_tar_gz:
     working_directory: ~/datadog
-    resource_class: small
     parameters:
       php_major_minor:
         type: string
-    docker:
-      - image: debian:buster
+      resource_class:
+        type: string
+        default: medium
+    <<: *BARE_DOCKER_MACHINE
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: debian:buster
       - run:
           name: Validate .tar.gz package
           command: PHP_VERSION=<< parameters.php_major_minor >> bash ./dockerfiles/verify_packages/verify_tar_gz_root.sh
@@ -2601,12 +2604,15 @@ workflows:
 
       - verify_tar_gz:
           requires: [ "package extension" ]
-          matrix:
-            parameters:
-              php_major_minor:
-                - "8.0"
-                # There is little value in testing several versions, since all the packages are already verified on the
-                # respective platforms using the native packages. Let's save some CPU cycles.
+          name: "Verify x86_64 .tar.gz"
+          php_major_minor: "7.0"
+      - verify_tar_gz:
+          requires: [ "package extension" ]
+          name: "Verify aarch64 .tar.gz"
+          php_major_minor: "8.1"
+          resource_class: "arm.medium"
+        # There is little value in testing several versions, since all the packages are already verified on the
+        # respective platforms using the native packages. Let's save some CPU cycles.
 
       - verify_no_json_ext:
           requires: [ "package extension" ]
