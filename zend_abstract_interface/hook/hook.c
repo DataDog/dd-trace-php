@@ -415,9 +415,12 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
             if (new_dynamic_size > dynamic_size) {
                 memory->dynamic = erealloc(memory->dynamic, new_dynamic_size);
             }
+            // Create some space for zai_hook_info entries in between, and some new dynamic memory at the end
             memmove(memory->dynamic + new_hook_info_size, memory->dynamic + hook_info_size, dynamic_size - hook_info_size);
             if (new_dynamic_size > dynamic_size) {
-                memset(memory->dynamic + dynamic_size, 0, new_dynamic_size - dynamic_size);
+                // and ensure the new dynamic memory is zeroed
+                size_t hook_info_size_delta = new_hook_info_size - hook_info_size;
+                memset(memory->dynamic + dynamic_size + hook_info_size_delta, 0, new_dynamic_size - dynamic_size - hook_info_size_delta);
                 dynamic_size = new_dynamic_size;
             }
             hook_info_size = new_hook_info_size;
