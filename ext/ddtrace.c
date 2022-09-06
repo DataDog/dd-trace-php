@@ -185,7 +185,7 @@ static void ddtrace_activate(void) {
     zai_hook_rinit();
     zai_interceptor_activate();
     zai_uhook_rinit();
-    zend_hash_init(&DDTRACE_G(traced_spans), 8, shhhht, NULL, 0);
+    zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
 
     if (ddtrace_has_excluded_module == true) {
         DDTRACE_G(disable) = 2;
@@ -675,8 +675,8 @@ static void dd_initialize_request() {
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
-    zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, shhhht, ZVAL_PTR_DTOR, 0);
-    zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, shhhht, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
 
     // Things that should only run on the first RINIT
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
