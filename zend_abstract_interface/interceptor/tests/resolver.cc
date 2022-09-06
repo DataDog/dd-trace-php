@@ -17,6 +17,9 @@ extern "C" {
 
     static PHP_RINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_rinit();
+        /* activates should be done in zend_extension's activate handler, but
+         * for this test it doesn't matter.
+         */
         zai_hook_activate();
         // test ZEND_DECLARE_*_DELAYED opcodes for opcache
         CG(compiler_options) |= ZEND_COMPILE_DELAYED_BINDING;
@@ -28,6 +31,9 @@ extern "C" {
     }
 
     static PHP_RSHUTDOWN_FUNCTION(ddtrace_testing_hook) {
+        /* deactivate should be done in zend_extension's deactivate handler,
+         * but for this test it doesn't matter.
+         */
         zai_interceptor_deactivate();
         zai_hook_rshutdown();
         return SUCCESS;
