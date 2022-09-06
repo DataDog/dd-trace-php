@@ -160,16 +160,14 @@ bool dd_save_sampling_rules_file_config(zend_string *path, int modify_type, int 
     zend_string *file = php_stream_copy_to_mem(stream, (ssize_t) PHP_STREAM_COPY_ALL, 0);
     php_stream_close(stream);
 
-    if (file && ZSTR_LEN(file) > 0) {
-        zend_alter_ini_entry_ex(zai_config_memoized_entries[DDTRACE_CONFIG_DD_SPAN_SAMPLING_RULES].ini_entries[0]->name, file, modify_type, stage, 1);
+    bool altered = false;
+    if (file) {
+        altered = ZSTR_LEN(file) > 0 && SUCCESS == zend_alter_ini_entry_ex(
+            zai_config_memoized_entries[DDTRACE_CONFIG_DD_SPAN_SAMPLING_RULES].ini_entries[0]->name,
+            file, modify_type, stage, 1);
         zend_string_release(file);
-        return true;
-    } else {
-        if (file) {
-            zend_string_release(file);
-        }
-        return false;
     }
+    return altered;
 }
 
 bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) {
