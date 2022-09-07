@@ -67,7 +67,7 @@ typedef enum {
     ZAI_HOOK_SKIP,
 } zai_hook_continued;
 
-/* {{{ zai_hook_continue shall execute begin handlers and return false if
+/* {{{ zai_hook_continue shall execute begin handlers and return ZAI_HOOK_BAILOUT if
         the caller should bail out (one of the handlers returned false) */
 zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory); /* }}} */
 
