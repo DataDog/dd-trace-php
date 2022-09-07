@@ -1114,17 +1114,19 @@ static void zai_hook_memory_dtor(zval *zv) {
     efree(Z_PTR_P(zv));
 }
 
-void zai_interceptor_rinit() {
-    // install bailout handler - shutdown functions are the first thing we can reliably hook into in case of bailout
-    php_shutdown_function_entry shutdown_function = { .arguments = emalloc(sizeof(zval)), .arg_count = 1 };
-    object_init_ex(shutdown_function.arguments, &zai_interceptor_bailout_ce);
-    Z_OBJ_P(shutdown_function.arguments)->handlers = &zai_interceptor_bailout_handlers;
-    register_user_shutdown_function(ZEND_STRL("_dd_bailout_handler"), &shutdown_function);
-
+void zai_interceptor_activate() {
     zend_hash_init(&zai_hook_memory, 8, nothing, zai_hook_memory_dtor, 0);
 }
 
-void zai_interceptor_rshutdown() {
+void zai_interceptor_rinit() {
+    // install bailout handler - shutdown functions are the first thing we can reliably hook into in case of bailout
+    php_shutdown_function_entry shutdown_function = {.arguments = emalloc(sizeof(zval)), .arg_count = 1};
+    object_init_ex(shutdown_function.arguments, &zai_interceptor_bailout_ce);
+    Z_OBJ_P(shutdown_function.arguments)->handlers = &zai_interceptor_bailout_handlers;
+    register_user_shutdown_function(ZEND_STRL("_dd_bailout_handler"), &shutdown_function);
+}
+
+void zai_interceptor_deactivate() {
     zend_hash_destroy(&zai_hook_memory);
 }
 
