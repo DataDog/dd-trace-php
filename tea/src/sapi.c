@@ -29,7 +29,11 @@ static ssize_t ini_entries_len = -1;
 void (*tea_sapi_register_custom_server_variables)(zval *track_vars_server_array);
 
 static int ts_startup(sapi_module_struct *sapi_module) {
+#if PHP_VERSION_ID < 80200
     return php_module_startup(sapi_module, tea_extension_module(), 1);
+#else
+    return php_module_startup(sapi_module, tea_extension_module());
+#endif
 }
 
 static int ts_deactivate() { return SUCCESS; }

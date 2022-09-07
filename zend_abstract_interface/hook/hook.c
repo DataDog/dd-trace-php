@@ -379,6 +379,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     int allocated_hook_count = zend_hash_num_elements(&hooks->hooks);
     size_t hook_info_size = allocated_hook_count * sizeof(zai_hook_info);
     size_t dynamic_size = hooks->dynamic + hook_info_size;
+    // a vector of first N hook_info entries, then N entries of variable size (as much memory as the individual hooks require)
     memory->dynamic = ecalloc(1, dynamic_size);
     memory->invocation = ++zai_hook_invocation;
 
@@ -415,9 +416,12 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
             if (new_dynamic_size > dynamic_size) {
                 memory->dynamic = erealloc(memory->dynamic, new_dynamic_size);
             }
+            // Create some space for zai_hook_info entries in between, and some new dynamic memory at the end
             memmove(memory->dynamic + new_hook_info_size, memory->dynamic + hook_info_size, dynamic_size - hook_info_size);
             if (new_dynamic_size > dynamic_size) {
-                memset(memory->dynamic + dynamic_size, 0, new_dynamic_size - dynamic_size);
+                // and ensure the new dynamic memory is zeroed
+                size_t hook_info_size_delta = new_hook_info_size - hook_info_size;
+                memset(memory->dynamic + dynamic_size + hook_info_size_delta, 0, new_dynamic_size - dynamic_size - hook_info_size_delta);
                 dynamic_size = new_dynamic_size;
             }
             hook_info_size = new_hook_info_size;
