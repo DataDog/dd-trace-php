@@ -9,7 +9,7 @@ error_reporting=E_ALL
 
 DDTrace\hook_method('Greeter', 'greet',
     function ($This, $scope, $args) {
-        echo "${scope}::greet hooked.\n";
+        echo "{$scope}::greet hooked.\n";
         $i = $this_normally_raises_a_notice; // E_NOTICE
     }
 );

@@ -3,6 +3,8 @@
 --FILE--
 <?php
 class Test {
+    private $append;
+
     public function __construct($append = "") {
         $this->append = $append;
         echo "CONSTRUCT" . $this->append . PHP_EOL;
