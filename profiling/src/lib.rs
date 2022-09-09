@@ -343,7 +343,16 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 .or(environment.profiling_experimental_cpu_enabled.as_deref())
                 .and_then(parse_boolean)
                 .unwrap_or(true);
-            locals.service = environment.service;
+            locals.service = environment.service.or_else(|| {
+                SAPI.get().and_then(|sapi| match sapi {
+                    Sapi::Cli => {
+                        // Safety: sapi globals are safe to access during rinit
+                        sapi.request_script_name(unsafe { &zend::sapi_globals })
+                            .or_else(|| Some(String::from("cli.command")))
+                    }
+                    _ => Some(String::from("web.request")),
+                })
+            });
             locals.version = environment.version;
 
             // Safety: we are in rinit on a PHP thread.
