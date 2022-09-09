@@ -1,5 +1,5 @@
 --TEST--
-[profiling] test profiler's service when none is given
+[profiling] test profiler's service when none is given (cli)
 --DESCRIPTION--
 When DD_SERVICE isn't provided, default to the script name.
 Technically there is another fallback if there isn't a script name, but this
