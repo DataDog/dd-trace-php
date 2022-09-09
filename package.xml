@@ -48,7 +48,30 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+### Added
+- Integrate with Symfony console commands #1724
+
+### Changed
+
+### Fixed
+- Fix #1709 appsec attempting to load erroneously #1711
+- Fix symfony service and root span name #1723 (Thanks @numyx)
+- Initialize hooks and config early to prevent conflicts with code executed in early startup #1726
+- Fix hook dynamic data zeroing when new hooks are added during hook execution #1730
+
+### Internal changes
+- Fix compilation on MacOS #1716
+- Deduplicate PHP 7 and PHP 8 source files #1722
+
+
+## Profiling (v0.10.0)
+
+#### Added
+- Add Endpoint Profiling #1720
+
+#### Internal changes
+- Extract C API module; refactor Uuid #1710</notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
