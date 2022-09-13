@@ -10,7 +10,6 @@ return [
     __DIR__ . '/../src/DDTrace/Encoder.php',
     __DIR__ . '/../src/DDTrace/Processing/TraceAnalyticsProcessor.php',
     __DIR__ . '/../src/DDTrace/Scope.php',
-    __DIR__ . '/../src/DDTrace/Sampling/PrioritySampling.php',
     __DIR__ . '/../src/DDTrace/Propagator.php',
     __DIR__ . '/../src/DDTrace/Encoders/SpanEncoder.php',
     __DIR__ . '/../src/DDTrace/Encoders/MessagePack.php',

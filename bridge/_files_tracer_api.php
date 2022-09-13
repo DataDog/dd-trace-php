@@ -8,6 +8,7 @@ return [
     __DIR__ . '/../src/api/Contracts/SpanContext.php',
     __DIR__ . '/../src/api/Data/SpanContext.php',
     __DIR__ . '/../src/api/Data/Span.php',
+    __DIR__ . '/../src/api/Sampling/PrioritySampling.php',
     __DIR__ . '/../src/api/Transport.php',
     __DIR__ . '/../src/api/Obfuscation/WildcardToRegex.php',
     __DIR__ . '/../src/api/Reference.php',
