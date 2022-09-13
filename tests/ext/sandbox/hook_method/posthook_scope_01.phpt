@@ -6,14 +6,14 @@ hook_method posthook is called with the correct scope (no override)
 DDTrace\hook_method('BaseClass', 'speak',
     null,
     function ($This, $scope, $args) {
-        echo "${scope}::speak hooked in BaseClass.\n";
+        echo "{$scope}::speak hooked in BaseClass.\n";
     }
 );
 
 DDTrace\hook_method('ChildClass', 'speak',
     null,
     function ($This, $scope, $args) {
-        echo "${scope}::speak hooked in ChildClass.\n";
+        echo "{$scope}::speak hooked in ChildClass.\n";
     }
 );
 
