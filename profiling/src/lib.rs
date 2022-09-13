@@ -25,15 +25,17 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, Once};
 use std::time::Instant;
+use uuid::Uuid;
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
 lazy_static! {
-    /// The global profiler. In Rust 1.63+, Mutex::new is const and this can be
-    /// made a regular global instead of a lazy_static one. It gets made
-    /// during the first rinit after an rinit, and is destroyed on mshutdown.
+    /// The global profiler. Profiler gets made during the first rinit after
+    /// an rinit, and is destroyed on mshutdown.
+    /// In Rust 1.63+, Mutex::new is const and this can be made a regular
+    /// global instead of a lazy_static one.
     static ref PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
 }
 
@@ -48,8 +50,9 @@ static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_byt
 lazy_static! {
     /// The runtime ID, which is basically a universally unique "pid", so it
     /// theoretically can change on fork.
-    /// todo: support forking.
-    static ref RUNTIME_ID: capi::Uuid = capi::Uuid::from(uuid::Uuid::new_v4());
+    /// In Rust 1.63+, Mutex::new is const and this can be made a regular
+    /// global instead of a lazy_static one.
+    static ref RUNTIME_ID: Mutex<Option<Uuid>> = Mutex::new(None);
 }
 
 /// The Server API the profiler is running under.
@@ -312,6 +315,16 @@ thread_local! {
     });
 }
 
+fn runtime_id() -> Uuid {
+    match RUNTIME_ID.lock() {
+        Ok(maybe_uuid) => maybe_uuid.unwrap_or_default(),
+        Err(err) => {
+            error!("While locking runtime id: {}", err);
+            Uuid::nil()
+        }
+    }
+}
+
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
  * using it for catastrophic errors only.
  */
@@ -426,6 +439,11 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         if profiler.is_none() {
             *profiler = Some(Profiler::new())
         }
+
+        let mut runtime_id = RUNTIME_ID.lock().unwrap();
+        if runtime_id.is_none() {
+            *runtime_id = Some(uuid::Uuid::new_v4())
+        }
     };
 
     if profiling_enabled {
@@ -455,9 +473,9 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 }
             }
 
-            let runtime_id: uuid::Uuid = (*RUNTIME_ID).into();
+            let runtime_id = runtime_id();
             if !runtime_id.is_nil() {
-                match Tag::new("runtime-id", runtime_id.to_string().as_str()) {
+                match Tag::new("runtime-id", runtime_id.to_string()) {
                     Ok(tag) => {
                         locals.tags.push(tag);
                     }
