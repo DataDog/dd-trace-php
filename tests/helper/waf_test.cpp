@@ -46,7 +46,7 @@ TEST(WafTest, InitWithInvalidRules)
     subscriber::ptr wi{waf::instance::from_settings(cs, meta, metrics)};
 
     EXPECT_EQ(meta.size(), 2);
-    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.4.0");
+    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.5.0");
 
     rapidjson::Document doc;
     doc.Parse(meta[tag::event_rules_errors]);

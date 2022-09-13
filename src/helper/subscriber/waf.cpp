@@ -249,9 +249,7 @@ dds::result instance::listener::call(dds::parameter_view &data)
     total_runtime_ += res.total_runtime / 1000.0;
 
     switch (code) {
-    case DDWAF_BLOCK:
-        return format_waf_result(dds::result::code::block, res.data);
-    case DDWAF_MONITOR:
+    case DDWAF_MATCH:
         return format_waf_result(dds::result::code::record, res.data);
     case DDWAF_ERR_INTERNAL:
         throw internal_error();
@@ -259,7 +257,7 @@ dds::result instance::listener::call(dds::parameter_view &data)
         throw invalid_object();
     case DDWAF_ERR_INVALID_ARGUMENT:
         throw invalid_argument();
-    case DDWAF_GOOD:
+    case DDWAF_OK:
         if (res.timeout) {
             throw timeout_error();
         }
@@ -286,7 +284,7 @@ instance::instance(parameter &rule,
     : waf_timeout_{waf_timeout_us}
 {
     ddwaf_ruleset_info info;
-    ddwaf_config config{{0, 0, 0}, {key_regex.data(), value_regex.data()}};
+    ddwaf_config config{{0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
 
     handle_ = ddwaf_init(rule, &config, &info);
 
@@ -298,12 +296,7 @@ instance::instance(parameter &rule,
         ruleset_version_ = info.version;
     }
 
-    ddwaf_version version;
-    ddwaf_get_version(&version);
-
-    std::stringstream ss;
-    ss << version.major << "." << version.minor << "." << version.patch;
-    meta[tag::waf_version] = ss.str();
+    meta[tag::waf_version] = ddwaf_get_version();
 
     ddwaf_ruleset_info_free(&info);
 
@@ -337,7 +330,7 @@ instance::~instance()
 instance::listener::ptr instance::get_listener()
 {
     return listener::ptr(new listener(
-        ddwaf_context_init(handle_, nullptr), waf_timeout_, ruleset_version_));
+        ddwaf_context_init(handle_), waf_timeout_, ruleset_version_));
 }
 
 std::vector<std::string_view> instance::get_subscriptions()

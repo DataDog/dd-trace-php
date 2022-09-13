@@ -24,6 +24,9 @@ void debug_str_helper(std::string &res, const ddwaf_object &p)
     case DDWAF_OBJ_INVALID:
         res += "<invalid>";
         break;
+    case DDWAF_OBJ_BOOL:
+        res += (p.boolean ? "true" : "false");
+        break;
     case DDWAF_OBJ_SIGNED:
         res += std::to_string(p.intValue);
         break;
