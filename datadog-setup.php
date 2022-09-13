@@ -151,8 +151,8 @@ function install($options)
             "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
             "cp -r " . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
         );
-        $appSecRulesPath = $installDir . '/etc/recommended.json';
     }
+    $appSecRulesPath = $installDir . '/etc/recommended.json';
 
     // Actual installation
     foreach ($selectedBinaries as $command => $fullPath) {
@@ -479,7 +479,11 @@ function require_binaries_or_exit($options)
     } else {
         foreach ($options[OPT_PHP_BIN] as $command) {
             if ($command == "all") {
-                $selectedBinaries += search_php_binaries();
+                foreach (search_php_binaries() as $command => $binaryinfo) {
+                    if (!$binaryinfo["shebang"]) {
+                        $selectedBinaries[$command] = $binaryinfo["path"];
+                    }
+                }
             } elseif ($resolvedPath = resolve_command_full_path($command)) {
                 $selectedBinaries[$command] = $resolvedPath;
             } else {
@@ -664,12 +668,13 @@ function pick_binaries_interactive(array $php_binaries)
     $commands = array_keys($php_binaries);
     for ($index = 0; $index < count($commands); $index++) {
         $command = $commands[$index];
-        $fullPath = $php_binaries[$command];
+        $fullPath = $php_binaries[$command]["path"];
         echo "  "
             . str_pad($index + 1, 2, ' ', STR_PAD_LEFT)
             . ". "
             . ($command !== $fullPath ? "$command --> " : "")
             . $fullPath
+            . ($php_binaries[$command]["shebang"] ? " (not a binary)" : "")
             . "\n";
     }
     echo "\n";
@@ -687,7 +692,7 @@ function pick_binaries_interactive(array $php_binaries)
             return pick_binaries_interactive($php_binaries);
         }
         $command = $commands[$index];
-        $pickedBinaries[$command] = $php_binaries[$command];
+        $pickedBinaries[$command] = $php_binaries[$command]["path"];
     }
 
     return $pickedBinaries;
@@ -851,12 +856,15 @@ function ini_values($binary)
 
 function is_truthy($value)
 {
+    if ($value === null) {
+        return false;
+    }
+
     $normalized = trim(strtolower($value));
     return in_array($normalized, ['1', 'true', 'yes', 'enabled']);
 }
 
 /**
- * @param array $phpVersions
  * @param string $prefix Default ''. Used for testing purposes only.
  * @return array
  */
@@ -864,15 +872,14 @@ function search_php_binaries($prefix = '')
 {
     echo "Searching for available php binaries, this operation might take a while.\n";
 
-    $results = [];
+    $resolvedPaths = [];
 
     $allPossibleCommands = build_known_command_names_matrix();
 
     // First, we search in $PATH, for php, php7, php74, php7.4, php7.4-fpm, etc....
     foreach ($allPossibleCommands as $command) {
-        $path = exec("command -v " . escapeshellarg($command));
         if ($resolvedPath = resolve_command_full_path($command)) {
-            $results[$command] = $resolvedPath;
+            $resolvedPaths[$command] = $resolvedPath;
         }
     }
 
@@ -895,7 +902,6 @@ function search_php_binaries($prefix = '')
 
     $pleskPaths = array_map(function ($phpVersion) use ($prefix) {
         return "/opt/plesk/php/$phpVersion/bin";
-        return "/opt/plesk/php/$phpVersion/sbin";
     }, get_supported_php_versions());
 
     $escapedSearchLocations = implode(
@@ -920,10 +926,19 @@ function search_php_binaries($prefix = '')
 
     foreach ($pathsFound as $path) {
         $resolved = realpath($path);
-        if (in_array($resolved, array_values($results))) {
+        if (in_array($resolved, array_values($resolvedPaths))) {
             continue;
         }
-        $results[$path] = $resolved;
+        $resolvedPaths[$path] = $resolved;
+    }
+
+    $results = [];
+    foreach ($resolvedPaths as $command => $realpath) {
+        $hasShebang = file_get_contents($realpath, false, null, 0, 2) === "#!";
+        $results[$command] = [
+            "shebang" => $hasShebang,
+            "path" => $realpath,
+        ];
     }
 
     return $results;
