@@ -16,6 +16,7 @@
 #include <string_view>
 
 using ::testing::_;
+using ::testing::AtLeast;
 using ::testing::ByRef;
 using ::testing::DoAll;
 using ::testing::ElementsAre;

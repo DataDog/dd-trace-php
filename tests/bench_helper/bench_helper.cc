@@ -593,7 +593,7 @@ std::string Client::read_helper_response(Function &&f)
             spdlog::default_logger_raw()->log(
                 spdlog::source_loc{__FILE__, __LINE__, "read_helper_response"},
                 spdlog::level::debug,
-                "C#{} Read {} bytes, {} left in helper response", thiz->id_,
+                "C#{} Read {} bytes, {} left in helper response", thiz->id,
                 read, left);
 
             if (ec.failed()) {

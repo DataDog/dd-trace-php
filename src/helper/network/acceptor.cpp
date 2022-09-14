@@ -27,8 +27,7 @@ acceptor::acceptor(const std::string_view &sv)
         throw std::system_error(errno, std::generic_category());
     }
 
-    struct sockaddr_un addr {
-    };
+    struct sockaddr_un addr {};
     addr.sun_family = AF_UNIX;
     if (sv.size() > sizeof(addr.sun_path) - 1) {
         throw std::invalid_argument{"socket path too long"};
@@ -63,8 +62,7 @@ void acceptor::set_accept_timeout(std::chrono::seconds timeout)
 
 socket::ptr acceptor::accept()
 {
-    struct sockaddr_un addr {
-    };
+    struct sockaddr_un addr {};
     socklen_t len = sizeof(addr);
 
     // NOLINTNEXTLINE(android-cloexec-accept,cppcoreguidelines-pro-type-reinterpret-cast)

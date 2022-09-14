@@ -284,7 +284,8 @@ instance::instance(parameter &rule,
     : waf_timeout_{waf_timeout_us}
 {
     ddwaf_ruleset_info info;
-    ddwaf_config config{{0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
+    ddwaf_config config{
+        {0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
 
     handle_ = ddwaf_init(rule, &config, &info);
 

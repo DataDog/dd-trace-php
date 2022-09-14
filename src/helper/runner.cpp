@@ -22,8 +22,7 @@ network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
     if (value.size() >= 4 && value.substr(0, 3) == "fd:") {
         auto rest{value.substr(3)};
         int fd = std::stoi(std::string{rest}); // can throw
-        struct stat statbuf {
-        };
+        struct stat statbuf {};
         int res = fstat(fd, &statbuf);
         if (res == -1 || !S_ISSOCK(statbuf.st_mode)) {
             throw std::invalid_argument{

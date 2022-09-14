@@ -6,6 +6,7 @@ core,mpack,MIT,Nicholas Fraser and the MPack authors
 core,libddwaf,Apache-2.0,Datadog Inc
 core,spdlog,MIT,Gabi Melman
 core,boost,BSL-1.0,The original authors
+core,cpp-base64,Custom,ReneNyffenegger
 dev,googletest,BSD-3-Clause,Google Inc
 dev,gflags,BSD-3-Clause,Google Inc
 dev,libfuzzer,Apache-2.0,The original authors

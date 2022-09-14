@@ -14,7 +14,7 @@ set_target_properties(helper_objects PROPERTIES
     POSITION_INDEPENDENT_CODE 1)
 target_include_directories(helper_objects PUBLIC ${HELPER_INCLUDE_DIR})
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG)
-target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog msgpack_c lib_rapidjson Boost::system)
+target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog cpp-base64 msgpack_c lib_rapidjson Boost::system)
 
 add_executable(ddappsec-helper src/helper/main.cpp
 	$<TARGET_OBJECTS:helper_objects>
