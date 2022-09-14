@@ -95,7 +95,7 @@ final class PHPInstallerTest extends BaseTestCase
     public function testSearchPhpBinaries()
     {
         $found = \search_php_binaries(sys_get_temp_dir() . '/dd-php-setup-tests');
-        $this->assertStringContains('/', $found['php']);
+        $this->assertStringContains('/', $found['php']["path"]);
 
         $shouldBeFound = [
             'php',
@@ -120,7 +120,7 @@ final class PHPInstallerTest extends BaseTestCase
         $rootPath = self::getTmpRootPath() . "/opt/remi/php74/root/usr/sbin";
         foreach ($shouldBeFound as $binary) {
             $this->assertArrayHasKey("${rootPath}/${binary}", $found);
-            $this->assertSame(realpath("${rootPath}/${binary}"), $found["${rootPath}/${binary}"]);
+            $this->assertSame(realpath("${rootPath}/${binary}"), $found["${rootPath}/${binary}"]["path"]);
         }
         foreach ($shouldNotBeFound as $binary) {
             $this->assertTrue(empty($found["${rootPath}/${binary}"]));

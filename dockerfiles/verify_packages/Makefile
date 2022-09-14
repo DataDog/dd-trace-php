@@ -100,6 +100,7 @@ test_first_install_php_zts.sh \
 	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
 
+test_install_non_binary.sh \
 test_fpm.sh \
 	:
 	@echo "################### $(@) ###################"
