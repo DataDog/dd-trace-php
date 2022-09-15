@@ -33,6 +33,8 @@ fn main() {
 fn build_zend_php_ffis(php_config_includes: &str) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
+    println!("cargo:rerun-if-changed=../ext/handlers_api.c");
+    println!("cargo:rerun-if-changed=../ext/handlers_api.h");
 
     let output = Command::new("php-config")
         .arg("--prefix")
@@ -43,7 +45,8 @@ fn build_zend_php_ffis(php_config_includes: &str) {
     println!("cargo:rustc-link-search=native={}/lib", prefix.trim());
 
     cc::Build::new()
-        .files(["src/php_ffi.c"])
+        .files(["src/php_ffi.c", "../ext/handlers_api.c"])
+        .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
                 .split(' ')
@@ -69,6 +72,7 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
 
 fn generate_bindings(php_config_includes: &str) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
+    println!("cargo:rerun-if-changed=../ext/handlers_api.h");
     let ignored_macros = IgnoreMacros(
         [
             "FP_INFINITE".into(),
@@ -86,6 +90,7 @@ fn generate_bindings(php_config_includes: &str) {
         .ctypes_prefix("libc")
         .raw_line("extern crate libc;")
         .header("src/php_ffi.h")
+        .header("../ext/handlers_api.h")
         // Block some zend items that we'll provide manual definitions for
         .blocklist_item("sapi_getenv")
         .blocklist_item("zend_bool")

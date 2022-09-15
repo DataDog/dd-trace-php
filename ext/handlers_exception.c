@@ -374,7 +374,7 @@ void ddtrace_exception_handlers_startup(void) {
     memcpy(&dd_exception_or_error_handler_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     dd_exception_or_error_handler_handlers.get_closure = dd_exception_handler_get_closure;
 
-    dd_zif_handler handlers[] = {
+    datadog_php_zif_handler handlers[] = {
         {ZEND_STRL("header"), &dd_header, ZEND_FN(ddtrace_header)},
         {ZEND_STRL("http_response_code"), &dd_http_response_code, ZEND_FN(ddtrace_http_response_code)},
         {ZEND_STRL("set_error_handler"), &dd_set_error_handler, ZEND_FN(ddtrace_set_error_handler)},
@@ -384,7 +384,7 @@ void ddtrace_exception_handlers_startup(void) {
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {
-        dd_install_handler(handlers[i]);
+        datadog_php_install_handler(handlers[i]);
     }
 }
 

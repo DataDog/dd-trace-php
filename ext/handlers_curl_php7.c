@@ -613,7 +613,7 @@ void ddtrace_curl_handlers_startup(void) {
      * The latter expects the former is already done because it needs a span id for the distributed tracing headers;
      * register them inside-out.
      */
-    dd_zif_handler handlers[] = {
+    datadog_php_zif_handler handlers[] = {
             {ZEND_STRL("curl_close"), &dd_curl_close_handler, ZEND_FN(ddtrace_curl_close)},
             {ZEND_STRL("curl_copy_handle"), &dd_curl_copy_handle_handler, ZEND_FN(ddtrace_curl_copy_handle)},
             {ZEND_STRL("curl_exec"), &dd_curl_exec_handler, ZEND_FN(ddtrace_curl_exec)},
@@ -629,7 +629,7 @@ void ddtrace_curl_handlers_startup(void) {
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {
-        dd_install_handler(handlers[i]);
+        datadog_php_install_handler(handlers[i]);
     }
 }
 

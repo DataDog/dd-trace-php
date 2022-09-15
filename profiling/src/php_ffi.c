@@ -48,3 +48,13 @@ zend_module_entry *datadog_get_module_entry(const uint8_t *str, uintptr_t len) {
 
 ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =
     noop_get_profiling_context;
+
+void datadog_php_profiling_install_internal_function_handler(
+    datadog_php_profiling_internal_function_handler handler) {
+    zend_function *old_handler;
+    old_handler = zend_hash_str_find_ptr(CG(function_table), handler.name, handler.name_len);
+    if (old_handler != NULL) {
+        *handler.old_handler = old_handler->internal_function.handler;
+        old_handler->internal_function.handler = handler.new_handler;
+    }
+}

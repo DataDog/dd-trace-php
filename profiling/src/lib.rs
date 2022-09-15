@@ -2,6 +2,7 @@ mod bindings;
 pub mod capi;
 mod config;
 mod logging;
+mod pcntl;
 mod profiling;
 mod sapi;
 
@@ -137,6 +138,22 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     {
         logging::log_init(LevelFilter::Trace);
         trace!("MINIT({}, {})", r#type, module_number);
+    }
+
+    #[cfg(target_vendor = "apple")]
+    {
+        /* If PHP forks and certain ObjC classes are not initialized before the
+         * fork, then on High Sierra and above the child process will crash,
+         * for example:
+         * > objc[25938]: +[__NSCFConstantString initialize] may have been in
+         * > progress in another thread when fork() was called. We cannot
+         * > safely call it or ignore it in the fork() child process. Crashing
+         * > instead. Set a breakpoint on objc_initializeAfterForkError to
+         * > debug.
+         * In our case, it's things related to TLS that fail, so when we
+         * support forking, load this at the beginning:
+         * let _ = ddcommon::connector::load_root_certs();
+         */
     }
 
     // Ignore unused result; use SAPI.get() which returns an Option if it's uninitialized.
@@ -698,6 +715,9 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Reflection\0") };
         get_module_version(module_name).ok_or(())
     });
+
+    // Safety: calling this in zend_extension startup.
+    unsafe { pcntl::startup() };
 
     ZendResult::Success
 }
