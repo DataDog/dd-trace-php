@@ -88,10 +88,7 @@ unsafe extern "C" fn pcntl_forkx(execute_data: *mut zend_execute_data, return_va
     handle_pcntl_fork(return_value);
 }
 
-/* Safety: CStr invariants are met (at least one byte, last byte is null,
- * no null bytes before that). Note that they require their own unsafe
- * blocks because they are const, despite being in th
- */
+// Safety: the provided slices are nul-terminated and don't contain any interior nul bytes.
 const PCNTL_FORK: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"pcntl_fork\0") };
 const PCNTL_RFORK: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"pcntl_rfork\0") };
 const PCNTL_FORKX: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"pcntl_forkx\0") };
