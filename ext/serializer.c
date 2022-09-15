@@ -602,11 +602,11 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     zval *prop_name = ddtrace_spandata_property_name(span);
     if (strcmp(sapi_module.name, "cli") == 0) {
         ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
-        if (SG(request_info).argc > 0) {
-            ZVAL_STR(prop_name, php_basename(SG(request_info).argv[0], strlen(SG(request_info).argv[0]), NULL, 0));
-        } else {
-            ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("cli.command"), 0));
-        }
+        const char *script_name;
+        ZVAL_STR(prop_name,
+            (SG(request_info).argc > 0 && (script_name = SG(request_info).argv[0]) && script_name[0] != '\0')
+                ? php_basename(script_name, strlen(script_name), NULL, 0)
+                : zend_string_init(ZEND_STRL("cli.command"), 0));
     } else {
         ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("web"), 0));
         ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("web.request"), 0));
