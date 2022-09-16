@@ -2375,6 +2375,7 @@ workflows:
       - pecl_build:
           requires: [ 'Prepare Code' ]
           name: "Build PECL"
+
       - "package extension":
           requires:
             - compile_alpine
@@ -2432,6 +2433,8 @@ workflows:
                 - '7.3'
                 - '7.4'
                 - '8.0'
+                - '8.1'
+
       - randomized_tests:
           requires: [ 'package extension' ]
           matrix:
