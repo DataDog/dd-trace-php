@@ -50,11 +50,11 @@ static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_byt
 
 /// The runtime ID, which is basically a universally unique "pid". This makes
 /// it almost const, the exception being to re-initialize it from a child fork
-/// handler. I could not find a safe pattern which allows this except ones
-/// that use locks, which are undesirable because of fork safety.
-/// This also needs delayed initialization so that the child processes of
-/// Apache forks get different RUNTIME_ID values (Apache forks after MINIT).
-static mut RUNTIME_ID: Uuid = Uuid::nil();
+/// handler. We don't yet support forking, so we use OnceCell.
+/// Additionally, the tracer is going to ask for this in its ACTIVATE handler,
+/// so whatever it is replaced with needs to also follow the
+/// initialize-on-first-use pattern.
+static RUNTIME_ID: OnceCell<Uuid> = OnceCell::new();
 
 /// The Server API the profiler is running under.
 static SAPI: OnceCell<Sapi> = OnceCell::new();
@@ -334,13 +334,7 @@ thread_local! {
 
 /// Gets the runtime-id for the process.
 fn runtime_id() -> Uuid {
-    /* Safety: we only write to this during MINIT or in a fork handler, where
-     * there are no threads to race against the reads. However, the forking
-     * case in particular would behave badly if there was a lock, so we'd
-     * rather have a data race than a deadlocked process... but again, that
-     * shouldn't happen.
-     */
-    unsafe { RUNTIME_ID }
+    *RUNTIME_ID.get_or_init(Uuid::new_v4)
 }
 
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
@@ -398,15 +392,6 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
      */
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        /* Safety: we're inside of a call_once so there aren't racing PHP
-         * threads at this time.
-         */
-        unsafe {
-            if RUNTIME_ID.is_nil() {
-                RUNTIME_ID = Uuid::new_v4();
-            }
-        }
-
         // Don't log when profiling is disabled as that can mess up tests.
         let profiling_log_level = if profiling_enabled {
             log_level
