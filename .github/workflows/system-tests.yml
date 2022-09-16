@@ -5,7 +5,10 @@ on:
     workflows: ["Package"]
     types:
       - completed
-    branches: [ master ]
+    branches:
+      - master
+      - develop
+      - dd-appsec-php-**
   workflow_dispatch:
   schedule:
     - cron:  '00 04 * * 2-6'

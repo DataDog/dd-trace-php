@@ -2,7 +2,10 @@ name: Integration
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+      - develop
+      - dd-appsec-php-**
     tags:
       - "*"
   pull_request:
