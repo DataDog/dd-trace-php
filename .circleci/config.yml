@@ -1833,7 +1833,7 @@ jobs:
               cd -
               # run phpize just to get run-tests.php
               phpize
-              php run-tests.php -p $(which php) tests/ext/profiling
+              php run-tests.php -p $(which php) --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
   placeholder:
     docker:
