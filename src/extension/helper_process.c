@@ -128,9 +128,6 @@ void dd_helper_rshutdown()
 {
     _mgr.connected_this_req = false;
     _mgr.launched_this_req = false;
-    if (_mgr.connected_this_req && dd_conn_connected(&_mgr.conn)) {
-        dd_conn_set_timeout(&_mgr.conn, comm_type_recv, timeout_recv_subseq);
-    }
 }
 
 static bool _wait_for_next_retry(void);
@@ -193,6 +190,9 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(client_init_func nonnull init_func)
                 _prevent_launch_attempts(-1);
             }
             goto error;
+        } else {
+            dd_conn_set_timeout(
+                &_mgr.conn, comm_type_recv, timeout_recv_subseq);
         }
 
         // else success

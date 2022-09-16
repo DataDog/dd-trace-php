@@ -38,6 +38,7 @@ request broker::recv(std::chrono::milliseconds initial_timeout) const
             "Not enough data for header:" + std::to_string(res) + " bytes");
     }
 
+    // TODO: remove or increase this dramatically with WAF 1.5.0
     static msgpack::unpack_limit limits(max_array_size, max_map_size,
         max_string_length, max_binary_size, max_extension_size, max_depth);
 

@@ -124,11 +124,11 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
     }
 
     if (should_block) {
-        mlog(dd_log_info, "request_init succeed and told to block");
+        mlog(dd_log_info, "%.*s succeed and told to block", NAME_L);
         return dd_should_block;
     }
 
-    mlog(dd_log_debug, "request_init succeed. Not blocking");
+    mlog(dd_log_debug, "%.*s succeed. Not blocking", NAME_L);
     return dd_success;
 }
 
@@ -201,6 +201,11 @@ static inline dd_result _dd_imsg_recv(
     }
     if (res) {
         return res;
+    }
+
+    if (imsg->_size == 1) {
+        mlog(dd_log_debug, "Helper sent error message");
+        return dd_error;
     }
 
     mpack_tree_init(&imsg->_tree, imsg->_data, imsg->_size);

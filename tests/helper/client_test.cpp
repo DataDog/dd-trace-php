@@ -356,6 +356,45 @@ TEST(ClientTest, RequestInit)
     }
 }
 
+TEST(ClientTest, RequestInitUnpackError)
+{
+    auto epool = std::make_shared<engine_pool>();
+    auto broker = new mock::broker();
+
+    client c(epool, std::unique_ptr<mock::broker>(broker));
+
+    // Client Init
+    {
+        auto fn = create_sample_rules_ok();
+        network::client_init::request msg;
+        msg.pid = 1729;
+        msg.runtime_version = "1.0";
+        msg.client_version = "2.0";
+        msg.settings.rules_file = fn;
+
+        network::request req(std::move(msg));
+
+        network::client_init::response res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker, send(_))
+            .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_client_init());
+        EXPECT_STREQ(res.status.c_str(), "ok");
+    }
+
+    // Request Init
+    {
+        network::error::response res;
+        EXPECT_CALL(*broker, recv(_))
+            .WillOnce(Throw(msgpack::unpack_error("map size overflow")));
+        EXPECT_CALL(*broker, send(_))
+            .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+    }
+}
+
 TEST(ClientTest, RequestInitNoClientInit)
 {
     auto epool = std::make_shared<engine_pool>();
@@ -373,7 +412,7 @@ TEST(ClientTest, RequestInitNoClientInit)
         network::request req(std::move(msg));
 
         EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
-        EXPECT_CALL(*broker, send(_)).Times(0);
+        EXPECT_CALL(*broker, send(_)).WillOnce(Return(true));
 
         EXPECT_FALSE(c.run_request());
     }
@@ -414,7 +453,7 @@ TEST(ClientTest, RequestInitInvalidData)
         network::request req(std::move(msg));
 
         EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
-        EXPECT_CALL(*broker, send(_)).Times(0);
+        EXPECT_CALL(*broker, send(_)).WillOnce(Return(true));
 
         EXPECT_FALSE(c.run_request());
     }
@@ -604,7 +643,7 @@ TEST(ClientTest, RequestShutdownInvalidData)
 
         network::request_shutdown::response res;
         EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
-        EXPECT_CALL(*broker, send(_)).Times(0);
+        EXPECT_CALL(*broker, send(_)).WillOnce(Return(true));
 
         EXPECT_FALSE(c.run_request());
     }
@@ -625,7 +664,7 @@ TEST(ClientTest, RequestShutdownNoClientInit)
         network::request req(std::move(msg));
 
         EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
-        EXPECT_CALL(*broker, send(_)).Times(0);
+        EXPECT_CALL(*broker, send(_)).WillOnce(Return(true));
 
         EXPECT_FALSE(c.run_request());
     }
@@ -665,10 +704,14 @@ TEST(ClientTest, RequestShutdownNoRequestInit)
 
         network::request req(std::move(msg));
 
+        network::request_init::response res;
         EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
-        EXPECT_CALL(*broker, send(_)).Times(0);
+        EXPECT_CALL(*broker, send(_))
+            .WillOnce(DoAll(SaveResponse<decltype(res)>(&res), Return(true)));
 
-        EXPECT_FALSE(c.run_request());
+        EXPECT_TRUE(c.run_request());
+        EXPECT_STREQ(res.verdict.c_str(), "ok");
+        EXPECT_EQ(res.triggers.size(), 0);
     }
 }
 

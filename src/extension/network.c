@@ -406,6 +406,9 @@ dd_result dd_conn_set_timeout(
     timeout.tv_sec = time_seconds;
     timeout.tv_usec = time_microseconds;
 
+    mlog(dd_log_debug, "setting timeout to %u.%06u", time_seconds,
+        time_microseconds);
+
     int res =
         setsockopt(conn->socket, SOL_SOCKET, type, &timeout, sizeof(timeout));
     if (res) {

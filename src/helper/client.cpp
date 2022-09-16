@@ -7,6 +7,7 @@
 
 #include "exception.hpp"
 #include "msgpack/object.h"
+#include "network/broker.hpp"
 #include "network/proto.hpp"
 #include "std_logging.hpp"
 #include <chrono>
@@ -50,6 +51,13 @@ bool maybe_exec_cmd_M(client &client, network::request &msg)
     return false;
 }
 
+void send_error_response(const network::base_broker &broker)
+{
+    if (!broker.send(network::error::response())) {
+        SPDLOG_WARN("Failed to send error response");
+    }
+}
+
 template <typename... Ms>
 // NOLINTNEXTLINE(google-runtime-references)
 bool handle_message(client &client, const network::base_broker &broker,
@@ -63,15 +71,33 @@ bool handle_message(client &client, const network::base_broker &broker,
         SPDLOG_DEBUG("Wait for one these messages: {}", all_names.str());
     }
 
+    bool send_error = false;
     try {
         auto msg = broker.recv(initial_timeout);
         return maybe_exec_cmd_M<Ms...>(client, msg);
     } catch (const client_disconnect &) {
         SPDLOG_INFO("Client has disconnected");
+    } catch (const std::length_error &e) {
+        SPDLOG_WARN("Failed to handle message: {}", e.what());
+        send_error = true;
+    } catch (const bad_cast &e) {
+        SPDLOG_WARN("Failed to handle message: {}", e.what());
+        send_error = true;
+    } catch (const msgpack::unpack_error &e) {
+        SPDLOG_WARN("Failed to unpack message: {}", e.what());
+        send_error = true;
     } catch (const std::exception &e) {
         SPDLOG_WARN("Failed to handle message: {}", e.what());
     }
 
+    if (send_error) {
+        // This can happen due to a valid error, let's continue handling
+        // the client as this might just happen spuriously.
+        send_error_response(broker);
+        return true;
+    }
+
+    // If we reach this point, there was a problem handling the message
     return false;
 }
 
@@ -135,7 +161,9 @@ bool client::handle_command(const network::client_init::request &command)
 bool client::handle_command(network::request_init::request &command)
 {
     if (!engine_) {
+        // This implies a failed client_init, we can't continue.
         SPDLOG_DEBUG("no engine available on request_init");
+        send_error_response(*broker_);
         return false;
     }
 
@@ -161,10 +189,12 @@ bool client::handle_command(network::request_init::request &command)
         // This error indicates some issue in either the communication with
         // the client, incompatible versions or malicious client.
         SPDLOG_ERROR("invalid data format provided by the client");
+        send_error_response(*broker_);
         return false;
     } catch (const std::exception &e) {
         // Uncertain what the issue is... lets be cautious
         DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
+        send_error_response(*broker_);
         return false;
     }
 
@@ -182,9 +212,17 @@ bool client::handle_command(network::request_init::request &command)
 bool client::handle_command(network::request_shutdown::request &command)
 {
     if (!context_) {
-        // A lack of context implies a bug somewhere
-        SPDLOG_DEBUG("no context available on request_shutdown");
-        return false;
+        // A lack of context implies processing request_init failed, this
+        // can happen for legitimate reasons so let's try to process the data.
+        if (!engine_) {
+            // This implies a failed client_init, we can't continue.
+            SPDLOG_DEBUG("no engine available on request_shutdown");
+            send_error_response(*broker_);
+            return false;
+        }
+
+        // During request init we initialize the engine contex
+        context_.emplace(*engine_);
     }
 
     SPDLOG_DEBUG("received command request_shutdown");
@@ -209,10 +247,12 @@ bool client::handle_command(network::request_shutdown::request &command)
         // This error indicates some issue in either the communication with
         // the client, incompatible versions or malicious client.
         SPDLOG_ERROR("invalid data format provided by the client");
+        send_error_response(*broker_);
         return false;
     } catch (const std::exception &e) {
         // Uncertain what the issue is... lets be cautious
         DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
+        send_error_response(*broker_);
         return false;
     }
 
@@ -236,6 +276,8 @@ bool client::run_client_init()
 
 bool client::run_request()
 {
+    // TODO: figure out how to handle errors which require sending an error
+    //       response to ensure the extension doesn't hang.
     return handle_message<network::request_init, network::request_shutdown>(
         *this, *broker_, std::chrono::milliseconds{0} /* no initial timeout */
     );

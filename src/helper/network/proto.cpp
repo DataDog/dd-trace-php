@@ -32,7 +32,11 @@ request_id command_name_to_id(const std::string &str)
 template <typename T> auto msgpack_to_request(const msgpack::object &o)
 {
     using R = typename T::request;
-    return std::make_shared<R>(o.as<R>());
+    try {
+        return std::make_shared<R>(o.as<R>());
+    } catch (...) {
+        return std::make_shared<R>();
+    }
 }
 
 } // namespace
