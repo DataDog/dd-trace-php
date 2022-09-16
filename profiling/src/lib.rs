@@ -48,13 +48,13 @@ static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
-lazy_static! {
-    /// The runtime ID, which is basically a universally unique "pid", so it
-    /// theoretically can change on fork.
-    /// In Rust 1.63+, Mutex::new is const and this can be made a regular
-    /// global instead of a lazy_static one.
-    static ref RUNTIME_ID: Mutex<Option<Uuid>> = Mutex::new(None);
-}
+/// The runtime ID, which is basically a universally unique "pid". This makes
+/// it almost const, the exception being to re-initialize it from a child fork
+/// handler. I could not find a safe pattern which allows this except ones
+/// that use locks, which are undesirable because of fork safety.
+/// This also needs delayed initialization so that the child processes of
+/// Apache forks get different RUNTIME_ID values (Apache forks after MINIT).
+static mut RUNTIME_ID: Uuid = Uuid::nil();
 
 /// The Server API the profiler is running under.
 static SAPI: OnceCell<Sapi> = OnceCell::new();
@@ -332,14 +332,15 @@ thread_local! {
     });
 }
 
+/// Gets the runtime-id for the process.
 fn runtime_id() -> Uuid {
-    match RUNTIME_ID.lock() {
-        Ok(maybe_uuid) => maybe_uuid.unwrap_or_default(),
-        Err(err) => {
-            error!("While locking runtime id: {}", err);
-            Uuid::nil()
-        }
-    }
+    /* Safety: we only write to this during MINIT or in a fork handler, where
+     * there are no threads to race against the reads. However, the forking
+     * case in particular would behave badly if there was a lock, so we'd
+     * rather have a data race than a deadlocked process... but again, that
+     * shouldn't happen.
+     */
+    unsafe { RUNTIME_ID }
 }
 
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
@@ -392,10 +393,20 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             )
         });
 
-    // At the moment, logging is truly global, so init it exactly once whether
-    // profiling is enabled or not.
+    /* At the moment, logging is truly global, so init it exactly once whether
+     * profiling is enabled or not.
+     */
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
+        /* Safety: we're inside of a call_once so there aren't racing PHP
+         * threads at this time.
+         */
+        unsafe {
+            if RUNTIME_ID.is_nil() {
+                RUNTIME_ID = Uuid::new_v4();
+            }
+        }
+
         // Don't log when profiling is disabled as that can mess up tests.
         let profiling_log_level = if profiling_enabled {
             log_level
@@ -455,11 +466,6 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         let mut profiler = PROFILER.lock().unwrap();
         if profiler.is_none() {
             *profiler = Some(Profiler::new())
-        }
-
-        let mut runtime_id = RUNTIME_ID.lock().unwrap();
-        if runtime_id.is_none() {
-            *runtime_id = Some(uuid::Uuid::new_v4())
         }
     };
 

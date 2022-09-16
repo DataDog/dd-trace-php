@@ -72,6 +72,7 @@ impl From<uuid::Uuid> for Uuid {
 }
 
 /// Fetch the runtime id of the process. Note that it may return the nil UUID.
+/// Only call this from a PHP thread.
 #[no_mangle]
 pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
     runtime_id().into()
