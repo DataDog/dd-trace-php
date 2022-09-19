@@ -23,7 +23,7 @@ function creates_span_stack() {
     $new_stack = DDTrace\create_stack();
     $inner_span = inner();
     echo 'The stack stays intact within the function: '; var_dump($new_stack == DDTrace\active_stack());
-    echo 'And the span started within the inner function was automatically closed, given that it is on the same span stack: '; var_dump($inner_span->getDuration() === 0);
+    echo 'And the span started within the inner function was automatically closed, given that it is on the same span stack: '; var_dump($inner_span->getDuration() !== 0);
     return DDTrace\start_span();
 }
 

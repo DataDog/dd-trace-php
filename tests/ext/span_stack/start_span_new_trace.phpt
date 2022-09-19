@@ -22,17 +22,17 @@ echo 'New trace span has a trace id equal to itself: '; var_dump($new_root->id =
 $active_new_root_span = DDTrace\start_span();
 
 DDTrace\switch_stack($primary_trace);
-echo 'stack update successful: '; var_dump($primary_trace == DDTrace\stack_span());
+echo 'stack update successful: '; var_dump($primary_trace->stack == DDTrace\active_stack());
 echo 'Root span information is carried along on stack updates: '; var_dump($primary_trace == DDTrace\root_span());
 DDTrace\start_span();
 DDTrace\close_span();
-echo 'Opened stacks stay active until swapped back: '; var_dump($primary_trace == DDTrace\stack_span());
+echo 'Opened stacks stay active until swapped back: '; var_dump($primary_trace->stack == DDTrace\active_stack());
 
 DDTrace\switch_stack($new_root);
 echo 'Swapping a stack always goes back to the active top span: '; var_dump($active_new_root_span == DDTrace\active_span());
 
 DDTrace\close_span();
-echo 'After closing the trace root, we swap back to the previously active stack: '; var_dump($primary_trace == DDTrace\stack_span());
+echo 'After closing the trace root, we swap back to the previously active stack: '; var_dump($primary_trace->stack == DDTrace\active_stack());
 echo 'With the trace root also accordingly updated: '; var_dump($primary_trace == DDTrace\root_span());
 
 # close spans on the primary trace

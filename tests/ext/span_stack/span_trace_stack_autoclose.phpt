@@ -1,5 +1,5 @@
 --TEST--
-Test creating swapping traces
+Test autoclosing of spans on abandoned span stacks
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --SKIPIF--
