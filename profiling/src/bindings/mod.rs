@@ -251,3 +251,56 @@ impl ModuleDep {
 
 /// Note that it's only _actually_ safe if all pointers are 'static
 unsafe impl Sync for ModuleDep {}
+
+pub type InternalFunctionHandler =
+    Option<unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval)>;
+
+impl datadog_php_zif_handler {
+    pub fn new(
+        name: &'static CStr,
+        old_handler: &'static mut InternalFunctionHandler,
+        new_handler: InternalFunctionHandler,
+    ) -> Self {
+        let name = name.to_bytes();
+        Self {
+            name: name.as_ptr() as *const c_char,
+            name_len: name.len().try_into().expect("usize to fit"),
+            old_handler,
+            new_handler,
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a mut zval> for &'a mut zend_long {
+    type Error = u8;
+
+    fn try_from(zval: &'a mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type as u32 == IS_LONG {
+            Ok(unsafe { &mut zval.value.lval })
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
+impl TryFrom<&mut zval> for zend_long {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type as u32 == IS_LONG {
+            Ok(unsafe { zval.value.lval })
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
+impl TryFrom<zval> for zend_long {
+    type Error = u8;
+
+    fn try_from(mut zval: zval) -> Result<Self, Self::Error> {
+        zend_long::try_from(&mut zval)
+    }
+}

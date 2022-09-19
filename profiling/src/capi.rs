@@ -2,7 +2,7 @@
 //! ddtrace extension.
 
 use crate::bindings::zend_execute_data;
-use crate::RUNTIME_ID;
+use crate::runtime_id;
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
@@ -60,39 +60,22 @@ pub extern "C" fn datadog_profiling_notify_trace_finished(
     );
 }
 
+/// Alignment to 16 bytes was done by the C version of the profiler. It's not
+/// strictly necessary, but changing it requires a change to the tracer too.
 #[repr(C, align(16))]
-#[derive(Copy, Clone)]
 pub struct Uuid(uuid::Uuid);
-
-impl Uuid {
-    pub const fn new() -> Self {
-        Self {
-            0: uuid::Uuid::nil(),
-        }
-    }
-}
-
-impl Default for Uuid {
-    fn default() -> Self {
-        Uuid::new()
-    }
-}
 
 impl From<uuid::Uuid> for Uuid {
     fn from(uuid: uuid::Uuid) -> Self {
-        Self { 0: uuid }
+        Self(uuid)
     }
 }
 
-impl From<Uuid> for uuid::Uuid {
-    fn from(uuid: Uuid) -> Self {
-        uuid.0
-    }
-}
-
+/// Fetch the runtime id of the process. Note that it may return the nil UUID.
+/// Only call this from a PHP thread.
 #[no_mangle]
 pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
-    *RUNTIME_ID
+    runtime_id().into()
 }
 
 /// Gathers a time sample if the configured period has elapsed. Used by the
@@ -111,20 +94,6 @@ pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_e
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_uuid() {
-        const NIL_UUID: Uuid = Uuid::new();
-        let uuid: uuid::Uuid = NIL_UUID.into();
-        assert!(uuid.is_nil());
-
-        // Asserting we can losslessly convert both ways.
-        let uuidv4 = uuid::Uuid::new_v4();
-        let uuid = Uuid::from(uuidv4);
-        let actual = uuid::Uuid::from(uuid);
-        assert_eq!(uuidv4, actual);
-        assert_eq!(4, actual.get_version_num());
-    }
 
     #[test]
     fn test_string_view() {

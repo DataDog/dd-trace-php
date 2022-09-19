@@ -6,15 +6,6 @@
 #include "engine_hooks.h"
 #include "logging.h"
 
-void dd_install_handler(dd_zif_handler handler) {
-    zend_function *old_handler;
-    old_handler = zend_hash_str_find_ptr(CG(function_table), handler.name, handler.name_len);
-    if (old_handler != NULL) {
-        *handler.old_handler = old_handler->internal_function.handler;
-        old_handler->internal_function.handler = handler.new_handler;
-    }
-}
-
 void ddtrace_free_unregistered_class(zend_class_entry *ce) {
 #if PHP_VERSION_ID >= 80100
     zend_property_info *prop_info;

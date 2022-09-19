@@ -2,6 +2,7 @@ mod bindings;
 pub mod capi;
 mod config;
 mod logging;
+mod pcntl;
 mod profiling;
 mod sapi;
 
@@ -25,15 +26,17 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, Once};
 use std::time::Instant;
+use uuid::Uuid;
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
 lazy_static! {
-    /// The global profiler. In Rust 1.63+, Mutex::new is const and this can be
-    /// made a regular global instead of a lazy_static one. It gets made
-    /// during the first rinit after an rinit, and is destroyed on mshutdown.
+    /// The global profiler. Profiler gets made during the first rinit after
+    /// an rinit, and is destroyed on mshutdown.
+    /// In Rust 1.63+, Mutex::new is const and this can be made a regular
+    /// global instead of a lazy_static one.
     static ref PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
 }
 
@@ -45,12 +48,13 @@ static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
-lazy_static! {
-    /// The runtime ID, which is basically a universally unique "pid", so it
-    /// theoretically can change on fork.
-    /// todo: support forking.
-    static ref RUNTIME_ID: capi::Uuid = capi::Uuid::from(uuid::Uuid::new_v4());
-}
+/// The runtime ID, which is basically a universally unique "pid". This makes
+/// it almost const, the exception being to re-initialize it from a child fork
+/// handler. We don't yet support forking, so we use OnceCell.
+/// Additionally, the tracer is going to ask for this in its ACTIVATE handler,
+/// so whatever it is replaced with needs to also follow the
+/// initialize-on-first-use pattern.
+static RUNTIME_ID: OnceCell<Uuid> = OnceCell::new();
 
 /// The Server API the profiler is running under.
 static SAPI: OnceCell<Sapi> = OnceCell::new();
@@ -134,6 +138,22 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     {
         logging::log_init(LevelFilter::Trace);
         trace!("MINIT({}, {})", r#type, module_number);
+    }
+
+    #[cfg(target_vendor = "apple")]
+    {
+        /* If PHP forks and certain ObjC classes are not initialized before the
+         * fork, then on High Sierra and above the child process will crash,
+         * for example:
+         * > objc[25938]: +[__NSCFConstantString initialize] may have been in
+         * > progress in another thread when fork() was called. We cannot
+         * > safely call it or ignore it in the fork() child process. Crashing
+         * > instead. Set a breakpoint on objc_initializeAfterForkError to
+         * > debug.
+         * In our case, it's things related to TLS that fail, so when we
+         * support forking, load this at the beginning:
+         * let _ = ddcommon::connector::load_root_certs();
+         */
     }
 
     // Ignore unused result; use SAPI.get() which returns an Option if it's uninitialized.
@@ -312,6 +332,11 @@ thread_local! {
     });
 }
 
+/// Gets the runtime-id for the process.
+fn runtime_id() -> Uuid {
+    *RUNTIME_ID.get_or_init(Uuid::new_v4)
+}
+
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
  * using it for catastrophic errors only.
  */
@@ -371,8 +396,9 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             )
         });
 
-    // At the moment, logging is truly global, so init it exactly once whether
-    // profiling is enabled or not.
+    /* At the moment, logging is truly global, so init it exactly once whether
+     * profiling is enabled or not.
+     */
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         // Don't log when profiling is disabled as that can mess up tests.
@@ -464,9 +490,9 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 }
             }
 
-            let runtime_id: uuid::Uuid = (*RUNTIME_ID).into();
+            let runtime_id = runtime_id();
             if !runtime_id.is_nil() {
-                match Tag::new("runtime-id", runtime_id.to_string().as_str()) {
+                match Tag::new("runtime-id", runtime_id.to_string()) {
                     Ok(tag) => {
                         locals.tags.push(tag);
                     }
@@ -689,6 +715,9 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Reflection\0") };
         get_module_version(module_name).ok_or(())
     });
+
+    // Safety: calling this in zend_extension startup.
+    unsafe { pcntl::startup() };
 
     ZendResult::Success
 }

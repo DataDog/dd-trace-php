@@ -83,7 +83,7 @@ void ddtrace_pcntl_handlers_startup(void) {
         return;
     }
 
-    dd_zif_handler handlers[] = {
+    datadog_php_zif_handler handlers[] = {
         {ZEND_STRL("pcntl_fork"), &dd_pcntl_fork_handler, ZEND_FN(ddtrace_pcntl_fork)},
 #if PHP_VERSION_ID >= 80100
         {ZEND_STRL("pcntl_rfork"), &dd_pcntl_rfork_handler, ZEND_FN(ddtrace_pcntl_rfork)},
@@ -94,6 +94,6 @@ void ddtrace_pcntl_handlers_startup(void) {
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {
-        dd_install_handler(handlers[i]);
+        datadog_php_install_handler(handlers[i]);
     }
 }

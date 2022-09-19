@@ -1,19 +1,10 @@
 #ifndef DDTRACE_HANDLERS_INTERNAL_H
 #define DDTRACE_HANDLERS_INTERNAL_H
 
-#include <Zend/zend_extensions.h>
 #include <php.h>
 
+#include "handlers_api.h"
 #include "ddtrace_string.h"
-
-typedef struct dd_zif_handler {
-    const char *name;
-    size_t name_len;
-    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
-    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
-} dd_zif_handler;
-
-void dd_install_handler(dd_zif_handler handler);
 
 void ddtrace_replace_internal_function(const HashTable *ht, ddtrace_string fname);
 void ddtrace_replace_internal_functions(const HashTable *ht, size_t functions_len, ddtrace_string functions[]);
