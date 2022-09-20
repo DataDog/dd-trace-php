@@ -134,12 +134,18 @@ static void _ensure_init()
         TSRM_MUTEX_LOCK(_mutex);
         if (!atomic_load(&_initialized)) {
             dd_result res = _do_dd_log_init();
-            if (res) {
+            if (res == dd_error) {
                 _mlog_php_varargs(
                     dd_log_warning, "Could not initialize logging");
                 _log_strategy = log_use_nothing;
             }
-            atomic_store_explicit(&_initialized, true, memory_order_release);
+            if (res != dd_try_later) {
+                atomic_store_explicit(
+                    &_initialized, true, memory_order_release);
+            } else {
+                // While it cant log to file, lets hide the messages
+                _log_strategy = log_use_nothing;
+            }
         }
         TSRM_MUTEX_UNLOCK(_mutex);
     }
@@ -175,13 +181,23 @@ static dd_result _do_dd_log_init() // guarded by mutex
         return dd_success;
     }
 
+    int at_request = PG(modules_activated) || PG(during_request_startup);
+
     // ignores open_basedir
-    int mode = O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW;
+    int mode = O_WRONLY | O_APPEND | O_NOFOLLOW;
     if (DDAPPSEC_NOCACHE_G(testing)) {
         mode |= O_TRUNC;
     }
+    // Minit/Mshutdown are run by root on some sapis. Creating the log file as
+    // root will avoid other users to log messages
+    if (at_request) {
+        mode |= O_CREAT;
+    }
     _mlog_fd = open(path, mode, 0644); // NOLINT
     if (_mlog_fd == -1) {
+        if (!at_request && errno == ENOENT) {
+            return dd_try_later;
+        }
         _mlog_php_varargs(dd_log_warning,
             "Error opening log file '%s' (errno %d: %s)", path, errno,
             _strerror(errno));
