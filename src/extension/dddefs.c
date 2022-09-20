@@ -16,6 +16,10 @@ const char *nonnull dd_result_to_string(dd_result result)
         return "dd_should_block";
     case dd_error:
         return "dd_error";
+    case dd_try_later:
+        return "dd_try_later";
+    case dd_helper_error:
+        return "dd_helper_error";
     default:
         return "unknown";
     }

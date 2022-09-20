@@ -14,7 +14,8 @@ typedef enum {
     dd_network,      // error in communication; connection should be abandoned
     dd_should_block, // caller should abort the request
     dd_error,        // misc error
-    dd_try_later,        // misc error
+    dd_try_later,    // non-fatal error, try again
+    dd_helper_error  // helper failed to process message (non-fatal)
 } dd_result;
 
 const char *nonnull dd_result_to_string(dd_result result);
