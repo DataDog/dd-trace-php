@@ -251,7 +251,7 @@ static bool _parse_x_forwarded_for(
         for (; value < end && *value == ' '; value++) {}
         const char *comma = memchr(value, ',', end - value);
         const char *end_cur = comma ? comma : end;
-        succ = _parse_ip_address(value, end_cur - value, out);
+        succ = _parse_ip_address_maybe_port_pair(value, end_cur - value, out);
         if (succ) {
             succ = !_is_private(out);
         }
@@ -466,7 +466,7 @@ static bool _parse_ip_address_maybe_port_pair(
         return _parse_ip_address(addr + 1, pos_close - (addr + 1), out);
     }
     const char *colon = memchr(addr, ':', addr_len);
-    if (colon) {
+    if (colon && zend_memrchr(addr, ':', addr_len) == colon) {
         return _parse_ip_address(addr, colon - addr, out);
     }
 
@@ -528,12 +528,20 @@ static bool _is_private_v6(const struct in6_addr *nonnull addr)
         };
     } priv_ranges[] = {
         {
-            .base.s6_addr = {[15] = 1},
+            .base.s6_addr = {[15] = 1}, // loopback
             .mask.s6_addr = {[0 ... 15] = 0xFF}, // /128
         },
         {
-            .base.s6_addr = {0xFE, 0x80},
+            .base.s6_addr = {0xFE, 0x80}, // link-local
             .mask.s6_addr = {0xFF, 0xC0}, // /10
+        },
+        {
+            .base.s6_addr = {0xFE, 0xC0}, // site-local
+            .mask.s6_addr = {0xFF, 0xC0}, // /10
+        },
+        {
+            .base.s6_addr = {0xFD}, // unique local address
+            .mask.s6_addr = {0xFF}, // /8
         },
         {
             .base.s6_addr = {0xFC},
