@@ -4,7 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "client.hpp"
-
+#include "defer.hpp"
 #include "exception.hpp"
 #include "msgpack/object.h"
 #include "network/broker.hpp"
@@ -226,6 +226,9 @@ bool client::handle_command(network::request_shutdown::request &command)
     }
 
     SPDLOG_DEBUG("received command request_shutdown");
+
+    // Free the context at the end of request shutdown
+    auto free_ctx = defer([this](){ this->context_.reset(); });
 
     network::request_shutdown::response response;
     try {
