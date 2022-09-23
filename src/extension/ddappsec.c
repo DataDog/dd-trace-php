@@ -308,8 +308,16 @@ int dd_appsec_rshutdown()
 {
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn) {
-        // currently does nothing
-        UNUSED(dd_request_shutdown(conn));
+        int res = dd_request_shutdown(conn);
+        if (res == dd_network) {
+            mlog_g(dd_log_info,
+                "request_shutdown failed with dd_network; closing "
+                "connection to helper");
+            dd_helper_close_conn();
+        } else if (res) {
+            mlog_g(dd_log_info, "request shutdown failed: %s",
+                dd_result_to_string(res));
+        }
     }
 
     dd_helper_rshutdown();
