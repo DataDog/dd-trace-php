@@ -4,7 +4,6 @@
 
 #include "engine_hooks.h"  // For 'ddtrace_resource'
 #include "handlers_internal.h"
-#include "logging.h"
 #include "serializer.h"
 #include "span.h"
 
@@ -27,7 +26,12 @@ static void (*dd_restore_exception_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL
 static void dd_check_exception_in_header(int old_response_code) {
     int new_response_code = SG(sapi_headers).http_response_code;
 
-    if (!DDTRACE_G(open_spans_top)) {
+    if (!DDTRACE_G(active_stack)) {
+        return;
+    }
+
+    ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    if (!root_span) {
         return;
     }
 
@@ -37,9 +41,7 @@ static void dd_check_exception_in_header(int old_response_code) {
 
     ddtrace_save_active_error_to_metadata();
 
-    ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top)->span.chunk_root;
-
-    if (Z_TYPE_P(ddtrace_spandata_property_exception(&root_span->span)) > IS_FALSE) {
+    if (Z_TYPE_P(ddtrace_spandata_property_exception(root_span)) > IS_FALSE) {
         return;
     }
 
@@ -108,7 +110,7 @@ static void dd_check_exception_in_header(int old_response_code) {
                 ZVAL_DEREF(exception);
                 if (Z_TYPE_P(exception) == IS_OBJECT &&
                     instanceof_function(Z_OBJ_P(exception)->ce, zend_ce_throwable)) {
-                    ZVAL_COPY(ddtrace_spandata_property_exception(&root_span->span), exception);
+                    ZVAL_COPY(ddtrace_spandata_property_exception(root_span), exception);
                 }
 
                 // The final jump was eliminated from the current try  block, but possibly we are in a nested try/catch,
@@ -253,7 +255,7 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
 
         DDTRACE_G(active_error).type = 0;
     } else {
-        ddtrace_span_fci *root_span = DDTRACE_G(open_spans_top);
+        ddtrace_span_data *volatile root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
         zend_object *volatile exception;
         zval *volatile span_exception;
         volatile zval old_exception = {0};
@@ -266,7 +268,7 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
 
         // Assign early so that exceptions thrown inside the exception handler won't gain priority
         if (root_span) {
-            span_exception = ddtrace_spandata_property_exception(&root_span->span);
+            span_exception = ddtrace_spandata_property_exception(root_span);
             ZVAL_COPY_VALUE((zval *)&old_exception, span_exception);
             ZVAL_OBJ_COPY(span_exception, exception);
         }

@@ -25,9 +25,23 @@ echo 'But we can still swap to stacks started before that: '; var_dump($new_root
 
 DDTrace\close_span();
 echo 'We closed the active stack after all other stacks were closed. No other span is active right now: '; var_dump(null == DDTrace\active_span());
-echo 'There exists no other active span stack either: '; var_dump(null == DDTrace\active_stack());
+echo 'This automatically switches back to the parent stack: '; var_dump($primary_trace->stack == DDTrace\active_stack());
 
 dd_dump_spans();
 
 ?>
---EXPECT--
+--EXPECTF--
+We are back on our primary stack: bool(true)
+We closed the primary trace. No other span is active right now: bool(true)
+And no other stack is active either: bool(false)
+But we can still swap to stacks started before that: bool(true)
+We closed the active stack after all other stacks were closed. No other span is active right now: bool(true)
+This automatically switches back to the parent stack: bool(true)
+spans(\DDTrace\SpanData) (2) {
+  span_trace_swap.php (span_trace_swap.php, span_trace_swap.php, cli)
+    system.pid => %d
+    _dd.p.dm => -1
+  span_trace_swap.php (span_trace_swap.php, span_trace_swap.php, cli)
+    system.pid => %d
+    _dd.p.dm => -1
+}

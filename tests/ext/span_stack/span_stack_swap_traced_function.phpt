@@ -2,6 +2,7 @@
 Test swapping span stacks due to auto-close of spans by functions
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_AUTOFINISH_SPANS=1
 --FILE--
 <?php
 
@@ -34,9 +35,11 @@ function inner() {
 # primary trace
 $primary_trace = DDTrace\start_span();
 
-trace_function('outer', function() {});
-trace_function('creates_span_stack', function() {});
-trace_function('inner', function() {});
+DDTrace\trace_function('outer', function() {});
+DDTrace\trace_function('creates_span_stack', function() {});
+DDTrace\trace_function('inner', function() {});
+
+outer();
 
 DDTrace\close_span();
 echo 'We closed the active stack after all other stacks were closed. No other span is active right now: '; var_dump(null == DDTrace\active_span());
@@ -44,4 +47,21 @@ echo 'We closed the active stack after all other stacks were closed. No other sp
 dd_dump_spans();
 
 ?>
---EXPECT--
+--EXPECTF--
+The stack stays intact within the function: bool(true)
+And the span started within the inner function was automatically closed, given that it is on the same span stack: bool(true)
+We called a function on the current span stack: bool(true)
+And the span stack was switched back after the function on the original stack left: bool(true)
+Also, the span on the other stack was not automatically closed: bool(true)
+Now, we have explicitly closed it: bool(true)
+We closed the active stack after all other stacks were closed. No other span is active right now: bool(true)
+spans(\DDTrace\SpanData) (1) {
+  span_stack_swap_traced_function.php (span_stack_swap_traced_function.php, span_stack_swap_traced_function.php, cli)
+    system.pid => %d
+    _dd.p.dm => -1
+    outer (span_stack_swap_traced_function.php, outer, cli)
+      creates_span_stack (span_stack_swap_traced_function.php, creates_span_stack, cli)
+        inner (span_stack_swap_traced_function.php, inner, cli)
+           (span_stack_swap_traced_function.php, cli)
+         (span_stack_swap_traced_function.php, cli)
+}

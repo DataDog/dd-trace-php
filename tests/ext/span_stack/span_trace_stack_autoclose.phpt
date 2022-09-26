@@ -15,7 +15,11 @@ DDTrace\create_stack();
 
 $weakref = WeakReference::create(DDTrace\start_span());
 
+gc_collect_cycles(); // early collection has no side-effect (like crashes)
+
 DDTrace\switch_stack();
+gc_collect_cycles(); // force immediate collection
+
 echo 'We are back on our primary stack: '; var_dump($primary_trace == DDTrace\active_span());
 echo 'Having lost all references to the that span stacks objects, it is autoclosed: '; var_dump($weakref->get()->getDuration() !== 0);
 
@@ -25,4 +29,12 @@ DDTrace\close_span();
 dd_dump_spans();
 
 ?>
---EXPECT--
+--EXPECTF--
+We are back on our primary stack: bool(true)
+Having lost all references to the that span stacks objects, it is autoclosed: bool(true)
+spans(\DDTrace\SpanData) (1) {
+  span_trace_stack_autoclose.php (span_trace_stack_autoclose.php, span_trace_stack_autoclose.php, cli)
+    system.pid => %d
+    _dd.p.dm => -1
+     (span_trace_stack_autoclose.php, cli)
+}

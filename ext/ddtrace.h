@@ -9,24 +9,25 @@
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
+extern zend_class_entry *ddtrace_ce_span_stack;
 extern zend_class_entry *ddtrace_ce_fatal_error;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
-typedef struct ddtrace_span_fci ddtrace_span_fci;
-typedef struct ddtrace_span_t ddtrace_span_t;
+typedef struct ddtrace_span_data ddtrace_span_data;
+typedef struct ddtrace_span_stack ddtrace_span_stack;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
-static inline zval *ddtrace_spandata_property_name(ddtrace_span_t *span) {
+static inline zval *ddtrace_spandata_property_name(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 0);
 }
-static inline zval *ddtrace_spandata_property_resource(ddtrace_span_t *span) {
+static inline zval *ddtrace_spandata_property_resource(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 1);
 }
-static inline zval *ddtrace_spandata_property_service(ddtrace_span_t *span) {
+static inline zval *ddtrace_spandata_property_service(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 2);
 }
-static inline zval *ddtrace_spandata_property_type(ddtrace_span_t *span) {
+static inline zval *ddtrace_spandata_property_type(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 3);
 }
 static inline zend_array *ddtrace_spandata_property_force_array(zval *zv) {
@@ -40,25 +41,22 @@ static inline zend_array *ddtrace_spandata_property_force_array(zval *zv) {
     SEPARATE_ARRAY(zv);
     return Z_ARR_P(zv);
 }
-static inline zval *ddtrace_spandata_property_meta_zval(ddtrace_span_t *span) {
+static inline zval *ddtrace_spandata_property_meta_zval(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 4);
 }
-static inline zend_array *ddtrace_spandata_property_meta(ddtrace_span_t *span) {
+static inline zend_array *ddtrace_spandata_property_meta(ddtrace_span_data *span) {
     return ddtrace_spandata_property_force_array(ddtrace_spandata_property_meta_zval(span));
 }
-static inline zval *ddtrace_spandata_property_metrics_zval(ddtrace_span_t *span) {
+static inline zval *ddtrace_spandata_property_metrics_zval(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 5);
 }
-static inline zend_array *ddtrace_spandata_property_metrics(ddtrace_span_t *span) {
+static inline zend_array *ddtrace_spandata_property_metrics(ddtrace_span_data *span) {
     return ddtrace_spandata_property_force_array(ddtrace_spandata_property_metrics_zval(span));
 }
-static inline zval *ddtrace_spandata_property_exception(ddtrace_span_t *span) {
+static inline zval *ddtrace_spandata_property_exception(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 6);
 }
-static inline zval *ddtrace_spandata_property_parent(ddtrace_span_t *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 7);
-}
-static inline zval *ddtrace_spandata_property_id(ddtrace_span_t *span) { return OBJ_PROP_NUM((zend_object *)span, 8); }
+static inline zval *ddtrace_spandata_property_id(ddtrace_span_data *span) { return OBJ_PROP_NUM((zend_object *)span, 7); }
 #pragma GCC diagnostic pop
 
 bool ddtrace_tracer_is_limited(void);
@@ -80,27 +78,23 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_bool request_init_hook_loaded;
 
     uint32_t traces_group_id;
-    HashTable *class_lookup;
-    HashTable *function_lookup;
-    zval additional_trace_meta; // IS_ARRAY
     zend_array *additional_global_tags;
     zend_array root_span_tags_preset;
     zend_array propagated_root_span_tags;
-    zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
     dogstatsd_client dogstatsd_client;
 
-    uint64_t trace_id;
     zend_long default_priority_sampling;
     zend_long propagated_priority_sampling;
-    ddtrace_span_fci *open_spans_top;
-    ddtrace_span_fci *closed_spans_top;
+    ddtrace_span_stack *active_stack; // never NULL except tracer is disabled
+    ddtrace_span_stack *top_closed_stack;
     HashTable traced_spans; // tie a span to a specific active execute_data
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
     uint32_t dropped_spans_count;
     int64_t compile_time_microseconds;
+    uint64_t distributed_trace_id;
     uint64_t distributed_parent_trace_id;
     zend_string *dd_origin;
 
