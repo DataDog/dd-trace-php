@@ -613,7 +613,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_engine_hooks_minit();
 
-    ddtrace_coms_minit();
+    ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
+                       get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
+                       get_global_DD_TRACE_AGENT_STACK_BACKLOG());
 
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();

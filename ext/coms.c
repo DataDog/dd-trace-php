@@ -96,7 +96,7 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
 static ddtrace_coms_stack_t *_dd_new_stack(size_t min_size) {
     size_t initial_size = atomic_load(&ddtrace_coms_globals.stack_size);
     size_t size = initial_size;
-    while (min_size > size && size <= DDTRACE_COMS_STACK_HALF_MAX_SIZE) {
+    while (min_size > size && size <= (ddtrace_coms_globals.max_payload_size/2)) {
         size *= 2;
     }
     if (size != initial_size) {
@@ -142,11 +142,16 @@ static void _dd_at_exit_hook() {
     }
 }
 
-bool ddtrace_coms_minit(void) {
-    atomic_store(&ddtrace_coms_globals.stack_size, DDTRACE_COMS_STACK_INITIAL_SIZE);
-    ddtrace_coms_stack_t *stack = _dd_new_stack(DDTRACE_COMS_STACK_INITIAL_SIZE);
+bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t max_backlog_size) {
+    ddtrace_coms_globals.initial_stack_size = initial_stack_size;
+    ddtrace_coms_globals.max_payload_size = max_stack_size;
+    ddtrace_coms_globals.max_backlog_size = max_backlog_size;
+
+    atomic_store(&ddtrace_coms_globals.stack_size, initial_stack_size);
+
+    ddtrace_coms_stack_t *stack = _dd_new_stack(initial_stack_size);
     if (!ddtrace_coms_globals.stacks) {
-        ddtrace_coms_globals.stacks = calloc(DDTRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(ddtrace_coms_stack_t *));
+        ddtrace_coms_globals.stacks = calloc(max_backlog_size, sizeof(ddtrace_coms_stack_t *));
     }
 
     atomic_store(&ddtrace_coms_globals.next_group_id, 1);
@@ -187,7 +192,7 @@ static void printf_stack_info(ddtrace_coms_stack_t *stack) {
 #endif
 
 static void _dd_unsafe_store_or_discard_stack(ddtrace_coms_stack_t *stack) {
-    for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+    for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
         ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
         if (stack_tmp == stack) {
             return;
@@ -243,7 +248,7 @@ static void _dd_unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_si
 
     if (*current_stack) {
         // try to swap out current stack for an empty stack
-        for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+        for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
             ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
             if (stack_tmp && stack_tmp->size >= min_size && ddtrace_coms_is_stack_free(stack_tmp)) {
                 // order is important due to ability to restore state on thread restart
@@ -259,7 +264,7 @@ static void _dd_unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_si
 
     // if we couldn't swap for a empty stack lets store it
     if (*current_stack) {
-        for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+        for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
             ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
             if (!stack_tmp) {
                 atomic_store(&ddtrace_coms_globals.current_stack, NULL);
@@ -352,7 +357,7 @@ static bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size
 }
 
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) {
-    if (!data || size > DDTRACE_COMS_STACK_MAX_SIZE) {
+    if (!data || size > ddtrace_coms_globals.max_payload_size) {
         return false;
     }
 
@@ -640,7 +645,7 @@ static void _dd_deinit_read_userdata(void *userdata) {
 static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
     ddtrace_coms_stack_t *stack = NULL;
 
-    for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+    for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
         ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
         if (stack_tmp && atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) > 0) {
             stack = stack_tmp;
@@ -955,7 +960,7 @@ static void *_dd_writer_loop(void *_) {
 
         ddtrace_coms_stack_t **stack = &writer->tmp_stack;
         ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks),
-                                             DDTRACE_COMS_STACK_INITIAL_SIZE);
+                                             ddtrace_coms_globals.initial_stack_size);
 
         uint32_t processed_stacks = 0;
         if (!*stack) {
@@ -1092,7 +1097,7 @@ void ddtrace_coms_clean_background_sender_after_fork(void) {
     _dd_unsafe_cleanup_dirty_stack_area();
     _dd_coms_stack_shutdown();
     global_writer = (struct _writer_loop_data_t){0};
-    ddtrace_coms_minit();
+    ddtrace_coms_minit(ddtrace_coms_globals.initial_stack_size, ddtrace_coms_globals.max_payload_size, ddtrace_coms_globals.max_backlog_size);
 }
 
 bool ddtrace_coms_on_pid_change(void) {
@@ -1281,7 +1286,7 @@ uint32_t ddtrace_coms_test_consumer(void) {
         printf("error rotating stacks");
     }
 
-    for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+    for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
         ddtrace_coms_stack_t *stack = ddtrace_coms_globals.stacks[i];
         if (!stack) continue;
 
