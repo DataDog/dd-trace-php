@@ -7,6 +7,8 @@
 #include "../compat_string.h"
 #include "../configuration.h"
 
+#include "../limiter/limiter.h"
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 enum dd_sampling_mechanism {
@@ -62,7 +64,8 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
     if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         zval *rule;
         bool explicit_rule = zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index >= 0;
-        double sample_rate = get_DD_TRACE_SAMPLE_RATE();
+        double default_sample_rate = get_DD_TRACE_SAMPLE_RATE(), sample_rate = default_sample_rate;
+
         ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
                 continue;
@@ -87,19 +90,27 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
         }
         ZEND_HASH_FOREACH_END();
 
+        bool sampling = (double)genrand64_int64() < sample_rate * (double)~0ULL;
+        bool limited  = ddtrace_limiter_active() && (sampling && !ddtrace_limiter_allow());
+
+        if (explicit_rule) {
+            mechanism = DD_MECHANISM_RULE;
+            priority = sampling && !limited ? PRIORITY_SAMPLING_USER_KEEP : PRIORITY_SAMPLING_USER_REJECT;
+        } else {
+            mechanism = DD_MECHANISM_AGENT_RATE;
+            priority = sampling && !limited ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
+        }
+
         zval sample_rate_zv;
         ZVAL_DOUBLE(&sample_rate_zv, sample_rate);
         zend_hash_str_update(ddtrace_spandata_property_metrics(span), ZEND_STRL("_dd.rule_psr"),
                              &sample_rate_zv);
 
-        bool sampling = (double)genrand64_int64() < sample_rate * (double)~0ULL;
-
-        if (explicit_rule) {
-            mechanism = DD_MECHANISM_RULE;
-            priority = sampling ? PRIORITY_SAMPLING_USER_KEEP : PRIORITY_SAMPLING_USER_REJECT;
-        } else {
-            mechanism = DD_MECHANISM_AGENT_RATE;
-            priority = sampling ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
+        if (limited) {
+            zval limit_zv;
+            ZVAL_DOUBLE(&limit_zv, ddtrace_limiter_rate());
+            zend_hash_str_update(ddtrace_spandata_property_metrics(span), ZEND_STRL("_dd.limit_psr"),
+                            &limit_zv);
         }
     }
 

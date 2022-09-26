@@ -111,6 +111,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/ip_extraction.c \
     ext/logging.c \
     ext/memory_limit.c \
+    ext/limiter/limiter.c \
     ext/priority_sampling/priority_sampling.c \
     ext/profiling.c \
     ext/random.c \
@@ -209,6 +210,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
 
   PHP_ADD_BUILD_DIR([$ext_builddir/ext])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/limiter])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/priority_sampling])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/tracer_tag_propagation])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
