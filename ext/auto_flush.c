@@ -32,12 +32,10 @@ ZEND_RESULT_CODE ddtrace_flush_tracer() {
     zend_hash_index_add(Z_ARR(traces), 0, &trace);
 
     char *payload;
-    size_t size;
+    size_t size, limit = get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE();
     if (ddtrace_serialize_simple_array_into_c_string(&traces, &payload, &size)) {
-        // The 10MB payload cap is inclusive, thus we use >, not >=
-        // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/limited_reader.go#L37
-        if (size > AGENT_REQUEST_BODY_LIMIT) {
-            ddtrace_log_errf("Agent request payload of %zu bytes exceeds 10MB limit; dropping request", size);
+        if (size > limit) {
+            ddtrace_log_errf("Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
             success = false;
         } else {
             success = ddtrace_send_traces_via_thread(1, payload, size);

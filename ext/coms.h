@@ -6,11 +6,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define DDTRACE_COMS_STACK_MAX_SIZE (1024u * 1024u * 10u)      // 10 MiB
-#define DDTRACE_COMS_STACK_HALF_MAX_SIZE (1024u * 1024u * 5u)  // 5 MiB
-#define DDTRACE_COMS_STACK_INITIAL_SIZE (1024u * 128u)         // 128 KiB
-#define DDTRACE_COMS_STACKS_BACKLOG_SIZE 12
-
 typedef struct ddtrace_coms_stack_t {
     size_t size;
     _Atomic(size_t) position;
@@ -33,6 +28,19 @@ typedef struct ddtrace_coms_state_t {
      * so, with the current implementation, they have to be manually kept in sync.
      */
     atomic_size_t stack_size;
+
+    /*
+     * The initial buffer size, from DD_TRACE
+     */
+    size_t initial_stack_size;
+    /*
+     * The maximum payload size, from DD_TRACE_AGENT_MAX_PAYLOAD_SIZE
+     */
+    size_t max_payload_size;
+    /*
+     * The maximum backlog size, from DD_TRACE_AGENT_MAX_BACKLOG_SIZE
+     */
+    size_t max_backlog_size;
 } ddtrace_coms_state_t;
 
 inline bool ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack) { return atomic_load(&stack->refcount) == 0; }
@@ -44,7 +52,7 @@ inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
 /* Is called by the PHP thread to buffer a payload in order to send it. It is non-blocking on the request to the agent.
  */
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
-bool ddtrace_coms_minit(void);
+bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_payload_size, size_t max_backlog_size);
 void ddtrace_coms_mshutdown(void);
 void ddtrace_coms_curl_shutdown(void);
 void ddtrace_coms_rshutdown(void);
