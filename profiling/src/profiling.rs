@@ -533,8 +533,13 @@ impl Uploader {
         let profile = message.profile;
 
         let endpoint: Endpoint = (&*index.endpoint).try_into()?;
-        let exporter =
-            datadog_profiling::exporter::ProfileExporter::new("php", Some(index.tags), endpoint)?;
+        let exporter = datadog_profiling::exporter::ProfileExporter::new(
+            "datadog-php-profiling",
+            env!("CARGO_PKG_VERSION"),
+            "php",
+            Some(index.tags),
+            endpoint,
+        )?;
         let serialized = profile.serialize(Some(message.end_time), message.duration)?;
         let start = serialized.start.into();
         let end = serialized.end.into();

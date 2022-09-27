@@ -154,6 +154,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
          * support forking, load this at the beginning:
          * let _ = ddcommon::connector::load_root_certs();
          */
+        let _ = datadog_profiling::exporter::initialize_before_fork();
     }
 
     // Ignore unused result; use SAPI.get() which returns an Option if it's uninitialized.
