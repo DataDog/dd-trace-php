@@ -6,7 +6,7 @@ mod pcntl;
 mod profiling;
 mod sapi;
 
-use crate::profiling::{LocalRootSpanResourceMessage, Profiler};
+use crate::profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use bindings as zend;
 use bindings::{sapi_getenv, ZendExtension, ZendResult};
 use config::AgentEndpoint;
@@ -503,8 +503,16 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                let interrupt_count_ptr = &locals.interrupt_count as *const AtomicU32;
-                profiler.add_interrupt(locals.vm_interrupt_addr, interrupt_count_ptr);
+                let interrupt = VmInterrupt {
+                    interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
+                    engine_ptr: locals.vm_interrupt_addr,
+                };
+                if let Err((index, interrupt)) = profiler.add_interrupt(interrupt) {
+                    warn!(
+                        "VM interrupt {} already exists at offset {}",
+                        index, interrupt
+                    );
+                }
             }
         });
     }
@@ -576,7 +584,13 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
         let mut locals = cell.borrow_mut();
         if locals.profiling_enabled {
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                profiler.remove_interrupt(locals.vm_interrupt_addr, &locals.interrupt_count);
+                let interrupt = VmInterrupt {
+                    interrupt_count_ptr: &locals.interrupt_count,
+                    engine_ptr: locals.vm_interrupt_addr,
+                };
+                if let Err(err) = profiler.remove_interrupt(interrupt) {
+                    warn!("Unable to find interrupt {}.", err);
+                }
             }
             locals.tags = static_tags();
         }
