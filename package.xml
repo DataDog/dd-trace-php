@@ -48,7 +48,40 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+<![CDATA[
+### Added
+
+### Changed
+-  Make sampling priorities public API again #1742
+
+### Fixed
+- Fix behaviour of return false in trace hooks #1749
+- Handle non-binaries in installer #1743
+- Fix mishandling of payload size limit #1750
+
+### Internal changes
+
+
+## Profiling (v0.10.1)
+
+### Fixed
+- Match the service names of the tracer when unset or empty #1733
+- Avoid crashing when pcntl_fork is called #1745
+
+## Application Security Monitoring (v0.4.3)
+
+### Fixed
+- Return error response in helper when incoming message can't be unpacked DataDog/dd-appsec-php#120 
+- Avoid creating a log file during MINIT/MSHUTDOWN DataDog/dd-appsec-php#124 
+- Handle helper errors gracefully DataDog/dd-appsec-php#127 
+- Reset context on shutdown DataDog/dd-appsec-php#130
+- Handle errors on request shutdown DataDog/dd-appsec-php#132 
+
+### Internal changes
+- Enable CI on all relevant branches DataDog/dd-appsec-php#123
+]]>
+    </notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
