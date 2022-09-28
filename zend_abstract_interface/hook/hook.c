@@ -604,6 +604,9 @@ zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view func
         zai_hook_aux aux, size_t dynamic) {
     if (!function.len) {
         /* not allowed: target must be known */
+        if (aux.dtor) {
+            aux.dtor(aux.data);
+        }
         return -1;
     }
 
