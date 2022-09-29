@@ -27,8 +27,12 @@ void ddtrace_init_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static void dd_drop_span(ddtrace_span_data *span, bool silent) {
+static void dd_drop_span_nodestroy(ddtrace_span_data *span, bool silent) {
     span->duration = silent ? DDTRACE_SILENTLY_DROPPED_SPAN : DDTRACE_DROPPED_SPAN;
+}
+
+static void dd_drop_span(ddtrace_span_data *span, bool silent) {
+    dd_drop_span_nodestroy(span, silent);
     OBJ_RELEASE(&span->std);
 }
 
@@ -38,6 +42,10 @@ static void dd_free_span_ring(ddtrace_span_data *span) {
         do {
             ddtrace_span_data *tmp = cur;
             cur = cur->next;
+#if PHP_VERSION_ID < 70400
+            // remove the artificially increased RC while closing again
+            GC_DELREF(&tmp->std);
+#endif
             OBJ_RELEASE(&tmp->std);
         } while (cur != span);
     }
@@ -65,8 +73,7 @@ void ddtrace_free_span_stacks(bool silent) {
 
                 ddtrace_span_data *span = active_span->parent;
                 while (span && span->stack == stack) {
-                    GC_ADDREF(&span->std);
-                    dd_drop_span(span, silent);
+                    dd_drop_span_nodestroy(span, silent);
                     span = span->parent;
                 }
 
@@ -225,16 +232,9 @@ void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
     }
 }
 
-// when no references are kept around we can do a lightweight cycle collection looking at the stack and its spans only
-static void dd_collect_span_stack(ddtrace_span_stack *target_stack) {
-    UNUSED(target_stack);
-    // maybe TODO?
-}
-
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     GC_ADDREF(&target_stack->std);
     OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
-    dd_collect_span_stack(DDTRACE_G(active_stack));
     DDTRACE_G(active_stack) = target_stack;
 }
 
@@ -374,11 +374,11 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
             // As long as there's something to flush, we must hold a reference (to avoid cycle collection)
             GC_ADDREF(&stack->std);
 
-            if (stack->root_span->stack == stack) {
+            if (stack->root_span->stack == stack || stack->root_span->type == DDTRACE_SPAN_CLOSED) {
                 stack->next = DDTRACE_G(top_closed_stack);
                 DDTRACE_G(top_closed_stack) = stack;
             } else {
-                // we'll just attach it so that it'll be flushed together
+                // we'll just attach it so that it'll be flushed together (i.e. chunks are not flushed _before_ the root stack)
                 stack->next = stack->root_stack->top_closed_stack;
                 stack->root_stack->top_closed_stack = stack;
             }
@@ -401,7 +401,8 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
 
         // Root span stacks are automatic and tied to the lifetime of that root
         stack->root_span = NULL;
-        if (stack == stack->root_stack) {
+        if (stack == stack->root_stack && DDTRACE_G(active_stack) == stack) {
+            // We are always active stack except if ddtrace_close_top_span_without_stack_swap is used
             ddtrace_switch_span_stack(stack->parent_stack);
         }
 
@@ -424,6 +425,10 @@ void ddtrace_close_span(ddtrace_span_data *span) {
 
     ddtrace_close_userland_spans_until(span);
 
+    ddtrace_close_top_span_without_stack_swap(span);
+}
+
+void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     ddtrace_span_stack *stack = span->stack;
 
     span->type = DDTRACE_SPAN_CLOSED;
@@ -435,6 +440,11 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     } else {
         ZVAL_NULL(&stack->property_active);
     }
+#if PHP_VERSION_ID < 70400
+    // On PHP 7.3 and prior PHP will just destroy all unchanged references in cycle collection, in particular given that it does not appear in get_gc
+    // Artificially increase refcount here thus.
+    GC_ADDREF(&span->std);
+#endif
 
     ++DDTRACE_G(closed_spans_count);
     --DDTRACE_G(open_spans_count);
@@ -547,31 +557,44 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 void ddtrace_serialize_closed_spans(zval *serialized) {
     array_init(serialized);
 
-    ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
-    while (rootstack) {
-        ddtrace_span_stack *stack = rootstack;
-        rootstack = rootstack->next;
-        while (stack) {
-            // Note this ->next: We always splice in new spans at next, so start at next to mostly preserve order
-            ddtrace_span_stack *active_stack = stack;
-            ddtrace_span_data *span = stack->closed_ring_flush->next, *end = span;
-            stack->closed_ring_flush = NULL;
-            stack = stack->top_closed_stack;
-            if (span != NULL) {
+    // We need to loop here, as closing the last span root stack could add other spans here
+    while (DDTRACE_G(top_closed_stack)) {
+        ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
+        DDTRACE_G(top_closed_stack) = NULL;
+        do {
+            ddtrace_span_stack *stack = rootstack;
+            rootstack = rootstack->next;
+            ddtrace_span_stack *next_stack = stack->top_closed_stack;
+            stack->top_closed_stack = NULL;
+            do {
+                // Note this ->next: We always splice in new spans at next, so start at next to mostly preserve order
+                ddtrace_span_data *span = stack->closed_ring_flush->next, *end = span;
+                stack->closed_ring_flush = NULL;
                 do {
                     ddtrace_span_data *tmp = span;
                     span = tmp->next;
                     ddtrace_serialize_span_to_array(tmp, serialized);
+#if PHP_VERSION_ID < 70400
+                    // remove the artificially increased RC while closing again
+                    GC_DELREF(&tmp->std);
+#endif
                     OBJ_RELEASE(&tmp->std);
-                    // Move the stack down one as ddtrace_serialize_span_to_array() might do a long jump
-                    // TODO ?? DDTRACE_G(closed_spans_top) = span;
                 } while (span != end);
                 // We hold a reference to stacks with flushable spans
-                OBJ_RELEASE(&active_stack->std);
-            }
-        }
+                OBJ_RELEASE(&stack->std);
+                // Note: if a stack gets a fresh closed_ring_flush (e.g. due to gc during serialization), the root span will have been closed by now.
+                // Thus it's appended to top_closed_stack and we do not need to recheck closed_ring_flush here.
+
+                stack = next_stack;
+                if (stack) {
+                    next_stack = stack->next;
+                }
+            } while (stack);
+        } while (rootstack);
+
+        // Also flush possible cycles here
+        zend_gc_collect_cycles();
     }
-    DDTRACE_G(top_closed_stack) = NULL;
 }
 
 zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }

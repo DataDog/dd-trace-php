@@ -424,7 +424,8 @@ static void ddtrace_span_stack_dtor_obj(zend_object *object) {
     ddtrace_span_data *top;
     while ((top = stack->active) && top->stack == stack) {
         dd_trace_stop_span_time(top);
-        ddtrace_close_span(top);
+        // let's not stack swap to a) avoid side effects in destructors and b) avoid a crash on PHP 7.3 and older
+        ddtrace_close_top_span_without_stack_swap(top);
     }
     if (stack->closed_ring || stack->closed_ring_flush) {
         // ensure dtor can be called again

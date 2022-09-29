@@ -20,7 +20,6 @@ enum ddtrace_span_dataype {
     DDTRACE_USER_SPAN,
     DDTRACE_AUTOROOT_SPAN,
     DDTRACE_SPAN_CLOSED,
-    DDTRACE_SPAN_FLUSHED
 };
 
 // Refcounting:
@@ -97,6 +96,7 @@ void dd_trace_stop_span_time(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);
 void ddtrace_close_userland_spans_until(ddtrace_span_data *until);
 void ddtrace_close_span(ddtrace_span_data *span);
+void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span);
 void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
