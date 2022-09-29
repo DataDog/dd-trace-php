@@ -25,7 +25,7 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
     char *header = ZSTR_VAL(headerstr), *headerend = header + ZSTR_LEN(headerstr);
 
     zend_array *tags = &DDTRACE_G(root_span_tags_preset);
-    ddtrace_span_data *span = ddtrace_active_span();
+    ddtrace_span_data *span = DDTRACE_G(active_stack)->root_span;
     if (span) {
         tags = ddtrace_spandata_property_meta(span);
     }
