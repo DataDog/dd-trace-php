@@ -44,7 +44,7 @@ fn handle_pcntl_fork(
          * to to prevent further profiling which could cause a crash/deadlock.
          */
 
-        stop_profiling(&mut profiler_lock);
+        stop_and_forget_profiling(&mut profiler_lock);
     } else {
         // Safety: we checked it wasn't null above.
         let result: Result<zend_long, _> = unsafe { &mut *return_value }.try_into();
@@ -55,12 +55,12 @@ fn handle_pcntl_fork(
                     name, r#type
                 );
 
-                stop_profiling(&mut profiler_lock);
+                stop_and_forget_profiling(&mut profiler_lock);
             }
             Ok(pid) => {
                 // The child gets pid of 0. For now, stop profiling for safety.
                 if pid == 0 {
-                    stop_profiling(&mut profiler_lock);
+                    stop_and_forget_profiling(&mut profiler_lock);
 
                     /* When we fully support forking remember:
                      *  - Reset last_cpu_time and last_wall_time.
@@ -79,12 +79,24 @@ fn handle_pcntl_fork(
     }
 }
 
-fn stop_profiling(maybe_profiler: &mut Option<Profiler>) {
+fn stop_and_forget_profiling(maybe_profiler: &mut Option<Profiler>) {
+    /* In a forking situation, the currently active profiler may not be valid
+     * because it has join handles and other state shared by other threads,
+     * and threads are not copied when the process is forked.
+     * Additionally, if we've hit certain other issues like not being able to
+     * determine the return type of the pcntl_fork function, we don't know if
+     * we're the parent or child.
+     * So, we throw away the current profiler by swapping it with a None, and
+     * and forgetting it, which avoids running the destructor. Yes, this will
+     * most likely leak some small amount of memory.
+     */
     let mut old_profiler = None;
     swap(&mut *maybe_profiler, &mut old_profiler);
-
     forget(old_profiler);
 
+    /* Reset some global state to prevent further profiling and to not handle
+     * any pending interrupts.
+     */
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
         locals.profiling_enabled = false;
