@@ -67,7 +67,10 @@ struct ddtrace_span_stack {
     };
     struct ddtrace_span_data *root_span;
     struct ddtrace_span_stack *root_stack;
-    struct ddtrace_span_stack *next; // closed chunk chain
+    union {
+        struct ddtrace_span_stack *next; // closed chunk chain
+        zend_function *fiber_entry_function;
+    };
     struct ddtrace_span_stack *top_closed_stack;
     // closed ring: linked list where the last element links to the first. The last inserted element is always reachable via closed_ring->next.
     struct ddtrace_span_data *closed_ring;

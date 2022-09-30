@@ -1,6 +1,8 @@
 #ifndef ZAI_INTERCEPTOR_H
 #define ZAI_INTERCEPTOR_H
 
+extern int zai_registered_observers;
+
 void zai_interceptor_minit(void);
 void zai_interceptor_startup(void);
 void zai_interceptor_activate(void);
