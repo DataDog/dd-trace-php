@@ -6,7 +6,7 @@ mod pcntl;
 mod profiling;
 mod sapi;
 
-use crate::profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use crate::profiling::{Profiler, VmInterrupt};
 use bindings as zend;
 use bindings::{sapi_getenv, ZendExtension, ZendResult};
 use config::AgentEndpoint;
@@ -152,9 +152,8 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
          * > debug.
          * In our case, it's things related to TLS that fail, so when we
          * support forking, load this at the beginning:
-         * let _ = ddcommon::connector::load_root_certs();
+         * let _ = datadog_profiling::exporter::initialize_before_fork();
          */
-        let _ = datadog_profiling::exporter::initialize_before_fork();
     }
 
     // Ignore unused result; use SAPI.get() which returns an Option if it's uninitialized.
@@ -758,11 +757,7 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
             }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                let message = LocalRootSpanResourceMessage {
-                    local_root_span_id,
-                    resource: resource.into_owned(),
-                };
-                if let Err(err) = profiler.send_local_root_span_resource(message) {
+                if let Err(err) = profiler.send_local_root_span_resource(local_root_span_id, resource) {
                     warn!("Failed to enqueue endpoint profiling information: {}.", err);
                 } else {
                     trace!(

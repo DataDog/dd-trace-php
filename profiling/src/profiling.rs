@@ -1,23 +1,24 @@
 use crate::bindings::{
-    datadog_php_profiling_get_profiling_context, zend_execute_data, zend_function, zend_string,
-    ZEND_INTERNAL_FUNCTION, ZEND_USER_FUNCTION,
+    datadog_php_profiling_get_profiling_context, zend_class_entry, zend_execute_data,
+    zend_function, ZEND_INTERNAL_FUNCTION, ZEND_USER_FUNCTION,
 };
 use crate::{AgentEndpoint, RequestLocals, PHP_VERSION};
 use crossbeam_channel::{select, Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::{Endpoint, File, Tag};
-use datadog_profiling::profile;
-use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
+use datadog_profiling::profile::v2;
+use indexmap::IndexMap;
+use lazy_static::lazy_static;
 use log::{debug, info, trace, warn};
-use std::borrow::{Borrow, Cow};
-use std::collections::HashMap;
+use std::borrow::Cow;
+use std::collections::{HashMap};
 use std::ffi::CStr;
 use std::hash::Hash;
 use std::os::raw::c_char;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier, Mutex, MutexGuard};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -26,10 +27,61 @@ const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
-const WALL_TIME_PERIOD_TYPE: ValueType = ValueType {
-    r#type: Cow::Borrowed("wall-time"),
-    unit: Cow::Borrowed("nanoseconds"),
-};
+
+struct KnownStrings {
+    pub php_no_func: i64,
+    pub local_root_span_id: i64,
+    pub span_id: i64,
+    pub truncated: i64,
+}
+
+struct KnownValueTypes {
+    pub sample: v2::ValueType,
+    pub wall_time: v2::ValueType,
+    pub cpu_time: v2::ValueType,
+}
+
+struct ProfileStorageFacade {
+    pub strings: KnownStrings,
+    pub value_types: KnownValueTypes,
+    pub locked_storage: Arc<v2::LockedProfileStorage>,
+    pub string_table: Arc<v2::LockedStringTable>,
+}
+
+lazy_static! {
+    static ref PROFILE_STORAGE: ProfileStorageFacade = {
+        let mut string_table = v2::StringTable::new();
+
+        let value_types = KnownValueTypes {
+            sample: v2::ValueType {
+                r#type: string_table.intern("sample"),
+                unit: string_table.intern("count"),
+            },
+            wall_time: v2::ValueType {
+                r#type: string_table.intern("wall-time"),
+                unit: string_table.intern("nanoseconds"),
+            },
+            cpu_time: v2::ValueType {
+                r#type: string_table.intern("cpu-time"),
+                unit: string_table.intern("nanoseconds"),
+            },
+        };
+
+        let strings = KnownStrings {
+            php_no_func: string_table.intern("<?php"),
+            local_root_span_id: string_table.intern("local root span id"),
+            span_id: string_table.intern("span id"),
+            truncated: string_table.intern("[truncated]"),
+        };
+
+        ProfileStorageFacade {
+            strings,
+            value_types,
+            locked_storage: Arc::new(v2::LockedProfileStorage::new()),
+            string_table: Arc::new(v2::LockedStringTable::from(string_table)),
+        }
+    };
+}
 
 #[derive(Debug, Clone)]
 struct WallTime {
@@ -46,46 +98,6 @@ impl WallTime {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum LabelValue {
-    Str(Cow<'static, str>),
-
-    #[allow(dead_code)]
-    Num(i64, Cow<'static, str>),
-}
-
-#[derive(Debug, Clone)]
-pub struct Label {
-    pub key: Cow<'static, str>,
-    pub value: LabelValue,
-}
-
-impl<'a> From<&'a Label> for profile::api::Label<'a> {
-    fn from(label: &'a Label) -> Self {
-        let key = label.key.as_ref();
-        match &label.value {
-            LabelValue::Str(str) => Self {
-                key,
-                str: Some(str),
-                num: 0,
-                num_unit: None,
-            },
-            LabelValue::Num(num, num_unit) => Self {
-                key,
-                str: None,
-                num: *num,
-                num_unit: Some(num_unit),
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct ValueType {
-    pub r#type: Cow<'static, str>,
-    pub unit: Cow<'static, str>,
-}
-
 /// A ProfileIndex contains the fields that factor into the uniqueness of a
 /// profile when we aggregate it. It's mostly based on the upload protocols,
 /// because we cannot mix profiles belonging to different services into the
@@ -95,19 +107,17 @@ pub struct ValueType {
 /// Apache per-dir settings use different service name, etc.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct ProfileIndex {
-    pub sample_types: Vec<ValueType>,
+    pub sample_types: Vec<v2::ValueType>,
     pub tags: Vec<Tag>,
     pub endpoint: Box<AgentEndpoint>,
 }
 
-#[derive(Debug)]
 pub struct SampleData {
     pub frames: Vec<ZendFrame>,
-    pub labels: Vec<Label>,
+    pub labels: Vec<v2::Label>,
     pub sample_values: Vec<i64>,
 }
 
-#[derive(Debug)]
 pub struct SampleMessage {
     pub key: ProfileIndex,
     pub value: SampleData,
@@ -115,11 +125,10 @@ pub struct SampleMessage {
 
 #[derive(Debug)]
 pub struct LocalRootSpanResourceMessage {
-    pub local_root_span_id: u64,
-    pub resource: String,
+    pub local_root_span_id: i64, // Index into the string table.
+    pub resource: i64,           // Index into the string table.
 }
 
-#[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
     Sample(SampleMessage),
@@ -141,25 +150,47 @@ impl Default for Globals {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<php>".
-    pub function: String,
-    pub file: Option<String>,
-    pub line: u32, // use 0 for no line info
+    pub function: i64, // index into the string table
+    pub file: i64,     // index into the string table
+    pub line: u32,     // index into the string table
 }
 
-unsafe fn zend_string_to_bytes<'a>(ptr: *const zend_string) -> &'a [u8] {
-    if ptr.is_null() {
-        return b"";
-    }
-    let zstr = &*ptr;
-    if zstr.len == 0 {
-        b""
+static NULL: &[u8] = b"\0";
+
+unsafe fn get_func_name(func: &zend_function) -> &[u8] {
+    let ptr = if func.common.function_name.is_null() {
+        NULL.as_ptr() as *const c_char
     } else {
-        std::slice::from_raw_parts(zstr.val.as_ptr() as *const u8, zstr.len as usize)
-    }
+        let zstr = &*func.common.function_name;
+        if zstr.len == 0 {
+            NULL.as_ptr() as *const c_char
+        } else {
+            zstr.val.as_ptr() as *const c_char
+        }
+    };
+
+    // CStr::to_bytes does not contain the trailing null byte
+    CStr::from_ptr(ptr).to_bytes()
+}
+
+unsafe fn get_class_name(class: &zend_class_entry) -> &[u8] {
+    let ptr = if class.name.is_null() {
+        NULL.as_ptr() as *const c_char
+    } else {
+        let zstr = &*class.name;
+        if zstr.len == 0 {
+            NULL.as_ptr() as *const c_char
+        } else {
+            zstr.val.as_ptr() as *const c_char
+        }
+    };
+
+    // CStr::to_bytes does not contain the trailing null byte
+    CStr::from_ptr(ptr).to_bytes()
 }
 
 /// Extract the "function name" component for the frame. This is a string which
@@ -171,8 +202,11 @@ unsafe fn zend_string_to_bytes<'a>(ptr: *const zend_string) -> &'a [u8] {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-unsafe fn extract_function_name(func: &zend_function) -> String {
-    let method_name: &[u8] = zend_string_to_bytes(func.common.function_name);
+unsafe fn extract_function_name(
+    string_table: &mut MutexGuard<v2::StringTable>,
+    func: &zend_function,
+) -> i64 {
+    let method_name: &[u8] = get_func_name(func);
 
     /* The top of the stack seems to reasonably often not have a function, but
      * still has a scope. I don't know if this intentional, or if it's more of
@@ -180,7 +214,7 @@ unsafe fn extract_function_name(func: &zend_function) -> String {
      * erring on the side of caution and returning early.
      */
     if method_name.is_empty() {
-        return String::new();
+        return 0;
     }
 
     let mut buffer = Vec::<u8>::new();
@@ -199,7 +233,7 @@ unsafe fn extract_function_name(func: &zend_function) -> String {
     }
 
     if !func.common.scope.is_null() {
-        let class_name = zend_string_to_bytes((*func.common.scope).name);
+        let class_name = get_class_name(&*func.common.scope);
         if !class_name.is_empty() {
             buffer.extend_from_slice(class_name);
             buffer.extend_from_slice(b"::");
@@ -208,21 +242,36 @@ unsafe fn extract_function_name(func: &zend_function) -> String {
 
     buffer.extend_from_slice(method_name);
 
-    String::from_utf8_lossy(buffer.as_slice()).to_string()
+    let s = String::from_utf8_lossy(buffer.as_slice());
+    string_table.intern(s)
 }
 
-unsafe fn extract_file_name(execute_data: &zend_execute_data) -> String {
+unsafe fn extract_file_name(
+    storage: &mut MutexGuard<v2::StringTable>,
+    execute_data: &zend_execute_data,
+) -> i64 {
     // this is supposed to be verified by the caller
     if execute_data.func.is_null() {
-        return String::new();
+        return 0;
     }
 
     let func = &*execute_data.func;
     if func.type_ == ZEND_USER_FUNCTION as u8 {
-        let filename = zend_string_to_bytes(func.op_array.filename);
-        return String::from_utf8_lossy(filename).to_string();
+        let op_array = &func.op_array;
+        if op_array.filename.is_null() {
+            0
+        } else {
+            let zstr = &*op_array.filename;
+            if zstr.len == 0 {
+                0
+            } else {
+                let cstr = CStr::from_ptr(zstr.val.as_ptr() as *const c_char).to_bytes();
+                storage.intern(String::from_utf8_lossy(cstr))
+            }
+        }
+    } else {
+        0
     }
-    String::new()
 }
 
 unsafe fn extract_line_no(execute_data: &zend_execute_data) -> u32 {
@@ -244,32 +293,33 @@ unsafe fn collect_stack_sample(
     let mut samples = Vec::with_capacity(max_depth >> 3);
     let mut execute_data = top_execute_data;
 
+    let php_no_func = PROFILE_STORAGE.strings.php_no_func;
+
     while !execute_data.is_null() {
+        let mut string_table = PROFILE_STORAGE.string_table.lock();
         /* -1 to reserve room for the [truncated] message. In case the backend
          * and/or frontend have the same limit, without the -1 we'd ironically
          * truncate our [truncated] message.
          */
         if samples.len() >= max_depth - 1 {
             samples.push(ZendFrame {
-                function: "[truncated]".to_string(),
-                file: None,
+                function: PROFILE_STORAGE.strings.truncated,
+                file: 0,
                 line: 0,
             });
             break;
         }
         let func = (*execute_data).func;
         if !func.is_null() {
-            let function = extract_function_name(&*func);
-            let file: String = extract_file_name(&*execute_data);
-
-            // Normalize empty strings into None.
-            let function = (!function.is_empty()).then(|| function);
-            let file = (!file.is_empty()).then(|| file);
+            let mut function = extract_function_name(&mut string_table, &*func);
+            let file = extract_file_name(&mut string_table, &*execute_data);
 
             // Only insert a new frame if there's file or function info.
-            if file.is_some() || function.is_some() {
+            if file > 0 || function > 0 {
                 // If there's no function name, use a fake name.
-                let function = function.unwrap_or_else(|| "<?php".to_owned());
+                if function <= 0 {
+                    function = php_no_func.clone();
+                }
                 let frame = ZendFrame {
                     function,
                     file,
@@ -279,9 +329,12 @@ unsafe fn collect_stack_sample(
                 samples.push(frame);
             }
         }
+        drop(string_table);
 
         execute_data = (*execute_data).prev_execute_data;
     }
+
+    // debug!("Samples: {:#?}", samples);
     Ok(samples)
 }
 
@@ -327,7 +380,7 @@ struct TimeCollector {
 impl TimeCollector {
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
+        profiles: &mut HashMap<ProfileIndex, v2::Profile>,
         last_export: &WallTime,
     ) -> WallTime {
         let wall_export = WallTime::now();
@@ -360,53 +413,45 @@ impl TimeCollector {
     /// makes sense to use an older time than now because if the profiler was
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
-    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> profile::Profile {
-        let sample_types = message
-            .key
-            .sample_types
-            .iter()
-            .map(|sample_type| profile::api::ValueType {
-                r#type: sample_type.r#type.borrow(),
-                unit: sample_type.unit.borrow(),
-            })
-            .collect();
+    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> v2::Profile {
+        let time_nanos: i64 = started_at
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::ZERO)
+            .as_nanos()
+            .try_into()
+            .unwrap_or(i64::MAX);
 
-        let period = WALL_TIME_PERIOD.as_nanos();
-        profile::ProfileBuilder::new()
-            .period(Some(Period {
-                r#type: profile::api::ValueType {
-                    r#type: WALL_TIME_PERIOD_TYPE.r#type.borrow(),
-                    unit: WALL_TIME_PERIOD_TYPE.unit.borrow(),
-                },
-                value: period.min(i64::MAX as u128) as i64,
-            }))
-            .start_time(Some(started_at))
-            .sample_types(sample_types)
-            .build()
+        let period = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
+        // todo: the period should probably be in the message since that varies per profile type.
+        v2::Profile::new(
+            PROFILE_STORAGE.locked_storage.clone(),
+            PROFILE_STORAGE.string_table.clone(),
+            message.key.sample_types.clone(),
+            IndexMap::new(),
+            time_nanos,
+            0,
+            Some((PROFILE_STORAGE.value_types.wall_time.clone(), period)),
+        )
+        .unwrap()
     }
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
+        profiles: &mut HashMap<ProfileIndex, v2::Profile>,
     ) {
-        trace!(
-            "Received Endpoint Profiling message for span id {}.",
-            message.local_root_span_id
-        );
-        let local_root_span_id = message.local_root_span_id.to_string();
+        let local_root_span_id = message.local_root_span_id;
+        let endpoint = message.resource;
         for (_, profile) in profiles.iter_mut() {
-            let local_root_span_id = Cow::Borrowed(local_root_span_id.as_ref());
-            let endpoint = Cow::Borrowed(message.resource.as_str());
-            profile.add_endpoint(local_root_span_id, endpoint)
+            profile.add_endpoint(local_root_span_id.clone(), endpoint.clone());
         }
     }
 
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
+        profiles: &mut HashMap<ProfileIndex, v2::Profile>,
         started_at: &WallTime,
     ) {
-        let profile: &mut profile::Profile = if let Some(value) = profiles.get_mut(&message.key) {
+        let profile = if let Some(value) = profiles.get_mut(&message.key) {
             value
         } else {
             profiles.insert(
@@ -421,47 +466,49 @@ impl TimeCollector {
         let mut locations = vec![];
 
         let values = message.value.sample_values;
-        let labels = message
-            .value
-            .labels
-            .iter()
-            .map(profile::api::Label::from)
-            .collect();
+        let labels = message.value.labels;
 
         for frame in &message.value.frames {
-            let location = Location {
-                lines: vec![Line {
-                    function: Function {
-                        name: frame.function.as_str(),
-                        system_name: "",
-                        filename: frame.file.as_deref().unwrap_or(""),
-                        start_line: 0,
-                    },
-                    line: frame.line as i64,
-                }],
-                ..Default::default()
+            let mut locked_storage = PROFILE_STORAGE.locked_storage.lock();
+            let function = v2::Function {
+                id: 0,
+                name: frame.function,
+                system_name: 0,
+                filename: frame.file,
+                start_line: 0,
             };
 
-            locations.push(location);
+            let function_id = locked_storage.add_function(function);
+            let line = v2::Line {
+                function_id,
+                line_number: frame.line.into(),
+            };
+
+            let location = v2::Location {
+                id: 0,
+                mapping_id: 0,
+                address: 0,
+                lines: vec![line],
+                is_folded: false,
+            };
+
+            let location_id = locked_storage.add_location(location);
+            locations.push(location_id);
         }
 
-        let sample = Sample {
-            locations,
-            values,
+        let sample = v2::Sample {
+            location_ids: locations,
             labels,
         };
 
-        match profile.add(sample) {
-            Ok(_id) => {}
-            Err(err) => {
-                warn!("Failed to add sample to the profile: {}", err)
-            }
+        if let Err(err) = profile.add_sample(sample, values) {
+            warn!("Failed to add sample to the profile: {}", err)
         }
     }
 
     pub fn run(&self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, profile::Profile> = HashMap::with_capacity(1);
+        let mut profiles: HashMap<ProfileIndex, v2::Profile> = HashMap::with_capacity(1);
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
@@ -532,7 +579,7 @@ impl TimeCollector {
 
 struct UploadMessage {
     index: ProfileIndex,
-    profile: profile::Profile,
+    profile: v2::Profile,
     end_time: SystemTime,
     duration: Option<Duration>,
 }
@@ -556,13 +603,21 @@ impl Uploader {
             Some(index.tags),
             endpoint,
         )?;
-        let serialized = profile.serialize(Some(message.end_time), message.duration)?;
+
+        let end_time = message
+            .end_time
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::ZERO);
+        let end_time_nanos = end_time.as_nanos().try_into().unwrap_or(i64::MAX);
+
+        let serialized = profile.serialize(end_time_nanos, message.duration)?;
         let start = serialized.start.into();
         let end = serialized.end.into();
         let files = &[File {
             name: "profile.pprof",
             bytes: serialized.buffer.as_slice(),
         }];
+
         let timeout = Duration::from_secs(10);
         let request = exporter.build(start, end, files, None, timeout)?;
         debug!("Sending profile to: {}", index.endpoint);
@@ -701,10 +756,19 @@ impl Profiler {
 
     pub fn send_local_root_span_resource(
         &self,
-        message: LocalRootSpanResourceMessage,
+        local_root_span_id: u64,
+        endpoint: Cow<str>,
     ) -> Result<(), TrySendError<ProfilerMessage>> {
-        self.message_sender
-            .try_send(ProfilerMessage::LocalRootSpanResource(message))
+        let mut string_table = PROFILE_STORAGE.string_table.lock();
+        let local_root_span_id = string_table.intern(local_root_span_id.to_string());
+        let resource = string_table.intern(endpoint);
+        drop(string_table); // release the lock as quickly as possible
+
+        let message = ProfilerMessage::LocalRootSpanResource(LocalRootSpanResourceMessage {
+            local_root_span_id,
+            resource,
+        });
+        self.message_sender.try_send(message)
     }
 
     pub fn stop(self) {
@@ -738,16 +802,9 @@ impl Profiler {
             Ok(frames) => {
                 let depth = frames.len();
 
-                // todo: add {cpu-time, nanoseconds}
                 let mut sample_types = vec![
-                    ValueType {
-                        r#type: Cow::Borrowed("sample"),
-                        unit: Cow::Borrowed("count"),
-                    },
-                    ValueType {
-                        r#type: Cow::Borrowed("wall-time"),
-                        unit: Cow::Borrowed("nanoseconds"),
-                    },
+                    PROFILE_STORAGE.value_types.sample,
+                    PROFILE_STORAGE.value_types.wall_time,
                 ];
 
                 let now = Instant::now();
@@ -761,10 +818,7 @@ impl Profiler {
                  * then `locals.last_cpu_time` will be None.
                  */
                 if let Some(last_cpu_time) = locals.last_cpu_time {
-                    sample_types.push(ValueType {
-                        r#type: Cow::Borrowed("cpu-time"),
-                        unit: Cow::Borrowed("nanoseconds"),
-                    });
+                    sample_types.push(PROFILE_STORAGE.value_types.cpu_time);
 
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
@@ -782,16 +836,15 @@ impl Profiler {
                 if let Some(get_profiling_context) = gpc {
                     let context = get_profiling_context();
                     if context.local_root_span_id != 0 {
-                        labels.push(Label {
-                            key: "local root span id".into(),
-                            value: LabelValue::Str(
-                                format!("{}", context.local_root_span_id).into(),
-                            ),
-                        });
-                        labels.push(Label {
-                            key: "span id".into(),
-                            value: LabelValue::Str(format!("{}", context.span_id).into()),
-                        });
+                        let mut string_table = PROFILE_STORAGE.string_table.lock();
+                        let local_root_span_id =
+                            string_table.intern(context.local_root_span_id.to_string());
+                        let span_id = string_table.intern(context.span_id.to_string());
+                        drop(string_table); // release as quickly as possible
+
+                        let key = PROFILE_STORAGE.strings.local_root_span_id;
+                        labels.push(v2::Label::str(key, local_root_span_id));
+                        labels.push(v2::Label::str(PROFILE_STORAGE.strings.span_id, span_id));
                     }
                 }
 
@@ -820,21 +873,17 @@ impl Profiler {
                     },
                     value: SampleData {
                         frames,
-                        labels: labels.clone(),
+                        labels,
                         sample_values,
                     },
                 };
 
                 // Panic: profiler was checked above for is_none().
                 match self.send_sample(message) {
-                    Ok(_) => trace!(
-                        "Sent stack sample of depth {} with labels {:?} to profiler.",
-                        depth,
-                        labels
-                    ),
+                    Ok(_) => trace!("Sent stack sample of depth {} to profiler.", depth),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {} with labels {:?} to profiler: {}",
-                        depth, labels, err
+                        "Failed to send stack sample of depth {} to profiler: {}",
+                        depth, err
                     ),
                 }
             }
