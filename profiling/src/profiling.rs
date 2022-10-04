@@ -3,19 +3,19 @@ use crate::bindings::{
     ZEND_INTERNAL_FUNCTION, ZEND_USER_FUNCTION,
 };
 use crate::{AgentEndpoint, RequestLocals, PHP_VERSION};
-use crossbeam_channel::{Receiver, Sender, TrySendError};
+use crossbeam_channel::{select, Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::{Endpoint, File, Tag};
 use datadog_profiling::profile;
 use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::CStr;
 use std::hash::Hash;
 use std::os::raw::c_char;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -121,6 +121,7 @@ pub struct LocalRootSpanResourceMessage {
 
 #[derive(Debug)]
 pub enum ProfilerMessage {
+    Cancel,
     Sample(SampleMessage),
     LocalRootSpanResource(LocalRootSpanResourceMessage),
 }
@@ -290,22 +291,34 @@ pub struct VmInterrupt {
     pub engine_ptr: *const AtomicBool,
 }
 
+impl std::fmt::Display for VmInterrupt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "VmInterrupt{{{:?}, {:?}}}",
+            self.interrupt_count_ptr, self.engine_ptr
+        )
+    }
+}
+
 // This is a lie, technically, but we're trying to build it safely on top of
 // the PHP VM.
 unsafe impl Send for VmInterrupt {}
 
 pub struct Profiler {
-    vm_interrupt_lock: Arc<Mutex<HashSet<VmInterrupt>>>,
+    fork_barrier: Arc<Barrier>,
+    fork_senders: [Sender<()>; 2],
+    vm_interrupts: Arc<Mutex<Vec<VmInterrupt>>>,
     message_sender: Sender<ProfilerMessage>,
-    time_collector_cancel_sender: Sender<()>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
 }
 
 struct TimeCollector {
+    fork_barrier: Arc<Barrier>,
+    fork_receiver: Receiver<()>,
+    vm_interrupts: Arc<Mutex<Vec<VmInterrupt>>>,
     message_receiver: Receiver<ProfilerMessage>,
-    cancel_receiver: Receiver<()>,
-    vm_interrupt_lock: Arc<Mutex<HashSet<VmInterrupt>>>,
     upload_sender: Sender<UploadMessage>,
     wall_time_period: Duration,
     upload_period: Duration,
@@ -370,21 +383,6 @@ impl TimeCollector {
             .start_time(Some(started_at))
             .sample_types(sample_types)
             .build()
-    }
-
-    fn handle_message(
-        message: ProfilerMessage,
-        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
-        started_at: &WallTime,
-    ) {
-        match message {
-            ProfilerMessage::Sample(sample) => {
-                Self::handle_sample_message(sample, profiles, started_at)
-            }
-            ProfilerMessage::LocalRootSpanResource(message) => {
-                Self::handle_resource_message(message, profiles)
-            }
-        }
     }
 
     fn handle_resource_message(
@@ -476,41 +474,57 @@ impl TimeCollector {
 
         while running {
             crossbeam_channel::select! {
+
                 recv(self.message_receiver) -> result => {
                     match result {
-                        Ok(message) =>
-                            Self::handle_message(message, &mut profiles, &last_wall_export),
-                        Err(err) => {
-                            trace!("empty message? {:?}", err);
-                            break;
-                        }
-                    }
-                },
-                recv(self.cancel_receiver) -> _ => {
-                    // flush what we have before exiting
-                    last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
-                    running = false;
-                },
-                recv(wall_time_tick) -> _ => {
-                    match self.vm_interrupt_lock.lock() {
-                        Ok(interrupts) => {
-                            interrupts.iter().for_each(|obj| unsafe {
-                                (&*obj.engine_ptr).store(true, Ordering::SeqCst);
-                                (&*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
-                            });
-                        }
-                        Err(err) => {
-                            error!(
-                                "Stopping time related profiling: failed to acquire vm_interrupt lock: {}",
-                                err
-                            );
-                            break;
+                        Ok(message) => match message {
+                            ProfilerMessage::Sample(sample) =>
+                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
+                            ProfilerMessage::LocalRootSpanResource(message) =>
+                                Self::handle_resource_message(message, &mut profiles),
+                            ProfilerMessage::Cancel => {
+                                // flush what we have before exiting
+                                last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+                                running = false;
+                            }
                         },
+                        Err(_) => {
+                            /* Docs say:
+                             * > A message could not be received because the
+                             * > channel is empty and disconnected.
+                             * If this happens, let's just break and end.
+                             */
+                            break;
+                        }
                     }
                 },
-                recv(upload_tick) -> _ => {
-                    last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+
+                recv(wall_time_tick) -> message => {
+                    if message.is_ok() {
+                        let vm_interrupts = self.vm_interrupts.lock().unwrap();
+
+                        vm_interrupts.iter().for_each(|obj| unsafe {
+                            (&*obj.engine_ptr).store(true, Ordering::SeqCst);
+                            (&*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
+                        });
+                    }
                 },
+
+                recv(upload_tick) -> message => {
+                    if message.is_ok() {
+                        last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+                    }
+                },
+
+                recv(self.fork_receiver) -> message => {
+                    if message.is_ok() {
+                        // First, wait for every thread to finish what they are currently doing.
+                        self.fork_barrier.wait();
+                        // Then, wait for the fork to be completed.
+                        self.fork_barrier.wait();
+                    }
+                }
+
             }
         }
     }
@@ -524,6 +538,8 @@ struct UploadMessage {
 }
 
 struct Uploader {
+    fork_barrier: Arc<Barrier>,
+    fork_receiver: Receiver<()>,
     upload_receiver: Receiver<UploadMessage>,
 }
 
@@ -550,85 +566,127 @@ impl Uploader {
     }
 
     pub fn run(&self) {
-        self.upload_receiver
-            .iter()
-            .for_each(|message| match Self::upload(message) {
-                Ok(status) => {
-                    if status >= 400 {
-                        warn!(
-                            "Unexpected HTTP status when sending profile (HTTP {}).",
-                            status
-                        )
-                    } else {
-                        info!("Successfully uploaded profile (HTTP {}).", status)
+        loop {
+            /* Since profiling uploads are going over the Internet and not just
+             * the local network, it would be ideal if they were the lowest
+             * priority message, but crossbeam selects at random.
+             * todo: fix fork message priority.
+             */
+            select! {
+                recv(self.fork_receiver) -> message => match message {
+                    Ok(_) => {
+                        // First, wait for every thread to finish what they are currently doing.
+                        self.fork_barrier.wait();
+                        // Then, wait for the fork to be completed.
+                        self.fork_barrier.wait();
                     }
-                }
-                Err(err) => {
-                    warn!("Failed to upload profile: {}", err)
-                }
-            });
+                    _ => {
+                        trace!("Fork channel closed; joining upload thread.");
+                        break;
+                    }
+                },
+
+                recv(self.upload_receiver) -> message => match message {
+                    Ok(upload_message) => match Self::upload(upload_message) {
+                        Ok(status) => {
+                            if status >= 400 {
+                                warn!(
+                                    "Unexpected HTTP status when sending profile (HTTP {}).",
+                                    status
+                                )
+                            } else {
+                                info!("Successfully uploaded profile (HTTP {}).", status)
+                            }
+                        }
+                        Err(err) => {
+                            warn!("Failed to upload profile: {}", err)
+                        }
+                    },
+                    _ => {
+                        trace!("No more upload messages to handle; joining thread.");
+                        break;
+                    }
+
+                },
+            }
+        }
     }
 }
 
 impl Profiler {
     pub fn new() -> Self {
+        let fork_barrier = Arc::new(Barrier::new(3));
+        let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
+        let vm_interrupts = Arc::new(Mutex::new(Vec::with_capacity(1)));
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
-        let (time_collector_cancel_sender, time_collector_cancel_receiver) =
-            crossbeam_channel::bounded(0);
-        let vm_interrupt_lock = Arc::new(Mutex::new(HashSet::with_capacity(1)));
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
+        let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
         let time_collector = TimeCollector {
+            fork_barrier: fork_barrier.clone(),
+            fork_receiver: fork_receiver0,
+            vm_interrupts: vm_interrupts.clone(),
             message_receiver,
-            cancel_receiver: time_collector_cancel_receiver,
-            vm_interrupt_lock: vm_interrupt_lock.clone(),
             upload_sender,
             wall_time_period: WALL_TIME_PERIOD,
             upload_period: UPLOAD_PERIOD,
         };
-        let uploader = Uploader { upload_receiver };
+
+        let uploader = Uploader {
+            fork_barrier: fork_barrier.clone(),
+            fork_receiver: fork_receiver1,
+            upload_receiver,
+        };
         Profiler {
+            fork_barrier,
+            fork_senders: [fork_sender0, fork_sender1],
+            vm_interrupts,
             message_sender,
-            time_collector_cancel_sender,
-            vm_interrupt_lock,
             time_collector_handle: std::thread::spawn(move || time_collector.run()),
             uploader_handle: std::thread::spawn(move || uploader.run()),
         }
     }
 
-    pub fn add_interrupt(
-        &self,
-        engine_ptr: *const AtomicBool,
-        interrupt_count_ptr: *const AtomicU32,
-    ) {
-        match self.vm_interrupt_lock.lock() {
-            Ok(mut interrupts) => {
-                interrupts.insert(VmInterrupt {
-                    interrupt_count_ptr,
-                    engine_ptr,
-                });
+    pub fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
+        let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
+        for (index, value) in vm_interrupts.iter().enumerate() {
+            if *value == interrupt {
+                return Err((index, interrupt));
             }
-            Err(err) => {
-                error!("failed to acquire vm_interrupt lock: {}", err);
-            }
-        };
+        }
+        vm_interrupts.push(interrupt);
+        Ok(())
     }
 
-    pub fn remove_interrupt(
-        &self,
-        engine_ptr: *const AtomicBool,
-        interrupt_count_ptr: *const AtomicU32,
-    ) {
-        match self.vm_interrupt_lock.lock() {
-            Ok(mut interrupts) => {
-                interrupts.remove(&VmInterrupt {
-                    interrupt_count_ptr,
-                    engine_ptr,
-                });
+    pub fn remove_interrupt(&self, interrupt: VmInterrupt) -> Result<(), VmInterrupt> {
+        let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
+        let mut offset = None;
+        for (index, value) in vm_interrupts.iter().enumerate() {
+            if *value == interrupt {
+                offset = Some(index);
+                break;
             }
-            Err(err) => {
-                error!("failed to acquire vm_interrupt lock: {}", err);
-            }
-        };
+        }
+
+        if let Some(index) = offset {
+            vm_interrupts.swap_remove(index);
+            Ok(())
+        } else {
+            Err(interrupt)
+        }
+    }
+
+    /// Call before a fork, on the thread of the parent process that will fork.
+    pub fn fork_prepare(&self) {
+        for sender in self.fork_senders.iter() {
+            // Hmm, what to do with errors?
+            let _ = sender.send(());
+        }
+        self.fork_barrier.wait();
+    }
+
+    /// Call after a fork, but only on the thread of the parent process that forked.
+    pub fn post_fork_parent(&self) {
+        self.fork_barrier.wait();
     }
 
     pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<ProfilerMessage>> {
@@ -647,7 +705,7 @@ impl Profiler {
     pub fn stop(self) {
         // todo: what should be done when a thread panics?
         debug!("Stopping profiler.");
-        let _ = self.time_collector_cancel_sender.send(());
+        let _ = self.message_sender.send(ProfilerMessage::Cancel);
         if let Err(err) = self.time_collector_handle.join() {
             std::panic::resume_unwind(err)
         }
