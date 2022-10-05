@@ -475,7 +475,7 @@ function require_binaries_or_exit($options)
 {
     $selectedBinaries = [];
     if (empty($options[OPT_PHP_BIN])) {
-        $selectedBinaries = pick_binaries_interactive(search_php_binaries());
+        $selectedBinaries = pick_binaries_interactive($options, search_php_binaries());
     } else {
         foreach ($options[OPT_PHP_BIN] as $command) {
             if ($command == "all") {
@@ -662,9 +662,12 @@ function print_warning($message)
  * @param array $php_binaries
  * @return array
  */
-function pick_binaries_interactive(array $php_binaries)
+function pick_binaries_interactive($options, array $php_binaries)
 {
-    echo "Multiple PHP binaries detected. Please select the binaries the datadog library will be installed to:\n\n";
+    echo sprintf(
+        "Multiple PHP binaries detected. Please select the binaries the datadog library will be %s:\n\n",
+        $options[OPT_UNINSTALL] ? "uninstalled from" : "installed to"
+    );
     $commands = array_keys($php_binaries);
     for ($index = 0; $index < count($commands); $index++) {
         $command = $commands[$index];
@@ -689,7 +692,7 @@ function pick_binaries_interactive(array $php_binaries)
         $index = $choice - 1; // we render to the user as 1-indexed
         if (!isset($commands[$index])) {
             echo "\nERROR: Wrong choice: $choice\n\n";
-            return pick_binaries_interactive($php_binaries);
+            return pick_binaries_interactive($options, $php_binaries);
         }
         $command = $commands[$index];
         $pickedBinaries[$command] = $php_binaries[$command]["path"];
