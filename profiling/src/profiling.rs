@@ -5,7 +5,7 @@ use crate::bindings::{
 use crate::{AgentEndpoint, RequestLocals, PHP_VERSION};
 use crossbeam_channel::{select, Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::{Endpoint, File, Tag};
-use datadog_profiling::profile::v2;
+use datadog_profiling::profile::{v2, EncodedProfile};
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use log::{debug, info, trace, warn};
@@ -41,15 +41,14 @@ struct KnownValueTypes {
     pub cpu_time: v2::ValueType,
 }
 
-struct ProfileStorageFacade {
+struct KnownThings {
     pub strings: KnownStrings,
     pub value_types: KnownValueTypes,
-    pub locked_storage: Arc<v2::LockedProfileStorage>,
     pub string_table: Arc<v2::LockedStringTable>,
 }
 
 lazy_static! {
-    static ref PROFILE_STORAGE: ProfileStorageFacade = {
+    static ref KNOWN: KnownThings = {
         let mut string_table = v2::StringTable::new();
 
         let value_types = KnownValueTypes {
@@ -74,10 +73,9 @@ lazy_static! {
             truncated: string_table.intern("[truncated]"),
         };
 
-        ProfileStorageFacade {
+        KnownThings {
             strings,
             value_types,
-            locked_storage: Arc::new(v2::LockedProfileStorage::new()),
             string_table: Arc::new(v2::LockedStringTable::from(string_table)),
         }
     };
@@ -293,17 +291,17 @@ unsafe fn collect_stack_sample(
     let mut samples = Vec::with_capacity(max_depth >> 3);
     let mut execute_data = top_execute_data;
 
-    let php_no_func = PROFILE_STORAGE.strings.php_no_func;
+    let php_no_func = KNOWN.strings.php_no_func;
 
     while !execute_data.is_null() {
-        let mut string_table = PROFILE_STORAGE.string_table.lock();
+        let mut string_table = KNOWN.string_table.lock();
         /* -1 to reserve room for the [truncated] message. In case the backend
          * and/or frontend have the same limit, without the -1 we'd ironically
          * truncate our [truncated] message.
          */
         if samples.len() >= max_depth - 1 {
             samples.push(ZendFrame {
-                function: PROFILE_STORAGE.strings.truncated,
+                function: KNOWN.strings.truncated,
                 file: 0,
                 line: 0,
             });
@@ -370,6 +368,8 @@ pub struct Profiler {
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
     fork_receiver: Receiver<()>,
+    profile_storage: v2::ProfileStorage,
+    profiles: HashMap<ProfileIndex, v2::Profile>,
     vm_interrupts: Arc<Mutex<Vec<VmInterrupt>>>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
@@ -379,12 +379,11 @@ struct TimeCollector {
 
 impl TimeCollector {
     fn handle_timeout(
-        &self,
-        profiles: &mut HashMap<ProfileIndex, v2::Profile>,
+        &mut self,
         last_export: &WallTime,
     ) -> WallTime {
         let wall_export = WallTime::now();
-        if profiles.is_empty() {
+        if self.profiles.is_empty() {
             info!("No profiles to upload.");
             return wall_export;
         }
@@ -395,70 +394,58 @@ impl TimeCollector {
 
         let end_time = wall_export.systemtime;
 
-        for (index, profile) in profiles.drain() {
-            let message = UploadMessage {
-                index,
-                profile,
-                end_time,
-                duration,
-            };
-            if let Err(err) = self.upload_sender.try_send(message) {
-                warn!("Failed to upload profile: {}", err);
+        for (index, profile) in self.profiles.drain() {
+            if let Ok(profile) = profile.serialize(&self.profile_storage, end_time, duration) {
+                let message = UploadMessage { index, profile };
+                if let Err(err) = self.upload_sender.try_send(message) {
+                    warn!("Failed to upload profile: {}", err);
+                }
             }
         }
         wall_export
     }
 
-    /// Create a profile based on the message and start time. Note that it
-    /// makes sense to use an older time than now because if the profiler was
-    /// running 4 seconds ago and we're only creating a profile now, that means
-    /// we didn't collect any samples during that 4 seconds.
-    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> v2::Profile {
-        let time_nanos: i64 = started_at
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or(Duration::ZERO)
-            .as_nanos()
-            .try_into()
-            .unwrap_or(i64::MAX);
-
-        let period = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
-        // todo: the period should probably be in the message since that varies per profile type.
-        v2::Profile::new(
-            PROFILE_STORAGE.locked_storage.clone(),
-            PROFILE_STORAGE.string_table.clone(),
-            message.key.sample_types.clone(),
-            IndexMap::new(),
-            time_nanos,
-            0,
-            Some((PROFILE_STORAGE.value_types.wall_time, period)),
-        )
-        .unwrap()
-    }
-
     fn handle_resource_message(
+        &mut self,
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<ProfileIndex, v2::Profile>,
     ) {
         let local_root_span_id = message.local_root_span_id;
         let endpoint = message.resource;
-        for (_, profile) in profiles.iter_mut() {
+        for (_, profile) in self.profiles.iter_mut() {
             profile.add_endpoint(local_root_span_id, endpoint);
         }
     }
 
     fn handle_sample_message(
+        &mut self,
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, v2::Profile>,
         started_at: &WallTime,
     ) {
-        let profile = if let Some(value) = profiles.get_mut(&message.key) {
+        let profile = if let Some(value) = self.profiles.get_mut(&message.key) {
             value
         } else {
-            profiles.insert(
+            let started_at1 = started_at.systemtime;
+            let time_nanos: i64 = started_at1
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or(Duration::ZERO)
+                .as_nanos()
+                .try_into()
+                .unwrap_or(i64::MAX);
+
+            let period = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
+            self.profiles.insert(
                 message.key.clone(),
-                Self::create_profile(&message, started_at.systemtime),
+                v2::Profile::new(
+                    KNOWN.string_table.clone(),
+                    message.key.sample_types.clone(),
+                    IndexMap::new(),
+                    time_nanos,
+                    0,
+                    Some((KNOWN.value_types.wall_time, period)),
+                )
+                .unwrap(),
             );
-            profiles
+            self.profiles
                 .get_mut(&message.key)
                 .expect("entry to exist; just inserted it")
         };
@@ -469,7 +456,6 @@ impl TimeCollector {
         let labels = message.value.labels;
 
         for frame in &message.value.frames {
-            let mut locked_storage = PROFILE_STORAGE.locked_storage.lock();
             let function = v2::Function {
                 id: 0,
                 name: frame.function,
@@ -478,7 +464,7 @@ impl TimeCollector {
                 start_line: 0,
             };
 
-            let function_id = locked_storage.add_function(function);
+            let function_id = self.profile_storage.add_function(function);
             let line = v2::Line {
                 function_id,
                 line_number: frame.line.into(),
@@ -492,7 +478,7 @@ impl TimeCollector {
                 is_folded: false,
             };
 
-            let location_id = locked_storage.add_location(location);
+            let location_id = self.profile_storage.add_location(location);
             locations.push(location_id);
         }
 
@@ -506,9 +492,8 @@ impl TimeCollector {
         }
     }
 
-    pub fn run(&self) {
+    pub fn run(mut self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, v2::Profile> = HashMap::with_capacity(1);
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
@@ -526,12 +511,12 @@ impl TimeCollector {
                     match result {
                         Ok(message) => match message {
                             ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
+                                self.handle_sample_message(sample, &last_wall_export),
                             ProfilerMessage::LocalRootSpanResource(message) =>
-                                Self::handle_resource_message(message, &mut profiles),
+                                self.handle_resource_message(message),
                             ProfilerMessage::Cancel => {
                                 // flush what we have before exiting
-                                last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+                                last_wall_export = self.handle_timeout(&last_wall_export);
                                 running = false;
                             }
                         },
@@ -559,7 +544,7 @@ impl TimeCollector {
 
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
-                        last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+                        last_wall_export = self.handle_timeout(&last_wall_export);
                     }
                 },
 
@@ -579,9 +564,7 @@ impl TimeCollector {
 
 struct UploadMessage {
     index: ProfileIndex,
-    profile: v2::Profile,
-    end_time: SystemTime,
-    duration: Option<Duration>,
+    profile: EncodedProfile,
 }
 
 struct Uploader {
@@ -604,18 +587,11 @@ impl Uploader {
             endpoint,
         )?;
 
-        let end_time = message
-            .end_time
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or(Duration::ZERO);
-        let end_time_nanos = end_time.as_nanos().try_into().unwrap_or(i64::MAX);
-
-        let serialized = profile.serialize(end_time_nanos, message.duration)?;
-        let start = serialized.start.into();
-        let end = serialized.end.into();
+        let start = profile.start.into();
+        let end = profile.end.into();
         let files = &[File {
             name: "profile.pprof",
-            bytes: serialized.buffer.as_slice(),
+            bytes: profile.buffer.as_slice(),
         }];
 
         let timeout = Duration::from_secs(10);
@@ -625,7 +601,7 @@ impl Uploader {
         Ok(result.status().as_u16())
     }
 
-    pub fn run(&self) {
+    pub fn run(self) {
         loop {
             /* Since profiling uploads are going over the Internet and not just
              * the local network, it would be ideal if they were the lowest
@@ -684,6 +660,8 @@ impl Profiler {
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             fork_receiver: fork_receiver0,
+            profile_storage: v2::ProfileStorage::default(),
+            profiles: Default::default(),
             vm_interrupts: vm_interrupts.clone(),
             message_receiver,
             upload_sender,
@@ -759,7 +737,7 @@ impl Profiler {
         local_root_span_id: u64,
         endpoint: Cow<str>,
     ) -> Result<(), TrySendError<ProfilerMessage>> {
-        let mut string_table = PROFILE_STORAGE.string_table.lock();
+        let mut string_table = KNOWN.string_table.lock();
         let local_root_span_id = string_table.intern(local_root_span_id.to_string());
         let resource = string_table.intern(endpoint);
         drop(string_table); // release the lock as quickly as possible
@@ -802,10 +780,7 @@ impl Profiler {
             Ok(frames) => {
                 let depth = frames.len();
 
-                let mut sample_types = vec![
-                    PROFILE_STORAGE.value_types.sample,
-                    PROFILE_STORAGE.value_types.wall_time,
-                ];
+                let mut sample_types = vec![KNOWN.value_types.sample, KNOWN.value_types.wall_time];
 
                 let now = Instant::now();
                 let walltime = now.duration_since(locals.last_wall_time);
@@ -818,7 +793,7 @@ impl Profiler {
                  * then `locals.last_cpu_time` will be None.
                  */
                 if let Some(last_cpu_time) = locals.last_cpu_time {
-                    sample_types.push(PROFILE_STORAGE.value_types.cpu_time);
+                    sample_types.push(KNOWN.value_types.cpu_time);
 
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
@@ -836,15 +811,15 @@ impl Profiler {
                 if let Some(get_profiling_context) = gpc {
                     let context = get_profiling_context();
                     if context.local_root_span_id != 0 {
-                        let mut string_table = PROFILE_STORAGE.string_table.lock();
+                        let mut string_table = KNOWN.string_table.lock();
                         let local_root_span_id =
                             string_table.intern(context.local_root_span_id.to_string());
                         let span_id = string_table.intern(context.span_id.to_string());
                         drop(string_table); // release as quickly as possible
 
-                        let key = PROFILE_STORAGE.strings.local_root_span_id;
+                        let key = KNOWN.strings.local_root_span_id;
                         labels.push(v2::Label::str(key, local_root_span_id));
-                        labels.push(v2::Label::str(PROFILE_STORAGE.strings.span_id, span_id));
+                        labels.push(v2::Label::str(KNOWN.strings.span_id, span_id));
                     }
                 }
 
