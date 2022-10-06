@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::ffi::CStr;
 use std::hash::Hash;
 use std::os::raw::c_char;
@@ -318,7 +318,7 @@ unsafe fn collect_stack_sample(
             if file > 0 || function > 0 {
                 // If there's no function name, use a fake name.
                 if function <= 0 {
-                    function = php_no_func.clone();
+                    function = php_no_func;
                 }
                 let frame = ZendFrame {
                     function,
@@ -430,7 +430,7 @@ impl TimeCollector {
             IndexMap::new(),
             time_nanos,
             0,
-            Some((PROFILE_STORAGE.value_types.wall_time.clone(), period)),
+            Some((PROFILE_STORAGE.value_types.wall_time, period)),
         )
         .unwrap()
     }
@@ -442,7 +442,7 @@ impl TimeCollector {
         let local_root_span_id = message.local_root_span_id;
         let endpoint = message.resource;
         for (_, profile) in profiles.iter_mut() {
-            profile.add_endpoint(local_root_span_id.clone(), endpoint.clone());
+            profile.add_endpoint(local_root_span_id, endpoint);
         }
     }
 
