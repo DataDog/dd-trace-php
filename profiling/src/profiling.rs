@@ -6,7 +6,7 @@ use crate::{AgentEndpoint, RequestLocals, PHP_VERSION};
 use crossbeam_channel::{select, Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::{Endpoint, File, Tag};
 use datadog_profiling::profile::{v2, EncodedProfile};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use lazy_static::lazy_static;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
@@ -18,7 +18,7 @@ use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier, Mutex, MutexGuard};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime};
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -96,6 +96,10 @@ impl WallTime {
     }
 }
 
+fn duration_to_i64_nanos(duration: Duration) -> i64 {
+    duration.as_nanos().try_into().unwrap_or(i64::MAX)
+}
+
 /// A ProfileIndex contains the fields that factor into the uniqueness of a
 /// profile when we aggregate it. It's mostly based on the upload protocols,
 /// because we cannot mix profiles belonging to different services into the
@@ -110,10 +114,16 @@ pub struct ProfileIndex {
     pub endpoint: Box<AgentEndpoint>,
 }
 
+pub struct Breakdown {
+    pub tick: SystemTime,
+    pub value: i64,
+    pub labels: Vec<v2::Label>,
+}
+
 pub struct SampleData {
     pub frames: Vec<ZendFrame>,
     pub labels: Vec<v2::Label>,
-    pub sample_values: Vec<i64>,
+    pub breakdowns: Vec<Breakdown>,
 }
 
 pub struct SampleMessage {
@@ -369,7 +379,7 @@ struct TimeCollector {
     fork_barrier: Arc<Barrier>,
     fork_receiver: Receiver<()>,
     profile_storage: v2::ProfileStorage,
-    profiles: HashMap<ProfileIndex, v2::Profile>,
+    profiles: HashMap<ProfileIndex, v2::ProfileBuilder>,
     vm_interrupts: Arc<Mutex<Vec<VmInterrupt>>>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
@@ -378,10 +388,7 @@ struct TimeCollector {
 }
 
 impl TimeCollector {
-    fn handle_timeout(
-        &mut self,
-        last_export: &WallTime,
-    ) -> WallTime {
+    fn handle_timeout(&mut self, last_export: &WallTime) -> WallTime {
         let wall_export = WallTime::now();
         if self.profiles.is_empty() {
             info!("No profiles to upload.");
@@ -405,10 +412,7 @@ impl TimeCollector {
         wall_export
     }
 
-    fn handle_resource_message(
-        &mut self,
-        message: LocalRootSpanResourceMessage,
-    ) {
+    fn handle_resource_message(&mut self, message: LocalRootSpanResourceMessage) {
         let local_root_span_id = message.local_root_span_id;
         let endpoint = message.resource;
         for (_, profile) in self.profiles.iter_mut() {
@@ -416,31 +420,20 @@ impl TimeCollector {
         }
     }
 
-    fn handle_sample_message(
-        &mut self,
-        message: SampleMessage,
-        started_at: &WallTime,
-    ) {
+    fn handle_sample_message(&mut self, message: SampleMessage, started_at: &WallTime) {
         let profile = if let Some(value) = self.profiles.get_mut(&message.key) {
             value
         } else {
-            let started_at1 = started_at.systemtime;
-            let time_nanos: i64 = started_at1
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or(Duration::ZERO)
-                .as_nanos()
-                .try_into()
-                .unwrap_or(i64::MAX);
-
             let period = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
             self.profiles.insert(
                 message.key.clone(),
-                v2::Profile::new(
+                v2::ProfileBuilder::new(
                     KNOWN.string_table.clone(),
                     message.key.sample_types.clone(),
                     IndexMap::new(),
-                    time_nanos,
-                    0,
+                    IndexSet::new(),
+                    started_at.systemtime,
+                    Duration::ZERO,
                     Some((KNOWN.value_types.wall_time, period)),
                 )
                 .unwrap(),
@@ -451,9 +444,6 @@ impl TimeCollector {
         };
 
         let mut locations = vec![];
-
-        let values = message.value.sample_values;
-        let labels = message.value.labels;
 
         for frame in &message.value.frames {
             let function = v2::Function {
@@ -482,12 +472,35 @@ impl TimeCollector {
             locations.push(location_id);
         }
 
-        let sample = v2::Sample {
+        let sample = v2::SampleKey {
             location_ids: locations,
-            labels,
+            labels: Vec::new(), // Send all labels in the breakdown
         };
 
-        if let Err(err) = profile.add_sample(sample, values) {
+        let breakdowns = message
+            .value
+            .breakdowns
+            .into_iter()
+            .map(|breakdown| {
+                let label_set_id = profile.add_label_set(v2::LabelSet {
+                    id: 0,
+                    labels: breakdown.labels,
+                });
+
+                let tick = breakdown
+                    .tick
+                    .duration_since(profile.start_time())
+                    .unwrap_or(Duration::ZERO);
+
+                v2::Breakdown {
+                    ticks: vec![duration_to_i64_nanos(tick)],
+                    values: vec![breakdown.value],
+                    label_set_ids: vec![label_set_id],
+                }
+            })
+            .collect();
+
+        if let Err(err) = profile.add_sample(sample, breakdowns) {
             warn!("Failed to add sample to the profile: {}", err)
         }
     }
@@ -782,10 +795,10 @@ impl Profiler {
 
                 let mut sample_types = vec![KNOWN.value_types.sample, KNOWN.value_types.wall_time];
 
-                let now = Instant::now();
-                let walltime = now.duration_since(locals.last_wall_time);
-                locals.last_wall_time = now;
-                let walltime: i64 = walltime.as_nanos().try_into().unwrap_or(i64::MAX);
+                let now = WallTime::now();
+                let walltime = now.instant.duration_since(locals.last_wall_time);
+                locals.last_wall_time = now.instant;
+                let walltime = duration_to_i64_nanos(walltime);
 
                 let mut sample_values = vec![interrupt_count, walltime];
 
@@ -797,11 +810,7 @@ impl Profiler {
 
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
-                    let cputime: i64 = now
-                        .duration_since(last_cpu_time)
-                        .as_nanos()
-                        .try_into()
-                        .unwrap_or(i64::MAX);
+                    let cputime = duration_to_i64_nanos(now.duration_since(last_cpu_time));
                     sample_values.push(cputime);
                     locals.last_cpu_time = Some(now);
                 }
@@ -840,6 +849,15 @@ impl Profiler {
                     }
                 }
 
+                let breakdowns = sample_values
+                    .into_iter()
+                    .map(|value| Breakdown {
+                        tick: now.systemtime,
+                        value,
+                        labels: labels.clone(),
+                    })
+                    .collect();
+
                 let message = SampleMessage {
                     key: ProfileIndex {
                         sample_types,
@@ -848,8 +866,8 @@ impl Profiler {
                     },
                     value: SampleData {
                         frames,
-                        labels,
-                        sample_values,
+                        labels: Vec::new(), // we use breakdown now
+                        breakdowns,
                     },
                 };
 
