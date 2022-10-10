@@ -32,14 +32,14 @@ dd_dump_spans();
 --EXPECT--
 21
 28
-spans(\DDTrace\SpanData) (5) {
+spans(\DDTrace\SpanData) (1) {
   main (default_span_properties.php, main, cli)
     max => 6
     _dd.p.dm => -1
-  array_sum (default_span_properties.php, array_sum, cli)
-    retval => 28
-  MyRange (default_span_properties.php, MyRange, cli)
-  array_sum (default_span_properties.php, array_sum, cli)
-    retval => 21
-  MyRange (default_span_properties.php, MyRange, cli)
+    MyRange (default_span_properties.php, MyRange, cli)
+    array_sum (default_span_properties.php, array_sum, cli)
+      retval => 21
+    MyRange (default_span_properties.php, MyRange, cli)
+    array_sum (default_span_properties.php, array_sum, cli)
+      retval => 28
 }

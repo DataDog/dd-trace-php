@@ -395,7 +395,7 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
     }
 }
 
-void ddtrace_set_global_span_properties(ddtrace_span_t *span) {
+void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
     zval value;
 
@@ -520,7 +520,7 @@ static zend_string *dd_get_user_agent() {
     return ZSTR_EMPTY_ALLOC();
 }
 
-void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
+void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
 
     zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
@@ -662,8 +662,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_t *span) {
     }
 }
 
-static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
-    ddtrace_span_t *span = &span_fci->span;
+static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     zval meta_zv, *meta = ddtrace_spandata_property_meta_zval(span);
 
@@ -682,7 +681,7 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     }
     meta = &meta_zv;
 
-    zval *exception_zv = ddtrace_spandata_property_exception(&span_fci->span);
+    zval *exception_zv = ddtrace_spandata_property_exception(span);
     if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array);
     }
@@ -836,8 +835,7 @@ void ddtrace_shutdown_span_sampling_limiter(void) {
     zend_hash_destroy(&dd_span_sampling_limiters);
 }
 
-void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
-    ddtrace_span_t *span = &span_fci->span;
+void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     zval *el;
     zval zv;
@@ -851,6 +849,15 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     char span_id_str[MAX_ID_BUFSIZ];
     sprintf(span_id_str, "%" PRIu64, span->span_id);
     add_assoc_string(el, KEY_SPAN_ID, span_id_str);
+
+    // handle dropped spans
+    if (span->parent) {
+        ddtrace_span_data *parent = span->parent;
+        while (ddtrace_span_is_dropped(parent)) {
+            parent = span->parent;
+        }
+        span->parent_id = parent->span_id;
+    }
 
     if (span->parent_id > 0) {
         char parent_id_str[MAX_ID_BUFSIZ];
@@ -924,7 +931,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
     zval_ptr_dtor(&prop_type_as_string);
     zval_ptr_dtor(&prop_resource_as_string);
 
-    if (ddtrace_fetch_prioritySampling_from_span(span->chunk_root) <= 0) {
+    if (ddtrace_fetch_prioritySampling_from_span(span->root) <= 0) {
         zval *rule;
         ZEND_HASH_FOREACH_VAL(get_DD_SPAN_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
@@ -1050,7 +1057,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array) {
         ZEND_HASH_FOREACH_END();
     }
 
-    _serialize_meta(el, span_fci);
+    _serialize_meta(el, span);
 
     zval *metrics = ddtrace_spandata_property_metrics_zval(span);
     ZVAL_DEREF(metrics);
@@ -1098,7 +1105,7 @@ static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
 }
 
 void ddtrace_save_active_error_to_metadata(void) {
-    if (!DDTRACE_G(active_error).type) {
+    if (!DDTRACE_G(active_error).type || !DDTRACE_G(active_stack)) {
         return;
     }
 
@@ -1107,12 +1114,12 @@ void ddtrace_save_active_error_to_metadata(void) {
         .msg = zend_string_copy(DDTRACE_G(active_error).message),
         .stack = dd_fatal_error_stack(),
     };
-    for (ddtrace_span_fci *span = DDTRACE_G(open_spans_top); span; span = span->next) {
-        if (Z_TYPE_P(ddtrace_spandata_property_exception(&span->span)) == IS_OBJECT) {  // exceptions take priority
+    for (ddtrace_span_data *span = ddtrace_active_span(); span; span = span->parent) {
+        if (Z_TYPE_P(ddtrace_spandata_property_exception(span)) == IS_OBJECT) {  // exceptions take priority
             continue;
         }
 
-        dd_fatal_error_to_meta(ddtrace_spandata_property_meta(&span->span), error);
+        dd_fatal_error_to_meta(ddtrace_spandata_property_meta(span), error);
     }
     zend_string_release(error.type);
     zend_string_release(error.msg);
@@ -1136,7 +1143,7 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
          * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
          * robust way of detecting this, but I'm not sure how yet.
          */
-        if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
+        if (DDTRACE_G(active_stack)) {
 #if PHP_VERSION_ID < 80000
             va_list arg_copy;
             va_copy(arg_copy, args);
@@ -1151,14 +1158,13 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
 #if PHP_VERSION_ID < 80000
             zend_string_release(message);
 #endif
-            dd_fatal_error_to_meta(Z_ARR(DDTRACE_G(additional_trace_meta)), error);
-            ddtrace_span_fci *span;
-            for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
-                if (Z_TYPE_P(ddtrace_spandata_property_exception(&span->span)) > IS_FALSE) {
+            ddtrace_span_data *span;
+            for (span = DDTRACE_G(active_stack)->active; span; span = span->parent) {
+                if (Z_TYPE_P(ddtrace_spandata_property_exception(span)) > IS_FALSE) {
                     continue;
                 }
 
-                dd_fatal_error_to_meta(ddtrace_spandata_property_meta(&span->span), error);
+                dd_fatal_error_to_meta(ddtrace_spandata_property_meta(span), error);
             }
             zend_string_release(error.type);
             zend_string_release(error.msg);

@@ -29,15 +29,14 @@ static void dd_handle_fork(zval *return_value) {
         }
         if (get_DD_TRACE_ENABLED()) {
             if (get_DD_DISTRIBUTED_TRACING()) {
-                if (DDTRACE_G(open_spans_top) != NULL) {
-                    DDTRACE_G(distributed_parent_trace_id) = DDTRACE_G(open_spans_top)->span.span_id;
-                    DDTRACE_G(trace_id) = DDTRACE_G(open_spans_top)->span.trace_id;
-                }
+                DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
+                DDTRACE_G(distributed_trace_id) = ddtrace_peek_trace_id();
             } else {
                 DDTRACE_G(distributed_parent_trace_id) = 0;
-                DDTRACE_G(trace_id) = 0;
+                DDTRACE_G(distributed_trace_id) = 0;
             }
             ddtrace_free_span_stacks(true);
+            ddtrace_init_span_stacks();
             if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
                 ddtrace_push_root_span();
             }

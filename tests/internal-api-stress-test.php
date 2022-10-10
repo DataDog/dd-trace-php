@@ -10,6 +10,44 @@ set_error_handler(function ($str) {
     return !strpos($str, " expects ");
 });
 
+$return_span = [
+    function () {
+        return new DDTrace\SpanData();
+    },
+    function () {
+        return DDTrace\start_span();
+    },
+    function () {
+        return DDTrace\start_trace_span();
+    },
+    function () {
+        return DDTrace\root_span();
+    },
+    function () {
+        return DDTrace\active_span();
+    },
+];
+
+function garbage_stack()
+{
+    global $return_span;
+    if (rand(0, 1) == 0) {
+        DDTrace\switch_stack();
+    }
+    if (rand(0, 5) == 0) {
+        return DDTrace\create_stack();
+    }
+    $span = $return_span[rand(0, count($return_span) - 1)]();
+    if ($span) {
+        return $span->stack;
+    }
+    $span = DDTrace\root_span();
+    if ($span) {
+        return $span->stack;
+    }
+    return DDTrace\create_stack();
+}
+
 function generate_garbage()
 {
     $garbage = $primary_garbage = [
@@ -20,7 +58,7 @@ function generate_garbage()
         PHP_INT_MIN,
         PHP_INT_MAX,
         "",
-        "DDTrace\hook_method",
+        'DDTrace\hook_method',
         "call_function",
         [],
         ["nonempty" => new stdClass()],
@@ -29,10 +67,16 @@ function generate_garbage()
             ob_start();
             var_dump(func_get_args());
             ob_end_clean();
-            if ($hook instanceof DDTrace\HookData && rand(1, 3) != 1) {
-                DDTrace\remove_hook($hook->id);
+            if ($hook instanceof DDTrace\HookData) {
+                if (rand(1, 3) != 1) {
+                    DDTrace\remove_hook($hook->id);
+                }
+            } elseif (rand(1, 6) == 1) {
+                dd_untrace('DDTrace\hook_method');
+                dd_untrace('call_function');
             }
-        }
+        },
+        garbage_stack(),
     ];
     $garbage[] = [
         "" => $primary_garbage[array_rand($primary_garbage)],
@@ -69,6 +113,8 @@ function call_function(ReflectionFunction $function)
 
 function runOneIteration()
 {
+    global $return_span;
+
     $ext = new ReflectionExtension("ddtrace");
     $functions = array_filter($ext->getFunctions(), function ($f) {
         return $f->name != "dd_trace_internal_fn"
@@ -76,24 +122,10 @@ function runOneIteration()
             && $f->name != "dd_trace_disable_in_request";
     });
 
-    $return_span = [
-        function () {
-            return new DDTrace\SpanData();
-        },
-        function () {
-            return DDTrace\start_span();
-        },
-        function () {
-            return DDTrace\root_span();
-        },
-        function () {
-            return DDTrace\active_span();
-        },
-    ];
     $props = array_filter(
         (new ReflectionClass('DDTrace\SpanData'))->getProperties(),
         function ($p) {
-            return $p->name != "parent" && $p->name != "id";
+            return $p->name != "parent" && $p->name != "id" && $p->name != "stack";
         }
     );
 
@@ -112,16 +144,23 @@ function runOneIteration()
         }
         $garbages[] = $ex;
         foreach (array_slice($return_span, 0, rand(0, count($return_span))) as $spanreturner) {
-            $span = $spanreturner();
-            foreach ($props as $prop) {
-                try {
-                    $prop->setValue($span, $garbages[array_rand($garbages)]);
-                } catch (TypeError $e) {
+            if (rand(0, 8) == 1) {
+                DDTrace\create_stack();
+            } else {
+                $span = $spanreturner();
+                foreach ($props as $prop) {
+                    try {
+                        $prop->setValue($span, $garbages[array_rand($garbages)]);
+                    } catch (TypeError $e) {
+                    }
                 }
             }
         }
         if (rand(0, 1)) {
             DDTrace\close_span();
+        }
+        if (rand(0, 2) == 0) {
+            DDTrace\switch_stack();
         }
         call_function($function);
     }

@@ -76,6 +76,11 @@ if test "$PHP_DDTRACE" != "no"; then
         ext/weakrefs.c"
     fi
 
+    if test $PHP_VERSION_ID -ge 80100; then
+      EXTRA_PHP_SOURCES="$EXTRA_PHP_SOURCES \
+        ext/handlers_fiber.c"
+    fi
+
     EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php8/interceptor.c \
       zend_abstract_interface/interceptor/php8/resolver.c \

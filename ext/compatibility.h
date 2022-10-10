@@ -117,6 +117,7 @@ typedef ZEND_RESULT_CODE zend_result;
 
 #define GC_IMMUTABLE (1 << 5)
 #define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
+#define GC_DEL_FLAGS(c, flag) GC_FLAGS(c) &= ~(flag)
 
 static inline HashTable *zend_new_array(uint32_t nSize) {
     HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
