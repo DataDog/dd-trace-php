@@ -9,7 +9,7 @@
 # include <sanitizer/common_interface_defs.h>
 #endif
 
-static int registered_observers = 0;
+int zai_registered_observers = 0;
 
 typedef struct {
     zai_hook_memory_t hook_data;
@@ -482,13 +482,13 @@ void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
         }
     }
 
-    zend_observer_fcall_begin_handler *beginHandler = (void *)&ZEND_OBSERVER_DATA(op_array), *beginEnd = beginHandler + registered_observers - 1;
-    zend_observer_fcall_end_handler *endHandler = (zend_observer_fcall_end_handler *)beginEnd + 1, *endEnd = endHandler + registered_observers - 1;
+    zend_observer_fcall_begin_handler *beginHandler = (void *)&ZEND_OBSERVER_DATA(op_array), *beginEnd = beginHandler + zai_registered_observers - 1;
+    zend_observer_fcall_end_handler *endHandler = (zend_observer_fcall_end_handler *)beginEnd + 1, *endEnd = endHandler + zai_registered_observers - 1;
 
     if (remove) {
         for (zend_observer_fcall_begin_handler *curHandler = beginHandler; curHandler <= beginEnd; ++curHandler) {
             if (*curHandler == zai_interceptor_observer_begin_handler || *curHandler == zai_interceptor_observer_generator_resumption_handler) {
-                if (registered_observers == 1 || (curHandler == beginHandler && curHandler[1] == NULL)) {
+                if (zai_registered_observers == 1 || (curHandler == beginHandler && curHandler[1] == NULL)) {
                     *curHandler = ZEND_OBSERVER_NOT_OBSERVED;
                 } else {
                     if (curHandler != beginEnd) {
@@ -503,7 +503,7 @@ void zai_interceptor_replace_observer(zend_op_array *op_array, bool remove) {
 
         for (zend_observer_fcall_end_handler *curHandler = endHandler; curHandler <= endEnd; ++curHandler) {
             if (*curHandler == zai_interceptor_observer_end_handler || *curHandler == zai_interceptor_observer_generator_end_handler) {
-                if (registered_observers == 1 || (curHandler == endHandler && *(curHandler + 1) == NULL)) {
+                if (zai_registered_observers == 1 || (curHandler == endHandler && *(curHandler + 1) == NULL)) {
                     *curHandler = ZEND_OBSERVER_NOT_OBSERVED;
                 } else {
                     if (curHandler != endEnd) {
@@ -683,7 +683,7 @@ zend_result zai_interceptor_post_startup(void) {
     zend_result result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
 
     zai_interceptor_setup_resolving_post_startup();
-    registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
+    zai_registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
 
     return result;
 }

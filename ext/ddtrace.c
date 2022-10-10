@@ -54,6 +54,7 @@
 #include "ext/standard/file.h"
 
 #include "../hook/uhook.h"
+#include "handlers_fiber.h"
 
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
@@ -654,6 +655,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     zai_uhook_minit();
 #if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
+#endif
+#if PHP_VERSION_ID >= 80100
+    ddtrace_setup_fiber_observers();
 #endif
 
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
