@@ -71,21 +71,23 @@ static ZEND_FUNCTION(dd_wrap_fiber_entry_call) {
 ZEND_BEGIN_ARG_INFO_EX(dd_fiber_wrapper_arg_info, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-static const zend_internal_function dd_fiber_wrapper = {
-        ZEND_INTERNAL_FUNCTION, /* type              */
-        {0, 0, 0},              /* arg_flags         */
-        0,                      /* fn_flags          */
-        NULL,                   /* name              */
-        NULL,                   /* scope             */
-        NULL,                   /* prototype         */
-        0,                      /* num_args          */
-        0,                      /* required_num_args */
-        (zend_internal_arg_info *) dd_fiber_wrapper_arg_info + 1, /* arg_info          */
-        NULL,                   /* attributes        */
-        ZEND_FN(dd_wrap_fiber_entry_call), /* handler           */
-        NULL,                   /* module            */
+#define DD_FIBER_WRAPPER_ARGS(fn_flags) \
+        ZEND_INTERNAL_FUNCTION, /* type              */ \
+        {0, 0, 0},              /* arg_flags         */ \
+        fn_flags,               /* fn_flags          */ \
+        NULL,                   /* name              */ \
+        NULL,                   /* scope             */ \
+        NULL,                   /* prototype         */ \
+        0,                      /* num_args          */ \
+        0,                      /* required_num_args */ \
+        (zend_internal_arg_info *) dd_fiber_wrapper_arg_info + 1, /* arg_info          */ \
+        NULL,                   /* attributes        */ \
+        ZEND_FN(dd_wrap_fiber_entry_call), /* handler           */ \
+        NULL,                   /* module            */ \
         {0}                     /* reserved          */
-};
+
+static const zend_internal_function dd_fiber_wrapper = { DD_FIBER_WRAPPER_ARGS(0) };
+static const zend_internal_function dd_ref_fiber_wrapper = { DD_FIBER_WRAPPER_ARGS(ZEND_ACC_RETURN_REFERENCE) };
 
 ZEND_TLS zend_execute_data *dd_main_execute_data;
 #endif
@@ -119,7 +121,11 @@ static void dd_observe_fiber_init(zend_fiber_context *context) {
     if (context->kind == zend_ce_fiber) {
         zend_fiber *fiber = zend_fiber_from_context(context);
         stack->fiber_entry_function = fiber->fci_cache.function_handler;
-        fiber->fci_cache.function_handler = (zend_function *)&dd_fiber_wrapper;
+        if (fiber->fci_cache.function_handler->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) {
+            fiber->fci_cache.function_handler = (zend_function *)&dd_ref_fiber_wrapper;
+        } else {
+            fiber->fci_cache.function_handler = (zend_function *)&dd_fiber_wrapper;
+        }
     }
 #endif
 }
