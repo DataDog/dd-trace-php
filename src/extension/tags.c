@@ -23,12 +23,12 @@
 #define DD_TAG_HTTP_STATUS_CODE "http.status_code"
 #define DD_TAG_HTTP_URL "http.url"
 #define DD_TAG_NETWORK_CLIENT_IP "network.client.ip"
-#define DD_TAG_ACTOR_IP "actor.ip"
 #define DD_PREFIX_TAG_REQUEST_HEADER "http.request.headers."
 #define DD_TAG_HTTP_RH_CONTENT_LENGTH "http.response.headers.content-length"
 #define DD_TAG_HTTP_RH_CONTENT_TYPE "http.response.headers.content-type"
 #define DD_TAG_HTTP_RH_CONTENT_ENCODING "http.response.headers.content-encoding"
 #define DD_TAG_HTTP_RH_CONTENT_LANGUAGE "http.response.headers.content-language"
+#define DD_TAG_HTTP_CLIENT_IP "http.client_ip"
 #define DD_METRIC_ENABLED "_dd.appsec.enabled"
 #define DD_METRIC_SAMPLING_PRIORITY "_sampling_priority_v1"
 #define DD_SAMPLING_PRIORITY_USER_KEEP 2
@@ -40,7 +40,7 @@ static zend_string *_dd_tag_http_user_agent_zstr;
 static zend_string *_dd_tag_http_status_code_zstr;
 static zend_string *_dd_tag_http_url_zstr;
 static zend_string *_dd_tag_network_client_ip_zstr;
-static zend_string *_dd_tag_actor_ip_zstr;
+static zend_string *_dd_tag_http_client_ip_zstr;
 static zend_string *_dd_tag_rh_content_length;   // response
 static zend_string *_dd_tag_rh_content_type;     // response
 static zend_string *_dd_tag_rh_content_encoding; // response
@@ -85,8 +85,8 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_URL), 1);
     _dd_tag_network_client_ip_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_NETWORK_CLIENT_IP), 1);
-    _dd_tag_actor_ip_zstr =
-        zend_string_init_interned(LSTRARG(DD_TAG_ACTOR_IP), 1);
+    _dd_tag_http_client_ip_zstr =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_CLIENT_IP), 1);
 
     _dd_tag_rh_content_length =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LENGTH), 1);
@@ -328,7 +328,7 @@ static void _dd_http_url(zend_array *meta_ht, zval *_server);
 static void _dd_http_user_agent(zend_array *meta_ht, zval *_server);
 static void _dd_http_status_code(zend_array *meta_ht);
 static void _dd_http_network_client_ip(zend_array *meta_ht, zval *_server);
-static void _dd_actor_ip(zend_array *meta_ht, zval *_server);
+static void _dd_http_client_ip(zend_array *meta_ht, zval *_server);
 static void _dd_request_headers(zend_array *meta_ht, zval *_server);
 static void _dd_response_headers(zend_array *meta_ht);
 
@@ -351,13 +351,12 @@ static void _add_all_tags_to_meta(zval *nonnull meta)
         mlog(dd_log_info, "No SERVER autoglobal available");
         return;
     }
-
     _dd_http_method(meta_ht);
     _dd_http_url(meta_ht, _server);
     _dd_http_user_agent(meta_ht, _server);
     _dd_http_status_code(meta_ht);
     _dd_http_network_client_ip(meta_ht, _server);
-    _dd_actor_ip(meta_ht, _server);
+    _dd_http_client_ip(meta_ht, _server);
     _dd_request_headers(meta_ht, _server);
     _dd_response_headers(meta_ht);
 }
@@ -490,17 +489,21 @@ static void _dd_http_network_client_ip(zend_array *meta_ht, zval *_server)
         meta_ht, _dd_tag_network_client_ip_zstr, remote_addr_zstr, true);
 }
 
-static void _dd_actor_ip(zend_array *meta_ht, zval *_server)
+static void _dd_http_client_ip(zend_array *meta_ht, zval *_server)
 {
-    if (zend_hash_exists(meta_ht, _dd_tag_actor_ip_zstr)) {
-        return;
-    }
-    zend_string *actor_ip_zstr = dd_ip_extraction_find(_server);
-    if (!actor_ip_zstr) {
+    // If the tracer has set http.client_ip, there is nothing to do here
+    // otherwise, this header must be generated here
+    if (zend_hash_exists(meta_ht, _dd_tag_http_client_ip_zstr)) {
         return;
     }
 
-    _add_new_zstr_to_meta(meta_ht, _dd_tag_actor_ip_zstr, actor_ip_zstr, false);
+    zend_string *client_ip = dd_ip_extraction_find(_server);
+    if (!client_ip) {
+        return;
+    }
+
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_tag_http_client_ip_zstr, client_ip, false);
 }
 
 static void _dd_request_headers(zend_array *meta_ht, zval *_server)
