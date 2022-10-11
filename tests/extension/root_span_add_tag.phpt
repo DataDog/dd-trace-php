@@ -6,13 +6,11 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
---SKIPIF--
-<?php
-include __DIR__ . '/inc/ddtrace_version.php';
-ddtrace_version_at_least('0.67.0');
-?>
 --FILE--
 <?php
+include __DIR__ . '/inc/ddtrace_version.php';
+
+ddtrace_version_at_least('0.79.0');
 // Fail if root span not available
 var_dump(\datadog\appsec\testing\root_span_add_tag("before", "root_span"));
 DDTrace\start_span();
@@ -46,14 +44,20 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["system.pid"]=>
       string(%d) "%d"
       ["after"]=>
       string(9) "root_span"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
-    array(1) {
+    array(3) {
+      ["_dd.rule_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%s)
     }

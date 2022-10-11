@@ -5,7 +5,6 @@
 ![integration](https://github.com/DataDog/dd-appsec-php/actions/workflows/integration.yml/badge.svg?branch=master)
 [![Coverage status](https://codecov.io/github/DataDog/dd-appsec-php/coverage.svg?branch=master)](https://codecov.io/github/DataDog/dd-appsec-php?branch=master)
 [![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%207.0-8892BF.svg)](https://php.net/)
-[![Minimum Tracer Version](https://img.shields.io/badge/tracer-%3E%3D%200.67.0-2892BF.svg)](https://github.com/DataDog/dd-trace-php)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 

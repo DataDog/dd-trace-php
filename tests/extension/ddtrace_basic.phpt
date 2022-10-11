@@ -2,6 +2,7 @@
 ddtrace integration — basic test
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_AUTOFINISH_SPANS=1
 --SKIPIF--
 <?php
 // on CI, the 5 minute timeout is sometimes exceeded
@@ -19,6 +20,9 @@ use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,mlog};
 use const datadog\appsec\testing\log_level\DEBUG;
 
 include __DIR__ . '/inc/mock_helper.php';
+include __DIR__ . '/inc/ddtrace_version.php';
+
+ddtrace_version_at_least('0.79.0');
 
 $helper = Helper::createInitedRun([['ok']], ['continuous' => true]);
 
@@ -37,6 +41,7 @@ var_dump(\DDTrace\root_span());
 
 $trace_id = \DDTrace\trace_id();
 echo 'trace id: ', $trace_id, "\n";
+
 echo "ddtrace_rshutdown\n";
 mlog(DEBUG, "Call ddtrace_rshutdown");
 var_dump(ddtrace_rshutdown());
@@ -61,7 +66,7 @@ $helper->finished_with_commands();
 rinit
 bool(true)
 number of commands: 2
-object(DDTrace\SpanData)#%d (5) {
+object(DDTrace\SpanData)#%d (6) {
   ["name"]=>
   string(17) "ddtrace_basic.php"
   ["service"]=>
@@ -78,6 +83,8 @@ object(DDTrace\SpanData)#%d (5) {
   ["metrics"]=>
   array(0) {
   }
+  ["id"]=>
+  string(%d) "%d"
 }
 trace id: %s
 ddtrace_rshutdown
@@ -88,4 +95,5 @@ Array
 (
     [system.pid] => %s
     [ddappsec] => true
+    [_dd.p.dm] => -1
 )

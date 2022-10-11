@@ -5,8 +5,10 @@ extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --ENV--
+DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=0
 DD_ENV=staging
 DD_VERSION=0.42.69
+SERVER_NAME=localhost:8888
 REQUEST_URI=/my/ur%69/
 SCRIPT_NAME=/my/uri.php
 PATH_INFO=/ur%69/
@@ -16,15 +18,13 @@ HTTP_CONTENT_TYPE=text/plain
 HTTP_CONTENT_LENGTH=0
 --GET--
 key=val
---SKIPIF--
-<?php
-include __DIR__ . '/inc/ddtrace_version.php';
-ddtrace_version_at_least('0.67.0');
-?>
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,mlog};
 use const datadog\appsec\testing\log_level\DEBUG;
+include __DIR__ . '/inc/ddtrace_version.php';
+
+ddtrace_version_at_least('0.79.0');
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -44,6 +44,7 @@ $commands = $helper->get_commands();
 $tags = $commands[0]['payload'][0][0]['meta'];
 
 echo "tags:\n";
+ksort($tags);
 print_r($tags);
 
 $helper->finished_with_commands();
@@ -56,11 +57,12 @@ bool(true)
 tags:
 Array
 (
-    [system.pid] => %d
-    [http.method] => GET
-    [http.url] => %S/my/ur%69/
-    [version] => 0.42.69
-    [env] => staging
+    [_dd.p.dm] => -1
     [ddappsec] => true
+    [env] => staging
+    [http.method] => GET
     [http.status_code] => 200
+    [http.url] => http://localhost:8888/my/ur%69/
+    [system.pid] => %d
+    [version] => 0.42.69
 )

@@ -1,5 +1,5 @@
 option(DD_APPSEC_BUILD_TRACER "Whether to build the tracer from source" ON)
-set(DD_APPSEC_TRACER_VERSION "2b73ca0928bd42941c48b19c207d2a4e7cfbc366" CACHE STRING "The tracer version to build or download")
+set(DD_APPSEC_TRACER_VERSION "77e083b943458707e9e464d0e957263caa43b089" CACHE STRING "The tracer version to build or download")
 
 add_library(tracer SHARED IMPORTED GLOBAL)
 
