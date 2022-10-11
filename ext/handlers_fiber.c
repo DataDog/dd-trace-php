@@ -69,25 +69,30 @@ static ZEND_FUNCTION(dd_wrap_fiber_entry_call) {
 }
 
 ZEND_BEGIN_ARG_INFO_EX(dd_fiber_wrapper_arg_info, 0, 0, 0)
+ZEND_ARG_VARIADIC_INFO(ZEND_SEND_PREFER_REF, args)
 ZEND_END_ARG_INFO()
 
-#define DD_FIBER_WRAPPER_ARGS(fn_flags) \
+ZEND_BEGIN_ARG_INFO_EX(dd_fiber_wrapper_ref_arg_info, 0, 1, 0)
+ZEND_ARG_VARIADIC_INFO(ZEND_SEND_PREFER_REF, args)
+ZEND_END_ARG_INFO()
+
+#define DD_FIBER_WRAPPER_ARGS(fn_flags, arg_info) \
         ZEND_INTERNAL_FUNCTION, /* type              */ \
         {0, 0, 0},              /* arg_flags         */ \
-        fn_flags,               /* fn_flags          */ \
+        fn_flags | ZEND_ACC_VARIADIC, /* fn_flags          */ \
         NULL,                   /* name              */ \
         NULL,                   /* scope             */ \
         NULL,                   /* prototype         */ \
         0,                      /* num_args          */ \
         0,                      /* required_num_args */ \
-        (zend_internal_arg_info *) dd_fiber_wrapper_arg_info + 1, /* arg_info          */ \
+        (zend_internal_arg_info *) arg_info + 1, /* arg_info          */ \
         NULL,                   /* attributes        */ \
         ZEND_FN(dd_wrap_fiber_entry_call), /* handler           */ \
         NULL,                   /* module            */ \
         {0}                     /* reserved          */
 
-static const zend_internal_function dd_fiber_wrapper = { DD_FIBER_WRAPPER_ARGS(0) };
-static const zend_internal_function dd_ref_fiber_wrapper = { DD_FIBER_WRAPPER_ARGS(ZEND_ACC_RETURN_REFERENCE) };
+static const zend_internal_function dd_fiber_wrapper = { DD_FIBER_WRAPPER_ARGS(0, dd_fiber_wrapper_arg_info) };
+static const zend_internal_function dd_ref_fiber_wrapper = { DD_FIBER_WRAPPER_ARGS(ZEND_ACC_RETURN_REFERENCE, dd_fiber_wrapper_ref_arg_info) };
 
 ZEND_TLS zend_execute_data *dd_main_execute_data;
 #endif
