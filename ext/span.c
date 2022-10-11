@@ -493,8 +493,11 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
         if (IS_OBJ_VALID(obj) && obj->ce == ddtrace_ce_span_stack) {
             ddtrace_span_stack *stack = (ddtrace_span_stack *)obj;
 
+            // temporarily addref to avoid freeing the stack during it being processed
+            GC_ADDREF(&stack->std);
+
             ddtrace_span_data *span;
-            while ((span = stack->active) && stack->active->stack == stack) {
+            while ((span = stack->active) && span->stack == stack) {
                 if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span->type == DDTRACE_AUTOROOT_SPAN)) {
                     dd_trace_stop_span_time(span);
                     ddtrace_close_span(span);
@@ -502,6 +505,8 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
                     ddtrace_drop_span(span);
                 }
             }
+
+            OBJ_RELEASE(&stack->std);
         }
     } while (obj_ptr != end);
 }
