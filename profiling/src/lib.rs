@@ -3,16 +3,20 @@ pub mod capi;
 mod config;
 mod logging;
 mod pcntl;
+mod profile_builder;
 mod profiling;
 mod sapi;
+mod stack_walking;
+mod uploading;
 
 use crate::profiling::{Profiler, VmInterrupt};
+use crate::stack_walking::{POLYMORPHIC_CACHE_HITS, POLYMORPHIC_CACHE_MISSES};
 use bindings as zend;
 use bindings::{sapi_getenv, ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
-use libc::c_int;
+use libc::{c_char, c_int};
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
 use sapi::Sapi;
@@ -253,6 +257,12 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 extern "C" fn prshutdown() -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("PRSHUTDOWN");
+
+    trace!(
+        "Lifetime cache hits: {}, misses: {}",
+        POLYMORPHIC_CACHE_HITS.load(Ordering::SeqCst),
+        POLYMORPHIC_CACHE_MISSES.load(Ordering::SeqCst)
+    );
 
     ZendResult::Success
 }
@@ -709,6 +719,13 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 
     // Safety: called during startup hook with correct params.
     unsafe { zend::datadog_php_profiling_startup(extension) };
+
+    // Safety: zend_get_op_array_extension_handle is safe to call from startup.
+    unsafe {
+        bindings::datadog_php_profiling_cache_polymorphic_init(
+            PROFILER_NAME.as_ptr() as *const c_char
+        );
+    }
 
     // Ignore a failure as ZEND_VERSION.get() will return an Option if it's not set.
     let _ = ZEND_VERSION.get_or_try_init(|| {

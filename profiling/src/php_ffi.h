@@ -73,3 +73,11 @@ typedef struct {
 
 void datadog_php_profiling_install_internal_function_handler(
     datadog_php_profiling_internal_function_handler handler);
+
+#if PHP_VERSION_ID >= 70400
+/** Call during minit/startup */
+void datadog_php_profiling_cache_polymorphic_init(const char *module_name);
+uintptr_t datadog_php_profiling_cached_polymorphic_ptr(zend_function *func, zend_class_entry *ce);
+void datadog_php_profiling_cache_polymorphic_ptr(zend_function *func, zend_class_entry *ce,
+                                                 uintptr_t ptr);
+#endif

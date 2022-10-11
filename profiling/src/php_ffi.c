@@ -58,3 +58,75 @@ void datadog_php_profiling_install_internal_function_handler(
         old_handler->internal_function.handler = handler.new_handler;
     }
 }
+
+#if PHP_VERSION_ID >= 80000
+static int dd_profiling_handle = -1;
+#endif
+
+void datadog_php_profiling_cache_polymorphic_init(const char *module_name) {
+    /* The polymorphic cache requires 2 handles, one for the CE and one for
+     * the value being stored in the cache. In our case, the CE is used as a
+     * pointer round-tripped through uintptr_t, but the value is not a pointer
+     * at all; it's just a pointer sized integer.
+     */
+
+#if PHP_VERSION_ID >= 80000
+    dd_profiling_handle = zend_get_op_array_extension_handles(module_name, 2);
+#endif
+
+    /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
+     * that weren't truly fixed until PHP 8:
+     * https://github.com/php/php-src/pull/5871
+     * I would rather avoid these bugs.
+     */
+}
+
+/**
+ * Gets the cached pointer-sized integer, or 0 if the cache is invalid, or if
+ * the feature is not supported on this version.
+ */
+uintptr_t datadog_php_profiling_cached_polymorphic_ptr(zend_function *func, zend_class_entry *ce) {
+#if PHP_VERSION_ID < 80000
+    return 0;
+#else
+
+#if PHP_VERSION_ID < 80200
+    // internal functions don't have a runtime cache until PHP 8.2
+    if (func->type == ZEND_INTERNAL_FUNCTION) return 0;
+#endif
+
+    uintptr_t *cache_addr = RUN_TIME_CACHE(&func->common);
+
+    // To my knowledge, this is always a bug but it has happened.
+    if (!cache_addr) return 0;
+
+    uintptr_t *slots = cache_addr + dd_profiling_handle;
+    // There is a macro CACHED_POLYMORPHIC_PTR_EX but it's not really needed.
+    return (*(zend_class_entry **)slots) == ce ? slots[1] : 0;
+#endif
+}
+
+/**
+ * Caches the pointer-sized integer in the polymorphic cache. The value of
+ * zero means it is not set or the feature is unsupported on this version.
+ */
+void datadog_php_profiling_cache_polymorphic_ptr(zend_function *func, zend_class_entry *ce,
+                                                 uintptr_t ptr) {
+#if PHP_VERSION_ID < 80000
+    return 0;
+#else
+
+#if PHP_VERSION_ID < 80200
+    // internal functions don't have a runtime cache until PHP 8.2
+    if (func->type == ZEND_INTERNAL_FUNCTION) return;
+#endif
+    uintptr_t *cache_addr = RUN_TIME_CACHE(&func->common);
+
+    // To my knowledge, this is always a bug but it has happened.
+    if (!cache_addr) return;
+
+    uintptr_t *slots = cache_addr + dd_profiling_handle;
+    (*(zend_class_entry **)slots) = ce;
+    slots[1] = ptr;
+#endif
+}

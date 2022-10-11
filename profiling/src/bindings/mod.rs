@@ -304,3 +304,18 @@ impl TryFrom<zval> for zend_long {
         zend_long::try_from(&mut zval)
     }
 }
+
+// Although this is mut, please don't modify anything other than potentially
+// string refcounts and the like.
+impl TryFrom<&mut zval> for &mut zend_object {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type as u32 == IS_OBJECT {
+            Ok(unsafe { &mut *zval.value.obj })
+        } else {
+            Err(r#type)
+        }
+    }
+}
