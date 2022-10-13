@@ -240,6 +240,28 @@ RUN set -eux; \
     cd -; \
     rm -fr "libuv-${LIBUV_VERSION}";
 
+# rust sha256sum generated locally after verifying it with sha256
+ARG RUST_VERSION="1.60.0"
+ARG RUST_SHA256_ARM="99c419c2f35d4324446481c39402c7baecd7a8baed7edca9f8d6bbd33c05550c"
+ARG RUST_SHA256_X86="b8a4c3959367d053825e31f90a5eb86418eb0d80cacda52bfa80b078e18150d5"
+# Mount a cache into /rust/cargo if you want to pre-fetch packages or something
+ENV CARGO_HOME=/rust/cargo
+ENV RUSTUP_HOME=/rust/rustup
+RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
+    && chown -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
+    && MARCH=$(uname -m) \
+    && RUST_SHA256=$(if [ "$MARCH" = "x86_64" ]; then echo ${RUST_SHA256_X86}; elif [ "$MARCH" = "aarch64" ]; then echo ${RUST_SHA256_ARM}; fi) \
+    && FILENAME=rust-${RUST_VERSION}-${MARCH}-unknown-linux-gnu.tar.gz \
+    && curl -L --write-out '%{http_code}' -O https://static.rust-lang.org/dist/${FILENAME} \
+    && printf '%s  %s' "$RUST_SHA256" "$FILENAME" | sha256sum --check --status \
+    && tar -xf "$FILENAME" \
+    && cd ${FILENAME%.tar.gz} \
+    && ./install.sh --components="rustc,cargo,clippy-preview,rustfmt-preview,rust-std-${MARCH}-unknown-linux-gnu" \
+    && cd - \
+    && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
+
+ENV PATH="/rust/cargo/bin:${PATH}"
+
 # Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
 # be changed without an appropriate code review.
 ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /usr/bin/wait-for

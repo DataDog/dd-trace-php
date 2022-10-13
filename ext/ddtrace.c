@@ -1464,7 +1464,7 @@ static PHP_FUNCTION(integration_analytics_sample_rate) {
  */
 static PHP_FUNCTION(container_id) {
     UNUSED(execute_data);
-    char *id = ddshared_container_id();
+    const char *id = ddshared_container_id();
     if (id != NULL && id[0] != '\0') {
         RETVAL_STRING(id);
     } else {

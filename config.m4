@@ -4,6 +4,9 @@ PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,
 PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
   [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
+PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
+  [  --with-ddtrace-cargo Location to cargo binary for rust compilation], cargo, not found)
+
 if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_SIZEOF([long])
   AC_MSG_CHECKING([for 64-bit platform])
@@ -30,6 +33,18 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADERS([linux/securebits.h])
   AC_CHECK_HEADERS([linux/capability.h])
+
+  if test -n "$PHP_DDTRACE_CARGO" && test "$PHP_DDTRACE_CARGO" != "cargo"; then
+    if test -x "$PHP_DDTRACE_CARGO"; then
+      DDTRACE_CARGO="$PHP_DDTRACE_CARGO"
+    else
+      AC_MSG_ERROR([$PHP_DDTRACE_CARGO is not an executable])
+    fi
+  else
+    AC_CHECK_TOOL(DDTRACE_CARGO, cargo, [:])
+    AS_IF([test "$DDTRACE_CARGO" = ":"], [AC_MSG_ERROR([Please install cargo before configuring, or specify it with --with-ddtrace-cargo=])])
+  fi
+  PHP_SUBST(DDTRACE_CARGO)
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     EXTRA_LDFLAGS="-fsanitize=address"
@@ -220,4 +235,17 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/tracer_tag_propagation])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
+
+  dnl consider it debug if -g is specified (but not -g0)
+  ddtrace_cargodir=$(test "${CFLAGS#*-g}" != "${CFLAGS}" && test "${CFLAGS#*-g0}" == "${CFLAGS}" && echo debug || echo release)
+  cat <<EOT >> Makefile.fragments
+\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a: $(find "$ext_srcdir/components/rust" -name "*.rs" | xargs)
+	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargodir" == debug || echo --release))
+EOT
+
+  if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
+    shared_objects_ddtrace="\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a $shared_objects_ddtrace"
+  else
+    PHP_GLOBAL_OBJS="\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a $PHP_GLOBAL_OBJS"
+  fi
 fi

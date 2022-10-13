@@ -1,18 +1,20 @@
 #include "ddshared.h"
 
-#include <components/container_id/container_id.h>
+#include <components/rust/ddtrace.h>
 
 #include "ddtrace.h"
 #include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static char dd_container_id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
-
 void ddshared_minit(void) {
-    if (!datadog_php_container_id_from_file(dd_container_id, DDTRACE_G(cgroup_file))) {
-        ddtrace_log_debugf("Failed to parse cgroup file '%s'.", DDTRACE_G(cgroup_file));
-    }
+    ddtrace_set_container_cgroup_path((ddtrace_CharSlice){ .ptr = DDTRACE_G(cgroup_file), .len = strlen(DDTRACE_G(cgroup_file)) });
 }
 
-char *ddshared_container_id(void) { return dd_container_id; }
+const char *ddshared_container_id(void) {
+    ddtrace_CharSlice id = ddtrace_get_container_id();
+    if (id.len) {
+        return id.ptr;
+    }
+    return "";
+}

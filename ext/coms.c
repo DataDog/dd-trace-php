@@ -683,7 +683,7 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
     dd_append_header(&list, "Datadog-Meta-Lang-Version", PHP_VERSION);
     dd_append_header(&list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
 
-    char *id = ddshared_container_id();
+    const char *id = ddshared_container_id();
     if (id != NULL && id[0] != '\0') {
         dd_append_header(&list, "Datadog-Container-Id", id);
     }

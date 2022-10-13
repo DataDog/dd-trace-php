@@ -3,6 +3,6 @@
 
 void ddshared_minit(void);
 
-char *ddshared_container_id(void);
+const char *ddshared_container_id(void);
 
 #endif  // DD_TRACE_SHARED_H

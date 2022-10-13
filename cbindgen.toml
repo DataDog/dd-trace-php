@@ -1,0 +1,23 @@
+language = "C"
+tab_width = 4
+include_guard = "DDTRACE_PHP_H"
+style = "both"
+
+no_includes = true
+sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
+includes = ["common.h"]
+
+[export]
+prefix = "ddtrace_"
+
+[export.mangle]
+rename_types="SnakeCase"
+
+[enum]
+prefix_with_name = true
+rename_variants = "ScreamingSnakeCase"
+
+[parse]
+expand = ["ddtrace-php"]
+parse_deps = true
+include = ["ddcommon", "ddtelemetry", "ddcommon-ffi", "ddtelemetry-ffi"]

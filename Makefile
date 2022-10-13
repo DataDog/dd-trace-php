@@ -35,6 +35,7 @@ endif
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+RUST_FILES := $(shell find components/rust -name '*.rs' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_OPCACHE_FILES := $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -78,10 +79,10 @@ $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure)
 
-$(SO_FILE): $(C_FILES) $(BUILD_DIR)/Makefile
+$(SO_FILE): $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)"
 
-asan: $(C_FILES) $(BUILD_DIR)/Makefile
+asan: $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 	$(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS) -fsanitize=address" LDFLAGS="-fsanitize=address"
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
@@ -390,6 +391,17 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
+cbindgen:
+	if test -d $(PROJECT_ROOT)/tmp; then \
+		mkdir -pv "$(BUILD_DIR)"; \
+		export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
+	fi
+	cargo build --package tools --bins
+	cbindgen --crate ddcommon-ffi --config libdatadog/ddcommon-ffi/cbindgen.toml --output components/rust/common.h
+	cbindgen --crate ddtelemetry-ffi --config libdatadog/ddtelemetry-ffi/cbindgen.toml --output components/rust/ddtelemetry.h
+	cbindgen --crate ddtrace-php --config cbindgen.toml --output components/rust/ddtrace.h
+	"$(shell test -n "${CARGO_TARGET_DIR}" && echo "${CARGO_TARGET_DIR}" || echo target)"/debug/dedup_headers "components/rust/common.h" "components/rust/ddtelemetry.h" "components/rust/ddtrace.h"
+
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
 FPM_INFO_OPTS=-a $(ARCHITECTURE) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
@@ -437,7 +449,7 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \
-	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
+	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
 packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz
