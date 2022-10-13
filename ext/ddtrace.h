@@ -84,6 +84,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
     dogstatsd_client dogstatsd_client;
+    zend_bool in_shutdown;
 
     zend_long default_priority_sampling;
     zend_long propagated_priority_sampling;

@@ -421,6 +421,12 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
 }
 
 static void ddtrace_span_stack_dtor_obj(zend_object *object) {
+    // We must not invoke span stack destructors during zend_objects_store_call_destructors to avoid them not being present for appsec rshutdown
+    if (EG(current_execute_data) == NULL && !DDTRACE_G(in_shutdown)) {
+        GC_DEL_FLAGS(object, IS_OBJ_DESTRUCTOR_CALLED);
+        return;
+    }
+
     ddtrace_span_stack *stack = (ddtrace_span_stack *)object;
     ddtrace_span_data *top;
     while ((top = stack->active) && top->stack == stack) {
@@ -889,6 +895,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    DDTRACE_G(in_shutdown) = true;
+
     ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
     if (ddtrace_flush_tracer() == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
@@ -899,6 +907,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     // The hooks shall not be reset, just disabled at runtime.
     dd_shutdown_hooks_and_observer();
+
+    DDTRACE_G(in_shutdown) = false;
 
     return SUCCESS;
 }
