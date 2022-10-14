@@ -28,6 +28,18 @@ To see if the profiler is recognised by your PHP version as an extension you
 may run `php -d extension=target/debug/libdatadog_php_profiling.so --ri
 datadog-profiling` and check the output.
 
+The following commands will help you run the PHPT tests from
+[tests/phpt/](tests/phpt):
+
+```sh
+cp -v "$(find $(php-config --prefix) -name run-tests.php)" .
+export TEST_PHP_EXECUTABLE=$(which php)
+php run-tests.php -d extension=target/release/libdatadog_php_profiling.dylib tests/phpt
+```
+
+Be aware that the PHPT tests will fail with the debug version of the profiler,
+if you haven't already, build the release version with `cargo build --release`.
+
 ## Troubleshooting
 
 #### ld: symbol(s) not found for architecture arm64
