@@ -1,29 +1,5 @@
-[package]
-name = "ddtrace-php"
-version = "0.0.1"
-edition = "2021"
-
-[lib]
-crate-type = ["staticlib"]
-path = "components/rust/lib.rs"
-
-[dependencies]
-ddcommon = { path = "libdatadog/ddcommon" }
-ddcommon-ffi = { path = "libdatadog/ddcommon-ffi" }
-ddtelemetry-ffi = { path = "libdatadog/ddtelemetry-ffi" }
-paste = "1"
-
 [workspace]
-members = [
-    "libdatadog/ddcommon",
-    "libdatadog/ddcommon-ffi",
-    "libdatadog/ddtelemetry",
-    "libdatadog/ddtelemetry-ffi",
-    "libdatadog/tools",
-]
-exclude = ["libdatadog/Cargo.toml"]
-# https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2
-resolver = "2"
+members = ["components/rust"]
 
 [profile.dev]
 debug = 2 # full debug info

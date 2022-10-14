@@ -1,0 +1,17 @@
+[package]
+name = "ddtrace-php"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "dylib"]
+
+[dependencies]
+ddcommon = { path = "../../libdatadog/ddcommon" }
+ddcommon-ffi = { path = "../../libdatadog/ddcommon-ffi" }
+ddtelemetry-ffi = { path = "../../libdatadog/ddtelemetry-ffi" }
+paste = "1"
+
+[build-dependencies]
+cbindgen = "0.24"
+

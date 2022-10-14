@@ -391,16 +391,47 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
-cbindgen:
+cbindgen: components/rust/some_name_ffi.h components/rust/common.h components/rust/telemetry.h
+	( \
+	cd libdatadog; \
+	cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/some_name_ffi.h $(PROJECT_ROOT)/components/rust/telemetry.h \
+	)
+
+components/rust/common.h:
 	if test -d $(PROJECT_ROOT)/tmp; then \
 		mkdir -pv "$(BUILD_DIR)"; \
 		export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 	fi
-	cargo build --package tools --bins
-	cbindgen --crate ddcommon-ffi --config libdatadog/ddcommon-ffi/cbindgen.toml --output components/rust/common.h
-	cbindgen --crate ddtelemetry-ffi --config libdatadog/ddtelemetry-ffi/cbindgen.toml --output components/rust/ddtelemetry.h
-	cbindgen --crate ddtrace-php --config cbindgen.toml --output components/rust/ddtrace.h
-	"$(shell test -n "${CARGO_TARGET_DIR}" && echo "${CARGO_TARGET_DIR}" || echo target)"/debug/dedup_headers "components/rust/common.h" "components/rust/ddtelemetry.h" "components/rust/ddtrace.h"
+	( \
+	cd libdatadog; \
+	rustup run nightly -- cbindgen --crate ddcommon-ffi \
+    	--config ddcommon-ffi/cbindgen.toml \
+    	--output $(PROJECT_ROOT)/$@; \
+	)
+
+components/rust/telemetry.h:
+	if test -d $(PROJECT_ROOT)/tmp; then \
+		mkdir -pv "$(BUILD_DIR)"; \
+		export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
+	fi
+	( \
+		cd libdatadog; \
+		rustup run nightly -- cbindgen --crate "ddtelemetry-ffi"  \
+			--config ddtelemetry-ffi/cbindgen.toml \
+		--output $(PROJECT_ROOT)/$@; \
+	)
+
+components/rust/some_name_ffi.h: 
+	if test -d $(PROJECT_ROOT)/tmp; then \
+		mkdir -pv "$(BUILD_DIR)"; \
+		export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
+	fi
+	cargo run --example ffi_gen_headers > $@	
+	
+
+
+
+
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
