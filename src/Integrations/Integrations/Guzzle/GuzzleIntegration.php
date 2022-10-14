@@ -24,11 +24,6 @@ class GuzzleIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
         $integration = $this;
 
         /* Until we support both pre- and post- hooks on the same function, do
