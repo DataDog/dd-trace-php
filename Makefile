@@ -35,7 +35,7 @@ endif
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES := $(shell find components/rust -name '*.rs' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+RUST_FILES := $(BUILD_DIR)/Cargo.toml $(shell find components/rust -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_OPCACHE_FILES := $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -60,6 +60,12 @@ $(BUILD_DIR)/%.c: %.c
 	$(Q) echo Copying $*.c to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $*.c $@
+
+$(BUILD_DIR)/%Cargo.toml: %Cargo.toml
+	$(Q) echo Copying $*Cargo.toml to $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a $*Cargo.toml $@
+	sed -i 's/"..\/../"..\/..\/..\/../g' $@
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
@@ -391,47 +397,36 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
-cbindgen: components/rust/some_name_ffi.h components/rust/common.h components/rust/telemetry.h
-	( \
-	cd libdatadog; \
-	cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/some_name_ffi.h $(PROJECT_ROOT)/components/rust/telemetry.h \
-	)
-
-components/rust/common.h:
-	if test -d $(PROJECT_ROOT)/tmp; then \
-		mkdir -pv "$(BUILD_DIR)"; \
-		export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
-	fi
-	( \
-	cd libdatadog; \
-	rustup run nightly -- cbindgen --crate ddcommon-ffi \
-    	--config ddcommon-ffi/cbindgen.toml \
-    	--output $(PROJECT_ROOT)/$@; \
-	)
-
-components/rust/telemetry.h:
-	if test -d $(PROJECT_ROOT)/tmp; then \
-		mkdir -pv "$(BUILD_DIR)"; \
-		export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
-	fi
+cbindgen: components/rust/ddtrace.h components/rust/common.h components/rust/telemetry.h
 	( \
 		cd libdatadog; \
-		rustup run nightly -- cbindgen --crate "ddtelemetry-ffi"  \
-			--config ddtelemetry-ffi/cbindgen.toml \
-		--output $(PROJECT_ROOT)/$@; \
+		if test -d $(PROJECT_ROOT)/tmp; then \
+			mkdir -pv "$(BUILD_DIR)"; \
+			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
+		fi; \
+		cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/ddtrace.h $(PROJECT_ROOT)/components/rust/telemetry.h \
 	)
 
-components/rust/some_name_ffi.h: 
-	if test -d $(PROJECT_ROOT)/tmp; then \
-		mkdir -pv "$(BUILD_DIR)"; \
-		export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
-	fi
-	cargo run --example ffi_gen_headers > $@	
-	
+components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs)
+	( \
+		cd libdatadog; \
+		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
+			--config ddcommon-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/$@; \
+	)
 
+components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs)
+	( \
+		cd libdatadog; \
+		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
+			--config ddtelemetry-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/$@; \
+	)
 
-
-
+components/rust/ddtrace.h: $(wildcard components/rust/*.rs)
+	$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
+		--config cbindgen.toml \
+		--output $(PROJECT_ROOT)/$@;
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer

@@ -5,6 +5,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["staticlib", "dylib"]
+path = "lib.rs"
 
 [dependencies]
 ddcommon = { path = "../../libdatadog/ddcommon" }

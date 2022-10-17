@@ -95,6 +95,17 @@ typedef struct ddog_ParseTagsResult {
   struct ddog_Vec_u8 *error_message;
 } ddog_ParseTagsResult;
 
+/**
+ * Remember, the data inside of each member is potentially coming from FFI,
+ * so every operation on it is unsafe!
+ */
+typedef struct ddtrace_Slice_c_char {
+    const char *ptr;
+    uintptr_t len;
+} ddtrace_Slice_c_char;
+
+typedef struct ddtrace_Slice_c_char ddtrace_CharSlice;
+
 typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_ERROR,
   DDOG_LOG_LEVEL_WARN,
@@ -148,17 +159,6 @@ typedef struct ddog_Option_bool {
     };
   };
 } ddog_Option_bool;
-
-/**
- * Remember, the data inside of each member is potentially coming from FFI,
- * so every operation on it is unsafe!
- */
-typedef struct ddtrace_Slice_c_char {
-    const char *ptr;
-    uintptr_t len;
-} ddtrace_Slice_c_char;
-
-typedef struct ddtrace_Slice_c_char ddtrace_CharSlice;
 
 DDOG_CHECK_RETURN struct ddog_Vec_tag ddog_Vec_tag_new(void);
 
