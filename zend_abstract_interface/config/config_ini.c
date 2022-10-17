@@ -131,6 +131,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
     return name_index;
 }
 
+bool zai_config_is_initialized(void);
 static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     // ensure validity at any stage
     zai_config_id id;
@@ -161,6 +162,11 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
      * first-time RINIT. */
     if (stage != PHP_INI_STAGE_RUNTIME) {
         zai_config_dtor_pzval(&new_zv);
+        return SUCCESS;
+    }
+
+    if (!zai_config_is_initialized()) {
+        zval_dtor(&new_zv);
         return SUCCESS;
     }
 
