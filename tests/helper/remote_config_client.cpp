@@ -105,7 +105,7 @@ public:
     std::string app_version;
     std::string backend_client_state;
     int target_version;
-    std::string features;
+    std::string asm_features;
     std::string asm_dd;
     std::string apm_sampling;
     std::vector<std::string> products_str;
@@ -130,16 +130,16 @@ public:
         app_version = "some app version";
         backend_client_state = "some backend state here";
         target_version = 123;
-        features = "FEATURES";
+        asm_features = "ASM_FEATURES";
         asm_dd = "ASM_DD";
         apm_sampling = "APM_SAMPLING";
-        products_str = {asm_dd, features};
+        products_str = {asm_dd, asm_features};
 
-        first_product_product = features;
+        first_product_product = asm_features;
         first_product_id = "2.test1.config";
         first_path = "employee/" + first_product_product + "/" +
                      first_product_id + "/config";
-        second_product_product = features;
+        second_product_product = asm_features;
         second_product_id = "luke.steensen";
         second_path = "datadog/2/" + second_product_product + "/" +
                       second_product_id + "/config";
@@ -926,18 +926,20 @@ TEST_F(RemoteConfigClient, TestHashIsDifferentFromTheCache)
         "bWV0aGluZyIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAiZXhwaXJlcy"
         "I6ICIyMDIyLTExLTA0VDEzOjMxOjU5WiIsCiAgICAgICAgICAgICAgICAic3BlY192ZXJz"
         "aW9uIjogIjEuMC4wIiwKICAgICAgICAgICAgICAgICJ0YXJnZXRzIjogewogICAgICAgIC"
-        "AgICAgICAgICAgICAgICAiZW1wbG95ZWUvRkVBVFVSRVMvMi50ZXN0MS5jb25maWcvY29u"
-        "ZmlnIjogewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJjdXN0b20iOiB7Ci"
-        "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAidiI6IDEKICAgICAg"
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICAgIC"
-        "AgICAgICAgICJoYXNoZXMiOiB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg"
-        "ICAgICAgICAic2hhMjU2IjogInNvbWVfaGFzaCIKICAgICAgICAgICAgICAgICAgICAgIC"
-        "AgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJsZW5ndGgi"
-        "OiA0MQogICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9LAogIC"
-        "AgICAgICAgICAgICAgInZlcnNpb24iOiAyNzQ4NzE1NgogICAgICAgIH0KfQ==\", "
+        "AgICAgICAgICAgICAgICAiZW1wbG95ZWUvQVNNX0ZFQVRVUkVTLzIudGVzdDEuY29uZmln"
+        "L2NvbmZpZyI6IHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiY3VzdG9tIj"
+        "ogewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgInYiOiAxCiAg"
+        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgIC"
+        "AgICAgICAgICAgICAiaGFzaGVzIjogewogICAgICAgICAgICAgICAgICAgICAgICAgICAg"
+        "ICAgICAgICAgICAgInNoYTI1NiI6ICJzb21lX2hhc2giCiAgICAgICAgICAgICAgICAgIC"
+        "AgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAibGVu"
+        "Z3RoIjogNDEKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfS"
+        "wKICAgICAgICAgICAgICAgICJ2ZXJzaW9uIjogMjc0ODcxNTYKICAgICAgICB9Cn0=\", "
         "\"target_files\": [{\"path\": "
-        "\"employee/FEATURES/2.test1.config/config\", \"raw\": \"some_raw=\"}"
-        "], \"client_configs\": [\"employee/FEATURES/2.test1.config/config\"]"
+        "\"employee/ASM_FEATURES/2.test1.config/config\", \"raw\": "
+        "\"some_raw=\"}"
+        "], \"client_configs\": "
+        "[\"employee/ASM_FEATURES/2.test1.config/config\"]"
         "}";
 
     // This response has a cached file with different hash, it should not be
@@ -956,17 +958,18 @@ TEST_F(RemoteConfigClient, TestHashIsDifferentFromTheCache)
         "bWV0aGluZyIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAiZXhwaXJlcy"
         "I6ICIyMDIyLTExLTA0VDEzOjMxOjU5WiIsCiAgICAgICAgICAgICAgICAic3BlY192ZXJz"
         "aW9uIjogIjEuMC4wIiwKICAgICAgICAgICAgICAgICJ0YXJnZXRzIjogewogICAgICAgIC"
-        "AgICAgICAgICAgICAgICAiZW1wbG95ZWUvRkVBVFVSRVMvMi50ZXN0MS5jb25maWcvY29u"
-        "ZmlnIjogewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJjdXN0b20iOiB7Ci"
-        "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAidiI6IDEKICAgICAg"
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICAgIC"
-        "AgICAgICAgICJoYXNoZXMiOiB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg"
-        "ICAgICAgICAic2hhMjU2IjogInNvbWVfb3RoZXJfaGFzaCIKICAgICAgICAgICAgICAgIC"
-        "AgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJs"
-        "ZW5ndGgiOiA0MQogICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgIC"
-        "B9LAogICAgICAgICAgICAgICAgInZlcnNpb24iOiAyNzQ4NzE1NgogICAgICAgIH0KfQ=="
+        "AgICAgICAgICAgICAgICAiZW1wbG95ZWUvQVNNX0ZFQVRVUkVTLzIudGVzdDEuY29uZmln"
+        "L2NvbmZpZyI6IHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiY3VzdG9tIj"
+        "ogewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgInYiOiAxCiAg"
+        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgIC"
+        "AgICAgICAgICAgICAiaGFzaGVzIjogewogICAgICAgICAgICAgICAgICAgICAgICAgICAg"
+        "ICAgICAgICAgICAgInNoYTI1NiI6ICJzb21lX290aGVyX2hhc2giCiAgICAgICAgICAgIC"
+        "AgICAgICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg"
+        "ICAibGVuZ3RoIjogNDEKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgIC"
+        "AgICAgfSwKICAgICAgICAgICAgICAgICJ2ZXJzaW9uIjogMjc0ODcxNTYKICAgICAgICB9"
+        "Cn0="
         "\", \"target_files\": [], \"client_configs\": "
-        "[\"employee/FEATURES/2.test1.config/config\"] }";
+        "[\"employee/ASM_FEATURES/2.test1.config/config\"] }";
 
     std::string request_sent;
     EXPECT_CALL(*api, get_configs(_))
@@ -990,7 +993,7 @@ TEST_F(RemoteConfigClient, TestHashIsDifferentFromTheCache)
     EXPECT_EQ(remote_config::remote_config_result::error, result);
 
     EXPECT_TRUE(validate_request_has_error(request_sent, true,
-        "missing config employee/FEATURES/2.test1.config/config in "
+        "missing config employee/ASM_FEATURES/2.test1.config/config in "
         "target files and in cache files"));
 }
 
@@ -1012,18 +1015,20 @@ TEST_F(RemoteConfigClient, TestWhenFileGetsFromCacheItsCachedLenUsed)
         "bWV0aGluZyIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAiZXhwaXJlcy"
         "I6ICIyMDIyLTExLTA0VDEzOjMxOjU5WiIsCiAgICAgICAgICAgICAgICAic3BlY192ZXJz"
         "aW9uIjogIjEuMC4wIiwKICAgICAgICAgICAgICAgICJ0YXJnZXRzIjogewogICAgICAgIC"
-        "AgICAgICAgICAgICAgICAiZW1wbG95ZWUvRkVBVFVSRVMvMi50ZXN0MS5jb25maWcvY29u"
-        "ZmlnIjogewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJjdXN0b20iOiB7Ci"
-        "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAidiI6IDEKICAgICAg"
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICAgIC"
-        "AgICAgICAgICJoYXNoZXMiOiB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg"
-        "ICAgICAgICAic2hhMjU2IjogInNvbWVfaGFzaCIKICAgICAgICAgICAgICAgICAgICAgIC"
-        "AgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJsZW5ndGgi"
-        "OiA0MQogICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9LAogIC"
-        "AgICAgICAgICAgICAgInZlcnNpb24iOiAyNzQ4NzE1NgogICAgICAgIH0KfQ==\", "
+        "AgICAgICAgICAgICAgICAiZW1wbG95ZWUvQVNNX0ZFQVRVUkVTLzIudGVzdDEuY29uZmln"
+        "L2NvbmZpZyI6IHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiY3VzdG9tIj"
+        "ogewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgInYiOiAxCiAg"
+        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgIC"
+        "AgICAgICAgICAgICAiaGFzaGVzIjogewogICAgICAgICAgICAgICAgICAgICAgICAgICAg"
+        "ICAgICAgICAgICAgInNoYTI1NiI6ICJzb21lX2hhc2giCiAgICAgICAgICAgICAgICAgIC"
+        "AgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAibGVu"
+        "Z3RoIjogNDEKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfS"
+        "wKICAgICAgICAgICAgICAgICJ2ZXJzaW9uIjogMjc0ODcxNTYKICAgICAgICB9Cn0=\", "
         "\"target_files\": [{\"path\": "
-        "\"employee/FEATURES/2.test1.config/config\", \"raw\": \"some_raw=\"}"
-        "], \"client_configs\": [\"employee/FEATURES/2.test1.config/config\"]"
+        "\"employee/ASM_FEATURES/2.test1.config/config\", \"raw\": "
+        "\"some_raw=\"}"
+        "], \"client_configs\": "
+        "[\"employee/ASM_FEATURES/2.test1.config/config\"]"
         "}";
 
     // This response has a cached file with different len and version, it
@@ -1042,17 +1047,17 @@ TEST_F(RemoteConfigClient, TestWhenFileGetsFromCacheItsCachedLenUsed)
         "bWV0aGluZyIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAiZXhwaXJlcy"
         "I6ICIyMDIyLTExLTA0VDEzOjMxOjU5WiIsCiAgICAgICAgICAgICAgICAic3BlY192ZXJz"
         "aW9uIjogIjEuMC4wIiwKICAgICAgICAgICAgICAgICJ0YXJnZXRzIjogewogICAgICAgIC"
-        "AgICAgICAgICAgICAgICAiZW1wbG95ZWUvRkVBVFVSRVMvMi50ZXN0MS5jb25maWcvY29u"
-        "ZmlnIjogewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJjdXN0b20iOiB7Ci"
-        "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAidiI6IDQKICAgICAg"
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICAgIC"
-        "AgICAgICAgICJoYXNoZXMiOiB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg"
-        "ICAgICAgICAic2hhMjU2IjogInNvbWVfaGFzaCIKICAgICAgICAgICAgICAgICAgICAgIC"
-        "AgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJsZW5ndGgi"
-        "OiA1NQogICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9LAogIC"
-        "AgICAgICAgICAgICAgInZlcnNpb24iOiAyNzQ4NzE1NgogICAgICAgIH0KfQ==\", "
+        "AgICAgICAgICAgICAgICAiZW1wbG95ZWUvQVNNX0ZFQVRVUkVTLzIudGVzdDEuY29uZmln"
+        "L2NvbmZpZyI6IHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiY3VzdG9tIj"
+        "ogewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgInYiOiA0CiAg"
+        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgIC"
+        "AgICAgICAgICAgICAiaGFzaGVzIjogewogICAgICAgICAgICAgICAgICAgICAgICAgICAg"
+        "ICAgICAgICAgICAgInNoYTI1NiI6ICJzb21lX2hhc2giCiAgICAgICAgICAgICAgICAgIC"
+        "AgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAibGVu"
+        "Z3RoIjogNTUKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfS"
+        "wKICAgICAgICAgICAgICAgICJ2ZXJzaW9uIjogMjc0ODcxNTYKICAgICAgICB9Cn0=\", "
         "\"target_files\": [], \"client_configs\": "
-        "[\"employee/FEATURES/2.test1.config/config\"] }";
+        "[\"employee/ASM_FEATURES/2.test1.config/config\"] }";
 
     std::string request_sent;
     EXPECT_CALL(*api, get_configs(_))
