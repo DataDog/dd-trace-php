@@ -23,6 +23,6 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick);
  *     // don't forget!
  *     smart_str_free(&buf);
  */
-void ddtrace_startup_logging_json(smart_str *buf);
+void ddtrace_startup_logging_json(smart_str *buf, int options);
 
 #endif  // DD_TRACE_STARTUP_LOGGING_H

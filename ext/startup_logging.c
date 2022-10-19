@@ -306,14 +306,14 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     }
 }
 
-static void _dd_serialize_json(HashTable *ht, smart_str *buf) {
+static void _dd_serialize_json(HashTable *ht, smart_str *buf, int options) {
     zval zv;
     ZVAL_ARR(&zv, ht);
-    zai_json_encode(buf, &zv, 0);
+    zai_json_encode(buf, &zv, options);
     smart_str_0(buf);
 }
 
-void ddtrace_startup_logging_json(smart_str *buf) {
+void ddtrace_startup_logging_json(smart_str *buf, int options) {
     HashTable *ht;
     ALLOC_HASHTABLE(ht);
     zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
@@ -321,7 +321,7 @@ void ddtrace_startup_logging_json(smart_str *buf) {
     _dd_get_startup_config(ht);
     ddtrace_startup_diagnostics(ht, false);
 
-    _dd_serialize_json(ht, buf);
+    _dd_serialize_json(ht, buf, options);
 
     zend_hash_destroy(ht);
     FREE_HASHTABLE(ht);
@@ -367,7 +367,7 @@ void ddtrace_startup_logging_first_rinit(void) {
     _dd_get_startup_config(ht);
 
     smart_str buf = {0};
-    _dd_serialize_json(ht, &buf);
+    _dd_serialize_json(ht, &buf, 0);
     ddtrace_log_errf("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
     ddtrace_log_errf(
         "For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
