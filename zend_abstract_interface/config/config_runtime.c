@@ -20,6 +20,10 @@ void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
     ZVAL_COPY(rt_value, value);
 }
 
+bool zai_config_is_initialized(void) {
+    return runtime_config_initialized;
+}
+
 void zai_config_runtime_config_ctor(void) {
     if (runtime_config_initialized == true) return;
     runtime_config = emalloc(sizeof(zval) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
