@@ -25,16 +25,14 @@ cases where they are ABI compatible.
 The command `cargo test` will run the tests on the profiler.
 
 To see if the profiler is recognised by your PHP version as an extension you
-may run `php -d extension=target/debug/libdatadog_php_profiling.so --ri
-datadog-profiling` and check the output.
+may run `/path/to/php -d extension=target/debug/libdatadog_php_profiling.so
+--ri datadog-profiling` and check the output.
 
 The following commands will help you run the PHPT tests from
 [tests/phpt/](tests/phpt):
 
 ```sh
-cp -v "$(find $(php-config --prefix) -name run-tests.php)" .
-export TEST_PHP_EXECUTABLE=$(which php)
-php run-tests.php -d extension=target/release/libdatadog_php_profiling.dylib tests/phpt
+/path/to/php /path/to/run-tests.php -d extension=target/release/libdatadog_php_profiling.so tests/phpt
 ```
 
 Be aware that the PHPT tests will fail with the debug version of the profiler,
