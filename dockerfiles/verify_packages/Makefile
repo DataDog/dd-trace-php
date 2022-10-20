@@ -69,6 +69,7 @@ test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 test_appsec_install_disabled.sh \
 test_appsec_install_enabled.sh \
 test_first_install.sh \
+test_install_no_ldconfig_in_path.sh \
 test_install_without_scan_dir.sh \
 test_install_add_missing_ini_settings.sh \
 test_install_custom_installation_directory.sh \
