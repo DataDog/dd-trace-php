@@ -38,6 +38,12 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
+        $rootSpan = \DDTrace\root_span();
+
+        if (null === $rootSpan) {
+            return Integration::NOT_LOADED;
+        }
+
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'handle',
