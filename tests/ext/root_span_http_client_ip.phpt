@@ -3,6 +3,7 @@ Verify the client ip is added from the peer IP  when no XFF header is available.
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 REMOTE_ADDR=127.0.0.1
+DD_TRACE_CLIENT_IP_HEADER_DISABLED=false
 --FILE--
 <?php
 DDTrace\start_span();

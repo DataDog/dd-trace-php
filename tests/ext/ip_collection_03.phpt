@@ -1,8 +1,8 @@
 --TEST--
-Verify the client ip is added when x-forwarded-for header is present.
+Client IP should be collected if env DD_TRACE_CLIENT_IP_HEADER_DISABLED is set to false
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-HTTP_X_FORWARDED_FOR=7.7.7.7,10.0.0.1
+REMOTE_ADDR=127.0.0.1
 DD_TRACE_CLIENT_IP_HEADER_DISABLED=false
 --FILE--
 <?php
@@ -12,4 +12,4 @@ $span = dd_trace_serialize_closed_spans();
 var_dump($span[0]["meta"]["http.client_ip"]);
 ?>
 --EXPECTF--
-string(7) "7.7.7.7"
+string(9) "127.0.0.1"
