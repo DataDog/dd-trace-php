@@ -585,9 +585,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         }
     }
 
-    // When DD_TRACE_CLIENT_IP_HEADER_DISABLED is not set to FALSE by INI/ENV explicitly, IP should not be collected
-    bool client_ip_header_disabled_set_explicitly = zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLIENT_IP_HEADER_DISABLED].name_index != -1;
-    if (client_ip_header_disabled_set_explicitly && !get_DD_TRACE_CLIENT_IP_HEADER_DISABLED()) {
+    if (!get_DD_TRACE_CLIENT_IP_HEADER_DISABLED()) {
         if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
             ddtrace_extract_ip_from_headers(&PG(http_globals)[TRACK_VARS_SERVER], meta);
         }
