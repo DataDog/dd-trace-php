@@ -66,7 +66,7 @@ $helper->finished_with_commands();
 rinit
 bool(true)
 number of commands: 2
-object(DDTrace\SpanData)#%d (6) {
+object(DDTrace\SpanData)#%d (%d) {
   ["name"]=>
   string(17) "ddtrace_basic.php"
   ["service"]=>
@@ -85,6 +85,20 @@ object(DDTrace\SpanData)#%d (6) {
   }
   ["id"]=>
   string(%d) "%d"
+  ["parent"]=>
+  NULL
+  ["stack"]=>
+  object(DDTrace\SpanStack)#%d (2) {
+    ["parent"]=>
+    object(DDTrace\SpanStack)#%d (2) {
+      ["parent"]=>
+      NULL
+      ["active"]=>
+      NULL
+    }
+    ["active"]=>
+    *RECURSION*
+  }
 }
 trace id: %s
 ddtrace_rshutdown

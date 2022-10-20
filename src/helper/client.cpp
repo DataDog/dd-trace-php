@@ -228,7 +228,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     SPDLOG_DEBUG("received command request_shutdown");
 
     // Free the context at the end of request shutdown
-    auto free_ctx = defer([this](){ this->context_.reset(); });
+    auto free_ctx = defer([this]() { this->context_.reset(); });
 
     network::request_shutdown::response response;
     try {

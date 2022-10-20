@@ -6,6 +6,7 @@
 #include <php.h>
 
 #include "../commands_helpers.h"
+#include "../configuration.h"
 #include "../ddappsec.h"
 #include "../ddtrace.h"
 #include "../logging.h"
@@ -46,7 +47,7 @@ static dd_result _pack_command(
     mpack_start_map(w, 5);
     {
         dd_mpack_write_lstr(w, "rules_file");
-        const char *rules_file = DDAPPSEC_G(rules_file);
+        const char *rules_file = ZSTR_VAL(get_global_DD_APPSEC_RULES());
         bool has_rules_file = rules_file && *rules_file;
 
         if (!has_rules_file) {
@@ -57,16 +58,18 @@ static dd_result _pack_command(
         dd_mpack_write_nullable_cstr(w, rules_file);
     }
     dd_mpack_write_lstr(w, "waf_timeout_us");
-    mpack_write(w, (uint64_t)DDAPPSEC_G(waf_timeout_us));
+    mpack_write(w, get_global_DD_APPSEC_WAF_TIMEOUT());
 
     dd_mpack_write_lstr(w, "trace_rate_limit");
-    mpack_write(w, (uint32_t)DDAPPSEC_G(trace_rate_limit));
+    mpack_write(w, get_global_DD_APPSEC_TRACE_RATE_LIMIT());
 
     dd_mpack_write_lstr(w, "obfuscator_key_regex");
-    dd_mpack_write_nullable_cstr(w, DDAPPSEC_G(obfuscator_key_regex));
+    dd_mpack_write_nullable_cstr(
+        w, ZSTR_VAL(get_global_DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP()));
 
     dd_mpack_write_lstr(w, "obfuscator_value_regex");
-    dd_mpack_write_nullable_cstr(w, DDAPPSEC_G(obfuscator_value_regex));
+    dd_mpack_write_nullable_cstr(
+        w, ZSTR_VAL(get_global_DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP()));
 
     mpack_finish_map(w);
 

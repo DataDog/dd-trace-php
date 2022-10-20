@@ -21,14 +21,21 @@ jobs:
       fail-fast: false
       matrix:
         cfg:
-          - version: '7.0'
-          - version: '7.1'
-          - version: '7.2'
-          - version: '7.3'
-          - version: '7.4'
-          - version: '8.0'
-          - version: '8.1'
-    runs-on: ubuntu-18.04
+          - version: '7.0-release'
+          - version: '7.0-release-zts'
+          - version: '7.1-release'
+          - version: '7.1-release-zts'
+          - version: '7.2-release'
+          - version: '7.2-release-zts'
+          - version: '7.3-release'
+          - version: '7.3-release-zts'
+          - version: '7.4-release'
+          - version: '7.4-release-zts'
+          - version: '8.0-release'
+          - version: '8.0-release-zts'
+          - version: '8.1-release'
+          - version: '8.1-release-zts'
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -50,10 +57,9 @@ jobs:
         run: |
           docker pull datadog/dd-appsec-php-ci:toolchain
           docker pull datadog/dd-appsec-php-ci:hunter-cache
-          docker pull datadog/dd-appsec-php-ci:php-${{ matrix.cfg.version }}-release
-          docker pull datadog/dd-appsec-php-ci:php-${{ matrix.cfg.version }}-release-zts
+          docker pull datadog/dd-appsec-php-ci:php-${{ matrix.cfg.version }}
       - name: Run tests
         run: |
           cd tests/integration
           TERM=dumb ./gradlew --info --scan \
-            test${{ matrix.cfg.version }}-release test${{ matrix.cfg.version }}-release-zts
+            test${{ matrix.cfg.version }}

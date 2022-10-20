@@ -1,5 +1,5 @@
 option(DD_APPSEC_BUILD_TRACER "Whether to build the tracer from source" ON)
-set(DD_APPSEC_TRACER_VERSION "77e083b943458707e9e464d0e957263caa43b089" CACHE STRING "The tracer version to build or download")
+set(DD_APPSEC_TRACER_VERSION "77e083b943458707e9e464d0e957263caa43b089" CACHE STRING "The tracer version to download")
 
 add_library(tracer SHARED IMPORTED GLOBAL)
 
@@ -25,7 +25,7 @@ if(DD_APPSEC_BUILD_TRACER)
 
     include(ExternalProject)
     ExternalProject_Add(proj_tracer
-        URL         https://github.com/DataDog/dd-trace-php/archive/${DD_APPSEC_TRACER_VERSION}.tar.gz
+        SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ddtrace
         PREFIX      proj_tracer-${PHP_CONFIG_ZEND_API}
         CONFIGURE_COMMAND cd <SOURCE_DIR> && ${PHP_CONFIG_PHPIZE} &&
                           cd <BINARY_DIR> && <SOURCE_DIR>/configure --with-php-config=${PHP_CONFIG}

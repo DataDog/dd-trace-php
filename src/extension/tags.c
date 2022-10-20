@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "tags.h"
+#include "configuration.h"
 #include "ddappsec.h"
 #include "ddtrace.h"
 #include "ip_extraction.h"
@@ -115,7 +116,7 @@ void dd_tags_startup()
 
     _init_relevant_headers();
 
-    if (DDAPPSEC_G(testing)) {
+    if (get_global_DD_APPSEC_TESTING()) {
         _register_test_functions();
     }
 }
@@ -148,34 +149,8 @@ static void _init_relevant_headers()
 
 #undef ADD_RELEVANT_HEADER
 
-    const char *extra_headers_orig = DDAPPSEC_G(extra_headers);
-    char *extra_headers = estrdup(extra_headers_orig);
-
-    for (char *p = extra_headers, *start = extra_headers; *p; p++) {
-        char c = *p;
-        size_t len;
-        if (c == ',') {
-            len = p - start;
-        } else if (p[1] == '\0') {
-            len = p - start + 1;
-        } else {
-            continue;
-        }
-
-        if (len > INT_MAX) {
-            len = INT_MAX;
-        }
-        if (len > 0) {
-            dd_string_normalize_header(start, len);
-            mlog(dd_log_info,
-                "Adding header '%.*s' to the list of relevant headers",
-                (int)len, start);
-            zend_hash_str_add_new(&_relevant_headers, start, len, &nullzv);
-        }
-        start = p + 1;
-    }
-
-    efree(extra_headers);
+    zend_hash_copy(
+        &_relevant_headers, get_global_DD_APPSEC_EXTRA_HEADERS(), NULL);
 }
 
 void dd_tags_shutdown()
@@ -628,7 +603,7 @@ void _set_runtime_family()
 {
     bool res = dd_trace_root_span_add_tag_str(
         LSTRARG(DD_TAG_RUNTIME_FAMILY), LSTRARG("php"));
-    if (!res && !DDAPPSEC_G(testing)) {
+    if (!res && !get_global_DD_APPSEC_TESTING()) {
         mlog(dd_log_warning,
             "Failed to add " DD_TAG_RUNTIME_FAMILY " to root span");
     }

@@ -15,11 +15,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <pthread.h>
 #include <stdatomic.h>
 
 #include "commands/client_init.h"
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
+#include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
@@ -39,7 +41,7 @@ static atomic_int _thread_count;
 #endif
 
 static int _do_rinit(INIT_FUNC_ARGS);
-static void _register_ini_entries(void);
+static void _check_enabled(void);
 #ifdef TESTING
 static void _register_testing_objects(void);
 #endif
@@ -52,6 +54,11 @@ static PHP_MINFO_FUNCTION(ddappsec);
 static PHP_GINIT_FUNCTION(ddappsec);
 static PHP_GSHUTDOWN_FUNCTION(ddappsec);
 static int ddappsec_startup(zend_extension *extension);
+#if PHP_VERSION_ID < 80000
+int _post_deactivate(void);
+#else
+zend_result _post_deactivate(void);
+#endif
 
 ZEND_DECLARE_MODULE_GLOBALS(ddappsec)
 
@@ -76,7 +83,7 @@ static zend_module_entry ddappsec_module_entry = {
     PHP_MODULE_GLOBALS(ddappsec),
     PHP_GINIT(ddappsec),
     PHP_GSHUTDOWN(ddappsec),
-    NULL,
+    _post_deactivate,
     STANDARD_MODULE_PROPERTIES_EX
 };
 
@@ -151,15 +158,18 @@ static PHP_GINIT_FUNCTION(ddappsec)
 
 static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 {
+    dd_helper_gshutdown();
     // delay log shutdown until the last possible moment, so that TSRM
     // destructors can run with logging
 #if ZTS
     int prev = atomic_fetch_add(&_thread_count, -1);
     if (prev == 1) {
         dd_log_shutdown();
+        zai_config_mshutdown();
     }
 #else
     dd_log_shutdown();
+    zai_config_mshutdown();
 #endif
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
@@ -169,7 +179,6 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 static PHP_MINIT_FUNCTION(ddappsec)
 {
     UNUSED(type);
-    UNUSED(module_number);
 
     zend_module_entry *mod_ptr = zend_hash_str_find_ptr(&module_registry,
         PHP_DDAPPSEC_EXTNAME, sizeof(PHP_DDAPPSEC_EXTNAME) - 1);
@@ -177,7 +186,12 @@ static PHP_MINIT_FUNCTION(ddappsec)
     mod_ptr->handle = NULL;
 
     dd_phpobj_startup(module_number);
-    _register_ini_entries(); // depends on dd_phpobj_startup
+
+    if (!dd_config_minit(module_number)) {
+        return FAILURE;
+    }
+
+    _check_enabled();
     dd_log_startup();
 
 #ifdef TESTING
@@ -199,6 +213,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     UNUSED(type);
     UNUSED(module_number);
 
+    // no other thread is running now. reset config to global config only.
+    runtime_config_first_init = false;
+
     dd_tags_shutdown();
     dd_trace_shutdown();
     dd_helper_shutdown();
@@ -208,24 +225,14 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     return SUCCESS;
 }
 
-#ifndef ZTS
-static void _dd_rinit_once(void)
-{
-    if (strcmp(sapi_module.name, "fpm-fcgi") == 0) {
-        dd_phpobj_load_env_values();
-    }
-}
-static bool dd_rinit_once_done;
-#endif
+static pthread_once_t _rinit_config_once_control = PTHREAD_ONCE_INIT;
 
 static PHP_RINIT_FUNCTION(ddappsec)
 {
-#ifndef ZTS
-    if (!dd_rinit_once_done) {
-        _dd_rinit_once();
-        dd_rinit_once_done = true;
-    }
-#endif
+    pthread_once(&_rinit_config_once_control, dd_config_first_rinit);
+    zai_config_rinit();
+
+    _check_enabled();
 
     if (!DDAPPSEC_G(enabled)) {
         mlog_g(dd_log_debug, "Appsec disabled");
@@ -234,8 +241,8 @@ static PHP_RINIT_FUNCTION(ddappsec)
 
     DDAPPSEC_G(skip_rshutdown) = false;
 
-    if (UNEXPECTED(DDAPPSEC_G(testing))) {
-        if (DDAPPSEC_G(testing_abort_rinit)) {
+    if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
+        if (get_global_DD_APPSEC_TESTING_ABORT_RINIT()) {
             const char *pt = SG(request_info).path_translated;
             if (pt && !strstr(pt, "skip.php")) {
                 dd_request_abort_static_page();
@@ -296,7 +303,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddappsec)
         return SUCCESS;
     }
 
-    if (UNEXPECTED(DDAPPSEC_G(testing))) {
+    if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
         dd_tags_rshutdown_testing();
         return SUCCESS;
     }
@@ -326,6 +333,18 @@ int dd_appsec_rshutdown()
     return SUCCESS;
 }
 
+#if PHP_VERSION_ID < 80000
+int _post_deactivate(void)
+#else
+zend_result _post_deactivate(void)
+#endif
+{
+    // zai config may be accessed indirectly via other modules RSHUTDOWN, so
+    // delay this until the last possible time
+    zai_config_rshutdown();
+    return SUCCESS;
+}
+
 static PHP_MINFO_FUNCTION(ddappsec)
 {
     php_info_print_box_start(0);
@@ -347,101 +366,12 @@ static PHP_MINFO_FUNCTION(ddappsec)
 __thread void *unspecnull TSRMLS_CACHE = NULL;
 #endif
 
-static ZEND_INI_MH(_on_update_appsec_enabled);
-static ZEND_INI_MH(_on_update_appsec_enabled_on_cli);
-static ZEND_INI_MH(_on_update_unsigned);
-
-#define DEFAULT_OBFUSCATOR_KEY_REGEX                                           \
-    "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|"   \
-    "public_?)key)|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)|bearer|" \
-    "authorization"
-
-#define DEFAULT_OBFUSCATOR_VALUE_REGEX                                         \
-    "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|"   \
-    "public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|"       \
-    "secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:\\s*=[^;]|"    \
-    "\"\\s*:\\s*\"[^\"]+\")|bearer\\s+[a-z0-9\\._\\-]+|token:[a-z0-9]{13}|gh[" \
-    "opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=-]+\\.ey[I-L][\\w=-]+(?:\\.[\\w.+\\/"   \
-    "=-]+)?|[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-"  \
-    "z\\s]+PRIVATE\\sKEY|ssh-rsa\\s*[a-z0-9\\/\\.+]{100,}"
-
-static void _register_ini_entries()
+static void _check_enabled()
 {
-    // clang-format off
-    static const dd_ini_setting settings[] = {
-        DD_INI_ENV("enabled", "0", PHP_INI_SYSTEM, _on_update_appsec_enabled),
-        DD_INI_ENV("enabled_on_cli", "0", PHP_INI_SYSTEM, _on_update_appsec_enabled_on_cli),
-        DD_INI_ENV_GLOB("block", "0", PHP_INI_SYSTEM, OnUpdateBool, block, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("rules", "", PHP_INI_SYSTEM, OnUpdateString, rules_file, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("waf_timeout", "10000", PHP_INI_SYSTEM, OnUpdateLongGEZero, waf_timeout_us, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("trace_rate_limit", "100", PHP_INI_SYSTEM, _on_update_unsigned, trace_rate_limit, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("extra_headers", "", PHP_INI_SYSTEM, OnUpdateString, extra_headers, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("obfuscation_parameter_key_regexp", DEFAULT_OBFUSCATOR_KEY_REGEX, PHP_INI_SYSTEM, OnUpdateString, obfuscator_key_regex, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("obfuscation_parameter_value_regexp", DEFAULT_OBFUSCATOR_VALUE_REGEX, PHP_INI_SYSTEM, OnUpdateString, obfuscator_value_regex, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("testing", "0", PHP_INI_SYSTEM, OnUpdateBool, testing, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("testing_abort_rinit", "0", PHP_INI_SYSTEM, OnUpdateBool, testing_abort_rinit, zend_ddappsec_globals, ddappsec_globals),
-        DD_INI_ENV_GLOB("testing_raw_body", "0", PHP_INI_SYSTEM, OnUpdateBool, testing_raw_body, zend_ddappsec_globals, ddappsec_globals),
-        {0}
-    };
-    // clang-format on
-
-    dd_phpobj_reg_ini_envs(settings);
-}
-
-static ZEND_INI_MH(_on_update_appsec_enabled)
-{
-    ZEND_INI_MH_UNUSED();
-    // handle datadog.appsec.enabled
     bool is_cli =
         strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
-    if (is_cli) {
-        return SUCCESS;
-    }
-
-    bool ini_value = (bool)zend_ini_parse_bool(new_value);
-    bool *val = &DDAPPSEC_NOCACHE_G(enabled);
-    *val = ini_value;
-    return SUCCESS;
-}
-static ZEND_INI_MH(_on_update_appsec_enabled_on_cli)
-{
-    ZEND_INI_MH_UNUSED();
-    // handle datadog.appsec.enabled.cli
-    bool is_cli =
-        strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
-    if (!is_cli) {
-        return SUCCESS;
-    }
-
-    bool bvalue = (bool)zend_ini_parse_bool(new_value);
-    DDAPPSEC_NOCACHE_G(enabled) = bvalue;
-    return SUCCESS;
-}
-
-static ZEND_INI_MH(_on_update_unsigned)
-{
-    ZEND_INI_MH_UNUSED();
-
-    char *endptr = NULL;
-#define BASE 10
-    long ini_value = strtol(ZSTR_VAL(new_value), &endptr, BASE);
-
-    // If there is any error parsing, don't set the value.
-    if (endptr == ZSTR_VAL(new_value) || *endptr != '\0') {
-        return FAILURE;
-    }
-
-    if (ini_value < 0) {
-        // If we have a negative value, assume the rate limit is disabled
-        ini_value = 0;
-    } else if (ini_value > UINT32_MAX) {
-        // Limit the value to 32 bit max
-        ini_value = UINT32_MAX;
-    }
-
-    unsigned *val = &DDAPPSEC_NOCACHE_G(trace_rate_limit);
-    *val = ini_value;
-    return SUCCESS;
+    DDAPPSEC_NOCACHE_G(enabled) = is_cli ? get_global_DD_APPSEC_ENABLED_ON_CLI()
+                                         : get_global_DD_APPSEC_ENABLED();
 }
 
 static PHP_FUNCTION(datadog_appsec_is_enabled)
@@ -532,7 +462,7 @@ static void _register_testing_objects()
 {
     dd_phpobj_reg_funcs(functions);
 
-    if (!DDAPPSEC_G(testing)) {
+    if (!get_global_DD_APPSEC_TESTING()) {
         return;
     }
 

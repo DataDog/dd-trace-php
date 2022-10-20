@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "logging.h"
 #include "attributes.h"
+#include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "php_compat.h"
@@ -28,8 +29,6 @@ typedef enum {
     log_use_php_err_rep,
 } log_strategy;
 
-THREAD_LOCAL_ON_ZTS dd_log_level_t dd_log_level;
-
 #ifdef ZTS
 __thread char _dd_strerror_buf[1024]; // NOLINT
 #endif
@@ -44,7 +43,6 @@ static MUTEX_T _mutex;
 #endif
 static int _mlog_fd = -1;
 static log_strategy _log_strategy;
-static const char *_log_file;
 
 #define PHP_MSG_PREFIX "[ddappsec] "
 #define DEFAULT_LOG_FILE_NAME "ddog-appsec-php.log"
@@ -63,20 +61,10 @@ static void ATTR_FORMAT(2, 3)
 static int _log_level_to_syslog_pri(dd_log_level_t log_level);
 static void _format_time(
     char *buf, size_t buf_size, struct timespec *time, int precision);
-static ZEND_INI_MH(_on_update_log_level);
-static ZEND_INI_MH(_on_update_log_file);
 
 #ifdef TESTING
 static void _register_testing_objects(void);
 #endif
-
-// clang-format off
-static const dd_ini_setting ini_settings[] = {
-    DD_INI_ENV("log_level", "warn", PHP_INI_ALL, _on_update_log_level),
-    DD_INI_ENV("log_file", "php_error_reporting", PHP_INI_SYSTEM, _on_update_log_file),
-    {0}
-};
-// clang-format on
 
 static void _dd_log_errf(const char *format, ...)
 {
@@ -98,8 +86,6 @@ void dd_log_startup()
 #endif
 
     _find_strerror_r();
-
-    dd_phpobj_reg_ini_envs(ini_settings);
 
 #ifdef TESTING
     _register_testing_objects();
@@ -154,24 +140,24 @@ static void _ensure_init()
 static dd_result _do_dd_log_init() // guarded by mutex
 {
     const char *path = ""; // compiler can't tell it's always used initialized
+    zend_string *log_file = get_global_DD_APPSEC_LOG_FILE();
 
-    if (_log_file && *_log_file) {
-        size_t log_file_len = strlen(_log_file);
-        if (STR_CONS_EQ(_log_file, log_file_len, "syslog")) {
+    if (ZSTR_VAL(log_file)) {
+        if (zend_string_equals_literal(log_file, "syslog")) {
             openlog(SYSLOG_IDENT, LOG_PID, LOG_USER);
             _log_strategy = log_use_syslog;
-        } else if (STR_CONS_EQ(_log_file, log_file_len, "stdout")) {
+        } else if (zend_string_equals_literal(log_file, "stdout")) {
             _log_strategy = log_use_file;
             _mlog_fd = fileno(stdout);
-        } else if (STR_CONS_EQ(_log_file, log_file_len, "stderr")) {
+        } else if (zend_string_equals_literal(log_file, "stderr")) {
             _log_strategy = log_use_file;
             _mlog_fd = fileno(stderr);
-        } else if (STR_CONS_EQ(
-                       _log_file, log_file_len, "php_error_reporting")) {
+        } else if (zend_string_equals_literal(
+                       log_file, "php_error_reporting")) {
             _log_strategy = log_use_php_err_rep;
         } else {
             _log_strategy = log_use_file;
-            path = _log_file;
+            path = ZSTR_VAL(log_file);
         }
     } else {
         _log_strategy = log_use_php_err_rep;
@@ -184,8 +170,10 @@ static dd_result _do_dd_log_init() // guarded by mutex
     int at_request = PG(modules_activated) || PG(during_request_startup);
 
     // ignores open_basedir
+
     int mode = O_WRONLY | O_APPEND | O_NOFOLLOW;
-    if (DDAPPSEC_NOCACHE_G(testing)) {
+
+    if (get_global_DD_APPSEC_TESTING()) {
         mode |= O_TRUNC;
     }
     // Minit/Mshutdown are run by root on some sapis. Creating the log file as
@@ -425,7 +413,7 @@ void _mlog_relay(dd_log_level_t level, const char *nonnull format,
 {
     va_list args;
 
-    if (dd_log_level < level) {
+    if (dd_log_level() < level) {
         return;
     }
 
@@ -493,35 +481,21 @@ const char *nonnull _strerror_r(int err, char *nonnull buf, size_t buflen)
     return buf;
 }
 
-static ZEND_INI_MH(_on_update_log_level)
+bool dd_parse_log_level(
+    zai_string_view value, zval *nonnull decoded_value, bool persistent)
 {
-    ZEND_INI_MH_UNUSED();
-    if (!new_value || !ZSTR_VAL(new_value)[0]) {
-        return FAILURE;
+    UNUSED(persistent);
+    if (!value.len) {
+        return false;
     }
 
-    char *str_value = ZSTR_VAL(new_value);
-    int level = _dd_log_level_from_str(str_value);
+    int level = _dd_log_level_from_str(value.ptr);
     if (level == -1) {
-        return FAILURE;
+        return false;
     }
 
-    dd_log_level = level;
-    return SUCCESS;
-}
-static ZEND_INI_MH(_on_update_log_file)
-{
-    ZEND_INI_MH_UNUSED();
-    if (!new_value || !ZSTR_VAL(new_value)[0]) {
-        return FAILURE;
-    }
-    if (_log_strategy != log_use_nothing && ZSTR_VAL(new_value) != _log_file) {
-        _dd_log_errf("Cannot change datadog.appsec.log_file anymore");
-        return FAILURE; // change not possible already
-    }
-
-    _log_file = ZSTR_VAL(new_value);
-    return SUCCESS;
+    ZVAL_LONG(decoded_value, level);
+    return true;
 }
 
 #ifdef TESTING
@@ -579,7 +553,7 @@ static const zend_function_entry functions[] = {
 // clang-format on
 static void _register_testing_objects()
 {
-    if (!DDAPPSEC_G(testing)) {
+    if (!get_global_DD_APPSEC_TESTING()) {
         return;
     }
 

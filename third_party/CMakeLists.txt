@@ -38,6 +38,37 @@ if(DD_APPSEC_BUILD_EXTENSION)
     else()
         target_compile_definitions(mpack PUBLIC MPACK_STDIO=0 MPACK_WRITE_TRACKING=1 MPACK_BUFFER_SIZE=131072)
     endif()
+
+    # DDTrace ZAI
+    find_program(PHP_CONFIG php-config)
+    execute_process(
+            COMMAND ${PHP_CONFIG} --includes
+            RESULT_VARIABLE PHP_CONFIG_INCLUDES_RESULT
+            OUTPUT_VARIABLE PHP_CONFIG_INCLUDES
+            ERROR_VARIABLE PHP_CONFIG_INCLUDES_ERR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    set(ZAI_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/zend_abstract_interface")
+    if("${PHP_CONFIG_INCLUDES_RESULT}" STREQUAL "0")
+        string(REPLACE "-I " "-I" PHP_INCLUDES "${PHP_CONFIG_INCLUDES} -I${ZAI_INCLUDES}")
+        string(REPLACE "-I" "-isystem" PHP_INCLUDES "${PHP_INCLUDES}")
+        string(REPLACE " " ";" PHP_INCLUDES "${PHP_INCLUDES}")
+        message(STATUS "Using PHP include flags: ${PHP_INCLUDES}")
+    else()
+        message(FATAL_ERROR "Error executing ${PHP_CONFIG} --includes: ${PHP_CONFIG_INCLUDES_ERR}")
+    endif()
+
+    set(ZAI_MODULES json env config)
+    add_library(zai_zend_abstract_interface INTERFACE)
+    target_include_directories(zai_zend_abstract_interface INTERFACE ${ZAI_INCLUDES})
+    add_subdirectory(ddtrace/zend_abstract_interface/zai_string)
+    foreach(module json env config)
+        set(module_name "zai_${module}")
+        add_subdirectory(ddtrace/zend_abstract_interface/${module})
+        set_target_properties(${module_name} PROPERTIES POSITION_INDEPENDENT_CODE 1)
+        target_compile_options(${module_name} PRIVATE ${PHP_INCLUDES})
+    endforeach()
 endif()
 
 FetchContent_Declare(
@@ -49,7 +80,7 @@ FetchContent_MakeAvailable(spdlog)
 
 include(ExternalProject)
 ExternalProject_Add(event_rules
-    GIT_REPOSITORY git@github.com:DataDog/appsec-event-rules.git
+    GIT_REPOSITORY https://github.com/DataDog/appsec-event-rules.git
     GIT_TAG 1.4.0
     GIT_SHALLOW ON
     CONFIGURE_COMMAND ""

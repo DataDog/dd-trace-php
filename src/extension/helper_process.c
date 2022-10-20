@@ -25,6 +25,7 @@
 #include <zend_types.h>
 
 #define HELPER_PROCESS_C_INCLUDES
+#include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "helper_process.h"
@@ -48,19 +49,6 @@ typedef struct _dd_helper_mgr {
     char *nonnull lock_path;
 } dd_helper_mgr;
 
-typedef enum {
-    helper_launch_disabled,
-    helper_launch_suppressed,
-    helper_launch_ready_to_launch,
-} helper_status;
-
-static THREAD_LOCAL_ON_ZTS bool _launch_helper;
-static THREAD_LOCAL_ON_ZTS struct {
-    const char *nonnull binary_path;
-    const char *nonnull runtime_path;
-    const char *nonnull helper_log_file;
-    const char *nonnull helper_extra_args;
-} _config;
 static atomic_int _launch_failure_fd_lock;
 
 static THREAD_LOCAL_ON_ZTS dd_helper_mgr _mgr;
@@ -74,25 +62,8 @@ static const int timeout_send = 500;
 static const int timeout_recv_initial = 7500;
 static const int timeout_recv_subseq = 2000;
 
-static ZEND_INI_MH(_on_update_launch_flag);
-static ZEND_INI_MH(_on_update_config_string);
-
-#define DD_BASE(path) "/opt/datadog-php/" path
-#define DD_RUN(path) "/var/run/"
-
 #define DD_SOCKET_PATH "ddappsec_" PHP_DDAPPSEC_VERSION ".sock"
 #define DD_LOCK_PATH "ddappsec_" PHP_DDAPPSEC_VERSION ".lock"
-
-// clang-format off
-static const zend_ini_entry_def ini_entries[] = {
-    PHP_INI_ENTRY("datadog.appsec.helper_launch", "1", PHP_INI_SYSTEM, _on_update_launch_flag)
-    PHP_INI_ENTRY1_EX("datadog.appsec.helper_path", DD_BASE("bin/ddappsec-helper"), PHP_INI_SYSTEM, _on_update_config_string, (void*)0, NULL)
-    PHP_INI_ENTRY1_EX("datadog.appsec.helper_runtime_path", "/tmp/", PHP_INI_SYSTEM, _on_update_config_string, (void*)1, NULL)
-    PHP_INI_ENTRY1_EX("datadog.appsec.helper_log_file", "/dev/null", PHP_INI_SYSTEM, _on_update_config_string, (void*)2, NULL)
-    PHP_INI_ENTRY1_EX("datadog.appsec.helper_extra_args", "", PHP_INI_SYSTEM, _on_update_config_string, (void*)3, NULL)
-    {0}
-};
-// clang-format on
 
 #ifndef CLOCK_MONOTONIC_COARSE
 #    define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
@@ -103,7 +74,6 @@ static void _register_testing_objects(void);
 
 void dd_helper_startup(void)
 {
-    dd_phpobj_reg_ini(ini_entries);
     atomic_store(&_launch_failure_fd_lock, -1);
 #ifdef TESTING
     _register_testing_objects();
@@ -119,7 +89,10 @@ void dd_helper_shutdown(void)
         atomic_store(&_launch_failure_fd_lock, -1);
         close(failure_lock_fd);
     }
+}
 
+void dd_helper_gshutdown()
+{
     pefree(_mgr.socket_path, 1);
     pefree(_mgr.lock_path, 1);
 }
@@ -145,6 +118,10 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(client_init_func nonnull init_func)
     if (_wait_for_next_retry()) {
         return NULL;
     }
+
+    zval runtime_path;
+    ZVAL_STR(&runtime_path, get_DD_APPSEC_HELPER_RUNTIME_PATH());
+    dd_on_runtime_path_update(NULL, &runtime_path);
 
     bool retry = false;
     for (int attempt = 0;; attempt++) {
@@ -239,22 +216,20 @@ static char *_concat_paths(const char *nonnull base, size_t base_len,
     return ret;
 }
 
-static void _set_runtime_paths()
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val)
 {
-    if (_config.runtime_path == NULL) {
-        mlog(dd_log_warning, "Empty runtime path");
-        return;
-    }
-
-    size_t runtime_path_len = strlen(_config.runtime_path);
+    UNUSED(old_val);
 
     pefree(_mgr.socket_path, 1);
     _mgr.socket_path = _concat_paths(
-        _config.runtime_path, runtime_path_len, ZEND_STRL(DD_SOCKET_PATH));
+        Z_STRVAL_P(new_val), Z_STRLEN_P(new_val), ZEND_STRL(DD_SOCKET_PATH));
 
     pefree(_mgr.lock_path, 1);
     _mgr.lock_path = _concat_paths(
-        _config.runtime_path, runtime_path_len, ZEND_STRL(DD_LOCK_PATH));
+        Z_STRVAL_P(new_val), Z_STRLEN_P(new_val), ZEND_STRL(DD_LOCK_PATH));
+
+    return true;
 }
 
 // returns true if an attempt to connectt should not be made yet
@@ -284,14 +259,14 @@ static void _connection_succeeded()
 {
     _mgr.connected_this_req = true;
     _mgr.failed_count = 0;
-    _mgr.next_retry = (typeof(_mgr.next_retry)){0};
+    _mgr.next_retry = (struct timespec){0};
 }
 
 static int /* fd */ _acquire_lock(void);
 static dd_result _launch_helper_daemon(int lock_fd);
 static bool _maybe_launch_helper()
 {
-    if (!_launch_helper) {
+    if (!get_global_DD_APPSEC_HELPER_LAUNCH()) {
         mlog(dd_log_debug, "Will not try to launch daemon due to ini "
                            "datadog.appsec.launch_helper");
         return false;
@@ -351,7 +326,7 @@ static void _inc_failed_counter()
 static void _prevent_launch_attempts(int lock_fd /* -1 to acquire it */)
 {
     if (lock_fd == -1) {
-        int lock_fd = _acquire_lock();
+        lock_fd = _acquire_lock();
         if (lock_fd == -1) {
             mlog(dd_log_info,
                 "Could not acquire exclusive lock to prevent helper "
@@ -417,7 +392,7 @@ static dd_result _launch_helper_daemon(int lock_fd)
 {
     int log_mode = O_WRONLY | O_CREAT;
 #ifdef TESTING
-    if (DDAPPSEC_G(testing)) {
+    if (get_global_DD_APPSEC_TESTING()) {
         log_mode |= O_TRUNC;
     } else {
         log_mode |= O_APPEND;
@@ -425,13 +400,14 @@ static dd_result _launch_helper_daemon(int lock_fd)
 #else
     log_mode |= O_APPEND;
 #endif
-    int log_fd = open(_config.helper_log_file, log_mode, 0600); // NOLINT
+    char *helperlog = ZSTR_VAL(get_global_DD_APPSEC_HELPER_LOG_FILE());
+    int log_fd = open(helperlog, log_mode, 0600); // NOLINT
     if (log_fd == -1) {
-        mlog_err(dd_log_warning, "Could not open log file for helper %s",
-            _config.helper_log_file);
+        mlog_err(
+            dd_log_warning, "Could not open log file for helper %s", helperlog);
         return dd_error;
     }
-    mlog_g(dd_log_debug, "Opened helper log at %s", _config.helper_log_file);
+    mlog_g(dd_log_debug, "Opened helper log at %s", helperlog);
 
     int sock_fd = _open_socket_for_helper();
     if (sock_fd == -1) {
@@ -439,15 +415,16 @@ static dd_result _launch_helper_daemon(int lock_fd)
         return dd_error;
     }
 
-    mlog_g(dd_log_debug, "The executable to launch is %s", _config.binary_path);
+    char *binary = ZSTR_VAL(get_DD_APPSEC_HELPER_PATH());
+    mlog_g(dd_log_debug, "The executable to launch is %s", binary);
 
     char **argv;
     {
         char *args;
-        spprintf(&args, 0, "%s%s--lock_path - --socket_path fd:%d",
-            _config.helper_extra_args, *_config.helper_extra_args ? " " : "",
-            sock_fd);
-        argv = _split_params(_config.binary_path, args);
+        char *extra_args = ZSTR_VAL(get_DD_APPSEC_HELPER_EXTRA_ARGS());
+        spprintf(&args, 0, "%s%s--lock_path - --socket_path fd:%d", extra_args,
+            *extra_args ? " " : "", sock_fd);
+        argv = _split_params(binary, args);
         efree(args);
     }
     if (!argv) {
@@ -456,7 +433,7 @@ static dd_result _launch_helper_daemon(int lock_fd)
         close(sock_fd);
         return dd_error;
     }
-    if (dd_log_level >= dd_log_debug) {
+    if (dd_log_level() >= dd_log_debug) {
         for (char **arg = argv + 1; *arg; arg++) {
             mlog(dd_log_debug, "    argument: %s", *arg);
         }
@@ -886,39 +863,6 @@ void dd_helper_close_conn()
     }
 }
 
-static ZEND_INI_MH(_on_update_launch_flag)
-{
-    ZEND_INI_MH_UNUSED();
-    if (!new_value || !ZSTR_VAL(new_value)[0]) {
-        _launch_helper = false;
-    } else {
-        _launch_helper = (bool)zend_ini_parse_bool(new_value);
-    }
-    return SUCCESS;
-}
-static ZEND_INI_MH(_on_update_config_string)
-{
-    ZEND_INI_MH_UNUSED();
-    if (!new_value) {
-        return FAILURE;
-    }
-    if (!ZSTR_VAL(new_value)[0] && !zend_string_equals_literal(entry->name,
-                                       "datadog.appsec.helper_extra_args")) {
-        return FAILURE;
-    }
-
-    const char *nonnull *nonnull target =
-        (const char **)&_config + (uintptr_t)mh_arg1;
-    *target = ZSTR_VAL(new_value);
-
-    if (zend_string_equals_literal(
-            entry->name, "datadog.appsec.helper_runtime_path")) {
-        _set_runtime_paths();
-    }
-
-    return SUCCESS;
-}
-
 #ifdef TESTING
 static PHP_FUNCTION(datadog_appsec_testing_set_helper_path)
 {
@@ -927,9 +871,11 @@ static PHP_FUNCTION(datadog_appsec_testing_set_helper_path)
         RETURN_FALSE;
     }
 
-    static THREAD_LOCAL_ON_ZTS char *str;
-    str = ZSTR_VAL(zstr);
-    _config.binary_path = str;
+    zend_alter_ini_entry(
+        zai_config_memoized_entries[DDAPPSEC_CONFIG_DD_APPSEC_HELPER_PATH]
+            .ini_entries[0]
+            ->name,
+        zstr, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
 }
 static PHP_FUNCTION(datadog_appsec_testing_set_helper_extra_args)
 {
@@ -938,9 +884,11 @@ static PHP_FUNCTION(datadog_appsec_testing_set_helper_extra_args)
         RETURN_FALSE;
     }
 
-    static THREAD_LOCAL_ON_ZTS char *str;
-    str = ZSTR_VAL(zstr);
-    _config.helper_extra_args = str;
+    zend_alter_ini_entry(
+        zai_config_memoized_entries[DDAPPSEC_CONFIG_DD_APPSEC_HELPER_EXTRA_ARGS]
+            .ini_entries[0]
+            ->name,
+        zstr, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
 }
 static PHP_FUNCTION(datadog_appsec_testing_get_helper_argv)
 {
@@ -949,7 +897,8 @@ static PHP_FUNCTION(datadog_appsec_testing_get_helper_argv)
         return;
     }
 
-    char **argv = _split_params(_config.binary_path, _config.helper_extra_args);
+    char **argv = _split_params(ZSTR_VAL(get_DD_APPSEC_HELPER_PATH()),
+        ZSTR_VAL(get_DD_APPSEC_HELPER_EXTRA_ARGS()));
     if (!argv) {
         return;
     }
@@ -1013,7 +962,7 @@ static const zend_function_entry functions[] = {
 
 static void _register_testing_objects()
 {
-    if (!DDAPPSEC_G(testing)) {
+    if (!get_global_DD_APPSEC_TESTING()) {
         return;
     }
 

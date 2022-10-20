@@ -1,7 +1,7 @@
 --TEST--
 Test full set of ancillary tags
 --INI--
-datadog.appsec.extra_headers=,mY-header,,my_other_header
+datadog.appsec.extra_headers=,mY-header,,my-other-header
 --ENV--
 REQUEST_URI=/my/ur%69/
 SCRIPT_NAME=/my/uri.php

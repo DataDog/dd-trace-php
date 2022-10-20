@@ -15,7 +15,7 @@ set_target_properties(extension PROPERTIES
     DEBUG_POSTFIX ""
     PREFIX "")
 target_compile_definitions(extension PRIVATE TESTING=1 ZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
-target_link_libraries(extension PRIVATE mpack)
+target_link_libraries(extension PRIVATE mpack zai_zend_abstract_interface)
 
 macro(target_linker_flag_conditional target) # flags as argv
     try_compile(LINKER_HAS_FLAG "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check.c"

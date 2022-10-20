@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "attributes.h"
+#include "configuration.h"
 #include "ddappsec.h"
 #include "logging.h"
 #include "php_compat.h"
@@ -257,7 +258,7 @@ static void _emit_error(const char *format, ...)
     if (PG(during_request_startup)) {
         /* if emitting error during startup, RSHUTDOWN will not run (except fpm)
          * so we need to run the same logic from here */
-        if (!DDAPPSEC_G(testing)) {
+        if (!get_global_DD_APPSEC_TESTING()) {
             mlog_g(
                 dd_log_debug, "Running our RSHUTDOWN before aborting request");
             dd_appsec_rshutdown();
@@ -369,7 +370,7 @@ static const zend_function_entry functions[] = {
 
 void dd_request_abort_startup()
 {
-    if (!DDAPPSEC_G(testing)) {
+    if (!get_global_DD_APPSEC_TESTING()) {
         return;
     }
 

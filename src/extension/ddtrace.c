@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "configuration.h"
 #include "ddappsec.h"
 #include "logging.h"
 #include "php_compat.h"
@@ -30,7 +31,7 @@ static bool (*nullable _ddtrace_root_span_add_tag)(zend_string *, zval *);
 
 static void dd_trace_load_symbols(void)
 {
-    bool testing = DDAPPSEC_G(testing);
+    bool testing = get_global_DD_APPSEC_TESTING();
     void *handle = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL);
     if (handle == NULL) {
         if (!testing) {
@@ -58,7 +59,7 @@ void dd_trace_startup()
     _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
     _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
 
-    if (DDAPPSEC_G(testing)) {
+    if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
     }
 
@@ -70,7 +71,7 @@ void dd_trace_startup()
     _mod_type = mod->type;
     _mod_number = mod->module_number;
 
-    if (DDAPPSEC_G(testing)) {
+    if (get_global_DD_APPSEC_TESTING()) {
         _orig_ddtrace_shutdown = mod->request_shutdown_func;
         mod->request_shutdown_func = _ddtrace_rshutdown_testing;
     }
@@ -191,7 +192,7 @@ static zval *nullable _root_span_get_prop(zend_string *propname)
 
     int res = zend_call_function(&fci, &fci_cache);
     if (res != SUCCESS) {
-        mlog(DDAPPSEC_G(testing) ? dd_log_debug : dd_log_warning,
+        mlog(get_global_DD_APPSEC_TESTING() ? dd_log_debug : dd_log_warning,
             "Call to \\ddtrace\\root_span failed");
         zend_object *exc = EG(exception);
         if (exc) {

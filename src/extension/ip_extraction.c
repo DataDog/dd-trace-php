@@ -6,6 +6,7 @@
 
 #include "ip_extraction.h"
 #include "attributes.h"
+#include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "logging.h"
@@ -33,39 +34,28 @@ static zend_string *nonnull _x_forwarded_for_key, *nonnull _x_real_ip_key,
     *nonnull _forwarded_key, *nonnull _via_key, *nonnull _true_client_ip_key,
     *nonnull _remote_addr_key;
 
-static THREAD_LOCAL_ON_ZTS zend_string *nullable _ipheader;
-
 typedef bool (*extract_func_t)(zend_string *nonnull value, ipaddr *nonnull out);
 
-static ZEND_INI_MH(_on_update_ipheader);
-
-// clang-format off
-static const dd_ini_setting ini_settings[] = {
-    DD_INI_ENV("ipheader", "", PHP_INI_SYSTEM, _on_update_ipheader),
-    {0}
-};
-// clang-format on
-
-static ZEND_INI_MH(_on_update_ipheader)
+bool dd_parse_ipheader_config(
+    zai_string_view value, zval *nonnull decoded_value, bool persistent)
 {
-    ZEND_INI_MH_UNUSED();
-    if (_ipheader) {
-        zend_string_release(_ipheader);
+    if (!value.ptr[0]) {
+        if (persistent) {
+            ZVAL_EMPTY_PSTRING(decoded_value);
+        } else {
+            ZVAL_EMPTY_STRING(decoded_value);
+        }
+        return true;
     }
 
-    if (!new_value || !ZSTR_VAL(new_value)[0]) {
-        _ipheader = NULL;
-        return SUCCESS;
-    }
+    size_t key_len = LSTRLEN("HTTP_") + value.len;
 
-    size_t key_len = LSTRLEN("HTTP_") + ZSTR_LEN(new_value);
-
-    zend_string *normalized_value = zend_string_alloc(key_len, 1);
-    char *out = ZSTR_VAL(normalized_value);
+    ZVAL_STR(decoded_value, zend_string_alloc(key_len, persistent));
+    char *out = Z_STRVAL_P(decoded_value);
     memcpy(out, ZEND_STRL("HTTP_"));
     out += LSTRLEN("HTTP_");
-    const char *end = ZSTR_VAL(new_value) + ZSTR_LEN(new_value);
-    for (const char *p = ZSTR_VAL(new_value); p != end; p++) {
+    const char *end = value.ptr + value.len;
+    for (const char *p = value.ptr; p != end; p++) {
         char c = *p;
         if (c >= 'a' && c <= 'z') {
             c = (char)(c - 'a' + 'A');
@@ -76,16 +66,13 @@ static ZEND_INI_MH(_on_update_ipheader)
     }
     *out = '\0';
 
-    _ipheader = normalized_value;
-
-    return SUCCESS;
+    return true;
 }
 
 static void _register_testing_objects(void);
 
 void dd_ip_extraction_startup()
 {
-    dd_phpobj_reg_ini_envs(ini_settings);
     _x_forwarded_for_key =
         zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED_FOR"), 1);
     _x_real_ip_key = zend_string_init_interned(ZEND_STRL("HTTP_X_REAL_IP"), 1);
@@ -121,8 +108,9 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
 {
     zend_string *res;
 
-    if (_ipheader) {
-        zend_string *value = _fetch_arr_str(server, _ipheader);
+    zend_string *ipheader = get_global_DD_APPSEC_IPHEADER();
+    if (ZSTR_LEN(ipheader)) {
+        zend_string *value = _fetch_arr_str(server, ipheader);
         if (!value) {
             return NULL;
         }
@@ -598,7 +586,7 @@ static const zend_function_entry functions[] = {
 
 static void _register_testing_objects()
 {
-    if (!DDAPPSEC_G(testing)) {
+    if (!get_global_DD_APPSEC_TESTING()) {
         return;
     }
 
