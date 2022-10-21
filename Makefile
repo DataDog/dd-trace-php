@@ -65,7 +65,7 @@ $(BUILD_DIR)/%Cargo.toml: %Cargo.toml
 	$(Q) echo Copying $*Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $*Cargo.toml $@
-	sed -i 's/"..\/../"..\/..\/..\/../g' $@
+	sed -i 's/"..\/../"..\/..\/..\/../g; s/, "profiling"//' $@
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
@@ -407,7 +407,7 @@ cbindgen: components/rust/ddtrace.h components/rust/common.h components/rust/tel
 		cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/ddtrace.h $(PROJECT_ROOT)/components/rust/telemetry.h \
 	)
 
-components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs)
+components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs) libdatadog/ddcommon-ffi/cbindgen.toml
 	( \
 		cd libdatadog; \
 		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
@@ -415,7 +415,7 @@ components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs)
 			--output $(PROJECT_ROOT)/$@; \
 	)
 
-components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs)
+components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs) libdatadog/ddtelemetry-ffi/cbindgen.toml components/rust/common.h
 	( \
 		cd libdatadog; \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
@@ -423,7 +423,7 @@ components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs)
 			--output $(PROJECT_ROOT)/$@; \
 	)
 
-components/rust/ddtrace.h: $(wildcard components/rust/*.rs)
+components/rust/ddtrace.h: $(wildcard components/rust/*.rs) cbindgen.toml components/rust/common.h
 	$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
 		--config cbindgen.toml \
 		--output $(PROJECT_ROOT)/$@;

@@ -79,6 +79,10 @@ lazy_static! {
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
 static RUNTIME_ID: OnceCell<Uuid> = OnceCell::new();
+/// If ddtrace is loaded, we fetch the uuid from there instead
+extern "C" {
+    pub static ddtrace_runtime_id: *Uuid;
+}
 
 /// The Server API the profiler is running under.
 static SAPI: OnceCell<Sapi> = OnceCell::new();
@@ -417,7 +421,7 @@ thread_local! {
 
 /// Gets the runtime-id for the process.
 fn runtime_id() -> Uuid {
-    *RUNTIME_ID.get_or_init(Uuid::new_v4)
+    *RUNTIME_ID.get_or_init(unsafe { ddtrace_runtime_id.as_ref() }.or_else(Uuid::new_v4))
 }
 
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,

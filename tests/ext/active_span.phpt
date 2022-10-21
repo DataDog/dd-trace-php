@@ -34,7 +34,9 @@ object(DDTrace\SpanData)#%d (8) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(0) {
+  array(1) {
+    ["runtime-id"]=>
+    string(36) "%s"
   }
   ["metrics"]=>
   array(1) {

@@ -44,13 +44,15 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(4) {
+    array(5) {
       ["_dd.p.custom_tag"]=>
       string(9) "inherited"
       ["_dd.propagation_error"]=>
       string(14) "decoding_error"
       ["_dd.p.other_tag"]=>
       string(4) "also"
+      ["runtime-id"]=>
+      string(36) "%s"
       ["_dd.origin"]=>
       string(7) "datadog"
     }

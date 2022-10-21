@@ -8,7 +8,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "common.h"
+
+void ddog_MaybeError_drop(ddog_MaybeError);
 
 /**
  * # Safety
@@ -173,5 +176,15 @@ ddog_MaybeError ddog_handle_stop(const struct ddog_TelemetryWorkerHandle *handle
 void ddog_handle_wait_for_shutdown(struct ddog_TelemetryWorkerHandle *handle);
 
 void ddog_handle_drop(struct ddog_TelemetryWorkerHandle *handle);
+
+struct ddog_NativeFile ddog_ph_file_from(FILE *file);
+
+struct ddog_NativeFile *ddog_ph_file_clone(const struct ddog_NativeFile *platform_handle);
+
+void ddog_ph_file_drop(struct ddog_NativeFile ph);
+
+void ddog_ph_unix_stream_drop(struct ddog_NativeUnixStream *ph);
+
+ddog_MaybeError ddog_sidecar_connect(struct ddog_NativeUnixStream **connection);
 
 #endif /* DDOG_TELEMETRY_H */

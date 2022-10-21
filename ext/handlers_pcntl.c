@@ -1,6 +1,8 @@
 #include <php.h>
 #include <stdbool.h>
 
+#include <components/rust/ddtrace.h>
+
 #include "coms.h"
 #include "ddtrace.h"
 #include "span.h"
@@ -24,6 +26,7 @@ static void dd_handle_fork(zval *return_value) {
         ddtrace_coms_clean_background_sender_after_fork();
         ddtrace_coms_curl_shutdown();
         ddtrace_seed_prng();
+        ddtrace_generate_runtime_id();
         if (!get_DD_TRACE_FORKED_PROCESS()) {
             ddtrace_disable_tracing_in_current_request();
         }

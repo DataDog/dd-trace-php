@@ -1,5 +1,5 @@
 language = "C"
-tab_width = 4
+tab_width = 2
 include_guard = "DDTRACE_PHP_H"
 style = "both"
 
@@ -8,7 +8,7 @@ sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
 includes = ["common.h"]
 
 [export]
-prefix = "ddtrace_"
+prefix = "ddog_"
 
 [export.mangle]
 rename_types="SnakeCase"

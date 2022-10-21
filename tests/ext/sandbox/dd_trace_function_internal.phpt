@@ -42,7 +42,9 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
     }

@@ -3,6 +3,7 @@
 #include <dogstatsd_client/client.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <components/rust/telemetry.h>
 
 #include "ext/version.h"
 #include "compatibility.h"
@@ -118,6 +119,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_string *dd_origin;
 
     char *cgroup_file;
+    ddog_TelemetryWorkerHandle *telemetry_handle;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

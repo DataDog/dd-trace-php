@@ -95,16 +95,7 @@ typedef struct ddog_ParseTagsResult {
   struct ddog_Vec_u8 *error_message;
 } ddog_ParseTagsResult;
 
-/**
- * Remember, the data inside of each member is potentially coming from FFI,
- * so every operation on it is unsafe!
- */
-typedef struct ddtrace_Slice_c_char {
-    const char *ptr;
-    uintptr_t len;
-} ddtrace_Slice_c_char;
-
-typedef struct ddtrace_Slice_c_char ddtrace_CharSlice;
+typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
 
 typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_ERROR,
@@ -126,9 +117,11 @@ typedef enum ddog_TelemetryWorkerBuilderProperty {
   DDOG_TELEMETRY_WORKER_BUILDER_PROPERTY_RUNTIME_ID,
 } ddog_TelemetryWorkerBuilderProperty;
 
-typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
+typedef struct ddog_NativeFile ddog_NativeFile;
 
-typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
+typedef struct ddog_NativeUnixStream ddog_NativeUnixStream;
+
+typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
 
 typedef enum ddog_Option_vec_u8_Tag {
   DDOG_OPTION_VEC_U8_SOME_VEC_U8,

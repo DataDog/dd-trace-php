@@ -1,5 +1,5 @@
 [workspace]
-members = ["components/rust"]
+members = ["components/rust", "profiling"]
 
 [profile.dev]
 debug = 2 # full debug info

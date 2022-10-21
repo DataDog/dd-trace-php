@@ -10,9 +10,12 @@ path = "lib.rs"
 [dependencies]
 ddcommon = { path = "../../libdatadog/ddcommon" }
 ddcommon-ffi = { path = "../../libdatadog/ddcommon-ffi" }
+ddtelemetry = { path = "../../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../../libdatadog/ddtelemetry-ffi" }
+json = "0.12.4"
+lazy_static = "1.4"
+uuid = { version = "1.0", features = ["v4"] }
 paste = "1"
 
 [build-dependencies]
 cbindgen = "0.24"
-

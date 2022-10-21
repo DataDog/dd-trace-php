@@ -140,6 +140,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/signals.c \
     ext/span.c \
     ext/startup_logging.c \
+    ext/telemetry.c \
     ext/tracer_tag_propagation/tracer_tag_propagation.c \
     ext/hook/uhook.c \
     ext/hook/uhook_legacy.c \

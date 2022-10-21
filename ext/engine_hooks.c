@@ -5,7 +5,6 @@
 
 #include "ddtrace.h"
 #include "logging.h"
-#include "runtime.h"
 #include "span.h"
 #include "zend_extensions.h"
 
@@ -17,13 +16,6 @@ static void _compile_minit(void);
 static void _compile_mshutdown(void);
 
 void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
-
-static datadog_php_uuid dd_profiling_runtime_id_nil(void) {
-    datadog_php_uuid uuid = DATADOG_PHP_UUID_INIT;
-    return uuid;
-}
-
-datadog_php_uuid (*ddtrace_profiling_runtime_id)(void) = dd_profiling_runtime_id_nil;
 
 void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                         zai_string_view span_type,
@@ -41,13 +33,6 @@ void dd_search_for_profiling_symbols(void *arg) {
         if (UNEXPECTED(!profiling_interrupt_function)) {
             ddtrace_log_debugf("[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "datadog_profiling_interrupt_function",
                                DL_ERROR());
-        }
-
-        datadog_php_uuid (*runtime_id)(void) = DL_FETCH_SYMBOL(handle, "datadog_profiling_runtime_id");
-        if (EXPECTED(runtime_id)) {
-            ddtrace_profiling_runtime_id = runtime_id;
-        } else {
-            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, DL_ERROR());
         }
 
         profiling_notify_trace_finished = DL_FETCH_SYMBOL(handle, "datadog_profiling_notify_trace_finished");

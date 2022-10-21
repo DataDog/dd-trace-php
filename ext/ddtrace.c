@@ -26,6 +26,8 @@
 #include <ext/standard/info.h>
 #include <ext/standard/php_string.h>
 
+#include <components/rust/ddtrace.h>
+
 #include "auto_flush.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
@@ -53,6 +55,7 @@
 #include "signals.h"
 #include "span.h"
 #include "startup_logging.h"
+#include "telemetry.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "ext/standard/file.h"
 
@@ -251,7 +254,7 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
 #else
                                                   NULL,
 #endif
-                                                  NULL,
+                                                  zai_hook_op_array_dtor,
 
                                                   STANDARD_ZEND_EXTENSION_PROPERTIES};
 
@@ -731,6 +734,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     mod_ptr->handle = NULL;
     /* }}} */
 
+    ddtrace_generate_runtime_id();
+
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
@@ -752,6 +757,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
                        get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                        get_global_DD_TRACE_AGENT_STACK_BACKLOG());
 
+    ddtrace_setup_composer_telemetry_hook();
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
 
@@ -835,6 +841,11 @@ static void dd_initialize_request(void) {
     dd_prepare_for_new_trace();
 
     dd_read_distributed_tracing_ids();
+
+    if (!DDTRACE_G(telemetry_handle)) {
+        DDTRACE_G(telemetry_handle) = ddtrace_build_telemetry_handle();
+        ddog_handle_start(DDTRACE_G(telemetry_handle));
+    }
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
@@ -929,6 +940,12 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zend_hash_destroy(&DDTRACE_G(traced_spans));
+
+    if (DDTRACE_G(telemetry_handle)) {
+        ddog_handle_stop(DDTRACE_G(telemetry_handle));
+        ddog_handle_wait_for_shutdown(DDTRACE_G(telemetry_handle));
+        DDTRACE_G(telemetry_handle) = NULL;
+    }
 
     if (get_DD_TRACE_ENABLED()) {
         dd_force_shutdown_tracing();
