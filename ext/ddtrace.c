@@ -44,6 +44,7 @@
 #include "ip_extraction.h"
 #include "logging.h"
 #include "memory_limit.h"
+#include "limiter/limiter.h"
 #include "priority_sampling/priority_sampling.h"
 #include "random.h"
 #include "request_hooks.h"
@@ -724,6 +725,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_initialize_span_sampling_limiter();
+    ddtrace_limiter_create();
 
     ddtrace_bgs_log_minit();
 
@@ -772,7 +774,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_engine_hooks_mshutdown();
 
     ddtrace_shutdown_span_sampling_limiter();
-
+    ddtrace_limiter_destroy();
     zai_config_mshutdown();
 
     return SUCCESS;
