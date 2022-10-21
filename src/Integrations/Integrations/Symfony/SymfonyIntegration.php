@@ -39,8 +39,7 @@ class SymfonyIntegration extends Integration
     public function init()
     {
         $rootSpan = \DDTrace\root_span();
-
-        if (null === $rootSpan) {
+        if (null == $rootSpan) {
             return Integration::NOT_LOADED;
         }
 
@@ -104,11 +103,6 @@ class SymfonyIntegration extends Integration
                     }]);
             }
         );
-
-        $rootSpan = \DDTrace\root_span();
-        if (null == $rootSpan) {
-            return Integration::NOT_LOADED;
-        }
 
         /** @var SpanData $symfonyRequestSpan */
         $this->symfonyRequestSpan = $rootSpan;
