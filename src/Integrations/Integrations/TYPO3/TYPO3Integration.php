@@ -73,7 +73,14 @@ class TYPO3Integration extends Integration
         \DDTrace\trace_method(
             \TYPO3\CMS\Frontend\Http\RequestHandler::class,
             'handle',
-            function (SpanData $span, array $args, Psr\Http\Message\ResponseInterface $response) use ($integration, $rootSpan) {
+            function (
+                SpanData $span,
+                array $args,
+                Psr\Http\Message\ResponseInterface $response
+            ) use (
+                $integration,
+                $rootSpan
+            ) {
                 if (method_exists($response, 'getStatusCode')) {
                     $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
                 }
@@ -148,9 +155,23 @@ class TYPO3Integration extends Integration
             }
         );
 
-        \DDTrace\trace_method(\TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController::class, 'INTincScript', $setCommonValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController::class, 'getFromCache', $setCommonValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController::class, 'getConfigArray', $setCommonValues);
+        \DDTrace\trace_method(
+            \TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController::class,
+            'INTincScript',
+            $setCommonValues
+        );
+
+        \DDTrace\trace_method(
+            \TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController::class,
+            'getFromCache',
+            $setCommonValues
+        );
+
+        \DDTrace\trace_method(
+            \TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController::class,
+            'getConfigArray',
+            $setCommonValues
+        );
 
         \DDTrace\trace_method(
             \TYPO3\CMS\Core\TypoScript\TemplateService::class,
@@ -163,15 +184,30 @@ class TYPO3Integration extends Integration
         );
         \DDTrace\trace_method(\TYPO3\CMS\Core\TypoScript\TemplateService::class, 'matching', $setCommonValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\TypoScript\TemplateService::class, 'start', $setCommonValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\TypoScript\TemplateService::class, 'runThroughTemplates', $setCommonValues);
+
+        \DDTrace\trace_method(
+            \TYPO3\CMS\Core\TypoScript\TemplateService::class,
+            'runThroughTemplates',
+            $setCommonValues
+        );
+
         \DDTrace\trace_method(\TYPO3\CMS\Core\TypoScript\TemplateService::class, 'processTemplate', $setCommonValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\TypoScript\TemplateService::class, 'generateConfig', $setCommonValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\TypoScript\TemplateService::class, 'processIncludes', $setCommonValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\TypoScript\TemplateService::class, 'getCacheEntry', $setCommonValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\TypoScript\TemplateService::class, 'setCacheEntry', $setCommonValues);
 
-        \DDTrace\trace_method(TYPO3\CMS\Core\Crypto\PasswordHashing\AbstractArgon2PasswordHash::class, 'checkPassword', $setCommonValues);
-        \DDTrace\trace_method(TYPO3\CMS\Core\Crypto\PasswordHashing\AbstractArgon2PasswordHash::class, 'getHashedPassword', $setCommonValues);
+        \DDTrace\trace_method(
+            TYPO3\CMS\Core\Crypto\PasswordHashing\AbstractArgon2PasswordHash::class,
+            'checkPassword',
+            $setCommonValues
+        );
+
+        \DDTrace\trace_method(
+            TYPO3\CMS\Core\Crypto\PasswordHashing\AbstractArgon2PasswordHash::class,
+            'getHashedPassword',
+            $setCommonValues
+        );
 
         \DDTrace\trace_method(\TYPO3Fluid\Fluid\Core\Parser\TemplateParser::class, 'parse', $setCommonValues);
 
@@ -185,7 +221,7 @@ class TYPO3Integration extends Integration
             $span->resource = $args[0];
         };
 
-        $setFlushByTagsValues = function(SpanData $span, array $args) {
+        $setFlushByTagsValues = function (SpanData $span, array $args) {
             $this->setCommonValues($span);
             $span->resource = explode(', ', $args[0]);
         };
@@ -193,8 +229,18 @@ class TYPO3Integration extends Integration
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend::class, 'get', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend::class, 'set', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend::class, 'flush', $setCommonValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend::class, 'flushByTag', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend::class, 'flushByTags', $setFlushByTagsValues);
+
+        \DDTrace\trace_method(
+            \TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend::class,
+            'flushByTag',
+            $setGetSetFlushValues
+        );
+
+        \DDTrace\trace_method(
+            \TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend::class,
+            'flushByTags',
+            $setFlushByTagsValues
+        );
 
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\SimpleFileBackend::class, 'get', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\SimpleFileBackend::class, 'set', $setGetSetFlushValues);
@@ -215,8 +261,18 @@ class TYPO3Integration extends Integration
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class, 'get', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class, 'set', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class, 'flush', $setCommonValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class, 'flushByTag', $setGetSetFlushValues);
-        \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class, 'flushByTags', $setFlushByTagsValues);
+
+        \DDTrace\trace_method(
+            \TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class,
+            'flushByTag',
+            $setGetSetFlushValues
+        );
+
+        \DDTrace\trace_method(
+            \TYPO3\CMS\Core\Cache\Backend\MemcachedBackend::class,
+            'flushByTags',
+            $setFlushByTagsValues
+        );
 
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\RedisBackend::class, 'get', $setGetSetFlushValues);
         \DDTrace\trace_method(\TYPO3\CMS\Core\Cache\Backend\RedisBackend::class, 'set', $setGetSetFlushValues);
@@ -241,7 +297,11 @@ class TYPO3Integration extends Integration
             }
         );
 
-        \DDTrace\trace_method(\FriendsofTYPO3\Headless\ContentObject\JsonContentObject::class, 'cObjGet', $setCommonValues);
+        \DDTrace\trace_method(
+            \FriendsofTYPO3\Headless\ContentObject\JsonContentObject::class,
+            'cObjGet',
+            $setCommonValues
+        );
 
         return Integration::LOADED;
     }
