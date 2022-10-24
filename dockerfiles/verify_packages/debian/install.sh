@@ -49,10 +49,10 @@ ${PHP_FPM_BIN} -v
 INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
 if [ "$INSTALL_TYPE" = "native_package" ]; then
     echo "Installing dd-trace-php using the OS-specific package installer"
-    dpkg -i $(pwd)/build/packages/*.deb
+    dpkg -i $(pwd)/build/packages/*$(if [ $(uname -m) = "aarch64" ]; then echo aarch64; else echo amd64; fi)*.deb
 else
     echo "Installing dd-trace-php using the new PHP installer"
-    installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz')
+    installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-gnu.tar.gz")
     ${PHP_BIN} datadog-setup.php --file "$installable_bundle" --php-bin all
 fi
 

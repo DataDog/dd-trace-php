@@ -60,4 +60,31 @@ class RequestReplayer
         }
         return $headers;
     }
+
+    public static function launchUnixProxy($socketPath) {
+        @unlink($socketPath);
+        $code = str_replace("\n", "", '
+ignore_user_abort(true); /* prevent bailout... */
+$server = stream_socket_server("unix://' . $socketPath . '");
+print "1\n"; /* ready marker */
+if (!$client = stream_socket_accept($server, 5)) {
+    return;
+}
+$replayer = stream_socket_client("request-replayer:80");
+$all = $read = [$client, $replayer];
+foreach ($read as $fp) stream_set_blocking($fp, false);
+while (stream_select($read, $w, $e, null)) {
+    $data = fread($fp = reset($read), 4096);
+    if ($data == "") {
+        return;
+    }
+    fwrite($fp == $replayer ? $client : $replayer, $data);
+    $read = $all;
+}
+');
+
+        static $unix_proxy_process_reference;
+        $unix_proxy_process_reference = popen(PHP_BINARY . " -r '$code'", 'r');
+        fread($unix_proxy_process_reference, 1); // ready
+    }
 }

@@ -12,4 +12,4 @@ echo "Request start" . PHP_EOL;
 --EXPECTF--
 Cannot open request init hook; file does not exist: '%s/this_file_doesnt_exist.php'
 Request start
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

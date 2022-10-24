@@ -27,7 +27,7 @@ Download the tracer version you intend to test.
 make tracer.local
 
 # Download from a url
-make tracer.download TRACER_TEST_URL=<link to the .tar.gz>
+make library.download LIBRARY_TEST_URL=<link to the .tar.gz>
 ```
 
 Generate scenarios, i.e. all the possible configuration we are testing.
@@ -156,21 +156,6 @@ Then load it in `gdb`:
 gdb --core=/tmp/core php-fpm|httpd|php
 ```
 
-## Freezing a known regression
+## Rebuilding docker containers
 
-As soon as the radnomized testing framework detects either regressions or issues not yet released, we want to freeze to make sure they never happen again.
-
-Use the command `make freeze SCENARIO_NAME=<SCENARIO_NAME> REGRESSION_NAME=<REGRESSION_NAME>` where
-
-- `SCENARIO_NAME`: the name of the scenario from `.tmp.scenarios` folder;
-- `REGRESSION_NAME`: an exlicative name we want to give to the regression, starting with the GitHub issue name or ticket name.
-
-Examples:
-
-```
-make freeze SCENARIO_NAME=randomized-663735226-centos7-5.6 REGRESSION_NAME=GH1001-out-of-sync-span-stack-closed
-
-   ... or ...
-
-make freeze SCENARIO_NAME=randomized-1048937434-centos7-7.1 REGRESSION_NAME=APMPHP-517-multiple-integrations-deffered-loading
-```
+The randomized tests docker containers are based on our CentOS 7 containers.

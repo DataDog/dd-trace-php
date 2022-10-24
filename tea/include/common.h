@@ -10,22 +10,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-/* TSRM */
-#ifndef TSRMLS_FETCH
-#define TEA_TSRMLS_FETCH()
-#define TEA_TSRMLS_DC
-#define TEA_TSRMLS_D
-#define TEA_TSRMLS_C
-#define TEA_TSRMLS_CC
-#else
-#define TEA_TSRMLS_FETCH TSRMLS_FETCH
-#define TEA_TSRMLS_DC TSRMLS_DC
-#define TEA_TSRMLS_D TSRMLS_D
-#define TEA_TSRMLS_C TSRMLS_C
-#define TEA_TSRMLS_CC TSRMLS_CC
-#endif
-
-#if PHP_VERSION_ID >= 70000 && defined(ZTS)
+#ifdef ZTS
 ZEND_TSRMLS_CACHE_EXTERN()
 #endif
 
@@ -89,16 +74,11 @@ ZEND_TSRMLS_CACHE_EXTERN()
 #define TEA_EVAL_STR(str) zend_eval_stringl(str, sizeof(str) - 1, NULL, "TEA")
 #define TEA_INI_STR(name) zend_ini_string_ex((name), strlen(name), 0, NULL)
 /********************************** </PHP 8> *********************************/
-#elif PHP_VERSION_ID >= 70000
+#else
 /********************************** <PHP 7> **********************************/
 #define TEA_EVAL_STR(str) zend_eval_stringl((char *)str, sizeof(str) - 1, NULL, (char *)"TEA")
 #define TEA_INI_STR(name) zend_ini_string_ex((char *)(name), strlen(name), 0, NULL)
 /********************************** </PHP 7> *********************************/
-#else
-/********************************** <PHP 5> **********************************/
-#define TEA_EVAL_STR(str) zend_eval_stringl((char *)str, sizeof(str) - 1, NULL, (char *)"TEA" TEA_TSRMLS_CC)
-#define TEA_INI_STR(name) zend_ini_string_ex((char *)(name), sizeof(name) /* - 1 */, 0, NULL)
-/********************************** </PHP 5> *********************************/
 #endif
 
 /* Executes a PHP script located at 'file'. Relative file paths are relative to
@@ -106,7 +86,7 @@ ZEND_TSRMLS_CACHE_EXTERN()
  * function does not catch it. Returns false if the script exists but failed to
  * compile.
  */
-static inline bool tea_execute_script(const char *file TEA_TSRMLS_DC) {
+static inline bool tea_execute_script(const char *file) {
     zend_file_handle handle;
 
     memset((void *)&handle, 0, sizeof(zend_file_handle));
@@ -117,6 +97,6 @@ static inline bool tea_execute_script(const char *file TEA_TSRMLS_DC) {
     handle.filename = file;
 #endif
 
-    return zend_execute_scripts(ZEND_REQUIRE TEA_TSRMLS_CC, NULL, 1, &handle) == SUCCESS;
+    return zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &handle) == SUCCESS;
 }
 #endif

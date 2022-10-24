@@ -17,7 +17,7 @@ typedef uint16_t zai_config_id;
 
 #include "config_ini.h"
 
-#define ZAI_CONFIG_ENTRIES_COUNT_MAX 128
+#define ZAI_CONFIG_ENTRIES_COUNT_MAX 160
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
 #define ZAI_CONFIG_NAME_BUFSIZ 60
 
@@ -44,6 +44,7 @@ struct zai_config_entry_s {
     uint8_t aliases_count;
     // Accept or reject ini changes, potentially apply to the currently running system
     zai_config_apply_ini_change ini_change;
+    zai_custom_parse parser;
 };
 
 struct zai_config_name_s {
@@ -63,6 +64,8 @@ struct zai_config_memoized_entry_s {
     //     -1 == not set from env or system ini
     int16_t name_index;
     zai_config_apply_ini_change ini_change;
+    zai_custom_parse parser;
+    ZEND_INI_MH((*original_on_modify)); // when some other extension has registered that INI
 };
 
 // Memoizes config entries to default values

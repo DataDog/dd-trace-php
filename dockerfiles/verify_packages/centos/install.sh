@@ -41,10 +41,10 @@ adduser -M --system -g www-data www-data
 INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
 if [ "$INSTALL_TYPE" = "native_package" ]; then
     echo "Installing dd-trace-php using the OS-specific package installer"
-    rpm -ivh $(pwd)/build/packages/*.rpm
+    rpm -ivh $(pwd)/build/packages/*$(uname -m)*.rpm
 else
     echo "Installing dd-trace-php using the new PHP installer"
-    installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz')
+    installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-gnu.tar.gz")
     php datadog-setup.php --file "$installable_bundle" --php-bin all
 fi
 

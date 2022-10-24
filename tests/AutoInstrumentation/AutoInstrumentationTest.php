@@ -16,13 +16,6 @@ class AutoInstrumentationTest extends BaseTestCase
      */
     public function testAutoInstrumentationScenarios($scenario, $expectedVersion, $isComposer)
     {
-        if (
-            $scenario === "composer_with_ddtrace_dependency"
-            && \PHP_MAJOR_VERSION === 5
-            && \PHP_MINOR_VERSION === 5
-        ) {
-            $this->markTestSkipped("The older ddtrace version does not support PHP 5.5");
-        }
         if ($isComposer) {
             $this->composerPrepareScenario($scenario);
         }

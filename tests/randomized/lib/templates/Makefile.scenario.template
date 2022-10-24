@@ -3,12 +3,16 @@ DURATION := 30s
 SCENARIO := {{scenario_name}}
 
 run: prepare_results_folders
-	@DURATION=$(DURATION) docker-compose up php-test
+	@bash ../../lib/run-base-docker-compose.sh
+	@DURATION=$(DURATION) docker-compose up php-test-$(SCENARIO)
 	@docker-compose down
+	@bash ../../lib/run-base-docker-compose.sh shutdown
 
 shell: prepare_results_folders
-	@docker-compose run --rm php-test bash
+	@bash ../../lib/run-base-docker-compose.sh
+	@docker-compose run --rm php-test-$(SCENARIO) bash
 	@docker-compose down
+	@bash ../../lib/run-base-docker-compose.sh shutdown
 
 prepare_results_folders:
 	@rm -rf $(RESULTS_DIR)/$(SCENARIO)

@@ -10,12 +10,12 @@ $outerSpan = DDTrace\start_span();
 
 DDTrace\start_span();
 DDTrace\close_span();
-DDTrace\flush();
+var_dump(count(dd_trace_serialize_closed_spans()));
 
 var_dump($outerSpan->getDuration());
 
 ?>
---EXPECT--
-Successfully triggered flush with trace of size 1
+--EXPECTF--
+int(1)
 int(-1)
 No finished traces to be sent to the agent

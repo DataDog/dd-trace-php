@@ -129,7 +129,7 @@ class ElasticSearchIntegration extends Integration
             $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($args[2]);
             $recordBody = $args[0] === 'GET' || preg_match("(/_m?search.*$)", $args[1]);
             if ($recordBody && null !== $body = $args[3]) {
-                $span->meta[Tag::ELASTICSEARCH_BODY] = $body;
+                $span->meta[Tag::ELASTICSEARCH_BODY] = json_encode($body);
             }
         });
 

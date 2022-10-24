@@ -1,7 +1,5 @@
 --TEST--
 DDTrace\hook_method posthook is passed the correct args with inheritance
---SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Instrumenting sub class of an instrumented parent class is not yet supported on PHP 8+'); ?>
 --INI--
 zend.assertions=1
 assert.exception=1
@@ -12,9 +10,8 @@ var_dump(DDTrace\hook_method('Greeter', 'greet',
     null,
     function ($This, $scope, $args, $retval) {
         echo "Greeter::greet hooked.\n";
-        assert($This instanceof Greeter);
-        assert($scope == "Greeter");
-        assert($args == ["Datadog"]);
+        assert($This instanceof $args[0]);
+        assert($scope == $args[0]);
         assert($retval == null);
     }
 ));
@@ -23,10 +20,6 @@ var_dump(DDTrace\hook_method('SubGreeter', 'greet',
     null,
     function ($This, $scope, $args, $retval) {
         echo "SubGreeter::greet hooked.\n";
-        assert($this instanceof SubGreeter);
-        assert($scope == "SubGreeter");
-        assert($args == ["Datadog"]);
-        assert($retval == null);
     }
 ));
 
@@ -41,17 +34,18 @@ class Greeter
 class SubGreeter extends Greeter {}
 
 $greeter = new Greeter();
-$greeter->greet('Datadog');
+$greeter->greet('Greeter');
 
 $greeter = new SubGreeter();
-$greeter->greet('Datadog');
+$greeter->greet('SubGreeter');
 
 ?>
 --EXPECT--
 bool(true)
 bool(true)
-Hello, Datadog.
+Hello, Greeter.
 Greeter::greet hooked.
-Hello, Datadog.
+Hello, SubGreeter.
+Greeter::greet hooked.
 SubGreeter::greet hooked.
 

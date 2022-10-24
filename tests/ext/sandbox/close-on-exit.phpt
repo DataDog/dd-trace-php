@@ -1,7 +1,5 @@
 --TEST--
 Run sandbox closures for open spans on exit
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

@@ -1,7 +1,5 @@
 --TEST--
 deferred loading only happens once, even if dispatch is not overwritten
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_TRACE_DEBUG=1
@@ -38,8 +36,8 @@ namespace
     Test::public_static_method();
 }
 ?>
---EXPECT--
+--EXPECTF--
 autoload_attempted
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

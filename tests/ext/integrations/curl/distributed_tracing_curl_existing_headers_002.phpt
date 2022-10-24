@@ -66,4 +66,4 @@ x-mas: tree
 x-my-custom-header: foo
 
 Done.
-Successfully triggered flush with trace of size 3
+Flushing trace of size 3 to send-queue for %s

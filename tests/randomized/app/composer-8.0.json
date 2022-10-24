@@ -5,6 +5,7 @@
         }
     },
     "require": {
+        "elasticsearch/elasticsearch": "^7.0",
         "guzzlehttp/guzzle": "7.*",
         "datadog/dd-trace": "0.59.0"
     }

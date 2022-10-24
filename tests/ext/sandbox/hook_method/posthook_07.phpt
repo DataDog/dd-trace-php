@@ -52,8 +52,8 @@ $app = new App();
 $app->run();
 
 ?>
---EXPECT--
+--EXPECTF--
 App::__construct hooked.
 App::run
 App::run traced.
-Successfully triggered flush with trace of size 2
+Flushing trace of size 2 to send-queue for %s

@@ -8,16 +8,11 @@
 
 #if PHP_VERSION_ID >= 80000
 #define sapi_getenv_compat(name, name_len) sapi_getenv(name, name_len)
-#elif PHP_VERSION_ID >= 70000
-#define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len)
 #else
-#define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len TSRMLS_CC)
+#define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len)
 #endif
 
 zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_rinit) {
-#if PHP_VERSION_ID < 70000
-    TSRMLS_FETCH();
-#endif
     if (!buf.ptr || !buf.len) return ZAI_ENV_ERROR;
 
     buf.ptr[0] = '\0';

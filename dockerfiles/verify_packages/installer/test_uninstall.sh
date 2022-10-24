@@ -11,15 +11,22 @@ extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
 # Install using the php installer
-new_version="0.68.2"
-generate_installers "${new_version}"
-php ./build/packages/datadog-setup.php --php-bin php --enable-profiling --enable-appsec
-assert_ddtrace_version "${new_version}"
-assert_appsec_version "0.2.0"
-assert_profiler_version "0.3.0"
+version="0.75.0"
+sha256sum="76506c5ec222b2975333e1bae85f8b91d7c02eb9ccd4dcc807cdf2f23c667785"
+destdir="/tmp"
+fetch_setup_for_version "$version" "$sha256sum" "$destdir"
+php "$destdir/datadog-setup.php" --php-bin php --enable-profiling --enable-appsec
+rm -v "$destdir/datadog-setup.php"
+assert_ddtrace_version "${version}"
+assert_appsec_version "0.3.2"
+assert_profiler_version "0.6.1"
 
 # Uninstall
-php ./build/packages/datadog-setup.php --php-bin php --uninstall
+trace_version="$(parse_trace_version)"
+generate_installers "$trace_version"
+php ./build/packages/datadog-setup.php --php-bin php --uninstall \
+    --file "./build/packages/dd-library-php-${trace_version}-x86_64-linux-gnu.tar.gz"
+
 assert_no_ddtrace
 assert_no_appsec
 assert_no_profiler

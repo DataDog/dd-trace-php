@@ -45,8 +45,8 @@ array(1) {
     array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(50) "ZGRfdHJhY2VfZnVuY3Rpb25faW50ZXJuYWwucGhw|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

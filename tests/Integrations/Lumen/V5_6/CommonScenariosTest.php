@@ -49,7 +49,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'lumen.route.name' => 'simple_route',
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -71,7 +71,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view',
+                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -107,7 +107,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error',
+                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
                     ])->withExistingTagsNames([
                         'error.stack',

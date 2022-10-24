@@ -41,6 +41,6 @@ add_subdirectory(../../components ${CMAKE_CURRENT_BINARY_DIR}/components)
 
 # Profiling doesn't support PHP 5, so there haven't been any changes to the
 # tracer on those versions to support it.
-if(PHP_VERSION_ID GREATER_EQUAL "70000")
+if(TEA_PHP_VERNUM GREATER_EQUAL "70000")
   add_subdirectory(profiling)
 endif()

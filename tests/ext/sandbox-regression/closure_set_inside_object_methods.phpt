@@ -2,8 +2,6 @@
 [Sandbox regression] Tracing closure set from inside non-static method
 --DESCRIPTION--
 This differs from the original dd_trace() test in that it does not modify the original call arguments
---SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Dispatch cannot be overwritten on PHP 8+'); ?>
 --FILE--
 <?php
 class Test {
@@ -51,5 +49,7 @@ METHOD 1
 HOOK 11
 METHOD 1
 HOOK 1101
+HOOK 11
 METHOD 10
 HOOK 1211
+HOOK 20

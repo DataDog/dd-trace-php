@@ -384,6 +384,40 @@ final class TracerTest extends BaseTestCase
         self::assertSame('from-env', $span['meta']['version']);
     }
 
+    public function testTracerReset()
+    {
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $root = $tracer->startRootSpan('custom.root');
+            $tracer->startActiveSpan('custom.internal');
+            $tracer->reset();
+            $root->close();
+        });
+
+        $this->assertEmpty($traces);
+    }
+
+    private function preservedHook()
+    {
+    }
+
+    public function testTracerResetPreservesHooks()
+    {
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            \DDTrace\trace_method('DDTrace\Tests\Integration\TracerTest', 'preservedHook', function () use (&$called) {
+                ++$called;
+            });
+            $this->preservedHook();
+            self::assertSame(1, $called);
+            $tracer->reset();
+            $this->preservedHook();
+            self::assertSame(2, $called);
+        });
+
+        // exactly one preserved_hook
+        self::assertSame(1, \count($traces));
+        self::assertSame(1, \count($traces[0]));
+    }
+
     public function testServiceMappingNoEnvMapping()
     {
         $traces = $this->isolateTracer(function (Tracer $tracer) {

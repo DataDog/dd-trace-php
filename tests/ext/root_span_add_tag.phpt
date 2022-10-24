@@ -1,7 +1,5 @@
 --TEST--
 Test ddtrace_root_span_add_tag
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: ddtrace_get_root_span only available on php 7 and 8'); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
@@ -44,8 +42,8 @@ array(1) {
       string(%d) "%d"
       ["after"]=>
       string(9) "root_span"
-      ["_dd.p.upstream_services"]=>
-      string(38) "cm9vdF9zcGFuX2FkZF90YWcucGhw|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

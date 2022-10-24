@@ -1,7 +1,5 @@
 --TEST--
 [Prehook] API error cases
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--
@@ -23,7 +21,7 @@ var_dump(DDTrace\trace_method('foo', 'foo', [
     'prehook' => new stdClass(),
 ]));
 ?>
---EXPECT--
+--EXPECTF--
 Expected 'prehook' to be an instance of Closure
 bool(false)
 Expected 'prehook' to be an instance of Closure
@@ -33,4 +31,4 @@ Expected 'prehook' to be an instance of Closure
 bool(false)
 Expected 'prehook' to be an instance of Closure
 bool(false)
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

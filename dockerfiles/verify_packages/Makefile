@@ -1,5 +1,5 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-CENTOS6_PHP_VERSIONS:=5.4.centos6 5.5.centos6 5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos6 7.3.centos6 7.4.centos6 8.0.centos6
+CENTOS6_PHP_VERSIONS:=7.0.centos6 7.1.centos6 7.2.centos6 7.3.centos6 7.4.centos6 8.0.centos6
 
 .PHONY: $(CENTOS6_PHP_VERSIONS)
 
@@ -69,6 +69,7 @@ test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 test_appsec_install_disabled.sh \
 test_appsec_install_enabled.sh \
 test_first_install.sh \
+test_install_without_scan_dir.sh \
 test_install_add_missing_ini_settings.sh \
 test_install_custom_installation_directory.sh \
 test_install_custom_installation_root.sh \
@@ -84,24 +85,30 @@ test_uninstall.sh \
 test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \
 	:
+	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_debug.sh \
 test_first_install_php_debugzts.sh \
 test_profiler_install_unsupported_debug.sh \
 	:
+	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_zts.sh \
 	:
+	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
 
+test_install_non_binary.sh \
 test_fpm.sh \
 	:
+	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
 
 test_profiler_install_unsupported.sh \
 	:
+	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_ext_json.sh \
@@ -110,7 +117,13 @@ test_first_install_alpine.sh \
 test_alpine_install_no_ext_curl_no_curl_cli.sh \
 test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 	:
+	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_libexecinfo.sh:
+	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
+
+test_install_on_plesk.sh:
+	@echo "################### $(@) ###################"
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app plesk/plesk:18.0 sh dockerfiles/verify_packages/installer/$(@)

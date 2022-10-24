@@ -12,13 +12,11 @@
  *
  * zai_symbol_new is a single interface for object construction
  */
-#include "php.h"
-
-#include "../zai_string/string.h"
-#include "zai_compat.h"
-
+#include <php.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "../zai_string/string.h"
 
 // clang-format off
 typedef enum {
@@ -53,7 +51,7 @@ typedef enum {
 void* zai_symbol_lookup(
         zai_symbol_type_t symbol_type,
         zai_symbol_scope_t scope_type, void *scope,
-        zai_string_view *name ZAI_TSRMLS_DC);
+        zai_string_view *name);
 
 #include "api/class.h"
 #include "api/function.h"
@@ -71,14 +69,16 @@ typedef enum {
     ZAI_SYMBOL_FUNCTION_CLOSURE,
 } zai_symbol_function_t;
 
+#define ZAI_SYMBOL_SANDBOX (1u << 31)
+
 bool zai_symbol_call_impl(
     zai_symbol_scope_t scope_type, void *scope,
     zai_symbol_function_t function_type, void *function,
-    zval **rv ZAI_TSRMLS_DC,
+    zval *rv,
     uint32_t argc, va_list *args);
 
 #include "api/call.h"
 
-bool zai_symbol_new(zval *zv, zend_class_entry *ce ZAI_TSRMLS_DC, uint32_t argc, ...);
+bool zai_symbol_new(zval *zv, zend_class_entry *ce, uint32_t argc, ...);
 // clang-format on
 #endif  // ZAI_SYMBOLS_H

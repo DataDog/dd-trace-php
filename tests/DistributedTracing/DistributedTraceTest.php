@@ -121,7 +121,7 @@ class DistributedTraceTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertNotSame('42', $traces[0][0]['trace_id']);
+        $this->assertSame('42', $traces[0][0]['trace_id']);
         $this->assertArrayNotHasKey('parent_id', $traces[0][0]);
     }
 }

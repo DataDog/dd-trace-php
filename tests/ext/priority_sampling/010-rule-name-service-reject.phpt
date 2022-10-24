@@ -22,8 +22,8 @@ if ($root->metrics["_dd.rule_psr"] == 0.7) {
 } else {
     var_dump($root->metrics);
 }
-echo "_dd.p.upstream_services = {$root->meta["_dd.p.upstream_services"]}\n";
+echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
 ?>
 --EXPECTREGEX--
 Rule OK
-_dd.p.upstream_services = YmFyc2VydmljZQ\|(-1|2)\|3\|0.700
+_dd.p.dm = (-3|-)

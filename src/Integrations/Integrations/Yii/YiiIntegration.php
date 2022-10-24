@@ -34,24 +34,10 @@ class YiiIntegration extends Integration
      */
     public function init()
     {
-        if (!self::shouldLoad(self::NAME)) {
+        if (!self::shouldLoad(self::NAME) || !Versions::versionMatches('2.0', \Yii::getVersion())) {
             return self::NOT_AVAILABLE;
         }
 
-        $integration = $this;
-
-        // This happens somewhat early in the setup, though there may be a better candidate
-        \DDTrace\hook_method('yii\di\Container', '__construct', null, function () use ($integration) {
-            if (Versions::versionMatches('2.0', \Yii::getVersion())) {
-                $integration->loadV2();
-            }
-        });
-
-        return self::LOADED;
-    }
-
-    public function loadV2()
-    {
         $rootSpan = \DDTrace\root_span();
         if (!$rootSpan) {
             return Integration::NOT_LOADED;
@@ -115,8 +101,9 @@ class YiiIntegration extends Integration
                     $controller = \get_class($this);
                     $endpoint = "{$controller}::{$this->action->actionMethod}";
                     $rootSpan->meta["app.endpoint"] = $endpoint;
+
                     $rootSpan->meta[Tag::HTTP_URL] =
-                        \DDTrace\Util\Normalizer::urlSanitize(Url::base(true) . Url::current());
+                    \DDTrace\Util\Normalizer::urlSanitize(Url::base(true) . Url::current());
                 }
 
                 if (empty($rootSpan->meta['app.route.path'])) {
@@ -131,14 +118,17 @@ class YiiIntegration extends Integration
                         }
                     }
 
-                    $routePath = \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($namedParams)));
+                    $routePath = \DDTrace\Util\Normalizer::urlSanitize(
+                        \urldecode(Url::toRoute($namedParams)),
+                        false,
+                        true
+                    );
                     $rootSpan->meta['app.route.path'] = $routePath;
 
-                    error_log('Url to route: ' . var_export(\urldecode(Url::toRoute($placeholders)), true));
                     $resourceName = \str_replace(
                         $placeholder,
                         '?',
-                        \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($placeholders)))
+                        \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($placeholders)), false, true)
                     );
                     $rootSpan->resource = "{$_SERVER['REQUEST_METHOD']} {$resourceName}";
                 }
@@ -155,6 +145,8 @@ class YiiIntegration extends Integration
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
             }
         );
+
+        return self::LOADED;
     }
 
     /**

@@ -22,7 +22,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (7) {
+object(DDTrace\SpanData)#%d (9) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -41,8 +41,22 @@ object(DDTrace\SpanData)#%d (7) {
   }
   ["id"]=>
   string(%d) "%d"
+  ["parent"]=>
+  NULL
+  ["stack"]=>
+  object(DDTrace\SpanStack)#%d (2) {
+    ["parent"]=>
+    object(DDTrace\SpanStack)#%d (2) {
+      ["parent"]=>
+      NULL
+      ["active"]=>
+      NULL
+    }
+    ["active"]=>
+    *RECURSION*
+  }
 }
-object(DDTrace\SpanData)#%d (7) {
+object(DDTrace\SpanData)#%d (9) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -61,6 +75,43 @@ object(DDTrace\SpanData)#%d (7) {
   }
   ["id"]=>
   string(%d) "%d"
+  ["parent"]=>
+  NULL
+  ["stack"]=>
+  object(DDTrace\SpanStack)#%d (2) {
+    ["parent"]=>
+    object(DDTrace\SpanStack)#%d (2) {
+      ["parent"]=>
+      NULL
+      ["active"]=>
+      NULL
+    }
+    ["active"]=>
+    object(DDTrace\SpanData)#%d (9) {
+      ["name"]=>
+      string(3) "foo"
+      ["resource"]=>
+      string(3) "abc"
+      ["service"]=>
+      string(14) "span_clone.php"
+      ["type"]=>
+      string(3) "cli"
+      ["meta"]=>
+      array(1) {
+        ["system.pid"]=>
+        int(%d)
+      }
+      ["metrics"]=>
+      array(0) {
+      }
+      ["id"]=>
+      string(%d) "%d"
+      ["parent"]=>
+      NULL
+      ["stack"]=>
+      *RECURSION*
+    }
+  }
 }
 array(1) {
   [0]=>
@@ -85,8 +136,8 @@ array(1) {
     array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(29) "c3Bhbl9jbG9uZS5waHA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

@@ -1,7 +1,5 @@
 --TEST--
 [Prehook Regression] Run sandbox closures for open spans on exit
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

@@ -4,6 +4,7 @@ namespace DDTrace;
 
 use DDTrace\Data\Span as DataSpan;
 use DDTrace\Exceptions\InvalidSpanArgument;
+use DDTrace\Log\LoggingTrait;
 use DDTrace\SpanContext as SpanContext;
 use DDTrace\Http\Urls;
 use DDTrace\Processing\TraceAnalyticsProcessor;
@@ -13,6 +14,8 @@ use Throwable;
 
 class Span extends DataSpan
 {
+    use LoggingTrait;
+
     private static $metricNames = [ Tag::ANALYTICS_KEY => true ];
     // associative array for quickly checking if tag has special meaning, should include metric_names
     private static $specialTags = [
@@ -304,6 +307,21 @@ class Span extends DataSpan
     public function finish($finishTime = null)
     {
         if (!$this->isFinished()) {
+            $current_span = active_span();
+            if ($current_span != $this->internalSpan) {
+                if (close_spans_until($this->internalSpan)) {
+                    self::logWarning(
+                        "Closed multiple spans at once while finishing a span named '{name}'. " .
+                        "The topmost span was named '{topname}'.",
+                        ["name" => $this->getOperationName(), "topname" => $current_span->name]
+                    );
+                } else {
+                    self::logDebug(
+                        "Found unexpected span with name '{name}' on top of the span stack.",
+                        ["name" => $current_span->name]
+                    );
+                }
+            }
             close_span($finishTime ?: 0);
         }
     }
@@ -399,5 +417,15 @@ class Span extends DataSpan
     public function isTraceAnalyticsCandidate()
     {
         return false;
+    }
+
+    public function __destruct()
+    {
+        if (!$this->isFinished()) {
+            self::logWarning(
+                "The span with name '{name}' was closed without being finished first.",
+                ["name" => $this->getOperationName()]
+            );
+        }
     }
 }

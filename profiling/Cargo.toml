@@ -1,0 +1,38 @@
+[package]
+name = "datadog-php-profiling"
+version = "0.10.2"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.60"
+
+[lib]
+crate-type = ["cdylib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { version = "1.0" }
+cfg-if = { version = "1.0" }
+crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
+cpu-time = { version = "1.0" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v0.8.0" }
+env_logger = { version = "0.9" }
+indexmap = { version = "1.8" }
+lazy_static = { version = "1.4" }
+libc = "0.2"
+# TRACE set to max to support runtime configuration.
+log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"]}
+once_cell = { version = "1.12" }
+uuid = { version = "1.0", features = ["v4"] }
+
+[features]
+profiling = []
+
+[build-dependencies]
+bindgen = { version = "0.59" }
+cc = { version = "1.0" }
+
+[profile.release]
+debug = 1
+lto = "thin"
+incremental = false

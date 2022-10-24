@@ -6,6 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\Normalizer;
 use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -16,9 +17,6 @@ class SymfonyIntegration extends Integration
 
     /** @var SpanData */
     public $symfonyRequestSpan;
-
-    /** @var string */
-    public $appName;
 
     public function getName()
     {
@@ -40,69 +38,90 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
-        $integration = $this;
-
-        \DDTrace\hook_method(
+        \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
-            '__construct',
-            function () {
-                \DDTrace\trace_method(
-                    'Symfony\Component\HttpKernel\Kernel',
-                    'handle',
-                    function (SpanData $span) {
-                        $span->name = 'symfony.httpkernel.kernel.handle';
-                        $span->resource = \get_class($this);
-                        $span->type = Type::WEB_SERVLET;
-                        $span->service = \ddtrace_config_app_name('symfony');
+            'handle',
+            [
+                'prehook' => function (SpanData $span) {
+                    $service = \ddtrace_config_app_name('symfony');
+                    if ($rootSpan = \DDTrace\root_span()) {
+                        $rootSpan->name = 'symfony.request';
+                        $rootSpan->service = $service;
                     }
-                );
 
-                \DDTrace\trace_method(
-                    'Symfony\Component\HttpKernel\Kernel',
-                    'boot',
-                    function (SpanData $span) {
-                        $span->name = 'symfony.httpkernel.kernel.boot';
-                        $span->resource = \get_class($this);
-                        $span->type = Type::WEB_SERVLET;
-                        $span->service = \ddtrace_config_app_name('symfony');
-                    }
-                );
-            }
+                    $span->name = 'symfony.httpkernel.kernel.handle';
+                    $span->resource = \get_class($this);
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $service;
+                },
+            ]
         );
 
+        \DDTrace\trace_method(
+            'Symfony\Component\HttpKernel\Kernel',
+            'boot',
+            [
+                'prehook' => function (SpanData $span) {
+                    $span->name = 'symfony.httpkernel.kernel.boot';
+                    $span->resource = \get_class($this);
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = \ddtrace_config_app_name('symfony');
+                },
+            ]
+        );
+
+        $symfonyCommandsIntegrated = [];
         \DDTrace\hook_method(
-            'Symfony\Component\HttpKernel\HttpKernel',
+            'Symfony\Component\Console\Command\Command',
             '__construct',
-            function () use ($integration) {
-                $rootSpan = \DDTrace\root_span();
-                if (null == $rootSpan) {
-                    return;
-                }
-                /** @var SpanData $symfonyRequestSpan */
-                $integration->symfonyRequestSpan = $rootSpan;
-
-                if (
-                    defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
-                    && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
-                ) {
-                    $integration->loadSymfony2($integration);
+            null,
+            function ($This, $scope) use (&$symfonyCommandsIntegrated) {
+                if (isset($symfonyCommandsIntegrated[$scope])) {
                     return;
                 }
 
-                $integration->loadSymfony($integration);
+                $symfonyCommandsIntegrated[$scope] = true;
+
+                \DDTrace\trace_method($scope, 'run', [
+                    /* Commands can evidently call other commands, so allow recursion:
+                     * > Console events are only triggered by the main command being executed.
+                     * > Commands called by the main command will not trigger any event.
+                     * - https://symfony.com/doc/current/components/console/events.html.
+                     */
+                    'recurse' => true,
+                    'prehook' => function (SpanData $span) use ($scope) {
+                        $span->name = 'symfony.console.command.run';
+                        $span->resource = $this->getName() ?: $span->name;
+                        $span->service = \ddtrace_config_app_name('symfony');
+                        $span->type = Type::CLI;
+                        $span->meta['symfony.console.command.class'] = $scope;
+                    }]);
             }
         );
+
+        $rootSpan = \DDTrace\root_span();
+        if (null == $rootSpan) {
+            return Integration::NOT_LOADED;
+        }
+
+        /** @var SpanData $symfonyRequestSpan */
+        $this->symfonyRequestSpan = $rootSpan;
+        $this->addTraceAnalyticsIfEnabled($rootSpan);
+
+        if (
+            defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
+            && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
+        ) {
+            $this->loadSymfony2($this);
+        } else {
+            $this->loadSymfony($this);
+        }
 
         return Integration::LOADED;
     }
 
     public function loadSymfony($integration)
     {
-        $integration->appName = \ddtrace_config_app_name('symfony');
-        $integration->symfonyRequestSpan->name = 'symfony.request';
-        $integration->symfonyRequestSpan->service = $integration->appName;
-        $integration->addTraceAnalyticsIfEnabled($integration->symfonyRequestSpan);
-
         /* Move this to its own integration
         $doctrineRepositories = [];
         \DDTrace\hook_method(
@@ -152,13 +171,14 @@ class SymfonyIntegration extends Integration
                 list($request) = $args;
 
                 $span->name = $span->resource = 'symfony.kernel.handle';
-                $span->service = $integration->appName;
+                $span->service = \ddtrace_config_app_name('symfony');
                 $span->type = Type::WEB_SERVLET;
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
-                    $request->getUriForPath($request->getPathInfo())
-                );
+
+                if (!array_key_exists(Tag::HTTP_URL, $integration->symfonyRequestSpan->meta)) {
+                    $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
+                }
                 if (isset($response)) {
                     $integration->symfonyRequestSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
@@ -177,13 +197,12 @@ class SymfonyIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
-        $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
-
         \DDTrace\trace_method(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
             [
-                $hookType => function (SpanData $span, $args) use ($integration) {
+                'recurse' => true,
+                'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
                     if (!isset($args[0])) {
                         return false;
                     }
@@ -211,22 +230,22 @@ class SymfonyIntegration extends Integration
                                         \DDTrace\trace_method(
                                             $class,
                                             $method,
-                                            function (SpanData $span) use ($controllerName, $integration) {
+                                            function (SpanData $span) use ($controllerName) {
                                                 $span->name = 'symfony.controller';
                                                 $span->resource = $controllerName;
                                                 $span->type = Type::WEB_SERVLET;
-                                                $span->service = $integration->appName;
+                                                $span->service = \ddtrace_config_app_name('symfony');
                                             }
                                         );
                                     }
                                 } else {
                                     \DDTrace\trace_function(
                                         $controllerName,
-                                        function (SpanData $span) use ($controllerName, $integration) {
+                                        function (SpanData $span) use ($controllerName) {
                                             $span->name = 'symfony.controller';
                                             $span->resource = $controllerName;
                                             $span->type = Type::WEB_SERVLET;
-                                            $span->service = $integration->appName;
+                                            $span->service = \ddtrace_config_app_name('symfony');
                                         }
                                     );
                                 }
@@ -235,11 +254,15 @@ class SymfonyIntegration extends Integration
                     }
 
                     $span->name = $span->resource = 'symfony.' . $eventName;
-                    $span->service = $integration->appName;
+                    $span->service = \ddtrace_config_app_name('symfony');
                     if ($event === null) {
                         return;
                     }
-                    $integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan);
+                    if (!$injectedActionInfo) {
+                        if ($integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan)) {
+                            $injectedActionInfo = true;
+                        }
+                    }
                 }
             ]
         );
@@ -247,7 +270,7 @@ class SymfonyIntegration extends Integration
         // Handling exceptions
         $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {
             $span->name = $span->resource = 'symfony.kernel.handleException';
-            $span->service = $integration->appName;
+            $span->service = \ddtrace_config_app_name('symfony');
             if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
                 $integration->setError($integration->symfonyRequestSpan, $args[0]);
             }
@@ -258,9 +281,9 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleThrowable', $exceptionHandlingTracer);
 
         // Tracing templating engines
-        $traceRender = function (SpanData $span, $args) use ($integration) {
+        $traceRender = function (SpanData $span, $args) {
             $span->name = 'symfony.templating.render';
-            $span->service = $integration->appName;
+            $span->service = \ddtrace_config_app_name('symfony');
             $span->type = Type::WEB_SERVLET;
 
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
@@ -268,11 +291,9 @@ class SymfonyIntegration extends Integration
         };
         \DDTrace\trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $traceRender);
-        \DDTrace\trace_method('Symfony\Bundle\TwigBundle\TwigEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $traceRender);
         \DDTrace\trace_method('Twig\Environment', 'render', $traceRender);
-        \DDTrace\trace_method('Twig_Environment', 'render', $traceRender);
     }
 
     public function loadSymfony2($integration)
@@ -323,7 +344,7 @@ class SymfonyIntegration extends Integration
             || $eventName !== KernelEvents::CONTROLLER
             || !method_exists($event, 'getController')
         ) {
-            return;
+            return false;
         }
 
         // Controller and action is provided in the form [$controllerInstance, <actionMethodName>]
@@ -334,10 +355,12 @@ class SymfonyIntegration extends Integration
             || count($controllerAndAction) !== 2
             || !is_object($controllerAndAction[0])
         ) {
-            return;
+            return false;
         }
 
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->meta['symfony.route.action'] = $action;
+
+        return true;
     }
 }

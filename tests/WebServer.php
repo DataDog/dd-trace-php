@@ -4,6 +4,7 @@ namespace DDTrace\Tests;
 
 use DDTrace\Tests\Nginx\NginxServer;
 use DDTrace\Tests\Sapi\CliServer\CliServer;
+use DDTrace\Tests\Sapi\PhpApache\PhpApache;
 use DDTrace\Tests\Sapi\PhpCgi\PhpCgi;
 use DDTrace\Tests\Sapi\PhpFpm\PhpFpm;
 use DDTrace\Tests\Sapi\Sapi;
@@ -67,7 +68,16 @@ final class WebServer
 
     private $defaultInis = [
         'log_errors' => 'on',
+        'datadog.trace.client_ip_header_disabled' => 'true',
     ];
+
+    /**
+     * Persisted apache instance for the lifetime of the testsuite - we use reload instead of restart to apply changes.
+     * The primary use case is verifying repeated MINIT+MSHUTDOWN invocations within a same process.
+     *
+     * @var PhpApache
+     */
+    private static $apache = null;
 
     /**
      * @param string $indexFile
@@ -103,6 +113,23 @@ final class WebServer
                     $this->envs,
                     $this->inis
                 );
+                break;
+            case 'apache2handler':
+                if (!self::$apache) {
+                    self::$apache = new PhpApache();
+                    register_shutdown_function(static function () {
+                        self::$apache->stop();
+                        self::$apache = null;
+                    });
+                }
+                self::$apache->loadConfig(
+                    dirname($this->indexFile),
+                    $this->host,
+                    $this->port,
+                    $this->envs,
+                    $this->inis
+                );
+                $this->sapi = self::$apache;
                 break;
             default:
                 $this->sapi = new CliServer(
@@ -142,7 +169,9 @@ final class WebServer
                 // are actually sent to the agent via the BGS.
                 \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
             }
-            $this->sapi->stop();
+            if ($this->sapi !== self::$apache) {
+                $this->sapi->stop();
+            }
         }
         if ($this->server) {
             $this->server->stop();

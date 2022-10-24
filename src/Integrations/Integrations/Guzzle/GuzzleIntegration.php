@@ -24,11 +24,6 @@ class GuzzleIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
         $integration = $this;
 
         /* Until we support both pre- and post- hooks on the same function, do
@@ -102,7 +97,10 @@ class GuzzleIntegration extends Integration
                 $span->service = Urls::hostnameForTag($url);
             }
             $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
-            $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+
+            if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
+                $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+            }
         } elseif (\is_a($request, 'GuzzleHttp\Message\RequestInterface')) {
             /** @var \GuzzleHttp\Message\RequestInterface $request */
             $url = $request->getUrl();
@@ -110,7 +108,10 @@ class GuzzleIntegration extends Integration
                 $span->service = Urls::hostnameForTag($url);
             }
             $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
-            $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+
+            if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
+                $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+            }
         }
     }
 }

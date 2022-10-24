@@ -1,7 +1,5 @@
 --TEST--
 [Prehook Regression] Span is dropped when tracing closure returns false
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,DateTime::__construct
 --FILE--

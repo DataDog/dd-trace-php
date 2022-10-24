@@ -16,21 +16,21 @@ if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php || true)
 fi
 if [ -z "$PHP_BIN" ]; then
-    PHP_BIN=$(command -v php7 || true)
+    PHP_BIN=$(command -v php8 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
-    PHP_BIN=$(command -v php5 || true)
+    PHP_BIN=$(command -v php7 || true)
 fi
 
 # Installing dd-trace-php
 INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
 if [ "$INSTALL_TYPE" = "native_package" ]; then
     echo "Installing dd-trace-php using the OS-specific package installer"
-    apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
+    apk add --no-cache $(pwd)/build/packages/*$(uname -m)*.apk --allow-untrusted
 else
     echo "Installing dd-trace-php using the new PHP installer"
     apk add --no-cache libexecinfo
-    installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
+    installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-musl.tar.gz")
     $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all
 fi
 
@@ -44,6 +44,9 @@ if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm8 || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm7 || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
@@ -54,14 +57,10 @@ if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/usr/local/etc/php-fpm.d/www.conf
 fi
 if [ ! -f "${WWW_CONF}" ]; then
+    WWW_CONF=/etc/php8/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/etc/php7/php-fpm.d/www.conf
-fi
-if [ ! -f "${WWW_CONF}" ]; then
-    WWW_CONF=/etc/php5/php-fpm.d/www.conf
-fi
-if [ ! -f "${WWW_CONF}" ]; then
-    # Some versions of php5 alpine use the root php-fpm.conf file for pools configuration
-    WWW_CONF=/etc/php5/php-fpm.conf
 fi
 # For cases when it defaults to UDS
 sed -i 's/^listen = .*$/listen = 9000/g' ${WWW_CONF}

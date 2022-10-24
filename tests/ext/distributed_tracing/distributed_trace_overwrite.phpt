@@ -4,7 +4,7 @@ Setting custom distributed header information
 HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
-HTTP_X_DATADOG_TAGS=custom_tag=inherited,second_tag=bar
+HTTP_X_DATADOG_TAGS=_dd.p.custom_tag=inherited,_dd.p.second_tag=bar
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -27,8 +27,8 @@ dump_context();
 trace_id: 42
 distributed_tracing_origin: datadog
 distributed_tracing_parent_id: 10
-distributed_tracing_propagated_tags: {"custom_tag":"inherited","second_tag":"bar"}
-trace_id: 321
+distributed_tracing_propagated_tags: {"_dd.p.custom_tag":"inherited","_dd.p.second_tag":"bar"}
+trace_id: 123
 distributed_tracing_origin: foo
 distributed_tracing_parent_id: 321
 distributed_tracing_propagated_tags: {"a":"b"}

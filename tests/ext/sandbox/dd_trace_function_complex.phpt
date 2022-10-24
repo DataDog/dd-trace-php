@@ -122,8 +122,8 @@ array(5) {
       string(5) "first"
       ["retval.rand"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(24) "QmFyU2VydmljZQ|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(5) {
@@ -203,8 +203,8 @@ array(5) {
     array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(49) "ZGRfdHJhY2VfZnVuY3Rpb25fY29tcGxleC5waHA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {
@@ -238,8 +238,8 @@ array(5) {
     array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(49) "ZGRfdHJhY2VfZnVuY3Rpb25fY29tcGxleC5waHA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

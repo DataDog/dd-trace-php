@@ -1,0 +1,61 @@
+version: '3'
+
+services:
+  php-7.0:
+    build:
+      context: docker
+      x-bake: &bake
+        platforms:
+          - linux/arm64
+          - linux/amd64
+      args:
+        PHP_MAJOR_MINOR: "7.0"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.0-2'
+
+  php-7.1:
+    build:
+      context: docker
+      x-bake: *bake
+      args:
+        PHP_MAJOR_MINOR: "7.1"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.1-2'
+
+  php-7.2:
+    build:
+      context: docker
+      x-bake: *bake
+      args:
+        PHP_MAJOR_MINOR: "7.2"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.2-2'
+
+  php-7.3:
+    build:
+      context: docker
+      x-bake: *bake
+      args:
+        PHP_MAJOR_MINOR: "7.3"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.3-2'
+
+  php-7.4:
+    build:
+      context: docker
+      x-bake: *bake
+      args:
+        PHP_MAJOR_MINOR: "7.4"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-7.4-2'
+
+  php-8.0:
+    build:
+      context: docker
+      x-bake: *bake
+      args:
+        PHP_MAJOR_MINOR: "8.0"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.0-2'
+
+  php-8.1:
+    build:
+      context: docker
+      x-bake: *bake
+      args:
+        PHP_MAJOR_MINOR: "8.1"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.1-2'

@@ -23,7 +23,7 @@ RUN set -xe; \
         php${V}-dom \
         php${V}-gd \
         php${V}-iconv \
-        php${V}-imagick \
+        # php${V}-imagick \
         php${V}-json \
         php${V}-intl \
         php${V}-fileinfo\
@@ -35,7 +35,7 @@ RUN set -xe; \
         php${V}-phar \
         php${V}-tokenizer \
         php${V}-simplexml \
-        php${V}-xdebug \
+        # php${V}-xdebug \
         php${V}-zip \
         php${V}-xmlwriter \
         php${V}-mysql \
@@ -52,7 +52,7 @@ RUN set -xe; \
 RUN set -xe; \
     php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');";\
     php -r "if (hash_file('sha384', 'composer-setup.php') === '$(curl -L -o - https://composer.github.io/installer.sig)') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"; \
-    php composer-setup.php; \
+    php composer-setup.php --2.2; \
     php -r "unlink('composer-setup.php');"; \
     mv composer.phar /usr/local/bin/composer;
 
@@ -178,8 +178,8 @@ RUN set -xe; \
 RUN set -xe; \
     git clone --depth 1 --branch ${WORDPRESS_VERSION_TAG} git://develop.git.wordpress.org/ /home/wordpress; \
     cd /home/wordpress; \
-    switch_php 5.6; \
-    composer require --dev phpunit/phpunit ^5
+    switch_php 7.0; \
+    composer require --dev phpunit/phpunit ^6
 
 WORKDIR /home/wordpress
 ADD wordpress/wp-tests-config.php ./

@@ -29,20 +29,20 @@ echo PHP_EOL;
 main(6);
 echo PHP_EOL;
 ?>
---EXPECT--
+--EXPECTF--
 3
 6
 Has not flushed yet.
-Successfully triggered flush with trace of size 3
+Flushing trace of size 3 to send-queue for %s
 
 10
 15
 Has not flushed yet.
-Successfully triggered flush with trace of size 3
+Flushing trace of size 3 to send-queue for %s
 
 21
 28
 Has not flushed yet.
-Successfully triggered flush with trace of size 3
+Flushing trace of size 3 to send-queue for %s
 
 No finished traces to be sent to the agent

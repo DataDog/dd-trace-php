@@ -2,7 +2,8 @@
 
 // Tests for the installer are in 'dockerfiles/verify_packages/installer'
 
-const INI_CONF = 'Scan this dir for additional .ini files';
+const INI_SCANDIR = 'Scan this dir for additional .ini files';
+const INI_MAIN = 'Loaded Configuration File';
 const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
 const PHP_API = 'PHP API';
@@ -19,10 +20,6 @@ const OPT_ENABLE_PROFILING = 'enable-profiling';
 
 // Release version is set while generating the final release files
 const RELEASE_VERSION = '@release_version@';
-
-// Supported platforms
-const PLATFORM_X86_LINUX_GNU = 'x86_64-linux-gnu';
-const PLATFORM_X86_LINUX_MUSL = 'x86_64-linux-musl';
 
 function main()
 {
@@ -55,7 +52,7 @@ Options:
                                 paths. The option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries
-    --enable-appsec             Enable the BETA appsec module.
+    --enable-appsec             Enable the application security monitoring module.
     --enable-profiling          Enable the BETA profiling module.
 
 EOD;
@@ -63,12 +60,23 @@ EOD;
 
 function install($options)
 {
-    $platform = is_alpine() ? PLATFORM_X86_LINUX_MUSL : PLATFORM_X86_LINUX_GNU;
+    $architecture = get_architecture();
+    $platform = "$architecture-linux-" . (is_alpine() ? 'musl' : 'gnu');
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
     if (is_alpine()) {
         check_library_prerequisite_or_exit('libexecinfo');
+        if (is_truthy($options[OPT_ENABLE_PROFILING])) {
+            check_library_prerequisite_or_exit('libgcc_s');
+        }
+    } else {
+        if (is_truthy($options[OPT_ENABLE_PROFILING])) {
+            check_library_prerequisite_or_exit('libdl.so');
+            check_library_prerequisite_or_exit('libgcc_s');
+            check_library_prerequisite_or_exit('libpthread');
+            check_library_prerequisite_or_exit('librt');
+        }
     }
 
     // Picking the right binaries to install the library
@@ -104,7 +112,7 @@ function install($options)
         // For testing purposes, we need an alternate repo where we can push bundles that includes changes that we are
         // trying to test, as the previously released versions would not have those changes.
         $url = (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php")
-                . "/releases/download/${version}/dd-library-php-${version}-${platform}.tar.gz";
+            . "/releases/download/${version}/dd-library-php-${version}-${platform}.tar.gz";
         // phpcs:enable Generic.Files.LineLength.TooLong
         download($url, $tmpDirTarGz);
         unset($version);
@@ -134,14 +142,16 @@ function install($options)
     echo "Installed required source files to '$installDir'\n";
 
     // Appsec helper and rules
-    execute_or_exit(
-        "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
-        "cp -r " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
-    );
-    execute_or_exit(
-        "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
-        "cp -r " . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
-    );
+    if ("x86_64" === $architecture) {
+        execute_or_exit(
+            "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
+            "cp -r " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
+        );
+        execute_or_exit(
+            "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
+            "cp -r " . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
+        );
+    }
     $appSecRulesPath = $installDir . '/etc/recommended.json';
 
     // Actual installation
@@ -158,6 +168,19 @@ function install($options)
             print_error_and_exit('(ZTS DEBUG) builds of PHP are currently not supported');
         }
 
+        if (!isset($phpProperties[INI_SCANDIR])) {
+            if (!isset($phpProperties[INI_MAIN])) {
+                print_error_and_exit("It is not possible to perform installation on this system " .
+                                    "because there is no scan directory and no configuration file loaded.");
+            }
+
+            print_warning("Performing an installation without a scan directory may result in " .
+                        "fragile installations that are broken by normal system upgrades. " .
+                        "It is advisable to use the configure switch " .
+                        "--with-config-file-scan-dir " .
+                        "when building PHP");
+        }
+
         // Copying the extension
         $extensionVersion = $phpProperties[PHP_API];
 
@@ -170,13 +193,13 @@ function install($options)
         }
 
         // Trace
-        $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so" ;
+        $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so";
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Profiling
         $shouldInstallProfiling =
-            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0'])
+            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
             && !is_truthy($phpProperties[THREAD_SAFETY])
             && !is_truthy($phpProperties[IS_DEBUG]);
 
@@ -189,7 +212,9 @@ function install($options)
         // Appsec
         $shouldInstallAppsec =
             in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
-            && !is_truthy($phpProperties[IS_DEBUG]);
+            && !is_truthy($phpProperties[IS_DEBUG])
+            && in_array($architecture, ["x86_64"]);
+
         if ($shouldInstallAppsec) {
             $appsecExtensionRealPath = "${tmpArchiveAppsecRoot}/ext/${extensionVersion}/ddappsec${extensionSuffix}.so";
             $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
@@ -198,19 +223,26 @@ function install($options)
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
         // Writing the ini file
-        $iniFileName = '98-ddtrace.ini';
-        $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
-        if (\strpos($phpProperties[INI_CONF], '/cli/conf.d') !== false) {
-            /* debian based distros have INI folders split by SAPI, in a predefined way:
-             *   - <...>/cli/conf.d       <-- we know this from php -i
-             *   - <...>/apache2/conf.d   <-- we derive this from relative path
-             *   - <...>/fpm/conf.d       <-- we derive this from relative path
-             */
-            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
-            if (\is_dir($apacheConfd)) {
-                array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+        if ($phpProperties[INI_SCANDIR]) {
+            $iniFileName = '98-ddtrace.ini';
+            $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
+
+            if (\strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
+                /* debian based distros have INI folders split by SAPI, in a predefined way:
+                 *   - <...>/cli/conf.d       <-- we know this from php -i
+                 *   - <...>/apache2/conf.d   <-- we derive this from relative path
+                 *   - <...>/fpm/conf.d       <-- we derive this from relative path
+                 */
+                $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
+                if (\is_dir($apacheConfd)) {
+                    array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+                }
             }
+        } else {
+            $iniFileName = $phpProperties[INI_MAIN];
+            $iniFilePaths = [$iniFileName];
         }
+
         foreach ($iniFilePaths as $iniFilePath) {
             if (!file_exists($iniFilePath)) {
                 $iniDir = dirname($iniFilePath);
@@ -245,6 +277,14 @@ function install($options)
                     "sed -i 's@extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
                         . escapeshellarg($iniFilePath)
                 );
+
+
+                // Support upgrading from the C based zend_extension.
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@zend_extension \?= \?.*datadog-profiling.*\(.*\)@extension = datadog-profiling.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
             }
 
             add_missing_ini_settings(
@@ -258,7 +298,7 @@ function install($options)
                 if ($shouldInstallProfiling) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?zend_extension \?= \?datadog-profiling.so@zend_extension = datadog-profiling.so@g' "
+                        "sed -i 's@ \?; \?extension \?= \?datadog-profiling.so@extension = datadog-profiling.so@g' "
                             . escapeshellarg($iniFilePath)
                     );
                 } else {
@@ -268,27 +308,49 @@ function install($options)
                 // phpcs:enable Generic.Files.LineLength.TooLong
             }
 
-            // Enabling appsec
-            if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                if ($shouldInstallAppsec) {
-                    // Appsec crashes with missing symbols if tracing is not loaded
+            // Load AppSec and enable/disable as required
+
+            // phpcs:disable Generic.Files.LineLength.TooLong
+            if ($shouldInstallAppsec) {
+                // Appsec crashes with missing symbols if tracing is not loaded
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@ \?; \?extension \?= \?ddtrace.so@extension = ddtrace.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
+
+                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?extension \?= \?ddtrace.so@extension = ddtrace.so@g' "
-                            . escapeshellarg($iniFilePath)
-                    );
-                    execute_or_exit(
-                        'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
+                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
                             . escapeshellarg($iniFilePath)
                     );
                 } else {
+                    execute_or_exit(
+                        'Impossible to update the INI settings file.',
+                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
+                            . escapeshellarg($iniFilePath)
+                    );
+                }
+            } else {
+                // Ensure AppSec isn't loaded if not compatible
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@extension \?= \?ddappsec.so@;extension = ddappsec.so@g' "
+                        . escapeshellarg($iniFilePath)
+                );
+
+                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     $enableAppsec = OPT_ENABLE_APPSEC;
-                    // phpcs:disable Generic.Files.LineLength.TooLong
                     print_error_and_exit("Option --${enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
-                    // phpcs:enable Generic.Files.LineLength.TooLong
                 }
             }
+            // phpcs:enable Generic.Files.LineLength.TooLong
 
             echo "Installation to '$binaryForLog' was successful\n";
         }
@@ -345,19 +407,28 @@ function uninstall($options)
             $phpProperties[EXTENSION_DIR] . '/ddappsec.so',
         ];
 
-        // Writing the ini file
-        $iniFileName = '98-ddtrace.ini';
-        $iniFilePaths = [$phpProperties[INI_CONF] . '/' . $iniFileName];
-        if (\strpos('/cli/conf.d', $phpProperties[INI_CONF]) >= 0) {
-            /* debian based distros have INI folders split by SAPI, in a predefined way:
-             *   - <...>/cli/conf.d       <-- we know this from php -i
-             *   - <...>/apache2/conf.d    <-- we derive this from relative path
-             *   - <...>/fpm/conf.d       <-- we derive this from relative path
-             */
-            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_CONF]);
-            if (\is_dir($apacheConfd)) {
-                array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+        if (isset($phpProperties[INI_SCANDIR])) {
+            $iniFileName = '98-ddtrace.ini';
+            $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
+
+            if (\strpos('/cli/conf.d', $phpProperties[INI_SCANDIR]) >= 0) {
+                /* debian based distros have INI folders split by SAPI, in a predefined way:
+                 *   - <...>/cli/conf.d       <-- we know this from php -i
+                 *   - <...>/apache2/conf.d    <-- we derive this from relative path
+                 *   - <...>/fpm/conf.d       <-- we derive this from relative path
+                 */
+                $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
+                if (\is_dir($apacheConfd)) {
+                    array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+                }
             }
+        } else {
+            if (!isset($phpProperties[INI_MAIN])) {
+                print_error_and_exit("It is not possible to perform uninstallation on this system " .
+                                    "because there is no scan directory and no configuration file loaded.");
+            }
+
+            $iniFilePaths = [$phpProperties[INI_MAIN]];
         }
 
         /* Actual uninstall
@@ -404,11 +475,15 @@ function require_binaries_or_exit($options)
 {
     $selectedBinaries = [];
     if (empty($options[OPT_PHP_BIN])) {
-        $selectedBinaries = pick_binaries_interactive(search_php_binaries());
+        $selectedBinaries = pick_binaries_interactive($options, search_php_binaries());
     } else {
         foreach ($options[OPT_PHP_BIN] as $command) {
             if ($command == "all") {
-                $selectedBinaries += search_php_binaries();
+                foreach (search_php_binaries() as $command => $binaryinfo) {
+                    if (!$binaryinfo["shebang"]) {
+                        $selectedBinaries[$command] = $binaryinfo["path"];
+                    }
+                }
             } elseif ($resolvedPath = resolve_command_full_path($command)) {
                 $selectedBinaries[$command] = $resolvedPath;
             } else {
@@ -481,6 +556,19 @@ function is_alpine()
         return false;
     }
     return false !== stripos(file_get_contents($osInfoFile), 'alpine');
+}
+
+/**
+ * Returns the host architecture, e.g. x86_64, aarch64
+ *
+ * @return string
+ */
+function get_architecture()
+{
+    return execute_or_exit(
+        "Cannot detect host architecture (uname -m)",
+        "uname -m"
+    );
 }
 
 /**
@@ -574,18 +662,22 @@ function print_warning($message)
  * @param array $php_binaries
  * @return array
  */
-function pick_binaries_interactive(array $php_binaries)
+function pick_binaries_interactive($options, array $php_binaries)
 {
-    echo "Multiple PHP binaries detected. Please select the binaries the datadog library will be installed to:\n\n";
+    echo sprintf(
+        "Multiple PHP binaries detected. Please select the binaries the datadog library will be %s:\n\n",
+        $options[OPT_UNINSTALL] ? "uninstalled from" : "installed to"
+    );
     $commands = array_keys($php_binaries);
     for ($index = 0; $index < count($commands); $index++) {
         $command = $commands[$index];
-        $fullPath = $php_binaries[$command];
+        $fullPath = $php_binaries[$command]["path"];
         echo "  "
             . str_pad($index + 1, 2, ' ', STR_PAD_LEFT)
             . ". "
             . ($command !== $fullPath ? "$command --> " : "")
             . $fullPath
+            . ($php_binaries[$command]["shebang"] ? " (not a binary)" : "")
             . "\n";
     }
     echo "\n";
@@ -600,10 +692,10 @@ function pick_binaries_interactive(array $php_binaries)
         $index = $choice - 1; // we render to the user as 1-indexed
         if (!isset($commands[$index])) {
             echo "\nERROR: Wrong choice: $choice\n\n";
-            return pick_binaries_interactive($php_binaries);
+            return pick_binaries_interactive($options, $php_binaries);
         }
         $command = $commands[$index];
-        $pickedBinaries[$command] = $php_binaries[$command];
+        $pickedBinaries[$command] = $php_binaries[$command]["path"];
     }
 
     return $pickedBinaries;
@@ -742,7 +834,7 @@ function on_download_progress($curlHandle, $download_size, $downloaded)
  */
 function ini_values($binary)
 {
-    $properties = [INI_CONF, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
+    $properties = [INI_MAIN, INI_SCANDIR, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
     $lines = [];
     // Timezone is irrelevant to this script. Quick-and-dirty workaround to the PHP 5 warning with missing timezone
     exec(escapeshellarg($binary) . " -d date.timezone=UTC -i", $lines);
@@ -752,7 +844,13 @@ function ini_values($binary)
         if (count($parts) === 2 || count($parts) === 3) {
             $key = trim($parts[0]);
             if (in_array($key, $properties)) {
-                $found[$key] = trim(count($parts) === 2 ? $parts[1] : $parts[2]);
+                $value = trim(count($parts) === 2 ? $parts[1] : $parts[2]);
+
+                if ($value === "(none)") {
+                    continue;
+                }
+
+                $found[$key] = $value;
             }
         }
     }
@@ -761,12 +859,15 @@ function ini_values($binary)
 
 function is_truthy($value)
 {
+    if ($value === null) {
+        return false;
+    }
+
     $normalized = trim(strtolower($value));
     return in_array($normalized, ['1', 'true', 'yes', 'enabled']);
 }
 
 /**
- * @param array $phpVersions
  * @param string $prefix Default ''. Used for testing purposes only.
  * @return array
  */
@@ -774,15 +875,14 @@ function search_php_binaries($prefix = '')
 {
     echo "Searching for available php binaries, this operation might take a while.\n";
 
-    $results = [];
+    $resolvedPaths = [];
 
     $allPossibleCommands = build_known_command_names_matrix();
 
     // First, we search in $PATH, for php, php7, php74, php7.4, php7.4-fpm, etc....
     foreach ($allPossibleCommands as $command) {
-        $path = exec("command -v " . escapeshellarg($command));
         if ($resolvedPath = resolve_command_full_path($command)) {
-            $results[$command] = $resolvedPath;
+            $resolvedPaths[$command] = $resolvedPath;
         }
     }
 
@@ -793,6 +893,7 @@ function search_php_binaries($prefix = '')
         $prefix . '/usr/local/bin',
         $prefix . '/usr/local/sbin',
     ];
+
     $remiSafePaths = array_map(function ($phpVersion) use ($prefix) {
         list($major, $minor) = explode('.', $phpVersion);
         /* php is installed to /usr/bin/php${major}${minor} so we do not need to do anything special, while php-fpm
@@ -801,7 +902,15 @@ function search_php_binaries($prefix = '')
          */
         return "${prefix}/opt/remi/php${major}${minor}/root/usr/sbin";
     }, get_supported_php_versions());
-    $escapedSearchLocations =  implode(' ', array_map('escapeshellarg', $standardPaths + $remiSafePaths));
+
+    $pleskPaths = array_map(function ($phpVersion) use ($prefix) {
+        return "/opt/plesk/php/$phpVersion/bin";
+    }, get_supported_php_versions());
+
+    $escapedSearchLocations = implode(
+        ' ',
+        array_map('escapeshellarg', array_merge($standardPaths, $remiSafePaths, $pleskPaths))
+    );
     $escapedCommandNamesForFind = implode(
         ' -o ',
         array_map(
@@ -820,10 +929,19 @@ function search_php_binaries($prefix = '')
 
     foreach ($pathsFound as $path) {
         $resolved = realpath($path);
-        if (in_array($resolved, array_values($results))) {
+        if (in_array($resolved, array_values($resolvedPaths))) {
             continue;
         }
-        $results[$path] = $resolved;
+        $resolvedPaths[$path] = $resolved;
+    }
+
+    $results = [];
+    foreach ($resolvedPaths as $command => $realpath) {
+        $hasShebang = file_get_contents($realpath, false, null, 0, 2) === "#!";
+        $results[$command] = [
+            "shebang" => $hasShebang,
+            "path" => $realpath,
+        ];
     }
 
     return $results;
@@ -879,10 +997,16 @@ function add_missing_ini_settings($iniFilePath, $settings)
     $formattedMissingProperties = '';
 
     foreach ($settings as $setting) {
-        $settingMightExist = 1 === preg_match(
-            '/' . str_replace('.', '\.', $setting['name']) . '\s?=\s?/',
-            $iniFileContent
-        );
+        // The extension setting is not unique, so make sure we check that the
+        // right extension setting is available.
+        $settingRegex = '/' . str_replace('.', '\.', $setting['name']) . '\s?=\s?';
+        if ($setting['name'] === 'extension' || $setting['name'] == 'zend_extension') {
+            $settingRegex .= str_replace('.', '\.', $setting['default']);
+        }
+        $settingRegex .= '/';
+
+        $settingMightExist = 1 === preg_match($settingRegex, $iniFileContent);
+
         if ($settingMightExist) {
             continue;
         }
@@ -890,16 +1014,16 @@ function add_missing_ini_settings($iniFilePath, $settings)
         // Formatting the setting to be added.
         $description =
             is_string($setting['description'])
-                ? '; ' . $setting['description']
-                : implode(
-                    "\n",
-                    array_map(
-                        function ($line) {
-                            return '; ' . $line;
-                        },
-                        $setting['description']
-                    )
-                );
+            ? '; ' . $setting['description']
+            : implode(
+                "\n",
+                array_map(
+                    function ($line) {
+                        return '; ' . $line;
+                    },
+                    $setting['description']
+                )
+            );
         $setting = ($setting['commented'] ? ';' : '') . $setting['name'] . ' = ' . $setting['default'];
         $formattedMissingProperties .= "\n$description\n$setting\n";
     }
@@ -943,7 +1067,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'description' => 'Enables or disables tracing (set by the installer, do not change it)',
         ],
         [
-            'name' => 'zend_extension',
+            'name' => 'extension',
             'default' => 'datadog-profiling.so',
             'commented' => true,
             'description' => 'Enables the profiling module',
@@ -951,7 +1075,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         [
             'name' => 'extension',
             'default' => 'ddappsec.so',
-            'commented' => true,
+            'commented' => false,
             'description' => 'Enables the appsec module',
         ],
         [
@@ -1196,7 +1320,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
         [
             'name' => 'datadog.appsec.enabled',
-            'default' => 'On',
+            'default' => 'Off',
             'commented' => false,
             'description' => [
                 'Enables or disables the loaded dd-appsec extension.',
@@ -1282,7 +1406,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             ],
         ],
         [
-            'name' => 'datadog.appsec.rules_path',
+            'name' => 'datadog.appsec.rules',
             'default' => $appsecRulesPath,
             'commented' => false,
             'description' => [

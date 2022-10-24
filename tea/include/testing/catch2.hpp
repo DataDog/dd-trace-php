@@ -256,7 +256,6 @@ private:
         __TEA_TEST_CASE_PROLOGUE                                    \
         REQUIRE(tea_sapi_minit());                                  \
         REQUIRE(tea_sapi_rinit());                                  \
-        TEA_TSRMLS_FETCH();                                         \
         __TEA_TEST_CASE_BEGIN()                                     \
         if (__TEA_TEST_CASE_STUB) {                                 \
             volatile bool                                           \
@@ -264,8 +263,7 @@ private:
             zend_try {                                              \
                 tea_test_case_stub_included =                       \
                     tea_execute_script(                             \
-                        __TEA_TEST_CASE_STUB                        \
-                        TEA_TSRMLS_CC);                             \
+                        __TEA_TEST_CASE_STUB);                      \
             } zend_catch {                                          \
                 tea_test_case_stub_included = false;                \
             } zend_end_try();                                       \

@@ -24,6 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
+Found unfinished span while automatically closing spans with name 'my precious span'
 array(1) {
   [0]=>
   array(10) {
@@ -47,8 +48,8 @@ array(1) {
     array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(50) "c3RhcnRfc3Bhbl93aXRob3V0X2Nsb3NpbmcucGhw|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

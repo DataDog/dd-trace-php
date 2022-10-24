@@ -8,7 +8,7 @@ TEA_TEST_CASE("tea/sapi", "eval", {
 TEA_TEST_CASE_WITH_STUB("tea/sapi", "execute", "./stubs/basic.php", {})
 
 TEA_TEST_BAILING_CASE("tea/sapi", "execute non-existent", {
-    tea_execute_script("./this_does_not_exist.php" TEA_TSRMLS_CC);
+    tea_execute_script("./this_does_not_exist.php");
 });
 
 TEA_TEST_CASE("tea/sapi", "hardcoded ini", {

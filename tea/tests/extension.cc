@@ -62,11 +62,7 @@ TEA_TEST_CASE_BARE("tea/extension", "name", {
     REQUIRE(tea_sapi_minit());
     REQUIRE(tea_sapi_rinit());
 
-#if PHP_VERSION_ID < 70000
-    CHECK(zend_hash_exists(&module_registry, "rename", sizeof("rename")));
-#else
     CHECK(zend_hash_str_exists(&module_registry, "rename", sizeof("rename")-1));
-#endif
 })
 
 TEA_TEST_CASE_BARE("tea/extension", "minit pass", {
@@ -261,15 +257,9 @@ TEA_TEST_CASE_BARE("tea/extension", "functions", {
     }
     REQUIRE(tea_sapi_minit());
     REQUIRE(tea_sapi_rinit());
-    TEA_TSRMLS_FETCH();
 
-#if PHP_VERSION_ID < 70000
-    CHECK(zend_hash_exists(EG(function_table), "tea_extension_function_one", sizeof("tea_extension_function_one")));
-    CHECK(zend_hash_exists(EG(function_table), "tea_extension_function_two", sizeof("tea_extension_function_two")));
-#else
     CHECK(zend_hash_str_exists(EG(function_table), "tea_extension_function_one", sizeof("tea_extension_function_one")-1));
     CHECK(zend_hash_str_exists(EG(function_table), "tea_extension_function_two", sizeof("tea_extension_function_two")-1));
-#endif
 });
 
 TEA_TEST_CASE_BARE("tea/extension", "functions multiple", {
@@ -281,19 +271,11 @@ TEA_TEST_CASE_BARE("tea/extension", "functions multiple", {
     }
     REQUIRE(tea_sapi_minit());
     REQUIRE(tea_sapi_rinit());
-    TEA_TSRMLS_FETCH();
 
-#if PHP_VERSION_ID < 70000
-    CHECK(zend_hash_exists(EG(function_table), "tea_extension_function_one", sizeof("tea_extension_function_one")));
-    CHECK(zend_hash_exists(EG(function_table), "tea_extension_function_two", sizeof("tea_extension_function_two")));
-    CHECK(zend_hash_exists(EG(function_table), "tea_extension_function_three", sizeof("tea_extension_function_three")));
-    CHECK(zend_hash_exists(EG(function_table), "tea_extension_function_four",  sizeof("tea_extension_function_four")));
-#else
     CHECK(zend_hash_str_exists(EG(function_table), "tea_extension_function_one", sizeof("tea_extension_function_one")-1));
     CHECK(zend_hash_str_exists(EG(function_table), "tea_extension_function_two", sizeof("tea_extension_function_two")-1));
     CHECK(zend_hash_str_exists(EG(function_table), "tea_extension_function_three", sizeof("tea_extension_function_three")-1));
     CHECK(zend_hash_str_exists(EG(function_table), "tea_extension_function_four", sizeof("tea_extension_function_four")-1));
-#endif
 });
 
 TEA_TEST_CASE_WITH_PROLOGUE("tea/extension", "dummy", {

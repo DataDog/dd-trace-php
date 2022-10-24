@@ -76,8 +76,8 @@ array(2) {
     array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(56) "c3RhcnRfc3Bhbl93aXRoX2FsbF9wcm9wZXJ0aWVzLnBocA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {
@@ -113,8 +113,8 @@ array(2) {
       string(%d) "%d"
       ["aa"]=>
       string(2) "bb"
-      ["_dd.p.upstream_services"]=>
-      string(16) "dGVzdA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(4) {

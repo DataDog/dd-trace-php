@@ -1,7 +1,5 @@
 --TEST--
 [Prehook regression] Private and protected properties are accessed from a tracing closure
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --FILE--
 <?php
 class Test

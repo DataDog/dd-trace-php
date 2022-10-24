@@ -41,11 +41,13 @@ assert_no_profiler() {
 }
 
 assert_ddtrace_version() {
-    output="$(php -v)"
-    if [ -z "${output##*ddtrace v${1}*}" ]; then
-        echo "---\nOk: ddtrace version '${1}' is correctly installed\n---\n${output}\n---\n"
+    expected_version=${1}
+    php_bin=${2:-php}
+    output="$($php_bin -v)"
+    if [ -z "${output##*ddtrace v${expected_version}*}" ]; then
+        echo "---\nOk: ddtrace version '${expected_version}' is correctly installed\n---\n${output}\n---\n"
     else
-        echo "---\nError: Wrong ddtrace version. Expected: ${1}\n---\n${output}\n---\n"
+        echo "---\nError: Wrong ddtrace version. Expected: ${expected_version}\n---\n${output}\n---\n"
         exit 1
     fi
 }
@@ -53,7 +55,7 @@ assert_ddtrace_version() {
 assert_appsec_version() {
     output="$(php --ri ddappsec)"
     if [ -z "${output##*Version => ${1}*}" ]; then
-        echo "---\nOk: dddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
+        echo "---\nOk: ddappsec version '${1}' is correctly installed\n---\n${output}\n---\n"
     else
         echo "---\nError: Wrong ddappsec version. Expected: ${1}\n---\n${output}\n---\n"
         exit 1
@@ -79,8 +81,29 @@ assert_profiler_version() {
     fi
 }
 
+assert_appsec_enabled() {
+    output="$(php --ri ddappsec)"
+    if [ -z "${output##*datadog.appsec.enabled => 1*}" ]; then
+        echo "---\nOk: ddappsec is enabled\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong ddappsec should be enabled\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_appsec_disabled() {
+    output="$(php --ri ddappsec)"
+    if [ -n "${output##*datadog.appsec.enabled => 1*}" ]; then
+        echo "---\nOk: ddappsec is not enabled\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Wrong ddappsec should not be enabled\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
 assert_request_init_hook_exists() {
-    assert_file_exists $(php -r 'echo ini_get("datadog.trace.request_init_hook");')
+    php_bin=${1:-php}
+    assert_file_exists $($php_bin -r 'echo ini_get("datadog.trace.request_init_hook");')
 }
 
 assert_file_exists() {
@@ -102,16 +125,43 @@ install_legacy_ddtrace() {
 }
 
 get_php_conf_dir() {
-    php -i | grep -i 'scan this dir for additional .ini files' | awk '{print $NF}'
+    php_bin=${1:-php}
+    $php_bin -i | grep -i 'scan this dir for additional .ini files' | awk '{print $NF}'
+}
+
+get_php_main_conf() {
+    php_bin=${1:-php}
+    $php_bin -i | grep -i 'Loaded Configuration File' | awk '{print $NF}'
 }
 
 get_php_extension_dir() {
-    php -i | grep -i '^extension_dir' | awk '{print $NF}'
+    php_bin=${1:-php}
+    $php_bin -i | grep -i '^extension_dir' | awk '{print $NF}'
 }
 
 generate_installers() {
     version="${1}"
     sh "$(pwd)/tooling/bin/generate-installers.sh" "${version}" "$(pwd)/build/packages"
+}
+
+fetch_setup_for_version() {
+    version="${1?}"
+    sha256sum="${2?}"
+    destdir="${3?}"
+
+    mkdir -vp "${destdir?}"
+    cd "${destdir}"
+    curl -OL https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php
+    echo "${sha256sum}  datadog-setup.php" | sha256sum -c
+    cd -
+}
+
+parse_trace_version() {
+    awk -F\' '/const VERSION/ {print $2}' < src/DDTrace/Tracer.php
+}
+
+parse_profiling_version() {
+    awk -F\" '/^version[ \t]*=/ {print $2}' < profiling/Cargo.toml
 }
 
 dashed_print() {

@@ -29,5 +29,5 @@ Greeter::greet('Datadog');
 --EXPECTF--
 Hello, Datadog.
 Greeter::greet hooked.
-%s in ddtrace's closure for Greeter::greet(): Undefined variable%sthis_normally_raises_an_%s
-Successfully triggered flush with trace of size 1
+%s in ddtrace's closure defined at %s:%d for Greeter::greet(): Undefined variable%sthis_normally_raises_an_%s
+Flushing trace of size 1 to send-queue for %s

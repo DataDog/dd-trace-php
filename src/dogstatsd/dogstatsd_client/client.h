@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <sys/un.h>
 
 /* This describes a simple interface to communicate with dogstatsd. It only
  * implements the portions of the interface that the PHP tracer needs. If it
@@ -117,8 +118,8 @@ int dogstatsd_client_getaddrinfo(struct addrinfo **result, const char *host,
                                  const char *port);
 
 /* If the client fails to open a socket, it will create a default client. */
-dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, char *buffer,
-                                       int buffer_len, const char *const_tags);
+dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, int buffer_len,
+                                       const char *const_tags);
 
 /* Most generic way to send a metric. If the input is malformed the metric will
  * not be sent, and an error code will be returned.

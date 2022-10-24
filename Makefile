@@ -15,10 +15,12 @@ CFLAGS := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 -g || echo -O2) 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
+PHP_MAJOR_DOT_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
+ARCHITECTURE=$(shell uname -m)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
-PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.5.0/datadog-profiling.tar.gz
-APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.2.1/dd-appsec-php-0.2.1-amd64.tar.gz
+PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
+APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.4.3/dd-appsec-php-0.4.3-amd64.tar.gz
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -33,7 +35,7 @@ endif
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -77,6 +79,9 @@ $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 
 $(SO_FILE): $(C_FILES) $(BUILD_DIR)/Makefile
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)"
+
+asan: $(C_FILES) $(BUILD_DIR)/Makefile
+	$(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS) -fsanitize=address" LDFLAGS="-fsanitize=address"
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
@@ -379,10 +384,10 @@ clang_format_fix:
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
-FPM_INFO_OPTS=-a native -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
+FPM_INFO_OPTS=-a $(ARCHITECTURE) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
 	--provides $(PACKAGE_NAME) --vendor DataDog  --url "https://docs.datadoghq.com/tracing/setup/php/" --no-depends
 FPM_DIR_OPTS=--directories $(EXT_DIR)/etc --config-files $(EXT_DIR)/etc -s dir
-FPM_FILES=extensions/=$(EXT_DIR)/extensions \
+FPM_FILES=extensions_$(shell test $(ARCHITECTURE) = arm64 && echo aarch64 || echo $(ARCHITECTURE))/=$(EXT_DIR)/extensions \
 	package/post-install.sh=$(EXT_DIR)/bin/post-install.sh package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 	docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md UPGRADE-0.10.md=$(EXT_DIR)/docs/UPGRADE-0.10.md\
 	src=$(EXT_DIR)/dd-trace-sources \
@@ -394,16 +399,23 @@ PACKAGES_BUILD_DIR:=build/packages
 $(PACKAGES_BUILD_DIR):
 	mkdir -p "$@"
 
-.deb: $(PACKAGES_BUILD_DIR)
+.deb.%: ARCHITECTURE=$(*)
+.deb.%: $(PACKAGES_BUILD_DIR)
 	fpm -p $(PACKAGES_BUILD_DIR) -t deb $(FPM_OPTS) $(FPM_FILES)
-.rpm: $(PACKAGES_BUILD_DIR)
+.rpm.%: ARCHITECTURE=$(*)
+.rpm.%: $(PACKAGES_BUILD_DIR)
 	fpm -p $(PACKAGES_BUILD_DIR) -t rpm $(FPM_OPTS) $(FPM_FILES)
-.apk: $(PACKAGES_BUILD_DIR)
+.apk.%: ARCHITECTURE=$(*)
+.apk.%: $(PACKAGES_BUILD_DIR)
 	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=bash --depends=curl --depends=libexecinfo $(FPM_FILES)
-.tar.gz: $(PACKAGES_BUILD_DIR)
+
+# Example .tar.gz.aarch64, .tar.gz.x86_64
+.tar.gz.%: ARCHITECTURE=$(*)
+.tar.gz.%: $(PACKAGES_BUILD_DIR)
 	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)
+	rm -rf /tmp/$(PACKAGES_BUILD_DIR)/*
 	fpm -p /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) -t dir $(FPM_OPTS) $(FPM_FILES)
-	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).x86_64.tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
+	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(ARCHITECTURE).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
@@ -420,7 +432,7 @@ build_pecl_package:
 	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
-packages: .apk .rpm .deb .tar.gz bundle.tar.gz
+packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
 verify_version:
@@ -458,85 +470,6 @@ COMPOSER := COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 COMPOSER_TESTS := $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS := $(PHPUNIT_OPTS)
 PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
-
-TEST_INTEGRATIONS_54 := \
-	test_integrations_deferred_loading \
-	test_integrations_curl \
-	test_integrations_memcached \
-	test_integrations_mysqli \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_predis1
-
-TEST_WEB_54 := \
-	test_web_cakephp_28 \
-	test_web_laravel_42 \
-	test_web_yii_2 \
-	test_web_zend_1 \
-	test_web_custom
-
-TEST_INTEGRATIONS_55 := \
-	test_integrations_deferred_loading \
-	test_integrations_curl \
-	test_integrations_memcached \
-	test_integrations_mysqli \
-	test_integrations_mongo \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_predis1
-
-TEST_WEB_55 := \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_lumen_52 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_yii_2 \
-	test_web_wordpress_48 \
-	test_web_zend_1 \
-	test_web_custom
-
-TEST_INTEGRATIONS_56 := \
-	test_integrations_deferred_loading \
-	test_integrations_curl \
-	test_integrations_memcached \
-	test_integrations_mysqli \
-	test_integrations_mongo \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_predis1 \
-	test_opentracing_beta5
-
-TEST_WEB_56 := \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_lumen_52 \
-	test_web_nette_24 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_yii_2 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_zend_1 \
-	test_web_custom
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -747,7 +680,6 @@ TEST_WEB_74 := \
 	test_web_slim_4 \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
-	test_web_symfony_42 \
 	test_web_symfony_44 \
 	test_web_symfony_50 \
 	test_web_symfony_51 \
@@ -767,6 +699,7 @@ TEST_WEB_74 := \
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
@@ -795,6 +728,7 @@ TEST_WEB_80 := \
 TEST_INTEGRATIONS_81 := \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pcntl \

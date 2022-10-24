@@ -49,7 +49,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/simple',
+                        Tag::HTTP_URL => 'http://localhost:9999/simple?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'app\controllers\SimpleController::actionIndex',
                         'app.route.path' => '/simple',
@@ -84,7 +84,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple_view'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/simple_view',
+                        Tag::HTTP_URL => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'app\controllers\SimpleController::actionView',
                         'app.route.path' => '/simple_view',
@@ -122,7 +122,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /error'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/error',
+                        Tag::HTTP_URL => 'http://localhost:9999/error?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '500',
                         'app.endpoint' => 'app\controllers\SimpleController::actionError',
                         'app.route.path' => '/error',

@@ -40,4 +40,4 @@ array(2) {
 }
 bool(false)
 
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

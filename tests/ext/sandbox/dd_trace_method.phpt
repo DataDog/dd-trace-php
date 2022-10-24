@@ -130,8 +130,8 @@ array(3) {
       string(5) "first"
       ["retval.rand"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(24) "Rm9vU2VydmljZQ|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(5) {
@@ -197,8 +197,8 @@ array(3) {
     array(2) {
       ["system.pid"]=>
       string(%d) "%d"
-      ["_dd.p.upstream_services"]=>
-      string(36) "ZGRfdHJhY2VfbWV0aG9kLnBocA|1|1|1.000"
+      ["_dd.p.dm"]=>
+      string(2) "-1"
     }
     ["metrics"]=>
     array(3) {

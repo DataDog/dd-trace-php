@@ -9,9 +9,6 @@
  * e.g. '/user/?/path/?'
  * Note: it also accepts full urls which are preserved: http://example.com/int/123 ---> http://example.com/int/?
  */
-#if PHP_VERSION_ID < 70000
-zai_string_view zai_uri_normalize_path(zai_string_view path, HashTable *fragmentRegex, HashTable *mapping);
-#else
 zend_string *zai_uri_normalize_path(zend_string *path, zend_array *fragmentRegex, zend_array *mapping);
-#endif
+zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist, zend_string *pattern);
 #endif  // ZAI_URI_NORMALIZATION_H

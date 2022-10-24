@@ -10,7 +10,7 @@ assert_no_ddtrace
 useradd -m datadog -p datadog
 usermod -a -G datadog datadog
 
-new_version="0.68.0"
+new_version="0.74.0"
 generate_installers "${new_version}"
 
 set +e

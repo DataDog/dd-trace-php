@@ -21,7 +21,7 @@ DDTrace\trace_method('Foo', 'test', static function () {
 $foo = new Foo();
 $foo->test();
 ?>
---EXPECT--
+--EXPECTF--
 Foo::test()
-Cannot trace non-static method with static tracing closure
-Successfully triggered flush with trace of size 1
+TRACED Foo::test()
+Flushing trace of size 2 to send-queue for %s

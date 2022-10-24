@@ -1,10 +1,4 @@
-if(PHP_VERSION_DIRECTORY STREQUAL "php7" OR PHP_VERSION_DIRECTORY STREQUAL "php8")
-    set(PHP_HEADERS_VERSION_DIRECTORY "php7-8")
-else()
-    set(PHP_HEADERS_VERSION_DIRECTORY "${PHP_VERSION_DIRECTORY}")
-endif()
-
-add_library(zai_headers "${PHP_HEADERS_VERSION_DIRECTORY}/headers.c")
+add_library(zai_headers headers.c)
 
 target_include_directories(zai_headers PUBLIC
                                        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>

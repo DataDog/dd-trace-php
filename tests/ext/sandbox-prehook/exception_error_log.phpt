@@ -1,7 +1,5 @@
 --TEST--
 [Prehook Regression] Exception in tracing closure gets logged
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
@@ -13,7 +11,7 @@ DDTrace\trace_function('array_sum', ['prehook' => function () {
 $sum = array_sum([1, 3, 5]);
 var_dump($sum);
 ?>
---EXPECT--
-RuntimeException thrown in ddtrace's closure for array_sum(): This exception is expected
+--EXPECTF--
+RuntimeException thrown in ddtrace's closure defined at %s:%d for array_sum(): This exception is expected
 int(9)
-Successfully triggered flush with trace of size 2
+Flushing trace of size 2 to send-queue for %s

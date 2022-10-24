@@ -1,7 +1,5 @@
 --TEST--
 Request init hook ignores fatal errors
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50600) die('skip: Cannot recover from fatal errors until PHP 5.6'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --INI--
@@ -15,4 +13,4 @@ echo "Request start" . PHP_EOL;
 Calling a function that does not exist...
 Error %s in request init hook: Call to undefined function this_function_does_not_%s
 Request start
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

@@ -81,12 +81,33 @@ final class SpanChecker
         }
 
         foreach ($expectedNodeRoot->getChildren() as $child) {
-            $this->assertNode(
-                $node['children'],
-                $child,
-                $expectedNodeRoot->getOperationName(),
-                $expectedNodeRoot->getResource()
-            );
+            try {
+                $this->assertNode(
+                    $node['children'],
+                    $child,
+                    $expectedNodeRoot->getOperationName(),
+                    $expectedNodeRoot->getResource()
+                );
+            } catch (\Exception $e) {
+                (function () use ($expectedNodeRoot, $node) {
+                    if (
+                        strpos($this->message, "Cannot find span") === 0
+                        && strpos($this->message, "parent operation/resource") === false
+                    ) {
+                        $actualNames = array_map(function (array $child) {
+                            return $child['span']['name'] . "/" . $child['span']['resource'];
+                        }, $node['children']);
+                        sort($actualNames);
+                        $this->message .= "\n\nAvailable spans:\n" . implode("\n", $actualNames) . "\n";
+                    }
+                    $this->message .= sprintf(
+                        "\nparent operation/resource: %s/%s",
+                        $expectedNodeRoot->getOperationName(),
+                        $expectedNodeRoot->getResource()
+                    );
+                })->call($e);
+                throw $e;
+            }
         }
     }
 
@@ -358,9 +379,13 @@ final class SpanChecker
 
             $filtered = $out;
             $expectedTags = $exp->getExactTags();
-            // Ignore _dd.p.upstream_services unless explicitly tested
-            if (!isset($expectedTags['_dd.p.upstream_services'])) {
-                unset($filtered['_dd.p.upstream_services']);
+            // Ignore _dd.p.dm unless explicitly tested
+            if (!isset($expectedTags['_dd.p.dm'])) {
+                unset($filtered['_dd.p.dm']);
+            }
+            // http.client_ip is present depending on target SAPI and not helpful here to test
+            if (!isset($expectedTags['http.client_ip'])) {
+                unset($filtered['http.client_ip']);
             }
             foreach ($expectedTags as $tagName => $tagValue) {
                 TestCase::assertArrayHasKey(

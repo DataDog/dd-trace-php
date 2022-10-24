@@ -5,13 +5,13 @@ hook_method prehook is called with the correct scope (parent)
 
 DDTrace\hook_method('BaseClass', 'speak',
     function ($This, $scope, $args) {
-        echo "${scope}::speak hooked.\n";
+        echo "{$scope}::speak hooked in BaseClass.\n";
     }
 );
 
 DDTrace\hook_method('ChildClass', 'speak',
     function ($This, $scope, $args) {
-        echo "${scope}::speak hooked.\n";
+        echo "{$scope}::speak hooked in ChildClass.\n";
     }
 );
 
@@ -43,5 +43,6 @@ final class Orthogonal
 Orthogonal::run();
 ?>
 --EXPECT--
-ChildClass::speak hooked.
+ChildClass::speak hooked in ChildClass.
+ChildClass::speak hooked in BaseClass.
 I have spoken.
