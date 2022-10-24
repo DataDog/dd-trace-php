@@ -53,6 +53,9 @@ class TYPO3Integration extends Integration
 
         $integration = $this;
 
+        $integration->addTraceAnalyticsIfEnabled($rootSpan);
+        $rootSpan->service = $integration->getServiceName();
+
         $setCommonValues = function (SpanData $span) {
             $this->setCommonValues($span);
         };
@@ -61,10 +64,7 @@ class TYPO3Integration extends Integration
             \TYPO3\CMS\Frontend\Http\Application::class,
             'run',
             function (SpanData $span, $args, $retval) use ($rootSpan, $integration) {
-                $integration->addTraceAnalyticsIfEnabled($rootSpan);
-                $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getServiceName());
-
-                $span->name = 'typo3.Application.run';
+                $span->name = $span->resource = 'typo3.Application.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
             }

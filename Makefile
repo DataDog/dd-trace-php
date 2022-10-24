@@ -684,6 +684,8 @@ TEST_WEB_74 := \
 	test_web_symfony_50 \
 	test_web_symfony_51 \
 	test_web_symfony_52 \
+	test_web_typo3_10x \
+	test_web_typo3_11x \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_59 \
@@ -721,6 +723,7 @@ TEST_WEB_80 := \
 	test_web_symfony_44 \
 	test_web_symfony_51 \
 	test_web_symfony_52 \
+	test_web_typo3_11x \
 	test_web_wordpress_59 \
 	test_web_yii_2 \
 	test_web_custom
@@ -949,6 +952,17 @@ test_web_symfony_52: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V5_2)
+
+test_web_typo3_10x: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/TYPO3/Version_10_x update
+	php tests/Frameworks/TYPO3/Version_10_x/vendor/bin/typo3cms cache:flush --files-only
+	$(call run_tests,tests/Integrations/TYPO3/V10_x)
+test_web_typo3_11x: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/TYPO3/Version_11_x update
+	php tests/Frameworks/TYPO3/Version_11_x/vendor/bin/typo3cms cache:flush --group=system
+	php tests/Frameworks/TYPO3/Version_11_x/vendor/bin/typo3cms cache:flush --group=di
+	$(call run_tests,tests/Integrations/TYPO3/V11_x)
+
 
 test_web_wordpress_48: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/WordPress/V4_8)
