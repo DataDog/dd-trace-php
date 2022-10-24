@@ -670,6 +670,8 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
 
 static void dd_read_distributed_tracing_ids(void);
 
+ddog_NativeUnixStream *dd_sidecar;
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
@@ -761,6 +763,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
 
+    ddog_sidecar_connect(&dd_sidecar);
+
     return SUCCESS;
 }
 
@@ -793,6 +797,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_shutdown_span_sampling_limiter();
     ddtrace_limiter_destroy();
     zai_config_mshutdown();
+
+    ddog_ph_unix_stream_drop(dd_sidecar);
 
     return SUCCESS;
 }

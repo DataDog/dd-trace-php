@@ -35,7 +35,7 @@ endif
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES := $(BUILD_DIR)/Cargo.toml $(shell find components/rust -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+RUST_FILES := $(BUILD_DIR)/Cargo.toml $(shell find components/rust -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog -name '*.rs' -o -name 'Cargo.toml')
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_OPCACHE_FILES := $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -397,7 +397,7 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
-cbindgen: components/rust/ddtrace.h components/rust/common.h components/rust/telemetry.h
+cbindgen: components/rust/ddtrace.h components/rust/telemetry.h
 	( \
 		cd libdatadog; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
