@@ -37,7 +37,16 @@ echo 'number of commands: ', count($c), "\n";
 \DDTrace\add_global_tag('ddappsec', 'true');
 
 DDTrace\start_span();
-var_dump(\DDTrace\root_span());
+
+// Compatibility with pre 0.81.0 
+$root_span = \DDTrace\root_span();
+if (property_exists($root_span, 'parent')) {
+    unset($root_span->parent);
+}
+if (property_exists($root_span, 'stack')) {
+    unset($root_span->stack);
+}
+var_dump($root_span);
 
 $trace_id = \DDTrace\trace_id();
 echo 'trace id: ', $trace_id, "\n";
@@ -85,20 +94,6 @@ object(DDTrace\SpanData)#%d (%d) {
   }
   ["id"]=>
   string(%d) "%d"
-  ["parent"]=>
-  NULL
-  ["stack"]=>
-  object(DDTrace\SpanStack)#%d (2) {
-    ["parent"]=>
-    object(DDTrace\SpanStack)#%d (2) {
-      ["parent"]=>
-      NULL
-      ["active"]=>
-      NULL
-    }
-    ["active"]=>
-    *RECURSION*
-  }
 }
 trace id: %s
 ddtrace_rshutdown
