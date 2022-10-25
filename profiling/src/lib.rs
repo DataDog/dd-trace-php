@@ -625,11 +625,11 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 /// Prints the module info. Calls many C functions from the Zend Engine,
 /// including calling variadic functions. It's essentially all unsafe, so be
 /// careful, and do not call this manually (only let the engine call it).
-unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
+unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
     #[cfg(debug_assertions)]
-    trace!("MINFO({:p})", module);
+    trace!("MINFO({:p})", module_ptr);
 
-    let module = &*module;
+    let module = &*module_ptr;
 
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
@@ -694,6 +694,8 @@ unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
         }
 
         zend::php_info_print_table_end();
+
+        zend::display_ini_entries(module_ptr);
     });
 }
 
