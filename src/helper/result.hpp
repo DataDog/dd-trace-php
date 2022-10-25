@@ -5,19 +5,22 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include <algorithm>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace dds {
 
 struct result {
-    enum class code { ok, record, block };
-
     result() = default;
-    explicit result(code c) : value(c) {}
-    result(code c, std::vector<std::string> &&s) : value(c), data(std::move(s))
+
+    result(std::vector<std::string> &&data_,
+        std::unordered_set<std::string> &&actions_)
+        : data(std::move(data_)), actions(std::move(actions_))
     {}
     result(const result &) = default;
     result(result &&) = default;
@@ -25,8 +28,25 @@ struct result {
     result &operator=(result &&) = default;
     ~result() = default;
 
-    code value{code::ok};
+    bool valid() const { return !data.empty() || !actions.empty(); }
+
+    // Convenience method
+    void merge(std::optional<result> &&oth)
+    {
+        if (oth) {
+            merge(*oth);
+        }
+    }
+
+    void merge(result &oth)
+    {
+        data.insert(data.end(), std::make_move_iterator(oth.data.begin()),
+            std::make_move_iterator(oth.data.end()));
+        actions.merge(oth.actions);
+    }
+
     std::vector<std::string> data;
+    std::unordered_set<std::string> actions;
 };
 
 } // namespace dds

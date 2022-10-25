@@ -27,7 +27,7 @@ config::config(int argc, char *argv[])
 
         // Check the next argument
         if ((i + 1) < argc) {
-            std::string_view value(argv[i + 1]);
+            const std::string_view value(argv[i + 1]);
             if (arg.size() < 2 || arg.substr(0, 2) != "--") {
                 // Not an option, so we assume it's a value
                 kv_[arg] = value;

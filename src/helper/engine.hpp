@@ -5,8 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "client_settings.hpp"
 #include "config.hpp"
+#include "engine_settings.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "result.hpp"
@@ -49,7 +49,7 @@ public:
         context &operator=(context &&) = delete;
         ~context() = default;
 
-        result publish(parameter &&param);
+        std::optional<result> publish(parameter &&param);
         // NOLINTNEXTLINE(google-runtime-references)
         void get_meta_and_metrics(std::map<std::string_view, std::string> &meta,
             std::map<std::string_view, double> &metrics);
@@ -62,7 +62,7 @@ public:
     };
 
     static auto create(
-        uint32_t trace_rate_limit = client_settings::default_trace_rate_limit)
+        uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit)
     {
         return std::shared_ptr<engine>(new engine(trace_rate_limit));
     }

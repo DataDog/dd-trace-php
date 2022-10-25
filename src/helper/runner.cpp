@@ -6,7 +6,6 @@
 #include "runner.hpp"
 
 #include "client.hpp"
-#include "engine_pool.hpp"
 #include "subscriber/waf.hpp"
 #include <cstdio>
 #include <spdlog/spdlog.h>
@@ -41,7 +40,7 @@ runner::runner(const config::config &cfg)
 
 runner::runner(
     const config::config &cfg, network::base_acceptor::ptr &&acceptor)
-    : cfg_(cfg), engine_pool_{std::make_shared<engine_pool>()},
+    : cfg_(cfg), service_manager_{std::make_shared<service_manager>()},
       acceptor_(std::move(acceptor)),
       idle_timeout_(cfg.get<unsigned>("runner_idle_timeout"))
 {
@@ -89,8 +88,8 @@ void runner::run()
                 break;
             }
 
-            std::shared_ptr<client> c =
-                std::make_shared<client>(engine_pool_, std::move(socket));
+            const std::shared_ptr<client> c =
+                std::make_shared<client>(service_manager_, std::move(socket));
 
             SPDLOG_DEBUG("new client connected");
 

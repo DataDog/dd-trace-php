@@ -5,8 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "client_settings.hpp"
+#include "engine_settings.hpp"
 #include "msgpack_helpers.hpp"
+#include "remote_config/settings.hpp"
+#include "service_identifier.hpp"
 #include <msgpack.hpp>
 #include <optional>
 #include <type_traits>
@@ -82,7 +84,10 @@ struct client_init {
         unsigned pid{0};
         std::string client_version;
         std::string runtime_version;
-        client_settings settings;
+
+        dds::service_identifier service;
+        dds::engine_settings engine_settings;
+        dds::remote_config::settings rc_settings;
 
         request() = default;
         request(const request &) = delete;
@@ -91,7 +96,8 @@ struct client_init {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(pid, client_version, runtime_version, settings);
+        MSGPACK_DEFINE(pid, client_version, runtime_version, service,
+            engine_settings, rc_settings);
     };
 
     struct response : base_response_generic<response> {
@@ -130,8 +136,9 @@ struct request_init {
 
         std::string verdict;
         std::vector<std::string> triggers;
+        std::unordered_set<std::string> actions;
 
-        MSGPACK_DEFINE(verdict, triggers);
+        MSGPACK_DEFINE(verdict, triggers, actions);
     };
 };
 
@@ -157,11 +164,12 @@ struct request_shutdown {
 
         std::string verdict;
         std::vector<std::string> triggers;
+        std::unordered_set<std::string> actions;
 
         std::map<std::string_view, std::string> meta;
         std::map<std::string_view, double> metrics;
 
-        MSGPACK_DEFINE(verdict, triggers, meta, metrics);
+        MSGPACK_DEFINE(verdict, triggers, actions, meta, metrics);
     };
 };
 

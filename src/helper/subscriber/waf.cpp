@@ -11,6 +11,7 @@
 #include <ios>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/writer.h>
@@ -95,38 +96,48 @@ std::string read_rule_file(std::string_view filename)
         throw std::runtime_error{"rule file is too large"};
     }
 
-    rule_file.read(&buffer[0], static_cast<std::streamsize>(buffer.size()));
+    rule_file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     buffer.resize(rule_file.gcount());
     rule_file.close();
     return buffer;
 }
 
-dds::result format_waf_result(dds::result::code code, std::string_view json)
+dds::result format_waf_result(ddwaf_result &res)
 {
-    dds::result res{code};
+    dds::result output;
+    for (unsigned i = 0; i < res.actions.size; i++) {
+        char *value = res.actions.array[i];
+        if (value == nullptr) {
+            continue;
+        }
+        output.actions.emplace(value);
+    }
+
+    const std::string_view json = res.data;
+
     rapidjson::Document doc;
-    rapidjson::ParseResult status = doc.Parse(json.data(), json.size());
+    const rapidjson::ParseResult status = doc.Parse(json.data(), json.size());
     if (status == nullptr) {
         SPDLOG_ERROR("failed to parse WAF output at {}: {}",
             rapidjson::GetParseError_En(status.Code()), status.Offset());
-        return res;
+        return output;
     }
 
     if (doc.GetType() != rapidjson::kArrayType) {
         // perhaps throw something?
         SPDLOG_ERROR(
             "unexpected WAF result type {}, expected array", doc.GetType());
-        return res;
+        return output;
     }
 
     for (auto &v : doc.GetArray()) {
         dds::string_buffer buffer;
         rapidjson::Writer<decltype(buffer)> writer(buffer);
         v.Accept(writer);
-        res.data.emplace_back(std::move(buffer.get_string_ref()));
+        output.data.emplace_back(std::move(buffer.get_string_ref()));
     }
 
-    return res;
+    return output;
 }
 
 DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
@@ -218,7 +229,7 @@ instance::listener::~listener()
     }
 }
 
-dds::result instance::listener::call(dds::parameter_view &data)
+std::optional<result> instance::listener::call(dds::parameter_view &data)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
@@ -242,7 +253,7 @@ dds::result instance::listener::call(dds::parameter_view &data)
     }
 
     // Free result on exception/return
-    std::unique_ptr<ddwaf_result, decltype(&ddwaf_result_free)> scope(
+    const std::unique_ptr<ddwaf_result, decltype(&ddwaf_result_free)> scope(
         &res, ddwaf_result_free);
 
     // NOLINTNEXTLINE
@@ -250,7 +261,7 @@ dds::result instance::listener::call(dds::parameter_view &data)
 
     switch (code) {
     case DDWAF_MATCH:
-        return format_waf_result(dds::result::code::record, res.data);
+        return format_waf_result(res);
     case DDWAF_ERR_INTERNAL:
         throw internal_error();
     case DDWAF_ERR_INVALID_OBJECT:
@@ -266,7 +277,7 @@ dds::result instance::listener::call(dds::parameter_view &data)
         break;
     }
 
-    return dds::result{dds::result::code::ok};
+    return std::nullopt;
 }
 
 void instance::listener::get_meta_and_metrics(
@@ -284,7 +295,7 @@ instance::instance(parameter &rule,
     : waf_timeout_{waf_timeout_us}
 {
     ddwaf_ruleset_info info;
-    ddwaf_config config{
+    const ddwaf_config config{
         {0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
 
     handle_ = ddwaf_init(rule, &config, &info);
@@ -344,7 +355,7 @@ std::vector<std::string_view> instance::get_subscriptions()
     return output;
 }
 
-instance::ptr instance::from_settings(const client_settings &settings,
+instance::ptr instance::from_settings(const engine_settings &settings,
     std::map<std::string_view, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {

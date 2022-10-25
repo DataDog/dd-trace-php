@@ -4,12 +4,12 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "client.hpp"
-#include "defer.hpp"
 #include "exception.hpp"
 #include "msgpack/object.h"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
 #include "std_logging.hpp"
+#include "utils.hpp"
 #include <chrono>
 #include <mutex>
 #include <spdlog/spdlog.h>
@@ -106,11 +106,13 @@ bool handle_message(client &client, const network::base_broker &broker,
 bool client::handle_command(const network::client_init::request &command)
 {
     SPDLOG_DEBUG("Got client_id with pid={}, client_version={}, "
-                 "runtime_version={}, settings={}",
+                 "runtime_version={}, service={}, engine_settings={}, "
+                 "remote_config_settings={}",
         command.pid, command.client_version, command.runtime_version,
-        command.settings);
+        command.service, command.engine_settings, command.rc_settings);
 
-    auto &&settings = command.settings;
+    auto service_id = command.service;
+    auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
 
     std::map<std::string_view, std::string> meta;
@@ -119,17 +121,18 @@ bool client::handle_command(const network::client_init::request &command)
     std::vector<std::string> errors;
     bool has_errors = false;
     try {
-        engine_ = engine_pool_->create_engine(settings, meta, metrics);
+        service_ = service_manager_->create_service(
+            service_id, eng_settings, command.rc_settings, meta, metrics);
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
-        DD_STDLOG(
-            DD_STDLOG_RULES_FILE_NOT_FOUND, settings.rules_file_or_default());
+        DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND,
+            eng_settings.rules_file_or_default());
         errors.emplace_back(e.what());
         has_errors = true;
     } catch (std::exception &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(DD_STDLOG_RULES_FILE_INVALID,
-            settings.rules_file_or_default(), e.what());
+            eng_settings.rules_file_or_default(), e.what());
         errors.emplace_back(e.what());
         has_errors = true;
     }
@@ -160,28 +163,26 @@ bool client::handle_command(const network::client_init::request &command)
 
 bool client::handle_command(network::request_init::request &command)
 {
-    if (!engine_) {
+    if (!service_) {
         // This implies a failed client_init, we can't continue.
-        SPDLOG_DEBUG("no engine available on request_init");
+        SPDLOG_DEBUG("no service available on request_init");
         send_error_response(*broker_);
         return false;
     }
 
     // During request init we initialize the engine context
-    context_.emplace(*engine_);
+    context_.emplace(*service_->get_engine());
 
     SPDLOG_DEBUG("received command request_init");
 
     network::request_init::response response;
     try {
         auto res = context_->publish(std::move(command.data));
-        if (res.value == result::code::record) {
+        if (res && res->valid()) {
             response.verdict = "record";
-            response.triggers = std::move(res.data);
-        } else if (res.value == result::code::block) {
-            response.verdict = "block";
-            response.triggers = std::move(res.data);
-            DD_STDLOG(DD_STDLOG_ATTACK_BLOCKED);
+            response.triggers = std::move(res->data);
+            response.actions = std::move(res->actions);
+            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
         } else {
             response.verdict = "ok";
         }
@@ -214,15 +215,15 @@ bool client::handle_command(network::request_shutdown::request &command)
     if (!context_) {
         // A lack of context implies processing request_init failed, this
         // can happen for legitimate reasons so let's try to process the data.
-        if (!engine_) {
+        if (!service_) {
             // This implies a failed client_init, we can't continue.
-            SPDLOG_DEBUG("no engine available on request_shutdown");
+            SPDLOG_DEBUG("no service available on request_shutdown");
             send_error_response(*broker_);
             return false;
         }
 
-        // During request init we initialize the engine contex
-        context_.emplace(*engine_);
+        // During request init we initialize the engine context
+        context_.emplace(*service_->get_engine());
     }
 
     SPDLOG_DEBUG("received command request_shutdown");
@@ -233,14 +234,11 @@ bool client::handle_command(network::request_shutdown::request &command)
     network::request_shutdown::response response;
     try {
         auto res = context_->publish(std::move(command.data));
-        if (res.value == result::code::record) {
+        if (res && res->valid()) {
             response.verdict = "record";
-            response.triggers = std::move(res.data);
+            response.triggers = std::move(res->data);
+            response.actions = std::move(res->actions);
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
-        } else if (res.value == result::code::block) {
-            response.verdict = "block";
-            response.triggers = std::move(res.data);
-            DD_STDLOG(DD_STDLOG_ATTACK_BLOCKED);
         } else {
             response.verdict = "ok";
         }

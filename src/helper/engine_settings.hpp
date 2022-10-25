@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "utils.hpp"
 #include <cstdint>
 #include <msgpack.hpp>
 #include <ostream>
@@ -13,11 +14,11 @@
 
 namespace dds {
 
-/* client_settings are currently the same for the whole client session.
+/* engine_settings are currently the same for the whole client session.
  * If this changes in the future, it will make sense to create a separation
  * between 1) settings used for creating the engine and 2) settings used after,
  * possibly when creating the subscriber listeners on every request */
-struct client_settings {
+struct engine_settings {
     static constexpr int default_waf_timeout_us = 10000;
     static constexpr int default_trace_rate_limit = 100;
 
@@ -41,7 +42,7 @@ struct client_settings {
     MSGPACK_DEFINE_MAP(rules_file, waf_timeout_us, trace_rate_limit,
         obfuscator_key_regex, obfuscator_value_regex);
 
-    bool operator==(const client_settings &oth) const noexcept
+    bool operator==(const engine_settings &oth) const noexcept
     {
         return rules_file == oth.rules_file &&
                waf_timeout_us == oth.waf_timeout_us &&
@@ -50,7 +51,7 @@ struct client_settings {
                obfuscator_value_regex == oth.obfuscator_value_regex;
     }
 
-    friend auto &operator<<(std::ostream &os, const client_settings &c)
+    friend auto &operator<<(std::ostream &os, const engine_settings &c)
     {
         return os << "{rules_file=" << c.rules_file
                   << ", waf_timeout_us=" << c.waf_timeout_us
@@ -61,15 +62,10 @@ struct client_settings {
     }
 
     struct settings_hash {
-        std::size_t operator()(const client_settings &s) const noexcept
+        std::size_t operator()(const engine_settings &s) const noexcept
         {
-            auto h1 = std::hash<decltype(rules_file)>{}(s.rules_file);
-            auto h2 = std::hash<decltype(waf_timeout_us)>{}(s.waf_timeout_us);
-            auto h3 =
-                std::hash<decltype(trace_rate_limit)>{}(s.trace_rate_limit);
-            auto h4 = std::hash<std::string>{}(s.obfuscator_key_regex);
-            auto h5 = std::hash<std::string>{}(s.obfuscator_value_regex);
-            return h1 ^ h2 ^ h3 ^ h4 ^ h5;
+            return hash(s.rules_file, s.waf_timeout_us, s.trace_rate_limit,
+                s.obfuscator_key_regex, s.obfuscator_value_regex);
         }
     };
 };

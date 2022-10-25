@@ -34,7 +34,7 @@ public:
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        dds::result call(dds::parameter_view &data) override;
+        std::optional<result> call(dds::parameter_view &data) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void get_meta_and_metrics(std::map<std::string_view, std::string> &meta,
@@ -64,7 +64,7 @@ public:
 
     listener::ptr get_listener() override;
 
-    static ptr from_settings(const client_settings &settings,
+    static ptr from_settings(const engine_settings &settings,
         std::map<std::string_view, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 

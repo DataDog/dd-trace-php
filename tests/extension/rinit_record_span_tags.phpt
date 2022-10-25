@@ -28,7 +28,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     ['record', ['{"found":"attack"}','{"another":"attack"}']],
-    ['record', ['{"yet another":"attack"}'], ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]],
+    ['record', ['{"yet another":"attack"}'], [], ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]],
 ], ['continuous' => true]);
 
 echo "rinit\n";

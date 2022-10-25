@@ -8,57 +8,42 @@
 
 namespace dds {
 
-TEST(ResultTest, OkResult)
+TEST(ResultTest, Invalid)
 {
-    result res{result::code::ok};
-    EXPECT_EQ(res.value, result::code::ok);
-    EXPECT_LT(res.value, result::code::record);
-    EXPECT_LT(res.value, result::code::block);
-    EXPECT_EQ(res.data.size(), 0);
+    result res;
+    EXPECT_FALSE(res.valid());
 }
 
-TEST(ResultTest, RecordResult)
+TEST(ResultTest, Constructor)
 {
-    result res{result::code::record};
-    EXPECT_EQ(res.value, result::code::record);
-    EXPECT_GT(res.value, result::code::ok);
-    EXPECT_LT(res.value, result::code::block);
-    EXPECT_EQ(res.data.size(), 0);
+    result res{{"this was a result"}, {"block", "record"}};
+    EXPECT_TRUE(res.valid());
+    EXPECT_STREQ(res.data[0].c_str(), "this was a result");
+    EXPECT_NE(res.actions.find("block"), res.actions.end());
+    EXPECT_NE(res.actions.find("record"), res.actions.end());
 }
 
-TEST(ResultTest, BlockResult)
+TEST(ResultTest, MoveConstructor)
 {
-    result res{result::code::block};
-    EXPECT_EQ(res.value, result::code::block);
-    EXPECT_GT(res.value, result::code::ok);
-    EXPECT_GT(res.value, result::code::record);
-    EXPECT_EQ(res.data.size(), 0);
-}
-
-TEST(ResultTest, ResultWithData)
-{
-    result res{result::code::block, {"this was a result"}};
-    EXPECT_EQ(res.value, result::code::block);
-    EXPECT_TRUE(res.data[0] == "this was a result");
-}
-
-TEST(ResultTest, ResultMoveConstructor)
-{
-    result res{result::code::block, {"this was a moved result"}};
+    result res{{"this was a moved result"}, {"block", "record"}};
     result new_res = std::move(res);
 
-    EXPECT_EQ(new_res.value, result::code::block);
-    EXPECT_TRUE(new_res.data[0] == "this was a moved result");
+    EXPECT_TRUE(new_res.valid());
+    EXPECT_STREQ(new_res.data[0].c_str(), "this was a moved result");
+    EXPECT_NE(new_res.actions.find("block"), new_res.actions.end());
+    EXPECT_NE(new_res.actions.find("record"), new_res.actions.end());
 }
 
-TEST(ResultTest, ResultMoveAssignment)
+TEST(ResultTest, MoveAssignment)
 {
-    result res{result::code::block, {"this was a moved result"}};
-    result new_res{result::code::ok};
+    result res{{"this was a moved result"}, {"block", "record"}};
+    result new_res{{}, {}};
 
     new_res = std::move(res);
-    EXPECT_EQ(new_res.value, result::code::block);
-    EXPECT_TRUE(new_res.data[0] == "this was a moved result");
+    EXPECT_TRUE(new_res.valid());
+    EXPECT_STREQ(new_res.data[0].c_str(), "this was a moved result");
+    EXPECT_NE(new_res.actions.find("block"), new_res.actions.end());
+    EXPECT_NE(new_res.actions.find("record"), new_res.actions.end());
 }
 
 } // namespace dds

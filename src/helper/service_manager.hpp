@@ -7,26 +7,36 @@
 
 #include "engine.hpp"
 #include "exception.hpp"
+#include "network/proto.hpp"
+#include "service.hpp"
+#include "std_logging.hpp"
+#include "subscriber/waf.hpp"
+#include "utils.hpp"
 #include <memory>
 #include <mutex>
+#include <spdlog/spdlog.h>
 #include <unordered_map>
 
 namespace dds {
 
-class engine_pool {
+class service_manager {
 public:
-    // NOLINTNEXTLINE(google-runtime-references)
-    std::shared_ptr<engine> create_engine(const client_settings &settings,
+    service_manager() = default;
+
+    std::shared_ptr<service> create_service(const service_identifier &id,
+        const engine_settings &settings,
+        const remote_config::settings &rc_settings,
         std::map<std::string_view, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
 protected:
-    using cache_t = std::unordered_map<client_settings, std::weak_ptr<engine>,
-        client_settings::settings_hash>;
+    using cache_t = std::unordered_map<service_identifier,
+        std::weak_ptr<service>, service_identifier::hash>;
 
     void cleanup_cache(); // mutex_ must be held when calling this
 
-    std::shared_ptr<engine> last_engine_; // always keep the last one
+    // TODO this should be some sort of time-based LRU cache
+    service::ptr last_service_;
     std::mutex mutex_;
     cache_t cache_;
 };

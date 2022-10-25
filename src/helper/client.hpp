@@ -9,10 +9,10 @@
 
 #include "config.hpp"
 #include "engine.hpp"
-#include "engine_pool.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
 #include "network/socket.hpp"
+#include "service_manager.hpp"
 #include "worker_pool.hpp"
 #include <optional>
 
@@ -20,14 +20,15 @@ namespace dds {
 
 class client {
 public:
-    client(std::shared_ptr<engine_pool> engine_pool,
+    client(std::shared_ptr<service_manager> service_manager,
         network::base_broker::ptr &&broker)
-        : engine_pool_(std::move(engine_pool)), broker_(std::move(broker))
+        : service_manager_(std::move(service_manager)),
+          broker_(std::move(broker))
     {}
 
-    client(std::shared_ptr<engine_pool> engine_pool,
+    client(std::shared_ptr<service_manager> service_manager,
         network::base_socket::ptr &&socket)
-        : engine_pool_(std::move(engine_pool)),
+        : service_manager_(std::move(service_manager)),
           broker_(std::make_unique<network::broker>(std::move(socket)))
     {}
 
@@ -53,8 +54,8 @@ protected:
     bool initialised{false};
     uint32_t version{};
     network::base_broker::ptr broker_;
-    std::shared_ptr<engine_pool> engine_pool_;
-    std::shared_ptr<engine> engine_;
+    std::shared_ptr<service_manager> service_manager_;
+    std::shared_ptr<service> service_;
     std::optional<engine::context> context_;
 };
 

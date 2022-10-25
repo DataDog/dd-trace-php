@@ -60,7 +60,7 @@ public:
 
         configs_ = std::move(to_keep);
     };
-    [[nodiscard]] std::map<std::string, config> get_configs() const
+    [[nodiscard]] const std::map<std::string, config> &get_configs() const
     {
         return configs_;
     };
@@ -68,7 +68,7 @@ public:
     {
         return name_ == b.name_ && configs_ == b.configs_;
     }
-    [[nodiscard]] std::string get_name() const { return name_; }
+    [[nodiscard]] const std::string &get_name() const { return name_; }
 
 private:
     std::string name_;

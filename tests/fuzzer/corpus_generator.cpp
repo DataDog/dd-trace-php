@@ -148,11 +148,11 @@ int main(int argc, char *argv[])
             msg.pid = 1923;
             msg.client_version = "1.2.3";
             msg.runtime_version = "7.4.2";
-            msg.settings.rules_file = ".github/workflows/release/recommended.json";
-            msg.settings.waf_timeout_us = 10000;
-            msg.settings.trace_rate_limit = 0;
-            msg.settings.obfuscator_key_regex = "^key_regex$";
-            msg.settings.obfuscator_value_regex = "^value_regex$";
+            msg.engine_settings.rules_file = ".github/workflows/release/recommended.json";
+            msg.engine_settings.waf_timeout_us = 10000;
+            msg.engine_settings.trace_rate_limit = 0;
+            msg.engine_settings.obfuscator_key_regex = "^key_regex$";
+            msg.engine_settings.obfuscator_value_regex = "^value_regex$";
 
             msgpack::packer<std::stringstream> packer(ss);
 

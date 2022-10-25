@@ -25,7 +25,7 @@ static void _process_meta_and_metrics(mpack_node_t root);
 static const dd_command_spec _spec = {
     .name = "client_init",
     .name_len = sizeof("client_init") - 1,
-    .num_args = 4,
+    .num_args = 6,
     .outgoing_cb = _pack_command,
     .incoming_cb = _process_response,
 };
@@ -43,6 +43,28 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, PHP_DDAPPSEC_VERSION);
     dd_mpack_write_lstr(w, PHP_VERSION);
 
+    // Service details
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    mpack_start_map(w, 5);
+
+    dd_mpack_write_lstr(w, "service");
+    dd_mpack_write_nullable_cstr(w, ZSTR_VAL(get_DD_SERVICE()));
+
+    dd_mpack_write_lstr(w, "env");
+    dd_mpack_write_nullable_cstr(w, ZSTR_VAL(get_DD_ENV()));
+
+    dd_mpack_write_lstr(w, "tracer_version");
+    dd_mpack_write_nullable_cstr(w, NULL);
+
+    dd_mpack_write_lstr(w, "app_version");
+    dd_mpack_write_nullable_cstr(w, NULL);
+
+    dd_mpack_write_lstr(w, "runtime_id");
+    dd_mpack_write_nullable_cstr(w, NULL);
+
+    mpack_finish_map(w);
+
+    // Engine settings
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     mpack_start_map(w, 5);
     {
@@ -70,6 +92,27 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, "obfuscator_value_regex");
     dd_mpack_write_nullable_cstr(
         w, ZSTR_VAL(get_global_DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP()));
+
+    mpack_finish_map(w);
+
+    // Remote config settings
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    mpack_start_map(w, 5);
+
+    dd_mpack_write_lstr(w, "enabled");
+    mpack_write_bool(w, get_DD_REMOTE_CONFIG_ENABLED());
+
+    dd_mpack_write_lstr(w, "host");
+    dd_mpack_write_nullable_cstr(w, ZSTR_VAL(get_DD_AGENT_HOST()));
+
+    dd_mpack_write_lstr(w, "port");
+    mpack_write_uint(w, get_DD_TRACE_AGENT_PORT());
+
+    dd_mpack_write_lstr(w, "poll_interval");
+    mpack_write_u32(w, get_DD_REMOTE_CONFIG_POLL_INTERVAL());
+
+    dd_mpack_write_lstr(w, "max_payload_size");
+    mpack_write_u64(w, get_DD_REMOTE_CONFIG_MAX_PAYLOAD_SIZE());
 
     mpack_finish_map(w);
 

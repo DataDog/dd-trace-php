@@ -27,7 +27,7 @@ void engine::subscribe(const subscriber::ptr &sub)
     }
 }
 
-result engine::context::publish(parameter &&param)
+std::optional<result> engine::context::publish(parameter &&param)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
@@ -51,29 +51,21 @@ result engine::context::publish(parameter &&param)
 
     // Now that we have found the required subscriptions, find the current
     // context and pass the data.
-    //
-    // TODO: The engine will have to collate the results from all of the
-    //       subscribers which return a record or block action, however
-    //       there is only one subscriber for now and eventually the
-    //       subscribers will not return JSON.
-    result res;
+    dds::result res;
     for (const auto &sub : sub_set) {
         auto it = listeners_.find(sub);
         if (it == listeners_.end()) {
             it = listeners_.emplace(sub, sub->get_listener()).first;
         }
         try {
-            auto call_res = it->second->call(data);
-            if (call_res.value > res.value) {
-                res = std::move(call_res);
-            }
+            res.merge(it->second->call(data));
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }
     }
 
-    if (res.value != result::code::ok && !limiter_.allow()) {
-        return result{result::code::ok};
+    if (!res.valid() || !limiter_.allow()) {
+        return std::nullopt;
     }
 
     return res;

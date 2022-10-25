@@ -27,7 +27,7 @@ static const int version = 11;
 class http_api {
 public:
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    http_api(std::string &&host, std::string &&port)
+    http_api(std::string host, std::string port)
         : host_(std::move(host)), port_(std::move(port)){};
 
     http_api(const http_api &) = delete;

@@ -9,9 +9,9 @@
 #include <chrono>
 
 #include "config.hpp"
-#include "engine_pool.hpp"
 #include "network/acceptor.hpp"
 #include "network/socket.hpp"
+#include "service_manager.hpp"
 #include "worker_pool.hpp"
 
 namespace dds {
@@ -32,7 +32,7 @@ public:
 
 private:
     const config::config &cfg_;
-    std::shared_ptr<engine_pool> engine_pool_;
+    std::shared_ptr<service_manager> service_manager_;
     worker::pool worker_pool_;
 
     // Server variables

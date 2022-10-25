@@ -4,7 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
-#include "client_settings.hpp"
+#include "engine_settings.hpp"
 
 #ifdef __has_include
 #    if __has_include(<version>)
@@ -23,7 +23,7 @@ namespace filesystem = experimental::filesystem;
 #endif
 namespace dds {
 
-const std::string &client_settings::default_rules_file()
+const std::string &engine_settings::default_rules_file()
 {
     struct def_rules_file {
         def_rules_file()
