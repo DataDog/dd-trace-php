@@ -7,6 +7,9 @@
 
 #include <ext/standard/info.h>
 
+// Profiling needs ZAI config for INI support.
+#include <config/config.h>
+
 /* C11 allows a duplicate typedef provided they are the same, so this should be
  * fine as long as we compile with C11 or higher.
  */
@@ -73,3 +76,5 @@ typedef struct {
 
 void datadog_php_profiling_install_internal_function_handler(
     datadog_php_profiling_internal_function_handler handler);
+
+void datadog_php_profiling_parse_utf8(zval *dest, const char *ptr, size_t len, bool persistent);

@@ -1,8 +1,10 @@
 mod ffi;
 
 pub use ffi::*;
+
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::ffi::{CStr, CString};
+use std::str::Utf8Error;
 use std::sync::atomic::AtomicBool;
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
@@ -302,5 +304,109 @@ impl TryFrom<zval> for zend_long {
 
     fn try_from(mut zval: zval) -> Result<Self, Self::Error> {
         zend_long::try_from(&mut zval)
+    }
+}
+
+impl TryFrom<&mut zval> for bool {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == (IS_FALSE as u8) {
+            Ok(false)
+        } else if r#type == (IS_TRUE as u8) {
+            Ok(true)
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
+pub enum StringError {
+    Null,            // zval.value.str_ pointer was null, very bad.
+    Type(u8),        // Type didn't match.
+    Utf8(Utf8Error), // Wasn't a valid UTF8 string.
+}
+
+impl TryFrom<&mut zval> for &str {
+    type Error = StringError;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == (IS_STRING as u8) {
+            // This shouldn't happen, very bad, something screwed up.
+            if unsafe { zval.value.str_.is_null() } {
+                return Err(StringError::Null);
+            }
+
+            // Safety: the pointer was checked to be not null above.
+            let zstr: &zend_string = unsafe { &*zval.value.str_ };
+            let bytes: &[u8] = if zstr.len == 0 {
+                // Always have a null terminated string, even with len = 0.
+                static EMPTY_STR: &[u8] = b"\0";
+                let ptr = EMPTY_STR.as_ptr() as *const u8;
+                unsafe { std::slice::from_raw_parts(ptr, 0) }
+            } else {
+                let ptr = zstr.val.as_ptr() as *const u8;
+                let len = zstr.len as usize;
+                // Safety: zend_strings have at least one byte when len > 0.
+                unsafe { std::slice::from_raw_parts(ptr, len) }
+            };
+            std::str::from_utf8(bytes).map_err(|e| StringError::Utf8(e))
+        } else {
+            Err(StringError::Type(r#type))
+        }
+    }
+}
+
+#[repr(C)]
+pub enum ZaiConfigType {
+    Bool,
+    #[allow(dead_code)]
+    Double,
+    #[allow(dead_code)]
+    Int,
+    #[allow(dead_code)]
+    Map,
+    #[allow(dead_code)]
+    Set,
+    #[allow(dead_code)]
+    SetLowercase,
+    #[allow(dead_code)]
+    Json,
+    #[allow(dead_code)]
+    String,
+    Custom,
+}
+
+impl zai_string_view {
+    pub const fn new() -> Self {
+        const NULL: &[u8] = b"\0";
+        let len: u64 = 0;
+        let ptr = NULL.as_ptr() as *const c_char;
+        Self { len, ptr }
+    }
+
+    /// # Safety
+    /// `str` must be valid for [CStr::from_bytes_with_nul_unchecked]
+    pub const unsafe fn literal(str: &'static [u8]) -> Self {
+        let ptr = str.as_ptr() as *const c_char;
+        let mut i: usize = 0;
+        while str[i] != b'\0' {
+            i += 1;
+        }
+        let len = i as u64;
+        Self { len, ptr }
+    }
+
+    unsafe fn to_bytes(&self) -> &[u8] {
+        assert!(!self.ptr.is_null());
+        let len: usize = self.len.try_into().unwrap();
+        std::slice::from_raw_parts(self.ptr as *const u8, len)
+    }
+
+    pub unsafe fn to_utf8(&self) -> Result<&str, Utf8Error> {
+        let bytes = self.to_bytes();
+        std::str::from_utf8(bytes)
     }
 }

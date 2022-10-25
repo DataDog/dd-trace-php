@@ -58,3 +58,18 @@ void datadog_php_profiling_install_internal_function_handler(
         old_handler->internal_function.handler = handler.new_handler;
     }
 }
+
+void datadog_php_profiling_parse_utf8(zval *dest, const char *ptr, size_t len, bool persistent) {
+    ZEND_ASSERT(dest);
+    ZEND_ASSERT(ptr);
+
+    if (len == 0) {
+        if (persistent) {
+            ZVAL_EMPTY_PSTRING(dest);
+        } else {
+            ZVAL_EMPTY_STRING(dest);
+        }
+    } else {
+        ZVAL_STR(dest, zend_string_init(ptr, len, persistent));
+    }
+}

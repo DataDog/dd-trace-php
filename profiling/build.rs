@@ -30,11 +30,34 @@ fn main() {
     cfg_zts();
 }
 
+const ZAI_H_FILES: &[&str] = &[
+    "../zend_abstract_interface/zai_string/string.h",
+    "../zend_abstract_interface/config/config.h",
+    "../zend_abstract_interface/config/config_decode.h",
+    "../zend_abstract_interface/config/config_ini.h",
+    "../zend_abstract_interface/env/env.h",
+    "../zend_abstract_interface/json/json.h",
+];
+
 fn build_zend_php_ffis(php_config_includes: &str) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.h");
+
+    // Profiling only needs config and its dependencies.
+    let zai_c_files = [
+        "../zend_abstract_interface/config/config_decode.c",
+        "../zend_abstract_interface/config/config_ini.c",
+        "../zend_abstract_interface/config/config.c",
+        "../zend_abstract_interface/config/config_runtime.c",
+        "../zend_abstract_interface/env/env.c",
+        "../zend_abstract_interface/json/json.c",
+    ];
+
+    for file in zai_c_files.iter().chain(ZAI_H_FILES.iter()) {
+        println!("cargo:rerun-if-changed={}", *file);
+    }
 
     let output = Command::new("php-config")
         .arg("--prefix")
@@ -44,13 +67,16 @@ fn build_zend_php_ffis(php_config_includes: &str) {
     let prefix = String::from_utf8(output.stdout).expect("only utf8 chars work");
     println!("cargo:rustc-link-search=native={}/lib", prefix.trim());
 
+    let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
+
     cc::Build::new()
-        .files(["src/php_ffi.c", "../ext/handlers_api.c"])
+        .files(files.into_iter().chain(zai_c_files.into_iter()))
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
                 .split(' ')
-                .map(Path::new),
+                .map(Path::new)
+                .chain([Path::new("../zend_abstract_interface")]),
         )
         .flag_if_supported("-fuse-ld=lld")
         .flag_if_supported("-std=c11")
@@ -91,6 +117,7 @@ fn generate_bindings(php_config_includes: &str) {
         .raw_line("extern crate libc;")
         .header("src/php_ffi.h")
         .header("../ext/handlers_api.h")
+        .clang_arg("-I../zend_abstract_interface")
         // Block some zend items that we'll provide manual definitions for
         .blocklist_item("sapi_getenv")
         .blocklist_item("zend_bool")
@@ -100,6 +127,8 @@ fn generate_bindings(php_config_includes: &str) {
         .blocklist_item("zend_module_entry")
         .blocklist_item("zend_result")
         .blocklist_item("zend_register_extension")
+        // ZAI config
+        .blocklist_item("zai_config_type")
         // Block a few of functions that we'll provide defs for manually
         .blocklist_item("datadog_php_profiling_vm_interrupt_addr")
         // I had to block these for some reason *shrug*
