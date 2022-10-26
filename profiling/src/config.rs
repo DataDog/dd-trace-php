@@ -144,7 +144,7 @@ impl ConfigId {
         let bytes: &'static [u8] = match self {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
-            ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_CPU_ENABLED\0",
+            ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             AgentHost => b"DD_AGENT_HOST\0",
@@ -316,10 +316,9 @@ unsafe extern "C" fn parse_utf8_string(
 pub(crate) fn minit(module_number: libc::c_int) {
     unsafe {
         const CPU_TIME_ALIASES: &[zai_string_view] = unsafe {
-            &[
-                zai_string_view::literal(b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0"),
-                zai_string_view::literal(b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0"),
-            ]
+            &[zai_string_view::literal(
+                b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0",
+            )]
         };
 
         // Note that function pointers cannot appear in const functions, so we
