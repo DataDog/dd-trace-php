@@ -10,6 +10,9 @@
 // Profiling needs ZAI config for INI support.
 #include <config/config.h>
 
+// Used to communicate strings from C -> Rust.
+#include <zai_string/string.h>
+
 /* C11 allows a duplicate typedef provided they are the same, so this should be
  * fine as long as we compile with C11 or higher.
  */

@@ -1,8 +1,10 @@
 use crate::bindings::{
     datadog_php_profiling_get_profiling_context, zend_execute_data, zend_function, zend_string,
-    ZEND_INTERNAL_FUNCTION, ZEND_USER_FUNCTION,
+    ZEND_USER_FUNCTION,
 };
-use crate::{AgentEndpoint, RequestLocals, PHP_VERSION, PROFILER_NAME_STR, PROFILER_VERSION_STR};
+use crate::{
+    bindings, AgentEndpoint, RequestLocals, PHP_VERSION, PROFILER_NAME_STR, PROFILER_VERSION_STR,
+};
 use crossbeam_channel::{select, Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::{Endpoint, File, Tag};
 use datadog_profiling::profile;
@@ -10,9 +12,7 @@ use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
 use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
-use std::ffi::CStr;
 use std::hash::Hash;
-use std::os::raw::c_char;
 use std::str;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -151,16 +151,9 @@ pub struct ZendFrame {
     pub line: u32, // use 0 for no line info
 }
 
-unsafe fn zend_string_to_bytes<'a>(ptr: *const zend_string) -> &'a [u8] {
-    if ptr.is_null() {
-        return b"";
-    }
-    let zstr = &*ptr;
-    if zstr.len == 0 {
-        b""
-    } else {
-        std::slice::from_raw_parts(zstr.val.as_ptr() as *const u8, zstr.len as usize)
-    }
+// todo: dedup
+unsafe fn zend_string_to_bytes(zstr: Option<&mut zend_string>) -> &[u8] {
+    bindings::datadog_php_profiling_zend_string_view(zstr).into_bytes()
 }
 
 /// Extract the "function name" component for the frame. This is a string which
@@ -173,7 +166,7 @@ unsafe fn zend_string_to_bytes<'a>(ptr: *const zend_string) -> &'a [u8] {
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
 unsafe fn extract_function_name(func: &zend_function) -> String {
-    let method_name: &[u8] = zend_string_to_bytes(func.common.function_name);
+    let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
      * still has a scope. I don't know if this intentional, or if it's more of
@@ -187,29 +180,22 @@ unsafe fn extract_function_name(func: &zend_function) -> String {
     let mut buffer = Vec::<u8>::new();
 
     // User functions do not have a "module". Maybe one day use composer info?
-    if func.type_ == ZEND_INTERNAL_FUNCTION as u8
-        && !func.internal_function.module.is_null()
-        && !(*func.internal_function.module).name.is_null()
-    {
-        let ptr = (*func.internal_function.module).name as *const c_char;
-        let bytes = CStr::from_ptr(ptr).to_bytes();
-        if !bytes.is_empty() {
-            buffer.extend_from_slice(bytes);
-            buffer.push(b'|');
-        }
+    let module_name = func.module_name().unwrap_or(b"");
+    if !module_name.is_empty() {
+        buffer.extend_from_slice(module_name);
+        buffer.push(b'|');
     }
 
-    if !func.common.scope.is_null() {
-        let class_name = zend_string_to_bytes((*func.common.scope).name);
-        if !class_name.is_empty() {
-            buffer.extend_from_slice(class_name);
-            buffer.extend_from_slice(b"::");
-        }
+    // todo: probably use EX(This) instead of func.common.scope.
+    let class_name = func.scope_name().unwrap_or(b"");
+    if !class_name.is_empty() {
+        buffer.extend_from_slice(class_name);
+        buffer.extend_from_slice(b"::");
     }
 
     buffer.extend_from_slice(method_name);
 
-    String::from_utf8_lossy(buffer.as_slice()).to_string()
+    String::from_utf8_lossy(buffer.as_slice()).into_owned()
 }
 
 unsafe fn extract_file_name(execute_data: &zend_execute_data) -> String {
@@ -220,7 +206,7 @@ unsafe fn extract_file_name(execute_data: &zend_execute_data) -> String {
 
     let func = &*execute_data.func;
     if func.type_ == ZEND_USER_FUNCTION as u8 {
-        let filename = zend_string_to_bytes(func.op_array.filename);
+        let filename = zend_string_to_bytes(func.op_array.filename.as_mut());
         return String::from_utf8_lossy(filename).to_string();
     }
     String::new()

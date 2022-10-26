@@ -119,7 +119,10 @@ fn generate_bindings(php_config_includes: &str) {
         .header("../ext/handlers_api.h")
         .clang_arg("-I../zend_abstract_interface")
         // Block some zend items that we'll provide manual definitions for
-        .blocklist_item("sapi_getenv")
+        .blocklist_item("zai_string_view_s")
+        .blocklist_item("zai_string_view")
+        .blocklist_item("zai_config_entry_s")
+        .blocklist_item("zai_config_memoized_entry_s")
         .blocklist_item("zend_bool")
         .blocklist_item("_zend_extension")
         .blocklist_item("zend_extension")
@@ -127,8 +130,7 @@ fn generate_bindings(php_config_includes: &str) {
         .blocklist_item("zend_module_entry")
         .blocklist_item("zend_result")
         .blocklist_item("zend_register_extension")
-        // ZAI config
-        .blocklist_item("zai_config_type")
+        .blocklist_item("_zend_string")
         // Block a few of functions that we'll provide defs for manually
         .blocklist_item("datadog_php_profiling_vm_interrupt_addr")
         // I had to block these for some reason *shrug*
@@ -144,6 +146,7 @@ fn generate_bindings(php_config_includes: &str) {
         .blocklist_item("FP_ZERO")
         .blocklist_item("IPPORT_RESERVED")
         .rustified_enum("datadog_php_profiling_log_level")
+        .rustified_enum("zai_config_type")
         .parse_callbacks(Box::new(ignored_macros))
         .clang_args(php_config_includes.split(' '))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))

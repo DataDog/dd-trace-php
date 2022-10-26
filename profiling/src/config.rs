@@ -1,114 +1,18 @@
+use crate::bindings::zai_config_type::*;
 use crate::bindings::{
     datadog_php_profiling_parse_utf8, zai_config_entry, zai_config_get_value, zai_config_minit,
-    zai_config_name, zai_config_system_ini_change, zai_string_view, zend_long, zval, ZaiConfigType,
-    IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
+    zai_config_name, zai_config_system_ini_change, zai_string_view, zend_long, zval, IS_LONG,
+    ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
-use crate::sapi_getenv;
 pub use datadog_profiling::exporter::Uri;
 use libc::{c_char, c_void, memcpy};
 use log::{warn, LevelFilter};
-use std::ffi::CStr;
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
 use std::path::Path;
 pub use std::path::PathBuf;
 use std::str::FromStr;
-use ConfigId::*;
-
-pub struct Env {
-    pub agent_host: Option<String>,
-    pub env: Option<String>,
-    pub profiling_enabled: Option<String>,
-    pub profiling_endpoint_collection_enabled: Option<String>,
-    pub profiling_experimental_cpu_enabled: Option<String>,
-    pub profiling_experimental_cpu_time_enabled: Option<String>,
-    pub profiling_log_level: Option<String>,
-    pub service: Option<String>,
-    pub trace_agent_port: Option<String>,
-    pub trace_agent_url: Option<String>,
-    pub version: Option<String>,
-}
-
-impl Env {
-    /// Fetches the env var represented by `name`. Treats an empty string the
-    /// same as the env var not being set.
-    unsafe fn getenv(name: &CStr) -> Option<String> {
-        // CStr doesn't have a len() so turn it into a slice.
-        let name = name.to_bytes();
-
-        // Safety: called CStr, so invariants have all been checked by this point.
-        let val = sapi_getenv(name.as_ptr() as *const c_char, name.len());
-        let val = val.into_c_string();
-        if val.is_some() {
-            return val.map(|c| c.to_string_lossy().to_string());
-        }
-
-        /* If the sapi didn't have an env var, try the libc.
-         * Safety: pointer comes from valid CStr.
-         */
-        let val = libc::getenv(name.as_ptr() as *const c_char);
-        if val.is_null() {
-            return None;
-        }
-
-        /* Safety: `val` has been checked for NULL, though I haven't checked that
-         * `libc::getenv` always return a string less than `isize::MAX`.
-         */
-        let val = CStr::from_ptr(val);
-
-        // treat empty strings the same as no string
-        if val.to_bytes().is_empty() {
-            None
-        } else {
-            Some(val.to_string_lossy().to_string())
-        }
-    }
-
-    /// # Safety
-    /// This can only be called during rinit.
-    pub unsafe fn get() -> Self {
-        let env = Self::getenv(CStr::from_bytes_with_nul_unchecked(b"DD_ENV\0"));
-        let profiling_enabled = Self::getenv(CStr::from_bytes_with_nul_unchecked(
-            b"DD_PROFILING_ENABLED\0",
-        ));
-        let profiling_log_level = Self::getenv(CStr::from_bytes_with_nul_unchecked(
-            b"DD_PROFILING_LOG_LEVEL\0",
-        ));
-
-        let profiling_endpoint_collection_enabled = Self::getenv(
-            CStr::from_bytes_with_nul_unchecked(b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0"),
-        );
-
-        // This is the older, undocumented name.
-        let profiling_experimental_cpu_enabled = Self::getenv(CStr::from_bytes_with_nul_unchecked(
-            b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0",
-        ));
-        let profiling_experimental_cpu_time_enabled = Self::getenv(
-            CStr::from_bytes_with_nul_unchecked(b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0"),
-        );
-        let agent_host = Self::getenv(CStr::from_bytes_with_nul_unchecked(b"DD_AGENT_HOST\0"));
-        let trace_agent_port = Self::getenv(CStr::from_bytes_with_nul_unchecked(
-            b"DD_TRACE_AGENT_PORT\0",
-        ));
-        let trace_agent_url =
-            Self::getenv(CStr::from_bytes_with_nul_unchecked(b"DD_TRACE_AGENT_URL\0"));
-        let service = Self::getenv(CStr::from_bytes_with_nul_unchecked(b"DD_SERVICE\0"));
-        let version = Self::getenv(CStr::from_bytes_with_nul_unchecked(b"DD_VERSION\0"));
-        Self {
-            agent_host,
-            env,
-            profiling_enabled,
-            profiling_endpoint_collection_enabled,
-            profiling_experimental_cpu_enabled,
-            profiling_experimental_cpu_time_enabled,
-            profiling_log_level,
-            service,
-            trace_agent_port,
-            trace_agent_url,
-            version,
-        }
-    }
-}
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum AgentEndpoint {
@@ -164,7 +68,7 @@ unsafe extern "C" fn env_to_ini_name(env_name: zai_string_view, ini_name: *mut z
     assert!(!ini_name.is_null());
     let ini_name = &mut *ini_name;
 
-    let name: &str = env_name.to_utf8().unwrap();
+    let name: &str = env_name.into_utf8().unwrap();
 
     assert!(name.starts_with("DD_"));
 
@@ -233,8 +137,10 @@ pub(crate) enum ConfigId {
     Version,
 }
 
+use ConfigId::*;
+
 impl ConfigId {
-    const fn to_env_var_name(&self) -> zai_string_view {
+    const fn env_var_name(&self) -> zai_string_view {
         let bytes: &'static [u8] = match self {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
@@ -259,14 +165,14 @@ impl ConfigId {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_enabled() -> bool {
-    get_bool(ConfigId::ProfilingEnabled, false)
+    get_bool(ProfilingEnabled, false)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_endpoint_collection_enabled() -> bool {
-    get_bool(ConfigId::ProfilingEndpointCollectionEnabled, true)
+    get_bool(ProfilingEndpointCollectionEnabled, true)
 }
 
 /// # Safety
@@ -280,14 +186,15 @@ unsafe fn get_bool(id: ConfigId, default: bool) -> bool {
     get_value(id).try_into().unwrap_or(default)
 }
 
-unsafe fn get_str(id: ConfigId) -> Option<&'static str> {
-    let str: Result<&str, _> = get_value(id).try_into();
+unsafe fn get_str(id: ConfigId) -> Option<Cow<'static, str>> {
+    let value = get_value(id);
+    let str: Result<String, _> = value.try_into();
     match str {
         Ok(value) => {
             if value.is_empty() {
                 None
             } else {
-                Some(value)
+                Some(Cow::Owned(value))
             }
         }
         Err(_err) => None,
@@ -297,29 +204,29 @@ unsafe fn get_str(id: ConfigId) -> Option<&'static str> {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn agent_host() -> Option<&'static str> {
-    get_str(ConfigId::AgentHost)
+pub(crate) unsafe fn agent_host() -> Option<Cow<'static, str>> {
+    get_str(AgentHost)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn env() -> Option<&'static str> {
-    get_str(ConfigId::Env)
+pub(crate) unsafe fn env() -> Option<Cow<'static, str>> {
+    get_str(Env)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn service() -> Option<&'static str> {
-    get_str(ConfigId::Service)
+pub(crate) unsafe fn service() -> Option<Cow<'static, str>> {
+    get_str(Service)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn version() -> Option<&'static str> {
-    get_str(ConfigId::Version)
+pub(crate) unsafe fn version() -> Option<Cow<'static, str>> {
+    get_str(Version)
 }
 
 /// # Safety
@@ -328,7 +235,7 @@ pub(crate) unsafe fn version() -> Option<&'static str> {
 pub(crate) unsafe fn trace_agent_port() -> Option<u16> {
     let port = get_value(ConfigId::TraceAgentPort)
         .try_into()
-        .unwrap_or(0 as zend_long);
+        .unwrap_or(0_i64);
     if port <= 0 || port > (u16::MAX as zend_long) {
         None
     } else {
@@ -339,15 +246,15 @@ pub(crate) unsafe fn trace_agent_port() -> Option<u16> {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn trace_agent_url() -> Option<&'static str> {
-    get_str(ConfigId::TraceAgentUrl)
+pub(crate) unsafe fn trace_agent_url() -> Option<Cow<'static, str>> {
+    get_str(TraceAgentUrl)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_log_level() -> LevelFilter {
-    let value: Result<zend_long, u8> = get_value(ConfigId::ProfilingLogLevel).try_into();
+    let value: Result<zend_long, u8> = get_value(ProfilingLogLevel).try_into();
     match value {
         // If this is an lval, then we know we can transmute it because the parser worked.
         Ok(enabled) => transmute(enabled),
@@ -365,12 +272,12 @@ unsafe extern "C" fn parse_level_filter(
     decoded_value: *mut zval,
     _persistent: bool,
 ) -> bool {
-    if value.ptr.is_null() || decoded_value.is_null() {
+    if value.is_empty() || decoded_value.is_null() {
         return false;
     }
 
     let decoded_value = &mut *decoded_value;
-    match value.to_utf8() {
+    match value.into_utf8() {
         Ok(level) => match LevelFilter::from_str(level) {
             Ok(filter) => {
                 decoded_value.value.lval = filter as zend_long;
@@ -388,11 +295,11 @@ unsafe extern "C" fn parse_utf8_string(
     decoded_value: *mut zval,
     persistent: bool,
 ) -> bool {
-    if value.ptr.is_null() || decoded_value.is_null() {
+    if value.is_empty() || decoded_value.is_null() {
         return false;
     }
 
-    match value.to_utf8() {
+    match value.into_utf8() {
         Ok(utf8) => {
             let ptr = utf8.as_ptr() as *const c_char;
             let len = utf8.len() as u64;
@@ -421,8 +328,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
             &mut [
                 zai_config_entry {
                     id: transmute(ProfilingEnabled),
-                    name: ProfilingEnabled.to_env_var_name(),
-                    type_: ZaiConfigType::Bool,
+                    name: ProfilingEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: zai_string_view::literal(b"no\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
@@ -431,8 +338,18 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 },
                 zai_config_entry {
                     id: transmute(ProfilingEndpointCollectionEnabled),
-                    name: ProfilingEndpointCollectionEnabled.to_env_var_name(),
-                    type_: ZaiConfigType::Bool,
+                    name: ProfilingEndpointCollectionEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: zai_string_view::literal(b"yes\0"),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: None,
+                    parser: None,
+                },
+                zai_config_entry {
+                    id: transmute(ProfilingExperimentalCpuTimeEnabled),
+                    name: ProfilingExperimentalCpuTimeEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: zai_string_view::literal(b"yes\0"),
                     aliases: CPU_TIME_ALIASES.as_ptr(),
                     aliases_count: CPU_TIME_ALIASES.len() as u8,
@@ -440,19 +357,9 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalCpuTimeEnabled),
-                    name: ProfilingExperimentalCpuTimeEnabled.to_env_var_name(),
-                    type_: ZaiConfigType::Bool,
-                    default_encoded_value: zai_string_view::literal(b"yes\0"),
-                    aliases: std::ptr::null_mut(), // todo: ALIASES
-                    aliases_count: 0,
-                    ini_change: None,
-                    parser: None,
-                },
-                zai_config_entry {
                     id: transmute(ProfilingLogLevel),
-                    name: ProfilingLogLevel.to_env_var_name(),
-                    type_: ZaiConfigType::Custom, // store it as an int
+                    name: ProfilingLogLevel.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_CUSTOM, // store it as an int
                     default_encoded_value: zai_string_view::literal(b"off\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
@@ -461,8 +368,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 },
                 zai_config_entry {
                     id: transmute(AgentHost),
-                    name: AgentHost.to_env_var_name(),
-                    type_: ZaiConfigType::String,
+                    name: AgentHost.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: zai_string_view::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
@@ -471,8 +378,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 },
                 zai_config_entry {
                     id: transmute(Env),
-                    name: Env.to_env_var_name(),
-                    type_: ZaiConfigType::String,
+                    name: Env.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: zai_string_view::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
@@ -481,8 +388,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 },
                 zai_config_entry {
                     id: transmute(Service),
-                    name: Service.to_env_var_name(),
-                    type_: ZaiConfigType::String,
+                    name: Service.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: zai_string_view::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
@@ -491,8 +398,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 },
                 zai_config_entry {
                     id: transmute(Tags),
-                    name: Tags.to_env_var_name(),
-                    type_: ZaiConfigType::Map,
+                    name: Tags.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_MAP,
                     default_encoded_value: zai_string_view::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
@@ -501,8 +408,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 },
                 zai_config_entry {
                     id: transmute(TraceAgentPort),
-                    name: TraceAgentPort.to_env_var_name(),
-                    type_: ZaiConfigType::Int,
+                    name: TraceAgentPort.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_INT,
                     default_encoded_value: zai_string_view::literal(b"0\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
@@ -511,8 +418,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 },
                 zai_config_entry {
                     id: transmute(TraceAgentUrl),
-                    name: TraceAgentUrl.to_env_var_name(),
-                    type_: ZaiConfigType::String, // TYPE?
+                    name: TraceAgentUrl.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING, // TYPE?
                     default_encoded_value: zai_string_view::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
@@ -521,8 +428,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 },
                 zai_config_entry {
                     id: transmute(Version),
-                    name: Version.to_env_var_name(),
-                    type_: ZaiConfigType::String,
+                    name: Version.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: zai_string_view::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,

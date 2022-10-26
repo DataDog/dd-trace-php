@@ -73,3 +73,20 @@ void datadog_php_profiling_parse_utf8(zval *dest, const char *ptr, size_t len, b
         ZVAL_STR(dest, zend_string_init(ptr, len, persistent));
     }
 }
+
+/**
+ * Converts the zend_string pointer into a string view. Null pointers and
+ * empty strings will be converted into a string view to a static empty
+ * string (single byte of null, len of 0).
+ */
+zai_string_view datadog_php_profiling_zend_string_view(zend_string *zstr) {
+    if (!zstr) {
+        return ZAI_STRING_EMPTY;
+    }
+
+    if (ZSTR_LEN(zstr) == 0) {
+        return ZAI_STRING_EMPTY;
+    }
+
+    return ZAI_STRING_FROM_ZSTR(zstr);
+}

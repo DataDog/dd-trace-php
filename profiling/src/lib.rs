@@ -6,9 +6,10 @@ mod pcntl;
 mod profiling;
 mod sapi;
 
+use crate::bindings::sapi_globals;
 use crate::profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use bindings as zend;
-use bindings::{sapi_getenv, ZendExtension, ZendResult};
+use bindings::{ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
@@ -101,7 +102,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     ];
 
     let module = zend::ModuleEntry {
-        name: PROFILER_NAME.as_ptr(),
+        name: PROFILER_NAME.as_ptr() as *const u8,
         module_startup_func: Some(minit),
         module_shutdown_func: Some(mshutdown),
         request_startup_func: Some(rinit),
@@ -278,38 +279,8 @@ extern "C" fn prshutdown() -> ZendResult {
     ZendResult::Success
 }
 
-fn parse_boolean(string: &str) -> Option<bool> {
-    /* Care was taken to avoid allocating and to not do more than 2 calls to
-     * `eq_ignore_ascii_case` as this function gets called 2+ times on every
-     * single request that comes in. Not particularly performance sensitive,
-     * but it adds directly to latency of the end-user, and we also want to
-     * avoid allocator churn when we can.
-     */
-
-    let n_bytes = string.len();
-    // no boolean strings are longer than 5 ASCII characters
-    if n_bytes == 0 || n_bytes > 5 {
-        return None;
-    }
-
-    /* The lookup tables are based on the number of bytes in the string. The
-     * empty string will not match since it was handled above.
-     */
-    const TRUTH_TABLE: [&str; 5] = ["1", "on", "yes", "true", ""];
-    const FALSE_TABLE: [&str; 5] = ["0", "no", "off", "", "false"];
-
-    let offset = n_bytes - 1;
-    if TRUTH_TABLE[offset].eq_ignore_ascii_case(string) {
-        Some(true)
-    } else if FALSE_TABLE[offset].eq_ignore_ascii_case(string) {
-        Some(false)
-    } else {
-        None
-    }
-}
-
 pub struct RequestLocals {
-    pub env: Option<&'static str>,
+    pub env: Option<Cow<'static, str>>,
     pub interrupt_count: AtomicU32,
     pub last_cpu_time: Option<cpu_time::ThreadTime>,
     pub last_wall_time: Instant,
@@ -317,10 +288,10 @@ pub struct RequestLocals {
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
-    pub service: Option<&'static str>,
+    pub service: Option<Cow<'static, str>>,
     pub tags: Vec<Tag>,
     pub uri: Box<AgentEndpoint>,
-    pub version: Option<&'static str>,
+    pub version: Option<Cow<'static, str>>,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
@@ -405,7 +376,16 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         // Safety: We are after first rinit and before mshutdown.
         unsafe {
             locals.env = config::env();
-            locals.service = config::service();
+            locals.service = config::service().or_else(|| {
+                SAPI.get().and_then(|sapi| match sapi {
+                    Sapi::Cli => {
+                        // Safety: sapi globals are safe to access during rinit
+                        sapi.request_script_name(&sapi_globals)
+                            .or(Some(Cow::Borrowed("cli.command")))
+                    }
+                    _ => Some(Cow::Borrowed("web.request")),
+                })
+            });
             locals.version = config::version();
 
             // Select agent URI/UDS
@@ -494,18 +474,17 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 locals.last_cpu_time = Some(now);
             }
 
+            // Bleh, clone for borrow checker.
             let vars = [
-                ("service", locals.service, "unnamed-php-service"),
-                ("env", locals.env, ""),
-                ("version", locals.version, ""),
+                ("service", locals.service.clone()),
+                ("env", locals.env.clone()),
+                ("version", locals.version.clone()),
             ];
 
-            for (key, value, default_value) in vars {
+            for (key, value) in vars {
                 if let Some(value) = value {
-                    // the value should be non-empty here
-                    log_add_tag(&mut locals, key, value.into());
-                } else if !default_value.is_empty() {
-                    log_add_tag(&mut locals, key, default_value.into());
+                    assert!(!value.is_empty());
+                    log_add_tag(&mut locals, key, value);
                 }
             }
 
@@ -538,7 +517,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-fn log_add_tag(locals: &mut RefMut<RequestLocals>, key: &str, value: Cow<'static, str>) {
+fn log_add_tag<V: AsRef<str>>(locals: &mut RefMut<RequestLocals>, key: &str, value: V) {
     match Tag::new(key, value) {
         Ok(tag) => {
             locals.tags.push(tag);
@@ -550,8 +529,8 @@ fn log_add_tag(locals: &mut RefMut<RequestLocals>, key: &str, value: Cow<'static
 }
 
 fn detect_uri_from_config(
-    url: Option<&'static str>,
-    host: Option<&'static str>,
+    url: Option<Cow<'static, str>>,
+    host: Option<Cow<'static, str>>,
     port: Option<u16>,
 ) -> AgentEndpoint {
     /* Priority:
@@ -576,7 +555,7 @@ fn detect_uri_from_config(
                 );
             }
         } else {
-            match Uri::from_str(trace_agent_url) {
+            match Uri::from_str(trace_agent_url.as_ref()) {
                 Ok(uri) => return AgentEndpoint::Uri(uri),
                 Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {}", err),
             }
@@ -584,7 +563,7 @@ fn detect_uri_from_config(
         // continue down priority list
     }
     if port.is_some() || host.is_some() {
-        let host = host.unwrap_or("localhost");
+        let host = host.unwrap_or(Cow::Borrowed("localhost"));
         let port = port.unwrap_or(8126u16);
 
         match Uri::from_str(format!("http://{}:{}", host, port).as_str()) {
@@ -688,7 +667,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         ];
 
         for (key, value) in vars {
-            let mut value = value.unwrap_or_default().to_string();
+            let mut value = match value {
+                Some(cowstr) => cowstr.clone().into_owned(),
+                None => String::new(),
+            };
             value.push('\0');
             zend::php_info_print_table_row(2, key, value.as_ptr());
         }
@@ -861,32 +843,4 @@ extern "C" fn execute_internal(
         prev_execute_internal(execute_data, return_value);
     }
     interrupt_function(execute_data);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_boolean() {
-        let truthies = [
-            "1", "on", "yes", "true", "On", "Yes", "True", "ON", "YES", "TRUE",
-        ];
-        for val in truthies {
-            assert_eq!(Some(true), parse_boolean(val), "Testing {}", val);
-        }
-
-        let falsies = [
-            "0", "no", "off", "false", "No", "Off", "False", "NO", "OFF", "FALSE",
-        ];
-        for val in falsies {
-            assert_eq!(Some(false), parse_boolean(val), "Testing {}", val);
-        }
-
-        let non_boolean = ["", "a", "2", "-1", "truuue", "💯", "🦀!", "🔥🔥"];
-        for val in non_boolean {
-            let actual = parse_boolean(val);
-            assert_eq!(None, actual, "Testing {}", val);
-        }
-    }
 }
