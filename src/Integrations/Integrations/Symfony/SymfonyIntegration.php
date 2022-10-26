@@ -70,18 +70,13 @@ class SymfonyIntegration extends Integration
             ]
         );
 
-        $rootSpan = \DDTrace\root_span();
-        if (null == $rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
         $symfonyCommandsIntegrated = [];
         \DDTrace\hook_method(
             'Symfony\Component\Console\Command\Command',
             '__construct',
             null,
             function ($This, $scope) use (&$symfonyCommandsIntegrated) {
-                if (isset($symfonyCommandsIntegrated[$scope])) {
+                if (null == \DDTrace\root_span() || isset($symfonyCommandsIntegrated[$scope])) {
                     return;
                 }
 
@@ -103,6 +98,11 @@ class SymfonyIntegration extends Integration
                     }]);
             }
         );
+
+        $rootSpan = \DDTrace\root_span();
+        if (null == $rootSpan) {
+            return Integration::NOT_LOADED;
+        }
 
         /** @var SpanData $symfonyRequestSpan */
         $this->symfonyRequestSpan = $rootSpan;
