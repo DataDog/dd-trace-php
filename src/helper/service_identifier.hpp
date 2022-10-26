@@ -17,7 +17,7 @@ struct service_identifier {
     std::string app_version;
     std::string runtime_id;
 
-    MSGPACK_DEFINE_MAP(service, env);
+    MSGPACK_DEFINE_MAP(service, env, tracer_version, app_version, runtime_id);
 
     bool operator==(const service_identifier &oth) const noexcept
     {

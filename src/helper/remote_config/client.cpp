@@ -46,8 +46,8 @@ client::ptr client::from_settings(
         return {};
     }
     return std::make_unique<client>(
-        std::make_unique<http_api>(settings.host, settings.port), sid,
-        settings);
+        std::make_unique<http_api>(settings.host, std::to_string(settings.port)),
+        sid, settings);
 }
 
 [[nodiscard]] protocol::get_configs_request client::generate_request() const

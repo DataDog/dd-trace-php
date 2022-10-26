@@ -26,7 +26,7 @@ struct settings {
     // Remote config settings
     bool enabled{false};
     std::string host;
-    std::string port;
+    unsigned port;
     std::uint32_t poll_interval = default_poll_interval;
     std::uint64_t max_payload_size = default_max_payload_size;
 
