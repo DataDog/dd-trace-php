@@ -62,6 +62,10 @@ class SymfonyIntegration extends Integration
             'boot',
             [
                 'prehook' => function (SpanData $span) {
+                    if (null == \DDTrace\root_span()) {
+                        return false;
+                    }
+
                     $span->name = 'symfony.httpkernel.kernel.boot';
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;

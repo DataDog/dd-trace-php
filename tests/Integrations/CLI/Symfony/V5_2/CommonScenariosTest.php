@@ -70,14 +70,7 @@ class CommonScenariosTest extends IntegrationTestCase
 
         $this->assertFlameGraph(
             $traces,
-            [
-                SpanAssertion::build(
-                    'symfony.httpkernel.kernel.boot',
-                    'symfony',
-                    'web',
-                    'App\Kernel'
-                )
-            ]
+            []
         );
     }
 }
