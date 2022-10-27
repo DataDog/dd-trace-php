@@ -28,8 +28,7 @@ To see if the profiler is recognised by your PHP version as an extension you
 may run `/path/to/php -d extension=target/debug/libdatadog_php_profiling.so
 --ri datadog-profiling` and check the output.
 
-The following commands will help you run the PHPT tests from
-[tests/phpt/](tests/phpt):
+The following command will help you run the [PHPT tests](tests/phpt):
 
 ```sh
 /path/to/php /path/to/run-tests.php -d extension=target/release/libdatadog_php_profiling.so tests/phpt
@@ -37,12 +36,18 @@ The following commands will help you run the PHPT tests from
 
 Be aware that the PHPT tests will fail with the debug version of the profiler,
 if you haven't already, build the release version with `cargo build --release`.
+Also the `run-tests.php` version has to match the PHP version used to run the
+tests.
 
 ## Troubleshooting
 
 #### ld: symbol(s) not found for architecture arm64
 
-If your linker is complaining about not finding certain symbols, you might be
-missing your architecture in the [.cargo/config](.cargo/config) file. You
-should be able to fix this problem by adding your target as shown by `rustc
--vV`.
+If your linker is not finding certain symbols, you might be missing your
+architecture in the [.cargo/config](.cargo/config) file. You should be able to
+fix this problem by adding your target as shown by `rustc -vV`.
+
+#### Can't find `libdatadog_php_profiling.so` on MacOS
+
+On MacOS the file extension being used is `.dylib` and not `.so`. The correct
+file path should be `target/release/libdatadog_php_profiling.dylib`.
