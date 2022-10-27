@@ -43,11 +43,14 @@ class SymfonyIntegration extends Integration
             'handle',
             [
                 'prehook' => function (SpanData $span) {
-                    $service = \ddtrace_config_app_name('symfony');
-                    if ($rootSpan = \DDTrace\root_span()) {
-                        $rootSpan->name = 'symfony.request';
-                        $rootSpan->service = $service;
+                    $rootSpan = \DDTrace\root_span();
+                    if (!$rootSpan) {
+                        return false;
                     }
+
+                    $service = \ddtrace_config_app_name('symfony');
+                    $rootSpan->name = 'symfony.request';
+                    $rootSpan->service = $service;
 
                     $span->name = 'symfony.httpkernel.kernel.handle';
                     $span->resource = \get_class($this);
@@ -80,7 +83,7 @@ class SymfonyIntegration extends Integration
             '__construct',
             null,
             function ($This, $scope) use (&$symfonyCommandsIntegrated) {
-                if (null == \DDTrace\root_span() || isset($symfonyCommandsIntegrated[$scope])) {
+                if (isset($symfonyCommandsIntegrated[$scope])) {
                     return;
                 }
 
@@ -94,6 +97,9 @@ class SymfonyIntegration extends Integration
                      */
                     'recurse' => true,
                     'prehook' => function (SpanData $span) use ($scope) {
+                        if (null == \DDTrace\root_span()) {
+                            return false;
+                        }
                         $span->name = 'symfony.console.command.run';
                         $span->resource = $this->getName() ?: $span->name;
                         $span->service = \ddtrace_config_app_name('symfony');
