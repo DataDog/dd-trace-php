@@ -44,7 +44,7 @@ class SymfonyIntegration extends Integration
             [
                 'prehook' => function (SpanData $span) {
                     $rootSpan = \DDTrace\root_span();
-                    if (!$rootSpan) {
+                    if ($rootSpan === $span) {
                         return false;
                     }
 
@@ -65,7 +65,7 @@ class SymfonyIntegration extends Integration
             'boot',
             [
                 'prehook' => function (SpanData $span) {
-                    if (null == \DDTrace\root_span()) {
+                    if (\DDTrace\root_span() === $span) {
                         return false;
                     }
 
@@ -97,7 +97,7 @@ class SymfonyIntegration extends Integration
                      */
                     'recurse' => true,
                     'prehook' => function (SpanData $span) use ($scope) {
-                        if (null == \DDTrace\root_span()) {
+                        if (\DDTrace\root_span() === $span) {
                             return false;
                         }
                         $span->name = 'symfony.console.command.run';
