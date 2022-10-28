@@ -534,7 +534,8 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     }
 
     // As a special case dropping a root span rejects it to avoid traces without root span
-    if (stack->root_span == span) {
+    // It's safe to just drop RC=2 root spans, they're referenced nowhere else
+    if (stack->root_span == span && GC_REFCOUNT(&span->std) > 2) {
         ddtrace_set_prioritySampling_on_root(PRIORITY_SAMPLING_USER_REJECT);
         dd_trace_stop_span_time(span);
         ddtrace_close_span(span);
@@ -552,7 +553,9 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     ++DDTRACE_G(dropped_spans_count);
     --DDTRACE_G(open_spans_count);
 
-    if (!stack->active || stack->active->stack != stack) {
+    if (stack->root_span == span) {
+        ddtrace_switch_span_stack(stack->parent_stack);
+    } else if (!stack->active || stack->active->stack != stack) {
         dd_close_entry_span_of_stack(stack);
     }
 
