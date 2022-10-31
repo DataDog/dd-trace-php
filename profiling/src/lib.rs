@@ -4,9 +4,11 @@ mod config;
 mod logging;
 mod pcntl;
 mod profiling;
+mod allocations;
 mod sapi;
 
 use crate::profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use crate::allocations::init_allocation_profiling;
 use bindings as zend;
 use bindings::{sapi_getenv, ZendExtension, ZendResult};
 use config::AgentEndpoint;
@@ -357,6 +359,8 @@ fn runtime_id() -> Uuid {
 extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RINIT({}, {})", r#type, module_number);
+
+    init_allocation_profiling();
 
     // initialize the thread local storage and cache some items
     let (log_level, profiling_enabled, profiling_experimental_cpu_time_enabled) = REQUEST_LOCALS
