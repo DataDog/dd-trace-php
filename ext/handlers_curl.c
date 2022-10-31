@@ -132,14 +132,20 @@ static void dd_multi_inject_headers(zend_object *mh) {
     }
 }
 
+// We need to include our copied handles in the GC to avoid possible leaks
 static HashTable *ddtrace_curl_multi_get_gc(zend_object *object, zval **table, int *n) {
     HashTable *ret = dd_curl_multi_get_gc(object, table, n);
 
     HashTable *handles = zend_hash_index_find_ptr(&dd_multi_handles, zend_object_to_weakref_key(object));
     if (handles) {
+        // extend the buffer created by curl_multi_get_gc
+        zend_get_gc_buffer *gc_buffer = &EG(get_gc_buffer);
+
         zend_object *ch;
-        ZEND_HASH_FOREACH_PTR(handles, ch) { zend_get_gc_buffer_add_obj(&EG(get_gc_buffer), ch); }
+        ZEND_HASH_FOREACH_PTR(handles, ch) { zend_get_gc_buffer_add_obj(gc_buffer, ch); }
         ZEND_HASH_FOREACH_END();
+
+        zend_get_gc_buffer_use(gc_buffer, table, n);
     }
 
     return ret;
