@@ -499,6 +499,57 @@ function require_binaries_or_exit($options)
     return $selectedBinaries;
 }
 
+function search_for_working_ldconfig()
+{
+    static $path;
+
+    if ($path) {
+        return $path;
+    }
+
+    $paths = [
+        "/sbin", /* this is most likely path */
+        "/usr/sbin",
+        "/usr/local/sbin",
+        "/bin",
+        "/usr/bin",
+        "/usr/local/bin",
+    ];
+
+    $search = function (&$path) {
+        exec("find $path -name ldconfig", $found, $result);
+
+        if ($result == 0) {
+            return $path = \end($found);
+        }
+    };
+
+    /* searching individual paths is much faster than searching
+        them all */
+    foreach ($paths as $path) {
+        if ($search($path)) {
+            return $path;
+        }
+    }
+
+    /* probably won't get this far, but just in case */
+    foreach (\explode(":", \getenv("PATH")) as $path) {
+        if (\array_search($path, $paths) === false) {
+            if ($search($path)) {
+                return $path;
+            }
+        }
+    }
+
+    /*
+        we cannot find a working ldconfig binary on this system,
+        fall back on previous behaviour:
+
+        there is a slim outside chance that exec() expands ldconfig
+    */
+    return $path = "ldconfig";
+}
+
 /**
  * Checks if a library is available or not in an OS-independent way.
  *
@@ -513,9 +564,10 @@ function check_library_prerequisite_or_exit($requiredLibrary)
             "find /usr/local/lib /usr/lib -type f -name '*${requiredLibrary}*.so*'"
         );
     } else {
+        $ldconfig = search_for_working_ldconfig();
         $lastLine = execute_or_exit(
             "Cannot find library '$requiredLibrary'",
-            "ldconfig -p | grep $requiredLibrary"
+            "$ldconfig -p | grep $requiredLibrary"
         );
     }
 
