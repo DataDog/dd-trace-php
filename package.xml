@@ -5,9 +5,9 @@
     <summary>APM and distributed tracing for PHP</summary>
     <description>The Datadog PHP Tracer brings APM and distributed tracing to PHP.</description>
     <lead>
-        <name>Sammy Kaye Powers</name>
-        <user>sammyk</user>
-        <email>sammyk@php.net</email>
+        <name>Anil Mahtani Mirchandani</name>
+        <user>anilm3</user>
+        <email>anilm3@php.net</email>
         <active>yes</active>
     </lead>
     <lead>
@@ -34,6 +34,12 @@
         <email>krakjoe@php.net</email>
         <active>yes</active>
     </lead>
+    <lead>
+        <name>Pierre Bonet</name>
+        <user>pierotibou</user>
+        <email>pierotibou@php.net</email>
+        <active>yes</active>
+    </lead>
     <!-- **Automatically updated with pecl-build script** -->
     <!-- Date only needs to be set if it was packaged on a different day from release -->
     <date>${date}</date>
@@ -48,7 +54,10 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        <![CDATA[
+${notes}
+]]></notes>
     <contents>
         <dir name="/">
             <!-- code and test files -->${codefiles}
