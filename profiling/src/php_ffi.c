@@ -59,18 +59,19 @@ void datadog_php_profiling_install_internal_function_handler(
     }
 }
 
-void datadog_php_profiling_parse_utf8(zval *dest, const char *ptr, size_t len, bool persistent) {
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
+                                                      bool persistent) {
     ZEND_ASSERT(dest);
-    ZEND_ASSERT(ptr);
 
-    if (len == 0) {
+    if (view.len == 0) {
         if (persistent) {
             ZVAL_EMPTY_PSTRING(dest);
         } else {
             ZVAL_EMPTY_STRING(dest);
         }
     } else {
-        ZVAL_STR(dest, zend_string_init(ptr, len, persistent));
+        ZEND_ASSERT(view.ptr);
+        ZVAL_STR(dest, zend_string_init(view.ptr, view.len, persistent));
     }
 }
 
@@ -80,11 +81,7 @@ void datadog_php_profiling_parse_utf8(zval *dest, const char *ptr, size_t len, b
  * string (single byte of null, len of 0).
  */
 zai_string_view datadog_php_profiling_zend_string_view(zend_string *zstr) {
-    if (!zstr) {
-        return ZAI_STRING_EMPTY;
-    }
-
-    if (ZSTR_LEN(zstr) == 0) {
+    if (!zstr || ZSTR_LEN(zstr) == 0) {
         return ZAI_STRING_EMPTY;
     }
 

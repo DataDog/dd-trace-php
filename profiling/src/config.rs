@@ -1,8 +1,8 @@
 use crate::bindings::zai_config_type::*;
 use crate::bindings::{
-    datadog_php_profiling_parse_utf8, zai_config_entry, zai_config_get_value, zai_config_minit,
-    zai_config_name, zai_config_system_ini_change, zai_string_view, zend_long, zval, IS_LONG,
-    ZAI_CONFIG_ENTRIES_COUNT_MAX,
+    datadog_php_profiling_copy_string_view_into_zval, zai_config_entry, zai_config_get_value,
+    zai_config_minit, zai_config_name, zai_config_system_ini_change, zai_string_view, zend_long,
+    zval, ZaiStringView, IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
 pub use datadog_profiling::exporter::Uri;
 use libc::{c_char, c_void, memcpy};
@@ -302,8 +302,8 @@ unsafe extern "C" fn parse_utf8_string(
     match value.into_utf8() {
         Ok(utf8) => {
             let ptr = utf8.as_ptr() as *const c_char;
-            let len = utf8.len() as u64;
-            datadog_php_profiling_parse_utf8(decoded_value, ptr, len, persistent);
+            let view = ZaiStringView::from_raw_parts(ptr, utf8.len());
+            datadog_php_profiling_copy_string_view_into_zval(decoded_value, view, persistent);
             true
         }
         Err(e) => {

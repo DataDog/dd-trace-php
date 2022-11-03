@@ -425,6 +425,11 @@ impl<'a> ZaiStringView<'a> {
         }
     }
 
+    pub const unsafe fn from_raw_parts(ptr: *const c_char, len: size_t) -> ZaiStringView<'a> {
+        let _marker = PhantomData;
+        Self { len, ptr, _marker }
+    }
+
     pub fn is_empty(&self) -> bool {
         // Note: ptr shouldn't be null!
         self.len == 0 || self.ptr.is_null()
