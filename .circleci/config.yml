@@ -10,7 +10,7 @@ aliases:
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
 
   - &IMAGE_DOCKER_DD_AGENT
-    image: datadog/agent:latest
+    image: datadog/agent:7.39.2
     environment:
       - DD_APM_ENABLED=true
       - DD_BIND_HOST=0.0.0.0
@@ -242,7 +242,7 @@ commands:
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
-                datadog/agent:latest
+                datadog/agent:7.39.2
               docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               docker run --detach --rm --net net \
