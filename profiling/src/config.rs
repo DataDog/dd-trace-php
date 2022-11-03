@@ -5,7 +5,7 @@ use crate::bindings::{
     ZaiStringView, IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
 pub use datadog_profiling::exporter::Uri;
-use libc::{c_char, c_void, memcpy};
+use libc::{c_void, memcpy};
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
@@ -301,8 +301,7 @@ unsafe extern "C" fn parse_utf8_string(
 
     match value.into_utf8() {
         Ok(utf8) => {
-            let ptr = utf8.as_ptr() as *const c_char;
-            let view = ZaiStringView::from_raw_parts(ptr, utf8.len());
+            let view = ZaiStringView::from(utf8);
             datadog_php_profiling_copy_string_view_into_zval(decoded_value, view, persistent);
             true
         }

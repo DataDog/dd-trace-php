@@ -415,6 +415,16 @@ pub struct ZaiStringView<'a> {
     _marker: PhantomData<&'a [c_char]>,
 }
 
+impl<'a> From<&'a str> for ZaiStringView<'a> {
+    fn from(val: &'a str) -> Self {
+        Self {
+            len: val.len(),
+            ptr: val.as_ptr() as *const c_char,
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<'a> ZaiStringView<'a> {
     pub const fn new() -> ZaiStringView<'a> {
         const NULL: &[u8] = b"\0";
@@ -423,11 +433,6 @@ impl<'a> ZaiStringView<'a> {
             ptr: NULL.as_ptr() as *const c_char,
             _marker: PhantomData,
         }
-    }
-
-    pub const unsafe fn from_raw_parts(ptr: *const c_char, len: size_t) -> ZaiStringView<'a> {
-        let _marker = PhantomData;
-        Self { len, ptr, _marker }
     }
 
     pub fn is_empty(&self) -> bool {
