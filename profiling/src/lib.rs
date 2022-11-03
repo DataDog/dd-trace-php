@@ -12,7 +12,7 @@ use bindings::{sapi_getenv, ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
-use libc::c_int;
+use libc::{c_char, c_int};
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
 use sapi::Sapi;
@@ -47,6 +47,20 @@ static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
+
+lazy_static! {
+    // Safety: PROFILER_NAME is a byte slice that satisfies the safety requirements.
+    static ref PROFILER_NAME_STR: &'static str = unsafe { CStr::from_ptr(PROFILER_NAME.as_ptr() as *const c_char) }
+        .to_str()
+        // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
+        .unwrap();
+
+    // Safety: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
+    static ref PROFILER_VERSION_STR: &'static str = unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char) }
+        .to_str()
+        // Panic: we own this string and it should be UTF8 (see PROFILER_VERSION above).
+        .unwrap();
+}
 
 /// The runtime ID, which is basically a universally unique "pid". This makes
 /// it almost const, the exception being to re-initialize it from a child fork

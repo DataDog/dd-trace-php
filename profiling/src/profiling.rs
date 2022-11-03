@@ -2,7 +2,7 @@ use crate::bindings::{
     datadog_php_profiling_get_profiling_context, zend_execute_data, zend_function, zend_string,
     ZEND_INTERNAL_FUNCTION, ZEND_USER_FUNCTION,
 };
-use crate::{AgentEndpoint, RequestLocals, PHP_VERSION};
+use crate::{AgentEndpoint, RequestLocals, PHP_VERSION, PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use crossbeam_channel::{select, Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::{Endpoint, File, Tag};
 use datadog_profiling::profile;
@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::ffi::CStr;
 use std::hash::Hash;
 use std::os::raw::c_char;
+use std::str;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier, Mutex};
@@ -548,9 +549,17 @@ impl Uploader {
         let index = message.index;
         let profile = message.profile;
 
+        let profiling_library_name: &str = &PROFILER_NAME_STR;
+        let profiling_library_version: &str = &PROFILER_VERSION_STR;
         let endpoint: Endpoint = (&*index.endpoint).try_into()?;
-        let exporter =
-            datadog_profiling::exporter::ProfileExporter::new("php", Some(index.tags), endpoint)?;
+        let exporter = datadog_profiling::exporter::ProfileExporter::new(
+            profiling_library_name,
+            profiling_library_version,
+            "php",
+            Some(index.tags),
+            endpoint,
+        )?;
+
         let serialized = profile.serialize(Some(message.end_time), message.duration)?;
         let start = serialized.start.into();
         let end = serialized.end.into();
