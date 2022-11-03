@@ -18,13 +18,17 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+static void dd_reset_span_counters(void) {
+    DDTRACE_G(open_spans_count) = 0;
+    DDTRACE_G(dropped_spans_count) = 0;
+    DDTRACE_G(closed_spans_count) = 0;
+}
+
 void ddtrace_init_span_stacks(void) {
     DDTRACE_G(active_stack) = NULL;
     DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
     DDTRACE_G(top_closed_stack) = NULL;
-    DDTRACE_G(open_spans_count) = 0;
-    DDTRACE_G(dropped_spans_count) = 0;
-    DDTRACE_G(closed_spans_count) = 0;
+    dd_reset_span_counters();
 }
 
 static void dd_drop_span_nodestroy(ddtrace_span_data *span, bool silent) {
@@ -563,6 +567,8 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
+    dd_reset_span_counters();
+
     array_init(serialized);
 
     // We need to loop here, as closing the last span root stack could add other spans here
