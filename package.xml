@@ -56,7 +56,8 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-${notes}
+#### Fixed
+-  Fix span limiter not being reset in long running processes #1785
 ]]></notes>
     <contents>
         <dir name="/">
