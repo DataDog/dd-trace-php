@@ -35,10 +35,18 @@ $output = ob_get_clean();
 
 $values = [];
 
-// We're expecting a 2-column table, first is key, second is value.
+/* Expect two tables.
+ *  1. Two column layout, first column is the key and second is the value.
+ *  2. Three column layout for .ini settings. First is the directive, second
+ *     is the local value, and last is the master value.
+ * For this test, we're after the first table for DD_SERVICE.
+ */
 $dom = new DOMDocument();
 assert($dom->loadHTML($output));
-foreach ($dom->getElementsByTagName('tr') as $row) {
+$tables = iterator_to_array($dom->getElementsByTagName('table'));
+assert(count($tables) === 2);
+
+foreach ($tables[0]->getElementsByTagName('tr') as $row) {
     [$key, $value] = iterator_to_array($row->getElementsByTagName('td'));
     $key = html_entity_decode(trim($key->nodeValue));
     $value = html_entity_decode(trim($value->nodeValue));
