@@ -90,9 +90,18 @@ final class TextMap implements Propagator
      */
     private function extractStringOrFirstArrayElement($value)
     {
+        $singleValue = $this->extractScalarOrFirstArrayElement($value);
+        if (is_string($singleValue)) {
+            return $singleValue;
+        }
+        return null;
+    }
+
+    private function extractScalarOrFirstArrayElement($value)
+    {
         if (is_array($value) && count($value) > 0) {
             return $value[0];
-        } elseif (is_string($value)) {
+        } elseif (is_scalar($value)) {
             return $value;
         }
         return null;
@@ -107,7 +116,7 @@ final class TextMap implements Propagator
     private function extractPrioritySampling(SpanContextInterface $spanContext, $carrier)
     {
         if (isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])) {
-            $rawValue = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]);
+            $rawValue = $this->extractScalarOrFirstArrayElement($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]);
             $spanContext->setPropagatedPrioritySampling(PrioritySampling::parse($rawValue));
         }
     }
