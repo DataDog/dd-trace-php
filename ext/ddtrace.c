@@ -52,6 +52,7 @@
 #include "span.h"
 #include "startup_logging.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
+#include "transpile.h"
 #include "ext/standard/file.h"
 
 #include "../hook/uhook.h"
@@ -656,6 +657,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     zai_hook_minit();
     zai_uhook_minit();
+    ddtrace_transpile_minit();
 #if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
 #endif
