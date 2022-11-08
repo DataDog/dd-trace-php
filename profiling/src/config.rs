@@ -165,7 +165,7 @@ impl ConfigId {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_enabled() -> bool {
-    get_bool(ProfilingEnabled, false)
+    get_bool(ProfilingEnabled, true)
 }
 
 /// # Safety
@@ -328,7 +328,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingEnabled),
                     name: ProfilingEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"no\0"),
+                    default_encoded_value: ZaiStringView::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -338,7 +338,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingEndpointCollectionEnabled),
                     name: ProfilingEndpointCollectionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"yes\0"),
+                    default_encoded_value: ZaiStringView::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -348,7 +348,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingExperimentalCpuTimeEnabled),
                     name: ProfilingExperimentalCpuTimeEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"yes\0"),
+                    default_encoded_value: ZaiStringView::literal(b"1\0"),
                     aliases: CPU_TIME_ALIASES.as_ptr(),
                     aliases_count: CPU_TIME_ALIASES.len() as u8,
                     ini_change: None,
