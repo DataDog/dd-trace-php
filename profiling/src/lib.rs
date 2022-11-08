@@ -4,11 +4,9 @@ mod config;
 mod logging;
 mod pcntl;
 mod profiling;
-mod allocations;
 mod sapi;
 
 use crate::profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
-use crate::allocations::init_allocation_profiling;
 use bindings as zend;
 use bindings::{sapi_getenv, ZendExtension, ZendResult};
 use config::AgentEndpoint;
@@ -258,6 +256,15 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_execute_internal = Some(execute_internal);
     };
 
+    unsafe {
+        zend::zend_mm_set_custom_handlers(
+            zend::zend_mm_get_heap(),
+            Some(alloc_profiling_malloc),
+            Some(alloc_profiling_free),
+            Some(alloc_profiling_realloc),
+        );
+    }
+
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
      */
@@ -306,6 +313,7 @@ fn parse_boolean(string: &str) -> Option<bool> {
 pub struct RequestLocals {
     pub env: Option<String>,
     pub interrupt_count: AtomicU32,
+    pub allocations_count: AtomicU32,
     pub last_cpu_time: Option<cpu_time::ThreadTime>,
     pub last_wall_time: Instant,
     pub profiling_enabled: bool,
@@ -334,6 +342,7 @@ thread_local! {
     static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals {
         env: None,
         interrupt_count: AtomicU32::new(0),
+        allocations_count: AtomicU32::new(0),
         last_cpu_time: None,
         last_wall_time: Instant::now(),
         profiling_enabled: false,
@@ -359,8 +368,6 @@ fn runtime_id() -> Uuid {
 extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RINIT({}, {})", r#type, module_number);
-
-    init_allocation_profiling();
 
     // initialize the thread local storage and cache some items
     let (log_level, profiling_enabled, profiling_experimental_cpu_time_enabled) = REQUEST_LOCALS
@@ -852,6 +859,54 @@ extern "C" fn execute_internal(
         prev_execute_internal(execute_data, return_value);
     }
     interrupt_function(execute_data);
+}
+
+unsafe extern "C" fn alloc_profiling_malloc (len: u64) -> *mut ::libc::c_void {
+    let ptr = zend::_zend_mm_alloc(zend::zend_mm_get_heap(), len);
+    // print!("Allocating {} bytes at {:p}\n", len, ptr);
+    // in startup, minit, rinit, current_execute_data is null
+    if zend::executor_globals.current_execute_data.is_null() {
+        return ptr
+    }
+    let execute_data: &zend::zend_execute_data = &*zend::executor_globals.current_execute_data;
+    // TODO: call allocation profile sampling
+
+    REQUEST_LOCALS.with(|cell| {
+        let mut locals = cell.borrow_mut();
+
+        if !locals.profiling_enabled {
+            return;
+        }
+
+        locals.allocations_count.swap(1, Ordering::SeqCst);
+        // if locals.allocations_count.fetch_add(1, Ordering::SeqCst) < 100 {
+            // info!("Skipping allocation profiling for sample {}", locals.allocations_count.get_mut());
+            // return;
+        // }
+        // info!("DOING allocation profiling for sample {}", locals.allocations_count.get_mut());
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            unsafe { profiler.collect_allocations(zend::executor_globals.current_execute_data, len, locals.deref_mut()) };
+        }
+
+        locals.allocations_count.swap(0, Ordering::SeqCst);
+    });
+
+
+    ptr
+}
+
+// we totally ignore anything in free for now
+unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
+    zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
+}
+
+// same thing as with alloc_profiling_malloc, but lets first try to make the above work!
+unsafe extern "C" fn alloc_profiling_realloc (ptr: *mut ::libc::c_void, len: u64) -> *mut ::libc::c_void {
+    // TODO
+    let newptr = zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len);
+    newptr
 }
 
 #[cfg(test)]

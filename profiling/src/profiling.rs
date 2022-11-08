@@ -172,7 +172,7 @@ unsafe fn zend_string_to_bytes<'a>(ptr: *const zend_string) -> &'a [u8] {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-unsafe fn extract_function_name(func: &zend_function) -> String {
+pub unsafe fn extract_function_name(func: &zend_function) -> String {
     let method_name: &[u8] = zend_string_to_bytes(func.common.function_name);
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -212,7 +212,7 @@ unsafe fn extract_function_name(func: &zend_function) -> String {
     String::from_utf8_lossy(buffer.as_slice()).to_string()
 }
 
-unsafe fn extract_file_name(execute_data: &zend_execute_data) -> String {
+pub unsafe fn extract_file_name(execute_data: &zend_execute_data) -> String {
     // this is supposed to be verified by the caller
     if execute_data.func.is_null() {
         return String::new();
@@ -238,7 +238,7 @@ unsafe fn extract_line_no(execute_data: &zend_execute_data) -> u32 {
     0
 }
 
-unsafe fn collect_stack_sample(
+pub unsafe fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
@@ -627,7 +627,7 @@ impl Profiler {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
         let vm_interrupts = Arc::new(Mutex::new(Vec::with_capacity(1)));
-        let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
+        let (message_sender, message_receiver) = crossbeam_channel::bounded(100000);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
         let time_collector = TimeCollector {
@@ -780,6 +780,101 @@ impl Profiler {
                     sample_values.push(cputime);
                     locals.last_cpu_time = Some(now);
                 }
+
+                let mut labels = vec![];
+                let gpc = datadog_php_profiling_get_profiling_context;
+                if let Some(get_profiling_context) = gpc {
+                    let context = get_profiling_context();
+                    if context.local_root_span_id != 0 {
+                        labels.push(Label {
+                            key: "local root span id".into(),
+                            value: LabelValue::Str(
+                                format!("{}", context.local_root_span_id).into(),
+                            ),
+                        });
+                        labels.push(Label {
+                            key: "span id".into(),
+                            value: LabelValue::Str(format!("{}", context.span_id).into()),
+                        });
+                    }
+                }
+
+                let mut tags = locals.tags.clone();
+
+                if let Some(version) = PHP_VERSION.get() {
+                    /* This should probably be "language_version", but this is
+                     * the tag that was standardized for this purpose. */
+                    let tag = Tag::new("runtime_version", version)
+                        .expect("runtime_version to be a valid tag");
+                    tags.push(tag);
+                }
+
+                if let Some(sapi) = crate::SAPI.get() {
+                    match Tag::new("php.sapi", sapi.to_string()) {
+                        Ok(tag) => tags.push(tag),
+                        Err(err) => warn!("Tag error: {}", err),
+                    }
+                }
+
+                let message = SampleMessage {
+                    key: ProfileIndex {
+                        sample_types,
+                        tags,
+                        endpoint: locals.uri.clone(),
+                    },
+                    value: SampleData {
+                        frames,
+                        labels: labels.clone(),
+                        sample_values,
+                    },
+                };
+
+                // Panic: profiler was checked above for is_none().
+                match self.send_sample(message) {
+                    Ok(_) => trace!(
+                        "Sent stack sample of depth {} with labels {:?} to profiler.",
+                        depth,
+                        labels
+                    ),
+                    Err(err) => warn!(
+                        "Failed to send stack sample of depth {} with labels {:?} to profiler: {}",
+                        depth, labels, err
+                    ),
+                }
+            }
+            Err(err) => {
+                warn!("Failed to collect stack sample: {}", err)
+            }
+        }
+    }
+
+    /// Collect a stack sample with memory allocations
+    pub unsafe fn collect_allocations(
+        &self,
+        execute_data: *mut zend_execute_data,
+        allocation_size: u64,
+        mut locals: &mut RequestLocals,
+    ) {
+        // todo: should probably exclude the wall and CPU time used by collecting the sample.
+        let allocations_count = *locals.allocations_count.get_mut() as i64;
+        let result = collect_stack_sample(execute_data);
+        match result {
+            Ok(frames) => {
+                let depth = frames.len();
+
+                // todo: add {cpu-time, nanoseconds}
+                let sample_types = vec![
+                    ValueType {
+                        r#type: Cow::Borrowed("alloc-samples"),
+                        unit: Cow::Borrowed("count"),
+                    },
+                    ValueType {
+                        r#type: Cow::Borrowed("alloc-size"),
+                        unit: Cow::Borrowed("bytes"),
+                    },
+                ];
+
+                let sample_values = vec![allocations_count, allocation_size as i64];
 
                 let mut labels = vec![];
                 let gpc = datadog_php_profiling_get_profiling_context;
