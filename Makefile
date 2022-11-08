@@ -750,6 +750,31 @@ TEST_WEB_81 := \
 	test_web_custom
 #	test_web_yii_2 \
 
+TEST_INTEGRATIONS_82 := \
+	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_memcached \
+	test_integrations_mongodb1 \
+	test_integrations_mysqli \
+	test_integrations_pcntl \
+	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
+	test_integrations_predis1 \
+	test_opentracing_10
+
+TEST_WEB_82 := \
+	test_metrics \
+	test_web_codeigniter_22 \
+	test_web_laravel_8x \
+	test_web_nette_24 \
+	test_web_nette_30 \
+	test_web_slim_312 \
+	test_web_slim_4 \
+	test_web_symfony_52 \
+	test_web_wordpress_59 \
+	test_web_custom
+#	test_web_yii_2 \
+
 FILTER := .
 
 define run_tests

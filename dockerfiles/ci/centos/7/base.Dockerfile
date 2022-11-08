@@ -191,6 +191,7 @@ RUN set -eux; \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
     yum update -y; \
     yum install -y \
+    re2c \
     bzip2-devel \
     httpd-devel \
     libmemcached-devel \

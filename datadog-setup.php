@@ -85,12 +85,12 @@ function install($options)
 
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-install';
-    $tmpDirTarGz = $tmpDir . "/dd-library-php-${platform}.tar.gz";
+    $tmpDirTarGz = $tmpDir . "/dd-library-php-{$platform}.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
-    $tmpArchiveAppsecBin = "${tmpArchiveAppsecRoot}/bin";
-    $tmpArchiveAppsecEtc = "${tmpArchiveAppsecRoot}/etc";
+    $tmpArchiveAppsecBin = "{$tmpArchiveAppsecRoot}/bin";
+    $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
@@ -112,7 +112,7 @@ function install($options)
         // For testing purposes, we need an alternate repo where we can push bundles that includes changes that we are
         // trying to test, as the previously released versions would not have those changes.
         $url = (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php")
-            . "/releases/download/${version}/dd-library-php-${version}-${platform}.tar.gz";
+            . "/releases/download/{$version}/dd-library-php-{$version}-{$platform}.tar.gz";
         // phpcs:enable Generic.Files.LineLength.TooLong
         download($url, $tmpDirTarGz);
         unset($version);
@@ -199,7 +199,7 @@ function install($options)
 
         // Profiling
         $shouldInstallProfiling =
-            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
+            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2'])
             && !is_truthy($phpProperties[THREAD_SAFETY])
             && !is_truthy($phpProperties[IS_DEBUG]);
 
@@ -216,7 +216,7 @@ function install($options)
             && in_array($architecture, ["x86_64"]);
 
         if ($shouldInstallAppsec) {
-            $appsecExtensionRealPath = "${tmpArchiveAppsecRoot}/ext/${extensionVersion}/ddappsec${extensionSuffix}.so";
+            $appsecExtensionRealPath = "{$tmpArchiveAppsecRoot}/ext/{$extensionVersion}/ddappsec{$extensionSuffix}.so";
             $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }
@@ -303,7 +303,7 @@ function install($options)
                     );
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
-                    print_error_and_exit("Option --${enableProfiling} was provided, but it is not supported on this PHP build or version.\n");
+                    print_error_and_exit("Option --{$enableProfiling} was provided, but it is not supported on this PHP build or version.\n");
                 }
                 // phpcs:enable Generic.Files.LineLength.TooLong
             }
@@ -347,7 +347,7 @@ function install($options)
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     $enableAppsec = OPT_ENABLE_APPSEC;
-                    print_error_and_exit("Option --${enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
+                    print_error_and_exit("Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
                 }
             }
             // phpcs:enable Generic.Files.LineLength.TooLong
@@ -561,7 +561,7 @@ function check_library_prerequisite_or_exit($requiredLibrary)
     if (is_alpine()) {
         $lastLine = execute_or_exit(
             "Error while searching for library '$requiredLibrary'.",
-            "find /usr/local/lib /usr/lib -type f -name '*${requiredLibrary}*.so*'"
+            "find /usr/local/lib /usr/lib -type f -name '*{$requiredLibrary}*.so*'"
         );
     } else {
         $ldconfig = search_for_working_ldconfig();
@@ -948,11 +948,11 @@ function search_php_binaries($prefix = '')
 
     $remiSafePaths = array_map(function ($phpVersion) use ($prefix) {
         list($major, $minor) = explode('.', $phpVersion);
-        /* php is installed to /usr/bin/php${major}${minor} so we do not need to do anything special, while php-fpm
-         * is installed to /opt/remi/php${major}${minor}/root/usr/sbin and it needs to be added to the searched
+        /* php is installed to /usr/bin/php{$major}{$minor} so we do not need to do anything special, while php-fpm
+         * is installed to /opt/remi/php{$major}{$minor}/root/usr/sbin and it needs to be added to the searched
          * locations.
          */
-        return "${prefix}/opt/remi/php${major}${minor}/root/usr/sbin";
+        return "{$prefix}/opt/remi/php{$major}{$minor}/root/usr/sbin";
     }, get_supported_php_versions());
 
     $pleskPaths = array_map(function ($phpVersion) use ($prefix) {
@@ -1023,15 +1023,15 @@ function build_known_command_names_matrix()
         list($major, $minor) = explode('.', $phpVersion);
         array_push(
             $results,
-            "php${major}",
-            "php${major}${minor}",
-            "php${major}.${minor}",
-            "php${major}-fpm",
-            "php${major}${minor}-fpm",
-            "php${major}.${minor}-fpm",
-            "php-fpm${major}",
-            "php-fpm${major}${minor}",
-            "php-fpm${major}.${minor}"
+            "php{$major}",
+            "php{$major}{$minor}",
+            "php{$major}.{$minor}",
+            "php{$major}-fpm",
+            "php{$major}{$minor}-fpm",
+            "php{$major}.{$minor}-fpm",
+            "php-fpm{$major}",
+            "php-fpm{$major}{$minor}",
+            "php-fpm{$major}.{$minor}"
         );
     }
 
