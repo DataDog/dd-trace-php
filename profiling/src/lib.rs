@@ -708,6 +708,15 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
         profiler.stop();
     }
 
+    unsafe {
+        zend::zend_mm_set_custom_handlers(
+            zend::zend_mm_get_heap(),
+            None,
+            None,
+            None,
+        );
+    }
+
     ZendResult::Success
 }
 
