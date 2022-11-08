@@ -26,7 +26,7 @@ while (true) {
         break;
     }
 
-    if (--$loopBreak > 0) {
+    if (--$loopBreak < 0) {
         echo "No 20 spans were sampled.\n";
         break; # avoid infinite loop with DD_TRACE_ENABLED=0
     }
