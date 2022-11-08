@@ -3,11 +3,7 @@ version: '3'
 services:
   agent:
     container_name: agent
-    image: datadog/agent:7
-    environment:
-      - DD_API_KEY=${DATADOG_API_KEY:-not_a_valid_api_key}
-      - DD_APM_ENABLED=true
-      - DD_APM_NON_LOCAL_TRAFFIC=true
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
 
   redis:
     container_name: redis

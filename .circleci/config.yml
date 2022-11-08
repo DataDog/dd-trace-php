@@ -238,7 +238,7 @@ commands:
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
-                datadog/agent:7.39.2
+                ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
               docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               docker run --detach --rm --net net \
