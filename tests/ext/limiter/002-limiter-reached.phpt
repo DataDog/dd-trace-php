@@ -7,6 +7,7 @@ DD_TRACE_RATE_LIMIT=10
 <?php
 $spans = [];
 $sampled = 0;
+$loopBreak = 1000;
 
 while (true) {
     \DDTrace\start_span();
@@ -23,6 +24,11 @@ while (true) {
 
     if ($sampled > 20) {
         break;
+    }
+
+    if (--$loopBreak < 0) {
+        echo "No 20 spans were sampled.\n";
+        break; # avoid infinite loop with DD_TRACE_ENABLED=0
     }
 }
 
