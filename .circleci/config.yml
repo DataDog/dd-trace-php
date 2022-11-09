@@ -9,12 +9,8 @@ aliases:
   - &CACHE_NPM_KEY
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
 
-  - &IMAGE_DOCKER_DD_AGENT
-    image: datadog/agent:7.39.2
-    environment:
-      - DD_APM_ENABLED=true
-      - DD_BIND_HOST=0.0.0.0
-      - DD_API_KEY=invalid_key_but_this_is_fine
+  - &IMAGE_DOCKER_DD_TEST_AGENT
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
 
   - &IMAGE_DOCKER_REDIS
     image: datadog/dd-trace-ci:php-redis-5.0
@@ -242,7 +238,7 @@ commands:
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
-                datadog/agent:7.39.2
+                ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
               docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               docker run --detach --rm --net net \
@@ -280,7 +276,7 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
   with_httpbin_and_request_replayer:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -289,7 +285,7 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
   with_integrations:
@@ -301,7 +297,7 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_ELASTICSEARCH7
       - <<: *IMAGE_DOCKER_HTTPBIN

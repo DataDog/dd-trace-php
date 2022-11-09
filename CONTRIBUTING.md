@@ -37,7 +37,11 @@ $ docker-compose run --rm 7.4-buster bash
 $ docker-compose run --rm 8.0-buster bash
 ```
 
-> :memo: **Note:** To run the container in debug mode, pass pass docker-composer an environment variable: `DD_TRACE_DOCKER_DEBUG=1`
+> :memo: **Note:** To run the container in debug mode, pass `docker-compose` an environment variable: `DD_TRACE_DOCKER_DEBUG=1`, eg:
+
+```bash
+docker-compose run --rm 8.0-buster -e DD_TRACE_DOCKER_DEBUG=1 bash
+```
 
 Once inside the container, update dependencies with Composer.
 
