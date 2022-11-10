@@ -25,7 +25,6 @@ bool zai_config_is_initialized(void) {
 }
 
 void zai_config_runtime_config_ctor(void) {
-    if (runtime_config_initialized == true) return;
     runtime_config = emalloc(sizeof(zval) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {

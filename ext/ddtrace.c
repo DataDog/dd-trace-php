@@ -177,7 +177,7 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static pthread_once_t dd_activate_config_once_control = PTHREAD_ONCE_INIT;
+static volatile atomic_flag dd_activate_config_once_control;
 
 static void ddtrace_activate(void) {
     zai_hook_rinit();
@@ -190,8 +190,11 @@ static void ddtrace_activate(void) {
     }
 
     // ZAI config is always set up
-    pthread_once(&dd_activate_config_once_control, ddtrace_config_first_rinit);
-    zai_config_rinit();
+    if (atomic_flag_test_and_set(&dd_activate_config_once_control) == 0) {
+        ddtrace_config_first_rinit();
+    } else {
+        zai_config_rinit();
+    }
 
     zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
     if (ZSTR_LEN(sampling_rules_file) > 0 && !zend_string_equals(get_global_DD_SPAN_SAMPLING_RULES_FILE(), sampling_rules_file)) {
