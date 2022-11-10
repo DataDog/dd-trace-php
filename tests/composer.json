@@ -38,6 +38,14 @@
                     "create-lockfile": false
                 }
             },
+            "elasticsearch8": {
+                "require": {
+                    "elasticsearch/elasticsearch": "~8.5"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "guzzle5": {
                 "require": {
                     "guzzlehttp/guzzle": "~5.0"
