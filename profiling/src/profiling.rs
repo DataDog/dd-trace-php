@@ -853,7 +853,7 @@ impl Profiler {
         &self,
         execute_data: *mut zend_execute_data,
         allocation_size: u64,
-        mut locals: &mut RequestLocals,
+        locals: &mut RequestLocals,
     ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let allocations_count = *locals.allocations_count.get_mut() as i64;
