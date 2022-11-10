@@ -27,6 +27,7 @@ uuid = { version = "1.0", features = ["v4"] }
 
 [features]
 profiling = []
+allocation_profiling = []
 
 [build-dependencies]
 bindgen = { version = "0.59" }

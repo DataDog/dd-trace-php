@@ -755,27 +755,30 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         get_module_version(module_name).ok_or(())
     });
 
-    // check for neighboring custom memory handlers
-    unsafe {
-        zend::zend_mm_get_custom_handlers(
-            zend::zend_mm_get_heap(),
-            &mut PREV_CUSTOM_MM_ALLOC,
-            &mut PREV_CUSTOM_MM_FREE,
-            &mut PREV_CUSTOM_MM_REALLOC,
-        );
-    }
+    #[cfg(feature="allocation_profiling")]
+    {
+        // check for neighboring custom memory handlers
+        unsafe {
+            zend::zend_mm_get_custom_handlers(
+                zend::zend_mm_get_heap(),
+                &mut PREV_CUSTOM_MM_ALLOC,
+                &mut PREV_CUSTOM_MM_FREE,
+                &mut PREV_CUSTOM_MM_REALLOC,
+            );
+        }
 
-    unsafe {
-        zend::zend_mm_set_custom_handlers(
-            zend::zend_mm_get_heap(),
-            Some(alloc_profiling_malloc),
-            Some(alloc_profiling_free),
-            Some(alloc_profiling_realloc),
-        );
+        unsafe {
+            zend::zend_mm_set_custom_handlers(
+                zend::zend_mm_get_heap(),
+                Some(alloc_profiling_malloc),
+                Some(alloc_profiling_free),
+                Some(alloc_profiling_realloc),
+            );
+        }
+        // TODO: check if we are installed, either via zend_mm_get_custom_handlers() or
+        // zend_mm_is_custom_heap(), the later is just an indication, could also be that other custom
+        // handlers are installed
     }
-    // TODO: check if we are installed, either via zend_mm_get_custom_handlers() or
-    // zend_mm_is_custom_heap(), the later is just an indication, could also be that other custom
-    // handlers are installed
 
     // Safety: calling this in zend_extension startup.
     unsafe { pcntl::startup() };
@@ -787,13 +790,16 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
 
-    unsafe {
-        zend::zend_mm_set_custom_handlers(
-            zend::zend_mm_get_heap(),
-            PREV_CUSTOM_MM_ALLOC,
-            PREV_CUSTOM_MM_FREE,
-            PREV_CUSTOM_MM_REALLOC,
-        );
+    #[cfg(feature="allocation_profiling")]
+    {
+        unsafe {
+            zend::zend_mm_set_custom_handlers(
+                zend::zend_mm_get_heap(),
+                PREV_CUSTOM_MM_ALLOC,
+                PREV_CUSTOM_MM_FREE,
+                PREV_CUSTOM_MM_REALLOC,
+            );
+        }
     }
 }
 
