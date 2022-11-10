@@ -792,6 +792,9 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
 
     #[cfg(feature="allocation_profiling")]
     {
+        // TODO: check if we are still installed. If we are not finding our own function pointers
+        // in zend_mm_get_custom_handlers() anymore this means that there is an evil neighbour. We
+        // still need to decide what to do with this information ...
         unsafe {
             zend::zend_mm_set_custom_handlers(
                 zend::zend_mm_get_heap(),
@@ -899,14 +902,23 @@ extern "C" fn execute_internal(
 }
 
 unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
-    let ptr = zend::_zend_mm_alloc(zend::zend_mm_get_heap(), len);
-    trace!("Allocated {} bytes at {:p}", len, ptr);
-    // in startup, minit, rinit, current_execute_data is null
+    let ptr: *mut libc::c_void;
+
+    // TODO: prepare a function pointer to use so we don't need a runtime check
+    if PREV_CUSTOM_MM_ALLOC.is_none() {
+        trace!("No custom handler, calling _zend_mm_alloc");
+        ptr = zend::_zend_mm_alloc(zend::zend_mm_get_heap(), len);
+    } else {
+        trace!("Calling custom alloc handler");
+        let foo = PREV_CUSTOM_MM_ALLOC.unwrap();
+        ptr = foo(len);
+    }
+
+    // during startup, minit, rinit, ... current_execute_data is null
     if zend::executor_globals.current_execute_data.is_null() {
         return ptr;
     }
     let execute_data: &zend::zend_execute_data = &*zend::executor_globals.current_execute_data;
-    // TODO implement sampling
 
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
@@ -934,19 +946,15 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     ptr
 }
 
-// we totally ignore anything in free for now
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
 }
 
-// same thing as with alloc_profiling_malloc, but lets first try to make the above work!
 unsafe extern "C" fn alloc_profiling_realloc(
     ptr: *mut ::libc::c_void,
     len: u64,
 ) -> *mut ::libc::c_void {
-    // TODO
-    let newptr = zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len);
-    newptr
+    zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len)
 }
 
 #[cfg(test)]
