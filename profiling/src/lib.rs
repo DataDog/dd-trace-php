@@ -129,6 +129,15 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
 
+/// The engine's previous custom allocation function, if there is one.
+static mut PREV_CUSTOM_MM_ALLOC: Option<zend::VmMmCustomAllocFn> = None;
+
+/// The engine's previous custom allocation function, if there is one.
+static mut PREV_CUSTOM_MM_REALLOC: Option<zend::VmMmCustomReallocFn> = None;
+
+/// The engine's previous custom allocation function, if there is one.
+static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
+
 /* Important note on the PHP lifecycle:
  * Based on how some SAPIs work and the documentation, one might expect that
  * MINIT is called once per process, but this is only sort-of true. Some SAPIs
@@ -255,15 +264,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
         zend::zend_execute_internal = Some(execute_internal);
     };
-
-    unsafe {
-        zend::zend_mm_set_custom_handlers(
-            zend::zend_mm_get_heap(),
-            Some(alloc_profiling_malloc),
-            Some(alloc_profiling_free),
-            Some(alloc_profiling_realloc),
-        );
-    }
 
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
@@ -708,15 +708,6 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
         profiler.stop();
     }
 
-    unsafe {
-        zend::zend_mm_set_custom_handlers(
-            zend::zend_mm_get_heap(),
-            None,
-            None,
-            None,
-        );
-    }
-
     ZendResult::Success
 }
 
@@ -764,6 +755,28 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         get_module_version(module_name).ok_or(())
     });
 
+    // check for neighboring custom memory handlers
+    unsafe {
+        zend::zend_mm_get_custom_handlers(
+            zend::zend_mm_get_heap(),
+            &mut PREV_CUSTOM_MM_ALLOC,
+            &mut PREV_CUSTOM_MM_FREE,
+            &mut PREV_CUSTOM_MM_REALLOC,
+        );
+    }
+
+    unsafe {
+        zend::zend_mm_set_custom_handlers(
+            zend::zend_mm_get_heap(),
+            Some(alloc_profiling_malloc),
+            Some(alloc_profiling_free),
+            Some(alloc_profiling_realloc),
+        );
+    }
+    // TODO: check if we are installed, either via zend_mm_get_custom_handlers() or
+    // zend_mm_is_custom_heap(), the later is just an indication, could also be that other custom
+    // handlers are installed
+
     // Safety: calling this in zend_extension startup.
     unsafe { pcntl::startup() };
 
@@ -773,6 +786,15 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
+
+    unsafe {
+        zend::zend_mm_set_custom_handlers(
+            zend::zend_mm_get_heap(),
+            PREV_CUSTOM_MM_ALLOC,
+            PREV_CUSTOM_MM_FREE,
+            PREV_CUSTOM_MM_REALLOC,
+        );
+    }
 }
 
 /// Notifies the profiler a trace has finished so it can update information
@@ -870,15 +892,15 @@ extern "C" fn execute_internal(
     interrupt_function(execute_data);
 }
 
-unsafe extern "C" fn alloc_profiling_malloc (len: u64) -> *mut ::libc::c_void {
+unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     let ptr = zend::_zend_mm_alloc(zend::zend_mm_get_heap(), len);
-    // print!("Allocating {} bytes at {:p}\n", len, ptr);
+    trace!("Allocated {} bytes at {:p}", len, ptr);
     // in startup, minit, rinit, current_execute_data is null
     if zend::executor_globals.current_execute_data.is_null() {
-        return ptr
+        return ptr;
     }
     let execute_data: &zend::zend_execute_data = &*zend::executor_globals.current_execute_data;
-    // TODO: call allocation profile sampling
+    // TODO implement sampling
 
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
@@ -888,20 +910,20 @@ unsafe extern "C" fn alloc_profiling_malloc (len: u64) -> *mut ::libc::c_void {
         }
 
         locals.allocations_count.swap(1, Ordering::SeqCst);
-        // if locals.allocations_count.fetch_add(1, Ordering::SeqCst) < 100 {
-            // info!("Skipping allocation profiling for sample {}", locals.allocations_count.get_mut());
-            // return;
-        // }
-        // info!("DOING allocation profiling for sample {}", locals.allocations_count.get_mut());
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe { profiler.collect_allocations(zend::executor_globals.current_execute_data, len, locals.deref_mut()) };
+            unsafe {
+                profiler.collect_allocations(
+                    zend::executor_globals.current_execute_data,
+                    len,
+                    locals.deref_mut(),
+                )
+            };
         }
 
         locals.allocations_count.swap(0, Ordering::SeqCst);
     });
-
 
     ptr
 }
@@ -912,7 +934,10 @@ unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
 }
 
 // same thing as with alloc_profiling_malloc, but lets first try to make the above work!
-unsafe extern "C" fn alloc_profiling_realloc (ptr: *mut ::libc::c_void, len: u64) -> *mut ::libc::c_void {
+unsafe extern "C" fn alloc_profiling_realloc(
+    ptr: *mut ::libc::c_void,
+    len: u64,
+) -> *mut ::libc::c_void {
     // TODO
     let newptr = zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len);
     newptr
