@@ -172,7 +172,7 @@ unsafe fn zend_string_to_bytes<'a>(ptr: *const zend_string) -> &'a [u8] {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-pub unsafe fn extract_function_name(func: &zend_function) -> String {
+unsafe fn extract_function_name(func: &zend_function) -> String {
     let method_name: &[u8] = zend_string_to_bytes(func.common.function_name);
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -212,7 +212,7 @@ pub unsafe fn extract_function_name(func: &zend_function) -> String {
     String::from_utf8_lossy(buffer.as_slice()).to_string()
 }
 
-pub unsafe fn extract_file_name(execute_data: &zend_execute_data) -> String {
+unsafe fn extract_file_name(execute_data: &zend_execute_data) -> String {
     // this is supposed to be verified by the caller
     if execute_data.func.is_null() {
         return String::new();
@@ -238,7 +238,7 @@ unsafe fn extract_line_no(execute_data: &zend_execute_data) -> u32 {
     0
 }
 
-pub unsafe fn collect_stack_sample(
+unsafe fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
@@ -627,7 +627,7 @@ impl Profiler {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
         let vm_interrupts = Arc::new(Mutex::new(Vec::with_capacity(1)));
-        let (message_sender, message_receiver) = crossbeam_channel::bounded(100000);
+        let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
         let time_collector = TimeCollector {
