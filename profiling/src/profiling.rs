@@ -186,7 +186,6 @@ unsafe fn extract_function_name(func: &zend_function) -> String {
         buffer.push(b'|');
     }
 
-    // todo: probably use EX(This) instead of func.common.scope.
     let class_name = func.scope_name().unwrap_or(b"");
     if !class_name.is_empty() {
         buffer.extend_from_slice(class_name);

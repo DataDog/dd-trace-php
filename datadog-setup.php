@@ -1154,7 +1154,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'default' => 'off',
             'commented' => true,
             'description' => 'Set the profiler’s log level.'
-                . ' Acceptable values are off, error, warn, info, and debug.'
+                . ' Acceptable values are off, error, warn, info, debug, and trace.'
                 . ' The profiler’s logs are written to the standard error stream of the process.',
         ],
 
