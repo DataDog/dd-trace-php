@@ -228,7 +228,7 @@ function build_php {
   cd "$build_dir"
 
   "$download_dir/configure" "${options[@]}"
-  make -j
+  make -j $(nproc)
   make install-sapi || true
   make install-binaries install-headers install-modules install-programs install-build
 

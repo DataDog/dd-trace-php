@@ -18,50 +18,41 @@ $ddtrace_config = ini_get_all("ddtrace");
 printf("DDTrace local configuration\n");
 var_dump($ddtrace_config["datadog.service"]["local_value"]);
 var_dump($ddtrace_config["datadog.env"]["local_value"]);
-var_dump($ddtrace_config["datadog.trace.client_ip_header_disabled"]["local_value"]);
 
 printf("\nDDAppSec local configuration\n");
 var_dump(zai_config_get_value("DD_SERVICE"));
 var_dump(zai_config_get_value("DD_ENV"));
-var_dump(zai_config_get_value("DD_TRACE_CLIENT_IP_HEADER_DISABLED"));
 
 printf("\nDDTrace global configuration\n");
 var_dump($ddtrace_config["datadog.service"]["global_value"]);
 var_dump($ddtrace_config["datadog.env"]["global_value"]);
-var_dump($ddtrace_config["datadog.trace.client_ip_header_disabled"]["global_value"]);
 
 printf("\nDDAppSec global configuration\n");
 var_dump(zai_config_get_global_value("DD_SERVICE"));
 var_dump(zai_config_get_global_value("DD_ENV"));
-var_dump(zai_config_get_global_value("DD_TRACE_CLIENT_IP_HEADER_DISABLED"));
 
 printf("\nSet new ini values\n");
 
 ini_set("datadog.service", "something_else");
 ini_set("datadog.env", "staging");
-ini_set("datadog.trace.client_ip_header_disabled", "false");
 
 $ddtrace_config = ini_get_all("ddtrace");
 
 printf("\nDDTrace local configuration\n");
 var_dump($ddtrace_config["datadog.service"]["local_value"]);
 var_dump($ddtrace_config["datadog.env"]["local_value"]);
-var_dump($ddtrace_config["datadog.trace.client_ip_header_disabled"]["local_value"]);
 
 printf("\nDDAppSec local configuration\n");
 var_dump(zai_config_get_value("DD_SERVICE"));
 var_dump(zai_config_get_value("DD_ENV"));
-var_dump(zai_config_get_value("DD_TRACE_CLIENT_IP_HEADER_DISABLED"));
 
 printf("\nDDTrace global configuration\n");
 var_dump($ddtrace_config["datadog.service"]["global_value"]);
 var_dump($ddtrace_config["datadog.env"]["global_value"]);
-var_dump($ddtrace_config["datadog.trace.client_ip_header_disabled"]["global_value"]);
 
 printf("\nDDAppSec global configuration\n");
 var_dump(zai_config_get_global_value("DD_SERVICE"));
 var_dump(zai_config_get_global_value("DD_ENV"));
-var_dump(zai_config_get_global_value("DD_TRACE_CLIENT_IP_HEADER_DISABLED"));
 
 
 ?>
@@ -69,41 +60,33 @@ var_dump(zai_config_get_global_value("DD_TRACE_CLIENT_IP_HEADER_DISABLED"));
 DDTrace local configuration
 string(12) "appsec_tests"
 string(4) "prod"
-string(4) "true"
 
 DDAppSec local configuration
 string(12) "appsec_tests"
 string(4) "prod"
-bool(true)
 
 DDTrace global configuration
 string(12) "appsec_tests"
 string(4) "prod"
-string(4) "true"
 
 DDAppSec global configuration
 string(12) "appsec_tests"
 string(4) "prod"
-bool(true)
 
 Set new ini values
 
 DDTrace local configuration
 string(14) "something_else"
 string(7) "staging"
-string(5) "false"
 
 DDAppSec local configuration
 string(14) "something_else"
 string(7) "staging"
-bool(false)
 
 DDTrace global configuration
 string(12) "appsec_tests"
 string(4) "prod"
-string(4) "true"
 
 DDAppSec global configuration
 string(12) "appsec_tests"
 string(4) "prod"
-bool(true)
