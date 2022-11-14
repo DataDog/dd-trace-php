@@ -222,6 +222,16 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
     zend_ini_entry *existing;
     if ((existing = zend_hash_str_find_ptr(EG(ini_directives), ini_name->ptr, ini_name->len))) {
         memoized->original_on_modify = existing->on_modify;
+        zai_string_view current_value = memoized->default_encoded_value;
+        if (ZSTR_LEN(existing->value) != current_value.len || memcmp(current_value.ptr, ZSTR_VAL(existing->value), ZSTR_LEN(existing->value)) != 0) {
+            zai_string_view value_view = (zai_string_view){ .ptr = existing->value->val, .len = existing->value->len };
+            zval decoded;
+            // This should never fail, ideally, as all usages should validate the same way, but at least not crash, just don't accept the value then
+            if (zai_config_decode_value(value_view, memoized->type, memoized->parser, &decoded, 1)) {
+                zai_config_dtor_pzval(&memoized->decoded_value);
+                ZVAL_COPY_VALUE(&memoized->decoded_value, &decoded);
+            }
+        }
         existing->on_modify = ZaiConfigOnUpdateIni;
 
         return;

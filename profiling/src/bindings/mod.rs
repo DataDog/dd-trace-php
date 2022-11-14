@@ -1,8 +1,11 @@
 mod ffi;
 
 pub use ffi::*;
+
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
+use std::marker::PhantomData;
+use std::str::Utf8Error;
 use std::sync::atomic::AtomicBool;
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
@@ -26,6 +29,91 @@ impl From<c_int> for ZendResult {
         match value {
             0 => Self::Success,
             _ => Self::Failure,
+        }
+    }
+}
+
+/// The zend_string struct uses a technique that has undefined behaviour in
+/// both C and C++, but it nonetheless very popular. One of the specific
+/// problems for PHP is that its headers will be used by both C and C++
+/// compilers. The official C remedy is called a flexible array member, but
+/// C++ does not yet support this (there was a recent proposal, I do not know
+/// the status).
+///
+/// Aside from the trickery above, Rust has some undefined behavior edges of
+/// its own specifically with dynamically sized types (DSTs), which the
+/// zend_string is.
+///
+/// Taking these two things into account, we treat this as an opaque type.
+#[repr(C)]
+pub struct ZendString {
+    _opaque: [u8; 0],
+}
+
+impl _zend_function {
+    /// Returns a slice to the zend_string's data if it's present and not
+    /// empty; otherwise returns None.
+    fn zend_string_to_optional_bytes(zstr: Option<&mut zend_string>) -> Option<&[u8]> {
+        /* Safety: datadog_php_profiling_zend_string_view can be called with
+         * any valid zend_string pointer, and the tailing .into_bytes() will
+         * be safe as the former will always return a view with a non-null
+         * pointer.
+         */
+        let bytes = unsafe { datadog_php_profiling_zend_string_view(zstr).into_bytes() };
+        if bytes.is_empty() {
+            None
+        } else {
+            Some(bytes)
+        }
+    }
+
+    /// Returns the function name, if there is one and it's not an empty string.
+    pub fn name(&self) -> Option<&[u8]> {
+        // Safety: function name is a valid mutable reference if not null.
+        Self::zend_string_to_optional_bytes(unsafe { self.common.function_name.as_mut() })
+    }
+
+    /// Returns the name of the function's stored scope (not runtime scope).
+    pub fn scope_name(&self) -> Option<&[u8]> {
+        // Safety: common is always safe to access.
+        if unsafe { self.common.scope.is_null() } {
+            return None;
+        }
+
+        // Safety: scope is a valid reference (not null was checked above).
+        let scope = unsafe { &mut *self.common.scope };
+
+        // Safety: scope name is a valid mutable reference if not null.
+        let scope_name = unsafe { scope.name.as_mut() };
+
+        Self::zend_string_to_optional_bytes(scope_name)
+    }
+
+    /// Returns the module name, if there is one and it's not an empty string.
+    pub fn module_name(&self) -> Option<&[u8]> {
+        // Safety: the function's type field is always safe to access.
+        if unsafe { self.type_ } == ZEND_INTERNAL_FUNCTION as u8 {
+            // Safety: if body is guarded by ZEND_INTERNAL_FUNCTION check.
+            let internal_function = unsafe { &self.internal_function };
+            if internal_function.module.is_null() {
+                return None;
+            }
+
+            // Safety: guarded null module case above.
+            let name = unsafe { (*internal_function.module).name };
+            if name.is_null() {
+                return None;
+            }
+
+            // Safety: null case is guarded above.
+            let bytes = unsafe { CStr::from_ptr(name as *const c_char) }.to_bytes();
+            if bytes.is_empty() {
+                return None;
+            }
+
+            Some(bytes)
+        } else {
+            None
         }
     }
 }
@@ -172,46 +260,7 @@ impl Default for ZendExtension {
     }
 }
 
-#[repr(C)]
-pub struct EfreePtr<T> {
-    ptr: *mut T,
-}
-
-impl EfreePtr<c_char> {
-    /// Converts the possibly-null string into an Option<CString>, treating an
-    /// empty string as a None.
-    pub fn into_c_string(self) -> Option<CString> {
-        if !self.ptr.is_null() {
-            /* Safety: If this is invalid when non-null, then someone else has
-             * messed up already, nothing we can do really.
-             */
-            let cstr = unsafe { CStr::from_ptr(self.ptr) };
-
-            // treat empty strings the same as no string
-            if cstr.to_bytes().is_empty() {
-                return None;
-            }
-
-            Some(cstr.to_owned())
-        } else {
-            None
-        }
-    }
-}
-
-impl<T> Drop for EfreePtr<T> {
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe { _efree(self.ptr as *mut c_void) }
-        }
-    }
-}
-
 extern "C" {
-    /// Get the env var from the SAPI. May be NULL. If non-null, it must be
-    /// efree'd, hence custom definition.
-    pub fn sapi_getenv(name: *const c_char, name_len: size_t) -> EfreePtr<c_char>;
-
     /// Retrieves the VM interrupt address of the calling PHP thread.
     /// # Safety
     /// Must be called from a PHP thread during a request.
@@ -225,6 +274,13 @@ extern "C" {
 
     #[cfg(php7)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
+
+    /// Converts the `zstr` into a `zai_string_view`. A None as well as empty
+    /// strings will be converted into a string view to a static empty string
+    /// (single byte of null, len of 0).
+    pub fn datadog_php_profiling_zend_string_view(
+        zstr: Option<&mut zend_string>,
+    ) -> zai_string_view;
 }
 
 pub use zend_module_dep as ModuleDep;
@@ -303,4 +359,147 @@ impl TryFrom<zval> for zend_long {
     fn try_from(mut zval: zval) -> Result<Self, Self::Error> {
         zend_long::try_from(&mut zval)
     }
+}
+
+impl TryFrom<&mut zval> for bool {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == (IS_FALSE as u8) {
+            Ok(false)
+        } else if r#type == (IS_TRUE as u8) {
+            Ok(true)
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
+pub enum StringError {
+    Null,     // zval.value.str_ pointer was null, very bad.
+    Type(u8), // Type didn't match.
+}
+
+/// Until we have safely abstracted zend_string*'s in Rust, we need to copy
+/// the String. This also means we can ensure UTF-8 through lossy conversion.
+impl TryFrom<&mut zval> for String {
+    type Error = StringError;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == (IS_STRING as u8) {
+            // This shouldn't happen, very bad, something screwed up.
+            if unsafe { zval.value.str_.is_null() } {
+                return Err(StringError::Null);
+            }
+
+            // Safety: checked the pointer wasn't null above.
+            let view = unsafe { datadog_php_profiling_zend_string_view(zval.value.str_.as_mut()) };
+
+            // Safety: datadog_php_profiling_zend_string_view returns a fully populated string.
+            let bytes = unsafe { view.into_bytes() };
+
+            // PHP does not guarantee UTF-8 correctness, so lossy convert.
+            Ok(String::from_utf8_lossy(bytes).into_owned())
+        } else {
+            Err(StringError::Type(r#type))
+        }
+    }
+}
+
+#[repr(C)]
+pub struct ZaiStringView<'a> {
+    len: size_t,
+    ptr: *const c_char,
+    _marker: PhantomData<&'a [c_char]>,
+}
+
+impl<'a> From<&'a str> for ZaiStringView<'a> {
+    fn from(val: &'a str) -> Self {
+        Self {
+            len: val.len(),
+            ptr: val.as_ptr() as *const c_char,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a> ZaiStringView<'a> {
+    pub const fn new() -> ZaiStringView<'a> {
+        const NULL: &[u8] = b"\0";
+        Self {
+            len: 0,
+            ptr: NULL.as_ptr() as *const c_char,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        // Note: ptr shouldn't be null!
+        self.len == 0 || self.ptr.is_null()
+    }
+
+    /// # Safety
+    /// `str` must be valid for [CStr::from_bytes_with_nul_unchecked]
+    pub const unsafe fn literal(str: &'static [u8]) -> Self {
+        let mut i: usize = 0;
+        while str[i] != b'\0' {
+            i += 1;
+        }
+        Self {
+            len: i as size_t,
+            ptr: str.as_ptr() as *const c_char,
+            _marker: PhantomData,
+        }
+    }
+
+    /// # Safety
+    /// Inherits the safety requirements of [std::slice::from_raw_parts], in
+    /// particular, the view must not use a null pointer.
+    pub unsafe fn into_bytes(self) -> &'a [u8] {
+        assert!(!self.ptr.is_null());
+        let len = self.len;
+        std::slice::from_raw_parts(self.ptr as *const u8, len)
+    }
+
+    pub unsafe fn into_utf8(self) -> Result<&'a str, Utf8Error> {
+        let bytes = self.into_bytes();
+        std::str::from_utf8(bytes)
+    }
+}
+
+#[repr(C)]
+pub struct ZaiConfigEntry {
+    pub id: zai_config_id,
+    pub name: zai_string_view<'static>,
+    pub type_: zai_config_type,
+    pub default_encoded_value: zai_string_view<'static>,
+    pub aliases: *const zai_string_view<'static>,
+    pub aliases_count: u8,
+    pub ini_change: zai_config_apply_ini_change,
+    pub parser: zai_custom_parse,
+}
+
+#[repr(C)]
+pub struct ZaiConfigMemoizedEntry {
+    pub names: [zai_config_name; 4usize],
+    pub ini_entries: [*mut zend_ini_entry; 4usize],
+    pub names_count: u8,
+    pub type_: zai_config_type,
+    pub decoded_value: zval,
+    pub default_encoded_value: zai_string_view<'static>,
+    pub name_index: i16,
+    pub ini_change: zai_config_apply_ini_change,
+    pub parser: zai_custom_parse,
+    pub original_on_modify: Option<
+        unsafe extern "C" fn(
+            entry: *mut zend_ini_entry,
+            new_value: *mut zend_string,
+            mh_arg1: *mut c_void,
+            mh_arg2: *mut c_void,
+            mh_arg3: *mut c_void,
+            stage: c_int,
+        ) -> c_int,
+    >,
 }

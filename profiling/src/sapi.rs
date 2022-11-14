@@ -1,5 +1,7 @@
 use crate::bindings::sapi_globals_struct;
+use log::warn;
 use once_cell::sync::OnceCell;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::{CStr, OsStr};
 use std::fmt::{Display, Formatter};
@@ -45,7 +47,10 @@ impl Sapi {
         }
     }
 
-    pub fn request_script_name(&self, sapi_globals: &sapi_globals_struct) -> Option<String> {
+    pub fn request_script_name<'a>(
+        &self,
+        sapi_globals: &'a sapi_globals_struct,
+    ) -> Option<Cow<'a, str>> {
         match self {
             /* Right now all we need is CLI support, but theoretically it can
              * be obtained for web requests too if we care.
@@ -55,11 +60,25 @@ impl Sapi {
                 if request_info.argc > 0 && !request_info.argv.is_null() {
                     // Safety: It's not null; the VM should do the rest.
                     let cstr = unsafe { CStr::from_ptr(*request_info.argv) };
-                    return if !cstr.to_bytes().is_empty() {
-                        let osstr = OsStr::from_bytes(cstr.to_bytes());
+                    let bytes = cstr.to_bytes();
+                    return if !bytes.is_empty() {
+                        let osstr = OsStr::from_bytes(bytes);
                         Path::new(osstr)
                             .file_name()
-                            .map(|file| file.to_string_lossy().into_owned())
+                            .map(|file| {
+                                let bytes = file.as_bytes();
+                                match std::str::from_utf8(bytes) {
+                                    Ok(str) => Cow::Borrowed(str),
+                                    Err(_) => {
+                                        let value = String::from_utf8_lossy(bytes);
+                                        warn!(
+                                            "sapi_globals.request_info.argv[0] contained non-utf8 data: {}",
+                                            value
+                                        );
+                                        value
+                                    }
+                                }
+                            })
                     } else {
                         None
                     };

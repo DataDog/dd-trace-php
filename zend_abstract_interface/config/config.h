@@ -40,7 +40,7 @@ struct zai_config_entry_s {
     // Alias env names in order of precedence:
     // (e.g. DD_SERVICE_NAME, DD_TRACE_APP_NAME, ddtrace_app_name)
     // TODO: Drop old names
-    zai_string_view *aliases;
+    const zai_string_view *aliases;
     uint8_t aliases_count;
     // Accept or reject ini changes, potentially apply to the currently running system
     zai_config_apply_ini_change ini_change;

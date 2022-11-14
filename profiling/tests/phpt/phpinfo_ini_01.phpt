@@ -1,25 +1,24 @@
 --TEST--
-[profiling] test profiler's extension info
+[profiling] test profiler's extension info (.ini version)
 --DESCRIPTION--
 The profiler's phpinfo section contains important debugging information. This
-test verifies that certain information is present.
+test verifies that certain information is present when configured by .ini.
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
   echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
---ENV--
-DD_PROFILING_ENABLED=no
-DD_PROFILING_LOG_LEVEL=info
-DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=yes
-DD_SERVICE=datadog-profiling-phpt
-DD_ENV=dev
-DD_VERSION=13
-DD_AGENT_HOST=localh0st
-DD_TRACE_AGENT_PORT=80
-DD_TRACE_AGENT_URL=http://datadog:8126
 --INI--
 assert.exception=1
+datadog.profiling.enabled=no
+datadog.profiling.log_level=info
+datadog.profiling.experimental_cpu_time_enabled=yes
+datadog.service=datadog-profiling-phpt
+datadog.env=dev
+datadog.version=13
+datadog.agent_host=localh0st
+datadog.trace.agent_port=80
+datadog.trace.agent_url=http://datadog:8126
 --FILE--
 <?php
 
@@ -31,7 +30,7 @@ $output = ob_get_clean();
 $lines = preg_split("/\R/", $output);
 $values = [];
 foreach ($lines as $line) {
-    $pair = explode("=>", $line);
+    $pair = explode("=>", $line, 2);
     if (count($pair) != 2) {
         continue;
     }

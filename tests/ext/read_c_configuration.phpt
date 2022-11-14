@@ -21,7 +21,7 @@ echo PHP_EOL;
 ?>
 --EXPECT--
 some_known_host
-8126
+0
 FALSE
 FALSE
 9999

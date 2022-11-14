@@ -6,9 +6,10 @@ mod pcntl;
 mod profiling;
 mod sapi;
 
+use crate::bindings::sapi_globals;
 use crate::profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use bindings as zend;
-use bindings::{sapi_getenv, ZendExtension, ZendResult};
+use bindings::{ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
@@ -101,7 +102,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     ];
 
     let module = zend::ModuleEntry {
-        name: PROFILER_NAME.as_ptr(),
+        name: PROFILER_NAME.as_ptr() as *const u8,
         module_startup_func: Some(minit),
         module_shutdown_func: Some(mshutdown),
         request_startup_func: Some(rinit),
@@ -186,6 +187,8 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         }
     });
 
+    config::minit(module_number);
+
     /* Use a hybrid extension hack to load as a module but have the
      * zend_extension hooks available:
      * https://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
@@ -268,41 +271,16 @@ extern "C" fn prshutdown() -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("PRSHUTDOWN");
 
+    /* ZAI config may be accessed indirectly via other modules RSHUTDOWN, so
+     * delay this until the last possible time.
+     */
+    unsafe { bindings::zai_config_rshutdown() };
+
     ZendResult::Success
 }
 
-fn parse_boolean(string: &str) -> Option<bool> {
-    /* Care was taken to avoid allocating and to not do more than 2 calls to
-     * `eq_ignore_ascii_case` as this function gets called 2+ times on every
-     * single request that comes in. Not particularly performance sensitive,
-     * but it adds directly to latency of the end-user, and we also want to
-     * avoid allocator churn when we can.
-     */
-
-    let n_bytes = string.len();
-    // no boolean strings are longer than 5 ASCII characters
-    if n_bytes == 0 || n_bytes > 5 {
-        return None;
-    }
-
-    /* The lookup tables are based on the number of bytes in the string. The
-     * empty string will not match since it was handled above.
-     */
-    const TRUTH_TABLE: [&str; 5] = ["1", "on", "yes", "true", ""];
-    const FALSE_TABLE: [&str; 5] = ["0", "no", "off", "", "false"];
-
-    let offset = n_bytes - 1;
-    if TRUTH_TABLE[offset].eq_ignore_ascii_case(string) {
-        Some(true)
-    } else if FALSE_TABLE[offset].eq_ignore_ascii_case(string) {
-        Some(false)
-    } else {
-        None
-    }
-}
-
 pub struct RequestLocals {
-    pub env: Option<String>,
+    pub env: Option<Cow<'static, str>>,
     pub interrupt_count: AtomicU32,
     pub last_cpu_time: Option<cpu_time::ThreadTime>,
     pub last_wall_time: Instant,
@@ -310,10 +288,10 @@ pub struct RequestLocals {
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
-    pub service: Option<String>,
+    pub service: Option<Cow<'static, str>>,
     pub tags: Vec<Tag>,
     pub uri: Box<AgentEndpoint>,
-    pub version: Option<String>,
+    pub version: Option<Cow<'static, str>>,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
@@ -358,63 +336,71 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RINIT({}, {})", r#type, module_number);
 
-    // initialize the thread local storage and cache some items
-    let (log_level, profiling_enabled, profiling_experimental_cpu_time_enabled) = REQUEST_LOCALS
-        .with(|cell| {
-            let mut locals = cell.borrow_mut();
-            // Safety: called during rinit.
-            let environment = unsafe { config::Env::get() };
-            locals.uri = Box::new(detect_uri_from_env(&environment));
-            locals.env = environment.env;
-            locals.profiling_enabled = environment
-                .profiling_enabled
-                .as_deref()
-                .and_then(parse_boolean)
-                .unwrap_or(false);
-            locals.profiling_endpoint_collection_enabled = environment
-                .profiling_endpoint_collection_enabled
-                .as_deref()
-                .and_then(parse_boolean)
-                .unwrap_or(true);
-            locals.profiling_experimental_cpu_time_enabled = environment
-                .profiling_experimental_cpu_time_enabled
-                .as_deref()
-                .or(environment.profiling_experimental_cpu_enabled.as_deref())
-                .and_then(parse_boolean)
-                .unwrap_or(true);
-            locals.service = environment.service.or_else(|| {
-                SAPI.get().and_then(|sapi| match sapi {
-                    Sapi::Cli => {
-                        // Safety: sapi globals are safe to access during rinit
-                        sapi.request_script_name(unsafe { &zend::sapi_globals })
-                            .or_else(|| Some(String::from("cli.command")))
-                    }
-                    _ => Some(String::from("web.request")),
-                })
-            });
-            locals.version = environment.version;
-
-            // Safety: we are in rinit on a PHP thread.
-            locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
-
-            locals.profiling_log_level = environment
-                .profiling_log_level
-                .as_deref()
-                .and_then(|str| LevelFilter::from_str(str).ok())
-                .unwrap_or(LevelFilter::Off);
-
-            (
-                locals.profiling_log_level,
-                locals.profiling_enabled,
-                locals.profiling_experimental_cpu_time_enabled,
-            )
-        });
-
     /* At the moment, logging is truly global, so init it exactly once whether
      * profiling is enabled or not.
      */
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
+        unsafe { bindings::zai_config_first_time_rinit() };
+    });
+
+    unsafe { bindings::zai_config_rinit() };
+
+    // Safety: We are after first rinit and before mshutdown.
+    let (
+        profiling_enabled,
+        profiling_endpoint_collection_enabled,
+        profiling_experimental_cpu_time_enabled,
+        log_level,
+    ) = unsafe {
+        (
+            config::profiling_enabled(),
+            config::profiling_endpoint_collection_enabled(),
+            config::profiling_experimental_cpu_time_enabled(),
+            config::profiling_log_level(),
+        )
+    };
+
+    // initialize the thread local storage and cache some items
+    REQUEST_LOCALS.with(|cell| {
+        let mut locals = cell.borrow_mut();
+        // Safety: we are in rinit on a PHP thread.
+        locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
+        locals.interrupt_count.store(0, Ordering::SeqCst);
+
+        locals.profiling_enabled = profiling_enabled;
+        locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
+        locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
+        locals.profiling_log_level = log_level;
+
+        // Safety: We are after first rinit and before mshutdown.
+        unsafe {
+            locals.env = config::env();
+            locals.service = config::service().or_else(|| {
+                SAPI.get().and_then(|sapi| match sapi {
+                    Sapi::Cli => {
+                        // Safety: sapi globals are safe to access during rinit
+                        sapi.request_script_name(&sapi_globals)
+                            .or(Some(Cow::Borrowed("cli.command")))
+                    }
+                    _ => Some(Cow::Borrowed("web.request")),
+                })
+            });
+            locals.version = config::version();
+
+            // Select agent URI/UDS
+            let agent_host = config::agent_host();
+            let trace_agent_port = config::trace_agent_port();
+            let trace_agent_url = config::trace_agent_url();
+            let endpoint = detect_uri_from_config(trace_agent_url, agent_host, trace_agent_port);
+            locals.uri = Box::new(endpoint);
+
+            // todo: tags
+        }
+    });
+
+    static ONCE2: Once = Once::new();
+    ONCE2.call_once(|| {
         // Don't log when profiling is disabled as that can mess up tests.
         let profiling_log_level = if profiling_enabled {
             log_level
@@ -488,19 +474,17 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 locals.last_cpu_time = Some(now);
             }
 
-            // I can't figure out how to make the borrow checker happy without copying here :/
+            // Bleh, clone for borrow checker.
             let vars = [
-                ("service", locals.service.clone(), "unnamed-php-service"),
-                ("env", locals.env.clone(), ""),
-                ("version", locals.version.clone(), ""),
+                ("service", locals.service.clone()),
+                ("env", locals.env.clone()),
+                ("version", locals.version.clone()),
             ];
 
-            for (key, value, default_value) in vars {
+            for (key, value) in vars {
                 if let Some(value) = value {
-                    // the value should be non-empty here
-                    log_add_tag(&mut locals, key, value.into());
-                } else if !default_value.is_empty() {
-                    log_add_tag(&mut locals, key, default_value.into());
+                    assert!(!value.is_empty());
+                    log_add_tag(&mut locals, key, value);
                 }
             }
 
@@ -533,7 +517,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-fn log_add_tag(locals: &mut RefMut<RequestLocals>, key: &str, value: Cow<'static, str>) {
+fn log_add_tag<V: AsRef<str>>(locals: &mut RefMut<RequestLocals>, key: &str, value: V) {
     match Tag::new(key, value) {
         Ok(tag) => {
             locals.tags.push(tag);
@@ -544,7 +528,11 @@ fn log_add_tag(locals: &mut RefMut<RequestLocals>, key: &str, value: Cow<'static
     }
 }
 
-fn detect_uri_from_env(env: &config::Env) -> AgentEndpoint {
+fn detect_uri_from_config(
+    url: Option<Cow<'static, str>>,
+    host: Option<Cow<'static, str>>,
+    port: Option<u16>,
+) -> AgentEndpoint {
     /* Priority:
      *  1. DD_TRACE_AGENT_URL
      *     - RFC allows unix:///path/to/some/socket so parse these out.
@@ -554,7 +542,7 @@ fn detect_uri_from_env(env: &config::Env) -> AgentEndpoint {
      *  3. Unix Domain Socket at /var/run/datadog/apm.socket
      *  4. http://localhost:8126
      */
-    if let Some(trace_agent_url) = &env.trace_agent_url {
+    if let Some(trace_agent_url) = url {
         // check for UDS first
         if let Some(path) = trace_agent_url.strip_prefix("unix://") {
             let path = PathBuf::from(path);
@@ -567,21 +555,21 @@ fn detect_uri_from_env(env: &config::Env) -> AgentEndpoint {
                 );
             }
         } else {
-            match Uri::from_str(trace_agent_url) {
+            match Uri::from_str(trace_agent_url.as_ref()) {
                 Ok(uri) => return AgentEndpoint::Uri(uri),
                 Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {}", err),
             }
         }
         // continue down priority list
     }
-    if env.trace_agent_port.is_some() || env.agent_host.is_some() {
-        let host = env.agent_host.as_deref().unwrap_or("localhost");
-        let port = env.trace_agent_port.as_deref().unwrap_or("8126");
+    if port.is_some() || host.is_some() {
+        let host = host.unwrap_or(Cow::Borrowed("localhost"));
+        let port = port.unwrap_or(8126u16);
 
         match Uri::from_str(format!("http://{}:{}", host, port).as_str()) {
             Ok(uri) => return AgentEndpoint::Uri(uri),
             Err(err) => {
-                warn!("The combination of DD_AGENT_HOST ({}) and DD_TRACE_AGENT_PORT ({}) was not a valid URL: {}", host, port, err)
+                warn!("The combination of DD_AGENT_HOST({}) and DD_TRACE_AGENT_PORT({}) was not a valid URL: {}", host, port, err)
             }
         }
         // continue down priority list
@@ -616,11 +604,11 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 /// Prints the module info. Calls many C functions from the Zend Engine,
 /// including calling variadic functions. It's essentially all unsafe, so be
 /// careful, and do not call this manually (only let the engine call it).
-unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
+unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
     #[cfg(debug_assertions)]
-    trace!("MINFO({:p})", module);
+    trace!("MINFO({:p})", module_ptr);
 
-    let module = &*module;
+    let module = &*module_ptr;
 
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
@@ -646,7 +634,7 @@ unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
 
         zend::php_info_print_table_row(
             2,
-            b"Endpoint Profiling Enabled\0".as_ptr(),
+            b"Endpoint Collection Enabled\0".as_ptr(),
             if locals.profiling_endpoint_collection_enabled {
                 yes
             } else {
@@ -679,18 +667,25 @@ unsafe extern "C" fn minfo(module: *mut zend::ModuleEntry) {
         ];
 
         for (key, value) in vars {
-            let mut value = value.clone().unwrap_or_default();
+            let mut value = match value {
+                Some(cowstr) => cowstr.clone().into_owned(),
+                None => String::new(),
+            };
             value.push('\0');
             zend::php_info_print_table_row(2, key, value.as_ptr());
         }
 
         zend::php_info_print_table_end();
+
+        zend::display_ini_entries(module_ptr);
     });
 }
 
 extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({}, {})", r#type, module_number);
+
+    unsafe { bindings::zai_config_mshutdown() };
 
     let mut profiler = PROFILER.lock().unwrap();
     if let Some(profiler) = profiler.take() {
@@ -848,32 +843,4 @@ extern "C" fn execute_internal(
         prev_execute_internal(execute_data, return_value);
     }
     interrupt_function(execute_data);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_boolean() {
-        let truthies = [
-            "1", "on", "yes", "true", "On", "Yes", "True", "ON", "YES", "TRUE",
-        ];
-        for val in truthies {
-            assert_eq!(Some(true), parse_boolean(val), "Testing {}", val);
-        }
-
-        let falsies = [
-            "0", "no", "off", "false", "No", "Off", "False", "NO", "OFF", "FALSE",
-        ];
-        for val in falsies {
-            assert_eq!(Some(false), parse_boolean(val), "Testing {}", val);
-        }
-
-        let non_boolean = ["", "a", "2", "-1", "truuue", "💯", "🦀!", "🔥🔥"];
-        for val in non_boolean {
-            let actual = parse_boolean(val);
-            assert_eq!(None, actual, "Testing {}", val);
-        }
-    }
 }

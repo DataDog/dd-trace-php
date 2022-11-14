@@ -7,6 +7,12 @@
 
 #include <ext/standard/info.h>
 
+// Profiling needs ZAI config for INI support.
+#include <config/config.h>
+
+// Used to communicate strings from C -> Rust.
+#include <zai_string/string.h>
+
 /* C11 allows a duplicate typedef provided they are the same, so this should be
  * fine as long as we compile with C11 or higher.
  */
@@ -73,3 +79,15 @@ typedef struct {
 
 void datadog_php_profiling_install_internal_function_handler(
     datadog_php_profiling_internal_function_handler handler);
+
+/**
+ * Copies the bytes represented by `view` into a zend_string, which is stored
+ * in `dest`, passing `persistent` along so the right allocator is used.
+ *
+ * Does an empty string optimization.
+ *
+ * `dest` is expected to be uninitialized. Any existing content will not be
+ * dtor'.
+ */
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
+                                                      bool persistent);
