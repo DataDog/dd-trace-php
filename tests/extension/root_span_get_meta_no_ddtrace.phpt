@@ -19,7 +19,7 @@ if (true) {
 echo "function defined but doesn't return an object:\n";
 var_dump(root_span_get_meta());
 
-$val = new \DatePeriod('R4/2012-07-01T00:00:00Z/P7D');
+$val = new \stdclass;
 echo "function defined returns an object without meta property:\n";
 var_dump(root_span_get_meta());
 

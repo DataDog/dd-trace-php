@@ -12,4 +12,4 @@ THIS SHOULD NOT BE REACHED
 Status: 500 Internal Server Error
 --EXPECTF--
 %s
-Warning: Unknown: Datadog blocked the request and presented a static error page in Unknown on line %d
+Warning: %s: Datadog blocked the request and presented a static error page in Unknown on line %d

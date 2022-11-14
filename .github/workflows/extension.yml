@@ -46,6 +46,8 @@ jobs:
             version: '8.0'
           - os: 'ubuntu-latest'
             version: '8.1'
+          - os: 'ubuntu-latest'
+            version: '8.2'
 #          - os: 'macos-latest'
 #            version: 7.4
     runs-on: ${{ matrix.cfg.os }}

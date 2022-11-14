@@ -4,6 +4,7 @@ define('TEMP_DIR', '/tmp');
 define('STDOUT_PATH', TEMP_DIR . "/mock_helper.stdout.log");
 define('STDERR_PATH', TEMP_DIR . "/mock_helper.stderr.log");
 
+#[AllowDynamicProperties]
 class Helper {
     private $descriptors;
     private $process;

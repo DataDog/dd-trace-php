@@ -35,6 +35,8 @@ jobs:
           - version: '8.0-release-zts'
           - version: '8.1-release'
           - version: '8.1-release-zts'
+          - version: '8.2.0RC6-release'
+          - version: '8.2.0RC6-release-zts'
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2

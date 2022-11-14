@@ -27,7 +27,7 @@ test {
 
 tasks['test'].enabled(false)
 
-def testMatrix = ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'].collectMany {
+def testMatrix = ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2.0RC6'].collectMany {
     [[it, 'release'], [it, 'release-zts']]
 }
 
@@ -49,7 +49,7 @@ testMatrix.each { spec ->
 
         it.systemProperty 'PHP_VERSION', phpVersion
         it.systemProperty 'VARIANT', variant
-        it.systemProperty 'TRACER_VERSION', '0.79.0'
+        it.systemProperty 'TRACER_VERSION', '0.82.0'
     }
 
     tasks['check'].dependsOn task
