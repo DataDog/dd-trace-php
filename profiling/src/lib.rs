@@ -265,29 +265,34 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_execute_internal = Some(execute_internal);
     };
 
-    #[cfg(feature="allocation_profiling")]
+    #[cfg(feature = "allocation_profiling")]
     {
-        // check for neighboring custom memory handlers
-        unsafe {
-            zend::zend_mm_get_custom_handlers(
-                zend::zend_mm_get_heap(),
-                &mut PREV_CUSTOM_MM_ALLOC,
-                &mut PREV_CUSTOM_MM_FREE,
-                &mut PREV_CUSTOM_MM_REALLOC,
-            );
-        }
+        let use_zend_alloc = std::env::var("USE_ZEND_ALLOC");
+        if !use_zend_alloc.is_ok() ||
+           use_zend_alloc.is_ok() && use_zend_alloc.ok().unwrap() == "1"
+        {
+            // check for neighboring custom memory handlers
+            unsafe {
+                zend::zend_mm_get_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    &mut PREV_CUSTOM_MM_ALLOC,
+                    &mut PREV_CUSTOM_MM_FREE,
+                    &mut PREV_CUSTOM_MM_REALLOC,
+                );
+            }
 
-        unsafe {
-            zend::zend_mm_set_custom_handlers(
-                zend::zend_mm_get_heap(),
-                Some(alloc_profiling_malloc),
-                Some(alloc_profiling_free),
-                Some(alloc_profiling_realloc),
-            );
+            unsafe {
+                zend::zend_mm_set_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    Some(alloc_profiling_malloc),
+                    Some(alloc_profiling_free),
+                    Some(alloc_profiling_realloc),
+                );
+            }
+            // TODO: check if we are installed, either via zend_mm_get_custom_handlers() or
+            // zend_mm_is_custom_heap(), the later is just an indication, could also be that other custom
+            // handlers are installed
         }
-        // TODO: check if we are installed, either via zend_mm_get_custom_handlers() or
-        // zend_mm_is_custom_heap(), the later is just an indication, could also be that other custom
-        // handlers are installed
     }
 
     /* Safety: all arguments are valid for this C call.
@@ -733,18 +738,23 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
         profiler.stop();
     }
 
-    #[cfg(feature="allocation_profiling")]
+    #[cfg(feature = "allocation_profiling")]
     {
-        // TODO: check if we are still installed. If we are not finding our own function pointers
-        // in zend_mm_get_custom_handlers() anymore this means that there is an evil neighbour. We
-        // still need to decide what to do with this information ...
-        unsafe {
-            zend::zend_mm_set_custom_handlers(
-                zend::zend_mm_get_heap(),
-                PREV_CUSTOM_MM_ALLOC,
-                PREV_CUSTOM_MM_FREE,
-                PREV_CUSTOM_MM_REALLOC,
-            );
+        let use_zend_alloc = std::env::var("USE_ZEND_ALLOC");
+        if !use_zend_alloc.is_ok() ||
+           use_zend_alloc.is_ok() && use_zend_alloc.ok().unwrap() == "1"
+        {
+            // TODO: check if we are still installed. If we are not finding our own function pointers
+            // in zend_mm_get_custom_handlers() anymore this means that there is an evil neighbour. We
+            // still need to decide what to do with this information ...
+            unsafe {
+                zend::zend_mm_set_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    PREV_CUSTOM_MM_ALLOC,
+                    PREV_CUSTOM_MM_FREE,
+                    PREV_CUSTOM_MM_REALLOC,
+                );
+            }
         }
     }
 
@@ -804,7 +814,6 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
-
 }
 
 /// Notifies the profiler a trace has finished so it can update information
@@ -919,6 +928,8 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     }
     let execute_data: &zend::zend_execute_data = &*zend::executor_globals.current_execute_data;
 
+    trace!("malloc({}) -> {:p}", len, ptr);
+
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
 
@@ -946,6 +957,9 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
 }
 
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
+    if zend::executor_globals.current_execute_data.is_null() {
+        trace!("free({:p})", ptr);
+    }
     zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
 }
 
