@@ -289,25 +289,10 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
             );
         }
 
-        let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
-        let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
-        let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
-        unsafe {
-            zend::zend_mm_get_custom_handlers(
-                zend::zend_mm_get_heap(),
-                &mut custom_mm_malloc,
-                &mut custom_mm_free,
-                &mut custom_mm_realloc,
-            );
-        }
-        if custom_mm_free.is_none() ||
-            custom_mm_malloc.is_none() ||
-            custom_mm_realloc.is_none() ||
-            custom_mm_free != Some(alloc_profiling_free) ||
-            custom_mm_malloc != Some(alloc_profiling_malloc) ||
-            custom_mm_realloc != Some(alloc_profiling_realloc)
-        {
-            info!("Memory Allocation profiling could not be enabled. Pleas feel free to fill an issue stating the PHP version and installed modules.");
+        // returns `true` if there are no custom handlers installed
+        // `false` if there are custom handlers installed
+        if unsafe { zend::is_zend_mm() } {
+            info!("Memory Allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP build was compiled with `ZEND_MM_CUSTOM` being disabled.");
         } else {
             info!("Memory Allocation profiler enabled")
         }
