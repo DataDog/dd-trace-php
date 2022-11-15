@@ -120,7 +120,7 @@ array(3) {
     string(7) "FooType"
     ["meta"]=>
     array(6) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["args.0"]=>
       string(18) "tracing is awesome"
@@ -195,7 +195,7 @@ array(3) {
     string(3) "cli"
     ["meta"]=>
     array(2) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
       string(2) "-1"

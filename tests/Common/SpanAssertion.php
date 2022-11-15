@@ -14,7 +14,7 @@ final class SpanAssertion
     /** @var string[] Tags the MUST match in both key and value */
     private $exactTags = SpanAssertion::NOT_TESTED;
     /** @var string[] Tags the MUST be present but with any value */
-    private $existingTags = ['system.pid'];
+    private $existingTags = ['process_id'];
     /** @var string[] Ignore any tags that match these regexp patterns */
     private $skipTagPatterns = [];
     /** @var array Exact metrics set on the span */
@@ -264,7 +264,7 @@ final class SpanAssertion
     {
         if ($isChildSpan) {
             return array_filter($this->existingTags, function ($name) {
-                return $name !== 'system.pid';
+                return $name !== 'process_id';
             });
         }
         return $this->existingTags;

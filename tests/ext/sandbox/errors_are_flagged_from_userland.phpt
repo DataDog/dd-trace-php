@@ -45,7 +45,7 @@ array(1) {
     int(1)
     ["meta"]=>
     array(3) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["error.msg"]=>
       string(9) "Foo error"

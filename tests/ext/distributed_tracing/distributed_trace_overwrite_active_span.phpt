@@ -18,7 +18,7 @@ DDTrace\close_span();
 DDTrace\close_span();
 
 foreach (dd_trace_serialize_closed_spans() as $span) {
-    unset($span["meta"]["system.pid"], $span["meta"]["_dd.p.dm"]);
+    unset($span["meta"]["process_id"], $span["meta"]["_dd.p.dm"]);
     echo "parent: {$span["parent_id"]}, trace: {$span["trace_id"]}, meta: " . json_encode($span["meta"]) . "\n";
 }
 

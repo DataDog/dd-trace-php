@@ -526,7 +526,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
 
     zval pid;
     ZVAL_LONG(&pid, (long)getpid());
-    zend_hash_str_add_new(meta, ZEND_STRL("system.pid"), &pid);
+    zend_hash_str_add_new(meta, ZEND_STRL("process_id"), &pid);
 
     datadog_php_uuid runtime_id = ddtrace_profiling_runtime_id();
     if (!datadog_php_uuid_is_nil(runtime_id)) {

@@ -57,7 +57,7 @@ Now, we have explicitly closed it: bool(true)
 We closed the active stack after all other stacks were closed. No other span is active right now: bool(true)
 spans(\DDTrace\SpanData) (1) {
   span_stack_swap_traced_function.php (span_stack_swap_traced_function.php, span_stack_swap_traced_function.php, cli)
-    system.pid => %d
+    process_id => %d
     _dd.p.dm => -1
     outer (span_stack_swap_traced_function.php, outer, cli)
       creates_span_stack (span_stack_swap_traced_function.php, creates_span_stack, cli)

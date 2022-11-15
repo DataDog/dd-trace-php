@@ -23,7 +23,7 @@ var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
 array(5) {
-  ["system.pid"]=>
+  ["process_id"]=>
   %s
   ["http.url"]=>
   string(26) "https://localhost:9999/foo"

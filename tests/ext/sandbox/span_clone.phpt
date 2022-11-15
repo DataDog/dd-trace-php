@@ -33,7 +33,7 @@ object(DDTrace\SpanData)#%d (9) {
   string(3) "cli"
   ["meta"]=>
   array(1) {
-    ["system.pid"]=>
+    ["process_id"]=>
     int(%d)
   }
   ["metrics"]=>
@@ -67,7 +67,7 @@ object(DDTrace\SpanData)#%d (9) {
   string(3) "cli"
   ["meta"]=>
   array(1) {
-    ["system.pid"]=>
+    ["process_id"]=>
     int(%d)
   }
   ["metrics"]=>
@@ -98,7 +98,7 @@ object(DDTrace\SpanData)#%d (9) {
       string(3) "cli"
       ["meta"]=>
       array(1) {
-        ["system.pid"]=>
+        ["process_id"]=>
         int(%d)
       }
       ["metrics"]=>
@@ -134,7 +134,7 @@ array(1) {
     string(3) "cli"
     ["meta"]=>
     array(2) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
       string(2) "-1"

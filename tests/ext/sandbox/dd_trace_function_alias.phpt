@@ -25,6 +25,6 @@ dd_dump_spans();
 bar(hello)
 spans(\DDTrace\SpanData) (1) {
   bar (alias, bar, cli)
-    system.pid => %d
+    process_id => %d
     _dd.p.dm => -1
 }

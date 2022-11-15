@@ -11,7 +11,7 @@ class Tag
     const SERVICE_NAME = 'service.name';
     const MANUAL_KEEP = 'manual.keep';
     const MANUAL_DROP = 'manual.drop';
-    const PID = 'system.pid';
+    const PID = 'process_id';
     const RESOURCE_NAME = 'resource.name';
     const DB_STATEMENT = 'sql.query';
     const ERROR = 'error';
