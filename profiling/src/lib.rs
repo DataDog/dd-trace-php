@@ -270,51 +270,46 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     {
-        let use_zend_alloc = std::env::var("USE_ZEND_ALLOC");
-        if !use_zend_alloc.is_ok() ||
-           use_zend_alloc.is_ok() && use_zend_alloc.ok().unwrap() == "1"
+        // check for neighboring custom memory handlers
+        unsafe {
+            zend::zend_mm_get_custom_handlers(
+                zend::zend_mm_get_heap(),
+                &mut PREV_CUSTOM_MM_ALLOC,
+                &mut PREV_CUSTOM_MM_FREE,
+                &mut PREV_CUSTOM_MM_REALLOC,
+            );
+        }
+
+        unsafe {
+            zend::zend_mm_set_custom_handlers(
+                zend::zend_mm_get_heap(),
+                Some(alloc_profiling_malloc),
+                Some(alloc_profiling_free),
+                Some(alloc_profiling_realloc),
+            );
+        }
+
+        let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+        let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+        let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
+        unsafe {
+            zend::zend_mm_get_custom_handlers(
+                zend::zend_mm_get_heap(),
+                &mut custom_mm_malloc,
+                &mut custom_mm_free,
+                &mut custom_mm_realloc,
+            );
+        }
+        if custom_mm_free.is_none() ||
+            custom_mm_malloc.is_none() ||
+            custom_mm_realloc.is_none() ||
+            custom_mm_free != Some(alloc_profiling_free) ||
+            custom_mm_malloc != Some(alloc_profiling_malloc) ||
+            custom_mm_realloc != Some(alloc_profiling_realloc)
         {
-            // check for neighboring custom memory handlers
-            unsafe {
-                zend::zend_mm_get_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    &mut PREV_CUSTOM_MM_ALLOC,
-                    &mut PREV_CUSTOM_MM_FREE,
-                    &mut PREV_CUSTOM_MM_REALLOC,
-                );
-            }
-
-            unsafe {
-                zend::zend_mm_set_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    Some(alloc_profiling_malloc),
-                    Some(alloc_profiling_free),
-                    Some(alloc_profiling_realloc),
-                );
-            }
-
-            let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
-            let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
-            let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
-            unsafe {
-                zend::zend_mm_get_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    &mut custom_mm_malloc,
-                    &mut custom_mm_free,
-                    &mut custom_mm_realloc,
-                );
-            }
-            if custom_mm_free.is_none() ||
-                custom_mm_malloc.is_none() ||
-                custom_mm_realloc.is_none() ||
-                custom_mm_free != Some(alloc_profiling_free) ||
-                custom_mm_malloc != Some(alloc_profiling_malloc) ||
-                custom_mm_realloc != Some(alloc_profiling_realloc)
-            {
-                info!("Memory Allocation profiling could not be enabled. Pleas feel free to fill an issue stating the PHP version and installed modules.");
-            } else {
-                info!("Memory Allocation profiler enabled")
-            }
+            info!("Memory Allocation profiling could not be enabled. Pleas feel free to fill an issue stating the PHP version and installed modules.");
+        } else {
+            info!("Memory Allocation profiler enabled")
         }
     }
 
@@ -753,21 +748,16 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     {
-        let use_zend_alloc = std::env::var("USE_ZEND_ALLOC");
-        if !use_zend_alloc.is_ok() ||
-           use_zend_alloc.is_ok() && use_zend_alloc.ok().unwrap() == "1"
-        {
-            // TODO: check if we are still installed. If we are not finding our own function pointers
-            // in zend_mm_get_custom_handlers() anymore this means that there is an evil neighbour. We
-            // still need to decide what to do with this information ...
-            unsafe {
-                zend::zend_mm_set_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    PREV_CUSTOM_MM_ALLOC,
-                    PREV_CUSTOM_MM_FREE,
-                    PREV_CUSTOM_MM_REALLOC,
-                );
-            }
+        // TODO: check if we are still installed. If we are not finding our own function pointers
+        // in zend_mm_get_custom_handlers() anymore this means that there is an evil neighbour. We
+        // still need to decide what to do with this information ...
+        unsafe {
+            zend::zend_mm_set_custom_handlers(
+                zend::zend_mm_get_heap(),
+                PREV_CUSTOM_MM_ALLOC,
+                PREV_CUSTOM_MM_FREE,
+                PREV_CUSTOM_MM_REALLOC,
+            );
         }
     }
 
