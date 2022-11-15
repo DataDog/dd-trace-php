@@ -133,10 +133,10 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
 /// The engine's previous custom allocation function, if there is one.
 static mut PREV_CUSTOM_MM_ALLOC: Option<zend::VmMmCustomAllocFn> = None;
 
-/// The engine's previous custom allocation function, if there is one.
+/// The engine's previous custom reallocation function, if there is one.
 static mut PREV_CUSTOM_MM_REALLOC: Option<zend::VmMmCustomReallocFn> = None;
 
-/// The engine's previous custom allocation function, if there is one.
+/// The engine's previous custom free function, if there is one.
 static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
 
 /* Important note on the PHP lifecycle:
