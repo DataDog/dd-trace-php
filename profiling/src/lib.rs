@@ -941,18 +941,15 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     if zend::executor_globals.current_execute_data.is_null() {
         return ptr;
     }
-    let execute_data: &zend::zend_execute_data = &*zend::executor_globals.current_execute_data;
 
     trace!("malloc({}) -> {:p}", len, ptr);
 
     REQUEST_LOCALS.with(|cell| {
-        let mut locals = cell.borrow_mut();
+        let locals = cell.borrow();
 
         if !locals.profiling_enabled {
             return;
         }
-
-        locals.allocations_count.swap(1, Ordering::SeqCst);
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -960,12 +957,10 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
                 profiler.collect_allocations(
                     zend::executor_globals.current_execute_data,
                     len,
-                    locals.deref_mut(),
+                    &locals,
                 )
             };
         }
-
-        locals.allocations_count.swap(0, Ordering::SeqCst);
     });
 
     ptr

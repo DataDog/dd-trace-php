@@ -838,16 +838,13 @@ impl Profiler {
         &self,
         execute_data: *mut zend_execute_data,
         allocation_size: u64,
-        locals: &mut RequestLocals,
+        locals: &RequestLocals,
     ) {
-        // todo: should probably exclude the wall and CPU time used by collecting the sample.
-        let allocations_count = *locals.allocations_count.get_mut() as i64;
         let result = collect_stack_sample(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
 
-                // todo: add {cpu-time, nanoseconds}
                 let sample_types = vec![
                     ValueType {
                         r#type: Cow::Borrowed("alloc-samples"),
@@ -859,7 +856,7 @@ impl Profiler {
                     },
                 ];
 
-                let sample_values = vec![allocations_count, allocation_size as i64];
+                let sample_values = vec![1, allocation_size as i64];
 
                 let mut labels = vec![];
                 let gpc = datadog_php_profiling_get_profiling_context;
