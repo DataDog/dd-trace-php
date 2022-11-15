@@ -341,7 +341,6 @@ extern "C" fn prshutdown() -> ZendResult {
 pub struct RequestLocals {
     pub env: Option<Cow<'static, str>>,
     pub interrupt_count: AtomicU32,
-    pub allocations_count: AtomicU32,
     pub last_cpu_time: Option<cpu_time::ThreadTime>,
     pub last_wall_time: Instant,
     pub profiling_enabled: bool,
@@ -370,7 +369,6 @@ thread_local! {
     static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals {
         env: None,
         interrupt_count: AtomicU32::new(0),
-        allocations_count: AtomicU32::new(0),
         last_cpu_time: None,
         last_wall_time: Instant::now(),
         profiling_enabled: false,
