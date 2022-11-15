@@ -83,12 +83,24 @@ final class TextMapTest extends BaseTestCase
         );
     }
 
-    public function testExtractPrioritySampling()
+    public function testExtractPrioritySamplingWhenIsString()
     {
         $carrier = [
             'x-datadog-trace-id' => self::TRACE_ID,
             'x-datadog-parent-id' => self::SPAN_ID,
             'x-datadog-sampling-priority' => '2',
+        ];
+        $textMapPropagator = new TextMap($this->tracer);
+        $context = $textMapPropagator->extract($carrier);
+        $this->assertSame(2, $context->getPropagatedPrioritySampling());
+    }
+
+    public function testExtractPrioritySamplingWhenIsInt()
+    {
+        $carrier = [
+            'x-datadog-trace-id' => self::TRACE_ID,
+            'x-datadog-parent-id' => self::SPAN_ID,
+            'x-datadog-sampling-priority' => 2,
         ];
         $textMapPropagator = new TextMap($this->tracer);
         $context = $textMapPropagator->extract($carrier);

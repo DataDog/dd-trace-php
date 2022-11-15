@@ -1130,6 +1130,34 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'commented' => false,
             'description' => 'Enables the appsec module',
         ],
+
+        [
+            'name' => 'datadog.profiling.enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the Datadog profiling module.',
+        ],
+        [
+            'name' => 'datadog.trace.endpoint_collection_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Whether to enable the endpoint data collection in profiles.',
+        ],
+        [
+            'name' => 'datadog.profiling.experimental_cpu_time_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the CPU profile type.',
+        ],
+        [
+            'name' => 'datadog.profiling.log_level',
+            'default' => 'off',
+            'commented' => true,
+            'description' => 'Set the profiler’s log level.'
+                . ' Acceptable values are off, error, warn, info, debug, and trace.'
+                . ' The profiler’s logs are written to the standard error stream of the process.',
+        ],
+
         [
             'name' => 'datadog.trace.request_init_hook',
             'default' => $requestInitHookPath,
