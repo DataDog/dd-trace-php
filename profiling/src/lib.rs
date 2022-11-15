@@ -931,8 +931,8 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     if PREV_CUSTOM_MM_ALLOC.is_none() {
         ptr = zend::_zend_mm_alloc(zend::zend_mm_get_heap(), len);
     } else {
-        let foo = PREV_CUSTOM_MM_ALLOC.unwrap();
-        ptr = foo(len);
+        let prev = PREV_CUSTOM_MM_ALLOC.unwrap();
+        ptr = prev(len);
     }
 
     // during startup, minit, rinit, ... current_execute_data is null
@@ -965,15 +965,22 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
 }
 
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
-    if zend::executor_globals.current_execute_data.is_null() {
-        trace!("free({:p})", ptr);
+    if PREV_CUSTOM_MM_FREE.is_none() {
+        zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
+    } else {
+        let prev = PREV_CUSTOM_MM_FREE.unwrap();
+        prev(ptr);
     }
-    zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
 }
 
 unsafe extern "C" fn alloc_profiling_realloc(
     ptr: *mut ::libc::c_void,
     len: u64,
 ) -> *mut ::libc::c_void {
-    zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len)
+    if PREV_CUSTOM_MM_REALLOC.is_none() {
+        zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len)
+    } else {
+        let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
+        prev(ptr, len)
+    }
 }
