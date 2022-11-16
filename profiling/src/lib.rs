@@ -735,16 +735,36 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     {
-        // TODO: check if we are still installed. If we are not finding our own function pointers
-        // in zend_mm_get_custom_handlers() anymore this means that there is an evil neighbour. We
-        // still need to decide what to do with this information ...
+        // At this point ZendMM custom handlers should point to our functions, if they do not we
+        // should not reset the handlers, as this is an indication that:
+        // - some other extension registered custom handlers but did not (yet) unregister itself
+        // - we could not register our custom handlers in minit
+        let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+        let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+        let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
         unsafe {
-            zend::zend_mm_set_custom_handlers(
+            zend::zend_mm_get_custom_handlers(
                 zend::zend_mm_get_heap(),
-                PREV_CUSTOM_MM_ALLOC,
-                PREV_CUSTOM_MM_FREE,
-                PREV_CUSTOM_MM_REALLOC,
+                &mut custom_mm_malloc,
+                &mut custom_mm_free,
+                &mut custom_mm_realloc,
             );
+        }
+        if custom_mm_free != Some(alloc_profiling_free) ||
+           custom_mm_malloc != Some(alloc_profiling_malloc) ||
+           custom_mm_realloc != Some(alloc_profiling_realloc)
+        {
+            info!("Memory allocation profiling could not be disabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely another extension registered ZendMM custom handlers but did not unregister properly or your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
+        } else {
+            unsafe {
+                zend::zend_mm_set_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    PREV_CUSTOM_MM_ALLOC,
+                    PREV_CUSTOM_MM_FREE,
+                    PREV_CUSTOM_MM_REALLOC,
+                );
+            }
+            info!("Memory allocation profiling disabled")
         }
     }
 
