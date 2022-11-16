@@ -36,6 +36,7 @@ RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKE
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_OPCACHE_FILES := $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -98,20 +99,20 @@ install_all: install install_ini
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/configure
 	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
 
-test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
+	DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
 
-test_c_disabled: export DD_TRACE_CLI_ENABLED=0
-test_c_disabled: export DD_TRACE_DEBUG=1
 test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS) || true; \
+	DD_TRACE_CLI_ENABLED=0 DD_TRACE_DEBUG=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS) || true; \
 	! grep -E 'Successfully triggered flush with trace of size|=== Total [0-9]+ memory leaks detected ===|Segmentation fault' $$(find $(BUILD_DIR)/$(TESTS) -name "*.out" | grep -v segfault_backtrace_enabled.out); \
 	)
+
+test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES)
+	DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
@@ -136,13 +137,20 @@ test_with_init_hook_asan: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php --asan $(INIT_HOOK_TEST_FILES); \
 	)
 
-test_c_asan: export DD_TRACE_CLI_ENABLED=1
 test_c_asan: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
 	set -xe; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) --asan $(BUILD_DIR)/$(TESTS); \
+	USE_ZEND_ALLOC=0 DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) --asan $(BUILD_DIR)/$(TESTS); \
+	)
+
+test_opcache_asan: $(SO_FILE) $(TEST_OPCACHE_FILES)
+	( \
+	set -xe; \
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
+	USE_ZEND_ALLOC=0 DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache \
 	)
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
@@ -304,7 +312,7 @@ build_components_coverage:
 	)
 
 test_components_coverage: build_components_coverage
-	$(MAKE) -C $(COMPONENTS_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(COMPONENTS_BUILD_DIR)/Testing/Temporary/LastTest.log
+	$(MAKE) -C $(COMPONENTS_BUILD_DIR) test $(shell [ -z "${TESTS}" ] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(COMPONENTS_BUILD_DIR)/Testing/Temporary/LastTest.log
 
 test_coverage_collect:
 	$(Q) lcov \

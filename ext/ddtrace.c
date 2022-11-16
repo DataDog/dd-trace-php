@@ -204,8 +204,6 @@ static void ddtrace_activate(void) {
 
     if (DDTRACE_G(disable)) {
         ddtrace_disable_tracing_in_current_request();
-    } else {
-        zai_hook_activate();
     }
 
     DDTRACE_G(request_init_hook_loaded) = 0;
@@ -830,6 +828,11 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     zai_interceptor_rinit();
 #endif
 
+    if (!DDTRACE_G(disable)) {
+        // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
+        zai_hook_activate();
+    }
+
     if (get_DD_TRACE_ENABLED()) {
         dd_initialize_request();
     }
@@ -879,19 +882,7 @@ static void dd_shutdown_hooks_and_observer(void) {
 #endif
 }
 
-static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
-    UNUSED(module_number, type);
-
-    zend_hash_destroy(&DDTRACE_G(traced_spans));
-
-    if (!get_DD_TRACE_ENABLED()) {
-        if (!DDTRACE_G(disable)) {
-            dd_shutdown_hooks_and_observer();
-        }
-
-        return SUCCESS;
-    }
-
+void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = true;
 
     ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
@@ -906,6 +897,22 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     dd_shutdown_hooks_and_observer();
 
     DDTRACE_G(in_shutdown) = false;
+}
+
+static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
+    UNUSED(module_number, type);
+
+    zend_hash_destroy(&DDTRACE_G(traced_spans));
+
+    if (!get_DD_TRACE_ENABLED()) {
+        if (!DDTRACE_G(disable)) {
+            dd_shutdown_hooks_and_observer();
+        }
+
+        return SUCCESS;
+    }
+
+    dd_force_shutdown_tracing();
 
     return SUCCESS;
 }
