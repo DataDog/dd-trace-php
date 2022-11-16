@@ -735,36 +735,49 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     {
-        // At this point ZendMM custom handlers should point to our functions, if they do not we
-        // should not reset the handlers, as this is an indication that:
-        // - some other extension registered custom handlers but did not (yet) unregister itself
-        // - we could not register our custom handlers in minit
-        let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
-        let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
-        let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
-        unsafe {
-            zend::zend_mm_get_custom_handlers(
-                zend::zend_mm_get_heap(),
-                &mut custom_mm_malloc,
-                &mut custom_mm_free,
-                &mut custom_mm_realloc,
-            );
-        }
-        if custom_mm_free != Some(alloc_profiling_free) ||
-           custom_mm_malloc != Some(alloc_profiling_malloc) ||
-           custom_mm_realloc != Some(alloc_profiling_realloc)
-        {
-            info!("Memory allocation profiling could not be disabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely another extension registered ZendMM custom handlers but did not unregister properly or your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
-        } else {
+        // If `zend::is_zend_mm()` is true, the custom handlers have been reset
+        // to `None` already. This is unexpected, therefore we will not touch the ZendMM handlers
+        // anymore as resetting to prev handlers might result in segfaults.
+        if unsafe { !zend::is_zend_mm() } {
+            let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+            let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+            let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
             unsafe {
-                zend::zend_mm_set_custom_handlers(
+                zend::zend_mm_get_custom_handlers(
                     zend::zend_mm_get_heap(),
-                    PREV_CUSTOM_MM_ALLOC,
-                    PREV_CUSTOM_MM_FREE,
-                    PREV_CUSTOM_MM_REALLOC,
+                    &mut custom_mm_malloc,
+                    &mut custom_mm_free,
+                    &mut custom_mm_realloc,
                 );
             }
-            info!("Memory allocation profiling disabled")
+            if custom_mm_free != Some(alloc_profiling_free)
+                || custom_mm_malloc != Some(alloc_profiling_malloc)
+                || custom_mm_realloc != Some(alloc_profiling_realloc)
+            {
+                // Custom handlers are installed, but it's not us. Someone, somewhere might have
+                // function pointers to our custom handlers. Best bet to avoid segfaults is to not
+                // touch custom handlers in ZendMM and make sure our extension will not be
+                // `dlclose()`-ed so the pointers stay valid
+                let zend_extension =
+                    unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const i8) };
+                if !zend_extension.is_null() {
+                    // Safety: Checked for null pointer above.
+                    unsafe {
+                        (*zend_extension).handle = std::ptr::null_mut();
+                    }
+                }
+            } else {
+                // This is the happy path (restore previously installed custom handlers)!
+                unsafe {
+                    zend::zend_mm_set_custom_handlers(
+                        zend::zend_mm_get_heap(),
+                        PREV_CUSTOM_MM_ALLOC,
+                        PREV_CUSTOM_MM_FREE,
+                        PREV_CUSTOM_MM_REALLOC,
+                    );
+                }
+                info!("Memory allocation profiling disabled");
+            }
         }
     }
 
@@ -936,8 +949,6 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     if zend::executor_globals.current_execute_data.is_null() {
         return ptr;
     }
-
-    trace!("malloc({}) -> {:p}", len, ptr);
 
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
