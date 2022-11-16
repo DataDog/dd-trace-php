@@ -294,9 +294,9 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         // returns `true` if there are no custom handlers installed
         // `false` if there are custom handlers installed
         if unsafe { zend::is_zend_mm() } {
-            info!("Memory Allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP build was compiled with `ZEND_MM_CUSTOM` being disabled.");
+            info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
         } else {
-            info!("Memory Allocation profiler enabled")
+            info!("Memory allocation profiling enabled")
         }
     }
 
