@@ -814,7 +814,6 @@ impl Profiler {
                     },
                 };
 
-                // Panic: profiler was checked above for is_none().
                 match self.send_sample(message) {
                     Ok(_) => trace!(
                         "Sent stack sample of depth {} with labels {:?} to profiler.",
@@ -906,7 +905,6 @@ impl Profiler {
                     },
                 };
 
-                // Panic: profiler was checked above for is_none().
                 match self.send_sample(message) {
                     Ok(_) => trace!(
                         "Sent stack sample of depth {} with labels {:?} to profiler.",
