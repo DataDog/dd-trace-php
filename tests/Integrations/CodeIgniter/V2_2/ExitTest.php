@@ -41,6 +41,7 @@ class ExitTest extends WebFrameworkTestCase
                     Tag::HTTP_URL => 'http://localhost:9999/exits',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.endpoint' => 'Exits::index',
+                    Tag::SPAN_KIND => 'server',
                 ])->withChildren([
                     SpanAssertion::build(
                         'Exits.index',

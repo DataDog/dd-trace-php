@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integrations\Memcached;
 
 use DDTrace\Obfuscation;
+use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -39,6 +40,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'add',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -55,6 +57,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'addByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'addByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -75,6 +78,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'append ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'append',
+                    Tag::SPAN_KIND => 'client',
                 ]))
                 ->withExistingTagsNames(['process_id', 'error.msg', 'error.type', 'error.stack']),
         ]);
@@ -91,6 +95,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'append ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'append',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -112,6 +117,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'appendByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ]))
                 ->withExistingTagsNames(['process_id', 'error.msg', 'error.type', 'error.stack']),
         ]);
@@ -130,6 +136,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'appendByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -153,6 +160,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'delete ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'delete',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -178,6 +186,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'deleteByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'deleteByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.getByKey'),
         ]);
@@ -229,6 +238,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags([
                     'memcached.query' => 'deleteMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'deleteMulti',
+                    Tag::SPAN_KIND => 'client',
                 ]),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::exists('Memcached.get'),
@@ -259,6 +269,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'deleteMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'deleteMultiByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
@@ -286,12 +297,14 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'decrement',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'decrement',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -315,6 +328,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'decrement',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -338,6 +352,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'decrementByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'decrementByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.getByKey'),
         ]);
@@ -362,12 +377,14 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'increment',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'increment',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -390,6 +407,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'increment',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -412,6 +430,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'incrementByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'incrementByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.getByKey'),
         ]);
@@ -434,6 +453,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::build('Memcached.flush', 'memcached', 'memcached', 'flush')
                 ->withExactTags([
                     'memcached.command' => 'flush',
+                    Tag::SPAN_KIND => 'client',
                 ]),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -453,6 +473,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'get ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'get',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -472,6 +493,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags([
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
+                    Tag::SPAN_KIND => 'client',
                 ]),
         ]);
     }
@@ -490,6 +512,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'getByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'getByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -513,6 +536,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'getMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMultiByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -531,6 +555,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'replace ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'replace',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -551,6 +576,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'replaceByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'replaceByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.getByKey'),
         ]);
@@ -567,6 +593,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'set ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'set',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -583,6 +610,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'setByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'setByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -599,6 +627,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags([
                     'memcached.query' => 'setMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'setMulti',
+                    Tag::SPAN_KIND => 'client',
                 ]),
             SpanAssertion::exists('Memcached.getMulti'),
         ]);
@@ -620,6 +649,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'setMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'setMultiByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.getMultiByKey'),
         ]);
@@ -635,6 +665,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'touch ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'touch',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -650,6 +681,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'touchByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'touchByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ])),
         ]);
     }
@@ -673,6 +705,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'cas ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'cas',
+                    Tag::SPAN_KIND => 'client',
                 ]))
                 ->withExistingTagsNames(['memcached.cas_token']),
         ]);
@@ -698,6 +731,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'casByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'casByKey',
                     'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
                 ]))
                 ->withExistingTagsNames(['memcached.cas_token']),
         ]);

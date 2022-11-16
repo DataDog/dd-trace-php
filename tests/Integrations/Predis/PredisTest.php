@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Predis;
 
+use DDTrace\Tag;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -331,6 +332,7 @@ final class PredisTest extends IntegrationTestCase
         return [
             'out.host' => $this->host,
             'out.port' => $this->port,
+            Tag::SPAN_KIND => 'client',
         ];
     }
 }
