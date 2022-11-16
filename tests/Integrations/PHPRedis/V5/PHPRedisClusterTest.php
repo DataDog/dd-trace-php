@@ -70,7 +70,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.close"
-            ),
+            )->withExactTags([Tag::SPAN_KIND => 'client']),
         ]);
     }
 
@@ -137,7 +137,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            ),
+            )->withExactTags([Tag::SPAN_KIND => 'client']),
         ]);
     }
 
@@ -375,7 +375,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand]),
+            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client'])
         ]);
         $this->assertSame($expected, $result);
     }
@@ -1367,7 +1367,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.restore"
-            ),
+            )->withExactTags([Tag::SPAN_KIND => 'client']),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Mysqli;
 
+use DDTrace\Tag;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -58,6 +59,7 @@ class MysqliTest extends IntegrationTestCase
                     'error.msg',
                     'error.type',
                     'error.stack',
+                    Tag::SPAN_KIND,
                 ]),
         ]);
     }
@@ -80,6 +82,7 @@ class MysqliTest extends IntegrationTestCase
                     'error.msg',
                     'error.type',
                     'error.stack',
+                    Tag::SPAN_KIND,
                 ]),
         ]);
     }
@@ -298,6 +301,7 @@ class MysqliTest extends IntegrationTestCase
             'out.host' => self::$host,
             'out.port' => self::$port,
             'db.type' => 'mysql',
+            Tag::SPAN_KIND => "client",
         ];
     }
 
