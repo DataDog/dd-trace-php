@@ -271,7 +271,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     {
         if unsafe { !zend::is_zend_mm() } {
-            // neighboring custom memory handlers found
+            // Neighboring custom memory handlers found
             unsafe {
                 zend::zend_mm_get_custom_handlers(
                     zend::zend_mm_get_heap(),
@@ -296,7 +296,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         if unsafe { zend::is_zend_mm() } {
             info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
         } else {
-            info!("Memory allocation profiling enabled")
+            info!("Memory allocation profiling enabled.")
         }
     }
 
@@ -776,8 +776,8 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                         PREV_CUSTOM_MM_REALLOC,
                     );
                 }
-                info!("Memory allocation profiling disabled");
             }
+            info!("Memory allocation profiling disabled.");
         }
     }
 
