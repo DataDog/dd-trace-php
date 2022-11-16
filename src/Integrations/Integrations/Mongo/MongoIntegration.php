@@ -297,6 +297,7 @@ class MongoIntegration extends Integration
         $span->resource = $method;
         $span->type = Type::MONGO;
         $span->service = MongoIntegration::NAME;
+        $span->meta[Tag::SPAN_KIND] = 'client';
     }
 
     /**

@@ -51,11 +51,13 @@ class SymfonyIntegration extends Integration
                     $service = \ddtrace_config_app_name('symfony');
                     $rootSpan->name = 'symfony.request';
                     $rootSpan->service = $service;
+                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
                     $span->name = 'symfony.httpkernel.kernel.handle';
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
+                    $span->meta[Tag::SPAN_KIND] = 'server';
                 },
             ]
         );

@@ -64,6 +64,7 @@ class CakePHPIntegration extends Integration
                     $span->name = $span->resource = 'Controller.invokeAction';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $integration->appName;
+                    $span->meta[Tag::SPAN_KIND] = 'server';
 
                     $request = $args[0];
                     if (!$request instanceof CakeRequest) {
