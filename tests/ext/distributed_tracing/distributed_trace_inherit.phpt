@@ -51,7 +51,7 @@ array(2) {
       string(14) "decoding_error"
       ["_dd.p.other_tag"]=>
       string(4) "also"
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["_dd.origin"]=>
       string(7) "datadog"

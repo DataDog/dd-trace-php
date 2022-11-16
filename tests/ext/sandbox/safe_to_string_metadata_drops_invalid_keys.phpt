@@ -19,7 +19,7 @@ DDTrace\trace_function('meta_to_string', function (SpanData $span) {
 meta_to_string();
 
 list($span) = dd_trace_serialize_closed_spans();
-unset($span['meta']['system.pid']);
+unset($span['meta']['process_id']);
 var_dump($span['meta']);
 ?>
 --EXPECT--

@@ -37,7 +37,7 @@ array(1) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["_dd.origin"]=>
       string(7) "datadog"
