@@ -270,14 +270,16 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     {
-        // check for neighboring custom memory handlers
-        unsafe {
-            zend::zend_mm_get_custom_handlers(
-                zend::zend_mm_get_heap(),
-                &mut PREV_CUSTOM_MM_ALLOC,
-                &mut PREV_CUSTOM_MM_FREE,
-                &mut PREV_CUSTOM_MM_REALLOC,
-            );
+        if unsafe { !zend::is_zend_mm() } {
+            // neighboring custom memory handlers found
+            unsafe {
+                zend::zend_mm_get_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    &mut PREV_CUSTOM_MM_ALLOC,
+                    &mut PREV_CUSTOM_MM_FREE,
+                    &mut PREV_CUSTOM_MM_REALLOC,
+                );
+            }
         }
 
         unsafe {
