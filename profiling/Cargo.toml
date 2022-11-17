@@ -26,7 +26,6 @@ once_cell = { version = "1.12" }
 uuid = { version = "1.0", features = ["v4"] }
 
 [features]
-profiling = []
 allocation_profiling = []
 
 [build-dependencies]
