@@ -34,6 +34,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/Nette/NetteIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/WordPress/WordPressIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/WordPress/V4/WordPressIntegrationLoader.php',
+    __DIR__ . '/../src/Integrations/Integrations/WordPress/V6/WordPressIntegrationLoader.php',
     __DIR__ . '/../src/Integrations/Integrations/ZendFramework/ZendFrameworkIntegration.php',
     __DIR__ . '/../src/Integrations/Util/Runtime.php',
     __DIR__ . '/../src/Integrations/Util/Versions.php',

@@ -3,7 +3,8 @@
 namespace DDTrace\Integrations\WordPress;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\WordPress\V4\WordPressIntegrationLoader;
+use DDTrace\Integrations\WordPress\V4;
+use DDTrace\Integrations\WordPress\V6;
 
 class WordPressIntegration extends Integration
 {
@@ -41,10 +42,16 @@ class WordPressIntegration extends Integration
             if (!isset($GLOBALS['wp_version']) || !is_string($GLOBALS['wp_version'])) {
                 return false;
             }
-            $majorVersion = substr($GLOBALS['wp_version'], 0, 1);
-            if ($majorVersion >= 4) {
-                $loader = new WordPressIntegrationLoader();
-                $loader->load($integration);
+            $majorVersion = strstr($GLOBALS['wp_version'], ".", $before_needle = true);
+            switch ($majorVersion) {
+                case 4:
+                case 5:
+                    $loader = new V4\WordPressIntegrationLoader();
+                    return $loader->load($integration);
+
+                case 6:
+                    $loader = new V6\WordPressIntegrationLoader();
+                    return $loader->load($integration);
             }
         });
 
