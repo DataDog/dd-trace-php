@@ -951,7 +951,12 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     }
 
     REQUEST_LOCALS.with(|cell| {
-        let locals = cell.borrow();
+        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+        let locals = cell.try_borrow();
+        if locals.is_err() {
+            return;
+        }
+        let locals = locals.unwrap();
 
         if !locals.profiling_enabled {
             return;
