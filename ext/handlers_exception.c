@@ -2,6 +2,7 @@
 #include <exceptions/exceptions.h>
 #include <php.h>
 
+#include "configuration.h"
 #include "engine_hooks.h"  // For 'ddtrace_resource'
 #include "handlers_internal.h"
 #include "serializer.h"
@@ -13,7 +14,8 @@
 // Adding support for both is open to future scope, should the need arise.
 
 static zend_class_entry dd_exception_or_error_handler_ce;
-static zend_object_handlers dd_exception_or_error_handler_handlers;
+static zend_object_handlers dd_exception_handler_handlers;
+static zend_object_handlers dd_error_handler_handlers;
 
 static zval *dd_exception_or_error_handler_handler(zend_object *obj) { return OBJ_PROP_NUM(obj, 0); }
 
@@ -136,19 +138,11 @@ static PHP_FUNCTION(ddtrace_http_response_code) {
     dd_check_exception_in_header(old_response_code);
 }
 
-#if PHP_VERSION_ID < 80000
-#define GC_NOT_COLLECTABLE GC_IMMUTABLE
-#endif
-
 // inject ourselves into a set_exception_handler
 static void dd_wrap_exception_or_error_handler(zval *target, zend_bool is_error_handler) {
     zval wrapper;
     object_init_ex(&wrapper, &dd_exception_or_error_handler_ce);
-    if (is_error_handler) {
-        // this does not participate in GC, so fine to mark it that way, to distinguish from exception handler
-        GC_ADD_FLAGS(Z_OBJ(wrapper), GC_NOT_COLLECTABLE);
-    }
-    Z_OBJ(wrapper)->handlers = &dd_exception_or_error_handler_handlers;
+    Z_OBJ(wrapper)->handlers = is_error_handler ? &dd_error_handler_handlers : &dd_exception_handler_handlers;
     ZVAL_COPY_VALUE(dd_exception_or_error_handler_handler(Z_OBJ(wrapper)), target);
     ZVAL_COPY_VALUE(target, &wrapper);
 }
@@ -204,7 +198,7 @@ ZEND_END_ARG_INFO()
 #endif
 static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
     volatile zend_bool has_bailout = false;
-    zend_bool is_error_handler = (GC_FLAGS(Z_OBJ_P(ZEND_THIS)) & GC_NOT_COLLECTABLE) != 0;
+    zend_bool is_error_handler = Z_OBJ_P(ZEND_THIS)->handlers == &dd_error_handler_handlers;
     zval *handler = dd_exception_or_error_handler_handler(Z_OBJ_P(ZEND_THIS));
 
     if (is_error_handler) {
@@ -358,6 +352,19 @@ static int dd_exception_handler_get_closure(zend_object *obj, zend_class_entry *
     return SUCCESS;
 }
 
+#if PHP_VERSION_ID >= 80100
+void dd_exception_handler_freed(zend_object *object) {
+    zend_object_std_dtor(object);
+
+    if (!EG(current_execute_data) && get_DD_TRACE_ENABLED()) {
+        // Here we are at the very last chance before objects are unconditionally freed.
+        // Let's force-disable the tracing in case it wasn't yet
+        // Typically RSHUTDOWN would handle that, but since 8.1.0 opcache will free our objects before module_shutdown during preloading
+        dd_force_shutdown_tracing();
+    }
+}
+#endif
+
 void ddtrace_exception_handlers_startup(void) {
     ddtrace_exception_or_error_handler = (zend_internal_function){
         .type = ZEND_INTERNAL_FUNCTION,
@@ -373,8 +380,12 @@ void ddtrace_exception_handlers_startup(void) {
     zend_initialize_class_data(&dd_exception_or_error_handler_ce, false);
     dd_exception_or_error_handler_ce.info.internal.module = &ddtrace_module_entry;
     zend_declare_property_null(&dd_exception_or_error_handler_ce, "handler", sizeof("handler") - 1, ZEND_ACC_PUBLIC);
-    memcpy(&dd_exception_or_error_handler_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-    dd_exception_or_error_handler_handlers.get_closure = dd_exception_handler_get_closure;
+    memcpy(&dd_error_handler_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+    dd_error_handler_handlers.get_closure = dd_exception_handler_get_closure;
+    memcpy(&dd_exception_handler_handlers, &dd_error_handler_handlers, sizeof(zend_object_handlers));
+#if PHP_VERSION_ID >= 80100
+    dd_exception_handler_handlers.free_obj = dd_exception_handler_freed;
+#endif
 
     datadog_php_zif_handler handlers[] = {
         {ZEND_STRL("header"), &dd_header, ZEND_FN(ddtrace_header)},

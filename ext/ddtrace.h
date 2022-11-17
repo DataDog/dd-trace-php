@@ -65,6 +65,7 @@ void dd_prepare_for_new_trace(void);
 void ddtrace_disable_tracing_in_current_request(void);
 bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value);
 bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value);
+void dd_force_shutdown_tracing(void);
 
 typedef struct {
     int type;
