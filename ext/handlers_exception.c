@@ -92,14 +92,14 @@ static void dd_check_exception_in_header(int old_response_code) {
 
                 // Now iterate the individual catch blocks to find which one we are in and extract the CV
 #if PHP_VERSION_ID < 70300
-                while (catch_op->result.num == 0 && catch_op->extended_value < op_num) {
-                    catch_op = &ex->func->op_array.opcodes[catch_op->extended_value];
+                while (catch_op->result.num == 0 && ZEND_OFFSET_TO_OPLINE(catch_op, catch_op->extended_value) < ex->opline) {
+                    catch_op = ZEND_OFFSET_TO_OPLINE(catch_op, catch_op->extended_value);
                 }
 
                 zval *exception = ZEND_CALL_VAR(ex, catch_op->op2.var);
 #else
-                while (!(catch_op->extended_value & ZEND_LAST_CATCH) && catch_op->op2.opline_num < op_num) {
-                    catch_op = &ex->func->op_array.opcodes[catch_op->op2.opline_num];
+                while (!(catch_op->extended_value & ZEND_LAST_CATCH) && OP_JMP_ADDR(catch_op, catch_op->op2) < ex->opline) {
+                    catch_op = OP_JMP_ADDR(catch_op, catch_op->op2);
                 }
 
                 if (catch_op->result_type != IS_CV) {
@@ -113,6 +113,7 @@ static void dd_check_exception_in_header(int old_response_code) {
                 if (Z_TYPE_P(exception) == IS_OBJECT &&
                     instanceof_function(Z_OBJ_P(exception)->ce, zend_ce_throwable)) {
                     ZVAL_COPY(ddtrace_spandata_property_exception(root_span), exception);
+                    return;
                 }
 
                 // The final jump was eliminated from the current try  block, but possibly we are in a nested try/catch,
