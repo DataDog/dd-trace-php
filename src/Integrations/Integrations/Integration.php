@@ -68,9 +68,9 @@ abstract class Integration
      * Sets common error tags for an exception.
      *
      * @param SpanData $span
-     * @param \Exception $exception
+     * @param \Throwable $exception
      */
-    public function setError(SpanData $span, \Exception $exception)
+    public function setError(SpanData $span, $exception)
     {
         $span->meta[Tag::ERROR_MSG] = $exception->getMessage();
         $span->meta[Tag::ERROR_TYPE] = get_class($exception);
