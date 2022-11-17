@@ -14,7 +14,8 @@ key=val
 --FILE--
 <?php
 
-use function datadog\appsec\testing\add_ancillary_tags;
+use function datadog\appsec\testing\add_all_ancillary_tags;
+use function datadog\appsec\testing\add_basic_ancillary_tags;
 
 header('Content-type: application/json');
 http_response_code(404);
@@ -22,7 +23,7 @@ flush();
 
 $_SERVER = array();
 
-$arr = array(
+$all = array(
     'http.method' => 'POST',
     'http.request.headers.x-forwarded-for' => '8.8.8.8',
     'http.url' => 'http://foo/bar',
@@ -32,12 +33,28 @@ $arr = array(
     'network.client.ip' => '2.2.2.2',
     'http.client_ip' => '5.5.5.5'
 );
-add_ancillary_tags($arr);
-ksort($arr);
-print_r($arr);
+add_all_ancillary_tags($all);
+ksort($all);
+print_r($all);
+
+add_basic_ancillary_tags($all);
+ksort($all);
+print_r($all);
 
 ?>
 --EXPECTF--
+Array
+(
+    [http.client_ip] => 5.5.5.5
+    [http.method] => POST
+    [http.request.headers.user-agent] => my user agent
+    [http.request.headers.x-forwarded-for] => 8.8.8.8
+    [http.response.headers.content-type] => text/xml
+    [http.status_code] => 405
+    [http.url] => http://foo/bar
+    [http.useragent] => other user agent
+    [network.client.ip] => 2.2.2.2
+)
 Array
 (
     [http.client_ip] => 5.5.5.5

@@ -19,11 +19,13 @@ extern bool runtime_config_first_init;
 #define DD_CFG_STR(str) #str
 #define DD_CFG_EXPSTR(str) DD_CFG_STR(str)
 
+// clang-format off
 #define DEFAULT_OBFUSCATOR_KEY_REGEX                                           \
     "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?)key)|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)|bearer|authorization"
 
 #define DEFAULT_OBFUSCATOR_VALUE_REGEX                                         \
     "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:\\s*=[^;]|\"\\s*:\\s*\"[^\"]+\")|bearer\\s+[a-z0-9\\._\\-]+|token:[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=-]+\\.ey[I-L][\\w=-]+(?:\\.[\\w.+\\/=-]+)?|[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY|ssh-rsa\\s*[a-z0-9\\/\\.+]{100,}"
+// clang-format on
 
 #define DD_BASE(path) "/opt/datadog-php/"
 
@@ -36,22 +38,22 @@ extern bool runtime_config_first_init;
     SYSCFG(CUSTOM(uint64_t), DD_APPSEC_WAF_TIMEOUT, "10000", .parser = _parse_uint64)                           \
     SYSCFG(CUSTOM(uint32_t), DD_APPSEC_TRACE_RATE_LIMIT, "100", .parser = _parse_uint32)                        \
     SYSCFG(SET_LOWERCASE, DD_APPSEC_EXTRA_HEADERS, "")                                                          \
-    SYSCFG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, DEFAULT_OBFUSCATOR_KEY_REGEX)     \
-    SYSCFG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, DEFAULT_OBFUSCATOR_VALUE_REGEX) \
+    SYSCFG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, DEFAULT_OBFUSCATOR_KEY_REGEX)                    \
+    SYSCFG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, DEFAULT_OBFUSCATOR_VALUE_REGEX)                \
     SYSCFG(BOOL, DD_APPSEC_TESTING, "false")                                                                    \
     SYSCFG(BOOL, DD_APPSEC_TESTING_ABORT_RINIT, "false")                                                        \
     SYSCFG(BOOL, DD_APPSEC_TESTING_RAW_BODY, "false")                                                           \
-    SYSCFG(CUSTOM(STRING), DD_APPSEC_IPHEADER, "", .parser = dd_parse_ipheader_config)                          \
     CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                              \
     SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                   \
     SYSCFG(BOOL, DD_APPSEC_HELPER_LAUNCH, "true")                                                               \
-    CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/ddappsec-helper"))                        \
+    CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/ddappsec-helper"))                                       \
     CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)              \
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                      \
     CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                             \
     CONFIG(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                 \
     CONFIG(STRING, DD_ENV, "")                                                                                  \
     CONFIG(BOOL, DD_TRACE_CLIENT_IP_HEADER_DISABLED, "false")                                                   \
+    CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = dd_parse_client_ip_header_config)
 // clang-format on
 
 #define CALIAS CONFIG

@@ -36,7 +36,8 @@ key=val
 --FILE--
 <?php
 
-use function datadog\appsec\testing\add_ancillary_tags;
+use function datadog\appsec\testing\add_all_ancillary_tags;
+use function datadog\appsec\testing\add_basic_ancillary_tags;
 
 header('Content-type: application/json');
 header('Content-encoding: foobar');
@@ -49,16 +50,22 @@ flush();
 
 $_SERVER = array();
 
-$arr = array();
-add_ancillary_tags($arr);
-ksort($arr);
-print_r($arr);
+$all = array();
+add_all_ancillary_tags($all);
+ksort($all);
+print_r($all);
+
+$basic = array();
+add_basic_ancillary_tags($basic);
+ksort($basic);
+print_r($basic);
+
 
 ?>
 --EXPECTF--
 Array
 (
-    [http.client_ip] => 7.7.7.7
+    [_dd.multiple-ip-headers] => x-forwarded-for,x-real-ip,x-forwarded,x-cluster-client-ip,forwarded-for,forwarded,via,true-client-ip
     [http.method] => GET
     [http.request.headers.accept] => */*
     [http.request.headers.accept-encoding] => gzip
@@ -87,4 +94,16 @@ Array
     [http.url] => https://myhost:8888/my/uri.php
     [http.useragent] => my user agent
     [network.client.ip] => 7.7.7.12
+)
+Array
+(
+    [_dd.multiple-ip-headers] => x-forwarded-for,x-real-ip,x-forwarded,x-cluster-client-ip,forwarded-for,forwarded,via,true-client-ip
+    [http.request.headers.forwarded] => for="foo"
+    [http.request.headers.forwarded-for] => 7.7.7.10,10.0.0.1
+    [http.request.headers.true-client-ip] => 7.7.7.11
+    [http.request.headers.via] => HTTP/1.1 GWA
+    [http.request.headers.x-cluster-client-ip] => 7.7.7.9
+    [http.request.headers.x-forwarded] => for="foo"
+    [http.request.headers.x-forwarded-for] => 7.7.7.7,10.0.0.1
+    [http.request.headers.x-real-ip] => 7.7.7.8
 )
