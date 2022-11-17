@@ -251,18 +251,19 @@ class WordPressIntegrationLoader
             \DDTrace\trace_function($function, ['recurse' => true, 'prehook' => $action]);
         }
 
-        // Filters
-        $filter = function (SpanData $span, array $args) use ($service) {
-            $span->name = 'wp.apply_filters';
-            if (isset($args[0])) {
-                $span->resource = (string) $args[0];
-            }
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-        };
-        foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
-            \DDTrace\trace_function($function, ['recurse' => true, 'prehook' => $filter]);
-        }
+        // If we make spans for filters, there will be too many spans.
+        // todo: can we make metrics for these instead?
+//        $filter = function (SpanData $span, array $args) use ($service) {
+//            $span->name = 'wp.apply_filters';
+//            if (isset($args[0])) {
+//                $span->resource = (string) $args[0];
+//            }
+//            $span->type = Type::WEB_SERVLET;
+//            $span->service = $service;
+//        };
+//        foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
+//            \DDTrace\trace_function($function, ['recurse' => true, 'prehook' => $filter]);
+//        }
 
         return Integration::LOADED;
     }
