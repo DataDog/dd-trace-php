@@ -238,11 +238,23 @@ class WordPressIntegrationLoader
             $span->service = $service;
         });
 
-        // Actions
-        $action = function (SpanData $span, array $args) use ($service) {
-            $span->name = 'wp.do_action';
+        // https://developer.wordpress.org/reference/functions/get_query_template/
+        \DDTrace\trace_function('get_query_template', function (SpanData $span, array $args) use ($service) {
             if (isset($args[0])) {
-                $span->resource = (string) $args[0];
+                $type = $args[0];
+                $span->resource = "type $type";
+            }
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        // Actions
+        // https://developer.wordpress.org/reference/functions/do_action/
+        $action = function (SpanData $span, array $args) use ($service) {
+            $span->name = 'do_action';
+            if (isset($args[0])) {
+                $name = $args[0];
+                $span->resource = "hook_name $name";
             }
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
