@@ -436,9 +436,16 @@ jobs:
             export REPORT_EXIT_STATUS=1
             export DD_TRACE_CLI_ENABLED=1
             cd tmp/build_extension
-            php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so ../../tests/xdebug/<< parameters.xdebug_version_one >>
+            targetdir() {
+              if [[ ${1:0:1} -eq 2 ]]; then
+                echo $1
+              else
+                echo "3.0.0"
+              fi
+            }
+            php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so ../../tests/xdebug/$(targetdir << parameters.xdebug_version_one >>)
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
-              php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/<< parameters.xdebug_version_two >>
+              php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/$(targetdir << parameters.xdebug_version_two >>)
             fi;
       - run:
           name: Run unit tests with xdebug
@@ -3016,7 +3023,7 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 82 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
-          xdebug_version_one: "3.1.0"
+          xdebug_version_one: "3.2.0RC1"
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
