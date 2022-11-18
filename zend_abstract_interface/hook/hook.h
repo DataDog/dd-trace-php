@@ -86,7 +86,7 @@ extern __thread HashTable zai_hook_resolved;
 /* }}} */
 
 #if PHP_VERSION_ID >= 80000
-extern void (*zai_hook_on_update)(zend_op_array *op_array, bool remove);
+extern void (*zai_hook_on_update)(zend_function *func, bool remove);
 #endif
 
 typedef struct {

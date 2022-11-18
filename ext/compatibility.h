@@ -166,6 +166,15 @@ typedef void zend_type;
 #define IS_VOID 0
 #endif
 
+#if PHP_VERSION_ID < 80100
+#undef ZEND_ATOL
+#ifdef ZEND_ENABLE_ZVAL_LONG64
+#define ZEND_ATOL(s) atoll((s))
+#else
+#define ZEND_ATOL(s) atol((s))
+#endif
+#endif
+
 #if PHP_VERSION_ID < 80200
 static inline zend_string *ddtrace_vstrpprintf(size_t max_len, const char *format, va_list ap)
 {

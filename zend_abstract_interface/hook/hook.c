@@ -46,8 +46,8 @@ __thread HashTable zai_hook_request_classes;
 __thread HashTable zai_hook_resolved; /* }}} */
 
 #if PHP_VERSION_ID >= 80000
-static void zai_hook_on_update_empty(zend_op_array *op_array, bool remove) { (void)op_array, (void)remove; }
-void (*zai_hook_on_update)(zend_op_array *op_array, bool remove) = zai_hook_on_update_empty;
+static void zai_hook_on_update_empty(zend_function *func, bool remove) { (void)func, (void)remove; }
+void (*zai_hook_on_update)(zend_function *func, bool remove) = zai_hook_on_update_empty;
 #endif
 
 static void zai_hook_data_dtor(zai_hook_t *hook) {
@@ -106,8 +106,12 @@ static void zai_hook_entries_destroy(zval *zv) {
     zai_hooks_entry *hooks = Z_PTR_P(zv);
 
 #if PHP_VERSION_ID >= 80000
-    if (hooks->resolved && hooks->resolved->type == ZEND_USER_FUNCTION) {
-        zai_hook_on_update(&hooks->resolved->op_array, true);
+    if (hooks->resolved
+#if PHP_VERSION_ID < 80200
+        && hooks->resolved->type == ZEND_USER_FUNCTION
+#endif
+    ) {
+        zai_hook_on_update(hooks->resolved, true);
     }
 #endif
 
@@ -253,8 +257,11 @@ static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *reso
         zend_hash_index_add_ptr(&zai_hook_resolved, addr, hooks);
 
 #if PHP_VERSION_ID >= 80000
-        if (hooks->resolved->type == ZEND_USER_FUNCTION) {
-            zai_hook_on_update(&hooks->resolved->op_array, false);
+#if PHP_VERSION_ID < 80200
+        if (hooks->resolved->type == ZEND_USER_FUNCTION)
+#endif
+        {
+            zai_hook_on_update(hooks->resolved, false);
         }
 #endif
     }

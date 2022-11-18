@@ -20,13 +20,23 @@ int64_t ddtrace_get_memory_limit(void) {
             limit = -1;
         }
     } else {
-        limit = zend_atol(ZSTR_VAL(raw_memory_limit), ZSTR_LEN(raw_memory_limit));
         if (ZSTR_VAL(raw_memory_limit)[ZSTR_LEN(raw_memory_limit) - 1] == '%') {
+            limit = ZEND_ATOL(ZSTR_VAL(raw_memory_limit));
             if (PG(memory_limit) > 0) {
-                limit = PG(memory_limit) * ((double)limit / 100.0);
+                limit = PG(memory_limit) * ((double) limit / 100.0);
             } else {
                 limit = -1;
             }
+        } else {
+#if PHP_VERSION_ID < 80200
+            limit = zend_atol(ZSTR_VAL(raw_memory_limit), ZSTR_LEN(raw_memory_limit));
+#else
+            zend_string *err;
+            limit = zend_ini_parse_quantity(raw_memory_limit, &err);
+            if (err) {
+                zend_string_release(err);
+            }
+#endif
         }
     }
 

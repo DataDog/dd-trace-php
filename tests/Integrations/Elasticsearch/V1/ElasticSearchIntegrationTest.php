@@ -569,7 +569,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $fragment = ucfirst($namespace);
-        $this->assertOneSpan($traces, SpanAssertion::exists("Elasticsearch.${fragment}Namespace.$method"));
+        $this->assertOneSpan($traces, SpanAssertion::exists("Elasticsearch.{$fragment}Namespace.$method"));
     }
 
     public function namespacesDataProvider()
