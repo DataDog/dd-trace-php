@@ -211,7 +211,7 @@ function install($options)
 
         // Appsec
         $shouldInstallAppsec =
-            in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'])
+            in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2'])
             && !is_truthy($phpProperties[IS_DEBUG])
             && in_array($architecture, ["x86_64"]);
 
@@ -1526,7 +1526,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
  */
 function get_supported_php_versions()
 {
-    return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1'];
+    return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2'];
 }
 
 main();
