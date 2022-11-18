@@ -250,20 +250,34 @@ commands:
             sudo mkdir /rust
             sudo chmod 777 /rust
             image=<< parameters.docker_image >>
-            nohup docker run --rm --net net \
-              -e DDAGENT_HOSTNAME=127.0.0.1 \
-              -e DD_AGENT_HOST=127.0.0.1 \
-              -e DATADOG_HAVE_DEV_ENV=1 \
-              -e BASH_ENV=/home/circleci/bashenv/bash.sh \
-              -v $(pwd):/home/circleci/datadog \
-              -v /tmp/bashenv:/home/circleci/bashenv \
-              -v /rust:/rust \
-              $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo -v ${CARGO_TARGET_DIR}:${CARGO_TARGET_DIR} -e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}; fi) \
-              $image \
-              bash -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
-            tail -F /tmp/docker.out | grep -Em1 'Started|Error response from daemon' || true
-            ! grep -q "Error response from daemon" /tmp/docker.out
-            echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/datadog -i '"$(docker ps | grep "$image" | awk '{ print $NF }')"' "${args[@]}"; fi' | tee -a $BASH_ENV
+            retries=3
+            while
+              nohup docker run --rm --net net \
+                  -e DDAGENT_HOSTNAME=127.0.0.1 \
+                  -e DD_AGENT_HOST=127.0.0.1 \
+                  -e DATADOG_HAVE_DEV_ENV=1 \
+                  -e BASH_ENV=/home/circleci/bashenv/bash.sh \
+                  -v $(pwd):/home/circleci/datadog \
+                  -v /tmp/bashenv:/home/circleci/bashenv \
+                  -v /rust:/rust \
+                  $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo -v ${CARGO_TARGET_DIR}:${CARGO_TARGET_DIR} -e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}; fi) \
+                  $image \
+                  bash -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
+              tail -F /tmp/docker.out | grep -Em1 'Started|Error response from daemon'
+              if ! grep -q "Error response from daemon" /tmp/docker.out; then
+                container_name=$(docker ps | grep "$image" | awk '{ print $NF }')
+                [[ -z $container_name ]]
+              fi
+            do
+              if [[ $((--retries)) -eq 0 ]]; then
+                cat /tmp/docker.out
+                echo ---
+                echo "Could not start container $image"
+                exit 1
+              fi
+              sleep 1
+            done
+            echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/datadog -i '"${container_name}"' "${args[@]}"; fi' | tee -a $BASH_ENV
             cp $BASH_ENV /tmp/bashenv/bash.sh
             chmod 777 /tmp/bashenv/bash.sh
 
