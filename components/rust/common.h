@@ -153,6 +153,56 @@ typedef struct ddog_Option_bool {
   };
 } ddog_Option_bool;
 
+typedef struct ddog_Arc_owned_fd ddog_Arc_owned_fd;
+
+typedef struct ddog_BlockingTransport_telemetry_interface_response__telemetry_interface_request ddog_BlockingTransport_telemetry_interface_response__telemetry_interface_request;
+
+typedef struct ddog_InstanceId ddog_InstanceId;
+
+typedef struct ddog_RuntimeMeta ddog_RuntimeMeta;
+
+typedef enum ddog_Option_arc_owned_fd_Tag {
+  DDOG_OPTION_ARC_OWNED_FD_SOME_ARC_OWNED_FD,
+  DDOG_OPTION_ARC_OWNED_FD_NONE_ARC_OWNED_FD,
+} ddog_Option_arc_owned_fd_Tag;
+
+typedef struct ddog_Option_arc_owned_fd {
+  ddog_Option_arc_owned_fd_Tag tag;
+  union {
+    struct {
+      struct ddog_Arc_owned_fd some;
+    };
+  };
+} ddog_Option_arc_owned_fd;
+
+/**
+ * PlatformHandle contains a valid reference counted FileDescriptor and associated Type information
+ * allowing safe transfer and sharing of file handles across processes, and threads
+ */
+typedef struct ddog_PlatformHandle_file {
+  int fd;
+  struct ddog_Option_arc_owned_fd inner;
+} ddog_PlatformHandle_file;
+
+typedef struct ddog_NativeFile {
+  struct ddog_PlatformHandle_file *handle;
+} ddog_NativeFile;
+
+/**
+ * PlatformHandle contains a valid reference counted FileDescriptor and associated Type information
+ * allowing safe transfer and sharing of file handles across processes, and threads
+ */
+typedef struct ddog_PlatformHandle_unix_stream {
+  int fd;
+  struct ddog_Option_arc_owned_fd inner;
+} ddog_PlatformHandle_unix_stream;
+
+typedef struct ddog_NativeUnixStream {
+  struct ddog_PlatformHandle_unix_stream handle;
+} ddog_NativeUnixStream;
+
+typedef struct ddog_BlockingTransport_telemetry_interface_response__telemetry_interface_request ddog_TelemetryTransport;
+
 DDOG_CHECK_RETURN struct ddog_Vec_tag ddog_Vec_tag_new(void);
 
 void ddog_Vec_tag_drop(struct ddog_Vec_tag);

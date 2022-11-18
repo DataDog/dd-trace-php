@@ -670,8 +670,6 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
 
 static void dd_read_distributed_tracing_ids(void);
 
-ddog_NativeUnixStream *dd_sidecar;
-
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
@@ -759,11 +757,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
                        get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                        get_global_DD_TRACE_AGENT_STACK_BACKLOG());
 
-    ddtrace_setup_composer_telemetry_hook();
+    ddtrace_telemetry_setup();
+
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
-
-    ddog_sidecar_connect(&dd_sidecar);
 
     return SUCCESS;
 }
@@ -798,7 +795,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_limiter_destroy();
     zai_config_mshutdown();
 
-    ddog_ph_unix_stream_drop(dd_sidecar);
+    ddtrace_telemetry_shutdown();
 
     return SUCCESS;
 }
@@ -848,9 +845,8 @@ static void dd_initialize_request(void) {
 
     dd_read_distributed_tracing_ids();
 
-    if (!DDTRACE_G(telemetry_handle)) {
-        DDTRACE_G(telemetry_handle) = ddtrace_build_telemetry_handle();
-        ddog_handle_start(DDTRACE_G(telemetry_handle));
+    if (!DDTRACE_G(telemetry_queue_id)) {
+        DDTRACE_G(telemetry_queue_id) = ddog_sidecar_queueId_generate();
     }
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
@@ -947,12 +943,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     zend_hash_destroy(&DDTRACE_G(traced_spans));
 
-    if (DDTRACE_G(telemetry_handle)) {
-        ddog_handle_stop(DDTRACE_G(telemetry_handle));
-        ddog_handle_wait_for_shutdown(DDTRACE_G(telemetry_handle));
-        DDTRACE_G(telemetry_handle) = NULL;
-    }
-
     if (get_DD_TRACE_ENABLED()) {
         dd_force_shutdown_tracing();
     } else if (!DDTRACE_G(disable)) {
@@ -962,6 +952,14 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (!DDTRACE_G(disable)) {
         OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
         DDTRACE_G(active_stack) = NULL;
+    }
+
+    if (DDTRACE_G(telemetry_queue_id)) {
+        ddtrace_telemetry_finalize();
+        DDTRACE_G(telemetry_queue_id) = 0;
+    }
+    if (DDTRACE_G(last_flushed_root_service_name)) {
+        zend_string_release(DDTRACE_G(last_flushed_root_service_name));
     }
 
     return SUCCESS;

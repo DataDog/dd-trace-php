@@ -897,6 +897,13 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             ZVAL_COPY(&prop_service_as_string, new_name);
         }
 
+        if (!span->parent) {
+            if (DDTRACE_G(last_flushed_root_service_name)) {
+                zend_string_release(DDTRACE_G(last_flushed_root_service_name));
+            }
+            DDTRACE_G(last_flushed_root_service_name) = zend_string_copy(Z_STR(prop_resource_as_string));
+        }
+
         add_assoc_zval(el, "service", &prop_service_as_string);
     }
 

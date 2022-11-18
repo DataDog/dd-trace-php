@@ -2,6 +2,7 @@
 
 #include "../configuration.h"
 #include "../logging.h"
+#include "../telemetry.h"
 #include <hook/hook.h>
 #undef INTEGRATION
 
@@ -64,6 +65,10 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
     ZVAL_STR(&integration, aux->classname);
 
     if (aux->name == -1u || ddtrace_config_integration_enabled(aux->name)) {
+        if (aux->name != -1u) {
+            ddtrace_telemetry_notify_integration(ddtrace_integrations[aux->name].name_lcase, ddtrace_integrations[aux->name].name_len);
+        }
+
         zval rv;
         bool success;
         zval *thisp = getThis();
