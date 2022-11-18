@@ -391,27 +391,6 @@ jobs:
           name: Test post-install hook
           command: bash tests/PostInstallHook/run-tests.sh
 
-  opcache_tests:
-    parameters:
-      docker_image:
-        type: string
-    working_directory: ~/datadog
-    executor:
-      name: with_agent
-      docker_image: << parameters.docker_image >>
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - run:
-          name: Run opcache tests
-          command: |
-            export REPORT_EXIT_STATUS=1
-            export DD_TRACE_CLI_ENABLED=1
-            cd tmp/build_extension
-            php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=opcache.so ../../tests/opcache
-
   xdebug_tests:
     parameters:
       docker_image:
@@ -489,13 +468,14 @@ jobs:
           command: |
             set -euo pipefail
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
             find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
-            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+            cp -a tmp/build_extension/tests/$(if [[ << parameters.make_target >> == *opcache* ]]; then echo opcache; else echo ext; fi) /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -2851,6 +2831,7 @@ workflows:
                 - test_c2php
                 - test_c_disabled
                 - test_internal_api_randomized
+                - test_opcache
       - coverage:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -2884,6 +2865,13 @@ workflows:
                 - test_c_asan
                 - test_with_init_hook_asan
                 - test_internal_api_randomized
+                - test_opcache_asan
+            exclude:
+                # apparently for no discernible reason, on x86 asan builds PHP 7.4. fails to allocate opcache shared memory
+              - php_major_minor: '7.4'
+                resource_class: medium
+                make_target: test_opcache_asan
+                switch_php_version: debug-zts-asan
 
       - integration:
           requires: [ 'Prepare Code' ]
@@ -2961,20 +2949,6 @@ workflows:
                 - nts
               make_target:
                 - test_integrations_phpredis5
-
-      - opcache_tests:
-          requires: [ 'Prepare Code' ]
-          matrix:
-            parameters:
-              docker_image:
-                - datadog/dd-trace-ci:php-7.0_buster
-                - datadog/dd-trace-ci:php-7.1_buster
-                - datadog/dd-trace-ci:php-7.2_buster
-                - datadog/dd-trace-ci:php-7.3_buster
-                - datadog/dd-trace-ci:php-7.4_buster
-                - datadog/dd-trace-ci:php-8.0_buster
-                - datadog/dd-trace-ci:php-8.1_buster
-                - datadog/dd-trace-ci:php-8.2_buster
 
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
