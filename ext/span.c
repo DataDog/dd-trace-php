@@ -184,12 +184,13 @@ void ddtrace_open_span(ddtrace_span_data *span) {
     ddtrace_set_global_span_properties(span);
 }
 
+// += 2 increment to avoid zval type ever being 0
 ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execute_data *execute_data) {
     zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
     ddtrace_span_data *span;
     if (span_zv) {
         span = Z_PTR_P(span_zv);
-        ++Z_TYPE_INFO_P(span_zv);
+        Z_TYPE_INFO_P(span_zv) += 2;
     } else {
         span = ddtrace_init_span(DDTRACE_INTERNAL_SPAN);
         ddtrace_open_span(span);
@@ -211,7 +212,7 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
 
         zval zv;
         Z_PTR(zv) = span;
-        Z_TYPE_INFO(zv) = 2;
+        Z_TYPE_INFO(zv) = 3;
         zend_hash_index_add_new(&DDTRACE_G(traced_spans), index, &zv);
     }
     return span;
@@ -220,7 +221,7 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
 void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
     zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
     ddtrace_span_data *span = Z_PTR_P(span_zv);
-    if (--Z_TYPE_INFO_P(span_zv) == 1 || !keep) {
+    if ((Z_TYPE_INFO_P(span_zv) -= 2) == 1 || !keep) {
         if (!ddtrace_span_is_dropped(span)) {
             if (keep) {
                 ddtrace_close_span(span);
