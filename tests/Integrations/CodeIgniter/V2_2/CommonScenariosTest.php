@@ -34,9 +34,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertFlameGraph($traces, $spanExpectations->withExactTags([
-            Tag::SPAN_KIND => 'server',
-        ]));
+        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -61,7 +59,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple.index'
-                        ),
+                        )->withExactTags([
+                            Tag::SPAN_KIND => 'server',
+                        ]),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -88,7 +88,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'codeigniter_test_app',
                                 Type::WEB_SERVLET,
                                 'simple_view'
-                            ),
+                            )->withExactTags([
+                                Tag::SPAN_KIND => 'server',
+                            ]),,
+                        ])->withExactTags([
+                            Tag::SPAN_KIND => 'server',
                         ]),
                     ]),
                 ],
@@ -114,7 +118,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Error_.index'
-                        )->setError('Exception', 'datadog', true),
+                        )->withExactTags([
+                            Tag::SPAN_KIND => 'server',
+                        ])->setError('Exception', 'datadog', true),
                     ]),
                 ],
             ]
