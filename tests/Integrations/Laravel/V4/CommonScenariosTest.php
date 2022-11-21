@@ -143,7 +143,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'some.key2' => 'value2',
                                             Tag::SPAN_KIND => 'server',
                                         ])
-                                        ->withExistingTagsNames(['error.stack', Tag::SPAN_KIND])
+                                        ->withExistingTagsNames(['error.stack'])
                                         ->setError('Exception', 'Controller error'),
                                     SpanAssertion::exists('laravel.event.handle'),
                                     SpanAssertion::exists('laravel.event.handle'),
