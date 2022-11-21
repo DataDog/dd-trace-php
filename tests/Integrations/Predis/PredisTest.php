@@ -174,7 +174,9 @@ final class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'redis', 'redis', 'Predis.Client.connect')
-                ->withExactTags([]),
+                ->withExactTags([
+                    Tag::SPAN_KIND => 'client',
+                ]),
         ]);
     }
 
@@ -247,9 +249,12 @@ final class PredisTest extends IntegrationTestCase
         });
 
         if (Versions::phpVersionMatches('5')) {
-            $exactTags = [];
+            $exactTags = [
+                Tag::SPAN_KIND => 'client'
+            ];
         } else {
             $exactTags = [
+                Tag::SPAN_KIND => 'client',
                 'redis.pipeline_length' => '2',
             ];
         }
