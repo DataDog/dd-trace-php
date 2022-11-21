@@ -49,7 +49,9 @@ class ExitTest extends WebFrameworkTestCase
                         Type::WEB_SERVLET,
                         'Exits.index'
                     )
-                ]),
+                ])->withExactTags([
+                    Tag::SPAN_KIND => 'server',
+                ])
             ]
         );
     }

@@ -34,7 +34,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertFlameGraph($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations->withExactTags([
+            Tag::SPAN_KIND => 'server',
+        ]));
     }
 
     public function provideSpecs()
