@@ -121,7 +121,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Controller.invokeAction'
                         )->withExistingTagsNames([
-                            'error.stack'
+                            'error.stack', Tag::SPAN_KIND,
                         ])->setError(null, 'Foo error'),
                         SpanAssertion::build(
                             'cakephp.view',
