@@ -90,9 +90,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'codeigniter_test_app',
                                 Type::WEB_SERVLET,
                                 'simple_view'
-                            )->withExactTags([
-                                Tag::SPAN_KIND => 'server',
-                            ]),
+                            ),
                         ])
                     ]),
                 ],
@@ -118,7 +116,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Error_.index'
-                        )->setError('Exception', 'datadog', true),
+                        )->withExactTags([
+                            Tag::SPAN_KIND => 'server',
+                        ])->setError('Exception', 'datadog', true),
                     ]),
                 ],
             ]
