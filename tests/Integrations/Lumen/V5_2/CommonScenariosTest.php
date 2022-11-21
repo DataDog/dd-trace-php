@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Lumen\V5_2;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -51,6 +52,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Laravel\Lumen\Application.handleFoundRoute',
@@ -58,6 +60,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
                         )->withExactTags([
+                            Tag::SPAN_KIND => 'server',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         ])
                         ->withChildren([
@@ -101,6 +104,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                        Tag::SPAN_KIND => 'server',
                     ])->withExistingTagsNames(\PHP_MAJOR_VERSION === 5 ? [] : ['error.stack'])
                     ->setError(
                         'Exception',
@@ -113,6 +117,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
                         )->withExactTags([
+                            Tag::SPAN_KIND => 'server',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         ])
                         ->withExistingTagsNames([
@@ -144,6 +149,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                 'http.status_code' => '200',
+                Tag::SPAN_KIND => 'server',
             ])->withChildren([
                 SpanAssertion::build(
                     'Laravel\Lumen\Application.handleFoundRoute',
@@ -151,6 +157,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'web',
                     'simple_route'
                 )->withExactTags([
+                    Tag::SPAN_KIND => 'server',
                     'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                 ]),
             ]),
@@ -170,6 +177,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                 'http.status_code' => '500',
+                Tag::SPAN_KIND => 'server',
             ])->setError()
                 ->withChildren([
                     SpanAssertion::build(
@@ -178,6 +186,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         '',
                         'Laravel\Lumen\Application.handleFoundRoute'
                     )->withExactTags([
+                        Tag::SPAN_KIND => 'server',
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                     ])->withExistingTagsNames([
                         'error.stack'
