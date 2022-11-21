@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
@@ -47,6 +48,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/not-implemented',
                         'http.status_code' => '501',
+                        TAG::SPAN_KIND => 'server'
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
@@ -91,6 +93,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unauthorized',
                         'http.status_code' => '403',
+                        TAG::SPAN_KIND => 'server'
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,

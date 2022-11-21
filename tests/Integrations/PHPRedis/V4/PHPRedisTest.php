@@ -110,8 +110,9 @@ class PHPRedisTest extends IntegrationTestCase
             ->withExactTags([
                 'out.host' => $host,
                 'out.port' => $port ?: $this->port,
+                Tag::SPAN_KIND => 'client',
             ])
-            ->withExistingTagsNames(['error.msg', 'error.stack']),
+            ->withExistingTagsNames(['error.msg', 'error.stack', Tag::SPAN_KIND]),
         ]);
     }
 
