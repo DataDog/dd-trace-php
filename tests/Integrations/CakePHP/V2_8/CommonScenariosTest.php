@@ -80,7 +80,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'Controller.invokeAction',
                             'cakephp_test_app',
                             'web',
-                            'Controller.invokeAction',
+                            'Controller.invokeAction'
                         ),
                         SpanAssertion::build(
                             'cakephp.view',

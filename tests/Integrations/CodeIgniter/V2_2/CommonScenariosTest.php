@@ -82,7 +82,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple_View.index'
-                        )->withChildren([
+                        )->withExactTags([
+                            Tag::SPAN_KIND => 'server',
+                        ])->withChildren([
                             SpanAssertion::build(
                                 'CI_Loader.view',
                                 'codeigniter_test_app',
@@ -90,10 +92,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'simple_view'
                             )->withExactTags([
                                 Tag::SPAN_KIND => 'server',
-                            ]),,
-                        ])->withExactTags([
-                            Tag::SPAN_KIND => 'server',
-                        ]),
+                            ]),
+                        ])
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -118,9 +118,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Error_.index'
-                        )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
-                        ])->setError('Exception', 'datadog', true),
+                        )->setError('Exception', 'datadog', true),
                     ]),
                 ],
             ]

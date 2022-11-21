@@ -111,7 +111,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'out.host' => $host,
                 'out.port' => $port ?: $this->port,
             ])
-            ->withExistingTagsNames(['error.msg', 'error.stack', Tag::SPAN_KIND]),
+            ->withExistingTagsNames(['error.msg', 'error.stack']),
         ]);
     }
 
@@ -150,7 +150,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.close"
-            ),
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ]),
         ]);
     }
 
@@ -184,7 +186,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand]),
+            )->withExactTags(['redis.raw_command' => $rawCommand, TAG::SPAN_KIND => 'client']),
         ]);
     }
 
@@ -233,7 +235,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            ),
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ]),
         ]);
     }
 
@@ -1674,7 +1678,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.restore"
-            ),
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ]),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -1807,7 +1813,7 @@ class PHPRedisTest extends IntegrationTestCase
                 "Redis.connect"
             )
             ->setError()
-            ->withExistingTagsNames(['error.msg', 'error.stack', Tag::SPAN_KIND])
+            ->withExistingTagsNames(['error.msg', 'error.stack'])
             ->withExactTags([
                 'out.host' => 'non-existing-host',
                 'out.port' => $this->port,
