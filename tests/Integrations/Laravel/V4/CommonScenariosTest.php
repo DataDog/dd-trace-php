@@ -60,7 +60,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                         ->withExactTags([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
-                                            TAG::SPAN_KIND => 'server',
                                         ]),
                                     SpanAssertion::exists('laravel.event.handle'),
                                     SpanAssertion::exists('laravel.event.handle'),
@@ -141,7 +140,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                         ->withExactTags([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
-                                            TAG::SPAN_KIND => 'server',
                                         ])
                                         ->withExistingTagsNames(['error.stack', Tag::SPAN_KIND])
                                         ->setError('Exception', 'Controller error'),

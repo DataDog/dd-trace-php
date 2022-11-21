@@ -56,7 +56,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple')
                             ->withExactTags([
-                                TAG::SPAN_KIND => 'server',
                             ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
@@ -80,7 +79,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
                             ->withExactTags([
-                                TAG::SPAN_KIND => 'server',
                             ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
@@ -99,7 +97,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'web',
                                 '*/resources/views/simple_view.blade.php'
                             )->withExactTags([
-                                TAG::SPAN_KIND => 'server',
                             ]),
                         ]),
                     ]),
