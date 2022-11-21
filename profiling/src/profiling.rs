@@ -560,6 +560,11 @@ impl Uploader {
     }
 
     pub fn run(&self) {
+        // DD_PROFILING_OUTPUT_DIR
+        // DD_PROFILING_OUTPUT_PPROF=filename
+        let pprof_filename = std::env::var("DD_PROFILING_OUTPUT_PPROF").ok();
+        let mut i = 0;
+
         loop {
             /* Since profiling uploads are going over the Internet and not just
              * the local network, it would be ideal if they were the lowest
@@ -581,19 +586,28 @@ impl Uploader {
                 },
 
                 recv(self.upload_receiver) -> message => match message {
-                    Ok(upload_message) => match Self::upload(upload_message) {
-                        Ok(status) => {
-                            if status >= 400 {
-                                warn!(
-                                    "Unexpected HTTP status when sending profile (HTTP {}).",
-                                    status
-                                )
-                            } else {
-                                info!("Successfully uploaded profile (HTTP {}).", status)
-                            }
-                        }
-                        Err(err) => {
-                            warn!("Failed to upload profile: {}", err)
+                    Ok(upload_message) => {
+                        match pprof_filename.as_ref() {
+                            Some(filename) => {
+                                let r = upload_message.profile.serialize(None, None).unwrap();
+                                i += 1;
+                                std::fs::write(format!("{}.{}", filename, i), r.buffer).expect("write to succeed")
+                            },
+                            None => match Self::upload(upload_message) {
+                                Ok(status) => {
+                                    if status >= 400 {
+                                        warn!(
+                                            "Unexpected HTTP status when sending profile (HTTP {}).",
+                                            status
+                                        )
+                                    } else {
+                                        info!("Successfully uploaded profile (HTTP {}).", status)
+                                    }
+                                }
+                                Err(err) => {
+                                    warn!("Failed to upload profile: {}", err)
+                                }
+                            },
                         }
                     },
                     _ => {
