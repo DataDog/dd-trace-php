@@ -38,7 +38,7 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'App\\Models\\User'
         )->withExactTags([
-            TAG::SPAN_KIND => 'server'
+            TAG::SPAN_KIND => 'client'
         ]));
     }
 
@@ -55,7 +55,7 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'App\\Models\\User'
         )->withExactTags([
-            TAG::SPAN_KIND => 'server'
+            TAG::SPAN_KIND => 'client'
         ]));
     }
 
@@ -71,7 +71,7 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'select * from `users`'
         )->withExactTags([
-            TAG::SPAN_KIND => 'server',
+            TAG::SPAN_KIND => 'client',
             'sql.query' => 'select * from `users`',
         ]));
     }
@@ -88,7 +88,7 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'App\\Models\\User'
         )->withExactTags([
-            TAG::SPAN_KIND => 'server'
+            TAG::SPAN_KIND => 'client'
         ]));
     }
 
@@ -105,7 +105,7 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'App\\Models\\User'
         )->withExactTags([
-            TAG::SPAN_KIND => 'server'
+            TAG::SPAN_KIND => 'client'
         ]));
     }
 
@@ -122,7 +122,7 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'App\\Models\\User'
         )->withExactTags([
-            TAG::SPAN_KIND => 'server'
+            TAG::SPAN_KIND => 'client'
         ]));
     }
 
