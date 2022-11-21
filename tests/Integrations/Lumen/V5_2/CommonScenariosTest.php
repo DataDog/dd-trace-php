@@ -82,14 +82,18 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'lumen_test_app',
                                     'web',
                                     'composing: simple_view'
-                                )->withExactTags([]),
+                                )->withExactTags([
+                                    Tag::SPAN_KIND => 'server',
+                                ]),
                             ]),
                             SpanAssertion::build(
                                 'laravel.event.handle',
                                 'lumen_test_app',
                                 'web',
                                 'creating: simple_view'
-                            )->withExactTags([])
+                            )->withExactTags([
+                                Tag::SPAN_KIND => 'server',
+                            ])
                         ])
                     ]),
                 ],
