@@ -198,6 +198,31 @@ class WordPressIntegrationLoader
             $span->service = $service;
         });
 
+        \DDTrace\trace_function('the_content', function (SpanData $span) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        \DDTrace\trace_function('the_post', function (SpanData $span) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        \DDTrace\trace_function('get_avatar', function (SpanData $span) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        \DDTrace\trace_function('the_post_thumbnail', function (SpanData $span, array $args) use ($service) {
+            // might also be an array an integers
+            if (isset($args[0]) && \is_string($args[0])) {
+                $size = $args[0];
+                $span->meta['wordpress.post_thumbnail.size'] = $size;
+            }
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
         \DDTrace\trace_function('comments_template', function (SpanData $span, array $args) use ($service) {
             $span->name = 'comments_template';
             $span->resource = !empty($args[0]) ? $args[0] : '/comments.php';
