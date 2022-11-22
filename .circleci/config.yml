@@ -1860,7 +1860,9 @@ jobs:
           command: git clone https://github.com/DataDog/system-tests.git
       - run:
           name: Checkout Experimental System Testing Branch
-          command: git checkout conti/add_meta_tag_tests
+          command: |
+            cd system-tests
+            git checkout conti/add_meta_tag_tests
       - run:
           name: Copy .tar.gz file to system test binaries folder
           command: |
