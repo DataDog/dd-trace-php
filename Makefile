@@ -669,6 +669,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_roadrunner \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -768,6 +769,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
+	test_integrations_roadrunner \
 	test_opentracing_10
 
 TEST_WEB_82 := \
@@ -905,6 +907,9 @@ test_integrations_phpredis5: global_test_run_dependencies
 test_integrations_predis1: global_test_run_dependencies
 	$(MAKE) test_scenario_predis1
 	$(call run_tests,tests/Integrations/Predis)
+test_integrations_roadrunner: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Roadrunner/Version_2 update
+	$(call run_tests,tests/Integrations/Roadrunner/V2)
 test_web_cakephp_28: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 update
 	$(call run_tests,--testsuite=cakephp-28-test)

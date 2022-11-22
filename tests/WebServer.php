@@ -7,6 +7,7 @@ use DDTrace\Tests\Sapi\CliServer\CliServer;
 use DDTrace\Tests\Sapi\PhpApache\PhpApache;
 use DDTrace\Tests\Sapi\PhpCgi\PhpCgi;
 use DDTrace\Tests\Sapi\PhpFpm\PhpFpm;
+use DDTrace\Tests\Sapi\Roadrunner\RoadrunnerServer;
 use DDTrace\Tests\Sapi\Sapi;
 
 /**
@@ -66,6 +67,8 @@ final class WebServer
      */
     private $inis = [];
 
+    private $roadrunnerVersion = null;
+
     private $defaultInis = [
         'log_errors' => 'on',
         'datadog.trace.client_ip_header_disabled' => 'true',
@@ -94,52 +97,68 @@ final class WebServer
         $this->port = $port;
     }
 
+    public function setRoadrunner($version)
+    {
+        $this->roadrunnerVersion = $version;
+    }
+
     public function start()
     {
-        switch (\getenv('DD_TRACE_TEST_SAPI')) {
-            case 'cgi-fcgi':
-                $this->sapi = new PhpCgi(
-                    self::FCGI_HOST,
-                    self::FCGI_PORT,
-                    $this->envs,
-                    $this->inis
-                );
-                break;
-            case 'fpm-fcgi':
-                $this->sapi = new PhpFpm(
-                    dirname($this->indexFile),
-                    self::FCGI_HOST,
-                    self::FCGI_PORT,
-                    $this->envs,
-                    $this->inis
-                );
-                break;
-            case 'apache2handler':
-                if (!self::$apache) {
-                    self::$apache = new PhpApache();
-                    register_shutdown_function(static function () {
-                        self::$apache->stop();
-                        self::$apache = null;
-                    });
-                }
-                self::$apache->loadConfig(
-                    dirname($this->indexFile),
-                    $this->host,
-                    $this->port,
-                    $this->envs,
-                    $this->inis
-                );
-                $this->sapi = self::$apache;
-                break;
-            default:
-                $this->sapi = new CliServer(
-                    $this->indexFile,
-                    $this->host,
-                    $this->port,
-                    $this->envs,
-                    $this->inis
-                );
-                break;
+        if ($this->roadrunnerVersion) {
+            $this->sapi = new RoadrunnerServer(
+                $this->roadrunnerVersion,
+                $this->indexFile,
+                $this->host,
+                $this->port,
+                $this->envs,
+                $this->inis
+            );
+        } else {
+            switch (\getenv('DD_TRACE_TEST_SAPI')) {
+                case 'cgi-fcgi':
+                    $this->sapi = new PhpCgi(
+                        self::FCGI_HOST,
+                        self::FCGI_PORT,
+                        $this->envs,
+                        $this->inis
+                    );
+                    break;
+                case 'fpm-fcgi':
+                    $this->sapi = new PhpFpm(
+                        dirname($this->indexFile),
+                        self::FCGI_HOST,
+                        self::FCGI_PORT,
+                        $this->envs,
+                        $this->inis
+                    );
+                    break;
+                case 'apache2handler':
+                    if (!self::$apache) {
+                        self::$apache = new PhpApache();
+                        register_shutdown_function(static function () {
+                            self::$apache->stop();
+                            self::$apache = null;
+                        });
+                    }
+                    self::$apache->loadConfig(
+                        dirname($this->indexFile),
+                        $this->host,
+                        $this->port,
+                        $this->envs,
+                        $this->inis
+                    );
+                    $this->sapi = self::$apache;
+                    break;
+                default:
+                    $this->sapi = new CliServer(
+                        $this->indexFile,
+                        $this->host,
+                        $this->port,
+                        $this->envs,
+                        $this->inis
+                    );
+                    break;
+            }
         }
 
         if ($this->sapi->isFastCgi()) {
