@@ -16,6 +16,7 @@ use lazy_static::lazy_static;
 use libc::{c_char, c_int};
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
+use rand_distr::{Distribution, Poisson};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
@@ -24,7 +25,7 @@ use std::mem::MaybeUninit;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Mutex, Once};
 use std::time::Instant;
 use uuid::Uuid;
@@ -273,6 +274,23 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     {
+        ALLOCATION_PROFILING_STATS.with(|cell| {
+            let allocations = cell.borrow_mut();
+            let mut sampling_interval: i64 = Poisson::new(ALLOCATION_PROFILING_INTERVAL)
+                .unwrap()
+                .sample(&mut rand::thread_rng())
+                as i64;
+            if sampling_interval <= 0 {
+                sampling_interval = 8;
+            }
+            allocations
+                .sampling_interval
+                .store(sampling_interval as u64, Ordering::Relaxed);
+            allocations
+                .remaing_bytes
+                .store(sampling_interval, Ordering::Relaxed);
+        });
+
         if unsafe { !zend::is_zend_mm() } {
             // Neighboring custom memory handlers found
             unsafe {
@@ -339,6 +357,16 @@ pub struct RequestLocals {
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
+//
+const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 1.0;
+
+pub struct AllocationProfilingStats {
+    /// number of bytes in "this" sampling interval
+    pub sampling_interval: AtomicU64,
+    /// number of bytes until next sample collection
+    pub remaing_bytes: AtomicI64,
+}
+
 fn static_tags() -> Vec<Tag> {
     vec![
         Tag::from_value("language:php").expect("static tags to be valid"),
@@ -365,6 +393,11 @@ thread_local! {
         uri: Box::new(AgentEndpoint::default()),
         version: None,
         vm_interrupt_addr: std::ptr::null_mut(),
+    });
+
+    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats {
+        sampling_interval: AtomicU64::new(0),
+        remaing_bytes: AtomicI64::new(0)
     });
 }
 
@@ -954,6 +987,51 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
         return ptr;
     }
 
+    let stats = ALLOCATION_PROFILING_STATS.with(|cell| {
+        let allocations = cell.borrow_mut();
+
+        let mut remaing_bytes: i64 = allocations
+            .remaing_bytes
+            .fetch_sub(len as i64, Ordering::Relaxed)
+            - len as i64;
+
+        if remaing_bytes > 0 {
+            return (false, 0);
+        }
+
+        let sampling_interval = allocations.sampling_interval.load(Ordering::Relaxed) as i64;
+        let next_sampling_interval = Poisson::new(ALLOCATION_PROFILING_INTERVAL)
+            .unwrap()
+            .sample(&mut rand::thread_rng()) as u64;
+        let mut samples: f64 = (remaing_bytes * -1 / sampling_interval as i64) as f64;
+        remaing_bytes = remaing_bytes % sampling_interval;
+
+        loop {
+            remaing_bytes += next_sampling_interval as i64;
+            samples += 1.0;
+            if remaing_bytes > 0 {
+                break;
+            }
+        }
+
+        allocations
+            .sampling_interval
+            .store(next_sampling_interval, Ordering::Relaxed);
+        allocations
+            .remaing_bytes
+            .store(remaing_bytes, Ordering::Relaxed);
+
+        let total_size: u64 = (samples * sampling_interval as f64) as u64;
+
+        return (true, total_size);
+    });
+
+    if !stats.0 {
+        return ptr;
+    }
+
+    let total_size = stats.1;
+
     REQUEST_LOCALS.with(|cell| {
         // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
         let locals = cell.try_borrow();
@@ -971,7 +1049,7 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
             unsafe {
                 profiler.collect_allocations(
                     zend::executor_globals.current_execute_data,
-                    len,
+                    total_size,
                     &locals,
                 )
             };
