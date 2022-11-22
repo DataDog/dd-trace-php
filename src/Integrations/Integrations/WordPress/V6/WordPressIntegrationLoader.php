@@ -37,65 +37,76 @@ class WordPressIntegrationLoader
             $span->name = $span->resource = 'WP.main';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'init', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'WP.init';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'parse_request', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'WP.parse_request';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'send_headers', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'WP.send_headers';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'query_posts', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'WP.query_posts';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'handle_404', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'WP.handle_404';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'register_globals', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'WP.register_globals';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('create_initial_post_types', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'create_initial_post_types';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('create_initial_taxonomies', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'create_initial_taxonomies';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('wp_print_head_scripts', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'wp_print_head_scripts';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
         \DDTrace\trace_function('wp_print_footer_scripts', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'wp_print_footer_scripts';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         // These not called in PHP 5 due to call_user_func_array() bug
@@ -103,18 +114,21 @@ class WordPressIntegrationLoader
             $span->name = $span->resource = 'wp_maybe_load_widgets';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('wp_maybe_load_embeds', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'wp_maybe_load_embeds';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('_wp_customize_include', function (SpanData $span) use ($service) {
             $span->name = $span->resource = '_wp_customize_include';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         // Widgets
@@ -122,6 +136,7 @@ class WordPressIntegrationLoader
             $span->name = $span->resource = 'wp_widgets_init';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         /* When a widget is registered, trace its `widget` method. The base
@@ -148,6 +163,7 @@ class WordPressIntegrationLoader
                 $span->resource = isset($this->name) ? $this->name : $span->name;
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
+                $span->meta['component'] = WordPressIntegration::NAME;
             });
         });
 
@@ -161,6 +177,7 @@ class WordPressIntegrationLoader
                 'db.name' => $args[2],
                 'db.host' => $args[3],
             ];
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('wpdb', 'query', function (SpanData $span, array $args) use ($service) {
@@ -168,6 +185,7 @@ class WordPressIntegrationLoader
             $span->resource = $args[0];
             $span->type = Type::SQL;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         // Views
@@ -176,12 +194,14 @@ class WordPressIntegrationLoader
             $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('the_custom_header_markup', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'the_custom_header_markup';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         // ???
@@ -189,6 +209,7 @@ class WordPressIntegrationLoader
             $span->name = $span->resource = 'body_class';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('load_template', function (SpanData $span, array $args) use ($service) {
@@ -196,21 +217,25 @@ class WordPressIntegrationLoader
             $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('the_content', function (SpanData $span) use ($service) {
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('the_post', function (SpanData $span) use ($service) {
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('get_avatar', function (SpanData $span) use ($service) {
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('the_post_thumbnail', function (SpanData $span, array $args) use ($service) {
@@ -221,6 +246,7 @@ class WordPressIntegrationLoader
             }
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('comments_template', function (SpanData $span, array $args) use ($service) {
@@ -228,6 +254,7 @@ class WordPressIntegrationLoader
             $span->resource = !empty($args[0]) ? $args[0] : '/comments.php';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         // ???
@@ -236,6 +263,7 @@ class WordPressIntegrationLoader
             $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         /* The dynamic sidebar has many actions which trigger inside it, so
@@ -251,6 +279,7 @@ class WordPressIntegrationLoader
                 }
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
+                $span->meta['component'] = WordPressIntegration::NAME;
             },
         ]);
 
@@ -261,28 +290,27 @@ class WordPressIntegrationLoader
             $span->name = 'get_footer';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         // https://developer.wordpress.org/reference/functions/get_query_template/
         \DDTrace\trace_function('get_query_template', function (SpanData $span, array $args) use ($service) {
-            if (isset($args[0])) {
-                $type = $args[0];
-                $span->resource = "type $type";
-            }
+            $type = isset($args[0]) ? $args[0] : '?';
+            $span->resource = "(type: $type)";
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         });
 
         // Actions
         // https://developer.wordpress.org/reference/functions/do_action/
         $action = function (SpanData $span, array $args) use ($service) {
-            $span->name = 'do_action';
-            if (isset($args[0])) {
-                $name = $args[0];
-                $span->resource = "hook_name $name";
-            }
+            $span->name = 'action';
+            $hookName = isset($args[0]) ? $args[0] : '?';
+            $span->resource = "(hook_name: $hookName)";
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
+            $span->meta['component'] = WordPressIntegration::NAME;
         };
         foreach (['do_action', 'do_action_ref_array'] as $function) {
             \DDTrace\trace_function($function, ['recurse' => true, 'prehook' => $action]);
