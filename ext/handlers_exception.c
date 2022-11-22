@@ -4,9 +4,9 @@
 
 #include "configuration.h"
 #include "engine_hooks.h"  // For 'ddtrace_resource'
+#include "handlers_exception.h"
 #include "handlers_internal.h"
 #include "serializer.h"
-#include "span.h"
 
 // Keep in mind that we are currently not having special handling for uncaught exceptions thrown within the shutdown
 // sequence. This arises from the exception handlers being only invoked at the end of {main}. Additionally we currently
@@ -47,6 +47,13 @@ static void dd_check_exception_in_header(int old_response_code) {
         return;
     }
 
+    zend_object *ex = ddtrace_find_active_exception();
+    if (ex) {
+        ZVAL_OBJ_COPY(ddtrace_spandata_property_exception(root_span), ex);
+    }
+}
+
+zend_object *ddtrace_find_active_exception(void) {
     zend_execute_data *ex = EG(current_execute_data);
     do {
         if (ex->func && ZEND_USER_CODE(ex->func->type)) {
@@ -112,8 +119,7 @@ static void dd_check_exception_in_header(int old_response_code) {
                 ZVAL_DEREF(exception);
                 if (Z_TYPE_P(exception) == IS_OBJECT &&
                     instanceof_function(Z_OBJ_P(exception)->ce, zend_ce_throwable)) {
-                    ZVAL_COPY(ddtrace_spandata_property_exception(root_span), exception);
-                    return;
+                    return Z_OBJ_P(exception);
                 }
 
                 // The final jump was eliminated from the current try  block, but possibly we are in a nested try/catch,
@@ -125,6 +131,8 @@ static void dd_check_exception_in_header(int old_response_code) {
         }
         ex = ex->prev_execute_data;
     } while (ex);
+
+    return NULL;
 }
 
 static PHP_FUNCTION(ddtrace_header) {

@@ -225,4 +225,11 @@ static zend_always_inline zend_object *zend_weakref_key_to_object(zend_ulong key
 #endif
 #endif
 
+#if PHP_VERSION_ID < 80300
+static zend_always_inline zend_result zend_call_function_with_return_value(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval *retval) {
+    fci->retval = retval;
+    return zend_call_function(fci, fci_cache);
+}
+#endif
+
 #endif  // DD_COMPATIBILITY_H
