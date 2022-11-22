@@ -837,6 +837,7 @@ impl Profiler {
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
+        samples: u64,
         total_size: u64,
         locals: &RequestLocals,
     ) {
@@ -856,7 +857,7 @@ impl Profiler {
                     },
                 ];
 
-                let sample_values = vec![1 as i64, total_size as i64];
+                let sample_values = vec![samples as i64, total_size as i64];
 
                 let mut labels = vec![];
                 let gpc = datadog_php_profiling_get_profiling_context;

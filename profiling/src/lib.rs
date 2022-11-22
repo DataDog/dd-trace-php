@@ -996,7 +996,7 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
             - len as i64;
 
         if remaing_bytes > 0 {
-            return (false, 0);
+            return (false, 0, 0);
         }
 
         let sampling_interval = allocations.sampling_interval.load(Ordering::Relaxed) as i64;
@@ -1023,14 +1023,15 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
 
         let total_size: u64 = (samples * sampling_interval as f64) as u64;
 
-        return (true, total_size);
+        return (true, samples as u64, total_size);
     });
 
     if !stats.0 {
         return ptr;
     }
 
-    let total_size = stats.1;
+    let samples = stats.1;
+    let total_size = stats.2;
 
     REQUEST_LOCALS.with(|cell| {
         // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
@@ -1049,6 +1050,7 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
             unsafe {
                 profiler.collect_allocations(
                     zend::executor_globals.current_execute_data,
+                    samples,
                     total_size,
                     &locals,
                 )
