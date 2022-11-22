@@ -662,6 +662,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
@@ -768,6 +769,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_opentracing_10
@@ -868,10 +870,13 @@ test_integrations_curl: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/Curl)
 test_integrations_elasticsearch1: global_test_run_dependencies
 	$(MAKE) test_scenario_elasticsearch1
-	$(call run_tests,tests/Integrations/Elasticsearch)
+	$(call run_tests,tests/Integrations/Elasticsearch/V1)
 test_integrations_elasticsearch7: global_test_run_dependencies
 	$(MAKE) test_scenario_elasticsearch7
-	$(call run_tests,tests/Integrations/Elasticsearch)
+	$(call run_tests,tests/Integrations/Elasticsearch/V1)
+test_integrations_elasticsearch8: global_test_run_dependencies
+	$(MAKE) test_scenario_elasticsearch8
+	$(call run_tests,tests/Integrations/Elasticsearch/V8)
 test_integrations_guzzle5: global_test_run_dependencies
 	$(MAKE) test_scenario_guzzle5
 	$(call run_tests,tests/Integrations/Guzzle/V5)

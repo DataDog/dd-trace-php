@@ -1,21 +1,21 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Elasticsearch\V1;
+namespace DDTrace\Tests\Integrations\Elasticsearch\V8;
 
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use Elasticsearch\Client;
-use Elasticsearch\ClientBuilder;
+use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\ClientBuilder;
 
 // also drops empty arrays
-function keep_non_symfony_and_curl_spans($span)
+function keep_non_guzzle_and_curl_spans($span)
 {
     if (!\is_array($span)) {
         return true;
     }
     if (isset($span['name'])) {
-        return \strpos($span['name'], 'symfony.') !== 0 && \strpos($span['name'], 'curl') !== 0 ;
+        return \stripos($span['name'], 'guzzle') !== 0 && \strpos($span['name'], 'curl') !== 0 ;
     }
     return !empty($span);
 }
@@ -37,8 +37,7 @@ function array_filter_recursive(callable $keep_fn, array $input)
  */
 class ElasticSearchIntegrationTest extends IntegrationTestCase
 {
-    const HOST2 = 'elasticsearch2_integration';
-    const HOST7 = 'elasticsearch7_integration';
+    const HOST7 = 'http://elasticsearch7_integration:9200';
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {
@@ -84,14 +83,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'count'
             )->withChildren([
-                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
-                    ->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
-                    ]),
+                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
         ]);
     }
 
@@ -106,11 +100,11 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         ]);
         $client->indices()->flush();
         $traces = $this->isolateTracer(function () use ($client) {
-            $this->assertSame('array', gettype($client->delete([
+            $this->assertSame('deleted', $client->delete([
                 'id' => 1,
                 'index' => 'my_index',
                 'type' => 'my_type',
-            ])));
+            ])["result"]);
         });
 
         $this->assertFlameGraph($traces, [
@@ -120,14 +114,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'delete index:my_index type:my_type'
             )->withChildren([
-                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
-                    ->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
-                    ]),
+                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
         ]);
     }
 
@@ -146,7 +135,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'id' => 1,
                 'index' => 'my_index',
                 'type' => 'my_type',
-            ]));
+            ])->asBool());
         });
 
         $this->assertFlameGraph($traces, [
@@ -156,13 +145,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'exists index:my_index type:my_type'
             )->withChildren([
-                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
-                    ->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
-                    ]),
+                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
         ]);
     }
@@ -200,18 +183,10 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'explain index:my_index type:my_type'
             )->withChildren([
-                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
-                    ->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.serialize',
-                            'Elasticsearch.Serializers.SmartSerializer.serialize'
-                        ),
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
-                    ]),
+                SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
+                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
         ]);
     }
 
@@ -241,14 +216,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'get index:my_index type:my_type'
             )->setTraceAnalyticsCandidate()
             ->withChildren([
-                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
-                    ->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
-                    ]),
+                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
         ]);
     }
 
@@ -272,18 +242,10 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'index index:my_index type:my_type'
             )->withChildren([
-                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
-                    ->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.serialize',
-                            'Elasticsearch.Serializers.SmartSerializer.serialize'
-                        ),
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
-                    ]),
+                SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
+                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
         ]);
     }
 
@@ -396,7 +358,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.scroll',
@@ -404,7 +366,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'scroll'
             ),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.scroll',
@@ -412,6 +374,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'scroll'
             ),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
         ]);
     }
 
@@ -444,17 +407,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'search index:' . 'my_index'
             )->setTraceAnalyticsCandidate()
             ->withChildren([
-                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
-                    ->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.serialize',
-                            'Elasticsearch.Serializers.SmartSerializer.serialize'
-                        ),
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
-                    ]),
+                SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
+                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
         ]);
     }
@@ -483,6 +437,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Elasticsearch.Client.search', 'search index:my_index')
                 ->withChildren([
+                    SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
                     SpanAssertion::build(
                         'Elasticsearch.Endpoint.performRequest',
                         'elasticsearch',
@@ -490,18 +445,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                         'performRequest'
                     )->withExactTags([
                         'elasticsearch.url' => '/my_index/_search',
-                        'elasticsearch.method' => \PHP_VERSION_ID >= 70300 ? 'POST' : 'GET',
-                        'elasticsearch.params' => '[]',
+                        'elasticsearch.method' => 'POST',
                         'elasticsearch.body' => '{"query":{"match_all":{}}}'
-                    ])->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.serialize',
-                            'Elasticsearch.Serializers.SmartSerializer.serialize'
-                        ),
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
                     ]),
                 ]),
         ]);
@@ -532,19 +477,11 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'update index:my_index type:my_type'
-            )->withChildren(
-                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
-                    ->withChildren([
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.serialize',
-                            'Elasticsearch.Serializers.SmartSerializer.serialize'
-                        ),
-                        SpanAssertion::exists(
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
-                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
-                        ),
-                    ])
-            ),
+            )->withChildren([
+                SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
+                SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
+            ]),
+            SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
         ]);
     }
 
@@ -563,21 +500,17 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client, $namespace, $method) {
             try {
                 $client->$namespace()->$method([]);
-            } catch (\Elasticsearch\Common\Exceptions\BadRequest400Exception $ex) {
-            } catch (\Elasticsearch\Common\Exceptions\RuntimeException $ex) {
+            } catch (\Elastic\Elasticsearch\Exception\ElasticsearchException $ex) {
             }
         });
 
         $fragment = ucfirst($namespace);
-        $this->assertOneSpan($traces, SpanAssertion::exists("Elasticsearch.${fragment}Namespace.$method"));
+        $this->assertOneSpan($traces, SpanAssertion::exists("Elasticsearch.{$fragment}.$method"));
     }
 
     public function namespacesDataProvider()
     {
-        return array_map(function ($i) {
-            unset($i[2]);
-            return $i;
-        }, array_filter([
+        return [
             // indices operations
             ['indices', 'analyze'],
             ['indices', 'analyze'],
@@ -586,34 +519,25 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             ['indices', 'create'],
             ['indices', 'delete'],
             ['indices', 'deleteAlias'],
-            ['indices', 'deleteMapping', \PHP_VERSION_ID < 70300],
             ['indices', 'deleteTemplate'],
-            ['indices', 'deleteWarmer', \PHP_VERSION_ID < 70300],
             ['indices', 'exists'],
             ['indices', 'existsAlias'],
             ['indices', 'existsTemplate'],
-            ['indices', 'existsType'],
             ['indices', 'flush'],
             ['indices', 'getAlias'],
-            ['indices', 'getAliases'],
             ['indices', 'getFieldMapping'],
             ['indices', 'getMapping'],
             ['indices', 'getSettings'],
             ['indices', 'getTemplate'],
-            ['indices', 'getWarmer', \PHP_VERSION_ID < 70300],
             ['indices', 'open'],
-            ['indices', 'optimize', \PHP_VERSION_ID < 70300],
             ['indices', 'putAlias'],
             ['indices', 'putMapping'],
             ['indices', 'putSettings'],
             ['indices', 'putTemplate'],
-            ['indices', 'putWarmer', \PHP_VERSION_ID < 70300],
             ['indices', 'recovery'],
             ['indices', 'refresh'],
             ['indices', 'segments'],
-            ['indices', 'snapshotIndex', \PHP_VERSION_ID < 70300],
             ['indices', 'stats'],
-            ['indices', 'status', \PHP_VERSION_ID < 70300],
             ['indices', 'updateAliases'],
             ['indices', 'validateQuery'],
 
@@ -654,11 +578,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             // nodes operations
             ['nodes', 'hotThreads'],
             ['nodes', 'info'],
-            ['nodes', 'shutdown', \PHP_VERSION_ID < 70300],
             ['nodes', 'stats'],
-        ], function ($i) {
-            return !isset($i[2]) || $i[2];
-        }));
+        ];
     }
 
     /**
@@ -666,11 +587,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
      */
     protected function client()
     {
-        if (PHP_VERSION_ID >= 70300) {
-            return ClientBuilder::create()->setHosts([self::HOST7])->build();
-        } else {
-            return new Client(['hosts' => [self::HOST2]]);
-        }
+        return ClientBuilder::create()->setHosts([self::HOST7])->build();
     }
 
     /**
@@ -681,7 +598,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function isolateLimitedTracer($fn, $tracer = null)
     {
         $traces = parent::isolateLimitedTracer($fn, $tracer);
-        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_and_curl_spans', $traces);
+        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_guzzle_and_curl_spans', $traces);
     }
 
     /**
@@ -693,6 +610,6 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function isolateTracer($fn, $tracer = null, $config = [])
     {
         $traces = parent::isolateTracer($fn, $tracer);
-        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_and_curl_spans', $traces);
+        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_guzzle_and_curl_spans', $traces);
     }
 }

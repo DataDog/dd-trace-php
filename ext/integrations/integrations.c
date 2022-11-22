@@ -153,6 +153,8 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELASTICSEARCH, "elasticsearch\\client", "__construct",
                                          "DDTrace\\Integrations\\ElasticSearch\\V1\\ElasticSearchIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELASTICSEARCH, "elastic\\elasticsearch\\client", "__construct",
+                                         "DDTrace\\Integrations\\ElasticSearch\\V8\\ElasticSearchIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELOQUENT, "Illuminate\\Database\\Eloquent\\Builder", "__construct",
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
