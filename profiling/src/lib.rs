@@ -358,13 +358,14 @@ pub struct RequestLocals {
 }
 
 //
-const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 1.0;
+const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 10.0;
 
 pub struct AllocationProfilingStats {
     /// number of bytes in "this" sampling interval
     pub sampling_interval: AtomicU64,
     /// number of bytes until next sample collection
     pub remaing_bytes: AtomicI64,
+    pub allocation_count: AtomicU64,
 }
 
 fn static_tags() -> Vec<Tag> {
@@ -397,7 +398,8 @@ thread_local! {
 
     static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats {
         sampling_interval: AtomicU64::new(0),
-        remaing_bytes: AtomicI64::new(0)
+        remaing_bytes: AtomicI64::new(0),
+        allocation_count: AtomicU64::new(0),
     });
 }
 
@@ -995,6 +997,8 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
             .fetch_sub(len as i64, Ordering::Relaxed)
             - len as i64;
 
+        let allocation_count = allocations.allocation_count.fetch_add(1, Ordering::Relaxed);
+
         if remaing_bytes > 0 {
             return (false, 0, 0);
         }
@@ -1020,10 +1024,14 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
         allocations
             .remaing_bytes
             .store(remaing_bytes, Ordering::Relaxed);
+        allocations
+            .allocation_count
+            .store(0, Ordering::Relaxed);
 
         let total_size: u64 = (samples * sampling_interval as f64) as u64;
 
-        return (true, samples as u64, total_size);
+        return (true, allocation_count, total_size);
+        // return (true, samples as u64, total_size);
     });
 
     if !stats.0 {
