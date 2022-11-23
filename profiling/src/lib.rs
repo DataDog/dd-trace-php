@@ -274,23 +274,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     {
-        ALLOCATION_PROFILING_STATS.with(|cell| {
-            let allocations = cell.borrow_mut();
-            let mut sampling_interval: i64 = Poisson::new(ALLOCATION_PROFILING_INTERVAL)
-                .unwrap()
-                .sample(&mut rand::thread_rng())
-                as i64;
-            if sampling_interval <= 0 {
-                sampling_interval = 8;
-            }
-            allocations
-                .sampling_interval
-                .store(sampling_interval as u64, Ordering::Relaxed);
-            allocations
-                .remaing_bytes
-                .store(sampling_interval, Ordering::Relaxed);
-        });
-
         if unsafe { !zend::is_zend_mm() } {
             // Neighboring custom memory handlers found
             unsafe {
@@ -371,9 +354,10 @@ pub struct AllocationProfilingStats {
 
 impl AllocationProfilingStats {
     pub fn new() -> AllocationProfilingStats {
+        let next_sampling_interval = AllocationProfilingStats::next_sampling_interval();
         AllocationProfilingStats {
-            sampling_interval: AtomicU64::new(0),
-            remaing_bytes: AtomicI64::new(0),
+            sampling_interval: AtomicU64::new(next_sampling_interval),
+            remaing_bytes: AtomicI64::new(next_sampling_interval as i64),
             allocation_count: AtomicU64::new(0),
         }
     }
@@ -663,6 +647,12 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             }
         });
     }
+
+    ALLOCATION_PROFILING_STATS.with(|cell| {
+        let allocations = cell.borrow();
+        allocations.reset();
+    });
+
     ZendResult::Success
 }
 
@@ -745,11 +735,6 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
             }
             locals.tags = static_tags();
         }
-    });
-
-    ALLOCATION_PROFILING_STATS.with(|cell| {
-        let allocations = cell.borrow();
-        allocations.reset();
     });
 
     ZendResult::Success
