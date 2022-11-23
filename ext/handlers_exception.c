@@ -99,9 +99,15 @@ zend_object *ddtrace_find_active_exception(void) {
 
                 // Now iterate the individual catch blocks to find which one we are in and extract the CV
 #if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 70100
+                while (catch_op->result.num == 0 && catch_op->extended_value < op_num) {
+                    catch_op = &ex->func->op_array.opcodes[catch_op->extended_value];
+                }
+#else
                 while (catch_op->result.num == 0 && ZEND_OFFSET_TO_OPLINE(catch_op, catch_op->extended_value) < ex->opline) {
                     catch_op = ZEND_OFFSET_TO_OPLINE(catch_op, catch_op->extended_value);
                 }
+#endif
 
                 zval *exception = ZEND_CALL_VAR(ex, catch_op->op2.var);
 #else
