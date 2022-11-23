@@ -909,9 +909,10 @@ impl Profiler {
 
                 match self.send_sample(message) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {} with size {} and labels {:?} to profiler.",
+                        "Sent stack sample of depth {} with size {}, count {} and labels {:?} to profiler.",
                         depth,
                         total_size,
+                        samples,
                         labels
                     ),
                     Err(err) => warn!(

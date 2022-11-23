@@ -357,7 +357,7 @@ pub struct RequestLocals {
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
-//
+/// take a sample every X bytes
 const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 10.0;
 
 pub struct AllocationProfilingStats {
@@ -365,7 +365,81 @@ pub struct AllocationProfilingStats {
     pub sampling_interval: AtomicU64,
     /// number of bytes until next sample collection
     pub remaing_bytes: AtomicI64,
+    /// number of allocations since last sample
     pub allocation_count: AtomicU64,
+}
+
+impl AllocationProfilingStats {
+    pub fn new() -> AllocationProfilingStats {
+        AllocationProfilingStats {
+            sampling_interval: AtomicU64::new(0),
+            remaing_bytes: AtomicI64::new(0),
+            allocation_count: AtomicU64::new(0),
+        }
+    }
+
+    pub fn reset(&self) {
+        self.allocation_count.store(0, Ordering::Relaxed);
+        self.sampling_interval
+            .store(
+                AllocationProfilingStats::next_sampling_interval(),
+                Ordering::Relaxed
+            );
+        self.remaing_bytes
+            .store(
+                self.sampling_interval.load(Ordering::Relaxed) as i64,
+                Ordering::Relaxed
+            );
+    }
+
+    fn next_sampling_interval() -> u64 {
+        Poisson::new(ALLOCATION_PROFILING_INTERVAL)
+            .unwrap()
+            .sample(&mut rand::thread_rng()) as u64
+    }
+
+    pub fn track_allocation(&self, len: u64) -> (bool, u64, u64) {
+        let mut remaing_bytes: i64 = self
+            .remaing_bytes
+            .fetch_sub(len as i64, Ordering::Relaxed)
+            - len as i64;
+
+        let allocation_count = self
+            .allocation_count
+            .fetch_add(1, Ordering::Relaxed)
+            + 1;
+
+        if remaing_bytes > 0 {
+            return (false, 0, 0)
+        }
+
+        let sampling_interval = self.sampling_interval.load(Ordering::Relaxed) as i64;
+        let next_sampling_interval = AllocationProfilingStats::next_sampling_interval();
+        let mut samples: f64 = (remaing_bytes * -1 / sampling_interval as i64) as f64;
+        remaing_bytes = remaing_bytes % sampling_interval;
+
+        loop {
+            remaing_bytes += next_sampling_interval as i64;
+            samples += 1.0;
+            if remaing_bytes > 0 {
+                break;
+            }
+        }
+
+        let total_size: u64 = (samples * sampling_interval as f64) as u64;
+
+        self.allocation_count.store(0, Ordering::Relaxed);
+        self.sampling_interval.store(
+            next_sampling_interval,
+            Ordering::Relaxed
+        );
+        self.remaing_bytes.store(
+            remaing_bytes,
+            Ordering::Relaxed
+        );
+
+        (true, allocation_count, total_size)
+    }
 }
 
 fn static_tags() -> Vec<Tag> {
@@ -396,11 +470,7 @@ thread_local! {
         vm_interrupt_addr: std::ptr::null_mut(),
     });
 
-    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats {
-        sampling_interval: AtomicU64::new(0),
-        remaing_bytes: AtomicI64::new(0),
-        allocation_count: AtomicU64::new(0),
-    });
+    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats::new());
 }
 
 /// Gets the runtime-id for the process.
@@ -675,6 +745,11 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
             }
             locals.tags = static_tags();
         }
+    });
+
+    ALLOCATION_PROFILING_STATS.with(|cell| {
+        let allocations = cell.borrow();
+        allocations.reset();
     });
 
     ZendResult::Success
@@ -990,48 +1065,8 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     }
 
     let stats = ALLOCATION_PROFILING_STATS.with(|cell| {
-        let allocations = cell.borrow_mut();
-
-        let mut remaing_bytes: i64 = allocations
-            .remaing_bytes
-            .fetch_sub(len as i64, Ordering::Relaxed)
-            - len as i64;
-
-        let allocation_count = allocations.allocation_count.fetch_add(1, Ordering::Relaxed);
-
-        if remaing_bytes > 0 {
-            return (false, 0, 0);
-        }
-
-        let sampling_interval = allocations.sampling_interval.load(Ordering::Relaxed) as i64;
-        let next_sampling_interval = Poisson::new(ALLOCATION_PROFILING_INTERVAL)
-            .unwrap()
-            .sample(&mut rand::thread_rng()) as u64;
-        let mut samples: f64 = (remaing_bytes * -1 / sampling_interval as i64) as f64;
-        remaing_bytes = remaing_bytes % sampling_interval;
-
-        loop {
-            remaing_bytes += next_sampling_interval as i64;
-            samples += 1.0;
-            if remaing_bytes > 0 {
-                break;
-            }
-        }
-
-        allocations
-            .sampling_interval
-            .store(next_sampling_interval, Ordering::Relaxed);
-        allocations
-            .remaing_bytes
-            .store(remaing_bytes, Ordering::Relaxed);
-        allocations
-            .allocation_count
-            .store(0, Ordering::Relaxed);
-
-        let total_size: u64 = (samples * sampling_interval as f64) as u64;
-
-        return (true, allocation_count, total_size);
-        // return (true, samples as u64, total_size);
+        let allocations = cell.borrow();
+        allocations.track_allocation(len)
     });
 
     if !stats.0 {
@@ -1081,13 +1116,58 @@ unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
 
 #[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_realloc(
-    ptr: *mut ::libc::c_void,
+    prev_ptr: *mut ::libc::c_void,
     len: u64,
 ) -> *mut ::libc::c_void {
+    let ptr: *mut libc::c_void;
     if PREV_CUSTOM_MM_REALLOC.is_none() {
-        zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len)
+        ptr = zend::_zend_mm_realloc(zend::zend_mm_get_heap(), prev_ptr, len);
     } else {
         let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
-        prev(ptr, len)
+        ptr = prev(prev_ptr, len);
     }
+
+    // during startup, minit, rinit, ... current_execute_data is null
+    if zend::executor_globals.current_execute_data.is_null() || ptr == prev_ptr {
+        return ptr;
+    }
+
+    let stats = ALLOCATION_PROFILING_STATS.with(|cell| {
+        let allocations = cell.borrow();
+        allocations.track_allocation(len)
+    });
+
+    if !stats.0 {
+        return ptr;
+    }
+
+    let samples = stats.1;
+    let total_size = stats.2;
+
+    REQUEST_LOCALS.with(|cell| {
+        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+        let locals = cell.try_borrow();
+        if locals.is_err() {
+            return;
+        }
+        let locals = locals.unwrap();
+
+        if !locals.profiling_enabled {
+            return;
+        }
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            unsafe {
+                profiler.collect_allocations(
+                    zend::executor_globals.current_execute_data,
+                    samples,
+                    total_size,
+                    &locals,
+                )
+            };
+        }
+    });
+
+    ptr
 }
