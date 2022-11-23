@@ -17,7 +17,7 @@ while true; do
       fi
     else
       # while to make absolutely sure it's running
-      while ! docker network ls | grep -q randomized_tests_baseservices || { sleep 1; ! docker network ls | grep -q randomized_tests_baseservices }; do
+      while ! docker network ls | grep -q randomized_tests_baseservices || { sleep 1; ! docker network ls | grep -q randomized_tests_baseservices; }; do
         docker-compose up -d
       done
     fi
