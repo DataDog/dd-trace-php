@@ -388,14 +388,14 @@ impl AllocationProfilingStats {
             .fetch_sub(len as i64, Ordering::Relaxed)
             - len as i64;
 
+        if remaing_bytes > 0 {
+            return (false, 0, 0)
+        }
+
         let allocation_count = self
             .allocation_count
             .fetch_add(1, Ordering::Relaxed)
             + 1;
-
-        if remaing_bytes > 0 {
-            return (false, 0, 0)
-        }
 
         let sampling_interval = self.sampling_interval.load(Ordering::Relaxed) as i64;
         let next_sampling_interval = AllocationProfilingStats::next_sampling_interval();
