@@ -1039,7 +1039,17 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
 
     // TODO: prepare a function pointer to use so we don't need a runtime check
     if PREV_CUSTOM_MM_ALLOC.is_none() {
-        ptr = zend::_zend_mm_alloc(zend::zend_mm_get_heap(), len);
+        // the first element of the heap struct is the `use_custom_heap` flag. We got to reset this
+        // to 0 to allow for `zend_mm_gc()` to do garbage collection when called during allocation
+        // TODO: find out the correct size of that `use_custom_heap` element at this point I am
+        // assuming that it is a 64 bit integer ....
+        let heap = zend::zend_mm_get_heap();
+        let custom_heap: i64 = std::ptr::read(heap as *const i64);
+        std::ptr::write(heap as *mut i64, 0);
+
+        ptr = zend::_zend_mm_alloc(heap, len);
+
+        std::ptr::write(heap as *mut i64, custom_heap);
     } else {
         let prev = PREV_CUSTOM_MM_ALLOC.unwrap();
         ptr = prev(len);
@@ -1093,7 +1103,17 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
 #[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     if PREV_CUSTOM_MM_FREE.is_none() {
-        zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
+        // the first element of the heap struct is the `use_custom_heap` flag. We got to reset this
+        // to 0 to allow for `zend_mm_gc()` to do garbage collection when called during allocation
+        // TODO: find out the correct size of that `use_custom_heap` element at this point I am
+        // assuming that it is a 64 bit integer ....
+        let heap = zend::zend_mm_get_heap();
+        let custom_heap: i64 = std::ptr::read(heap as *const i64);
+        std::ptr::write(heap as *mut i64, 0);
+
+        zend::_zend_mm_free(heap, ptr);
+
+        std::ptr::write(heap as *mut i64, custom_heap);
     } else {
         let prev = PREV_CUSTOM_MM_FREE.unwrap();
         prev(ptr);
@@ -1107,7 +1127,18 @@ unsafe extern "C" fn alloc_profiling_realloc(
 ) -> *mut ::libc::c_void {
     let ptr: *mut libc::c_void;
     if PREV_CUSTOM_MM_REALLOC.is_none() {
-        ptr = zend::_zend_mm_realloc(zend::zend_mm_get_heap(), prev_ptr, len);
+        // the first element of the heap struct is the `use_custom_heap` flag. We got to reset this
+        // to 0 to allow for `zend_mm_gc()` to do garbage collection when called during allocation
+        // TODO: find out the correct size of that `use_custom_heap` element at this point I am
+        // assuming that it is a 64 bit integer ....
+        let heap = zend::zend_mm_get_heap();
+        let custom_heap: i64 = std::ptr::read(heap as *const i64);
+        std::ptr::write(heap as *mut i64, 0);
+
+        ptr = zend::_zend_mm_realloc(heap, prev_ptr, len);
+
+        std::ptr::write(heap as *mut i64, custom_heap);
+
     } else {
         let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
         ptr = prev(prev_ptr, len);
