@@ -916,9 +916,10 @@ impl Profiler {
                         labels
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {} with size{} and labels {:?} to profiler: {}",
+                        "Failed to send stack sample of depth {} with size {}, count {} and labels {:?} to profiler: {}",
                         depth,
                         total_size,
+                        samples,
                         labels,
                         err
                     ),
