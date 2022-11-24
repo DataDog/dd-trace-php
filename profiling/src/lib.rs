@@ -272,37 +272,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_execute_internal = Some(execute_internal);
     };
 
-    #[cfg(feature = "allocation_profiling")]
-    {
-        if unsafe { !zend::is_zend_mm() } {
-            // Neighboring custom memory handlers found
-            unsafe {
-                zend::zend_mm_get_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    &mut PREV_CUSTOM_MM_ALLOC,
-                    &mut PREV_CUSTOM_MM_FREE,
-                    &mut PREV_CUSTOM_MM_REALLOC,
-                );
-            }
-        }
-
-        unsafe {
-            zend::zend_mm_set_custom_handlers(
-                zend::zend_mm_get_heap(),
-                Some(alloc_profiling_malloc),
-                Some(alloc_profiling_free),
-                Some(alloc_profiling_realloc),
-            );
-        }
-
-        // returns `true` if there are no custom handlers installed
-        // `false` if there are custom handlers installed
-        if unsafe { zend::is_zend_mm() } {
-            info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
-        } else {
-            info!("Memory allocation profiling enabled.")
-        }
-    }
 
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
@@ -315,6 +284,54 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 extern "C" fn prshutdown() -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("PRSHUTDOWN");
+
+    #[cfg(feature = "allocation_profiling")]
+    {
+        // If `zend::is_zend_mm()` is true, the custom handlers have been reset
+        // to `None` already. This is unexpected, therefore we will not touch the ZendMM handlers
+        // anymore as resetting to prev handlers might result in segfaults.
+        if unsafe { !zend::is_zend_mm() } {
+            let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+            let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+            let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
+            unsafe {
+                zend::zend_mm_get_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    &mut custom_mm_malloc,
+                    &mut custom_mm_free,
+                    &mut custom_mm_realloc,
+                );
+            }
+            if custom_mm_free != Some(alloc_profiling_free)
+                || custom_mm_malloc != Some(alloc_profiling_malloc)
+                || custom_mm_realloc != Some(alloc_profiling_realloc)
+            {
+                // Custom handlers are installed, but it's not us. Someone, somewhere might have
+                // function pointers to our custom handlers. Best bet to avoid segfaults is to not
+                // touch custom handlers in ZendMM and make sure our extension will not be
+                // `dlclose()`-ed so the pointers stay valid
+                let zend_extension =
+                    unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const i8) };
+                if !zend_extension.is_null() {
+                    // Safety: Checked for null pointer above.
+                    unsafe {
+                        (*zend_extension).handle = std::ptr::null_mut();
+                    }
+                }
+            } else {
+                // This is the happy path (restore previously installed custom handlers)!
+                unsafe {
+                    zend::zend_mm_set_custom_handlers(
+                        zend::zend_mm_get_heap(),
+                        PREV_CUSTOM_MM_ALLOC,
+                        PREV_CUSTOM_MM_FREE,
+                        PREV_CUSTOM_MM_REALLOC,
+                    );
+                }
+            }
+            info!("Memory allocation profiling disabled.");
+        }
+    }
 
     /* ZAI config may be accessed indirectly via other modules RSHUTDOWN, so
      * delay this until the last possible time.
@@ -648,6 +665,38 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         });
     }
 
+    #[cfg(feature = "allocation_profiling")]
+    {
+        if unsafe { !zend::is_zend_mm() } {
+            // Neighboring custom memory handlers found
+            unsafe {
+                zend::zend_mm_get_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    &mut PREV_CUSTOM_MM_ALLOC,
+                    &mut PREV_CUSTOM_MM_FREE,
+                    &mut PREV_CUSTOM_MM_REALLOC,
+                );
+            }
+        }
+
+        unsafe {
+            zend::zend_mm_set_custom_handlers(
+                zend::zend_mm_get_heap(),
+                Some(alloc_profiling_malloc),
+                Some(alloc_profiling_free),
+                Some(alloc_profiling_realloc),
+            );
+        }
+
+        // returns `true` if there are no custom handlers installed
+        // `false` if there are custom handlers installed
+        if unsafe { zend::is_zend_mm() } {
+            info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
+        } else {
+            info!("Memory allocation profiling enabled.")
+        }
+    }
+
     ALLOCATION_PROFILING_STATS.with(|cell| {
         let allocations = cell.borrow();
         allocations.reset();
@@ -829,54 +878,6 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     let mut profiler = PROFILER.lock().unwrap();
     if let Some(profiler) = profiler.take() {
         profiler.stop();
-    }
-
-    #[cfg(feature = "allocation_profiling")]
-    {
-        // If `zend::is_zend_mm()` is true, the custom handlers have been reset
-        // to `None` already. This is unexpected, therefore we will not touch the ZendMM handlers
-        // anymore as resetting to prev handlers might result in segfaults.
-        if unsafe { !zend::is_zend_mm() } {
-            let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
-            let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
-            let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
-            unsafe {
-                zend::zend_mm_get_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    &mut custom_mm_malloc,
-                    &mut custom_mm_free,
-                    &mut custom_mm_realloc,
-                );
-            }
-            if custom_mm_free != Some(alloc_profiling_free)
-                || custom_mm_malloc != Some(alloc_profiling_malloc)
-                || custom_mm_realloc != Some(alloc_profiling_realloc)
-            {
-                // Custom handlers are installed, but it's not us. Someone, somewhere might have
-                // function pointers to our custom handlers. Best bet to avoid segfaults is to not
-                // touch custom handlers in ZendMM and make sure our extension will not be
-                // `dlclose()`-ed so the pointers stay valid
-                let zend_extension =
-                    unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const i8) };
-                if !zend_extension.is_null() {
-                    // Safety: Checked for null pointer above.
-                    unsafe {
-                        (*zend_extension).handle = std::ptr::null_mut();
-                    }
-                }
-            } else {
-                // This is the happy path (restore previously installed custom handlers)!
-                unsafe {
-                    zend::zend_mm_set_custom_handlers(
-                        zend::zend_mm_get_heap(),
-                        PREV_CUSTOM_MM_ALLOC,
-                        PREV_CUSTOM_MM_FREE,
-                        PREV_CUSTOM_MM_REALLOC,
-                    );
-                }
-            }
-            info!("Memory allocation profiling disabled.");
-        }
     }
 
     ZendResult::Success
