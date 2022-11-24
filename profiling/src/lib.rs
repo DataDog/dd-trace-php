@@ -311,7 +311,7 @@ pub struct RequestLocals {
 }
 
 /// take a sample every X bytes
-const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 20.0;
+const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 30.0;
 
 pub struct AllocationProfilingStats {
     /// number of bytes in "this" sampling interval
