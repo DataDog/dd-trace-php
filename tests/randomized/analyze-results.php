@@ -188,7 +188,9 @@ function count_circleci_curl_error_7_failures($scenarioResultsRoot)
     $count += substr_count(file_get_contents($phpFpmLogs), 'cURL error 7');
 
     $apacheLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'apache' . DIRECTORY_SEPARATOR . 'error_log';
-    $count += substr_count(file_get_contents($apacheLogs), 'cURL error 7');
+    if (file_exists($apacheLogs)) {
+        $count += substr_count(file_get_contents($apacheLogs), 'cURL error 7');
+    }
 
     return $count;
 }
@@ -218,11 +220,13 @@ function count_possible_segfaults($scenarioResultsRoot)
     $count -= substr_count($phpFpmLogsContent, ' signal 6 (SIGABRT');
 
     $apacheLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'apache' . DIRECTORY_SEPARATOR . 'error_log';
-    $apacheLogsContent = file_get_contents($apacheLogs);
-    if (!$apacheLogsContent) {
-        throw new Exception("Error while reading file $apacheLogs");
+    if (file_exists($apacheLogs)) {
+        $apacheLogsContent = file_get_contents($apacheLogs);
+        if (!$apacheLogsContent) {
+            throw new Exception("Error while reading file $apacheLogs");
+        }
+        $count += substr_count($apacheLogsContent, ' signal ');
     }
-    $count += substr_count($apacheLogsContent, ' signal ');
 
     return $count;
 }

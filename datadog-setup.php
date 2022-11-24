@@ -141,7 +141,7 @@ function install($options)
     echo "Installed required source files to '$installDir'\n";
 
     // Appsec helper and rules
-    if ("x86_64" === $architecture) {
+    if (file_exists($tmpArchiveAppsecRoot)) {
         execute_or_exit(
             "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
             "cp -r " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
@@ -163,10 +163,6 @@ function install($options)
         check_php_ext_prerequisite_or_exit($fullPath, 'json');
 
         $phpProperties = ini_values($fullPath);
-        if (is_truthy($phpProperties[THREAD_SAFETY]) && is_truthy($phpProperties[IS_DEBUG])) {
-            print_error_and_exit('(ZTS DEBUG) builds of PHP are currently not supported');
-        }
-
         if (!isset($phpProperties[INI_SCANDIR])) {
             if (!isset($phpProperties[INI_MAIN])) {
                 print_error_and_exit("It is not possible to perform installation on this system " .
@@ -186,36 +182,35 @@ function install($options)
         // Suffix (zts/debug/alpine)
         $extensionSuffix = '';
         if (is_truthy($phpProperties[IS_DEBUG])) {
-            $extensionSuffix = '-debug';
-        } elseif (is_truthy($phpProperties[THREAD_SAFETY])) {
-            $extensionSuffix = '-zts';
+            $extensionSuffix .= '-debug';
+        }
+        if (is_truthy($phpProperties[THREAD_SAFETY])) {
+            $extensionSuffix .= '-zts';
         }
 
         // Trace
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so";
+        if (!file_exists($extensionRealPath)) {
+            print_error_and_exit(substr($extensionSuffix ?: '-nts') . ' builds of PHP are currently not supported');
+        }
+
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Profiling
-        $shouldInstallProfiling =
-            in_array($phpMajorMinor, ['7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2'])
-            && !is_truthy($phpProperties[THREAD_SAFETY])
-            && !is_truthy($phpProperties[IS_DEBUG]);
+        $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling.so";
+        $shouldInstallProfiling = file_exists($profilingExtensionRealPath);
 
         if ($shouldInstallProfiling) {
-            $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling.so";
             $profilingExtensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so';
             safe_copy_extension($profilingExtensionRealPath, $profilingExtensionDestination);
         }
 
         // Appsec
-        $shouldInstallAppsec =
-            in_array($phpMajorMinor, ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2'])
-            && !is_truthy($phpProperties[IS_DEBUG])
-            && in_array($architecture, ["x86_64"]);
+        $appsecExtensionRealPath = "{$tmpArchiveAppsecRoot}/ext/{$extensionVersion}/ddappsec{$extensionSuffix}.so";
+        $shouldInstallAppsec = file_exists($appsecExtensionRealPath);
 
         if ($shouldInstallAppsec) {
-            $appsecExtensionRealPath = "{$tmpArchiveAppsecRoot}/ext/{$extensionVersion}/ddappsec{$extensionSuffix}.so";
             $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }

@@ -33,10 +33,12 @@ echo "Starting nginx"
 nginx
 sleep 1
 
-# Start Apache
-echo "Starting apache"
-httpd
-sleep 1
+if [ -f /usr/lib/apache2/modules/libphp.so ]; then
+    # Start Apache
+    echo "Starting apache"
+    command -v httpd && httpd || apachectl start
+    sleep 1
+fi
 
 # php cli logs
 mkdir -p /var/log/php/

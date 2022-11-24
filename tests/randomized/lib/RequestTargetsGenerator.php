@@ -8,7 +8,7 @@ use RandomizedTests\Tooling\Utils;
 
 class RequestTargetsGenerator
 {
-    public function generate($destination, $numberOfRequestTargets)
+    public function generate($destination, $numberOfRequestTargets, $skipApache)
     {
         $availableQueries = [
             'key' => 'value',
@@ -27,7 +27,7 @@ class RequestTargetsGenerator
         $requests = '';
         for ($idx = 0; $idx < $numberOfRequestTargets; $idx++) {
             $method = ['GET', 'POST'][rand(0, 1)];
-            $port = [/* nginx */80, /* apache*/ 81][rand(0, 1)];
+            $port = [/* nginx */80, /* apache*/ 81][$skipApache ? 0 : rand(0, 1)];
             $host = 'http://localhost';
             // Query String
             $query = '?seed=' . \rand() . '&';
