@@ -358,7 +358,7 @@ pub struct RequestLocals {
 }
 
 /// take a sample every X bytes
-const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 10.0;
+const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 20.0;
 
 pub struct AllocationProfilingStats {
     /// number of bytes in "this" sampling interval
@@ -695,12 +695,12 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         } else {
             info!("Memory allocation profiling enabled.")
         }
-    }
 
-    ALLOCATION_PROFILING_STATS.with(|cell| {
-        let allocations = cell.borrow();
-        allocations.reset();
-    });
+        ALLOCATION_PROFILING_STATS.with(|cell| {
+            let allocations = cell.borrow();
+            allocations.reset();
+        });
+    }
 
     ZendResult::Success
 }
