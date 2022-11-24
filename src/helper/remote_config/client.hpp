@@ -21,8 +21,6 @@
 
 namespace dds::remote_config {
 
-class invalid_path : public std::exception {};
-
 struct config_path {
     static config_path from_path(const std::string &path);
 
@@ -36,7 +34,8 @@ public:
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
         remote_config::settings settings,
-        const std::vector<product> &products = {});
+        const std::vector<product> &products = {},
+        std::vector<protocol::capabilities_e> &&capabilities = {});
     virtual ~client() = default;
 
     client(const client &) = delete;
@@ -66,6 +65,8 @@ protected:
 
     // supported products
     std::map<std::string, product> products_;
+
+    std::vector<protocol::capabilities_e> capabilities_;
 };
 
 } // namespace dds::remote_config

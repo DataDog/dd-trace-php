@@ -9,6 +9,7 @@
 
 #include "../../../json_helper.hpp"
 #include "../cached_target_files.hpp"
+#include "exception.hpp"
 #include "serializer.hpp"
 
 namespace dds::remote_config::protocol {
@@ -40,6 +41,10 @@ void serialize_config_states(rapidjson::Document::AllocatorType &alloc,
         config_state_object.AddMember("id", config_state.id, alloc);
         config_state_object.AddMember("version", config_state.version, alloc);
         config_state_object.AddMember("product", config_state.product, alloc);
+        config_state_object.AddMember(
+            "apply_state", static_cast<int>(config_state.apply_state), alloc);
+        config_state_object.AddMember(
+            "apply_error", config_state.apply_error, alloc);
         config_states_object.PushBack(config_state_object, alloc);
     }
 
@@ -72,6 +77,10 @@ void serialize_client(rapidjson::Document::AllocatorType &alloc,
 
     client_object.AddMember("id", client.id, alloc);
     client_object.AddMember("is_tracer", true, alloc);
+    // activation capability;
+    rapidjson::Value capabilities_array(rapidjson::kArrayType);
+    capabilities_array.PushBack(client.capabilities, alloc);
+    client_object.AddMember("capabilities", capabilities_array, alloc);
 
     rapidjson::Value products(rapidjson::kArrayType);
     for (const std::string &product_str : client.products) {

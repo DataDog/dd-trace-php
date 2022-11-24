@@ -6,60 +6,24 @@
 #pragma once
 
 #include "config.hpp"
+#include "exception.hpp"
+#include "listener.hpp"
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace dds::remote_config {
 
-class product_listener_base {
-public:
-    product_listener_base() = default;
-    product_listener_base(const product_listener_base &) = default;
-    product_listener_base(product_listener_base &&) = default;
-    product_listener_base &operator=(const product_listener_base &) = default;
-    product_listener_base &operator=(product_listener_base &&) = default;
-    virtual ~product_listener_base() = default;
-
-    virtual void on_update(const std::map<std::string, config> &configs) = 0;
-    virtual void on_unapply(const std::map<std::string, config> &configs) = 0;
-};
-
 class product {
 public:
-    explicit product(
-        std::string &&name, std::vector<product_listener_base *> &&listeners)
-        : name_(std::move(name)), listeners_(std::move(listeners)){};
-    void assign_configs(const std::map<std::string, config> &configs)
-    {
-        std::map<std::string, config> to_update;
-        std::map<std::string, config> to_keep;
+    product(std::string &&name, std::shared_ptr<product_listener_base> listener)
+        : name_(std::move(name)), listener_(std::move(listener))
+    {}
 
-        for (const auto &config : configs) {
-            auto previous_config = configs_.find(config.first);
-            if (previous_config == configs_.end()) { // New config
-                to_update.emplace(config.first, config.second);
-            } else { // Already existed
-                if (config.second.hashes ==
-                    previous_config->second.hashes) { // No changes in config
-                    to_keep.emplace(config.first, config.second);
-                } else { // Config updated
-                    to_update.emplace(config.first, config.second);
-                }
-                configs_.erase(previous_config);
-            }
-        }
-
-        for (product_listener_base *listener : listeners_) {
-            listener->on_update(to_update);
-            listener->on_unapply(configs_);
-        }
-        to_keep.merge(to_update);
-
-        configs_ = std::move(to_keep);
-    };
+    void assign_configs(const std::map<std::string, config> &configs);
     [[nodiscard]] const std::map<std::string, config> &get_configs() const
     {
         return configs_;
@@ -70,10 +34,15 @@ public:
     }
     [[nodiscard]] const std::string &get_name() const { return name_; }
 
-private:
+protected:
+    void update_configs(
+        std::map<std::string, dds::remote_config::config> &to_update);
+    void unapply_configs(
+        std::map<std::string, dds::remote_config::config> &to_unapply);
+
     std::string name_;
     std::map<std::string, config> configs_;
-    std::vector<product_listener_base *> listeners_;
+    std::shared_ptr<product_listener_base> listener_;
 };
 
 } // namespace dds::remote_config

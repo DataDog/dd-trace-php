@@ -112,11 +112,25 @@ remote_config::protocol::client get_client()
 
     std::vector<remote_config::protocol::config_state> config_states;
 
-    std::string config_state = "some config_state id";
-    std::string config_state_product = "some config_state product";
-    remote_config::protocol::config_state cs = {
-        config_state, config_state_version, config_state_product};
-    config_states.push_back(cs);
+    remote_config::protocol::config_state cs_unknown = {
+        "unknown config_state id", 11, "unknown config_state product",
+        remote_config::protocol::config_state::applied_state::UNKNOWN, ""};
+    remote_config::protocol::config_state cs_unacknowledged = {
+        "unacknowledged config_state id", 22,
+        "unacknowledged config_state product",
+        remote_config::protocol::config_state::applied_state::UNACKNOWLEDGED,
+        ""};
+    remote_config::protocol::config_state cs_acknowledged = {
+        "acknowledged config_state id", 33, "acknowledged config_state product",
+        remote_config::protocol::config_state::applied_state::ACKNOWLEDGED, ""};
+    remote_config::protocol::config_state cs_error = {"error config_state id",
+        44, "error config_state product",
+        remote_config::protocol::config_state::applied_state::ERROR,
+        "error description"};
+    config_states.push_back(cs_unknown);
+    config_states.push_back(cs_unacknowledged);
+    config_states.push_back(cs_acknowledged);
+    config_states.push_back(cs_error);
 
     remote_config::protocol::client_state client_s = {
         targets_version, config_states, false, "", "some backend client state"};
@@ -210,10 +224,36 @@ TEST(RemoteConfigSerializer, RequestCanBeSerializedWithClientField)
             client_state_itr->value, "config_states", rapidjson::kArrayType);
     ;
 
+    // UNKNOWN
     rapidjson::Value::ConstValueIterator itr = config_states_itr->value.Begin();
-    assert_it_contains_string(*itr, "id", "some config_state id");
-    assert_it_contains_int(*itr, "version", config_state_version);
-    assert_it_contains_string(*itr, "product", "some config_state product");
+    assert_it_contains_string(*itr, "id", "unknown config_state id");
+    assert_it_contains_int(*itr, "version", 11);
+    assert_it_contains_string(*itr, "product", "unknown config_state product");
+    assert_it_contains_int(*itr, "apply_state", 0);
+    assert_it_contains_string(*itr, "apply_error", "");
+    // UNACKNOWLEDGED
+    itr++;
+    assert_it_contains_string(*itr, "id", "unacknowledged config_state id");
+    assert_it_contains_int(*itr, "version", 22);
+    assert_it_contains_string(
+        *itr, "product", "unacknowledged config_state product");
+    assert_it_contains_int(*itr, "apply_state", 1);
+    assert_it_contains_string(*itr, "apply_error", "");
+    // ACKNOWLEDGED
+    itr++;
+    assert_it_contains_string(*itr, "id", "acknowledged config_state id");
+    assert_it_contains_int(*itr, "version", 33);
+    assert_it_contains_string(
+        *itr, "product", "acknowledged config_state product");
+    assert_it_contains_int(*itr, "apply_state", 2);
+    assert_it_contains_string(*itr, "apply_error", "");
+    // ERROR
+    itr++;
+    assert_it_contains_string(*itr, "id", "error config_state id");
+    assert_it_contains_int(*itr, "version", 44);
+    assert_it_contains_string(*itr, "product", "error config_state product");
+    assert_it_contains_int(*itr, "apply_state", 3);
+    assert_it_contains_string(*itr, "apply_error", "error description");
 }
 
 TEST(RemoteConfigSerializer, RequestCanBeSerializedWithCachedTargetFields)
@@ -265,6 +305,38 @@ TEST(RemoteConfigSerializer, RequestCanBeSerializedWithCachedTargetFields)
         "algorithm", "second hash algorithm");
     assert_it_contains_string(*second_cached_target_files_hash->value.Begin(),
         "hash", "second hash hash");
+}
+
+TEST(RemoteConfigSerializer, CapabilitiesCanBeSet)
+{
+    auto client = get_client();
+    client.set_capabilities({remote_config::protocol::capabilities_e::RESERVED,
+        remote_config::protocol::capabilities_e::ASM_ACTIVATION,
+        remote_config::protocol::capabilities_e::ASM_IP_BLOCKING,
+        remote_config::protocol::capabilities_e::ASM_DD_RULES});
+
+    remote_config::protocol::get_configs_request request = {
+        client, get_cached_target_files()};
+
+    std::optional<std::string> serialised_string;
+    serialised_string = remote_config::protocol::serialize(std::move(request));
+
+    EXPECT_TRUE(serialised_string);
+
+    // Lets transform the resulting string back to json so we can assert more
+    // easily
+    rapidjson::Document serialized_doc;
+    serialized_doc.Parse(serialised_string.value());
+
+    // Client fields
+    rapidjson::Value::ConstMemberIterator client_itr =
+        find_and_assert_type(serialized_doc, "client", rapidjson::kObjectType);
+
+    rapidjson::Value::ConstMemberIterator capabilities_itr =
+        find_and_assert_type(
+            client_itr->value, "capabilities", rapidjson::kArrayType);
+
+    EXPECT_EQ(15, capabilities_itr->value.Begin()->GetInt());
 }
 
 } // namespace dds

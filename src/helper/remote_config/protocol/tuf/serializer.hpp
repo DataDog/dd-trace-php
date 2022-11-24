@@ -12,8 +12,8 @@
 
 namespace dds::remote_config::protocol {
 
-std::string serialize(const get_configs_request &request);
-
 class serializer_exception : public std::exception {};
+
+std::string serialize(const get_configs_request &request);
 
 } // namespace dds::remote_config::protocol

@@ -8,7 +8,6 @@
 #include <string>
 
 #include "common.hpp"
-#include "remote_config/protocol/tuf/get_configs_response.hpp"
 #include "remote_config/protocol/tuf/parser.hpp"
 
 namespace dds {

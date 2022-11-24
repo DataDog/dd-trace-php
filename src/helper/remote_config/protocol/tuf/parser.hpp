@@ -72,7 +72,7 @@ public:
     virtual const char *what() { return message_.c_str(); }
     remote_config_parser_result get_error() { return error_; }
 
-private:
+protected:
     std::string message_;
     remote_config_parser_result error_;
 };
