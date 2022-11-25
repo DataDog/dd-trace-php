@@ -314,74 +314,36 @@ pub struct RequestLocals {
 const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 30.0;
 
 pub struct AllocationProfilingStats {
-    /// number of bytes in "this" sampling interval
-    pub sampling_interval: AtomicU64,
     /// number of bytes until next sample collection
-    pub remaing_bytes: AtomicI64,
+    pub next_sample: i64,
 }
 
 impl AllocationProfilingStats {
     pub fn new() -> AllocationProfilingStats {
-        let next_sampling_interval = AllocationProfilingStats::next_sampling_interval();
         AllocationProfilingStats {
-            sampling_interval: AtomicU64::new(next_sampling_interval),
-            remaing_bytes: AtomicI64::new(next_sampling_interval as i64),
+            next_sample: AllocationProfilingStats::next_sampling_interval(),
         }
     }
 
-    pub fn reset(&self) {
-        self.sampling_interval
-            .store(
-                AllocationProfilingStats::next_sampling_interval(),
-                Ordering::Relaxed
-            );
-        self.remaing_bytes
-            .store(
-                self.sampling_interval.load(Ordering::Relaxed) as i64,
-                Ordering::Relaxed
-            );
-    }
-
-    fn next_sampling_interval() -> u64 {
+    fn next_sampling_interval() -> i64 {
         Poisson::new(ALLOCATION_PROFILING_INTERVAL)
             .unwrap()
-            .sample(&mut rand::thread_rng()) as u64
+            .sample(&mut rand::thread_rng()) as i64
     }
 
-    pub fn track_allocation(&self, len: u64) {
-        let mut remaing_bytes: i64 = self
-            .remaing_bytes
-            .fetch_sub(len as i64, Ordering::Relaxed) as i64;
+    pub fn track_allocation(&mut self, len: u64) {
+        self.next_sample -= len as i64;
 
-        if remaing_bytes > 0 {
+        if self.next_sample > 0 {
             return;
         }
 
-        remaing_bytes -= len as i64;
+        let scale = 1.0 / (1.0 - (len as f64 * -1.0 / ALLOCATION_PROFILING_INTERVAL as f64).exp());
 
-        let sampling_interval = self.sampling_interval.load(Ordering::Relaxed) as i64;
-        let next_sampling_interval = AllocationProfilingStats::next_sampling_interval();
-        let mut samples: f64 = (remaing_bytes * -1 / sampling_interval as i64) as f64;
-        remaing_bytes = remaing_bytes % sampling_interval;
+        let count = 1.0 * scale;
+        let bytes = len as f64 * scale;
 
-        loop {
-            remaing_bytes += next_sampling_interval as i64;
-            samples += 1.0;
-            if remaing_bytes > 0 {
-                break;
-            }
-        }
-
-        let total_size: u64 = (samples * sampling_interval as f64) as u64;
-
-        self.sampling_interval.store(
-            next_sampling_interval,
-            Ordering::Relaxed
-        );
-        self.remaing_bytes.store(
-            remaing_bytes,
-            Ordering::Relaxed
-        );
+        self.next_sample = AllocationProfilingStats::next_sampling_interval();
 
         REQUEST_LOCALS.with(|cell| {
             // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
@@ -400,8 +362,8 @@ impl AllocationProfilingStats {
                 unsafe {
                     profiler.collect_allocations(
                         zend::executor_globals.current_execute_data,
-                        samples as u64,
-                        total_size,
+                        count as u64,
+                        bytes as u64,
                         &locals,
                     )
                 };
@@ -671,11 +633,6 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             } else {
                 info!("Memory allocation profiling enabled.")
             }
-
-            ALLOCATION_PROFILING_STATS.with(|cell| {
-                let allocations = cell.borrow();
-                allocations.reset();
-            });
         }
     }
 
@@ -1091,7 +1048,7 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     }
 
     ALLOCATION_PROFILING_STATS.with(|cell| {
-        let allocations = cell.borrow();
+        let mut allocations = cell.borrow_mut();
         allocations.track_allocation(len)
     });
 
@@ -1147,7 +1104,7 @@ unsafe extern "C" fn alloc_profiling_realloc(
     }
 
     ALLOCATION_PROFILING_STATS.with(|cell| {
-        let allocations = cell.borrow();
+        let mut allocations = cell.borrow_mut();
         allocations.track_allocation(len)
     });
 
