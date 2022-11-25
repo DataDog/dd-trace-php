@@ -330,6 +330,7 @@ impl AllocationProfilingStats {
             .sample(&mut rand::thread_rng()) as i64
     }
 
+    // TODO move to Profiler class
     pub fn track_allocation(&mut self, len: u64) {
         self.next_sample -= len as i64;
 
@@ -352,7 +353,7 @@ impl AllocationProfilingStats {
             }
             let locals = locals.unwrap();
 
-            if !locals.profiling_enabled {
+            if !locals.profiling_experimental_allocations_enabled {
                 return;
             }
 
