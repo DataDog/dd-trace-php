@@ -318,8 +318,6 @@ pub struct AllocationProfilingStats {
     pub sampling_interval: AtomicU64,
     /// number of bytes until next sample collection
     pub remaing_bytes: AtomicI64,
-    /// number of allocations since last sample
-    pub allocation_count: AtomicU64,
 }
 
 impl AllocationProfilingStats {
@@ -328,12 +326,10 @@ impl AllocationProfilingStats {
         AllocationProfilingStats {
             sampling_interval: AtomicU64::new(next_sampling_interval),
             remaing_bytes: AtomicI64::new(next_sampling_interval as i64),
-            allocation_count: AtomicU64::new(0),
         }
     }
 
     pub fn reset(&self) {
-        self.allocation_count.store(0, Ordering::Relaxed);
         self.sampling_interval
             .store(
                 AllocationProfilingStats::next_sampling_interval(),
@@ -352,20 +348,16 @@ impl AllocationProfilingStats {
             .sample(&mut rand::thread_rng()) as u64
     }
 
-    pub fn track_allocation(&self, len: u64) -> (bool, u64, u64) {
+    pub fn track_allocation(&self, len: u64) {
         let mut remaing_bytes: i64 = self
             .remaing_bytes
-            .fetch_sub(len as i64, Ordering::Relaxed)
-            - len as i64;
+            .fetch_sub(len as i64, Ordering::Relaxed) as i64;
 
         if remaing_bytes > 0 {
-            return (false, 0, 0)
+            return;
         }
 
-        let allocation_count = self
-            .allocation_count
-            .fetch_add(1, Ordering::Relaxed)
-            + 1;
+        remaing_bytes -= len as i64;
 
         let sampling_interval = self.sampling_interval.load(Ordering::Relaxed) as i64;
         let next_sampling_interval = AllocationProfilingStats::next_sampling_interval();
@@ -382,7 +374,6 @@ impl AllocationProfilingStats {
 
         let total_size: u64 = (samples * sampling_interval as f64) as u64;
 
-        self.allocation_count.store(0, Ordering::Relaxed);
         self.sampling_interval.store(
             next_sampling_interval,
             Ordering::Relaxed
@@ -392,7 +383,30 @@ impl AllocationProfilingStats {
             Ordering::Relaxed
         );
 
-        (true, allocation_count, total_size)
+        REQUEST_LOCALS.with(|cell| {
+            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+            let locals = cell.try_borrow();
+            if locals.is_err() {
+                return;
+            }
+            let locals = locals.unwrap();
+
+            if !locals.profiling_enabled {
+                return;
+            }
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+                unsafe {
+                    profiler.collect_allocations(
+                        zend::executor_globals.current_execute_data,
+                        samples as u64,
+                        total_size,
+                        &locals,
+                    )
+                };
+            }
+        });
     }
 }
 
@@ -1076,41 +1090,9 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
         return ptr;
     }
 
-    let stats = ALLOCATION_PROFILING_STATS.with(|cell| {
+    ALLOCATION_PROFILING_STATS.with(|cell| {
         let allocations = cell.borrow();
         allocations.track_allocation(len)
-    });
-
-    if !stats.0 {
-        return ptr;
-    }
-
-    let samples = stats.1;
-    let total_size = stats.2;
-
-    REQUEST_LOCALS.with(|cell| {
-        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-        let locals = cell.try_borrow();
-        if locals.is_err() {
-            return;
-        }
-        let locals = locals.unwrap();
-
-        if !locals.profiling_enabled {
-            return;
-        }
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_allocations(
-                    zend::executor_globals.current_execute_data,
-                    samples,
-                    total_size,
-                    &locals,
-                )
-            };
-        }
     });
 
     ptr
@@ -1164,41 +1146,9 @@ unsafe extern "C" fn alloc_profiling_realloc(
         return ptr;
     }
 
-    let stats = ALLOCATION_PROFILING_STATS.with(|cell| {
+    ALLOCATION_PROFILING_STATS.with(|cell| {
         let allocations = cell.borrow();
         allocations.track_allocation(len)
-    });
-
-    if !stats.0 {
-        return ptr;
-    }
-
-    let samples = stats.1;
-    let total_size = stats.2;
-
-    REQUEST_LOCALS.with(|cell| {
-        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-        let locals = cell.try_borrow();
-        if locals.is_err() {
-            return;
-        }
-        let locals = locals.unwrap();
-
-        if !locals.profiling_enabled {
-            return;
-        }
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_allocations(
-                    zend::executor_globals.current_execute_data,
-                    samples,
-                    total_size,
-                    &locals,
-                )
-            };
-        }
     });
 
     ptr
