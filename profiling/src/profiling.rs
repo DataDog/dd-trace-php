@@ -837,8 +837,8 @@ impl Profiler {
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
-        samples: u64,
-        total_size: u64,
+        count: i64,
+        bytes: i64,
         locals: &RequestLocals,
     ) {
         let result = collect_stack_sample(execute_data);
@@ -857,7 +857,7 @@ impl Profiler {
                     },
                 ];
 
-                let sample_values = vec![samples as i64, total_size as i64];
+                let sample_values = vec![count as i64, bytes as i64];
 
                 let mut labels = vec![];
                 let gpc = datadog_php_profiling_get_profiling_context;
@@ -911,15 +911,15 @@ impl Profiler {
                     Ok(_) => trace!(
                         "Sent stack sample of depth {} with size {}, count {} and labels {:?} to profiler.",
                         depth,
-                        total_size,
-                        samples,
+                        bytes,
+                        count,
                         labels
                     ),
                     Err(err) => warn!(
                         "Failed to send stack sample of depth {} with size {}, count {} and labels {:?} to profiler: {}",
                         depth,
-                        total_size,
-                        samples,
+                        bytes,
+                        count,
                         labels,
                         err
                     ),

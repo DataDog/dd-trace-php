@@ -362,8 +362,8 @@ impl AllocationProfilingStats {
                 unsafe {
                     profiler.collect_allocations(
                         zend::executor_globals.current_execute_data,
-                        count as u64,
-                        bytes as u64,
+                        count as i64,
+                        bytes as i64,
                         &locals,
                     )
                 };
