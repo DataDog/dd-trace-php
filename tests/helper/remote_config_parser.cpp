@@ -1032,7 +1032,7 @@ TEST(RemoteConfigParser, TargetsAreParsed)
 
     EXPECT_EQ(27487156, _targets.version);
 
-    std::map<std::string, remote_config::protocol::path> paths = _targets.paths;
+    std::unordered_map<std::string, remote_config::protocol::path> paths = _targets.paths;
 
     EXPECT_EQ(3, paths.size());
 

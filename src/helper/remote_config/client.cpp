@@ -8,9 +8,6 @@
 #include "protocol/tuf/parser.hpp"
 #include "protocol/tuf/serializer.hpp"
 #include <algorithm>
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_io.hpp>
-#include <map>
 #include <regex>
 
 namespace dds::remote_config {
@@ -91,11 +88,12 @@ client::ptr client::from_settings(
 
 bool client::process_response(const protocol::get_configs_response &response)
 {
-    const std::map<std::string, protocol::path> paths_on_targets =
+    const std::unordered_map<std::string, protocol::path> paths_on_targets =
         response.targets.paths;
-    const std::map<std::string, protocol::target_file> target_files =
+    const std::unordered_map<std::string, protocol::target_file> target_files =
         response.target_files;
-    std::map<std::string, std::map<std::string, config>> configs;
+    std::unordered_map<std::string, std::unordered_map<std::string, config>>
+        configs;
     for (const std::string &path : response.client_configs) {
         try {
             auto cp = config_path::from_path(path);
@@ -108,7 +106,8 @@ bool client::process_response(const protocol::get_configs_response &response)
                 return false;
             }
             auto length = path_itr->second.length;
-            std::map<std::string, std::string> hashes = path_itr->second.hashes;
+            std::unordered_map<std::string, std::string> hashes =
+                path_itr->second.hashes;
             int custom_v = path_itr->second.custom_v;
 
             // Is product on the requested ones?
@@ -152,11 +151,11 @@ bool client::process_response(const protocol::get_configs_response &response)
             auto configs_itr = configs.find(cp.product);
             if (configs_itr ==
                 configs.end()) { // Product not in configs yet. Create entry
-                std::map<std::string, config> configs_on_product;
+                std::unordered_map<std::string, config> configs_on_product;
                 configs_on_product.emplace(cp.id, config_);
-                configs.insert(
-                    std::pair<std::string, std::map<std::string, config>>(
-                        cp.product, configs_on_product));
+                configs.insert(std::pair<std::string,
+                    std::unordered_map<std::string, config>>(
+                    cp.product, configs_on_product));
             } else { // Product already exists in configs. Add new config
                 configs_itr->second.emplace(cp.id, config_);
             }

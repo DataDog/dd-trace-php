@@ -57,10 +57,10 @@ bool validate_field_is_present(
     throw parser_exception(invalid);
 }
 
-std::map<std::string, target_file> parse_target_files(
+std::unordered_map<std::string, target_file> parse_target_files(
     rapidjson::Value::ConstMemberIterator target_files_itr)
 {
-    std::map<std::string, target_file> result;
+    std::unordered_map<std::string, target_file> result;
     for (rapidjson::Value::ConstValueIterator itr =
              target_files_itr->value.Begin();
          itr != target_files_itr->value.End(); ++itr) {
@@ -136,7 +136,7 @@ std::pair<std::string, path> parse_target(
         remote_config_parser_result::hashes_path_targets_field_missing,
         remote_config_parser_result::hashes_path_targets_field_invalid);
 
-    std::map<std::string, std::string> hashes_mapped;
+    std::unordered_map<std::string, std::string> hashes_mapped;
     auto hashes_object = hashes_itr->value.GetObject();
     for (rapidjson::Value::ConstMemberIterator itr =
              hashes_object.MemberBegin();
@@ -213,7 +213,7 @@ targets parse_targets_signed(
         rapidjson::kStringType, opaque_backend_state_itr,
         remote_config_parser_result::obs_custom_signed_targets_field_missing,
         remote_config_parser_result::obs_custom_signed_targets_field_invalid);
-    std::map<std::string, path> final_paths;
+    std::unordered_map<std::string, path> final_paths;
     for (auto &[path_str, path] : paths) {
         final_paths.emplace(path_str, path);
     }
@@ -280,7 +280,7 @@ get_configs_response parse(const std::string &body)
         targets_itr, remote_config_parser_result::targets_field_missing,
         remote_config_parser_result::targets_field_invalid_type);
 
-    const std::map<std::string, target_file> &target_files =
+    const std::unordered_map<std::string, target_file> &target_files =
         parse_target_files(target_files_itr);
     const std::vector<std::string> &client_configs =
         parse_client_configs(client_configs_itr);

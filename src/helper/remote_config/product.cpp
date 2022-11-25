@@ -6,7 +6,7 @@
 #include "product.hpp"
 
 void dds::remote_config::product::update_configs(
-    std::map<std::string, dds::remote_config::config> &to_update)
+    std::unordered_map<std::string, dds::remote_config::config> &to_update)
 {
     if (listener_ == nullptr) {
         return;
@@ -27,7 +27,7 @@ void dds::remote_config::product::update_configs(
 }
 
 void dds::remote_config::product::unapply_configs(
-    std::map<std::string, dds::remote_config::config> &to_unapply)
+    std::unordered_map<std::string, dds::remote_config::config> &to_unapply)
 {
     if (listener_ == nullptr) {
         return;
@@ -48,10 +48,10 @@ void dds::remote_config::product::unapply_configs(
 }
 
 void dds::remote_config::product::assign_configs(
-    const std::map<std::string, config> &configs)
+    const std::unordered_map<std::string, config> &configs)
 {
-    std::map<std::string, config> to_update;
-    std::map<std::string, config> to_keep;
+    std::unordered_map<std::string, config> to_update;
+    std::unordered_map<std::string, config> to_keep;
     // determine what each config given is
     for (const auto &[name, config] : configs) {
         auto previous_config = configs_.find(name);

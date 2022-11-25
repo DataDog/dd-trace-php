@@ -10,9 +10,9 @@
 #include "listener.hpp"
 #include <algorithm>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace dds::remote_config {
@@ -23,8 +23,9 @@ public:
         : name_(std::move(name)), listener_(std::move(listener))
     {}
 
-    void assign_configs(const std::map<std::string, config> &configs);
-    [[nodiscard]] const std::map<std::string, config> &get_configs() const
+    void assign_configs(const std::unordered_map<std::string, config> &configs);
+    [[nodiscard]] const std::unordered_map<std::string, config> &
+    get_configs() const
     {
         return configs_;
     };
@@ -36,12 +37,13 @@ public:
 
 protected:
     void update_configs(
-        std::map<std::string, dds::remote_config::config> &to_update);
+        std::unordered_map<std::string, dds::remote_config::config> &to_update);
     void unapply_configs(
-        std::map<std::string, dds::remote_config::config> &to_unapply);
+        std::unordered_map<std::string, dds::remote_config::config>
+            &to_unapply);
 
     std::string name_;
-    std::map<std::string, config> configs_;
+    std::unordered_map<std::string, config> configs_;
     std::shared_ptr<product_listener_base> listener_;
 };
 

@@ -5,15 +5,15 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace dds::remote_config::protocol {
 
 struct path {
     int custom_v;
-    std::map<std::string, std::string> hashes;
+    std::unordered_map<std::string, std::string> hashes;
     int length;
 };
 

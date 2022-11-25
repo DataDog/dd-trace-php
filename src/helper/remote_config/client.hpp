@@ -64,7 +64,7 @@ protected:
     int targets_version_{0};
 
     // supported products
-    std::map<std::string, product> products_;
+    std::unordered_map<std::string, product> products_;
 
     std::vector<protocol::capabilities_e> capabilities_;
 };

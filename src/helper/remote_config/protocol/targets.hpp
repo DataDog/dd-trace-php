@@ -5,8 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <map>
 #include <string>
+#include <unordered_map>
 
 #include "path.hpp"
 
@@ -15,7 +15,7 @@ namespace dds::remote_config::protocol {
 struct targets {
     int version;
     std::string opaque_backend_state;
-    std::map<std::string, path> paths;
+    std::unordered_map<std::string, path> paths;
 };
 
 inline bool operator==(const targets &rhs, const targets &lhs)
