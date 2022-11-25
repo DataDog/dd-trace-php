@@ -735,15 +735,16 @@ impl Profiler {
                 /* If CPU time is disabled, or if it's enabled but not available on the platform,
                  * then `locals.last_cpu_time` will be None.
                  */
-                let mut cputime: i64 = 0;
+                let mut cputime: Option<i64> = None;
                 if let Some(last_cpu_time) = locals.last_cpu_time {
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
-                    cputime = now
+                    let old_cputime = now
                         .duration_since(last_cpu_time)
                         .as_nanos()
                         .try_into()
                         .unwrap_or(i64::MAX);
+                    cputime = Some(old_cputime);
                     locals.last_cpu_time = Some(now);
                 }
 
@@ -785,7 +786,7 @@ impl Profiler {
             Ok(frames) => {
                 let depth = frames.len();
 
-                let message = self.prepare_sample_message(frames, 0, 0, 0, count, bytes, locals);
+                let message = self.prepare_sample_message(frames, 0, 0, None, count, bytes, locals);
 
                 match self.send_sample(message) {
                     Ok(_) => trace!(
@@ -814,7 +815,7 @@ impl Profiler {
         frames: Vec<ZendFrame>,
         sample: i64,
         wall_time: i64,
-        cpu_time: i64,
+        cpu_time: Option<i64>,
         alloc_samples: i64,
         alloc_size: i64,
         locals: &RequestLocals,
@@ -838,12 +839,15 @@ impl Profiler {
             },
         ];
 
-        sample_types.push(ValueType {
-            r#type: Cow::Borrowed("cpu-time"),
-            unit: Cow::Borrowed("nanoseconds"),
-        });
+        let mut sample_values = vec![sample, wall_time, alloc_samples, alloc_size];
 
-        let sample_values = vec![sample, wall_time, alloc_samples, alloc_size, cpu_time];
+        if cpu_time.is_some() {
+            sample_types.push(ValueType {
+                r#type: Cow::Borrowed("cpu-time"),
+                unit: Cow::Borrowed("nanoseconds"),
+            });
+            sample_values.push(cpu_time.unwrap());
+        }
 
         let mut labels = vec![];
         let gpc = datadog_php_profiling_get_profiling_context;
