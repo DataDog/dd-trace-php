@@ -146,7 +146,9 @@ impl ConfigId {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
-            ProfilingExperimentalAllocationsEnabled => b"DD_PROFILING_EXPERIMENTAL_ALLOCATIONS_ENABLED\0",
+            ProfilingExperimentalAllocationsEnabled => {
+                b"DD_PROFILING_EXPERIMENTAL_ALLOCATIONS_ENABLED\0"
+            }
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             AgentHost => b"DD_AGENT_HOST\0",

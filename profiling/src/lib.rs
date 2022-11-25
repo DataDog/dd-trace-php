@@ -25,7 +25,7 @@ use std::mem::MaybeUninit;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, Once};
 use std::time::Instant;
 use uuid::Uuid;
@@ -272,7 +272,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_execute_internal = Some(execute_internal);
     };
 
-
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
      */
@@ -453,7 +452,8 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         locals.profiling_enabled = profiling_enabled;
         locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
-        locals.profiling_experimental_allocations_enabled = profiling_experimental_allocations_enabled;
+        locals.profiling_experimental_allocations_enabled =
+            profiling_experimental_allocations_enabled;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -746,8 +746,9 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                         // function pointers to our custom handlers. Best bet to avoid segfaults is to not
                         // touch custom handlers in ZendMM and make sure our extension will not be
                         // `dlclose()`-ed so the pointers stay valid
-                        let zend_extension =
-                            unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const i8) };
+                        let zend_extension = unsafe {
+                            zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const i8)
+                        };
                         if !zend_extension.is_null() {
                             // Safety: Checked for null pointer above.
                             unsafe {
