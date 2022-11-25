@@ -43,7 +43,7 @@
             "DDTrace\\": "./src/api/"
         },
         "files": [
-            "./src/api/bootstrap.composer.php"
+            "./src/api/ComposerBootstrap.php"
         ]
     },
     "autoload-dev": {
