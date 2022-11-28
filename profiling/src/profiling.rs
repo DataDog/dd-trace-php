@@ -240,7 +240,7 @@ unsafe fn get_arg0(func: *mut zend_execute_data) -> Result<String, &'static str>
     }
 }
 
-unsafe fn wp_enrich_func_with_hook_name(name: &mut String, func: *mut zend_execute_data) {
+unsafe fn wp_enrich_func_with_arg0(name: &mut String, func: *mut zend_execute_data) {
     let hook_name = match get_arg0(func) {
         Ok(ok) => Cow::Owned(ok),
         Err(err) => {
@@ -250,7 +250,7 @@ unsafe fn wp_enrich_func_with_hook_name(name: &mut String, func: *mut zend_execu
     };
 
     // Writes to String (which are Vec) should always succeed as they panic otherwise.
-    let _ = write!(name, "(hook_name: {hook_name})");
+    let _ = write!(name, "('{hook_name}')");
 }
 
 unsafe fn collect_stack_sample(
@@ -290,9 +290,10 @@ unsafe fn collect_stack_sample(
                         "do_action"
                         | "do_action_ref_array"
                         | "apply_filters"
-                        | "apply_filters_ref_array" => {
+                        | "apply_filters_ref_array"
+                        | "get_query_template" => {
                             // todo: verify it's part of WordPress somehow
-                            wp_enrich_func_with_hook_name(&mut name, execute_data);
+                            wp_enrich_func_with_arg0(&mut name, execute_data);
                             name
                         }
                         _ => name,
