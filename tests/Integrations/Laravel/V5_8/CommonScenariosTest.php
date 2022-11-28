@@ -112,7 +112,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         TAG::SPAN_KIND => 'server'
                     ])->setError('Exception', 'Controller error', true)->withChildren([
                         SpanAssertion::exists('laravel.action'),
-
                         SpanAssertion::exists('laravel.view.render')
                             ->withChildren([
                                 SpanAssertion::exists('laravel.view'),
