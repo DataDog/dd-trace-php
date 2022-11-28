@@ -50,19 +50,25 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         Type::WEB_SERVLET,
                         'yii\web\Application.run'
-                    )->withChildren([
+                    )->withExactTags([
+                        Tag::SPAN_KIND => 'server'
+                    ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.runAction',
                             'yii2_test_app',
                             Type::WEB_SERVLET,
                             'homes/view'
-                        )->withChildren([
+                        )->withExactTags([
+                            Tag::SPAN_KIND => 'server'
+                        ])->withChildren([
                             SpanAssertion::build(
                                 'app\controllers\HomesController.runAction',
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'view'
-                            )
+                            )->withExactTags([
+                                Tag::SPAN_KIND => 'server'
+                            ])
                         ])
                     ])
                 ])
