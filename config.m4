@@ -70,8 +70,10 @@ if test "$PHP_DDTRACE" != "no"; then
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
     EXTRA_PHP_SOURCES="ext/handlers_curl.c"
+    ZAI_RESOLVER_SUFFIX=""
 
     if test $PHP_VERSION_ID -lt 80200; then
+      ZAI_RESOLVER_SUFFIX="_pre-8_2"
       EXTRA_PHP_SOURCES="$EXTRA_PHP_SOURCES \
         ext/weakrefs.c"
     fi
@@ -83,7 +85,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
     EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php8/interceptor.c \
-      zend_abstract_interface/interceptor/php8/resolver.c \
+      zend_abstract_interface/interceptor/php8/resolver$ZAI_RESOLVER_SUFFIX.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
     "
   fi

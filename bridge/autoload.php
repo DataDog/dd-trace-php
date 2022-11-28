@@ -15,7 +15,7 @@
 
 // Do not trigger the autoloading mechanism if the class is not defined, so 'terminal' autoloaders - that trigger
 // errors if a class was not found - are supported.
-//   - Class `DDTrace\ComposerBootstrap` is declared in `src/api/bootstrap.composer.php` and it is loaded when the
+//   - Class `DDTrace\ComposerBootstrap` is declared in `src/api/ComposerBootstrap.php` and it is loaded when the
 //     Composer's `vendor/autoload.php` file is required by the application.
 //   - It is declared in the `files` section of the composer file, not as a `psr4` autoloader, so it is loaded always,
 //     even when not explicitly required.

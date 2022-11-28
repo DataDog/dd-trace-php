@@ -36,6 +36,7 @@ RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKE
 
 C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_OPCACHE_FILES := $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -98,20 +99,20 @@ install_all: install install_ini
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/configure
 	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
 
-test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
+	DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
 
-test_c_disabled: export DD_TRACE_CLI_ENABLED=0
-test_c_disabled: export DD_TRACE_DEBUG=1
 test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS) || true; \
+	DD_TRACE_CLI_ENABLED=0 DD_TRACE_DEBUG=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS) || true; \
 	! grep -E 'Successfully triggered flush with trace of size|=== Total [0-9]+ memory leaks detected ===|Segmentation fault' $$(find $(BUILD_DIR)/$(TESTS) -name "*.out" | grep -v segfault_backtrace_enabled.out); \
 	)
+
+test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES)
+	DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
@@ -136,13 +137,20 @@ test_with_init_hook_asan: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php --asan $(INIT_HOOK_TEST_FILES); \
 	)
 
-test_c_asan: export DD_TRACE_CLI_ENABLED=1
 test_c_asan: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
 	set -xe; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) --asan $(BUILD_DIR)/$(TESTS); \
+	USE_ZEND_ALLOC=0 DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) --asan $(BUILD_DIR)/$(TESTS); \
+	)
+
+test_opcache_asan: $(SO_FILE) $(TEST_OPCACHE_FILES)
+	( \
+	set -xe; \
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
+	USE_ZEND_ALLOC=0 DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache \
 	)
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
@@ -304,7 +312,7 @@ build_components_coverage:
 	)
 
 test_components_coverage: build_components_coverage
-	$(MAKE) -C $(COMPONENTS_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(COMPONENTS_BUILD_DIR)/Testing/Temporary/LastTest.log
+	$(MAKE) -C $(COMPONENTS_BUILD_DIR) test $(shell [ -z "${TESTS}" ] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(COMPONENTS_BUILD_DIR)/Testing/Temporary/LastTest.log
 
 test_coverage_collect:
 	$(Q) lcov \
@@ -654,6 +662,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
@@ -661,6 +670,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_roadrunner \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -738,6 +748,33 @@ TEST_INTEGRATIONS_81 := \
 	test_opentracing_10
 
 TEST_WEB_81 := \
+	test_metrics \
+	test_web_codeigniter_22 \
+	test_web_laravel_8x \
+	test_web_nette_24 \
+	test_web_nette_30 \
+	test_web_slim_312 \
+	test_web_slim_4 \
+	test_web_symfony_52 \
+	test_web_wordpress_59 \
+	test_web_custom
+#	test_web_yii_2 \
+
+TEST_INTEGRATIONS_82 := \
+	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_memcached \
+	test_integrations_mongodb1 \
+	test_integrations_mysqli \
+	test_integrations_pcntl \
+	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
+	test_integrations_predis1 \
+	test_integrations_roadrunner \
+	test_opentracing_10
+
+TEST_WEB_82 := \
 	test_metrics \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
@@ -833,10 +870,13 @@ test_integrations_curl: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/Curl)
 test_integrations_elasticsearch1: global_test_run_dependencies
 	$(MAKE) test_scenario_elasticsearch1
-	$(call run_tests,tests/Integrations/Elasticsearch)
+	$(call run_tests,tests/Integrations/Elasticsearch/V1)
 test_integrations_elasticsearch7: global_test_run_dependencies
 	$(MAKE) test_scenario_elasticsearch7
-	$(call run_tests,tests/Integrations/Elasticsearch)
+	$(call run_tests,tests/Integrations/Elasticsearch/V1)
+test_integrations_elasticsearch8: global_test_run_dependencies
+	$(MAKE) test_scenario_elasticsearch8
+	$(call run_tests,tests/Integrations/Elasticsearch/V8)
 test_integrations_guzzle5: global_test_run_dependencies
 	$(MAKE) test_scenario_guzzle5
 	$(call run_tests,tests/Integrations/Guzzle/V5)
@@ -872,6 +912,9 @@ test_integrations_phpredis5: global_test_run_dependencies
 test_integrations_predis1: global_test_run_dependencies
 	$(MAKE) test_scenario_predis1
 	$(call run_tests,tests/Integrations/Predis)
+test_integrations_roadrunner: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Roadrunner/Version_2 update
+	$(call run_tests,tests/Integrations/Roadrunner/V2)
 test_web_cakephp_28: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 update
 	$(call run_tests,--testsuite=cakephp-28-test)

@@ -52,6 +52,11 @@ switch ($_SERVER['REQUEST_URI']) {
         (new MyApp\MyBundle\Dispatcher())->dispatchWithThrowable();
         break;
 
+    case "/unhandled-throwable-multiple-catch":
+        require __DIR__ . '/dispatcher.php';
+        (new MyApp\MyBundle\Dispatcher())->dispatchWithMultipleCatches();
+        break;
+
     case "/unhandled-nested-exception-class":
         require __DIR__ . '/dispatcher.php';
         (new MyApp\MyBundle\Dispatcher())->nestedDispatchWithException();

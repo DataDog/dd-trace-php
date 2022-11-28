@@ -55,6 +55,18 @@ class Dispatcher
         }
     }
 
+    public function dispatchWithMultipleCatches()
+    {
+        try {
+            require_once __DIR__ . '/service_throwing_exception.php';
+            (new SomeServiceForExceptions())->doThrow();
+        } catch (\DomainException $ex) {
+        } catch (\RuntimeException $ex) {
+        } catch (\Throwable $ex) {
+            header('HTTP/1.1 500 Internal Server Obfuscated Error');
+        }
+    }
+
     public function nestedDispatchWithException()
     {
         require_once __DIR__ . '/service_throwing_exception.php';

@@ -130,6 +130,15 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
 
+/// The engine's previous custom allocation function, if there is one.
+static mut PREV_CUSTOM_MM_ALLOC: Option<zend::VmMmCustomAllocFn> = None;
+
+/// The engine's previous custom reallocation function, if there is one.
+static mut PREV_CUSTOM_MM_REALLOC: Option<zend::VmMmCustomReallocFn> = None;
+
+/// The engine's previous custom free function, if there is one.
+static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
+
 /* Important note on the PHP lifecycle:
  * Based on how some SAPIs work and the documentation, one might expect that
  * MINIT is called once per process, but this is only sort-of true. Some SAPIs
@@ -258,6 +267,38 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
         zend::zend_execute_internal = Some(execute_internal);
     };
+
+    #[cfg(feature = "allocation_profiling")]
+    {
+        if unsafe { !zend::is_zend_mm() } {
+            // Neighboring custom memory handlers found
+            unsafe {
+                zend::zend_mm_get_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    &mut PREV_CUSTOM_MM_ALLOC,
+                    &mut PREV_CUSTOM_MM_FREE,
+                    &mut PREV_CUSTOM_MM_REALLOC,
+                );
+            }
+        }
+
+        unsafe {
+            zend::zend_mm_set_custom_handlers(
+                zend::zend_mm_get_heap(),
+                Some(alloc_profiling_malloc),
+                Some(alloc_profiling_free),
+                Some(alloc_profiling_realloc),
+            );
+        }
+
+        // returns `true` if there are no custom handlers installed
+        // `false` if there are custom handlers installed
+        if unsafe { zend::is_zend_mm() } {
+            info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
+        } else {
+            info!("Memory allocation profiling enabled.")
+        }
+    }
 
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
@@ -692,6 +733,54 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
         profiler.stop();
     }
 
+    #[cfg(feature = "allocation_profiling")]
+    {
+        // If `zend::is_zend_mm()` is true, the custom handlers have been reset
+        // to `None` already. This is unexpected, therefore we will not touch the ZendMM handlers
+        // anymore as resetting to prev handlers might result in segfaults.
+        if unsafe { !zend::is_zend_mm() } {
+            let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+            let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+            let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
+            unsafe {
+                zend::zend_mm_get_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    &mut custom_mm_malloc,
+                    &mut custom_mm_free,
+                    &mut custom_mm_realloc,
+                );
+            }
+            if custom_mm_free != Some(alloc_profiling_free)
+                || custom_mm_malloc != Some(alloc_profiling_malloc)
+                || custom_mm_realloc != Some(alloc_profiling_realloc)
+            {
+                // Custom handlers are installed, but it's not us. Someone, somewhere might have
+                // function pointers to our custom handlers. Best bet to avoid segfaults is to not
+                // touch custom handlers in ZendMM and make sure our extension will not be
+                // `dlclose()`-ed so the pointers stay valid
+                let zend_extension =
+                    unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const i8) };
+                if !zend_extension.is_null() {
+                    // Safety: Checked for null pointer above.
+                    unsafe {
+                        (*zend_extension).handle = std::ptr::null_mut();
+                    }
+                }
+            } else {
+                // This is the happy path (restore previously installed custom handlers)!
+                unsafe {
+                    zend::zend_mm_set_custom_handlers(
+                        zend::zend_mm_get_heap(),
+                        PREV_CUSTOM_MM_ALLOC,
+                        PREV_CUSTOM_MM_FREE,
+                        PREV_CUSTOM_MM_REALLOC,
+                    );
+                }
+            }
+            info!("Memory allocation profiling disabled.");
+        }
+    }
+
     ZendResult::Success
 }
 
@@ -843,4 +932,68 @@ extern "C" fn execute_internal(
         prev_execute_internal(execute_data, return_value);
     }
     interrupt_function(execute_data);
+}
+
+unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
+    let ptr: *mut libc::c_void;
+
+    // TODO: prepare a function pointer to use so we don't need a runtime check
+    if PREV_CUSTOM_MM_ALLOC.is_none() {
+        ptr = zend::_zend_mm_alloc(zend::zend_mm_get_heap(), len);
+    } else {
+        let prev = PREV_CUSTOM_MM_ALLOC.unwrap();
+        ptr = prev(len);
+    }
+
+    // during startup, minit, rinit, ... current_execute_data is null
+    if zend::executor_globals.current_execute_data.is_null() {
+        return ptr;
+    }
+
+    REQUEST_LOCALS.with(|cell| {
+        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+        let locals = cell.try_borrow();
+        if locals.is_err() {
+            return;
+        }
+        let locals = locals.unwrap();
+
+        if !locals.profiling_enabled {
+            return;
+        }
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            unsafe {
+                profiler.collect_allocations(
+                    zend::executor_globals.current_execute_data,
+                    len,
+                    &locals,
+                )
+            };
+        }
+    });
+
+    ptr
+}
+
+unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
+    if PREV_CUSTOM_MM_FREE.is_none() {
+        zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
+    } else {
+        let prev = PREV_CUSTOM_MM_FREE.unwrap();
+        prev(ptr);
+    }
+}
+
+unsafe extern "C" fn alloc_profiling_realloc(
+    ptr: *mut ::libc::c_void,
+    len: u64,
+) -> *mut ::libc::c_void {
+    if PREV_CUSTOM_MM_REALLOC.is_none() {
+        zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len)
+    } else {
+        let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
+        prev(ptr, len)
+    }
 }

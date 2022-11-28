@@ -71,9 +71,9 @@ final class Http implements Transport
     {
         $host = ddtrace_config_read_env_or_ini(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
         $port = ddtrace_config_read_env_or_ini(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
-        $traceAgentUrl = ddtrace_config_read_env_or_ini(self::TRACE_AGENT_URL_ENV) ?: "http://${host}:${port}";
+        $traceAgentUrl = ddtrace_config_read_env_or_ini(self::TRACE_AGENT_URL_ENV) ?: "http://{$host}:{$port}";
         $path = self::PRIORITY_SAMPLING_TRACE_AGENT_PATH;
-        $endpoint = "${traceAgentUrl}${path}";
+        $endpoint = "{$traceAgentUrl}{$path}";
 
         $this->config = array_merge([
             'endpoint' => $endpoint,

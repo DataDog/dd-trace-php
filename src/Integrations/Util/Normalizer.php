@@ -148,6 +148,8 @@ class Normalizer
      */
     public static function urlSanitize($url, $dropUserInfo = false, $trimQueryString = false)
     {
+        $url = (string)$url;
+
         /* The implementation of this method is an exact replica of DDTrace\Http\Urls::sanitize() - and has to
          * be kept in sync - until this method will be removed as part of the PHP->C migration.
          *
@@ -169,8 +171,8 @@ class Normalizer
 
         $sanitizedUserinfo = preg_replace(
             [
-                "/${userinfoPattern}:@/",
-                "/${userinfoPattern}:${userinfoPattern}@/",
+                "/{$userinfoPattern}:@/",
+                "/{$userinfoPattern}:{$userinfoPattern}@/",
             ],
             [
                 $dropUserInfo ? '' : '<sanitized>:@',

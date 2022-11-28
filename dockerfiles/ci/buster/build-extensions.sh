@@ -10,6 +10,10 @@ elif [[ $PHP_VERSION_ID -le 74 ]]; then
   XDEBUG_VERSIONS=(-2.9.2 -2.9.5)
 elif [[ $PHP_VERSION_ID -le 80 ]]; then
   XDEBUG_VERSIONS=(-3.0.0)
+elif [[ $PHP_VERSION_ID -le 81 ]]; then
+  XDEBUG_VERSIONS=(-3.1.0)
+else
+  XDEBUG_VERSIONS=(-3.2.0RC1)
 fi
 
 MONGODB_VERSION=

@@ -127,7 +127,7 @@ static bool zai_config_decode_int(zai_string_view value, zval *decoded_value) {
         /* Strings are supposed to be checked by zai_config_is_valid_int_format
          * already, so we do not expect to hit any errors here.
          */
-        zend_string_free(err);
+        zend_string_release(err);
         return false;
     }
 #else

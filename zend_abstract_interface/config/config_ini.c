@@ -284,13 +284,26 @@ void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_numb
 #endif
 }
 
-void zai_config_ini_rinit() {
+void zai_config_ini_rinit(void) {
     // we have to cover two cases here:
     // a) update ini tables to take changes during first-time rinit into account on ZTS
     // b) read current env variables
     // c) apply and verify fpm&apache config/user.ini/htaccess settings
+
+    // effectively, also including preloading
+    // in_startup = true, if zend_post_startup() hasn't been executed yet
+#if PHP_VERSION_ID < 70400
+    bool in_startup = !php_get_module_initialized();
+#elif PHP_VERSION_ID < 80000
+    // Sadly not precisely, observable on PHP 7.4, so we'll just explicitly support the preload case only
+    bool in_startup = (CG(compiler_options) & ZEND_COMPILE_PRELOAD) != 0;
+#else
+    bool in_startup = php_during_module_startup();
+#endif
+
 #if ZTS
-    if (env_to_ini_name) {
+    // Skip during preloading, in that case EG(ini_directives) is the actual source of truth (NTS-like)
+    if (env_to_ini_name && !in_startup) {
         for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
             zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
             if (!memoized->original_on_modify) {
@@ -345,7 +358,7 @@ void zai_config_ini_rinit() {
                  * for the purposes of short circuiting decode
                  */
                 if (env_to_ini_name) {
-                    zend_string *str = zend_string_init(buf.ptr, strlen(buf.ptr), 0);
+                    zend_string *str = zend_string_init(buf.ptr, strlen(buf.ptr), in_startup);
 
                     zend_ini_entry *ini = memoized->ini_entries[name_index];
                     if (zend_alter_ini_entry_ex(ini->name, str, PHP_INI_USER, PHP_INI_STAGE_RUNTIME, 0) == SUCCESS) {
@@ -384,4 +397,4 @@ void zai_config_ini_rinit() {
     }
 }
 
-void zai_config_ini_mshutdown() {}
+void zai_config_ini_mshutdown(void) {}

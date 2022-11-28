@@ -102,3 +102,17 @@ services:
     command: build-dd-trace-php
     volumes:
       - ../../:/app
+
+  8.2-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.2
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        php_version: 8.2.0RC5
+        php_sha: c879b316d6f9c06ae6c6d7a418d94ddd569f32ab06c13d6d8ffc88643a0692ec
+        php_api: 20220829
+        php_url: https://downloads.php.net/~pierrick/php-8.2.0RC5.tar.gz
+    command: build-dd-trace-php
+    volumes:
+      - ../../:/app
