@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\CLI\Laravel\V8_X;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\CLITestCase;
 
@@ -30,6 +31,7 @@ class CommonScenariosTest extends CLITestCase
                 'cli',
                 'artisan'
             )->withExactTags([
+                Tag::SPAN_KIND => 'server',
             ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
@@ -50,6 +52,7 @@ class CommonScenariosTest extends CLITestCase
                 'cli',
                 'artisan route:list'
             )->withExactTags([
+                Tag::SPAN_KIND => 'server',
             ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
@@ -70,6 +73,7 @@ class CommonScenariosTest extends CLITestCase
                 'cli',
                 'artisan foo:error'
             )->withExactTags([
+                Tag::SPAN_KIND => 'server',
             ])->withExistingTagsNames([
                 'error.msg',
                 'error.stack'
