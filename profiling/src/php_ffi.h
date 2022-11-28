@@ -91,3 +91,9 @@ void datadog_php_profiling_install_internal_function_handler(
  */
 void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
                                                       bool persistent);
+
+/**
+ * Gets arg `n` of the `ex` frame. Returns NULL on error.
+ * @see ZEND_FUNCTION(func_get_arg)
+ */
+zval *ddog_php_prof_zend_call_arg(zend_execute_data *ex, unsigned int n);

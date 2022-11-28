@@ -1,6 +1,6 @@
 use crate::bindings::{
-    datadog_php_profiling_get_profiling_context, zend_execute_data, zend_function, zend_string,
-    ZEND_USER_FUNCTION,
+    datadog_php_profiling_get_profiling_context, ddog_php_prof_zend_call_arg, zend_execute_data,
+    zend_function, zend_string, zval, StringError, ZEND_USER_FUNCTION,
 };
 use crate::{
     bindings, AgentEndpoint, RequestLocals, PHP_VERSION, PROFILER_NAME_STR, PROFILER_VERSION_STR,
@@ -12,6 +12,7 @@ use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
 use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::hash::Hash;
 use std::str;
 use std::str::Utf8Error;
@@ -223,6 +224,35 @@ unsafe fn extract_line_no(execute_data: &zend_execute_data) -> u32 {
     0
 }
 
+unsafe fn get_arg0(func: *mut zend_execute_data) -> Result<String, &'static str> {
+    let arg0: *mut zval = ddog_php_prof_zend_call_arg(func, 0);
+    if arg0.is_null() {
+        Err("ZEND_CALL_NUM(.., 0) failed")
+    } else {
+        let arg0: Result<String, _> = (&mut *arg0).try_into();
+        match arg0 {
+            Ok(arg) => Ok(arg),
+            Err(err) => match err {
+                StringError::Null => Err("zval's string pointer was null"),
+                StringError::Type(_) => Err("zval wasn't a string"),
+            },
+        }
+    }
+}
+
+unsafe fn wp_enrich_func_with_hook_name(name: &mut String, func: *mut zend_execute_data) {
+    let hook_name = match get_arg0(func) {
+        Ok(ok) => Cow::Owned(ok),
+        Err(err) => {
+            warn!("failed to get arg0 of {}: {}", name, err);
+            Cow::Borrowed("?")
+        }
+    };
+
+    // Writes to String (which are Vec) should always succeed as they panic otherwise.
+    let _ = write!(name, "(hook_name: {hook_name})");
+}
+
 unsafe fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
@@ -254,8 +284,23 @@ unsafe fn collect_stack_sample(
 
             // Only insert a new frame if there's file or function info.
             if file.is_some() || function.is_some() {
-                // If there's no function name, use a fake name.
-                let function = function.unwrap_or_else(|| "<?php".to_owned());
+                let function = if let Some(mut name) = function {
+                    // Selectively enrich with parameter names and values.
+                    match name.as_str() {
+                        "do_action"
+                        | "do_action_ref_array"
+                        | "apply_filters"
+                        | "apply_filters_ref_array" => {
+                            // todo: verify it's part of WordPress somehow
+                            wp_enrich_func_with_hook_name(&mut name, execute_data);
+                            name
+                        }
+                        _ => name,
+                    }
+                } else {
+                    // If there's no function name, use a fake name.
+                    "<?php".to_owned()
+                };
                 let frame = ZendFrame {
                     function,
                     file,

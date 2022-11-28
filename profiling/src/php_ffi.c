@@ -87,3 +87,19 @@ zai_string_view datadog_php_profiling_zend_string_view(zend_string *zstr) {
 
     return ZAI_STRING_FROM_ZSTR(zstr);
 }
+
+zval *ddog_php_prof_zend_call_arg(zend_execute_data *ex, unsigned int n) {
+    uint32_t arg_count = ZEND_CALL_NUM_ARGS(ex);
+    if (n >= arg_count) {
+        return NULL;
+    }
+
+    uint32_t first_extra_arg = ex->func->op_array.num_args;
+    if (n >= first_extra_arg && (arg_count > first_extra_arg)) {
+        // Return NULL for now. We aren't using this case. I'm also not sure
+        // how stable it is.
+        return NULL;
+    }
+
+    return ZEND_CALL_ARG(ex, n + 1);
+}
