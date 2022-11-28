@@ -166,7 +166,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     'slim_test_app',
                                     'web',
                                     'Closure::__invoke'
-                                )->setError(null, 'Foo error')
+                                )->withExistingTagsNames([
+                                    'error.stack',
+                                ])->setError(null, 'Foo error')
                             ]),
                     ],
                 ]
