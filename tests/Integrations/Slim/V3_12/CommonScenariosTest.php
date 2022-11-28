@@ -166,9 +166,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     'slim_test_app',
                                     'web',
                                     'Closure::__invoke'
-                                )->withExactTags([
-                                    Tag::SPAN_KIND => 'server',
-                                ])->setError(null, 'Foo error')
+                                )->setError(null, 'Foo error')
                             ]),
                     ],
                 ]
