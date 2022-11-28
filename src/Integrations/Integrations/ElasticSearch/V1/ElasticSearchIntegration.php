@@ -44,7 +44,6 @@ class ElasticSearchIntegration extends Integration
                 $span->service = ElasticSearchIntegration::NAME;
                 $span->type = Type::ELASTICSEARCH;
                 $span->resource = "__construct";
-                $span->meta[Tag::SPAN_KIND] = 'client';
             }
         ]);
 
@@ -187,7 +186,6 @@ class ElasticSearchIntegration extends Integration
             $span->resource = $operationName;
             $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::SPAN_KIND] = 'client';
         });
     }
 
@@ -209,7 +207,6 @@ class ElasticSearchIntegration extends Integration
             $span->resource = ElasticSearchCommon::buildResourceName($name, $params);
             $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::SPAN_KIND] = 'client';
         });
     }
 }

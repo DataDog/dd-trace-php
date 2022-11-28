@@ -52,6 +52,8 @@ class LaravelIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
+        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
         $integration = $this;
 
         \DDTrace\trace_method(
@@ -98,7 +100,6 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -110,7 +111,6 @@ class LaravelIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 $span->resource = $this->uri;
-                $span->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -132,7 +132,6 @@ class LaravelIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 $span->resource = $args[0];
-                $span->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -169,7 +168,6 @@ class LaravelIntegration extends Integration
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = $serviceName;
-                $span->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 

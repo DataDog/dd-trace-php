@@ -60,7 +60,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
                         )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         ])
                         ->withChildren([
@@ -82,18 +81,14 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'lumen_test_app',
                                     'web',
                                     'composing: simple_view'
-                                )->withExactTags([
-                                    Tag::SPAN_KIND => 'server',
-                                ]),
+                                )
                             ]),
                             SpanAssertion::build(
                                 'laravel.event.handle',
                                 'lumen_test_app',
                                 'web',
                                 'creating: simple_view'
-                            )->withExactTags([
-                                Tag::SPAN_KIND => 'server',
-                            ])
+                            )->withExactTags([])
                         ])
                     ]),
                 ],
@@ -121,7 +116,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
                         )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         ])
                         ->withExistingTagsNames([
@@ -161,7 +155,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'web',
                     'simple_route'
                 )->withExactTags([
-                    Tag::SPAN_KIND => 'server',
                     'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                 ]),
             ]),
@@ -190,7 +183,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         '',
                         'Laravel\Lumen\Application.handleFoundRoute'
                     )->withExactTags([
-                        Tag::SPAN_KIND => 'server',
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                     ])->withExistingTagsNames([
                         'error.stack'

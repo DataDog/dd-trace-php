@@ -57,7 +57,6 @@ class SymfonyIntegration extends Integration
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
-                    $span->meta[Tag::SPAN_KIND] = 'server';
                 },
             ]
         );
@@ -115,6 +114,8 @@ class SymfonyIntegration extends Integration
         if (null == $rootSpan) {
             return Integration::NOT_LOADED;
         }
+
+        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
         /** @var SpanData $symfonyRequestSpan */
         $this->symfonyRequestSpan = $rootSpan;

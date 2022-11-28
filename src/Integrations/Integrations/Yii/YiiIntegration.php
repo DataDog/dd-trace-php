@@ -55,7 +55,6 @@ class YiiIntegration extends Integration
                 $span->name = $span->resource = \get_class($this) . '.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -84,7 +83,6 @@ class YiiIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
-                $span->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -96,7 +94,6 @@ class YiiIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
-                $span->meta[Tag::SPAN_KIND] = 'server';
 
                 if (
                     $firstController === $this

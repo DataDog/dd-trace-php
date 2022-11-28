@@ -48,9 +48,7 @@ class ExitTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
                         'Exits.index'
-                    )->withExactTags([
-                        Tag::SPAN_KIND => 'server',
-                    ]),
+                    )
                 ])
             ]
         );

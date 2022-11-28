@@ -60,7 +60,6 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'web',
                             'simple_route'
                         )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                         ]),
                     ]),
@@ -84,7 +83,6 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
                         )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         ])->withChildren([
                             SpanAssertion::build(
@@ -125,7 +123,6 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
                         )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         ])->withExistingTagsNames([
                             'error.stack',

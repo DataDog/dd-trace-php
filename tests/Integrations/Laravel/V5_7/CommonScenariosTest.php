@@ -54,10 +54,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         TAG::SPAN_KIND => 'server',
                     ])->withChildren([
-                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple')
-                            ->withExactTags([
-                                Tag::SPAN_KIND => 'server',
-                            ]),
+                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple'),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
@@ -78,10 +75,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         TAG::SPAN_KIND => 'server',
                     ])->withChildren([
-                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
-                            ->withExactTags([
-                                Tag::SPAN_KIND => 'server',
-                            ]),
+                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view'),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'

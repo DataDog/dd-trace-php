@@ -22,6 +22,7 @@ class WordPressIntegrationLoader
         $rootSpan->name = 'wordpress.request';
         $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
         $rootSpan->service = $service;
+        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
         if ('cli' !== PHP_SAPI) {
             $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
             $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;

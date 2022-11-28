@@ -112,7 +112,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'Closure::__invoke'
                             )->withExactTags([
                                 'slim.route.name' => 'simple-route',
-                                Tag::SPAN_KIND => 'server',
                             ])
                         ]),
                     ]),
@@ -136,9 +135,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'slim_test_app',
                                 'web',
                                 'Closure::__invoke'
-                            )->withExactTags([
-                                Tag::SPAN_KIND => 'server',
-                            ])->withChildren([
+                            )->withChildren([
                                 SpanAssertion::build(
                                     'slim.view',
                                     'slim_test_app',
@@ -173,9 +170,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     'slim_test_app',
                                     'web',
                                     'Closure::__invoke'
-                                )->withExactTags([
-                                    Tag::SPAN_KIND => 'server',
-                                ])->withExistingTagsNames([
+                                )->withExistingTagsNames([
                                     'error.stack'
                                 ])->setError(null, 'Foo error')
                             ],

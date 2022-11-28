@@ -51,26 +51,20 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         Type::WEB_SERVLET,
                         'yii\web\Application.run'
-                    )->withExactTags([
-                        Tag::SPAN_KIND => 'server'
-                    ])->withChildren([
+                    )->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.runAction',
                             'yii2_test_app',
                             Type::WEB_SERVLET,
                             'index'
-                        )->withExactTags([
-                            Tag::SPAN_KIND => 'server'
-                        ])->withChildren([
+                        )->withChildren([
                             SpanAssertion::build(
                                 'app\controllers\SiteController.runAction',
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'index'
-                            )->withExactTags([
-                                Tag::SPAN_KIND => 'server'
-                            ]),
-                        ])
+                            ),
+                        ]),
                     ])
                 ])
             ]

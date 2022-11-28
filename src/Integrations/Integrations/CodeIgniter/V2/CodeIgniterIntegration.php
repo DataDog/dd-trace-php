@@ -70,7 +70,6 @@ class CodeIgniterIntegration extends Integration
                 $span->name = $span->resource = "{$class}.{$method}";
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::SPAN_KIND] = 'server';
 
                 $this->load->helper('url');
 

@@ -82,6 +82,8 @@ class SymfonyIntegration extends Integration
                 /** @var SpanData $symfonyRequestSpan */
                 $integration->symfonyRequestSpan = $rootSpan;
 
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
                 if (
                     defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
                     && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)

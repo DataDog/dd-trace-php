@@ -55,6 +55,8 @@ class NetteIntegration extends Integration
             return;
         }
 
+        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
 
         $this->addTraceAnalyticsIfEnabled($rootSpan);

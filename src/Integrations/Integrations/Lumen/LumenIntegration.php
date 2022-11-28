@@ -44,6 +44,8 @@ class LumenIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
+        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
 
@@ -79,8 +81,6 @@ class LumenIntegration extends Integration
                     }
                     $routeInfo = $args[0];
                     $resourceName = null;
-                    $span->meta[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     if (isset($routeInfo[1]['uses'])) {
                         $action = $routeInfo[1]['uses'];
                         $rootSpan->meta['lumen.route.action'] = $action;
