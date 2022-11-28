@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Composer;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Common\BaseTestCase;
@@ -96,6 +97,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -130,6 +132,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/manual-tracing',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ])
                 ->withChildren([
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
@@ -170,6 +173,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -204,6 +208,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/manual-tracing',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ])
                 ->withChildren([
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
@@ -238,6 +243,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -266,6 +272,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/no-composer',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -299,6 +306,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/no-composer',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -334,6 +342,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/no-composer-autoload-fails',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -369,6 +378,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://127.0.0.1:6666/composer-autoload-fails',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ]),
         ]);
     }
