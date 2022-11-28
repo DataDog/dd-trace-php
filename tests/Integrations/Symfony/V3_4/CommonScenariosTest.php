@@ -206,7 +206,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.request')
                                     ->setError(
                                         'Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException',
-                                        'No route found for "GET / does_not_exist"'
+                                        'No route found for "GET /does_not_exist"'
                                     )
                                     ->withExistingTagsNames(['error.stack']),
                                 ]),
