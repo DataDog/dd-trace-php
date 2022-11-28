@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Curl;
 
+use DDTrace\Tag;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -198,7 +199,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', Tag::SPAN_KIND])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                         ->setTraceAnalyticsCandidate()
@@ -530,7 +531,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', Tag::SPAN_KIND])
                 ->withExactMetrics(['_sampling_priority_v1' => 1])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
