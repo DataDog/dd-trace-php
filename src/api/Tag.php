@@ -5,6 +5,7 @@ namespace DDTrace;
 class Tag
 {
     // Generic
+    const COMPONENT = 'component';
     const ENV = 'env';
     const SPAN_TYPE = 'span.type';
     const SPAN_KIND = 'span.kind';

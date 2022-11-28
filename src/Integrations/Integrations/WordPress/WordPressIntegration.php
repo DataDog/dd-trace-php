@@ -50,7 +50,12 @@ class WordPressIntegration extends Integration
                     return $loader->load($integration);
 
                 case 6:
-                    $loader = new V6\WordPressIntegrationLoader();
+                    if (\PHP_VERSION_ID < 70000) {
+                        // Although WordPress 6 supports PHP 5.6+, we've stopped enhancing PHP 5.
+                        return self::NOT_AVAILABLE;
+                    }
+                    $service = \ddtrace_config_app_name(self::NAME);
+                    $loader = new V6\WordPressComponent($service);
                     return $loader->load($integration);
             }
         });
