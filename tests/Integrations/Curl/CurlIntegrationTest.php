@@ -199,7 +199,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', Tag::SPAN_KIND])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                         ->setTraceAnalyticsCandidate()
@@ -531,7 +531,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', Tag::SPAN_KIND])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withExactMetrics(['_sampling_priority_v1' => 1])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')

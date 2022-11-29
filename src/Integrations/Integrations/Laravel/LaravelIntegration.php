@@ -178,6 +178,7 @@ class LaravelIntegration extends Integration
             function () use ($rootSpan, $integration) {
                 $rootSpan->name = 'laravel.artisan';
                 $rootSpan->resource = !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan';
+                unset($rootSpan->meta[Tag::SPAN_KIND]);
             }
         );
 
