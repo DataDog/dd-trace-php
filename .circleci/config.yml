@@ -2599,7 +2599,7 @@ workflows:
                 - alpine:3.11
                 - alpine:3.12
                 - alpine:3.15
-                - alpine:latest
+                - alpine:3.16
       - verify_alpine:
           requires: [ "package extension" ]
           matrix:
