@@ -524,10 +524,6 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
 
     zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
 
-    zval pid;
-    ZVAL_LONG(&pid, (long)getpid());
-    zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
-
     datadog_php_uuid runtime_id = ddtrace_profiling_runtime_id();
     if (!datadog_php_uuid_is_nil(runtime_id)) {
         zend_string *encoded_id = zend_string_alloc(36, false);
@@ -653,6 +649,13 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         ZVAL_DOUBLE(&sample_rate, web_integration->get_sample_rate());
         zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
     }
+
+    zval pid;
+    ZVAL_LONG(&pid, (long)getpid());
+    if (!metrics) {
+        zend_array *metrics = ddtrace_spandata_property_metrics(span);
+    }
+    zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
