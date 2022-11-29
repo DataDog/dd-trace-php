@@ -40,7 +40,6 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:' . self::PORT . '/success',
                     'http.status_code' => '200',
-                    Tag::SPAN_KIND => 'server',
                 ]),
             ]
         );
@@ -66,7 +65,6 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
                         'http.method'      => 'GET',
                         'http.url'         => 'http://localhost:' . self::PORT . '/error',
                         'http.status_code' => '500',
-                        Tag::SPAN_KIND => 'server',
                     ]
                 )->setError(),
             ]

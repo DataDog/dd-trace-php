@@ -178,6 +178,7 @@ class LaravelIntegration extends Integration
             function () use ($rootSpan, $integration) {
                 $rootSpan->name = 'laravel.artisan';
                 $rootSpan->resource = !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan';
+                unset($rootSpan->meta[Tag::SPAN_KIND]);
             }
         );
 
@@ -218,6 +219,17 @@ class LaravelIntegration extends Integration
 
     /**
      * Tells whether a span is a lumen request.
+     *
+     * @param SpanData $rootSpan
+     * @return bool
+     */
+    public function isLumen(SpanData $rootSpan)
+    {
+        return $rootSpan->name === 'lumen.request';
+    }
+
+    /**
+     * Tells whether the operation being performed is for an external request or by command line.
      *
      * @param SpanData $rootSpan
      * @return bool

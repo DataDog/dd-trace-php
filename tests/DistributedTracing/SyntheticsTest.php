@@ -57,7 +57,6 @@ class SyntheticsTest extends WebFrameworkTestCase
                 'http.url' => 'http://localhost:9999/index.php',
                 'http.status_code' => '200',
                 '_dd.origin' => 'synthetics-browser',
-                Tag::SPAN_KIND => 'server',
             ])->withExactMetrics([
                 '_sampling_priority_v1' => 1,
             ])
