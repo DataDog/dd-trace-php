@@ -358,7 +358,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', TAG::SPAN_KIND])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
                         ->setTraceAnalyticsCandidate()
