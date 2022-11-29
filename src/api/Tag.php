@@ -16,6 +16,8 @@ class Tag
     const DB_STATEMENT = 'sql.query';
     const ERROR = 'error';
     const ERROR_MESSAGE = 'error.message'; // string representing the error message
+    /** @deprecated Use ERROR_MESSAGE instead. */
+    const ERROR_MSG = 'error.message';
     const ERROR_TYPE = 'error.type'; // string representing the type of the error
     const ERROR_STACK = 'error.stack'; // human readable version of the stack
     const HTTP_METHOD = 'http.method';
