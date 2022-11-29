@@ -98,7 +98,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
-                    TAG::SPAN_KIND => 'client',
+                    TAG::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -115,7 +115,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
-                    TAG::SPAN_KIND => 'client',
+                    TAG::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -133,7 +133,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
-                    TAG::SPAN_KIND => 'client',
+                    TAG::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -319,7 +319,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
-                    TAG::SPAN_KIND => 'client',
+                    TAG::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -338,7 +338,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
-                    TAG::SPAN_KIND => 'client',
+                    TAG::SPAN_KIND => 'server',
                 ]),
         ]);
     }
