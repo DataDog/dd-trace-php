@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\CLI\CakePHP\V2_8;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\CLITestCase;
 

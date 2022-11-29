@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Curl;
 
-use DDTrace\Tag;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;

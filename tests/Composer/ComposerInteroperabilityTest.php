@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Composer;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Common\BaseTestCase;

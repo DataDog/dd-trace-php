@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\DistributedTracing;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
