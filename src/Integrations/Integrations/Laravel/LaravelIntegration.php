@@ -99,6 +99,7 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -167,6 +168,7 @@ class LaravelIntegration extends Integration
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = $serviceName;
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
