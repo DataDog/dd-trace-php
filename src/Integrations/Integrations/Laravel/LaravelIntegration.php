@@ -229,6 +229,17 @@ class LaravelIntegration extends Integration
     }
 
     /**
+     * Tells whether the operation being performed is for an external request or by command line.
+     *
+     * @param SpanData $rootSpan
+     * @return bool
+     */
+    public function isLumen(SpanData $rootSpan)
+    {
+        return $rootSpan->name === 'lumen.request';
+    }
+
+    /**
      * @param mixed $routeName
      * @return string
      */
