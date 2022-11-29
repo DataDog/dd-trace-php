@@ -82,8 +82,6 @@ class SymfonyIntegration extends Integration
                 /** @var SpanData $symfonyRequestSpan */
                 $integration->symfonyRequestSpan = $rootSpan;
 
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-
                 if (
                     defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
                     && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
@@ -159,6 +157,7 @@ class SymfonyIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $integration->symfonyRequestSpan->meta[Tag::SPAN_KIND] = 'server';
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
                 if (isset($response)) {
                     $integration->symfonyRequestSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();

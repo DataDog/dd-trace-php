@@ -115,8 +115,6 @@ class SymfonyIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-
         /** @var SpanData $symfonyRequestSpan */
         $this->symfonyRequestSpan = $rootSpan;
         $this->addTraceAnalyticsIfEnabled($rootSpan);
@@ -188,6 +186,7 @@ class SymfonyIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $integration->symfonyRequestSpan->meta[Tag::SPAN_KIND] = 'server';
 
                 if (!array_key_exists(Tag::HTTP_URL, $integration->symfonyRequestSpan->meta)) {
                     $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
