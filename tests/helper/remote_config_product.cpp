@@ -20,12 +20,9 @@ ACTION(ThrowErrorApplyingConfig)
 
 class listener_mock : public remote_config::product_listener_base {
 public:
-    listener_mock()
-        : product_listener_base(
-              std::make_shared<remote_config::remote_config_service>())
+    listener_mock() : product_listener_base(std::make_shared<service_config>())
     {}
-    listener_mock(std::shared_ptr<remote_config::remote_config_service>
-            remote_config_service)
+    listener_mock(std::shared_ptr<service_config> remote_config_service)
         : product_listener_base(std::move(remote_config_service))
     {}
     MOCK_METHOD(

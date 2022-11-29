@@ -41,8 +41,8 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
     }
 
     if (strcmp("true", enabled_itr->value.GetString()) == 0) {
-        _remote_config_service->enable_asm();
+        service_config_->enable_asm();
     } else {
-        _remote_config_service->disable_asm();
+        service_config_->disable_asm();
     }
 }

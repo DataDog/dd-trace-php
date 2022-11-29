@@ -9,6 +9,7 @@
 #include "protocol/tuf/serializer.hpp"
 #include <algorithm>
 #include <regex>
+#include <vector>
 
 namespace dds::remote_config {
 
@@ -39,14 +40,15 @@ client::client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
 }
 
 client::ptr client::from_settings(
-    const service_identifier &sid, const remote_config::settings &settings)
+    const service_identifier &sid, const remote_config::settings &settings, std::vector<remote_config::product> &&products)
 {
     if (!settings.enabled) {
         return {};
     }
+
     return std::make_unique<client>(std::make_unique<http_api>(settings.host,
                                         std::to_string(settings.port)),
-        sid, settings);
+        sid, settings, std::move(products));
 }
 
 [[nodiscard]] protocol::get_configs_request client::generate_request() const

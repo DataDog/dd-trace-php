@@ -6,7 +6,7 @@
 #pragma once
 
 #include "config.hpp"
-#include "remote_config_service.hpp"
+#include "service_config.hpp"
 #include <memory>
 
 namespace dds::remote_config {
@@ -14,9 +14,8 @@ namespace dds::remote_config {
 class product_listener_base {
 public:
     explicit product_listener_base(
-        std::shared_ptr<remote_config::remote_config_service>
-            remote_config_service)
-        : _remote_config_service(std::move(remote_config_service))
+        std::shared_ptr<dds::service_config> service_config)
+        : service_config_(std::move(service_config))
     {}
     product_listener_base(const product_listener_base &) = default;
     product_listener_base(product_listener_base &&) = default;
@@ -28,8 +27,7 @@ public:
     virtual void on_unapply(const config &config) = 0;
 
 protected:
-    std::shared_ptr<remote_config::remote_config_service>
-        _remote_config_service;
+    std::shared_ptr<service_config> service_config_;
 };
 
 } // namespace dds::remote_config

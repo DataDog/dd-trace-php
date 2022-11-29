@@ -13,13 +13,12 @@ namespace dds::remote_config {
 class asm_features_listener : public product_listener_base {
 public:
     explicit asm_features_listener(
-        std::shared_ptr<remote_config::remote_config_service>
-            remote_config_service)
-        : product_listener_base(std::move(remote_config_service)){};
+        std::shared_ptr<dds::service_config> service_config)
+        : product_listener_base(std::move(service_config)){};
     void on_update(const config &config) override;
     void on_unapply(const config & /*config*/) override
     {
-        _remote_config_service->disable_asm();
+        service_config_->disable_asm();
     }
 };
 
