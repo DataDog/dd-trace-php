@@ -357,8 +357,8 @@ static int dd_fatal_error_to_meta(zend_array *meta, dd_error_info error) {
         zend_symtable_str_update(meta, ZEND_STRL("error.type"), &tmp);
     }
 
-    if (error.message) {
-        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.message));
+    if (error.msg) {
+        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.msg));
         zend_symtable_str_update(meta, ZEND_STRL("error.message"), &tmp);
     }
 
@@ -367,7 +367,7 @@ static int dd_fatal_error_to_meta(zend_array *meta, dd_error_info error) {
         zend_symtable_str_update(meta, ZEND_STRL("error.stack"), &tmp);
     }
 
-    return error.type && error.message ? SUCCESS : FAILURE;
+    return error.type && error.msg ? SUCCESS : FAILURE;
 }
 
 static zend_result dd_add_meta_array(void *context, ddtrace_string key, ddtrace_string value) {
@@ -1115,7 +1115,7 @@ void ddtrace_save_active_error_to_metadata(void) {
         dd_fatal_error_to_meta(ddtrace_spandata_property_meta(span), error);
     }
     zend_string_release(error.type);
-    zend_string_release(error.message);
+    zend_string_release(error.msg);
     if (error.stack) {
         zend_string_release(error.stack);
     }
@@ -1160,7 +1160,7 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
                 dd_fatal_error_to_meta(ddtrace_spandata_property_meta(span), error);
             }
             zend_string_release(error.type);
-            zend_string_release(error.message);
+            zend_string_release(error.msg);
             if (error.stack) {
                 zend_string_release(error.stack);
             }
