@@ -30,9 +30,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'server',
-            ])->withChildren([
+            )->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
                     'Illuminate\Foundation\ProviderRepository::load'
@@ -51,9 +49,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan route:list'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'server',
-            ])->withChildren([
+            )->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
                     'Illuminate\Foundation\ProviderRepository::load'
@@ -72,9 +68,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan foo:error'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'server',
-            ])->withExistingTagsNames([
+            )->withExistingTagsNames([
                 'error.msg',
                 'error.stack'
             ])->withChildren([

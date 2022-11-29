@@ -52,8 +52,6 @@ class LaravelIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-
         $integration = $this;
 
         \DDTrace\trace_method(
@@ -67,6 +65,7 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
                 $rootSpan->service = $integration->getServiceName();
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
                 $span->name = 'laravel.application.handle';
                 $span->type = Type::WEB_SERVLET;

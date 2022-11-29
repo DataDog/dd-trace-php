@@ -67,7 +67,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
-                    TAG::SPAN_KIND => 'client',
+                    TAG::SPAN_KIND => 'server',
                 ]),
         ]);
     }
@@ -366,7 +366,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
-                            TAG::SPAN_KIND => 'client',
+                            TAG::SPAN_KIND => 'server',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('curl_exec'),
