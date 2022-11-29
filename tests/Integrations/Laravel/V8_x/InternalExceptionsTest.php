@@ -50,6 +50,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
+                        'process_id' => getmypid(),
                     ])
                     ->setError(
                         'Symfony\Component\HttpKernel\Exception\HttpException',
@@ -94,6 +95,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
+                        'process_id' => getmypid(),
                     ])
                     ->withChildren([
                         SpanAssertion::build(
