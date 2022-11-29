@@ -30,9 +30,7 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'server',
-            ])
+            )
         ]);
     }
 
@@ -46,9 +44,7 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console command_list'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'server',
-            ])
+            )
         ]);
     }
 
