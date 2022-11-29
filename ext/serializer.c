@@ -212,7 +212,7 @@ static zend_result dd_exception_to_error_msg(zend_object *exception, void *conte
         free(status_line);
     }
 
-    ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
+    ddtrace_string key = DDTRACE_STRING_LITERAL("error.message");
     ddtrace_string value = {error_text, error_len};
     zend_result result = add_tag(context, key, value);
 
@@ -357,9 +357,9 @@ static int dd_fatal_error_to_meta(zend_array *meta, dd_error_info error) {
         zend_symtable_str_update(meta, ZEND_STRL("error.type"), &tmp);
     }
 
-    if (error.msg) {
-        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.msg));
-        zend_symtable_str_update(meta, ZEND_STRL("error.msg"), &tmp);
+    if (error.message) {
+        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.message));
+        zend_symtable_str_update(meta, ZEND_STRL("error.message"), &tmp);
     }
 
     if (error.stack) {
@@ -367,7 +367,7 @@ static int dd_fatal_error_to_meta(zend_array *meta, dd_error_info error) {
         zend_symtable_str_update(meta, ZEND_STRL("error.stack"), &tmp);
     }
 
-    return error.type && error.msg ? SUCCESS : FAILURE;
+    return error.type && error.message ? SUCCESS : FAILURE;
 }
 
 static zend_result dd_add_meta_array(void *context, ddtrace_string key, ddtrace_string value) {
@@ -732,7 +732,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         }
     }
 
-    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg")) ||
+    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
                       ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
     if (error) {
         add_assoc_long(el, "error", 1);
@@ -1115,7 +1115,7 @@ void ddtrace_save_active_error_to_metadata(void) {
         dd_fatal_error_to_meta(ddtrace_spandata_property_meta(span), error);
     }
     zend_string_release(error.type);
-    zend_string_release(error.msg);
+    zend_string_release(error.message);
     if (error.stack) {
         zend_string_release(error.stack);
     }
@@ -1160,7 +1160,7 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
                 dd_fatal_error_to_meta(ddtrace_spandata_property_meta(span), error);
             }
             zend_string_release(error.type);
-            zend_string_release(error.msg);
+            zend_string_release(error.message);
             if (error.stack) {
                 zend_string_release(error.stack);
             }

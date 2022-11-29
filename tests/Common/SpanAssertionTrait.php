@@ -69,8 +69,8 @@ trait SpanAssertionTrait
         foreach ($messagePartsByWildcard as $messagePart) {
             $this->assertNotSame(
                 false,
-                \strpos($span['meta']['error.msg'], $messagePart),
-                \sprintf('Message "%s" does not contain "%s"', $span['meta']['error.msg'], $message)
+                \strpos($span['meta']['error.message'], $messagePart),
+                \sprintf('Message "%s" does not contain "%s"', $span['meta']['error.message'], $message)
             );
         }
 

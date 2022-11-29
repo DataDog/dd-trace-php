@@ -58,7 +58,7 @@ final class CurlIntegration extends Integration
 
                 $ch = $args[0];
                 if (isset($retval) && $retval === false) {
-                    $span->meta[Tag::ERROR_MSG] = \curl_error($ch);
+                    $span->meta[Tag::ERROR_MESSAGE] = \curl_error($ch);
                     $span->meta[Tag::ERROR_TYPE] = 'curl error';
                 }
 
