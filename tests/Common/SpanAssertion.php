@@ -99,7 +99,7 @@ final class SpanAssertion
 
     /**
      * @param string|null $errorType The expected error.type
-     * @param string|null $errorMessage The expected error.msg
+     * @param string|null $errorMessage The expected error.message
      * @param bool $exceptionThrown If we would expect error.stack
      * @return $this
      */
@@ -120,7 +120,7 @@ final class SpanAssertion
         if (null !== $errorMessage) {
             // commonly contains file/line info, use global format
             // we do not want to test the specific formatting of exceptions here
-            $this->exactTags[Tag::ERROR_MSG] = "%S$errorMessage%S";
+            $this->exactTags[Tag::ERROR_MESSAGE] = "%S$errorMessage%S";
         }
         if ($exceptionThrown) {
             $this->existingTags[] = Tag::ERROR_STACK;

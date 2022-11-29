@@ -71,7 +71,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan foo:error'
             )->withExactTags([
             ])->withExistingTagsNames([
-                'error.msg',
+                'error.message',
                 'error.stack'
             ])->withChildren([
                 SpanAssertion::exists(

@@ -21,7 +21,7 @@ class Span extends DataSpan
     private static $specialTags = [
         Tag::ANALYTICS_KEY => true,
         Tag::ERROR => true,
-        Tag::ERROR_MSG => true,
+        Tag::ERROR_MESSAGE => true,
         Tag::SERVICE_NAME => true,
         Tag::RESOURCE_NAME => true,
         Tag::SPAN_TYPE => true,
@@ -143,7 +143,7 @@ class Span extends DataSpan
                 return;
             }
 
-            if ($key === Tag::ERROR_MSG) {
+            if ($key === Tag::ERROR_MESSAGE) {
                 $this->internalSpan->meta[$key] = (string)$value;
                 $this->setError(true);
                 return;
@@ -269,7 +269,7 @@ class Span extends DataSpan
     {
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
-            $this->internalSpan->meta[Tag::ERROR_MSG] = $error->getMessage();
+            $this->internalSpan->meta[Tag::ERROR_MESSAGE] = $error->getMessage();
             $this->internalSpan->meta[Tag::ERROR_TYPE] = get_class($error);
             $this->internalSpan->meta[Tag::ERROR_STACK] = $error->getTraceAsString();
             return;
@@ -294,7 +294,7 @@ class Span extends DataSpan
     public function setRawError($message, $type)
     {
         $this->hasError = true;
-        $this->internalSpan->meta[Tag::ERROR_MSG] = $message;
+        $this->internalSpan->meta[Tag::ERROR_MESSAGE] = $message;
         $this->internalSpan->meta[Tag::ERROR_TYPE] = $type;
     }
 
@@ -371,7 +371,7 @@ class Span extends DataSpan
                 // messages, and logging multiple messages is not prohibited by the OpenTracing spec:
                 // https://opentracing.io/docs/overview/tags-logs-baggage/#logs
                 // We want to deprecate this behavior and change it. In the meantime we apply this workaround.
-                $this->internalSpan->meta[Tag::ERROR_MSG] = (string)$value;
+                $this->internalSpan->meta[Tag::ERROR_MESSAGE] = (string)$value;
             } elseif ($key === Tag::LOG_STACK) {
                 $this->setTag(Tag::ERROR_STACK, $value);
             }
