@@ -643,8 +643,8 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     }
 
     ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
+    zend_array *metrics = ddtrace_spandata_property_metrics(span);
     if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
-        zend_array *metrics = ddtrace_spandata_property_metrics(span);
         zval sample_rate;
         ZVAL_DOUBLE(&sample_rate, web_integration->get_sample_rate());
         zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
@@ -652,9 +652,6 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
 
     zval pid;
     ZVAL_LONG(&pid, (long)getpid());
-    if (!metrics) {
-        zend_array *metrics = ddtrace_spandata_property_metrics(span);
-    }
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
