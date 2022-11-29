@@ -45,7 +45,7 @@ spans(\DDTrace\SpanData) (1) {
   fiber_observer_bailout.php (fiber_observer_bailout.php, fiber_observer_bailout.php, cli) (error: Allowed memory size of %d bytes exhausted %s)
     process_id => %d
     error.type => E_ERROR
-    error.message => Allowed memory size of %d bytes exhausted %s
+    error.msg => Allowed memory size of %d bytes exhausted %s
     error.stack => #0 %s(%d): str_repeat()
 #1 [internal function]: inFiber()
 #2 %s(%d): Fiber->resume()
@@ -54,7 +54,7 @@ spans(\DDTrace\SpanData) (1) {
     _dd.p.dm => -1
     inFiber (fiber_observer_bailout.php, inFiber, cli) (error: Allowed memory size of %d bytes exhausted %s)
       error.type => E_ERROR
-      error.message => Allowed memory size of %d bytes exhausted %s
+      error.msg => Allowed memory size of %d bytes exhausted %s
       error.stack => #0 %s(%d): str_repeat()
 #1 [internal function]: inFiber()
 #2 %s(%d): Fiber->resume()

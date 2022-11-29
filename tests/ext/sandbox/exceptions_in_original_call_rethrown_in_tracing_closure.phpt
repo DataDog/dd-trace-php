@@ -23,7 +23,7 @@ array_map(function($span) {
     printf(
         "%s with exception: %s\n",
         $span['name'],
-        $span['meta']['error.message']
+        $span['meta']['error.msg']
     );
 }, dd_trace_serialize_closed_spans());
 ?>

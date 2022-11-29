@@ -37,7 +37,7 @@ echo doCatchWithFinally() . PHP_EOL;
 array_map(function($span) {
     echo $span['name'];
     echo isset($span['resource']) ? ', ' . $span['resource'] : '';
-    echo isset($span['meta']['error.message']) ? ', ' . $span['meta']['error.message'] : '';
+    echo isset($span['meta']['error.msg']) ? ', ' . $span['meta']['error.msg'] : '';
     echo PHP_EOL;
 }, dd_trace_serialize_closed_spans());
 ?>

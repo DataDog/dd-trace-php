@@ -26,8 +26,8 @@ class Tracer
             if (!empty($values)) {
                 $valuesString .= ' (' . implode(', ', $values) . ')';
             }
-            if (isset($span['meta']['error.message'])) {
-                $valuesString .= ' (error: ' . $span['meta']['error.message'] . ')';
+            if (isset($span['meta']['error.msg'])) {
+                $valuesString .= ' (error: ' . $span['meta']['error.msg'] . ')';
             }
             $valuesString .= PHP_EOL;
             if (strlen($valuesString) > 0) {
