@@ -810,6 +810,16 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         zend::php_info_print_table_row(
             2,
+            b"Experimental Allocation Profiling Enabled\0".as_ptr(),
+            if locals.profiling_experimental_allocations_enabled {
+                yes
+            } else {
+                no
+            },
+        );
+
+        zend::php_info_print_table_row(
+            2,
             b"Endpoint Collection Enabled\0".as_ptr(),
             if locals.profiling_endpoint_collection_enabled {
                 yes
