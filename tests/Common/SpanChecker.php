@@ -418,7 +418,12 @@ final class SpanChecker
                 $namePrefix . "Unexpected extra values for 'tags':\n" . print_r($filtered, true)
             );
             foreach ($exp->getExistingTagNames(isset($span['parent_id'])) as $tagName) {
-                $tagName === Tag::PID ? TestCase::assertArrayHasKey($tagName, $spanMetrics) : TestCase::assertArrayHasKey($tagName, $spanMeta);
+                if ($tagName === Tag::PID) {
+                    TestCase::assertArrayHasKey($tagName, $spanMetrics);
+                    unset($spanMetrics[Tag::PID]);
+                } else {
+                    TestCase::assertArrayHasKey($tagName, $spanMeta);
+                }
             }
         }
         $metrics = $exp->getExactMetrics();
@@ -426,6 +431,9 @@ final class SpanChecker
             // Ignore compilation-time metric unless explicitly tested
             if (!isset($metrics['php.compilation.total_time_ms'])) {
                 unset($span['metrics']['php.compilation.total_time_ms']);
+            }
+            if (isset($metrics['process_id'])) {
+                unset($metrics['process_id']);
             }
             TestCase::assertEquals(
                 $metrics,

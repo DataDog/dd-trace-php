@@ -48,7 +48,6 @@ class SamplingPriorityTest extends WebFrameworkTestCase
                 SpanAssertion::NOT_TESTED
             )->withExactMetrics([
                 '_sampling_priority_v1' => 2,
-                'process_id' => getmypid(),
             ])
         );
     }
@@ -79,7 +78,6 @@ class SamplingPriorityTest extends WebFrameworkTestCase
                 SpanAssertion::NOT_TESTED
             )->withExactMetrics([
                 '_sampling_priority_v1' => 0,
-                'process_id' => getmypid(),
             ])
         );
     }
