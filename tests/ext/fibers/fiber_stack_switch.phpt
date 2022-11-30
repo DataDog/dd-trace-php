@@ -77,7 +77,6 @@ Hook: Fiber->resume
 Caught ex
 spans(\DDTrace\SpanData) (1) {
   fiber_stack_switch.php (fiber_stack_switch.php, fiber_stack_switch.php, cli)
-    process_id => %d
     _dd.p.dm => -1
     Fiber.start (fiber_stack_switch.php, Fiber.start, cli)
       inFiber (fiber_stack_switch.php, inFiber, cli)

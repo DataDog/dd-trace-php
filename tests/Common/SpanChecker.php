@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Common;
 
+use DDTrace\Tag;
 use PHPUnit\Framework\TestCase;
 
 function array_filter_by_key($fn, array $input)
@@ -317,6 +318,7 @@ final class SpanChecker
         TestCase::assertNotNull($span, 'Expected span was not found \'' . $exp->getOperationName() . '\'.');
 
         $spanMeta = isset($span['meta']) ? $span['meta'] : [];
+        $spanMetrics = isset($span['metrics']) ? $span['metrics'] : [];
 
         $namePrefix = $exp->getOperationName() . ': ';
 
@@ -416,7 +418,7 @@ final class SpanChecker
                 $namePrefix . "Unexpected extra values for 'tags':\n" . print_r($filtered, true)
             );
             foreach ($exp->getExistingTagNames(isset($span['parent_id'])) as $tagName) {
-                TestCase::assertArrayHasKey($tagName, $spanMeta);
+                $tagName === Tag::PID ? TestCase::assertArrayHasKey($tagName, $spanMetrics) : TestCase::assertArrayHasKey($tagName, $spanMeta);
             }
         }
         $metrics = $exp->getExactMetrics();

@@ -37,16 +37,16 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
-      ["process_id"]=>
-      string(%d) "%d"
+    array(2) {
       ["after"]=>
       string(9) "root_span"
       ["_dd.p.dm"]=>
       string(2) "-1"
     }
     ["metrics"]=>
-    array(3) {
+    array(4) {
+      ["process_id"]=>
+      float(%d)
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>

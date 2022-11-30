@@ -29,6 +29,5 @@ dd_dump_spans();
 Foo::bar(hello)
 spans(\DDTrace\SpanData) (1) {
   Foo.bar (alias, Foo.bar, cli)
-    process_id => %d
     _dd.p.dm => -1
 }

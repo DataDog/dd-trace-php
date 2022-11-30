@@ -44,20 +44,20 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(5) {
+    array(4) {
       ["_dd.p.custom_tag"]=>
       string(9) "inherited"
       ["_dd.propagation_error"]=>
       string(14) "decoding_error"
       ["_dd.p.other_tag"]=>
       string(4) "also"
-      ["process_id"]=>
-      string(%d) "%d"
       ["_dd.origin"]=>
       string(7) "datadog"
     }
     ["metrics"]=>
-    array(2) {
+    array(3) {
+      ["process_id"]=>
+      float(%d)
       ["_sampling_priority_v1"]=>
       float(3)
       ["php.compilation.total_time_ms"]=>

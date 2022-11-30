@@ -22,9 +22,7 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(5) {
-  ["process_id"]=>
-  %s
+array(4) {
   ["http.url"]=>
   string(26) "https://localhost:9999/foo"
   ["http.method"]=>
