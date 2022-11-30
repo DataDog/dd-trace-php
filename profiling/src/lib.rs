@@ -314,7 +314,7 @@ const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 30.0;
 
 pub struct AllocationProfilingStats {
     /// number of bytes until next sample collection
-    pub next_sample: i64,
+    next_sample: i64,
 }
 
 impl AllocationProfilingStats {
@@ -330,7 +330,6 @@ impl AllocationProfilingStats {
             .sample(&mut rand::thread_rng()) as i64
     }
 
-    // TODO move to Profiler class
     pub fn track_allocation(&mut self, len: u64) {
         self.next_sample -= len as i64;
 
@@ -1022,29 +1021,44 @@ extern "C" fn execute_internal(
     interrupt_function(execute_data);
 }
 
+/// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`
+/// (currently a `u32: 0`). This needs to be done, as the `zend_mm_gc()` and `zend_mm_shutdown()`
+/// functions alter behaviour in case custom handlers are installed.
+/// - `zend_mm_gc()` will not do anything anymore.
+/// - `zend_mm_shutdown()` wont cleanup chunks anymore, leading to memory leaks
+/// The `_zend_mm_heap`-struct itself is private, but we are lucky, as the `use_custom_heap` flag
+/// is the first element and thus the first 4 bytes.
+/// Take care and call `restore_zend_heap()` afterwards!
+#[cfg(feature = "allocation_profiling")]
+unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> u32 {
+    let custom_heap: u32 = std::ptr::read(heap as *const u32);
+    std::ptr::write(heap as *mut u32, zend::ZEND_MM_CUSTOM_HEAP_NONE);
+    custom_heap
+}
+
+/// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
+#[cfg(feature = "allocation_profiling")]
+unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: u32) {
+    std::ptr::write(heap as *mut u32, custom_heap);
+}
+
 #[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     let ptr: *mut libc::c_void;
 
     // TODO: prepare a function pointer to use so we don't need a runtime check
     if PREV_CUSTOM_MM_ALLOC.is_none() {
-        // the first element of the heap struct is the `use_custom_heap` flag. We got to reset this
-        // to 0 to allow for `zend_mm_gc()` to do garbage collection when called during allocation
-        // TODO: find out the correct size of that `use_custom_heap` element at this point I am
-        // assuming that it is a 32 bit integer ....
         let heap = zend::zend_mm_get_heap();
-        let custom_heap: u32 = std::ptr::read(heap as *const u32);
-        std::ptr::write(heap as *mut u32, zend::ZEND_MM_CUSTOM_HEAP_NONE);
-
+        let custom_heap = prepare_zend_heap(heap);
         ptr = zend::_zend_mm_alloc(heap, len);
-
-        std::ptr::write(heap as *mut u32, custom_heap);
+        restore_zend_heap(heap, custom_heap);
     } else {
         let prev = PREV_CUSTOM_MM_ALLOC.unwrap();
         ptr = prev(len);
     }
 
     // during startup, minit, rinit, ... current_execute_data is null
+    // we are only interested in allocations during userland operations
     if zend::executor_globals.current_execute_data.is_null() {
         return ptr;
     }
@@ -1057,20 +1071,15 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     ptr
 }
 
+// This function exists just for completeness. When calling `zend_mm_set_custom_handlers()` you
+// need to pass a pointer to a `free()` function.
 #[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     if PREV_CUSTOM_MM_FREE.is_none() {
-        // the first element of the heap struct is the `use_custom_heap` flag. We got to reset this
-        // to 0 to allow for `zend_mm_gc()` to do garbage collection when called during allocation
-        // TODO: find out the correct size of that `use_custom_heap` element at this point I am
-        // assuming that it is a 32 bit integer ....
         let heap = zend::zend_mm_get_heap();
-        let custom_heap: u32 = std::ptr::read(heap as *const u32);
-        std::ptr::write(heap as *mut u32, zend::ZEND_MM_CUSTOM_HEAP_NONE);
-
+        let custom_heap = prepare_zend_heap(heap);
         zend::_zend_mm_free(heap, ptr);
-
-        std::ptr::write(heap as *mut u32, custom_heap);
+        restore_zend_heap(heap, custom_heap);
     } else {
         let prev = PREV_CUSTOM_MM_FREE.unwrap();
         prev(ptr);
@@ -1084,23 +1093,17 @@ unsafe extern "C" fn alloc_profiling_realloc(
 ) -> *mut ::libc::c_void {
     let ptr: *mut libc::c_void;
     if PREV_CUSTOM_MM_REALLOC.is_none() {
-        // the first element of the heap struct is the `use_custom_heap` flag. We got to reset this
-        // to 0 to allow for `zend_mm_gc()` to do garbage collection when called during allocation
-        // TODO: find out the correct size of that `use_custom_heap` element at this point I am
-        // assuming that it is a 32 bit integer ....
         let heap = zend::zend_mm_get_heap();
-        let custom_heap: u32 = std::ptr::read(heap as *const u32);
-        std::ptr::write(heap as *mut u32, zend::ZEND_MM_CUSTOM_HEAP_NONE);
-
+        let custom_heap = prepare_zend_heap(heap);
         ptr = zend::_zend_mm_realloc(heap, prev_ptr, len);
-
-        std::ptr::write(heap as *mut u32, custom_heap);
+        restore_zend_heap(heap, custom_heap);
     } else {
         let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
         ptr = prev(prev_ptr, len);
     }
 
     // during startup, minit, rinit, ... current_execute_data is null
+    // we are only interested in allocations during userland operations
     if zend::executor_globals.current_execute_data.is_null() || ptr == prev_ptr {
         return ptr;
     }
