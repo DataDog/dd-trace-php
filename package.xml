@@ -85,14 +85,12 @@ Profiling now defaults to being enabled. This removes one step in onboarding as 
 - Add .ini support #1775.
 - Groundwork for allocation profiling #1794
 
-
 ### Changed
 - Bump libdatadog to 0.9 #1782.
 - Bump env_logger to 0.9.3 #1804.
 
 ### Internal Changes
 - Add troubleshooting to README #1761
-- Fix compile time warnings when compiling without features #1819
 ]]></notes>
     <contents>
         <dir name="/">
