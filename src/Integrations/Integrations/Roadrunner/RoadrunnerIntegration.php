@@ -2,7 +2,7 @@
 
 namespace DDTrace\Integrations\Roadrunner;
 
-use DDTrace\SpanData;
+use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
@@ -61,6 +61,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan->service = \ddtrace_config_app_name('roadrunner');
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
+                $activeSpan->meta[Tag::SPAN_KIND] = 'server';
                 $integration->addTraceAnalyticsIfEnabled($activeSpan);
                 if ($exception) {
                     $activeSpan->exception = $exception;
