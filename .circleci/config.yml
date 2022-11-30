@@ -1762,12 +1762,9 @@ jobs:
       - run:
           name: Showing folder containing generated files
           command: ls -al ~/datadog/bridge
-      - run:
-          name: Removing composer generated files
-          command: rm -rf ~/datadog/composer.lock ~/datadog/vendor
       - persist_to_workspace:
           root: '.'
-          paths: ['./']
+          paths: ['./bridge/_generated*.php']
 
   "package extension":
     working_directory: ~/datadog
