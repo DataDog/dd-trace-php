@@ -327,6 +327,10 @@ jobs:
     docker:
       - image: cimg/php:8.1-node
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
           command: sudo apt update; sudo apt -y install libcurl4-nss-dev
@@ -372,6 +376,10 @@ jobs:
     docker:
       - image: << parameters.docker_image >>
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
           command: sudo apt update; sudo apt -y install libcurl4-nss-dev
@@ -391,6 +399,10 @@ jobs:
     docker:
       - image: datadog/dd-trace-ci:php-nginx-apache2
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Start Supervisor
@@ -419,6 +431,10 @@ jobs:
       name: with_agent
       docker_image: << parameters.docker_image >>
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_EXPORT_CI_ENV
@@ -465,6 +481,10 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
@@ -513,6 +533,10 @@ jobs:
     #   DD_AGENT_HOST: 127.0.0.1
     #   DATADOG_HAVE_DEV_ENV: 1
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install php
@@ -573,6 +597,10 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
@@ -638,6 +666,10 @@ jobs:
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
@@ -680,6 +712,10 @@ jobs:
       name: with_agent
       docker_image: << parameters.docker_image >>
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
@@ -761,6 +797,10 @@ jobs:
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
@@ -805,6 +845,10 @@ jobs:
       name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
@@ -862,6 +906,10 @@ jobs:
       name: with_httpbin_and_request_replayer
       docker_image: datadog/dd-trace-ci:php-<< parameters.php_version >>-shared-ext
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
@@ -902,6 +950,10 @@ jobs:
       name: with_agent
       docker_image: cimg/php:7.3
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
@@ -934,6 +986,10 @@ jobs:
           # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
           name: Install ca-certificates
           command: apk add --no-cache ca-certificates
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Validate alpine package
@@ -964,6 +1020,10 @@ jobs:
           INSTALL_TYPE: << parameters.install_type >>
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Validate centos package
@@ -980,6 +1040,10 @@ jobs:
     machine:
       image: ubuntu-2004:202111-02
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p test-results
       - run:
@@ -1017,6 +1081,10 @@ jobs:
           INSTALL_TYPE: << parameters.install_type >>
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Validate debian package
@@ -1032,6 +1100,10 @@ jobs:
         default: medium
     <<: *BARE_DOCKER_MACHINE
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: debian:buster
@@ -1049,6 +1121,10 @@ jobs:
           # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
           name: Install ca-certificates
           command: apk add --no-cache ca-certificates
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Test
@@ -1059,6 +1135,10 @@ jobs:
     machine:
       image: ubuntu-2004:202111-02
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           # In order to hard-code the proper version required in tests, we need to regenerate the 'released' installer
@@ -1079,6 +1159,10 @@ jobs:
         # Batch is only used to run a number of this jobs in parallel via a testing matrix.
         type: integer
     steps: &randomized_tests_steps
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           command: ls -al
@@ -1123,6 +1207,10 @@ jobs:
       name: with_agent
       docker_image: "datadog/dd-trace-ci:php-7.4_buster"
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Make PECL build
@@ -1147,6 +1235,10 @@ jobs:
       name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install from PECL build
@@ -1186,6 +1278,10 @@ jobs:
     docker:
       - image: << parameters.docker_image >>
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install cmake << parameters.cmake_version >>
@@ -1295,6 +1391,10 @@ jobs:
     docker:
       - image: datadog/dd-trace-ci:php-<< parameters.php_version >>_<< parameters.os >>
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install cmake << parameters.cmake_version >>
@@ -1440,6 +1540,10 @@ jobs:
     docker:
       - image: datadog/dd-trace-ci:php-<< parameters.php_version >>-shared-ext
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Switch PHP to nts
@@ -1560,6 +1664,10 @@ jobs:
     environment:
       CFLAGS: ""
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p extensions
       - lib_curl_workaround:
@@ -1668,6 +1776,9 @@ jobs:
     environment:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
@@ -1716,6 +1827,10 @@ jobs:
         type: string
     <<: *BARE_DOCKER_MACHINE
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: << parameters.docker_image >>
@@ -1774,6 +1889,10 @@ jobs:
     working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Fetch PHP 5 packages
@@ -1818,6 +1937,10 @@ jobs:
     docker:
       - image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Run cross-product profiling phpt tests
@@ -1846,6 +1969,10 @@ jobs:
     resource_class: large
     working_directory: ~/datadog
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install good version of docker-compose
