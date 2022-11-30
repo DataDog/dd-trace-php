@@ -435,6 +435,9 @@ final class SpanChecker
             if (isset($metrics['process_id'])) {
                 unset($metrics['process_id']);
             }
+            if (isset($spanMetrics["process_id"])) {
+                unset($spanMetrics['process_id']);
+            }
             TestCase::assertEquals(
                 $metrics,
                 $spanMetrics,
