@@ -430,14 +430,14 @@ final class SpanChecker
         if ($metrics !== SpanAssertion::NOT_TESTED) {
             // Ignore compilation-time metric unless explicitly tested
             if (!isset($metrics['php.compilation.total_time_ms'])) {
-                unset($span['metrics']['php.compilation.total_time_ms']);
+                unset($spanMetrics['php.compilation.total_time_ms']);
             }
             if (isset($metrics['process_id'])) {
                 unset($metrics['process_id']);
             }
             TestCase::assertEquals(
                 $metrics,
-                isset($span['metrics']) ? $span['metrics'] : [],
+                $spanMetrics,
                 $namePrefix . "Wrong value for 'metrics' " . print_r($span, true)
             );
         }
