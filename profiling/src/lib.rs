@@ -131,12 +131,15 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
 > = MaybeUninit::uninit();
 
 /// The engine's previous custom allocation function, if there is one.
+#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_ALLOC: Option<zend::VmMmCustomAllocFn> = None;
 
 /// The engine's previous custom reallocation function, if there is one.
+#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_REALLOC: Option<zend::VmMmCustomReallocFn> = None;
 
 /// The engine's previous custom free function, if there is one.
+#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
 
 /* Important note on the PHP lifecycle:
@@ -934,6 +937,7 @@ extern "C" fn execute_internal(
     interrupt_function(execute_data);
 }
 
+#[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     let ptr: *mut libc::c_void;
 
@@ -977,6 +981,7 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     ptr
 }
 
+#[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     if PREV_CUSTOM_MM_FREE.is_none() {
         zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
@@ -986,6 +991,7 @@ unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     }
 }
 
+#[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_realloc(
     ptr: *mut ::libc::c_void,
     len: u64,
