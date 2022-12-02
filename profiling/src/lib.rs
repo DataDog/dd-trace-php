@@ -13,7 +13,7 @@ use bindings::{ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
-use libc::{c_char, c_int};
+use libc::c_char;
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
 use sapi::Sapi;
@@ -22,6 +22,7 @@ use std::cell::{RefCell, RefMut};
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ops::DerefMut;
+use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -1046,16 +1047,16 @@ extern "C" fn execute_internal(
 /// is the first element and thus the first 4 bytes.
 /// Take care and call `restore_zend_heap()` afterwards!
 #[cfg(feature = "allocation_profiling")]
-unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> u32 {
-    let custom_heap: u32 = std::ptr::read(heap as *const u32);
-    std::ptr::write(heap as *mut u32, zend::ZEND_MM_CUSTOM_HEAP_NONE);
+unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
+    let custom_heap: c_int = std::ptr::read(heap as *const c_int);
+    std::ptr::write(heap as *mut c_int, zend::ZEND_MM_CUSTOM_HEAP_NONE as c_int);
     custom_heap
 }
 
 /// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
 #[cfg(feature = "allocation_profiling")]
-unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: u32) {
-    std::ptr::write(heap as *mut u32, custom_heap);
+unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
+    std::ptr::write(heap as *mut c_int, custom_heap);
 }
 
 #[cfg(feature = "allocation_profiling")]
