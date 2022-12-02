@@ -16,7 +16,6 @@ use lazy_static::lazy_static;
 use libc::{c_char, c_int};
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
-use rand_distr::{Distribution, Poisson};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
@@ -29,6 +28,9 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, Once};
 use std::time::Instant;
 use uuid::Uuid;
+
+#[cfg(feature = "allocation_profiling")]
+use rand_distr::{Distribution, Poisson};
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
@@ -310,13 +312,16 @@ pub struct RequestLocals {
 }
 
 /// take a sample every X bytes
+#[cfg(feature = "allocation_profiling")]
 const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 30.0;
 
+#[cfg(feature = "allocation_profiling")]
 pub struct AllocationProfilingStats {
     /// number of bytes until next sample collection
     next_sample: i64,
 }
 
+#[cfg(feature = "allocation_profiling")]
 impl AllocationProfilingStats {
     pub fn new() -> AllocationProfilingStats {
         AllocationProfilingStats {
@@ -400,6 +405,7 @@ thread_local! {
         vm_interrupt_addr: std::ptr::null_mut(),
     });
 
+    #[cfg(feature = "allocation_profiling")]
     static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats::new());
 }
 
