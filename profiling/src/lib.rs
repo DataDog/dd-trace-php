@@ -631,7 +631,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
 
             // returns `true` if there are no custom handlers installed
             // `false` if there are custom handlers installed
-            if unsafe { zend::is_zend_mm() as i32 != 1 } {
+            if unsafe { zend::is_zend_mm() as i32 == 1 } {
                 info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();
