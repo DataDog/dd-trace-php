@@ -841,12 +841,16 @@ impl Profiler {
 
         let mut sample_values = vec![sample, wall_time, alloc_samples, alloc_size];
 
-        if cpu_time.is_some() {
+        if locals.last_cpu_time.is_some() {
             sample_types.push(ValueType {
                 r#type: Cow::Borrowed("cpu-time"),
                 unit: Cow::Borrowed("nanoseconds"),
             });
-            sample_values.push(cpu_time.unwrap());
+            sample_values.push(if cpu_time.is_some() {
+                cpu_time.unwrap()
+            } else {
+                0
+            });
         }
 
         let mut labels = vec![];
