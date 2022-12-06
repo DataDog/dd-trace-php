@@ -754,7 +754,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                         // touch custom handlers in ZendMM and make sure our extension will not be
                         // `dlclose()`-ed so the pointers stay valid
                         let zend_extension = unsafe {
-                            zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const i8)
+                            zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char)
                         };
                         if !zend_extension.is_null() {
                             // Safety: Checked for null pointer above.
