@@ -608,7 +608,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     {
         if profiling_experimental_allocations_enabled {
-            if unsafe { !zend::is_zend_mm() } {
+            if unsafe { !(zend::is_zend_mm() as bool) } {
                 // Neighboring custom memory handlers found
                 unsafe {
                     zend::zend_mm_get_custom_handlers(
@@ -631,7 +631,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
 
             // returns `true` if there are no custom handlers installed
             // `false` if there are custom handlers installed
-            if unsafe { zend::is_zend_mm() } {
+            if unsafe { !(zend::is_zend_mm() as bool) } {
                 info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();
@@ -733,7 +733,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                 // If `zend::is_zend_mm()` is true, the custom handlers have been reset
                 // to `None` already. This is unexpected, therefore we will not touch the ZendMM handlers
                 // anymore as resetting to prev handlers might result in segfaults.
-                if unsafe { !zend::is_zend_mm() } {
+                if unsafe { !(zend::is_zend_mm() as bool) } {
                     let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
                     let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
                     let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
