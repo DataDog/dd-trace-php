@@ -56,7 +56,41 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-${notes}
+### Added
+- PHP-8.2 support #1800
+- Add Elasticsearch 8 support #1808
+- Add a Roadrunner integration #1813
+
+### Changed
+- Change system.pid to process_id #1796
+
+### Fixed
+- Extract priority sampling whenever is string or int #1789
+- Fix crash during preloading on 8.1+ #1799
+- Fix $integration->setError() to also accept \Error instances #1802
+- Fix ZEND_CATCH chaining logic #1803, #1814
+- Fix misbehaviour with 256+ hooks on a same function #1809
+- FIX PSR-4 autoloading in ComposerBootstrap class #1816 (Thanks @ls-youssef-jlidat)
+- Fix dropped spans causing an infinite loop #1818
+
+### Internal changes
+- Avoid deprecated zend_atol on PHP 8.2 #1778
+- Retry docker images not starting in CI #1807
+
+## Profiling (0.11.0)
+
+Profiling now defaults to being enabled. This removes one step in onboarding as the environment variable DD_PROFILING_ENABLED no longer needs to be set to 1, which can be difficult in some situations. The recommended way to configure profiling is to use .ini settings, which is generally easier.
+
+### Added
+- Add .ini support #1775.
+- Groundwork for allocation profiling #1794
+
+### Changed
+- Bump libdatadog to 0.9 #1782.
+- Bump env_logger to 0.9.3 #1804.
+
+### Internal Changes
+- Add troubleshooting to README #1761
 ]]></notes>
     <contents>
         <dir name="/">
