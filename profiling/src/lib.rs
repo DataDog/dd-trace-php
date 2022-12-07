@@ -358,10 +358,6 @@ impl AllocationProfilingStats {
             }
             let locals = locals.unwrap();
 
-            if !locals.profiling_experimental_allocations_enabled {
-                return;
-            }
-
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
                 unsafe {
