@@ -1,7 +1,5 @@
 --TEST--
 Exceptions from user error handler are tracked for instrumented internal functions
---ENV--
-DD_TRACE_TRACED_INTERNAL_FUNCTIONS=chmod
 --FILE--
 <?php
 class FooErrorHandler
@@ -33,5 +31,5 @@ try {
 Spans count: 1
 error: 1
 error.type: Exception
-error.msg: Uncaught Exception: chmod(): Can not call chmod() for a non-standard stream in %s:%d
+error.msg: Uncaught Exception: chmod(): %snot call chmod() for a non-standard stream in %s:%d
 Has error.stack: 1

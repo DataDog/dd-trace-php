@@ -125,6 +125,14 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
     }
 
+    public function testUnhandledThrowableMultipleCatches()
+    {
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(GetSpec::create('', '/unhandled-throwable-multiple-catch'));
+        });
+        $this->assertError($traces[0][0], "Exception thrown by inner service", [['doThrow', 'index.php', '{main}']]);
+    }
+
     public function testNestedHeaderHandledExceptionInClass()
     {
         $traces = $this->tracesFromWebRequest(function () {

@@ -5,6 +5,7 @@ namespace DDTrace;
 use DDTrace\Contracts\Scope as ScopeInterface;
 use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
 use DDTrace\Contracts\Span as SpanInterface;
+use DDTrace\Util\ObjectKVStore;
 
 final class ScopeManager implements ScopeManagerInterface
 {
@@ -38,8 +39,8 @@ final class ScopeManager implements ScopeManagerInterface
     {
         $scope = new Scope($this, $span, $finishSpanOnClose);
 
-        if ($span instanceof Span && isset($span->ddtrace_scope_activated)) {
-            $span->ddtrace_scope_activated = true;
+        if ($span instanceof Span && ObjectKVStore::get($span->internalSpan, 'ddtrace_scope_activated') !== null) {
+            ObjectKVStore::put($span->internalSpan, 'ddtrace_scope_activated', true);
         }
 
         $this->scopes[count($this->scopes)] = $scope;
@@ -60,7 +61,7 @@ final class ScopeManager implements ScopeManagerInterface
         for ($i = count($this->scopes) - 1; $i >= 0; --$i) {
             $scope = $this->scopes[$i];
             $span = $scope->getSpan();
-            if (!($span instanceof Span) || !isset($span->ddtrace_scope_activated) || $span->ddtrace_scope_activated) {
+            if (!($span instanceof Span) || ObjectKVStore::get($span->internalSpan, 'ddtrace_scope_activated', true)) {
                 return $scope;
             }
         }
@@ -78,8 +79,8 @@ final class ScopeManager implements ScopeManagerInterface
         array_splice($this->scopes, $i, 1);
 
         $span = $scope->getSpan();
-        if ($span instanceof Span && isset($span->ddtrace_scope_activated)) {
-            $span->ddtrace_scope_activated = false;
+        if ($span instanceof Span && ObjectKVStore::get($span->internalSpan, 'ddtrace_scope_activated') !== null) {
+            ObjectKVStore::put($span->internalSpan, 'ddtrace_scope_activated', false);
         }
     }
 

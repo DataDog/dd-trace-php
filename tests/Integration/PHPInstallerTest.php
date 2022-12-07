@@ -12,29 +12,29 @@ final class PHPInstallerTest extends BaseTestCase
 
         // Setting up a dummy remi repo
         $rootPath = self::getTmpRootPath();
-        exec("rm -rf ${rootPath}");
-        exec("mkdir -p ${rootPath}/opt/remi/php74/root/usr/sbin");
+        exec("rm -rf {$rootPath}");
+        exec("mkdir -p {$rootPath}/opt/remi/php74/root/usr/sbin");
 
         // should not be included: not a recognized pattern
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch some_bin; chmod a+x some_bin");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php773; chmod a+x php773");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php_7; chmod a+x php_7");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm77.3; chmod a+x php-fpm77.3");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch some_bin; chmod a+x some_bin");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php773; chmod a+x php773");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php_7; chmod a+x php_7");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm77.3; chmod a+x php-fpm77.3");
 
         // should be included
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php; chmod a+x php");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php7; chmod a+x php7");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php74; chmod a+x php74");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php7.4; chmod a+x php7.4");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm; chmod a+x php-fpm");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php56-fpm; chmod a+x php56-fpm");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php5.6-fpm; chmod a+x php5.6-fpm");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm56; chmod a+x php-fpm56");
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm5.6; chmod a+x php-fpm5.6");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php; chmod a+x php");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php7; chmod a+x php7");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php74; chmod a+x php74");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php7.4; chmod a+x php7.4");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm; chmod a+x php-fpm");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php56-fpm; chmod a+x php56-fpm");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php5.6-fpm; chmod a+x php5.6-fpm");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm56; chmod a+x php-fpm56");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm5.6; chmod a+x php-fpm5.6");
         // php72 should be included as a symlink to will_be_linked
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; touch will_be_linked; chmod a+x will_be_linked");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch will_be_linked; chmod a+x will_be_linked");
         // phpcs:disable Generic.Files.LineLength.TooLong
-        exec("cd ${rootPath}/opt/remi/php74/root/usr/sbin; ln -s ${rootPath}/opt/remi/php74/root/usr/sbin/will_be_linked ${rootPath}/opt/remi/php74/root/usr/sbin/php72");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; ln -s {$rootPath}/opt/remi/php74/root/usr/sbin/will_be_linked {$rootPath}/opt/remi/php74/root/usr/sbin/php72");
         // phpcs:enable Generic.Files.LineLength.TooLong
     }
 
@@ -119,11 +119,11 @@ final class PHPInstallerTest extends BaseTestCase
 
         $rootPath = self::getTmpRootPath() . "/opt/remi/php74/root/usr/sbin";
         foreach ($shouldBeFound as $binary) {
-            $this->assertArrayHasKey("${rootPath}/${binary}", $found);
-            $this->assertSame(realpath("${rootPath}/${binary}"), $found["${rootPath}/${binary}"]["path"]);
+            $this->assertArrayHasKey("{$rootPath}/{$binary}", $found);
+            $this->assertSame(realpath("{$rootPath}/{$binary}"), $found["{$rootPath}/{$binary}"]["path"]);
         }
         foreach ($shouldNotBeFound as $binary) {
-            $this->assertTrue(empty($found["${rootPath}/${binary}"]));
+            $this->assertTrue(empty($found["{$rootPath}/{$binary}"]));
         }
     }
 

@@ -56,6 +56,7 @@
 
 #include "../hook/uhook.h"
 #include "handlers_fiber.h"
+#include "handlers_exception.h"
 
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
@@ -204,8 +205,6 @@ static void ddtrace_activate(void) {
 
     if (DDTRACE_G(disable)) {
         ddtrace_disable_tracing_in_current_request();
-    } else {
-        zai_hook_activate();
     }
 
     DDTRACE_G(request_init_hook_loaded) = 0;
@@ -373,6 +372,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_set_priority_sampling, 0, 0, 1)
 ZEND_ARG_INFO(0, priority)
 ZEND_ARG_INFO(0, global)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_consume_distributed_tracing_headers, 0, 0, 1)
+ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
@@ -830,6 +833,11 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     zai_interceptor_rinit();
 #endif
 
+    if (!DDTRACE_G(disable)) {
+        // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
+        zai_hook_activate();
+    }
+
     if (get_DD_TRACE_ENABLED()) {
         dd_initialize_request();
     }
@@ -879,19 +887,7 @@ static void dd_shutdown_hooks_and_observer(void) {
 #endif
 }
 
-static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
-    UNUSED(module_number, type);
-
-    zend_hash_destroy(&DDTRACE_G(traced_spans));
-
-    if (!get_DD_TRACE_ENABLED()) {
-        if (!DDTRACE_G(disable)) {
-            dd_shutdown_hooks_and_observer();
-        }
-
-        return SUCCESS;
-    }
-
+void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = true;
 
     ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
@@ -906,6 +902,22 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     dd_shutdown_hooks_and_observer();
 
     DDTRACE_G(in_shutdown) = false;
+}
+
+static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
+    UNUSED(module_number, type);
+
+    zend_hash_destroy(&DDTRACE_G(traced_spans));
+
+    if (!get_DD_TRACE_ENABLED()) {
+        if (!DDTRACE_G(disable)) {
+            dd_shutdown_hooks_and_observer();
+        }
+
+        return SUCCESS;
+    }
+
+    dd_force_shutdown_tracing();
 
     return SUCCESS;
 }
@@ -1839,6 +1851,37 @@ static PHP_FUNCTION(current_context) {
     add_assoc_zval_ex(return_value, ZEND_STRL("distributed_tracing_propagated_tags"), &tags);
 }
 
+static void dd_clear_propagated_tags_from_root_span(void) {
+    if (DDTRACE_G(active_stack)->root_span) {
+        zend_string *tagname;
+        zend_array *meta = ddtrace_spandata_property_meta(DDTRACE_G(active_stack)->root_span);
+        ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) { zend_hash_del(meta, tagname); }
+        ZEND_HASH_FOREACH_END();
+    }
+}
+
+static void dd_apply_propagated_values_to_existing_spans(void) {
+    ddtrace_span_data *span = ddtrace_active_span();
+    while (span) {
+        zend_array *meta = ddtrace_spandata_property_meta(span);
+        span->trace_id = DDTRACE_G(distributed_trace_id);
+
+        if (DDTRACE_G(dd_origin)) {
+            zval value;
+            ZVAL_STR_COPY(&value, DDTRACE_G(dd_origin));
+            zend_hash_str_update(meta, ZEND_STRL("_dd.origin"), &value);
+        } else {
+            zend_hash_str_del(meta, ZEND_STRL("_dd.origin"));
+        }
+
+        span = span->parent;
+    }
+
+    if (DDTRACE_G(active_stack)->root_span) {
+        DDTRACE_G(active_stack)->root_span->parent_id = DDTRACE_G(distributed_parent_trace_id);
+    }
+}
+
 /* {{{ proto bool set_distributed_tracing_context() */
 static PHP_FUNCTION(set_distributed_tracing_context) {
     zend_string *trace_id_str, *parent_id_str, *origin = NULL;
@@ -1887,12 +1930,7 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
     }
 
     if (tags) {
-        if (DDTRACE_G(active_stack)->root_span) {
-            zend_string *tagname;
-            zend_array *meta = ddtrace_spandata_property_meta(DDTRACE_G(active_stack)->root_span);
-            ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) { zend_hash_del(meta, tagname); }
-            ZEND_HASH_FOREACH_END();
-        }
+        dd_clear_propagated_tags_from_root_span();
 
         if (Z_TYPE_P(tags) == IS_STRING) {
             ddtrace_add_tracer_tags_from_header(Z_STR_P(tags));
@@ -1905,27 +1943,65 @@ static PHP_FUNCTION(set_distributed_tracing_context) {
         }
     }
 
-    ddtrace_span_data *span = ddtrace_active_span();
-    while (span) {
-        zend_array *meta = ddtrace_spandata_property_meta(span);
-        span->trace_id = DDTRACE_G(distributed_trace_id);
-
-        if (DDTRACE_G(dd_origin)) {
-            zval value;
-            ZVAL_STR_COPY(&value, DDTRACE_G(dd_origin));
-            zend_hash_str_update(meta, ZEND_STRL("_dd.origin"), &value);
-        } else {
-            zend_hash_str_del(meta, ZEND_STRL("_dd.origin"));
-        }
-
-        span = span->parent;
-    }
-
-    if (DDTRACE_G(active_stack)->root_span) {
-        DDTRACE_G(active_stack)->root_span->parent_id = DDTRACE_G(distributed_parent_trace_id);
-    }
+    dd_apply_propagated_values_to_existing_spans();
 
     RETURN_TRUE;
+}
+
+void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, const char *, zend_string **header_value, void *data), void *data);
+
+typedef struct {
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
+} dd_fci_fcc_pair;
+
+static bool dd_read_userspace_header(zai_string_view zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+    UNUSED(zai_header);
+    dd_fci_fcc_pair *func = (dd_fci_fcc_pair *) data;
+    zval retval, arg;
+    func->fci.params = &arg;
+    ZVAL_STRING(&arg, lowercase_header);
+
+    if (zend_call_function_with_return_value(&func->fci, &func->fcc, &retval) != SUCCESS || Z_TYPE(retval) <= IS_NULL) {
+        zval_ptr_dtor(&arg);
+        return false;
+    }
+
+    *header_value = zval_get_string(&retval);
+
+    zval_ptr_dtor(&arg);
+    zval_ptr_dtor(&retval);
+
+    return true;
+}
+
+static PHP_FUNCTION(consume_distributed_tracing_headers) {
+    UNUSED(return_value);
+    dd_fci_fcc_pair func;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_FUNC(func.fci, func.fcc)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    func.fci.param_count = 1;
+
+    if (DDTRACE_G(dd_origin)) {
+        zend_string_release(DDTRACE_G(dd_origin));
+    }
+    dd_clear_propagated_tags_from_root_span();
+
+    ddtrace_read_distributed_tracing_ids(dd_read_userspace_header, &func);
+
+    if (DDTRACE_G(active_stack)->root_span) {
+        ddtrace_get_propagated_tags(ddtrace_spandata_property_meta(DDTRACE_G(active_stack)->root_span));
+    }
+    dd_apply_propagated_values_to_existing_spans();
+
+    RETURN_NULL();
 }
 
 /* {{{ proto string dd_trace_closed_spans_count() */
@@ -1997,6 +2073,15 @@ static PHP_FUNCTION(startup_logs) {
     ZVAL_NEW_STR(return_value, buf.s);
 }
 
+static PHP_FUNCTION(find_active_exception) {
+    UNUSED(execute_data);
+
+    zend_object *ex = ddtrace_find_active_exception();
+    if (ex) {
+        RETURN_OBJ_COPY(ex);
+    }
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace, arginfo_dd_trace),  // Noop legacy API
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
@@ -2026,6 +2111,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(trace_id, arginfo_ddtrace_void),
     DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
     DDTRACE_NS_FE(set_distributed_tracing_context, arginfo_dd_trace_set_distributed_tracing_context),
+    DDTRACE_NS_FE(consume_distributed_tracing_headers, arginfo_consume_distributed_tracing_headers),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),
@@ -2053,6 +2139,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(hook_function, arginfo_ddtrace_hook_function),
     DDTRACE_NS_FE(hook_method, arginfo_ddtrace_hook_method),
     DDTRACE_NS_FE(startup_logs, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(find_active_exception, arginfo_ddtrace_void),
     DDTRACE_NS_FE(get_priority_sampling, arginfo_get_priority_sampling),
     DDTRACE_NS_FE(set_priority_sampling, arginfo_set_priority_sampling),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
@@ -2078,7 +2165,7 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
 //   - set a new trace (group) id
 void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
 
-void dd_read_distributed_tracing_ids(void) {
+void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, const char *, zend_string **header_value, void *data), void *data) {
     zend_string *trace_id_str, *parent_id_str, *priority_str, *propagated_tags, *b3_header_str;
 
     DDTRACE_G(distributed_trace_id) = 0;
@@ -2087,8 +2174,11 @@ void dd_read_distributed_tracing_ids(void) {
 
     bool parse_datadog = zend_hash_str_exists(get_DD_PROPAGATION_STYLE_EXTRACT(), ZEND_STRL("Datadog"));
     bool parse_b3 = zend_hash_str_exists(get_DD_PROPAGATION_STYLE_EXTRACT(), ZEND_STRL("B3"));
+    bool parse_b3_single = zend_hash_str_exists(get_DD_PROPAGATION_STYLE_EXTRACT(), ZEND_STRL("B3 single header"));
 
-    if (zend_hash_str_exists(get_DD_PROPAGATION_STYLE_EXTRACT(), ZEND_STRL("B3 single header")) && zai_read_header_literal("B3", &b3_header_str) == ZAI_HEADER_SUCCESS) {
+    int priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+
+    if (parse_b3_single && read_header(ZAI_STRL_VIEW("B3"), "b3", &b3_header_str, data)) {
         char *b3_ptr = ZSTR_VAL(b3_header_str), *b3_end = b3_ptr + ZSTR_LEN(b3_header_str);
         char *b3_traceid = b3_ptr;
         while (b3_ptr < b3_end && *b3_ptr != '-') {
@@ -2111,65 +2201,94 @@ void dd_read_distributed_tracing_ids(void) {
 
         if (b3_ptr - b3_sampling == 1) {
             if (*b3_sampling == '0') {
-                DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = 0;
+                priority_sampling = 0;
             } else if (*b3_sampling == '1') {
-                DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = 1;
+                priority_sampling = 1;
             } else if (*b3_sampling == 'd') {
-                DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = PRIORITY_SAMPLING_USER_KEEP;
+                priority_sampling = PRIORITY_SAMPLING_USER_KEEP;
             }
         } else if (b3_ptr - b3_sampling == 4 && strncmp(b3_sampling, "true", 4) == 0) {
-            DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = 1;
+            priority_sampling = 1;
         } else if (b3_ptr - b3_sampling == 5 && strncmp(b3_sampling, "false", 5) == 0) {
-            DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = 0;
+            priority_sampling = 0;
         }
+        zend_string_release(b3_header_str);
     }
 
-    if (parse_datadog && zai_read_header_literal("X_DATADOG_TRACE_ID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
+    if (parse_datadog && read_header(ZAI_STRL_VIEW("X_DATADOG_TRACE_ID"), "x-datadog-trace-id", &trace_id_str, data)) {
         zval trace_zv;
         ZVAL_STR(&trace_zv, trace_id_str);
         DDTRACE_G(distributed_trace_id) = ddtrace_parse_userland_span_id(&trace_zv);
-    } else if (parse_b3 && zai_read_header_literal("X_B3_TRACEID", &trace_id_str) == ZAI_HEADER_SUCCESS) {
+        zend_string_release(trace_id_str);
+    } else if (parse_b3 && read_header(ZAI_STRL_VIEW("X_B3_TRACEID"), "b3-traceid", &trace_id_str, data)) {
         zval trace_zv;
         ZVAL_STR(&trace_zv, trace_id_str);
         DDTRACE_G(distributed_trace_id) = ddtrace_parse_hex_span_id(&trace_zv);
+        zend_string_release(trace_id_str);
     }
 
-    if (DDTRACE_G(distributed_trace_id) && parse_datadog && zai_read_header_literal("X_DATADOG_PARENT_ID", &parent_id_str) == ZAI_HEADER_SUCCESS) {
-        zval parent_zv;
-        ZVAL_STR(&parent_zv, parent_id_str);
-        DDTRACE_G(distributed_parent_trace_id) = ddtrace_parse_userland_span_id(&parent_zv);
-    } else if (DDTRACE_G(distributed_trace_id) && parse_b3 && zai_read_header_literal("X_B3_SPANID", &parent_id_str) == ZAI_HEADER_SUCCESS) {
-        zval parent_zv;
-        ZVAL_STR(&parent_zv, parent_id_str);
-        DDTRACE_G(distributed_parent_trace_id) = ddtrace_parse_hex_span_id(&parent_zv);
+    if (DDTRACE_G(distributed_trace_id)) {
+        if (parse_datadog && read_header(ZAI_STRL_VIEW("X_DATADOG_PARENT_ID"), "x-datadog-parent-id", &parent_id_str, data)) {
+            zval parent_zv;
+            ZVAL_STR(&parent_zv, parent_id_str);
+            DDTRACE_G(distributed_parent_trace_id) = ddtrace_parse_userland_span_id(&parent_zv);
+            zend_string_release(parent_id_str);
+        } else if (parse_b3 && read_header(ZAI_STRL_VIEW("X_B3_SPANID"), "x-b3-spanid", &parent_id_str, data)) {
+            zval parent_zv;
+            ZVAL_STR(&parent_zv, parent_id_str);
+            DDTRACE_G(distributed_parent_trace_id) = ddtrace_parse_hex_span_id(&parent_zv);
+            zend_string_release(parent_id_str);
+        }
     }
 
-    if (zai_read_header_literal("X_DATADOG_ORIGIN", &DDTRACE_G(dd_origin)) == ZAI_HEADER_SUCCESS) {
-        GC_ADDREF(DDTRACE_G(dd_origin));
-    }
+    read_header(ZAI_STRL_VIEW("X_DATADOG_ORIGIN"), "datadog-origin", &DDTRACE_G(dd_origin), data);
 
-    if (parse_datadog && zai_read_header_literal("X_DATADOG_SAMPLING_PRIORITY", &priority_str) == ZAI_HEADER_SUCCESS) {
-        DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) =
-            strtol(ZSTR_VAL(priority_str), NULL, 10);
-    } else if (parse_b3 && zai_read_header_literal("X_B3_SAMPLED", &priority_str) == ZAI_HEADER_SUCCESS) {
+    if (parse_datadog && read_header(ZAI_STRL_VIEW("X_DATADOG_SAMPLING_PRIORITY"), "x-datadog-sampling-priority", &priority_str, data)) {
+        priority_sampling = strtol(ZSTR_VAL(priority_str), NULL, 10);
+        zend_string_release(priority_str);
+    } else if (parse_b3 && read_header(ZAI_STRL_VIEW("X_B3_SAMPLED"), "x-b3-sampled", &priority_str, data)) {
         if (ZSTR_LEN(priority_str) == 1) {
             if (ZSTR_VAL(priority_str)[0] == '0') {
-                DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = 0;
+                priority_sampling = 0;
             } else if (ZSTR_VAL(priority_str)[0] == '1') {
-                DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = 1;
+                priority_sampling = 1;
             }
         } else if (zend_string_equals_literal(priority_str, "true")) {
-            DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = 1;
+            priority_sampling = 1;
         } else if (zend_string_equals_literal(priority_str, "false")) {
-            DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = 0;
+            priority_sampling = 0;
         }
-    } else if (parse_b3 && zai_read_header_literal("X_B3_FLAGS", &priority_str) == ZAI_HEADER_SUCCESS) {
+        zend_string_release(priority_str);
+    } else if (parse_b3 && read_header(ZAI_STRL_VIEW("X_B3_FLAGS"), "x-b3-flags", &priority_str, data)) {
         if (ZSTR_LEN(priority_str) == 1 && ZSTR_VAL(priority_str)[1] == '1') {
-            DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = PRIORITY_SAMPLING_USER_KEEP;
+            priority_sampling = PRIORITY_SAMPLING_USER_KEEP;
+        }
+        zend_string_release(priority_str);
+    }
+    if (priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        if (!DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
+            DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = priority_sampling;
+        } else {
+            ddtrace_set_prioritySampling_on_root(priority_sampling);
         }
     }
 
-    if (zai_read_header_literal("X_DATADOG_TAGS", &propagated_tags) == ZAI_HEADER_SUCCESS) {
+    if (read_header(ZAI_STRL_VIEW("X_DATADOG_TAGS"), "x-datadog-tags", &propagated_tags, data)) {
         ddtrace_add_tracer_tags_from_header(propagated_tags);
+        zend_string_release(propagated_tags);
     }
 }
+
+static bool dd_read_zai_header(zai_string_view zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+    UNUSED(lowercase_header, data);
+    if (zai_read_header(zai_header, header_value) != ZAI_HEADER_SUCCESS) {
+        return false;
+    }
+    *header_value = zend_string_copy(*header_value);
+    return true;
+}
+
+static void dd_read_distributed_tracing_ids(void) {
+    ddtrace_read_distributed_tracing_ids(dd_read_zai_header, NULL);
+}
+

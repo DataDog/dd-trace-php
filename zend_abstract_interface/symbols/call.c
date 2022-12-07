@@ -3,6 +3,9 @@
 #if PHP_VERSION_ID >= 80000
 #include <Zend/zend_observer.h>
 #endif
+#if PHP_VERSION_ID >= 80200
+#include <Zend/zend_extensions.h>
+#endif
 
 #include <Zend/zend_closures.h>
 #include <ctype.h>
@@ -27,6 +30,42 @@ zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cac
 }
 
 #define zend_call_function zend_call_function_wrapper
+#endif
+
+#if PHP_VERSION_ID >= 80200
+#define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
+
+static zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
+    zend_execute_data fake_ex[2]; // 2 to have some space for observer temps
+    zend_function dummy_observable_func;
+    dummy_observable_func.type = ZEND_INTERNAL_FUNCTION;
+    dummy_observable_func.common.fn_flags = 0;
+    dummy_observable_func.common.T = 1; // the single temporary having the prev_observed address
+    fake_ex->func = &dummy_observable_func;
+    fake_ex->prev_execute_data = execute_data;
+    ZEND_CALL_NUM_ARGS(fake_ex) = 0;
+
+    size_t cache_size = zend_internal_run_time_cache_reserved_size();
+    void **rt_cache = ecalloc(cache_size, 1);
+    // Set the begin handler to not observed and the end handler (where ever it is) to NULL (implicitly due to ecalloc)
+    rt_cache[zend_observer_fcall_op_array_extension] = ZEND_OBSERVER_NOT_OBSERVED;
+    ZEND_MAP_PTR_INIT(dummy_observable_func.op_array.run_time_cache, rt_cache);
+
+    // We have a run_time cache with nothing observed, meaning no uncontrolled code will be executed now
+    // However, it will in any case update current_observed_frame to our fake frame (needed so that zend_observer_fcall_end() accepts our fake frame)
+    zend_observer_fcall_begin(fake_ex);
+
+    // write the prev_observed address
+    zend_execute_data **prev_observed = (zend_execute_data **)&fake_ex[1], *cur_prev_observed = *prev_observed;
+    *prev_observed = execute_data;
+
+    // Now, fetch current_observed_frame from the prev_observed address of the fake frame
+    zend_observer_fcall_end(fake_ex, NULL);
+
+    efree(rt_cache);
+
+    return cur_prev_observed;
+}
 #endif
 
 /* {{{ private call code */
@@ -80,7 +119,7 @@ bool zai_symbol_call_impl(
                 zai_symbol_lookup(
                     ZAI_SYMBOL_TYPE_FUNCTION,
                     scope_type, scope,
-                    function	);
+                    function);
             break;
 
         case ZAI_SYMBOL_FUNCTION_CLOSURE:
@@ -199,6 +238,10 @@ bool zai_symbol_call_impl(
         fci.param_count = argc;
     }
 
+#if PHP_VERSION_ID >= 80200
+    zend_execute_data *prev_observed = zai_set_observed_frame(NULL);
+#endif
+
     zend_try {
         zai_symbol_call_result =
             zend_call_function(&fci, &fcc);
@@ -223,7 +266,13 @@ bool zai_symbol_call_impl(
             zend_observer_fcall_end_all();
         }
 #endif
-    } else if (rebound_closure) {
+    }
+
+#if PHP_VERSION_ID >= 80200
+    zai_set_observed_frame(prev_observed);
+#endif
+
+    if (!zai_symbol_call_bailed && rebound_closure) {
         // We intentially skip freeing upon bailout to avoid crashes in bailout/observer cleanup
         if (fcc.function_handler->common.fn_flags & ZEND_ACC_GENERATOR) {
             /* copied upon generator creation */

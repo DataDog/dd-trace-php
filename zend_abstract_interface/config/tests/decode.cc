@@ -125,7 +125,10 @@ TEA_TEST_CASE("config/decode", "int", {
         {ZAI_STRL_VIEW("-2"), -2},
         {ZAI_STRL_VIEW("42"), 42},
         {ZAI_STRL_VIEW("    42    "), 42},
+#if PHP_VERSION_ID < 80200
+// int parsing changed on PHP 8.2
         {ZAI_STRL_VIEW("4   2"), 4},  // It's weird, but ¯\_(ツ)_/¯
+#endif
     };
 
     for (expected_int expected : successes) {
@@ -148,6 +151,9 @@ TEA_TEST_CASE("config/decode", "int", {
         ZAI_STRL_VIEW("0x0"),
         ZAI_STRL_VIEW("0.0.0"),
         ZAI_STRL_VIEW("4.2.0"),
+#if PHP_VERSION_ID >= 80200
+        ZAI_STRL_VIEW("4   2"),
+#endif
     };
 
     for (zai_string_view name : errors) {

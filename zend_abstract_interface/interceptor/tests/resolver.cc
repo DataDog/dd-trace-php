@@ -12,6 +12,9 @@ extern "C" {
 
     static PHP_MINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_minit();
+#if PHP_VERSION_ID >= 80000
+        zai_interceptor_minit();
+#endif
         return SUCCESS;
     }
 

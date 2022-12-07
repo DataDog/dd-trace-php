@@ -62,6 +62,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         return null;
     }
 
+    protected static function getRoadrunnerVersion()
+    {
+        return null;
+    }
+
     /**
      * Get additional envs to be set in the web server.
      * @return array
@@ -74,7 +79,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             // Short flush interval by default or our tests will take all day
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
-            'DD_TRACE_DEBUG' => 0,
+            'DD_TRACE_DEBUG' => ini_get("datadog.trace.debug"),
         ];
 
         return $envs;
@@ -107,6 +112,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
             self::$appServer->mergeEnvs(static::getEnvs());
             self::$appServer->mergeInis(static::getInis());
+            if ($version = static::getRoadrunnerVersion()) {
+                self::$appServer->setRoadrunner($version);
+            }
             self::$appServer->start();
         }
     }
