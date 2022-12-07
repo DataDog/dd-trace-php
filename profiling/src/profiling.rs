@@ -13,6 +13,7 @@ use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::intrinsics::transmute;
 use std::str;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -50,20 +51,18 @@ impl WallTime {
 #[derive(Debug, Clone)]
 pub enum LabelValue {
     Str(Cow<'static, str>),
-
-    #[allow(dead_code)]
-    Num(i64, Cow<'static, str>),
+    Num(i64, Option<&'static str>),
 }
 
 #[derive(Debug, Clone)]
 pub struct Label {
-    pub key: Cow<'static, str>,
+    pub key: &'static str,
     pub value: LabelValue,
 }
 
 impl<'a> From<&'a Label> for profile::api::Label<'a> {
     fn from(label: &'a Label) -> Self {
-        let key = label.key.as_ref();
+        let key = label.key;
         match &label.value {
             LabelValue::Str(str) => Self {
                 key,
@@ -75,7 +74,7 @@ impl<'a> From<&'a Label> for profile::api::Label<'a> {
                 key,
                 str: None,
                 num: *num,
-                num_unit: Some(num_unit),
+                num_unit: num_unit.as_deref(),
             },
         }
     }
@@ -379,9 +378,9 @@ impl TimeCollector {
             "Received Endpoint Profiling message for span id {}.",
             message.local_root_span_id
         );
-        let local_root_span_id = message.local_root_span_id.to_string();
+
+        let local_root_span_id = message.local_root_span_id;
         for (_, profile) in profiles.iter_mut() {
-            let local_root_span_id = Cow::Borrowed(local_root_span_id.as_ref());
             let endpoint = Cow::Borrowed(message.resource.as_str());
             profile.add_endpoint(local_root_span_id, endpoint)
         }
@@ -771,15 +770,20 @@ impl Profiler {
                 if let Some(get_profiling_context) = gpc {
                     let context = get_profiling_context();
                     if context.local_root_span_id != 0 {
+                        /* PProf only has signed integers for label.num.
+                         * We bit-cast u64 to i64, and the backend does the
+                         * reverse so the conversion is lossless.
+                         */
+                        let local_root_span_id: i64 = transmute(context.local_root_span_id);
+                        let span_id: i64 = transmute(context.span_id);
+
                         labels.push(Label {
-                            key: "local root span id".into(),
-                            value: LabelValue::Str(
-                                format!("{}", context.local_root_span_id).into(),
-                            ),
+                            key: "local root span id",
+                            value: LabelValue::Num(local_root_span_id, None),
                         });
                         labels.push(Label {
-                            key: "span id".into(),
-                            value: LabelValue::Str(format!("{}", context.span_id).into()),
+                            key: "span id",
+                            value: LabelValue::Num(span_id, None),
                         });
                     }
                 }
@@ -863,13 +867,13 @@ impl Profiler {
                     let context = get_profiling_context();
                     if context.local_root_span_id != 0 {
                         labels.push(Label {
-                            key: "local root span id".into(),
+                            key: "local root span id",
                             value: LabelValue::Str(
                                 format!("{}", context.local_root_span_id).into(),
                             ),
                         });
                         labels.push(Label {
-                            key: "span id".into(),
+                            key: "span id",
                             value: LabelValue::Str(format!("{}", context.span_id).into()),
                         });
                     }
