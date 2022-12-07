@@ -1,6 +1,7 @@
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_modules.h>
+#include <Zend/zend_alloc.h>
 #include <php.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -91,3 +92,19 @@ void datadog_php_profiling_install_internal_function_handler(
  */
 void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
                                                       bool persistent);
+
+/**
+ * Wrapper to PHP's `zend_mm_set_custom_handlers()`. Starting from PHP 7.3
+ * onwards the upstream `zend_mm_set_custom_handlers()` function will restore
+ * the `use_custom_heap` flag on the `zend_mm_heap` to
+ * `ZEND_MM_CUSTOM_HEAP_NONE` when you pass in three null pointers. PHP
+ * versions prior to 7.3 (e.g. 7.2 and 7.1) which we currently do support don't
+ * do this. This leads to a situation where null pointers are being called
+ * which leads to segfaults. To circumvent this bug we will manually reset the
+ * `use_custom_heap` flag back to normal when null pointers are being passed
+ * in on those PHP versions.
+ */
+void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
+                                               void* (*_malloc)(size_t),
+                                               void  (*_free)(void*),
+                                               void* (*_realloc)(void*, size_t));

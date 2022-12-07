@@ -314,7 +314,7 @@ pub struct RequestLocals {
 
 /// take a sample every X bytes
 #[cfg(feature = "allocation_profiling")]
-const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 30.0;
+const ALLOCATION_PROFILING_INTERVAL: f32 = 1024.0 * 50.0;
 
 #[cfg(feature = "allocation_profiling")]
 pub struct AllocationProfilingStats {
@@ -621,7 +621,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             }
 
             unsafe {
-                zend::zend_mm_set_custom_handlers(
+                zend::ddog_php_prof_zend_mm_set_custom_handlers(
                     zend::zend_mm_get_heap(),
                     Some(alloc_profiling_malloc),
                     Some(alloc_profiling_free),
@@ -768,7 +768,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                     } else {
                         // This is the happy path (restore previously installed custom handlers)!
                         unsafe {
-                            zend::zend_mm_set_custom_handlers(
+                            zend::ddog_php_prof_zend_mm_set_custom_handlers(
                                 zend::zend_mm_get_heap(),
                                 PREV_CUSTOM_MM_ALLOC,
                                 PREV_CUSTOM_MM_FREE,
