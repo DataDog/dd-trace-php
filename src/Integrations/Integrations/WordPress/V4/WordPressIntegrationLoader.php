@@ -39,109 +39,109 @@ class WordPressIntegrationLoader
         \DDTrace\trace_method('WP', 'main', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP.main',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP.main'
+                'WP.main',
+                Type::WEB_SERVLET,
+                $service,
+                'WP.main'
             );
         });
 
         \DDTrace\trace_method('WP', 'init', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP.init',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP.init'
+                'WP.init',
+                Type::WEB_SERVLET,
+                $service,
+                'WP.init'
             );
         });
 
         \DDTrace\trace_method('WP', 'parse_request', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP.parse_request',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP.parse_request'
+                'WP.parse_request',
+                Type::WEB_SERVLET,
+                $service,
+                'WP.parse_request'
             );
         });
 
         \DDTrace\trace_method('WP', 'send_headers', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP.send_headers',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP.send_headers'
+                'WP.send_headers',
+                Type::WEB_SERVLET,
+                $service,
+                'WP.send_headers'
             );
         });
 
         \DDTrace\trace_method('WP', 'query_posts', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP.query_posts',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP.query_posts'
+                'WP.query_posts',
+                Type::WEB_SERVLET,
+                $service,
+                'WP.query_posts'
             );
         });
 
         \DDTrace\trace_method('WP', 'handle_404', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP.handle_404',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP.handle_404'
+                'WP.handle_404',
+                Type::WEB_SERVLET,
+                $service,
+                'WP.handle_404'
             );
         });
 
         \DDTrace\trace_method('WP', 'register_globals', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP.register_globals',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP.register_globals'
+                'WP.register_globals',
+                Type::WEB_SERVLET,
+                $service,
+                'WP.register_globals'
             );
         });
 
         \DDTrace\trace_function('create_initial_post_types', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'create_initial_post_types',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'create_initial_post_types'
+                'create_initial_post_types',
+                Type::WEB_SERVLET,
+                $service,
+                'create_initial_post_types'
             );
         });
 
         \DDTrace\trace_function('create_initial_taxonomies', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'create_initial_taxonomies',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'create_initial_taxonomies'
+                'create_initial_taxonomies',
+                Type::WEB_SERVLET,
+                $service,
+                'create_initial_taxonomies'
             );
         });
 
         \DDTrace\trace_function('wp_print_head_scripts', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'wp_print_head_scripts',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'wp_print_head_scripts'
+                'wp_print_head_scripts',
+                Type::WEB_SERVLET,
+                $service,
+                'wp_print_head_scripts'
             );
         });
         \DDTrace\trace_function('wp_print_footer_scripts', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'wp_print_footer_scripts',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'wp_print_footer_scripts'
+                'wp_print_footer_scripts',
+                Type::WEB_SERVLET,
+                $service,
+                'wp_print_footer_scripts'
             );
         });
 
@@ -149,30 +149,30 @@ class WordPressIntegrationLoader
         \DDTrace\trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'wp_maybe_load_widgets',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'wp_maybe_load_widgets'
+                'wp_maybe_load_widgets',
+                Type::WEB_SERVLET,
+                $service,
+                'wp_maybe_load_widgets'
             );
         });
 
         \DDTrace\trace_function('wp_maybe_load_embeds', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'wp_maybe_load_embeds',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'wp_maybe_load_embeds'
+                'wp_maybe_load_embeds',
+                Type::WEB_SERVLET,
+                $service,
+                'wp_maybe_load_embeds'
             );
         });
 
         \DDTrace\trace_function('_wp_customize_include', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: '_wp_customize_include',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: '_wp_customize_include'
+                '_wp_customize_include',
+                Type::WEB_SERVLET,
+                $service,
+                '_wp_customize_include'
             );
         });
 
@@ -180,20 +180,20 @@ class WordPressIntegrationLoader
         \DDTrace\trace_method('WP_Widget_Factory', '_register_widgets', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP_Widget_Factory._register_widgets',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP_Widget_Factory._register_widgets'
+                'WP_Widget_Factory._register_widgets',
+                Type::WEB_SERVLET,
+                $service,
+                'WP_Widget_Factory._register_widgets'
             );
         });
 
         \DDTrace\trace_method('WP_Widget', 'display_callback', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'WP_Widget.display_callback',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'WP_Widget.display_callback'
+                'WP_Widget.display_callback',
+                Type::WEB_SERVLET,
+                $service,
+                'WP_Widget.display_callback'
             );
         });
 
@@ -201,10 +201,10 @@ class WordPressIntegrationLoader
         \DDTrace\trace_method('wpdb', '__construct', function (SpanData $span, array $args) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'wpdb.__construct',
-                type: Type::SQL,
-                service: $service,
-                resource: 'wpdb.__construct',
+                'wpdb.__construct',
+                Type::SQL,
+                $service,
+                'wpdb.__construct',
                 meta: [
                     'db.user' => $args[0],
                     'db.name' => $args[2],
@@ -216,10 +216,10 @@ class WordPressIntegrationLoader
         \DDTrace\trace_method('wpdb', 'query', function (SpanData $span, array $args) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'wpdb.query',
-                type: Type::SQL,
-                service: $service,
-                resource: $args[0]
+                'wpdb.query',
+                Type::SQL,
+                $service,
+                $args[0]
             );
         });
 
@@ -228,40 +228,40 @@ class WordPressIntegrationLoader
             $resource = !empty($args[0]) ? $args[0] : 'get_header';
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'get_header',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: $resource
+                'get_header',
+                Type::WEB_SERVLET,
+                $service,
+                $resource
             );
         });
 
         \DDTrace\trace_function('wp_head', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'wp_head',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'wp_head'
+                'wp_head',
+                Type::WEB_SERVLET,
+                $service,
+                'wp_head'
             );
         });
 
         \DDTrace\trace_function('the_custom_header_markup', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'the_custom_header_markup',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'the_custom_header_markup'
+                'the_custom_header_markup',
+                Type::WEB_SERVLET,
+                $service,
+                'the_custom_header_markup'
             );
         });
 
         \DDTrace\trace_function('body_class', function (SpanData $span) use ($service) {
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'body_class',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: 'body_class'
+                'body_class',
+                Type::WEB_SERVLET,
+                $service,
+                'body_class'
             );
         });
 
@@ -269,10 +269,10 @@ class WordPressIntegrationLoader
             $resource = !empty($args[0]) ? $args[0] : 'load_template';
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'load_template',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: $resource
+                'load_template',
+                Type::WEB_SERVLET,
+                $service,
+                $resource
             );
         });
 
@@ -280,10 +280,10 @@ class WordPressIntegrationLoader
             $resource = !empty($args[0]) ? $args[0] : 'comments_template';
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'comments_template',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: $resource
+                'comments_template',
+                Type::WEB_SERVLET,
+                $service,
+                $resource
             );
         });
 
@@ -291,10 +291,10 @@ class WordPressIntegrationLoader
             $resource = !empty($args[0]) ? $args[0] : 'get_sidebar';
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'get_sidebar',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: $resource
+                'get_sidebar',
+                Type::WEB_SERVLET,
+                $service,
+                $resource
             );
         });
 
@@ -302,10 +302,10 @@ class WordPressIntegrationLoader
             $resource = !empty($args[0]) ? $args[0] : 'dynamic_sidebar';
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'dynamic_sidebar',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: $resource
+                'dynamic_sidebar',
+                Type::WEB_SERVLET,
+                $service,
+                $resource
             );
         });
 
@@ -313,10 +313,10 @@ class WordPressIntegrationLoader
             $resource = !empty($args[0]) ? $args[0] : 'get_footer';
             WordPressIntegrationLoader::setCommonValues(
                 $span,
-                name: 'get_footer',
-                type: Type::WEB_SERVLET,
-                service: $service,
-                resource: $resource
+                'get_footer',
+                Type::WEB_SERVLET,
+                $service,
+                $resource
             );
         });
 
