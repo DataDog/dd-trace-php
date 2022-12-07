@@ -125,7 +125,7 @@ pub(crate) enum ConfigId {
     ProfilingEnabled = 0,
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
-    ProfilingExperimentalAllocationsEnabled,
+    ProfilingExperimentalAllocationEnabled,
     ProfilingLogLevel,
 
     // todo: do these need to be kept in sync with the tracer?
@@ -146,8 +146,8 @@ impl ConfigId {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
-            ProfilingExperimentalAllocationsEnabled => {
-                b"DD_PROFILING_EXPERIMENTAL_ALLOCATIONS_ENABLED\0"
+            ProfilingExperimentalAllocationEnabled => {
+                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0"
             }
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
@@ -189,8 +189,8 @@ pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_allocations_enabled() -> bool {
-    get_bool(ProfilingExperimentalAllocationsEnabled, false)
+pub(crate) unsafe fn profiling_experimental_allocation_enabled() -> bool {
+    get_bool(ProfilingExperimentalAllocationEnabled, false)
 }
 
 unsafe fn get_bool(id: ConfigId, default: bool) -> bool {
@@ -366,8 +366,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalAllocationsEnabled),
-                    name: ProfilingExperimentalAllocationsEnabled.env_var_name(),
+                    id: transmute(ProfilingExperimentalAllocationEnabled),
+                    name: ProfilingExperimentalAllocationEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStringView::literal(b"0\0"),
                     aliases: std::ptr::null_mut(),
@@ -493,8 +493,8 @@ mod tests {
                 "datadog.profiling.experimental_cpu_time_enabled",
             ),
             (
-                b"DD_PROFILING_EXPERIMENTAL_ALLOCATIONS_ENABLED\0",
-                "datadog.profiling.experimental_allocations_enabled",
+                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
+                "datadog.profiling.experimental_allocation_enabled",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
         ];
