@@ -50,10 +50,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('laravel.application.handle')
                             ->withChildren([
-                                SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
-                                    ->withExactTags([
-                                        TAG::SPAN_KIND => 'server',
-                                    ]),
+                                SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple'),
                                 SpanAssertion::exists('laravel.event.handle'),
                                 SpanAssertion::exists('laravel.event.handle'),
                                 SpanAssertion::exists('laravel.event.handle'),

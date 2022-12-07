@@ -59,9 +59,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
-                        ]),
+                        )
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -83,9 +81,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
-                        ]),
+                        ),
                         SpanAssertion::build(
                             'cakephp.view',
                             'cakephp_test_app',
@@ -121,7 +117,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Controller.invokeAction'
                         )->withExistingTagsNames([
-                            'error.stack', Tag::SPAN_KIND,
+                            'error.stack',
                         ])->setError(null, 'Foo error'),
                         SpanAssertion::build(
                             'cakephp.view',

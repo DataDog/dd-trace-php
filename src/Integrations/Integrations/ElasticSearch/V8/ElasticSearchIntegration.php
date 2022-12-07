@@ -97,6 +97,7 @@ class ElasticSearchIntegration extends Integration
                 $query = $uri->getQuery();
                 $span->meta[Tag::ELASTICSEARCH_URL] = (string)$uri->withQuery("");
                 $span->meta[Tag::ELASTICSEARCH_METHOD] = $request->getMethod();
+                $span->meta[Tag::SPAN_KIND] = 'client';
                 if ($query) {
                     parse_str($query, $queryParts);
                     $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($queryParts);
@@ -141,6 +142,7 @@ class ElasticSearchIntegration extends Integration
                         $integration->logNextBody = true;
                     }
 
+                    $span->meta[Tag::SPAN_KIND] = 'client';
                     $span->service = ElasticSearchIntegration::NAME;
                     $span->type = Type::ELASTICSEARCH;
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);

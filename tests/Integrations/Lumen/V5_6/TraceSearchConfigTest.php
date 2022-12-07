@@ -59,7 +59,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                             'web',
                             'simple_route'
                         )->withExactTags([
-                            Tag::SPAN_KIND => 'server',
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                         ]),
                     ]),

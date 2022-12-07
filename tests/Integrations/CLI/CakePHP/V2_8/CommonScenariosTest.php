@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\CLI\CakePHP\V2_8;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\CLITestCase;
 
@@ -30,9 +29,7 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'server',
-            ])
+            )
         ]);
     }
 
@@ -46,9 +43,7 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console command_list'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'server',
-            ])
+            )
         ]);
     }
 

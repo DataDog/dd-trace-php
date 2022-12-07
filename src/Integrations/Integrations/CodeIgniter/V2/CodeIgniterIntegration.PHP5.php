@@ -62,6 +62,7 @@ class CodeIgniterIntegration extends Integration
         $rootSpan->service = $service;
         $rootSpan->type = Type::WEB_SERVLET;
         $rootSpan->meta[Tag::COMPONENT] = Integration::getName();
+        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
         if ('cli' !== PHP_SAPI) {
             $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);

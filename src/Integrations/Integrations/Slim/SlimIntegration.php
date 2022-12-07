@@ -120,7 +120,6 @@ class SlimIntegration extends Integration
 
                     if ('4' === $majorVersion) {
                         $span->name = 'slim.route';
-                        $span->meta[Tag::SPAN_KIND] = 'server';
                         $rootSpan->meta['slim.route.handler'] = $callableName;
 
                         $route = $request->getAttribute(RouteContext::ROUTE);
@@ -134,7 +133,6 @@ class SlimIntegration extends Integration
                     } else {
                         $rootSpan->meta['slim.route.controller'] = $callableName;
                         $span->name = 'slim.route.controller';
-                        $span->meta[Tag::SPAN_KIND] = 'server';
                     }
                 };
 

@@ -67,9 +67,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 '__construct'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'client',
-            ]),
+            )
         ]);
     }
 
