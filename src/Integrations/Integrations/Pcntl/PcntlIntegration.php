@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Pcntl;
 
+use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 
@@ -29,6 +30,7 @@ class PcntlIntegration extends Integration
 
         $trace_fork = function (SpanData $span, $args, $retval) {
             $span->name = $span->resource = 'pcntl_fork';
+            $span->meta[Tag::COMPONENT] = Integration::getName();
             if ($retval > 0) {
                 $span->meta["fork.pid"] = $retval;
             } else {

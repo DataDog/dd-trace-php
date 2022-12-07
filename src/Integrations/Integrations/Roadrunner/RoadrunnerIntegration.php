@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Roadrunner;
 
+use DDTrace\Tag;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Type;
@@ -61,6 +62,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan->service = \ddtrace_config_app_name('roadrunner');
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
+                $activeSpan->meta[Tag::COMPONENT] = Integration::getName();
                 $integration->addTraceAnalyticsIfEnabled($activeSpan);
                 if ($exception) {
                     $activeSpan->exception = $exception;
@@ -95,6 +97,7 @@ class RoadrunnerIntegration extends Integration
                     /** @var \Psr\Http\Message\ResponseInterface $response */
                     $response = $args[0];
                     $activeSpan->meta["http.status_code"] = $response->getStatusCode();
+                    $activeSpan->meta[Tag::COMPONENT] = Integration::getName();
                     $allowedHeaders = \dd_trace_env_config("DD_TRACE_HEADER_TAGS");
                     foreach ($response->getHeaders() as $header => $headers) {
                         $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($header));

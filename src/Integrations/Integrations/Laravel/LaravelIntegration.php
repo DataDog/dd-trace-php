@@ -47,6 +47,7 @@ class LaravelIntegration extends Integration
         }
 
         $rootSpan = \DDTrace\root_span();
+        $rootSpan->meta[Tag::COMPONENT] = Integration::getName();
 
         if (null === $rootSpan) {
             return Integration::NOT_LOADED;
@@ -70,6 +71,7 @@ class LaravelIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 $span->resource = 'Illuminate\Foundation\Application@handle';
+                $span->meta[Tag::COMPONENT] = Integration::getName();
             }
         );
 
@@ -111,6 +113,7 @@ class LaravelIntegration extends Integration
                 $span->service = $integration->getServiceName();
                 $span->resource = $this->uri;
                 $span->meta[Tag::SPAN_KIND] = 'server';
+                $span->meta[Tag::COMPONENT] = Integration::getName();
             }
         );
 
@@ -133,6 +136,7 @@ class LaravelIntegration extends Integration
                 $span->service = $integration->getServiceName();
                 $span->resource = $args[0];
                 $span->meta[Tag::SPAN_KIND] = 'server';
+                $span->meta[Tag::COMPONENT] = Integration::getName();
             }
         );
 
@@ -141,6 +145,7 @@ class LaravelIntegration extends Integration
             $span->type = Type::WEB_SERVLET;
             $span->service = $integration->getServiceName();
             $span->resource = $this->view;
+            $span->meta[Tag::COMPONENT] = Integration::getName();
         });
 
         \DDTrace\trace_method(
@@ -155,6 +160,7 @@ class LaravelIntegration extends Integration
                 if (isset($args[0]) && \is_string($args[0])) {
                     $span->resource = $args[0];
                 }
+                $span->meta[Tag::COMPONENT] = Integration::getName();
             }
         );
 
@@ -170,6 +176,7 @@ class LaravelIntegration extends Integration
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = $serviceName;
                 $span->meta[Tag::SPAN_KIND] = 'server';
+                $span->meta[Tag::COMPONENT] = Integration::getName();
             }
         );
 

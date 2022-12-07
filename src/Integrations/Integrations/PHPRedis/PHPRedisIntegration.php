@@ -318,6 +318,7 @@ class PHPRedisIntegration extends Integration
         $span->service = ObjectKVStore::get($instance, 'service', 'phpredis');
         $span->type = Type::REDIS;
         $span->meta[Tag::SPAN_KIND] = 'client';
+        $span->meta[Tag::COMPONENT] = Integration::getName();
         if (null !== $method) {
             // method names for internal functions are lowered so we need to explitly set them if we want to have the
             // proper case.

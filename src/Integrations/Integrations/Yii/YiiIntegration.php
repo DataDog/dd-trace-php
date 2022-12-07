@@ -43,6 +43,8 @@ class YiiIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
+        $rootSpan->meta[Tag::COMPONENT] = Integration::getName();
+
         $this->addTraceAnalyticsIfEnabled($rootSpan);
         $service = \ddtrace_config_app_name(YiiIntegration::NAME);
 
@@ -54,6 +56,7 @@ class YiiIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->meta[Tag::SPAN_KIND] = 'server';
+                $span->meta[Tag::COMPONENT] = Integration::getName();
             }
         );
 
@@ -83,6 +86,7 @@ class YiiIntegration extends Integration
                 $span->service = $service;
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
                 $span->meta[Tag::SPAN_KIND] = 'server';
+                $span->meta[Tag::COMPONENT] = Integration::getName();
             }
         );
 
@@ -95,6 +99,7 @@ class YiiIntegration extends Integration
                 $span->service = $service;
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
                 $span->meta[Tag::SPAN_KIND] = 'server';
+                $span->meta[Tag::COMPONENT] = Integration::getName();
 
                 if (
                     $firstController === $this
@@ -146,6 +151,7 @@ class YiiIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
+                $span->meta[Tag::COMPONENT] = Integration::getName();
             }
         );
 

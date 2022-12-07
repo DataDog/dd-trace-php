@@ -191,6 +191,7 @@ class MysqliIntegration extends Integration
         $span->type = Type::SQL;
         $span->service = 'mysqli';
         $span->meta[Tag::SPAN_KIND] = 'client';
+        $span->meta[Tag::COMPONENT] = Integration::getName();
     }
 
     /**

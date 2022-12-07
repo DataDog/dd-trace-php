@@ -39,6 +39,7 @@ class LumenIntegration extends Integration
         }
 
         $rootSpan = \DDTrace\root_span();
+        $rootSpan->meta[Tag::COMPONENT] = Integration::getName();
 
         if (null === $rootSpan) {
             return Integration::NOT_LOADED;
@@ -55,6 +56,7 @@ class LumenIntegration extends Integration
                 $rootSpan->name = 'lumen.request';
                 $rootSpan->service = $appName;
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                $span->meta[Tag::COMPONENT] = Integration::getName();
 
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->getUri());
@@ -80,6 +82,7 @@ class LumenIntegration extends Integration
                     $routeInfo = $args[0];
                     $resourceName = null;
                     $span->meta[Tag::SPAN_KIND] = 'server';
+                    $span->meta[Tag::COMPONENT] = Integration::getName();
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     if (isset($routeInfo[1]['uses'])) {
                         $action = $routeInfo[1]['uses'];

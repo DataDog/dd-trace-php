@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\ZendFramework\V1;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 use DDTrace\Tag;
 use Zend_Controller_Front;
@@ -32,6 +33,7 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         $span->resource = $controller . '@' . $action . ' ' . $route;
         $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
         $span->meta[Tag::SPAN_KIND] = 'server';
+        $span->meta[Tag::COMPONENT] = Integration::getName();
 
         if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
             $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(

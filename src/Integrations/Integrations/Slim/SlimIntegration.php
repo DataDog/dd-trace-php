@@ -49,6 +49,7 @@ class SlimIntegration extends Integration
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->service = $appName;
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->meta[Tag::COMPONENT] = Integration::getName();
 
                 if ('4' === $majorVersion) {
                     \DDTrace\hook_method('Slim\\MiddlewareDispatcher', 'addMiddleware', function ($This, $self, $args) {
@@ -59,6 +60,7 @@ class SlimIntegration extends Integration
                                 $span->resource = \get_class($this);
                                 $span->type = Type::WEB_SERVLET;
                                 $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                                $span->meta[Tag::COMPONENT] = Integration::getName();
                             };
                             \DDTrace\trace_method($name, 'process', $closure);
                         }
@@ -106,6 +108,7 @@ class SlimIntegration extends Integration
                     $span->resource = $callableName ?: 'controller';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $appName;
+                    $span->meta[Tag::COMPONENT] = Integration::getName();
 
                     /** @var ServerRequestInterface $request */
                     $request = $args[1];
@@ -152,6 +155,7 @@ class SlimIntegration extends Integration
                     $template = $args[1];
                     $span->resource = $template;
                     $span->meta['slim.view'] = $template;
+                    $span->meta[Tag::COMPONENT] = Integration::getName();
                 });
             }
         );
