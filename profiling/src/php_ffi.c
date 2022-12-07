@@ -96,7 +96,7 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
     zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #if PHP_VERSION_ID < 70300
     if (!_malloc && !_free && !_realloc) {
-        heap = ZEND_MM_CUSTOM_HEAP_NONE;
+        memset(heap, ZEND_MM_CUSTOM_HEAP_NONE, sizeof(int));
     }
 #endif
 }
