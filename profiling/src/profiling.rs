@@ -846,11 +846,7 @@ impl Profiler {
                 r#type: Cow::Borrowed("cpu-time"),
                 unit: Cow::Borrowed("nanoseconds"),
             });
-            sample_values.push(if cpu_time.is_some() {
-                cpu_time.unwrap()
-            } else {
-                0
-            });
+            sample_values.push(if let Some(val) = cpu_time { val } else { 0 });
         }
 
         let mut labels = vec![];
@@ -886,7 +882,7 @@ impl Profiler {
             }
         }
 
-        return SampleMessage {
+        SampleMessage {
             key: ProfileIndex {
                 sample_types,
                 tags,
@@ -897,6 +893,6 @@ impl Profiler {
                 labels: labels.clone(),
                 sample_values,
             },
-        };
+        }
     }
 }
