@@ -608,7 +608,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     {
         if profiling_experimental_allocations_enabled {
-            if unsafe { zend::is_zend_mm() as i32 != 1 } {
+            if !is_zend_mm() {
                 // Neighboring custom memory handlers found
                 unsafe {
                     zend::zend_mm_get_custom_handlers(
@@ -629,9 +629,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 );
             }
 
-            // returns `true` if there are no custom handlers installed
-            // `false` if there are custom handlers installed
-            if unsafe { zend::is_zend_mm() as i32 == 1 } {
+            if is_zend_mm() {
                 info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();
@@ -730,10 +728,11 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
         #[cfg(feature = "allocation_profiling")]
         {
             if locals.profiling_experimental_allocations_enabled {
-                // If `zend::is_zend_mm()` is true, the custom handlers have been reset
-                // to `None` already. This is unexpected, therefore we will not touch the ZendMM handlers
-                // anymore as resetting to prev handlers might result in segfaults.
-                if unsafe { zend::is_zend_mm() as i32 != 1 } {
+                // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
+                // already. This is unexpected, therefore we will not touch the ZendMM handlers
+                // anymore as resetting to prev handlers might result in segfaults and other
+                // undefined behaviour.
+                if !is_zend_mm() {
                     let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
                     let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
                     let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
@@ -1131,4 +1130,22 @@ unsafe extern "C" fn alloc_profiling_realloc(
     });
 
     ptr
+}
+
+/// safe wrapper for `zend::is_zend_mm()`.
+/// `true` means the internal ZendMM is being used, `false` means that a custom memory manager is
+/// installed. Upstream returns a `c_bool` as of PHP 8.0. PHP 7 returns a `c_int`
+#[cfg(feature = "allocation_profiling")]
+fn is_zend_mm() -> bool {
+    #[cfg(php7)]
+    {
+        if unsafe { zend::is_zend_mm() } == 1 {
+            true
+        }
+        false
+    }
+    #[cfg(php8)]
+    {
+        unsafe { zend::is_zend_mm() }
+    }
 }
