@@ -324,7 +324,7 @@ pub struct AllocationProfilingStats {
 
 #[cfg(feature = "allocation_profiling")]
 impl AllocationProfilingStats {
-    pub fn new() -> AllocationProfilingStats {
+    fn new() -> AllocationProfilingStats {
         AllocationProfilingStats {
             next_sample: AllocationProfilingStats::next_sampling_interval(),
         }
@@ -336,7 +336,7 @@ impl AllocationProfilingStats {
             .sample(&mut rand::thread_rng()) as i64
     }
 
-    pub fn track_allocation(&mut self, len: u64) {
+    fn track_allocation(&mut self, len: u64) {
         self.next_sample -= len as i64;
 
         if self.next_sample > 0 {
