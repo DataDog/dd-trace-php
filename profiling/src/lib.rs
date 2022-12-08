@@ -1136,7 +1136,7 @@ fn is_zend_mm() -> bool {
     #[cfg(php7)]
     {
         if unsafe { zend::is_zend_mm() } == 1 {
-            true
+            return true;
         }
         false
     }
