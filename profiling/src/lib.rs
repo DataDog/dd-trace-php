@@ -1136,10 +1136,7 @@ unsafe extern "C" fn alloc_profiling_realloc(
 fn is_zend_mm() -> bool {
     #[cfg(php7)]
     {
-        if unsafe { zend::is_zend_mm() } == 1 {
-            return true;
-        }
-        false
+        unsafe { zend::is_zend_mm() == 1 }
     }
     #[cfg(php8)]
     {
