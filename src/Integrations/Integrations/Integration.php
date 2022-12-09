@@ -72,7 +72,7 @@ abstract class Integration
      */
     public function setError(SpanData $span, $exception)
     {
-        $span->meta[Tag::ERROR_MESSAGE] = $exception->getMessage();
+        $span->meta[Tag::ERROR_MSG] = $exception->getMessage();
         $span->meta[Tag::ERROR_TYPE] = get_class($exception);
         $span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
     }

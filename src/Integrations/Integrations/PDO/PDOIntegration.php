@@ -132,7 +132,7 @@ class PDOIntegration extends Integration
             return;
         }
         $errorInfo = $pdoOrStatement->errorInfo();
-        $span->meta[Tag::ERROR_MESSAGE] = 'SQL error: ' . $errorCode . '. Driver error: ' . $errorInfo[1];
+        $span->meta[Tag::ERROR_MSG] = 'SQL error: ' . $errorCode . '. Driver error: ' . $errorInfo[1];
         $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
     }
 
