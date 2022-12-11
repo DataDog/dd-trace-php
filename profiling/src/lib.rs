@@ -362,7 +362,7 @@ impl AllocationProfilingStats {
                 // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
                 unsafe {
                     profiler.collect_allocations(
-                        zend::executor_globals.current_execute_data,
+                        zend::ddog_php_prof_get_current_execute_data(),
                         count as i64,
                         bytes as i64,
                         &locals,
@@ -1072,7 +1072,7 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::executor_globals.current_execute_data.is_null() {
+    if zend::ddog_php_prof_get_current_execute_data().is_null() {
         return ptr;
     }
 
@@ -1117,7 +1117,7 @@ unsafe extern "C" fn alloc_profiling_realloc(
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::executor_globals.current_execute_data.is_null() || ptr == prev_ptr {
+    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr == prev_ptr {
         return ptr;
     }
 
