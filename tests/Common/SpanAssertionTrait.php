@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Common;
 
+use DDTrace\Tag;
 use PHPUnit\Framework\TestCase;
 
 trait SpanAssertionTrait
@@ -69,8 +70,8 @@ trait SpanAssertionTrait
         foreach ($messagePartsByWildcard as $messagePart) {
             $this->assertNotSame(
                 false,
-                \strpos($span['meta']['error.msg'], $messagePart),
-                \sprintf('Message "%s" does not contain "%s"', $span['meta']['error.msg'], $message)
+                \strpos($span['meta'][Tag::ERROR_MSG], $messagePart),
+                \sprintf('Message "%s" does not contain "%s"', $span['meta'][Tag::ERROR_MSG], $message)
             );
         }
 
