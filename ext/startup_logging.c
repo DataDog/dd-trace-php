@@ -96,8 +96,12 @@ static bool _dd_parse_bool(const char *name, size_t name_len) {
 }
 
 static zend_array *_dd_array_copy(zend_array *array) {
-    GC_ADDREF(array);
-    return array;
+    if (!(GC_FLAGS(array) & IS_ARRAY_IMMUTABLE)) {
+        GC_ADDREF(array);
+        return array;
+    }
+
+    return zend_array_dup(array);
 }
 
 static zend_string *_dd_implode_keys(zend_array *array) {
