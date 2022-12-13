@@ -7,7 +7,7 @@ on:
       - completed
     branches:
       - master
-      - develop
+      - develop**
       - dd-appsec-php-**
   workflow_dispatch:
   schedule:

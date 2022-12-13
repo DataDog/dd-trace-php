@@ -110,16 +110,16 @@ services:
       dockerfile: tests/docker/php/Dockerfile
       args: { PHP_VERSION: '8.1.0', VARIANT: 'release-zts' }
 
-  php-8.2.0RC6-release:
-    image: datadog/dd-appsec-php-ci:php-8.2.0RC6-release
+  php-8.2-release:
+    image: datadog/dd-appsec-php-ci:php-8.2-release
     build:
       context: ../..
       dockerfile: tests/docker/php/Dockerfile
-      args: { PHP_VERSION: '8.2.0RC6', VARIANT: 'release' }
+      args: { PHP_VERSION: '8.2.0', VARIANT: 'release' }
 
-  php-8.2.0RC6-release-zts:
-    image: datadog/dd-appsec-php-ci:php-8.2.0RC6-release-zts
+  php-8.2-release-zts:
+    image: datadog/dd-appsec-php-ci:php-8.2-release-zts
     build:
       context: ../..
       dockerfile: tests/docker/php/Dockerfile
-      args: { PHP_VERSION: '8.2.0RC6', VARIANT: 'release-zts' }
+      args: { PHP_VERSION: '8.2.0', VARIANT: 'release-zts' }

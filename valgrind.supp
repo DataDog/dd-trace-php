@@ -50,3 +50,23 @@
    fun:zend_execute_scripts
    fun:php_execute_script
 }
+{
+   <leak during extension loading>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:php_load_shlib
+   fun:php_load_extension
+   fun:zend_llist_apply
+   fun:php_ini_register_extensions
+}
+{
+   <leak during zend extension loading>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:php_load_shlib
+   fun:php_load_zend_extension_cb
+   fun:zend_llist_apply
+   fun:php_ini_register_extensions
+}

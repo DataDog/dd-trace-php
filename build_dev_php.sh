@@ -36,8 +36,6 @@ function download_php {
   local download_url
   if [[ $version_id -lt 50400 ]]; then
     download_url="http://museum.php.net/php5/php-${version}.tar.gz"
-  elif [[ $version_id -eq 80200 && $version =~ alpha|beta|RC ]]; then
-    download_url="https://downloads.php.net/~sergey/php-${version}.tar.gz"
   else
     download_url="https://www.php.net/distributions/php-${version}.tar.gz"
   fi

@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - develop
+      - develop**
       - dd-appsec-php-**
     tags:
       - "*"
@@ -23,6 +23,7 @@ on:
 jobs:
   extension-test:
     strategy:
+      fail-fast: false
       matrix:
         cfg:
           - os: 'ubuntu-latest'
@@ -74,7 +75,9 @@ jobs:
       - name: Add repository for PHP debug symbols
         if: matrix.cfg.os == 'ubuntu-latest'
         run: |
-          echo deb http://ppa.launchpad.net/ondrej/php/ubuntu $(lsb_release -cs) main main/debug | sudo tee -a /etc/apt/sources.list
+          sudo apt update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -n -y "deb http://ppa.launchpad.net/ondrej/php/ubuntu $(lsb_release -cs) main main/debug"
           sudo apt-get update
       - name: Install required packages
         if: matrix.cfg.os == 'ubuntu-latest'
@@ -83,7 +86,8 @@ jobs:
           sudo apt-get install -y libpcre3 libpcre3-dev \
           libcurl4-openssl-dev $(if [[ "${{ matrix.cfg.valgrind }}" = true ]]; then \
             echo valgrind php${{ matrix.cfg.version }}-cli php${{ matrix.cfg.version }}-cli-dbgsym \
-            php${{ matrix.cfg.version }}-cgi php${{ matrix.cfg.version }}-cgi-dbgsym; fi)
+            php${{ matrix.cfg.version }}-cgi php${{ matrix.cfg.version }}-cgi-dbgsym \
+            php${{ matrix.cfg.version }}-dev; fi)
       - name: Generate Build Scripts
         shell: bash
         run: |

@@ -10,8 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 ARG TRACER_VERSION
 RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
-    curl -L -o /tmp/datadog-php-tracer.tar.gz  https://output.circle-artifacts.com/output/job/f2c4f822-8802-4972-a747-66819d2065e0/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz && \
-	PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-file /tmp/datadog-php-tracer.tar.gz --php-bin all
+    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
 
 RUN rm -rf /var/www/html
 ADD --chown=www-data:www-data examples/webroot/ /var/www/html/

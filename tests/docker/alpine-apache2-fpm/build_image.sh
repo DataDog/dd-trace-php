@@ -17,9 +17,15 @@ function main {
     "$SCRIPT_DIR"/../helper/build_image.sh
   fi
 
+  alpine_version=""
+  if [[ $version =~ ^8\.[0-9]+ ]]; then
+    alpine_version="3.16"
+  fi
+
   docker build -t dd-appsec-php-alpine-apache2-fpm:$version-$variant-tracer$tracer_version \
     --build-arg PHP_VERSION=$version --build-arg VARIANT=$variant \
     --build-arg TRACER_VERSION=$tracer_version \
+    --build-arg ALPINE_VERSION=$alpine_version \
     -f "$SCRIPT_DIR/Dockerfile" "$SCRIPT_DIR/../../.."
 }
 
