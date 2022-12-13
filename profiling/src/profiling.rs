@@ -553,7 +553,7 @@ impl Uploader {
             bytes: serialized.buffer.as_slice(),
         }];
         let timeout = Duration::from_secs(10);
-        let request = exporter.build(start, end, files, None, None, timeout)?;
+        let request = exporter.build(start, end, files, None, timeout)?;
         debug!("Sending profile to: {}", index.endpoint);
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())
@@ -833,7 +833,6 @@ impl Profiler {
     }
 
     /// Collect a stack sample with memory allocations
-    #[cfg(feature = "allocation_profiling")]
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,

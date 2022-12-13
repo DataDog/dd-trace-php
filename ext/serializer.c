@@ -212,7 +212,7 @@ static zend_result dd_exception_to_error_msg(zend_object *exception, void *conte
         free(status_line);
     }
 
-    ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
+    ddtrace_string key = DDTRACE_STRING_LITERAL("error.message");
     ddtrace_string value = {error_text, error_len};
     zend_result result = add_tag(context, key, value);
 
@@ -359,7 +359,7 @@ static int dd_fatal_error_to_meta(zend_array *meta, dd_error_info error) {
 
     if (error.msg) {
         zval tmp = ddtrace_zval_zstr(zend_string_copy(error.msg));
-        zend_symtable_str_update(meta, ZEND_STRL("error.msg"), &tmp);
+        zend_symtable_str_update(meta, ZEND_STRL("error.message"), &tmp);
     }
 
     if (error.stack) {
@@ -732,7 +732,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         }
     }
 
-    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg")) ||
+    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
                       ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
     if (error) {
         add_assoc_long(el, "error", 1);
@@ -847,7 +847,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (span->parent) {
         ddtrace_span_data *parent = span->parent;
         while (ddtrace_span_is_dropped(parent)) {
-            parent = parent->parent;
+            parent = span->parent;
         }
         span->parent_id = parent->span_id;
     }
