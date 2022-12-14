@@ -101,6 +101,7 @@ static zend_array *_dd_array_copy(zend_array *array) {
         return array;
     }
 
+    // If it's not duplicated, it may crash later e.g. in json encoding.
     return zend_array_dup(array);
 }
 
