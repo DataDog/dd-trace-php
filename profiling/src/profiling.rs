@@ -748,21 +748,26 @@ impl Profiler {
                     locals.last_cpu_time = Some(now);
                 }
 
-                let message = self.prepare_sample_message(
+                let labels = self.message_labels();
+
+                match self.send_sample(self.prepare_sample_message(
                     frames,
                     interrupt_count,
                     walltime,
                     cputime,
                     0,
                     0,
+                    &labels,
                     locals,
-                );
-
-                match self.send_sample(message) {
-                    Ok(_) => trace!("Sent stack sample of depth {} with to profiler.", depth,),
+                )) {
+                    Ok(_) => trace!(
+                        "Sent stack sample of depth {} with labels {:?} to profiler.",
+                        depth,
+                        labels
+                    ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {} with to profiler: {}",
-                        depth, err
+                        "Failed to send stack sample of depth {} with labels {:?} to profiler: {}",
+                        depth, labels, err
                     ),
                 }
             }
@@ -785,20 +790,30 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
+                let labels = self.message_labels();
 
-                let message = self.prepare_sample_message(frames, 0, 0, None, count, bytes, locals);
-
-                match self.send_sample(message) {
+                match self.send_sample(self.prepare_sample_message(
+                    frames,
+                    0,
+                    0,
+                    None,
+                    count,
+                    bytes,
+                    &labels,
+                    locals
+                )) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {} with size {}, count {} to profiler.",
+                        "Sent stack sample of depth {} with size {}, labels {:?} and count {} to profiler.",
                         depth,
                         bytes,
+                        labels,
                         count,
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {} with size {}, count {} to profiler: {}",
+                        "Failed to send stack sample of depth {} with size {}, labels {:?} and count {} to profiler: {}",
                         depth,
                         bytes,
+                        labels,
                         count,
                         err
                     ),
@@ -810,7 +825,26 @@ impl Profiler {
         }
     }
 
-    unsafe fn prepare_sample_message(
+    fn message_labels(&self) -> Vec<Label> {
+        let mut labels = vec![];
+        let gpc = unsafe { datadog_php_profiling_get_profiling_context };
+        if let Some(get_profiling_context) = gpc {
+            let context = unsafe { get_profiling_context() };
+            if context.local_root_span_id != 0 {
+                labels.push(Label {
+                    key: "local root span id".into(),
+                    value: LabelValue::Str(format!("{}", context.local_root_span_id).into()),
+                });
+                labels.push(Label {
+                    key: "span id".into(),
+                    value: LabelValue::Str(format!("{}", context.span_id).into()),
+                });
+            }
+        }
+        labels
+    }
+
+    fn prepare_sample_message(
         &self,
         frames: Vec<ZendFrame>,
         sample: i64,
@@ -818,6 +852,7 @@ impl Profiler {
         cpu_time: Option<i64>,
         alloc_samples: i64,
         alloc_size: i64,
+        labels: &Vec<Label>,
         locals: &RequestLocals,
     ) -> SampleMessage {
         let mut sample_types = vec![
@@ -847,22 +882,6 @@ impl Profiler {
                 unit: Cow::Borrowed("nanoseconds"),
             });
             sample_values.push(if let Some(val) = cpu_time { val } else { 0 });
-        }
-
-        let mut labels = vec![];
-        let gpc = datadog_php_profiling_get_profiling_context;
-        if let Some(get_profiling_context) = gpc {
-            let context = get_profiling_context();
-            if context.local_root_span_id != 0 {
-                labels.push(Label {
-                    key: "local root span id".into(),
-                    value: LabelValue::Str(format!("{}", context.local_root_span_id).into()),
-                });
-                labels.push(Label {
-                    key: "span id".into(),
-                    value: LabelValue::Str(format!("{}", context.span_id).into()),
-                });
-            }
         }
 
         let mut tags = locals.tags.clone();
