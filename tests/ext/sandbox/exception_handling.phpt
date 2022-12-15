@@ -31,13 +31,13 @@ try {
     $span = $stack[0];
     echo "error: ", $span['error'], "\n";
     echo "Exception type: ", $span['meta']['error.type'], "\n";
-    echo "Exception msg: ", $span['meta']['error.msg'], "\n";
+    echo "Exception msg: ", $span['meta']['error.message'], "\n";
     echo "Exception stack:\n", $span['meta']['error.stack'], "\n";
 
     $span = $stack[1];
     echo "error: ", $span['error'], "\n";
     echo "Exception type: ", $span['meta']['error.type'], "\n";
-    echo "Exception msg: ", $span['meta']['error.msg'], "\n";
+    echo "Exception msg: ", $span['meta']['error.message'], "\n";
     echo "Exception stack:\n", $span['meta']['error.stack'], "\n";
 }
 

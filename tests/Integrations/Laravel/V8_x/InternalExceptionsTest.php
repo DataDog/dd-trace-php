@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
@@ -60,7 +61,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'not-implemented')
                             ->setError('Symfony\Component\HttpKernel\Exception\HttpException')
-                            ->withExistingTagsNames(['error.msg', 'error.stack']),
+                            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
@@ -108,7 +109,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         ]),
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'unauthorized')
                             ->setError()
-                            ->withExistingTagsNames(['error.msg', 'error.stack']),
+                            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
