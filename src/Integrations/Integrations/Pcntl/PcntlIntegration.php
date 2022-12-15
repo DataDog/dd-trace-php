@@ -30,7 +30,7 @@ class PcntlIntegration extends Integration
 
         $trace_fork = function (SpanData $span, $args, $retval) {
             $span->name = $span->resource = 'pcntl_fork';
-            $span->meta[Tag::COMPONENT] = Integration::getName();
+            $span->meta[Tag::COMPONENT] = $this->getName();
             if ($retval > 0) {
                 $span->meta["fork.pid"] = $retval;
             } else {

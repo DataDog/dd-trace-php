@@ -52,14 +52,14 @@ class SymfonyIntegration extends Integration
                     $rootSpan->name = 'symfony.request';
                     $rootSpan->service = $service;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::COMPONENT] = Integration::getName();
+                    $rootSpan->meta[Tag::COMPONENT] = $this->getName();
 
                     $span->name = 'symfony.httpkernel.kernel.handle';
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     $span->meta[Tag::SPAN_KIND] = 'server';
-                    $span->meta[Tag::COMPONENT] = Integration::getName();
+                    $span->meta[Tag::COMPONENT] = $this->getName();
                 },
             ]
         );
@@ -77,7 +77,7 @@ class SymfonyIntegration extends Integration
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
                     $span->service = \ddtrace_config_app_name('symfony');
-                    $span->meta[Tag::COMPONENT] = Integration::getName();
+                    $span->meta[Tag::COMPONENT] = $this->getName();
                 },
             ]
         );
@@ -110,7 +110,7 @@ class SymfonyIntegration extends Integration
                         $span->service = \ddtrace_config_app_name('symfony');
                         $span->type = Type::CLI;
                         $span->meta['symfony.console.command.class'] = $scope;
-                        $span->meta[Tag::COMPONENT] = Integration::getName();
+                        $span->meta[Tag::COMPONENT] = $this->getName();
                     }]);
             }
         );
@@ -123,7 +123,7 @@ class SymfonyIntegration extends Integration
         /** @var SpanData $symfonyRequestSpan */
         $this->symfonyRequestSpan = $rootSpan;
         $this->addTraceAnalyticsIfEnabled($rootSpan);
-        $this->symfonyRequestSpan->meta[Tag::COMPONENT] = Integration::getName();
+        $this->symfonyRequestSpan->meta[Tag::COMPONENT] = $this->getName();
 
         if (
             defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
@@ -190,10 +190,10 @@ class SymfonyIntegration extends Integration
                 $span->name = $span->resource = 'symfony.kernel.handle';
                 $span->service = \ddtrace_config_app_name('symfony');
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = Integration::getName();
+                $span->meta[Tag::COMPONENT] = $this->getName();
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = Integration::getName();
+                $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = $this->getName();
 
                 if (!array_key_exists(Tag::HTTP_URL, $integration->symfonyRequestSpan->meta)) {
                     $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
@@ -254,7 +254,7 @@ class SymfonyIntegration extends Integration
                                                 $span->resource = $controllerName;
                                                 $span->type = Type::WEB_SERVLET;
                                                 $span->service = \ddtrace_config_app_name('symfony');
-                                                $span->meta[Tag::COMPONENT] = Integration::getName();
+                                                $span->meta[Tag::COMPONENT] = $this->getName();
                                             }
                                         );
                                     }
@@ -266,7 +266,7 @@ class SymfonyIntegration extends Integration
                                             $span->resource = $controllerName;
                                             $span->type = Type::WEB_SERVLET;
                                             $span->service = \ddtrace_config_app_name('symfony');
-                                            $span->meta[Tag::COMPONENT] = Integration::getName();
+                                            $span->meta[Tag::COMPONENT] = $this->getName();
                                         }
                                     );
                                 }
@@ -276,7 +276,7 @@ class SymfonyIntegration extends Integration
 
                     $span->name = $span->resource = 'symfony.' . $eventName;
                     $span->service = \ddtrace_config_app_name('symfony');
-                    $span->meta[Tag::COMPONENT] = Integration::getName();
+                    $span->meta[Tag::COMPONENT] = $this->getName();
                     if ($event === null) {
                         return;
                     }
@@ -293,7 +293,7 @@ class SymfonyIntegration extends Integration
         $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {
             $span->name = $span->resource = 'symfony.kernel.handleException';
             $span->service = \ddtrace_config_app_name('symfony');
-            $span->meta[Tag::COMPONENT] = Integration::getName();
+            $span->meta[Tag::COMPONENT] = $this->getName();
             if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
                 $integration->setError($integration->symfonyRequestSpan, $args[0]);
             }
@@ -311,7 +311,7 @@ class SymfonyIntegration extends Integration
 
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
             $span->resource = $resourceName;
-            $span->meta[Tag::COMPONENT] = Integration::getName();
+            $span->meta[Tag::COMPONENT] = $this->getName();
         };
         \DDTrace\trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $traceRender);
@@ -348,7 +348,7 @@ class SymfonyIntegration extends Integration
                 if ($integration->symfonyRequestSpan) {
                     if (count($resourceParts) > 0) {
                         $integration->symfonyRequestSpan->resource = \implode(' ', $resourceParts);
-                        $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = Integration::getName();
+                        $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = $this->getName();
                     }
                 }
 

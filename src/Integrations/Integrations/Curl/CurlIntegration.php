@@ -51,7 +51,7 @@ final class CurlIntegration extends Integration
                 $span->type = Type::HTTP_CLIENT;
                 $span->service = 'curl';
                 $integration->addTraceAnalyticsIfEnabled($span);
-                $span->meta[Tag::COMPONENT] = Integration::getName();
+                $span->meta[Tag::COMPONENT] = $this->getName();
 
                 if (!isset($args[0])) {
                     return;
