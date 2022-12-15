@@ -26,10 +26,10 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
     } else {
         echo "_sampling_priority_v1 metric is missing from root span metrics\n";
     }
+    echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
 } else {
     echo "Default priority sampling is not automatically kept\n";
 }
-echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 \DDTrace\get_priority_sampling() OK
