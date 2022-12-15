@@ -57,7 +57,7 @@ array(2) {
     ["metrics"]=>
     array(3) {
       ["process_id"]=>
-      float(%d)
+      int(%d)
       ["_sampling_priority_v1"]=>
       float(3)
       ["php.compilation.total_time_ms"]=>

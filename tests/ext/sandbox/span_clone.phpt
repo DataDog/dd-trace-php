@@ -140,7 +140,7 @@ array(1) {
     ["metrics"]=>
     array(4) {
       ["process_id"]=>
-      float(%d)
+      int(%d)
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>

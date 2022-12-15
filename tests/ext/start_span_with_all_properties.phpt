@@ -80,7 +80,7 @@ array(2) {
     ["metrics"]=>
     array(4) {
       ["process_id"]=>
-      float(%d)
+      int(%d)
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
@@ -117,7 +117,7 @@ array(2) {
     ["metrics"]=>
     array(5) {
       ["process_id"]=>
-      float(%d)
+      int(%d)
       ["cc"]=>
       float(0)
       ["_dd.rule_psr"]=>
