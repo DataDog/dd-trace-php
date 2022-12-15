@@ -651,7 +651,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     }
 
     zval pid;
-    ZVAL_LONG(&pid, (long)getpid());
+    ZVAL_LONG(&pid, (int)getpid());
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
