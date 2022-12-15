@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\CLI\Laravel\V5_8;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\CLITestCase;
 
@@ -67,8 +68,9 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan foo:error'
-            )->withExistingTagsNames([
-                'error.msg',
+            )->withExactTags([
+            ])->withExistingTagsNames([
+                Tag::ERROR_MSG,
                 'error.stack'
             ])->withChildren([
                 SpanAssertion::exists(

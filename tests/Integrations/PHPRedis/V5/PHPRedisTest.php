@@ -115,7 +115,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'out.port' => $port ?: $this->port,
                 Tag::SPAN_KIND => 'client',
             ])
-            ->withExistingTagsNames(['error.msg', 'error.stack']),
+            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
     }
 
@@ -2101,7 +2101,7 @@ class PHPRedisTest extends IntegrationTestCase
                 "Redis.connect"
             )
             ->setError()
-            ->withExistingTagsNames(['error.msg', 'error.stack', Tag::SPAN_KIND])
+            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack', Tag::SPAN_KIND])
             ->withExactTags([
                 'out.host' => 'non-existing-host',
                 'out.port' => $this->port,

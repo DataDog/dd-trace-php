@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Memcached;
 
+use DDTrace\Tag;
 use DDTrace\Obfuscation;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -80,7 +81,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'append',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['process_id', 'error.msg', 'error.type', 'error.stack']),
+                ->withExistingTagsNames(['process_id', Tag::ERROR_MSG, 'error.type', 'error.stack']),
         ]);
     }
 
@@ -119,7 +120,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['process_id', 'error.msg', 'error.type', 'error.stack']),
+                ->withExistingTagsNames(['process_id', Tag::ERROR_MSG, 'error.type', 'error.stack']),
         ]);
     }
 
