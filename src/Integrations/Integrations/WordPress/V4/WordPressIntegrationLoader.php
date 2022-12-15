@@ -205,11 +205,7 @@ class WordPressIntegrationLoader
                 Type::SQL,
                 $service,
                 'wpdb.__construct',
-                [
-                    'db.user' => $args[0],
-                    'db.name' => $args[2],
-                    'db.host' => $args[3],
-                ],
+                array( 'db.user' => $args[0], 'db.name' => $args[2], 'db.host' => $args[3],)
             );
         });
 
