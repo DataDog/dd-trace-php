@@ -9,6 +9,11 @@ const ACCEPTABLE_TEST_EXECTION_TIME_S = 1.2;
 
 final class PCNTLTest extends IntegrationTestCase
 {
+    protected function getIntegrationName()
+    {
+        return "pcntl";
+    }
+
     protected function ddSetUp()
     {
         $this->resetRequestDumper();

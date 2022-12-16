@@ -14,6 +14,11 @@ class InternalExceptionsTest extends WebFrameworkTestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
+    protected function getIntegrationName()
+    {
+        return "laravel";
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';

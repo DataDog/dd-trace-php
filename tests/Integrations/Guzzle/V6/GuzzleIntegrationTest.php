@@ -19,6 +19,11 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
 
+    protected function getIntegrationName()
+    {
+        return "guzzle";
+    }
+
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();

@@ -15,6 +15,11 @@ class MysqliTest extends IntegrationTestCase
     private static $user = 'test';
     private static $password = 'test';
 
+    protected function getIntegrationName()
+    {
+        return "mysqli";
+    }
+
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();

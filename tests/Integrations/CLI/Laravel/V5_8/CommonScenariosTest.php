@@ -8,6 +8,11 @@ use DDTrace\Tests\Common\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
+    protected function getIntegrationName()
+    {
+        return "laravel";
+    }
+
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/Laravel/Version_5_8/artisan';

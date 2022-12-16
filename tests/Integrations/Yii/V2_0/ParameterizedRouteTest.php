@@ -10,6 +10,11 @@ use DDTrace\Type;
 
 class ParameterizedRouteTest extends WebFrameworkTestCase
 {
+    protected function getIntegrationName()
+    {
+        return "yii";
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Yii/Version_2_0/web/index.php';

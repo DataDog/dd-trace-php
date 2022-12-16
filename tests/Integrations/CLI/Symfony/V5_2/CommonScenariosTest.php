@@ -7,6 +7,11 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 class CommonScenariosTest extends IntegrationTestCase
 {
+    protected function getIntegrationName()
+    {
+        return "symfony";
+    }
+
     protected static function getConsoleScript()
     {
         return __DIR__ . '/../../../../Frameworks/Symfony/Version_5_2/bin/console';

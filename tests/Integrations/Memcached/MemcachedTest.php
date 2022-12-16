@@ -4,7 +4,6 @@ namespace DDTrace\Tests\Integrations\Memcached;
 
 use DDTrace\Tag;
 use DDTrace\Obfuscation;
-use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -17,6 +16,11 @@ final class MemcachedTest extends IntegrationTestCase
 
     private static $host = 'memcached_integration';
     private static $port = '11211';
+
+    protected function getIntegrationName()
+    {
+        return "memcached";
+    }
 
     protected function ddSetUp()
     {

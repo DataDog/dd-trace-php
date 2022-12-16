@@ -18,6 +18,11 @@ class MongoTest extends IntegrationTestCase
     const PASSWORD = 'test';
     const DATABASE = 'admin';
 
+    protected function getIntegrationName()
+    {
+        return "mongo";
+    }
+
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();

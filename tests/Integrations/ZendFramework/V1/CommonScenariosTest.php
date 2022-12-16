@@ -9,6 +9,11 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
+    protected function getIntegrationName()
+    {
+        return "zendframework";
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/ZendFramework/Version_1_12/public/index.php';

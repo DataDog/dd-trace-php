@@ -7,6 +7,11 @@ use DDTrace\Tests\Common\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
+    protected function getIntegrationName()
+    {
+        return "cakephp";
+    }
+
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/CakePHP/Version_2_8/app/Console/cake.php';

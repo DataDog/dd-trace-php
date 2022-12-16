@@ -9,6 +9,11 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
+    protected function getIntegrationName()
+    {
+        return "slim";
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Slim/Version_4/public/index.php';

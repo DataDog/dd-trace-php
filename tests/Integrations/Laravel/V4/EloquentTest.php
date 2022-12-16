@@ -12,6 +12,11 @@ class EloquentTest extends WebFrameworkTestCase
 {
     use SpanAssertionTrait;
 
+    protected function getIntegrationName()
+    {
+        return "eloquent";
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';

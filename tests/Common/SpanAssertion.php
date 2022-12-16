@@ -9,6 +9,8 @@ final class SpanAssertion
 {
     const NOT_TESTED = '__not_tested__';
 
+    private static $integrationName;
+
     private $operationName;
     private $hasError;
     /** @var string[] Tags the MUST match in both key and value */
@@ -42,6 +44,14 @@ final class SpanAssertion
         $this->operationName = $name;
         $this->hasError = $error;
         $this->onlyCheckExistence = $onlyCheckExistance;
+        $this->exactTags = [
+            Tag::COMPONENT => SpanAssertion::$integrationName,
+        ];
+    }
+
+    public static function setIntegrationName($integrationName)
+    {
+        SpanAssertion::$integrationName = $integrationName;
     }
 
     /**

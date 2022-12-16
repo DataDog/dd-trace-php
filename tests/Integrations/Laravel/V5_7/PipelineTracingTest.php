@@ -13,6 +13,11 @@ class PipelineTracingTest extends WebFrameworkTestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
+    protected function getIntegrationName()
+    {
+        return "laravel";
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';

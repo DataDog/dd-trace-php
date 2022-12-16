@@ -14,6 +14,11 @@ final class PredisTest extends IntegrationTestCase
     private $host = 'redis_integration';
     private $port = '6379';
 
+    protected function getIntegrationName()
+    {
+        return "predis";
+    }
+
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();

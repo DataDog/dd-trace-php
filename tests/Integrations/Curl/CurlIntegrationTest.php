@@ -33,6 +33,11 @@ final class CurlIntegrationTest extends IntegrationTestCase
     const URL_WITH_CREDENTIALS = 'http://my_user:my_password@httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
+    protected function getIntegrationName()
+    {
+        return "curl";
+    }
+
     public function ddSetUp()
     {
         $this->cleanUp();
