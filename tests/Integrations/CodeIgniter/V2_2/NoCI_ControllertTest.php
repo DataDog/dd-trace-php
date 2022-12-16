@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Type;
 
-class NoCI_ControllertTest extends WebFrameworkTestCase
+class NoCIControllertTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
