@@ -8,6 +8,11 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class SyntheticsTest extends WebFrameworkTestCase
 {
+    protected function getIntegrationName()
+    {
+        return "laravel";
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../Frameworks/Custom/Version_Not_Autoloaded/index.php';

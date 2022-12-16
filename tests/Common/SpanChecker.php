@@ -20,6 +20,12 @@ function array_filter_by_key($fn, array $input)
  */
 final class SpanChecker
 {
+    private static $integrationName;
+
+    public static function setIntegrationName($integrationName)
+    {
+        SpanChecker::$integrationName = $integrationName;
+    }
     /**
      * Asserts a flame graph with parent child relations.
      *
@@ -382,6 +388,15 @@ final class SpanChecker
             // Ignore _dd.p.dm unless explicitly tested
             if (!isset($expectedTags['_dd.p.dm'])) {
                 unset($filtered['_dd.p.dm']);
+            }
+            if (SpanChecker::$integrationName) {
+                if (SpanChecker::$integrationName != SpanAssertion::NOT_TESTED)
+                {
+                    $expectedTags["component"] = SpanChecker::$integrationName;
+                } else 
+                {
+                    unset($filtered['component']);
+                }
             }
             // http.client_ip is present depending on target SAPI and not helpful here to test
             if (!isset($expectedTags['http.client_ip'])) {

@@ -44,8 +44,7 @@ final class SpanAssertion
         $this->operationName = $name;
         $this->hasError = $error;
         $this->onlyCheckExistence = $onlyCheckExistance;
-        if (SpanAssertion::$integrationName != SpanAssertion::NOT_TESTED)
-        {
+        if (SpanAssertion::$integrationName != SpanAssertion::NOT_TESTED) {
             $this->exactTags = [
                 Tag::COMPONENT => SpanAssertion::$integrationName,
             ];

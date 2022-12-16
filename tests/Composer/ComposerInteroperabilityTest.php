@@ -26,6 +26,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
         if (\file_exists($this->getPreloadTouchFilePath())) {
             \unlink($this->getPreloadTouchFilePath());
         }
+        SpanAssertion::setIntegrationName("laravel");
     }
 
     public function testComposerInteroperabilityWhenNoInitHook()

@@ -31,6 +31,7 @@ abstract class IntegrationTestCase extends BaseTestCase
         $this->errorReportingBefore = error_reporting();
         parent::ddSetUp();
         SpanAssertion::setIntegrationName($this->getIntegrationName());
+        SpanChecker::setIntegrationName($this->getIntegrationName());
     }
 
     protected function getIntegrationName()
