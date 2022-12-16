@@ -112,26 +112,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         )->setError('Exception', 'datadog', true),
                     ]),
                 ],
-                'A call to healthcheck' => [
-                    SpanAssertion::build(
-                        'codeigniter.request',
-                        'codeigniter_test_app',
-                        'web',
-                        'GET /health_check/ping'
-                    )->withExactTags([
-                        Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/health_check/ping',
-                        Tag::HTTP_STATUS_CODE => '200',
-                        'app.endpoint' => 'Health_check::ping',
-                    ])->withChildren([
-                        SpanAssertion::build(
-                            'Health_check.ping',
-                            'codeigniter_test_app',
-                            Type::WEB_SERVLET,
-                            'Health_check.ping'
-                        )
-                    ]),
-                ],
             ]
         );
     }
