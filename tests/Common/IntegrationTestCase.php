@@ -33,7 +33,10 @@ abstract class IntegrationTestCase extends BaseTestCase
         SpanAssertion::setIntegrationName($this->getIntegrationName());
     }
 
-    abstract protected function getIntegrationName();
+    protected function getIntegrationName()
+    {
+        return SpanAssertion::NOT_TESTED;
+    }
 
     protected function ddTearDown()
     {
