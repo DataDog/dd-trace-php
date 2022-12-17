@@ -15,8 +15,10 @@ RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
 
 # Setup web app
 WORKDIR /var/www/html/
-ADD ./app /var/www/html/
-RUN composer update --no-dev
+# ADD ./app /var/www/html/
+RUN composer create-project laravel/laravel=9.4.0 /var/www/laravel --prefer-dist \
+    && rm -rf /var/www/html \
+    && ln -s /var/www/laravel/public /var/www/html
 
 # Adding configuration files
 ADD docker-scripts/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
