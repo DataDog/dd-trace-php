@@ -1,6 +1,6 @@
-build: 7.3.build
+build: 8.2.build
 
-publish: 7.3.publish
+publish: 8.2.publish
 
 %.build:
 	@docker build --build-arg PHP_VERSION="$*" -t registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:$* .
