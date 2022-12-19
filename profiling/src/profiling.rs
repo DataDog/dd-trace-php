@@ -560,9 +560,10 @@ impl Uploader {
     }
 
     pub fn run(&self) {
-        // DD_PROFILING_OUTPUT_DIR
-        // DD_PROFILING_OUTPUT_PPROF=filename
-        let pprof_filename = std::env::var("DD_PROFILING_OUTPUT_PPROF").ok();
+        /* Safety: Called from Profiling::new, which is after config is
+         * initialized, and before it's destroyed in mshutdown.
+         */
+        let pprof_filename = unsafe { crate::config::profiling_output_pprof() };
         let mut i = 0;
 
         loop {
@@ -591,7 +592,7 @@ impl Uploader {
                             Some(filename) => {
                                 let r = upload_message.profile.serialize(None, None).unwrap();
                                 i += 1;
-                                std::fs::write(format!("{}.{}", filename, i), r.buffer).expect("write to succeed")
+                                std::fs::write(format!("{filename}.{i}"), r.buffer).expect("write to succeed")
                             },
                             None => match Self::upload(upload_message) {
                                 Ok(status) => {
