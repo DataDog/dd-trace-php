@@ -27,8 +27,12 @@ print_r(root_span_get_meta());
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    ['record', ['{"found":"attack"}','{"another":"attack"}']],
-    ['record', ['{"yet another":"attack"}'], [], ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]],
+    response_list(response_request_init(['record', ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(
+     response_request_shutdown(
+          ['record', ['{"yet another":"attack"}'], [], ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]]
+     )
+    ),
 ], ['continuous' => true]);
 
 echo "rinit\n";

@@ -7,6 +7,7 @@
 #include "../exception.hpp"
 #include "proto.hpp"
 #include <chrono>
+#include <iostream>
 #include <msgpack.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
@@ -70,10 +71,23 @@ request broker::recv(std::chrono::milliseconds initial_timeout) const
     return oh.get().as<network::request>();
 }
 
-bool broker::send(const base_response &msg) const
+bool broker::send(
+    const std::vector<std::shared_ptr<base_response>> &messages) const
 {
+    if (messages.empty()) {
+        return false;
+    }
+
+    std::vector<
+        msgpack::type::tuple<std::string_view, std::shared_ptr<base_response>>>
+        tuples;
+    tuples.reserve(messages.size());
+    for (auto const &message : messages) {
+        tuples.emplace_back(message->get_type(), message);
+    }
+
     std::stringstream ss;
-    msgpack::pack(ss, msg);
+    msgpack::pack(ss, tuples);
     const std::string &buffer = ss.str();
 
     // TODO: Add check to ensure buffer.size() fits in uint32_t
@@ -81,12 +95,22 @@ bool broker::send(const base_response &msg) const
 
     // NOLINTNEXTLINE
     auto res = socket_->send(reinterpret_cast<char *>(&h), sizeof(header_t));
+
     if (res != sizeof(header_t)) {
         return false;
     }
 
     res = socket_->send(buffer.c_str(), buffer.size());
+
     return res == buffer.size();
+}
+
+bool broker::send(const std::shared_ptr<base_response> &message) const
+{
+    std::vector<std::shared_ptr<network::base_response>> messages;
+    messages.push_back(message);
+
+    return send(messages);
 }
 
 } // namespace dds::network

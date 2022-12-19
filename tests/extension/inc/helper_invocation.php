@@ -77,11 +77,18 @@ fread($cstream, $len);
 fwrite(STDERR, "read remaining data");
 
 fflush(STDERR);
+
 $version = $argv[1];
+//The message supposing version is 0.4.0 is [["client_init", ["ok", "0.4.0", [], {}, {}]]]
+$message = "\x91\x92". //[[
+            "\xABclient_init". //"client_init"
+            "\x95". // [
+            "\xA2ok". //"ok"
+            chr(0xA0 + strlen($version)) . $version . //"0.4.0"
+            "\x90\x80\x80"; // [], {}, {}]]]
+
 $data = "dds\0" .
-	chr(4 + 1 + strlen($version) + 3) . "\x00\x00\x00" . // length in little-endian
-	"\x95\xa2ok" . // ["ok", <>] in msgpac k
-	chr(0xA0 + strlen($version)) . $version . // "$version" in msgpack
-    "\x90\x80\x80"; 
+	chr(strlen($message)) . "\x00\x00\x00" . // length in little-endian
+	$message;
 
 fwrite($cstream, $data);

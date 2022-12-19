@@ -15,7 +15,9 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-$helper = Helper::createInitedRun([['record', '[{"found":"attack"}]']], ['continuous' => true]);
+$helper = Helper::createInitedRun([
+    response_list(response_request_init(['record', '[{"found":"attack"}]']))
+], ['continuous' => true]);
 
 echo "root_span_get_meta (should fail: no root span):\n";
 var_dump(root_span_get_meta());

@@ -51,6 +51,12 @@ public:
         return engine_;
     }
 
+    [[nodiscard]] std::shared_ptr<service_config> get_service_config() const
+    {
+        // TODO make access atomic?
+        return service_config_;
+    }
+
     [[nodiscard]] bool running() const { return handler_.joinable(); }
 
 protected:

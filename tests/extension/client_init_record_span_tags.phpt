@@ -27,11 +27,17 @@ print_r(root_span_get_meta());
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createRun([
-    ['ok', phpversion('ddappsec'), [],
+    response_list(
+        response_client_init(['ok', phpversion('ddappsec'), [],
         ["meta_1" => "value_1", "meta_2" => "value_2"],
-        ["metric_1" => 2.0, "metric_2" => 10.0]],
-    ['record', ['{"found":"attack"}','{"another":"attack"}']],
-    ['record', ['{"yet another":"attack"}']],
+        ["metric_1" => 2.0, "metric_2" => 10.0]])
+    ),
+    response_list(
+        response_request_init(['record', ['{"found":"attack"}','{"another":"attack"}']])
+    ),
+    response_list(
+        response_request_shutdown(['record', ['{"yet another":"attack"}']])
+    ),
 ], ['continuous' => true]);
 
 echo "rinit\n";

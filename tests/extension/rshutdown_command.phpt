@@ -10,8 +10,10 @@ use function datadog\appsec\testing\{rinit,rshutdown};
 
 include __DIR__ . '/inc/mock_helper.php';
 
-$helper = Helper::createInitedRun([['ok', []],
-    ['ok', [], new ArrayObject(), new ArrayObject()]]);
+$helper = Helper::createInitedRun([
+    response_list(response_request_init(['ok', []])),
+    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()]))
+]);
 
 header('Foo:bar');
 header('My_header: value 1');

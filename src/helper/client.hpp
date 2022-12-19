@@ -43,9 +43,16 @@ public:
     bool handle_command(network::request_init::request &);
     // NOLINTNEXTLINE(google-runtime-references)
     bool handle_command(network::request_shutdown::request &);
+    // NOLINTNEXTLINE(google-runtime-references)
+    bool handle_command(network::config_sync::request &);
 
     bool run_client_init();
     bool run_request();
+
+    [[nodiscard]] std::shared_ptr<service> get_service() const
+    {
+        return service_;
+    }
 
     // NOLINTNEXTLINE(google-runtime-references)
     void run(worker::queue_consumer &q);

@@ -75,6 +75,9 @@ TEST(BrokerTest, SendClientInit)
 
     std::stringstream ss;
     msgpack::packer<std::stringstream> packer(ss);
+    packer.pack_array(1);            // Array of messages
+    packer.pack_array(2);            // First message
+    pack_str(packer, "client_init"); // Type
     packer.pack_array(5);
     pack_str(packer, "ok");
     pack_str(packer, dds::php_ddappsec_version);
@@ -92,10 +95,14 @@ TEST(BrokerTest, SendClientInit)
         .WillOnce(DoAll(SaveHeader(&h), Return(sizeof(network::header_t))))
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
-    network::client_init::response response;
-    response.status = "ok";
-    response.errors = {"one", "two"};
-    EXPECT_TRUE(broker.send(response));
+    auto response = std::make_shared<network::client_init::response>();
+    response->status = "ok";
+    response->errors = {"one", "two"};
+
+    std::vector<std::shared_ptr<network::base_response>> messages;
+    messages.push_back(response);
+
+    EXPECT_TRUE(broker.send(messages));
 
     EXPECT_STREQ(h.code, "dds");
     EXPECT_STREQ(expected_data.c_str(), buffer.c_str());
@@ -108,6 +115,9 @@ TEST(BrokerTest, SendRequestInit)
 
     std::stringstream ss;
     msgpack::packer<std::stringstream> packer(ss);
+    packer.pack_array(1);             // Array of messages
+    packer.pack_array(2);             // First message
+    pack_str(packer, "request_init"); // Type
     packer.pack_array(3);
     pack_str(packer, "record");
     packer.pack_array(2);
@@ -124,11 +134,15 @@ TEST(BrokerTest, SendRequestInit)
         .WillOnce(DoAll(SaveHeader(&h), Return(sizeof(network::header_t))))
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
-    network::request_init::response response;
-    response.verdict = "record";
-    response.triggers = {"one", "two"};
-    response.actions = {"block"};
-    EXPECT_TRUE(broker.send(response));
+    auto response = std::make_shared<network::request_init::response>();
+    response->verdict = "record";
+    response->triggers = {"one", "two"};
+    response->actions = {"block"};
+
+    std::vector<std::shared_ptr<network::base_response>> messages;
+    messages.push_back(response);
+
+    EXPECT_TRUE(broker.send(messages));
 
     EXPECT_STREQ(h.code, "dds");
     EXPECT_STREQ(expected_data.c_str(), buffer.c_str());
@@ -141,6 +155,9 @@ TEST(BrokerTest, SendRequestShutdown)
 
     std::stringstream ss;
     msgpack::packer<std::stringstream> packer(ss);
+    packer.pack_array(1);                 // Array of messages
+    packer.pack_array(2);                 // First message
+    pack_str(packer, "request_shutdown"); // Type
     packer.pack_array(5);
     pack_str(packer, "record");
     packer.pack_array(2);
@@ -159,11 +176,15 @@ TEST(BrokerTest, SendRequestShutdown)
         .WillOnce(DoAll(SaveHeader(&h), Return(sizeof(network::header_t))))
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
-    network::request_shutdown::response response;
-    response.verdict = "record";
-    response.triggers = {"one", "two"};
-    response.actions = {"block"};
-    EXPECT_TRUE(broker.send(response));
+    auto response = std::make_shared<network::request_shutdown::response>();
+    response->verdict = "record";
+    response->triggers = {"one", "two"};
+    response->actions = {"block"};
+
+    std::vector<std::shared_ptr<network::base_response>> messages;
+    messages.push_back(response);
+
+    EXPECT_TRUE(broker.send(messages));
 
     EXPECT_STREQ(h.code, "dds");
     EXPECT_STREQ(expected_data.c_str(), buffer.c_str());
@@ -595,19 +616,29 @@ TEST(BrokerTest, ParsingBodyLimit)
 
 TEST(BrokerTest, SendErrorResponse)
 {
+    size_t error_message_size = 9; // Yes this is a bit harcoded
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    std::stringstream ss;
+    msgpack::packer<std::stringstream> packer(ss);
+    packer.pack_array(1);      // fArray of messages
+    packer.pack_array(2);      // First message
+    pack_str(packer, "error"); // Type
+    packer.pack_array(0);
+    const auto &expected_data = ss.str();
 
     network::header_t h;
     EXPECT_CALL(*socket, send(_, _))
         .WillOnce(DoAll(SaveHeader(&h), Return(sizeof(network::header_t))))
-        .WillOnce(Return(1));
+        .WillOnce(Return(expected_data.size()));
 
-    network::error::response response;
-    EXPECT_TRUE(broker.send(response));
+    std::vector<std::shared_ptr<network::base_response>> messages;
+    messages.push_back(std::make_shared<network::error::response>());
+    EXPECT_TRUE(broker.send(messages));
 
     EXPECT_STREQ(h.code, "dds");
-    EXPECT_EQ(h.size, 1);
+    EXPECT_EQ(h.size, expected_data.size());
 }
 
 TEST(BrokerTest, InvalidResponseSize)
@@ -617,8 +648,163 @@ TEST(BrokerTest, InvalidResponseSize)
 
     EXPECT_CALL(*socket, send(_, _)).WillOnce(Return(0));
 
-    network::client_init::response response;
-    EXPECT_FALSE(broker.send(response));
+    std::vector<std::shared_ptr<network::base_response>> messages;
+    messages.push_back(std::make_shared<network::client_init::response>());
+    EXPECT_FALSE(broker.send(messages));
+}
+
+void assert_type_equal_to(
+    std::string buffer, int message_index, std::string expected_type)
+{
+    msgpack::object_handle oh = msgpack::unpack(buffer.data(), buffer.size());
+
+    msgpack::object deserialized = oh.get();
+
+    std::vector<
+        msgpack::type::tuple<std::string, std::shared_ptr<msgpack::object>>>
+        sent;
+    deserialized.convert(sent);
+
+    auto type_sent = sent[message_index].get<0>().c_str();
+    EXPECT_STREQ(type_sent, expected_type.c_str());
+}
+
+TEST(BrokerTest, ClientInitTypeIsAddedToMessage)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    network::header_t h;
+    std::string buffer;
+
+    EXPECT_CALL(*socket, send(_, _))
+        .WillOnce(Return(sizeof(network::header_t)))
+        .WillOnce(DoAll(SaveString(&buffer), Return(123)));
+
+    auto response = std::make_shared<network::client_init::response>();
+    std::vector<std::shared_ptr<network::base_response>> responses;
+    responses.push_back(response);
+
+    EXPECT_FALSE(broker.send(responses));
+
+    assert_type_equal_to(buffer, 0, "client_init");
+}
+
+TEST(BrokerTest, RequestInitTypeIsAddedToMessage)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    network::header_t h;
+    std::string buffer;
+
+    EXPECT_CALL(*socket, send(_, _))
+        .WillOnce(Return(sizeof(network::header_t)))
+        .WillOnce(DoAll(SaveString(&buffer), Return(123)));
+
+    auto response = std::make_shared<network::request_init::response>();
+    std::vector<std::shared_ptr<network::base_response>> responses;
+    responses.push_back(response);
+
+    EXPECT_FALSE(broker.send(responses));
+
+    assert_type_equal_to(buffer, 0, "request_init");
+}
+
+TEST(BrokerTest, ErrorTypeIsAddedToMessage)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    network::header_t h;
+    std::string buffer;
+
+    EXPECT_CALL(*socket, send(_, _))
+        .WillOnce(Return(sizeof(network::header_t)))
+        .WillOnce(DoAll(SaveString(&buffer), Return(123)));
+
+    auto response = std::make_shared<network::error::response>();
+    std::vector<std::shared_ptr<network::base_response>> responses;
+    responses.push_back(response);
+
+    EXPECT_FALSE(broker.send(responses));
+
+    assert_type_equal_to(buffer, 0, "error");
+}
+
+TEST(BrokerTest, ConfigFeaturesTypeIsAddedToMessage)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    network::header_t h;
+    std::string buffer;
+
+    EXPECT_CALL(*socket, send(_, _))
+        .WillOnce(Return(sizeof(network::header_t)))
+        .WillOnce(DoAll(SaveString(&buffer), Return(123)));
+
+    auto response = std::make_shared<network::config_features::response>();
+    std::vector<std::shared_ptr<network::base_response>> responses;
+    responses.push_back(response);
+
+    EXPECT_FALSE(broker.send(responses));
+
+    assert_type_equal_to(buffer, 0, "config_features");
+}
+
+TEST(BrokerTest, ConfigSyncTypeIsAddedToMessage)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    network::header_t h;
+    std::string buffer;
+
+    EXPECT_CALL(*socket, send(_, _))
+        .WillOnce(Return(sizeof(network::header_t)))
+        .WillOnce(DoAll(SaveString(&buffer), Return(123)));
+
+    auto response = std::make_shared<network::config_sync::response>();
+    std::vector<std::shared_ptr<network::base_response>> responses;
+    responses.push_back(response);
+
+    EXPECT_FALSE(broker.send(responses));
+
+    assert_type_equal_to(buffer, 0, "config_sync");
+}
+
+TEST(BrokerTest, RequestShutdownTypeIsAddedToMessage)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    network::header_t h;
+    std::string buffer;
+
+    EXPECT_CALL(*socket, send(_, _))
+        .WillOnce(Return(sizeof(network::header_t)))
+        .WillOnce(DoAll(SaveString(&buffer), Return(123)));
+
+    auto response = std::make_shared<network::request_shutdown::response>();
+    std::vector<std::shared_ptr<network::base_response>> responses;
+    responses.push_back(response);
+
+    EXPECT_FALSE(broker.send(responses));
+
+    assert_type_equal_to(buffer, 0, "request_shutdown");
+}
+
+TEST(BrokerTest, ItReturnsFalseWhenNoMessagesProvided)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    EXPECT_CALL(*socket, send(_, _)).Times(0);
+
+    std::vector<std::shared_ptr<network::base_response>> responses;
+
+    EXPECT_FALSE(broker.send(responses));
 }
 
 } // namespace dds

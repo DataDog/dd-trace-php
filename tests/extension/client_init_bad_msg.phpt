@@ -10,7 +10,9 @@ use function datadog\appsec\testing\{rinit,backoff_status,is_without_holes};
 include __DIR__ . '/inc/mock_helper.php';
 include __DIR__ . '/inc/logging.php';
 
-$helper = Helper::createRun([['msg' => ['y' => 'ok']]]);
+$helper = Helper::createRun([
+    response_list(response_client_init(['msg' => ['y' => 'ok']]))
+]);
 
 var_dump(rinit());
 

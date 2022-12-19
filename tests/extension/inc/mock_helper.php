@@ -49,7 +49,10 @@ class Helper {
 
     static function createInitedRun($responses, $opts = array()) {
         $empty_obj = new ArrayObject();
-        $responses = array_merge([['ok', phpversion('ddappsec'),[],$empty_obj,$empty_obj]], $responses);
+        $responses = array_merge([
+            response_list(
+                response_client_init(['ok', phpversion('ddappsec'),[],$empty_obj,$empty_obj])
+        )], $responses);
         return self::createRun($responses, $opts);
     }
 
@@ -196,6 +199,27 @@ class Helper {
         fclose($handle);
     }
 };
+
+function response($type, $message) {
+    return [$type, $message];
+}
+
+function response_client_init($message) {
+    return response("client_init", $message);
+}
+
+function response_request_init($message) {
+    return response("request_init", $message);
+}
+
+function response_request_shutdown($message) {
+    return response("request_shutdown", $message);
+}
+
+function response_list(...$responses) {
+    return $responses;
+}
+
 
 // vim: set et sw=4 ts=4:
 ?>

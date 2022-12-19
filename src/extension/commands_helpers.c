@@ -104,10 +104,23 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
             return res;
         }
 
-        res = spec->incoming_cb(imsg.root, ctx);
+        mpack_node_t first_response = mpack_node_array_at(imsg.root, 0);
+        mpack_error_t err = mpack_node_error(first_response);
+        if (err != mpack_ok) {
+            mlog(dd_log_error, "Array of responses could not be retrieved - %s",
+                mpack_error_to_string(err));
+        }
+        mpack_node_t first_message = mpack_node_array_at(first_response, 1);
+        err = mpack_node_error(first_message);
+        if (err != mpack_ok) {
+            mlog(dd_log_error,
+                "Message on first response could not be retrieved - %s",
+                mpack_error_to_string(err));
+        }
+        res = spec->incoming_cb(first_message, ctx);
         mlog(dd_log_debug, "Processing for command %.*s returned %s", NAME_L,
             dd_result_to_string(res));
-        mpack_error_t err = imsg.root.tree->error;
+        err = imsg.root.tree->error;
         _dump_in_msg(err == mpack_ok ? dd_log_trace : dd_log_debug, imsg._data,
             imsg._size);
         err = _imsg_destroy(&imsg);

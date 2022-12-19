@@ -53,7 +53,7 @@ bool maybe_exec_cmd_M(client &client, network::request &msg)
 
 void send_error_response(const network::base_broker &broker)
 {
-    if (!broker.send(network::error::response())) {
+    if (!broker.send(std::make_shared<network::error::response>())) {
         SPDLOG_WARN("Failed to send error response");
     }
 }
@@ -139,11 +139,11 @@ bool client::handle_command(const network::client_init::request &command)
 
     SPDLOG_DEBUG(
         "sending response to client_init: {}", has_errors ? "fail" : "ok");
-    network::client_init::response response;
-    response.status = has_errors ? "fail" : "ok";
-    response.errors = std::move(errors);
-    response.meta = std::move(meta);
-    response.metrics = std::move(metrics);
+    auto response = std::make_shared<network::client_init::response>();
+    response->status = has_errors ? "fail" : "ok";
+    response->errors = std::move(errors);
+    response->meta = std::move(meta);
+    response->metrics = std::move(metrics);
 
     try {
         if (!broker_->send(response)) {
@@ -175,16 +175,16 @@ bool client::handle_command(network::request_init::request &command)
 
     SPDLOG_DEBUG("received command request_init");
 
-    network::request_init::response response;
+    auto response = std::make_shared<network::request_init::response>();
     try {
         auto res = context_->publish(std::move(command.data));
         if (res && res->valid()) {
-            response.verdict = "record";
-            response.triggers = std::move(res->data);
-            response.actions = std::move(res->actions);
+            response->verdict = "record";
+            response->triggers = std::move(res->data);
+            response->actions = std::move(res->actions);
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
         } else {
-            response.verdict = "ok";
+            response->verdict = "ok";
         }
     } catch (const invalid_object &e) {
         // This error indicates some issue in either the communication with
@@ -200,9 +200,46 @@ bool client::handle_command(network::request_init::request &command)
     }
 
     SPDLOG_DEBUG(
-        "sending response to request_init, verdict: {}", response.verdict);
+        "sending response to request_init, verdict: {}", response->verdict);
     try {
         return broker_->send(response);
+    } catch (std::exception &e) {
+        SPDLOG_ERROR(e.what());
+    }
+
+    return false;
+}
+
+bool client::handle_command(network::config_sync::request & /* command */)
+{
+    if (!service_) {
+        // This implies a failed client_init, we can't continue.
+        SPDLOG_DEBUG("no service available on config_sync");
+        send_error_response(*broker_);
+        return false;
+    }
+
+    SPDLOG_DEBUG("received command config_sync");
+
+    if (service_->get_service_config()->is_asm_enabled()) {
+        auto response_cf =
+            std::make_shared<network::config_features::response>();
+        response_cf->enabled = true;
+
+        SPDLOG_DEBUG("sending config_features to config_sync");
+        try {
+            return broker_->send(response_cf);
+        } catch (std::exception &e) {
+            SPDLOG_ERROR(e.what());
+        }
+
+        return false;
+    }
+
+    auto response_cs = std::make_shared<network::config_sync::response>();
+    SPDLOG_DEBUG("sending config_sync to config_sync");
+    try {
+        return broker_->send(response_cs);
     } catch (std::exception &e) {
         SPDLOG_ERROR(e.what());
     }
@@ -231,19 +268,19 @@ bool client::handle_command(network::request_shutdown::request &command)
     // Free the context at the end of request shutdown
     auto free_ctx = defer([this]() { this->context_.reset(); });
 
-    network::request_shutdown::response response;
+    auto response = std::make_shared<network::request_shutdown::response>();
     try {
         auto res = context_->publish(std::move(command.data));
         if (res && res->valid()) {
-            response.verdict = "record";
-            response.triggers = std::move(res->data);
-            response.actions = std::move(res->actions);
+            response->verdict = "record";
+            response->triggers = std::move(res->data);
+            response->actions = std::move(res->actions);
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
         } else {
-            response.verdict = "ok";
+            response->verdict = "ok";
         }
 
-        context_->get_meta_and_metrics(response.meta, response.metrics);
+        context_->get_meta_and_metrics(response->meta, response->metrics);
     } catch (const invalid_object &e) {
         // This error indicates some issue in either the communication with
         // the client, incompatible versions or malicious client.
@@ -258,7 +295,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     }
 
     SPDLOG_DEBUG(
-        "sending response to request_shutdown, verdict: {}", response.verdict);
+        "sending response to request_shutdown, verdict: {}", response->verdict);
     try {
         return broker_->send(response);
     } catch (std::exception &e) {
@@ -279,7 +316,8 @@ bool client::run_request()
 {
     // TODO: figure out how to handle errors which require sending an error
     //       response to ensure the extension doesn't hang.
-    return handle_message<network::request_init, network::request_shutdown>(
+    return handle_message<network::request_init, network::config_sync,
+        network::request_shutdown>(
         *this, *broker_, std::chrono::milliseconds{0} /* no initial timeout */
     );
 }
