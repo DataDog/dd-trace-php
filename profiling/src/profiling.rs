@@ -597,16 +597,13 @@ impl Uploader {
                             None => match Self::upload(upload_message) {
                                 Ok(status) => {
                                     if status >= 400 {
-                                        warn!(
-                                            "Unexpected HTTP status when sending profile (HTTP {}).",
-                                            status
-                                        )
+                                        warn!("Unexpected HTTP status when sending profile (HTTP {status}).")
                                     } else {
-                                        info!("Successfully uploaded profile (HTTP {}).", status)
+                                        info!("Successfully uploaded profile (HTTP {status}).")
                                     }
                                 }
                                 Err(err) => {
-                                    warn!("Failed to upload profile: {}", err)
+                                    warn!("Failed to upload profile: {err}")
                                 }
                             },
                         }
