@@ -866,15 +866,20 @@ impl Profiler {
                 if let Some(get_profiling_context) = gpc {
                     let context = get_profiling_context();
                     if context.local_root_span_id != 0 {
+                        /* PProf only has signed integers for label.num.
+                         * We bit-cast u64 to i64, and the backend does the
+                         * reverse so the conversion is lossless.
+                         */
+                        let local_root_span_id: i64 = transmute(context.local_root_span_id);
+                        let span_id: i64 = transmute(context.span_id);
+
                         labels.push(Label {
                             key: "local root span id",
-                            value: LabelValue::Str(
-                                format!("{}", context.local_root_span_id).into(),
-                            ),
+                            value: LabelValue::Num(local_root_span_id, None),
                         });
                         labels.push(Label {
                             key: "span id",
-                            value: LabelValue::Str(format!("{}", context.span_id).into()),
+                            value: LabelValue::Num(span_id, None),
                         });
                     }
                 }
