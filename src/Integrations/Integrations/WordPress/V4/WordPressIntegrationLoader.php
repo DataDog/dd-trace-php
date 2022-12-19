@@ -319,8 +319,23 @@ class WordPressIntegrationLoader
         return Integration::LOADED;
     }
 
-    public function setCommonValues(SpanData $span, string $name, string $type, string $service, string $resource = null, array $meta = array())
-    {
+    /**
+     * @param SpanData $span
+     * @param string $name
+     * @param string $type
+     * @param string $service
+     * @param string|null $resources
+     * @param array $meta
+     * @return void
+     */
+    public static function setCommonValues(
+        SpanData $span,
+        $name,
+        $type,
+        $service,
+        $resource = null,
+        array $meta = array()
+    ) {
         $span->type = $type;
         $span->name = $name;
         $span->meta = $meta;

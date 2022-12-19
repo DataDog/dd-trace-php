@@ -390,11 +390,9 @@ final class SpanChecker
                 unset($filtered['_dd.p.dm']);
             }
             if (SpanChecker::$integrationName) {
-                if (SpanChecker::$integrationName != SpanAssertion::NOT_TESTED)
-                {
+                if (SpanChecker::$integrationName != SpanAssertion::NOT_TESTED) {
                     $expectedTags["component"] = SpanChecker::$integrationName;
-                } else 
-                {
+                } else {
                     unset($filtered['component']);
                 }
             }
