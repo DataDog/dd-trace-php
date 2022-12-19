@@ -1536,7 +1536,7 @@ jobs:
             # https://gitlab.alpinelinux.org/alpine/aports/-/merge_requests/36722
             # Ensure libexecinfo is _not_ installed, so support isn't detected
             # by config.m4
-            apk del libexecinfo
+            apk update && apk del libexecinfo
             build-dd-trace-php
             mv extensions extensions_$(uname -m)
       - persist_to_workspace:
