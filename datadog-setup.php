@@ -66,7 +66,6 @@ function install($options)
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
     if (is_alpine()) {
-        check_library_prerequisite_or_exit('libexecinfo');
         if (is_truthy($options[OPT_ENABLE_PROFILING])) {
             check_library_prerequisite_or_exit('libgcc_s');
         }
