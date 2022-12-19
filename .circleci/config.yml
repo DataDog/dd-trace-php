@@ -2604,6 +2604,7 @@ workflows:
                 - alpine:3.11
                 - alpine:3.12
                 - alpine:3.15
+                - alpine:3.16
                 - alpine:latest
       - verify_alpine:
           requires: [ "package extension" ]

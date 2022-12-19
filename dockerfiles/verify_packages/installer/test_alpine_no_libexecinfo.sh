@@ -16,16 +16,10 @@ output=$(php ./build/packages/datadog-setup.php --php-bin php)
 exit_status=$?
 set -e
 
-if [ "${exit_status}" = "1" ]; then
-    echo "---\nOk: expected exit status 1\n---\n${exit_status}\n---\n"
+if [ "${exit_status}" = "0" ]; then
+    echo "---\nOk: expected exit status 0\n---\n${exit_status}\n---\n"
 else
-    echo "---\nError: Unexpected exit status. Should be 1\n---\n${exit_status}\n---\n"
+    echo "---\nError: Unexpected exit status. Should be 0\n---\n${exit_status}\n---\n"
     exit 1
 fi
 
-if [ -z "${output##*libexecinfo*}" ]; then
-    echo "Ok: Output contains text 'libexecinfo'"
-else
-    echo "---\nError: Output does not contain text 'libexecinfo'\n---\n${output}\n---\n"
-    exit 1
-fi
