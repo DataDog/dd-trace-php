@@ -39,7 +39,7 @@ class GuzzleIntegration extends Integration
                 $span->service = 'guzzle';
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
-                $span->meta[Tag::COMPONENT] = $this->getName();
+                $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
 
                 if (isset($args[0])) {
                     $integration->addRequestInfo($span, $args[0]);
@@ -72,7 +72,7 @@ class GuzzleIntegration extends Integration
                 $span->service = 'guzzle';
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
-                $span->meta[Tag::COMPONENT] = $this->getName();
+                $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
 
                 if (isset($args[0])) {
                     $integration->addRequestInfo($span, $args[0]);

@@ -23,7 +23,7 @@ class WordPressIntegrationLoader
         $rootSpan->name = 'wordpress.request';
         $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
         $rootSpan->service = $service;
-        $rootSpan->meta[Tag::COMPONENT] = $this->getName();
+        $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';
         if ('cli' !== PHP_SAPI) {
             $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
@@ -324,7 +324,7 @@ class WordPressIntegrationLoader
         $span->type = $type;
         $span->name = $name;
         $span->meta = $meta;
-        $span->meta[Tag::COMPONENT] = $this->getName();
+        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         if ($resource) {
             $span->resource = $resource;
         }

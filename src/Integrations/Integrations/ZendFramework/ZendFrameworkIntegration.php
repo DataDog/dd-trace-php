@@ -79,7 +79,7 @@ class ZendFrameworkIntegration extends Integration
                     $rootSpan->resource = $controller . '@' . $action . ' ' . $route;
                     $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::COMPONENT] = $this->getName();
+                    $rootSpan->meta[Tag::COMPONENT] = ZendFrameworkIntegration::NAME;
 
                     if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                         $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
