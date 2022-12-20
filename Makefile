@@ -415,7 +415,7 @@ $(PACKAGES_BUILD_DIR):
 	fpm -p $(PACKAGES_BUILD_DIR) -t rpm $(FPM_OPTS) $(FPM_FILES)
 .apk.%: ARCHITECTURE=$(*)
 .apk.%: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=bash --depends=curl --depends=libexecinfo $(FPM_FILES)
+	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=bash --depends=curl $(FPM_FILES)
 
 # Example .tar.gz.aarch64, .tar.gz.x86_64
 .tar.gz.%: ARCHITECTURE=$(*)
