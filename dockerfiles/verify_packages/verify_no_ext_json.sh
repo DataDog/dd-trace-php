@@ -2,7 +2,7 @@
 
 set -e
 
-apk add --no-cache bash curl php7
+apk add --no-cache bash curl libexecinfo php7
 
 echo "Installing dd-trace-php using the OS-specific package installer"
 
