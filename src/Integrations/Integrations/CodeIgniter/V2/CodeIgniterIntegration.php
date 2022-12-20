@@ -70,13 +70,17 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
 
-                $this->load->helper('url');
+                // We took the assumption that all controllers will extend CI_Controller.
+                // But we've at least seen one healthcheck controller not extending it.
+                if ($this->load && \method_exists($this->load, 'helper')) {
+                    $this->load->helper('url');
 
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
-                        . Normalizer::sanitizedQueryString();
+                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                        $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                            . Normalizer::sanitizedQueryString();
+                    }
+                    $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
                 }
-                $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
             }
         );
 
@@ -98,10 +102,15 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
 
-                $this->load->helper('url');
-                $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                // We took the assumption that all controllers will extend CI_Controller.
+                // But we've at least seen one healthcheck case where it wasn't the case.
+                if ($this->load && \method_exists($this->load, 'helper')) {
+                    $this->load->helper('url');
+
+                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
                     . Normalizer::sanitizedQueryString();
-                $rootSpan->meta['app.endpoint'] = "{$class}::_remap";
+                    $rootSpan->meta['app.endpoint'] = "{$class}::_remap";
+                }
             }
         );
 
