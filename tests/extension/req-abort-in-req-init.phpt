@@ -6,6 +6,7 @@ require __DIR__ . "/inc/no_valgrind.php";
 ?>
 --INI--
 datadog.appsec.testing_abort_rinit=1
+datadog.appsec.enabled=1
 --FILE--
 THIS SHOULD NOT BE REACHED
 --EXPECTHEADERS--

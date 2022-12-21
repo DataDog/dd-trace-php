@@ -89,6 +89,7 @@ struct client_init {
         unsigned pid{0};
         std::string client_version;
         std::string runtime_version;
+        std::optional<bool> enabled_configuration;
 
         dds::service_identifier service;
         dds::engine_settings engine_settings;
@@ -101,8 +102,8 @@ struct client_init {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(pid, client_version, runtime_version, service,
-            engine_settings, rc_settings);
+        MSGPACK_DEFINE(pid, client_version, runtime_version,
+            enabled_configuration, service, engine_settings, rc_settings);
     };
 
     struct response : base_response_generic<response> {
@@ -162,8 +163,6 @@ struct config_sync {
     struct request : base_request {
         static constexpr request_id id = request_id::config_sync;
         static constexpr const char *name = config_sync::name;
-        int appsec_enabled_env = {0}; //@TODO to be defined on next pr but it will
-                                // have 3 statuses
 
         request() = default;
         request(const request &) = delete;
@@ -171,8 +170,7 @@ struct config_sync {
         request(request &&) = default;
         request &operator=(request &&) = default;
         ~request() override = default;
-
-        MSGPACK_DEFINE(appsec_enabled_env)
+        MSGPACK_DEFINE()
     };
 
     struct response : base_response_generic<response> {

@@ -120,6 +120,9 @@ bool client::handle_command(const network::client_init::request &command)
 
     std::vector<std::string> errors;
     bool has_errors = false;
+
+    client_enabled_conf = command.enabled_configuration;
+
     try {
         service_ = service_manager_->create_service(
             service_id, eng_settings, command.rc_settings, meta, metrics);
@@ -170,6 +173,21 @@ bool client::handle_command(network::request_init::request &command)
         return false;
     }
 
+    //    if (!compute_client_status()) {
+    //        auto response_cf =
+    //            std::make_shared<network::config_features::response>();
+    //        response_cf->enabled = false;
+    //
+    //        SPDLOG_DEBUG("sending config_features to request_init");
+    //        try {
+    //            return broker_->send(response_cf);
+    //        } catch (std::exception &e) {
+    //            SPDLOG_ERROR(e.what());
+    //        }
+    //
+    //        return true;
+    //    }
+
     // During request init we initialize the engine context
     context_.emplace(*service_->get_engine());
 
@@ -210,6 +228,20 @@ bool client::handle_command(network::request_init::request &command)
     return false;
 }
 
+bool client::compute_client_status()
+{
+    if (client_enabled_conf == true) {
+        return true;
+    }
+
+    if (client_enabled_conf == false) {
+        return false;
+    }
+
+    return service_->get_service_config()->get_asm_enabled_status() ==
+           enable_asm_status::ENABLED;
+}
+
 bool client::handle_command(network::config_sync::request & /* command */)
 {
     if (!service_) {
@@ -221,7 +253,7 @@ bool client::handle_command(network::config_sync::request & /* command */)
 
     SPDLOG_DEBUG("received command config_sync");
 
-    if (service_->get_service_config()->is_asm_enabled()) {
+    if (compute_client_status()) {
         auto response_cf =
             std::make_shared<network::config_features::response>();
         response_cf->enabled = true;
@@ -233,13 +265,13 @@ bool client::handle_command(network::config_sync::request & /* command */)
             SPDLOG_ERROR(e.what());
         }
 
-        return false;
+        return true;
     }
 
-    auto response_cs = std::make_shared<network::config_sync::response>();
     SPDLOG_DEBUG("sending config_sync to config_sync");
     try {
-        return broker_->send(response_cs);
+        return broker_->send(
+            std::make_shared<network::config_sync::response>());
     } catch (std::exception &e) {
         SPDLOG_ERROR(e.what());
     }

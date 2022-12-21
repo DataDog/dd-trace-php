@@ -3,6 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#include <SAPI.h>
 #include <php.h>
 
 #include "../commands_helpers.h"
@@ -25,7 +26,7 @@ static void _process_meta_and_metrics(mpack_node_t root);
 static const dd_command_spec _spec = {
     .name = "client_init",
     .name_len = sizeof("client_init") - 1,
-    .num_args = 6,
+    .num_args = 7,
     .outgoing_cb = _pack_command,
     .incoming_cb = _process_response,
 };
@@ -35,6 +36,34 @@ dd_result dd_client_init(dd_conn *nonnull conn)
     return dd_command_exec_cred(conn, &_spec, NULL);
 }
 
+typedef enum _enabled_configuration {
+    NOT_CONFIGURED = 0,
+    ENABLED,
+    DISABLED
+} enabled_configuration;
+
+static enabled_configuration get_enabled_configuration()
+{
+    enabled_configuration result = NOT_CONFIGURED;
+    bool is_cli =
+        strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
+
+    zai_config_memoized_entry enabled_config_cli =
+        zai_config_memoized_entries[DDAPPSEC_CONFIG_DD_APPSEC_ENABLED_ON_CLI];
+    zai_config_memoized_entry enabled_config =
+        zai_config_memoized_entries[DDAPPSEC_CONFIG_DD_APPSEC_ENABLED];
+
+    // name_index = -1 means the config was not configured neither
+    // by ini nor ENV
+    if (is_cli && enabled_config_cli.name_index != -1) {
+        result = get_global_DD_APPSEC_ENABLED_ON_CLI() ? ENABLED : DISABLED;
+    } else if (enabled_config.name_index != -1) {
+        result = get_global_DD_APPSEC_ENABLED() ? ENABLED : DISABLED;
+    }
+
+    return result;
+}
+
 static dd_result _pack_command(
     mpack_writer_t *nonnull w, ATTR_UNUSED void *nullable ctx)
 {
@@ -42,6 +71,14 @@ static dd_result _pack_command(
     mpack_write(w, (uint32_t)getpid());
     dd_mpack_write_lstr(w, PHP_DDAPPSEC_VERSION);
     dd_mpack_write_lstr(w, PHP_VERSION);
+
+    enabled_configuration configuration = get_enabled_configuration();
+
+    if (configuration == NOT_CONFIGURED) {
+        mpack_write_nil(w);
+    } else {
+        mpack_write_bool(w, configuration == ENABLED ? true : false);
+    }
 
     // Service details
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

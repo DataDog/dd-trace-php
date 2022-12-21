@@ -2,6 +2,7 @@
 Bad env var setting is ignored
 --ENV--
 DD_APPSEC_LOG_LEVEL=bad
+DD_APPSEC_ENABLED=1
 --GET--
 _force_cgi_sapi
 --INI--

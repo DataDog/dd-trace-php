@@ -199,10 +199,11 @@ TEST(BrokerTest, RecvClientInit)
     msgpack::packer<std::stringstream> packer(ss);
     packer.pack_array(2);
     pack_str(packer, "client_init");
-    packer.pack_array(5);
+    packer.pack_array(6);
     packer.pack_unsigned_int(20);
     pack_str(packer, "one");
     pack_str(packer, "two");
+    packer.pack_nil();
     packer.pack_map(2);
     pack_str(packer, "service");
     pack_str(packer, "api");

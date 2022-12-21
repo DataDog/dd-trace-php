@@ -25,6 +25,10 @@ public:
 
 } // namespace mock
 
+auto EXTENSION_CONFIGURATION_NOT_SET = std::nullopt;
+bool EXTENSION_CONFIGURATION_ENABLED = true;
+bool EXTENSION_CONFIGURATION_DISABLED = false;
+
 TEST(ClientTest, ClientInit)
 {
     auto smanager = std::make_shared<service_manager>();
@@ -352,6 +356,7 @@ TEST(ClientTest, RequestInit)
         msg.runtime_version = "1.0";
         msg.client_version = "2.0";
         msg.engine_settings.rules_file = fn;
+        msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
 
         network::request req(std::move(msg));
 
@@ -478,6 +483,7 @@ TEST(ClientTest, RequestInitInvalidData)
         msg.runtime_version = "1.0";
         msg.client_version = "2.0";
         msg.engine_settings.rules_file = fn;
+        msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
 
         network::request req(std::move(msg));
 
@@ -526,6 +532,7 @@ TEST(ClientTest, RequestInitBrokerThrows)
         msg.runtime_version = "1.0";
         msg.client_version = "2.0";
         msg.engine_settings.rules_file = fn;
+        msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
 
         network::request req(std::move(msg));
 
@@ -595,6 +602,7 @@ TEST(ClientTest, RequestShutdown)
         msg.runtime_version = "1.0";
         msg.client_version = "2.0";
         msg.engine_settings.rules_file = fn;
+        msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
 
         network::request req(std::move(msg));
 
@@ -678,6 +686,7 @@ TEST(ClientTest, RequestShutdownInvalidData)
         msg.runtime_version = "1.0";
         msg.client_version = "2.0";
         msg.engine_settings.rules_file = fn;
+        msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
 
         network::request req(std::move(msg));
 
@@ -827,6 +836,7 @@ TEST(ClientTest, RequestShutdownBrokerThrows)
         msg.runtime_version = "1.0";
         msg.client_version = "2.0";
         msg.engine_settings.rules_file = fn;
+        msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
 
         network::request req(std::move(msg));
 
@@ -936,7 +946,6 @@ TEST(ClientTest, ConfigSync)
     // Config sync
     {
         network::config_sync::request msg;
-        msg.appsec_enabled_env = 0;
 
         network::request req(std::move(msg));
 
@@ -964,7 +973,6 @@ TEST(ClientTest, ConfigSyncNoClientInit)
     // Config Sync
     {
         network::config_sync::request msg;
-        msg.appsec_enabled_env = 0;
 
         network::request req(std::move(msg));
 
@@ -978,18 +986,15 @@ TEST(ClientTest, ConfigSyncNoClientInit)
     }
 }
 
-TEST(ClientTest, ConfigSyncReturnsConfigFeaturesWhenAsmEnabled)
+void set_extension_configuration_to(
+    mock::broker *broker, client &c, std::optional<bool> status)
 {
-    auto smanager = std::make_shared<service_manager>();
-    auto broker = new mock::broker();
-
-    client c(smanager, std::unique_ptr<mock::broker>(broker));
-
     // Client Init
     {
         auto fn = create_sample_rules_ok();
         network::client_init::request msg;
         msg.pid = 1729;
+        msg.enabled_configuration = status;
         msg.runtime_version = "1.0";
         msg.client_version = "2.0";
         msg.engine_settings.rules_file = fn;
@@ -1003,11 +1008,19 @@ TEST(ClientTest, ConfigSyncReturnsConfigFeaturesWhenAsmEnabled)
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-        EXPECT_TRUE(c.run_client_init());
-        auto client_init_res =
-            dynamic_cast<network::client_init::response *>(res.get());
-        EXPECT_STREQ(client_init_res->status.c_str(), "ok");
+        c.run_client_init();
     }
+}
+
+TEST(ClientTest,
+    ConfigSyncReturnsConfigFeaturesWhenExtensionNotConfiguredAndAsmEnabled)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_NOT_SET);
 
     // Lets enable asm
     c.get_service()->get_service_config()->enable_asm();
@@ -1015,7 +1028,6 @@ TEST(ClientTest, ConfigSyncReturnsConfigFeaturesWhenAsmEnabled)
     // Config sync
     {
         network::config_sync::request msg;
-        msg.appsec_enabled_env = 0;
 
         network::request req(std::move(msg));
 
@@ -1027,10 +1039,588 @@ TEST(ClientTest, ConfigSyncReturnsConfigFeaturesWhenAsmEnabled)
             .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
         EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_features", res->get_type());
+
         auto client_init_res =
             dynamic_cast<network::config_features::response *>(res.get());
         EXPECT_EQ(client_init_res->enabled, true);
     }
 }
+
+TEST(ClientTest,
+    ConfigSyncReturnsConfigSyncWhenExtensionNotConfiguredAndAsmDisabled)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_NOT_SET);
+
+    // Lets enable asm
+    c.get_service()->get_service_config()->disable_asm();
+
+    // Config sync
+    {
+        network::config_sync::request msg;
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_sync", res->get_type());
+    }
+}
+
+TEST(ClientTest,
+    ConfigSyncReturnsConfigSyncWhenExtensionNotConfiguredAndAsmNotSet)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_NOT_SET);
+
+    // Lets enable asm
+    c.get_service()->get_service_config()->unset_asm();
+
+    // Config sync
+    {
+        network::config_sync::request msg;
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_sync", res->get_type());
+    }
+}
+
+TEST(ClientTest,
+    ConfigSyncReturnsConfigFeaturesWhenExtensionEnabledAndAsmEnabled)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Lets enable asm
+    c.get_service()->get_service_config()->enable_asm();
+
+    // Config sync
+    {
+        network::config_sync::request msg;
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_features", res->get_type());
+
+        auto client_init_res =
+            dynamic_cast<network::config_features::response *>(res.get());
+        EXPECT_EQ(client_init_res->enabled, true);
+    }
+}
+
+TEST(ClientTest,
+    ConfigSyncReturnsConfigFeaturesWhenExtensionEnabledAndAsmDisabled)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Lets enable asm
+    c.get_service()->get_service_config()->disable_asm();
+
+    // Config sync
+    {
+        network::config_sync::request msg;
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_features", res->get_type());
+
+        auto client_init_res =
+            dynamic_cast<network::config_features::response *>(res.get());
+        EXPECT_EQ(client_init_res->enabled, true);
+    }
+}
+
+TEST(
+    ClientTest, ConfigSyncReturnsConfigFeaturesWhenExtensionEnabledAndAsmNotSet)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Lets enable asm
+    c.get_service()->get_service_config()->unset_asm();
+
+    // Config sync
+    {
+        network::config_sync::request msg;
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_features", res->get_type());
+
+        auto client_init_res =
+            dynamic_cast<network::config_features::response *>(res.get());
+        EXPECT_EQ(client_init_res->enabled, true);
+    }
+}
+
+TEST(ClientTest, ConfigSyncReturnsConfigSyncWhenExtensionDisabledAndAsmEnabled)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_DISABLED);
+
+    // Lets enable asm
+    c.get_service()->get_service_config()->enable_asm();
+
+    // Config sync
+    {
+        network::config_sync::request msg;
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_sync", res->get_type());
+    }
+}
+
+TEST(ClientTest, ConfigSyncReturnsConfigSyncWhenExtensionDisabledAndAsmDisabled)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_DISABLED);
+
+    // Lets enable asm
+    c.get_service()->get_service_config()->disable_asm();
+
+    // Config sync
+    {
+        network::config_sync::request msg;
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_sync", res->get_type());
+    }
+}
+
+TEST(ClientTest, ConfigSyncReturnsConfigSyncWhenExtensionDisabledAndAsmNotSet)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_DISABLED);
+
+    // Lets enable asm
+    c.get_service()->get_service_config()->unset_asm();
+
+    // Config sync
+    {
+        network::config_sync::request msg;
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        EXPECT_EQ("config_sync", res->get_type());
+    }
+}
+//
+// TEST(ClientTest,
+//    RequestInitReturnsRequestInitWhenExtensionNotConfiguredAndAsmEnabled)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_NOT_SET);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->enable_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("request_init", res->get_type());
+//    }
+//}
+//
+// TEST(ClientTest,
+//    RequestInitReturnsConfigFeaturesWhenExtensionNotConfiguredAndAsmDisabled)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_NOT_SET);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->disable_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("config_features", res->get_type());
+//    }
+//}
+//
+// TEST(ClientTest,
+//    RequestInitReturnsConfigFeaturesWhenExtensionNotConfiguredAndAsmNotSet)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_NOT_SET);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->unset_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("config_features", res->get_type());
+//    }
+//}
+//
+// TEST(ClientTest,
+// RequestInitReturnsRequestInitWhenExtensionEnabledAndAsmEnabled)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_ENABLED);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->enable_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("request_init", res->get_type());
+//    }
+//}
+//
+// TEST(
+//    ClientTest,
+//    RequestInitReturnsRequestInitWhenExtensionEnabledAndAsmDisabled)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_ENABLED);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->disable_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("request_init", res->get_type());
+//    }
+//}
+//
+// TEST(ClientTest,
+// RequestInitReturnsRequestInitWhenExtensionEnabledAndAsmNotSet)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_ENABLED);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->unset_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("request_init", res->get_type());
+//    }
+//}
+//
+// TEST(ClientTest,
+//    RequestInitReturnsConfigFeaturesWhenExtensionDisabledAndAsmEnabled)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_DISABLED);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->enable_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("config_features", res->get_type());
+//
+//        auto request_init_res =
+//            dynamic_cast<network::config_features::response *>(res.get());
+//        EXPECT_FALSE(request_init_res->enabled);
+//    }
+//}
+//
+// TEST(ClientTest,
+//    RequestInitReturnsConfigFeaturesWhenExtensionDisabledAndAsmDisabled)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_DISABLED);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->disable_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("config_features", res->get_type());
+//
+//        auto request_init_res =
+//            dynamic_cast<network::config_features::response *>(res.get());
+//        EXPECT_FALSE(request_init_res->enabled);
+//    }
+//}
+//
+// TEST(ClientTest,
+//    RequestInitReturnsConfigFeaturesWhenExtensionDisabledAndAsmNotSet)
+//{
+//    auto smanager = std::make_shared<service_manager>();
+//    auto broker = new mock::broker();
+//
+//    client c(smanager, std::unique_ptr<mock::broker>(broker));
+//
+//    set_extension_configuration_to(broker, c,
+//    EXTENSION_CONFIGURATION_DISABLED);
+//
+//    // Lets enable asm
+//    c.get_service()->get_service_config()->unset_asm();
+//
+//    // Request init
+//    {
+//        network::request_init::request msg;
+//        msg.data = parameter::map();
+//
+//        network::request req(std::move(msg));
+//
+//        std::shared_ptr<network::base_response> res;
+//        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+//        EXPECT_CALL(*broker,
+//            send(
+//                testing::An<const std::shared_ptr<network::base_response>
+//                &>()))
+//            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+//
+//        EXPECT_TRUE(c.run_request());
+//        EXPECT_EQ("config_features", res->get_type());
+//
+//        auto request_init_res =
+//            dynamic_cast<network::config_features::response *>(res.get());
+//        EXPECT_FALSE(request_init_res->enabled);
+//    }
+//}
 
 } // namespace dds
