@@ -5,7 +5,7 @@ set -e
 . "$(dirname ${0})/utils.sh"
 
 # Install using the php installer
-new_version="0.83.0"
+new_version="0.82.0"
 generate_installers "${new_version}"
 /opt/plesk/php/8.0/bin/php ./build/packages/datadog-setup.php --php-bin=all
 
