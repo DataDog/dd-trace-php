@@ -26,11 +26,11 @@ fi
 INSTALL_TYPE="${INSTALL_TYPE:-php_installer}"
 if [ "$INSTALL_TYPE" = "native_package" ]; then
     echo "Installing dd-trace-php using the OS-specific package installer"
-    apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
+    apk add --no-cache $(pwd)/build/packages/*$(uname -m)*.apk --allow-untrusted
 else
     echo "Installing dd-trace-php using the new PHP installer"
     apk add --no-cache libexecinfo
-    installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
+    installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-musl.tar.gz")
     $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all
 fi
 

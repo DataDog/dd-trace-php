@@ -112,7 +112,7 @@ array(5) {
     string(7) "BarType"
     ["meta"]=>
     array(6) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["args.0"]=>
       string(18) "tracing is awesome"
@@ -201,7 +201,7 @@ array(5) {
     string(3) "cli"
     ["meta"]=>
     array(2) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
       string(2) "-1"
@@ -236,7 +236,7 @@ array(5) {
     string(3) "cli"
     ["meta"]=>
     array(2) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
       string(2) "-1"

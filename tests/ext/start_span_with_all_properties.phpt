@@ -74,7 +74,7 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(2) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
       string(2) "-1"
@@ -109,7 +109,7 @@ array(2) {
     string(6) "runner"
     ["meta"]=>
     array(3) {
-      ["system.pid"]=>
+      ["process_id"]=>
       string(%d) "%d"
       ["aa"]=>
       string(2) "bb"

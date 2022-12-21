@@ -8,7 +8,7 @@ if [ "${INSTALL_MODE}" == "package" ]; then
     php \
         /dd-trace-php/datadog-setup.php \
             --php-bin=all \
-            --file=/tmp/library-versions/dd-library-php-x86_64-linux-gnu.tar.gz
+            --file=/tmp/library-versions/dd-library-php.tar.gz
 elif [ "${INSTALL_MODE}" == "pecl" ]; then
     echo "PECL installation mode not supported yet"
     exit 1
@@ -46,7 +46,7 @@ composer --working-dir=/var/www/html install
 
 # Wait for problematic (host:port)s to be available
 echo "Waiting for elasticsearch"
-bash /scripts/wait-for.sh elasticsearch:9200 -t 30
+bash /scripts/wait-for.sh elasticsearch:9200 -t 60
 echo "Waiting for mysql"
 bash /scripts/wait-for.sh mysql:3306 -t 30
 echo "Waiting for the agent"

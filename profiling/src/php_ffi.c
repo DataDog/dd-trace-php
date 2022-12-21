@@ -7,38 +7,6 @@
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
-ZEND_DECLARE_MODULE_GLOBALS(datadog_php_profiling)
-
-#ifdef ZTS
-#define DATADOG_PHP_PROFILING_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(datadog_php_profiling, v)
-#else
-#define DATADOG_PHP_PROFILING(v) (datadog_php_profiling_globals.v)
-#endif
-
-#if PHP_VERSION_ID >= 80000
-#define DD_INI_GET_ADDR() ZEND_INI_GET_ADDR()
-#else
-#ifndef ZTS
-#define DD_INI_GET_BASE() ((char *)mh_arg2)
-#else
-#define DD_INI_GET_BASE() ((char *)ts_resource(*((int *)mh_arg2)))
-#endif
-#define DD_INI_GET_ADDR() (DD_INI_GET_BASE() + (size_t)mh_arg1)
-#endif
-
-#if PHP_VERSION_ID < 70200
-static zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
-    zend_string *ret = zend_string_init(str, len, persistent);
-
-    return zend_new_interned_string(ret);
-}
-#endif
-
-zend_datadog_php_profiling_globals *datadog_php_profiling_globals_get(void) {
-    // TODO: ZTS support
-    return &datadog_php_profiling_globals;
-}
-
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
     ddtrace_profiling_context (*get_profiling)(void) =
         DL_FETCH_SYMBOL(extension->handle, "ddtrace_get_profiling_context");
@@ -72,18 +40,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     }
 }
 
-void datadog_php_profiling_rinit(void) {
-    DATADOG_PHP_PROFILING(vm_interrupt_addr) = &EG(vm_interrupt);
-}
-
-datadog_php_str datadog_php_profiling_intern(const char *str, size_t size, bool permanent) {
-    zend_string *string = zend_string_init_interned(str, size, permanent);
-    datadog_php_str interned = {
-        .ptr = ZSTR_VAL(string),
-        .size = ZSTR_LEN(string),
-    };
-    return interned;
-}
+void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }
 
 zend_module_entry *datadog_get_module_entry(const uint8_t *str, uintptr_t len) {
     return zend_hash_str_find_ptr(&module_registry, (const char *)str, len);
@@ -91,3 +48,42 @@ zend_module_entry *datadog_get_module_entry(const uint8_t *str, uintptr_t len) {
 
 ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =
     noop_get_profiling_context;
+
+void datadog_php_profiling_install_internal_function_handler(
+    datadog_php_profiling_internal_function_handler handler) {
+    zend_function *old_handler;
+    old_handler = zend_hash_str_find_ptr(CG(function_table), handler.name, handler.name_len);
+    if (old_handler != NULL) {
+        *handler.old_handler = old_handler->internal_function.handler;
+        old_handler->internal_function.handler = handler.new_handler;
+    }
+}
+
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
+                                                      bool persistent) {
+    ZEND_ASSERT(dest);
+
+    if (view.len == 0) {
+        if (persistent) {
+            ZVAL_EMPTY_PSTRING(dest);
+        } else {
+            ZVAL_EMPTY_STRING(dest);
+        }
+    } else {
+        ZEND_ASSERT(view.ptr);
+        ZVAL_STR(dest, zend_string_init(view.ptr, view.len, persistent));
+    }
+}
+
+/**
+ * Converts the zend_string pointer into a string view. Null pointers and
+ * empty strings will be converted into a string view to a static empty
+ * string (single byte of null, len of 0).
+ */
+zai_string_view datadog_php_profiling_zend_string_view(zend_string *zstr) {
+    if (!zstr || ZSTR_LEN(zstr) == 0) {
+        return ZAI_STRING_EMPTY;
+    }
+
+    return ZAI_STRING_FROM_ZSTR(zstr);
+}

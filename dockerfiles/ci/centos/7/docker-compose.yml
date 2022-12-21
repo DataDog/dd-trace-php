@@ -6,11 +6,16 @@ services:
     build:
       context: .
       dockerfile: base.Dockerfile
+      x-bake: &bake
+        platforms:
+          - linux/arm64
+          - linux/amd64
 
   php-7.0:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.0"
         phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
@@ -20,7 +25,8 @@ services:
   php-7.1:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.1"
         phpTarGzUrl: https://www.php.net/distributions/php-7.1.33.tar.gz
@@ -30,7 +36,8 @@ services:
   php-7.2:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.2"
         phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
@@ -40,7 +47,8 @@ services:
   php-7.3:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.3"
         phpTarGzUrl: https://www.php.net/distributions/php-7.3.33.tar.gz
@@ -50,7 +58,8 @@ services:
   php-7.4:
     build:
       context: .
-      dockerfile: php7.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "7.4"
         phpTarGzUrl: https://www.php.net/distributions/php-7.4.30.tar.gz
@@ -60,7 +69,8 @@ services:
   php-8.0:
     build:
       context: .
-      dockerfile: php8.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "8.0"
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.21.tar.gz
@@ -70,9 +80,21 @@ services:
   php-8.1:
     build:
       context: .
-      dockerfile: php8.Dockerfile
+      dockerfile: php.Dockerfile
+      x-bake: *bake
       args:
         phpVersion: "8.1"
         phpTarGzUrl: https://www.php.net/distributions/php-8.1.8.tar.gz
         phpSha256Hash: 889d910558d2492f7f2236921b9bcde620674c8b684ec02d126060f8ca45dc8d
     image: 'datadog/dd-trace-ci:php-8.1_centos-7'
+
+  php-8.2:
+    build:
+      context: .
+      dockerfile: php.Dockerfile
+      x-bake: *bake
+      args:
+        phpVersion: "8.2"
+        phpTarGzUrl: https://github.com/php/php-src/archive/a814afb08823bb0cdf4ae45f67a7db83c8be9cd7.tar.gz
+        phpSha256Hash: 584d2925889a7d388084150865fa238634043f38f2e060c27ffa8ac4d682d5ec
+    image: 'datadog/dd-trace-ci:php-8.2_centos-7'

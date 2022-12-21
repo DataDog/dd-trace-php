@@ -4,24 +4,14 @@
 #include <php.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <string.h>
 
 #include <ext/standard/info.h>
 
-/**
- * Represents a non-owning slice of chars. The order here matches GCC std::span,
- * which changed in v11 to be ptr-size instead of size-ptr to match iovec on
- * most platforms.
- *
- * Please do not use a null pointer; instead use an empty string with a `size`
- * of 0.
- *
- * todo: unify with ../components/string_view
- */
-typedef struct datadog_php_str {
-    const char *ptr;
-    size_t size;
-} datadog_php_str;
+// Profiling needs ZAI config for INI support.
+#include <config/config.h>
+
+// Used to communicate strings from C -> Rust.
+#include <zai_string/string.h>
 
 /* C11 allows a duplicate typedef provided they are the same, so this should be
  * fine as long as we compile with C11 or higher.
@@ -40,41 +30,6 @@ const char *datadog_extension_build_id(void);
  */
 const char *datadog_module_build_id(void);
 
-/* Expose globals so we can bridge them with Rust. */
-// clang-format off
-ZEND_BEGIN_MODULE_GLOBALS(datadog_php_profiling)
-    bool profiling_enabled;
-    bool profiling_experimental_cpu_time_enabled;
-    uint32_t interrupt_count;
-
-    // Maps to Rust's log::LevelFilter which is repr(usize).
-    uintptr_t profiling_log_level;
-
-    zend_bool *vm_interrupt_addr;
-
-    // The strings will be interned but potentially only for the request, so be
-    // careful to not use them outside of a request (such as from other
-    // threads).
-    datadog_php_str env;
-    datadog_php_str service;
-    datadog_php_str version;
-    datadog_php_str trace_agent_host;
-    datadog_php_str trace_agent_port;
-    datadog_php_str trace_agent_url;
-ZEND_END_MODULE_GLOBALS(datadog_php_profiling)
-// clang-format on
-
-/**
- * A helper for Rust to fetch this extension's globals.
- */
-zend_datadog_php_profiling_globals *datadog_php_profiling_globals_get(void);
-
-/**
- * Interns the given string in the ZendEngine, returning a `datadog_php_str`
- * struct for ABI compatibility with Rust.
- */
-datadog_php_str datadog_php_profiling_intern(const char *str, size_t size, bool permanent);
-
 /**
  * Lookup module by name in the module registry. Returns NULL if not found.
  * This is meant to be called from Rust, so it uses types that are easy to use
@@ -84,10 +39,9 @@ datadog_php_str datadog_php_profiling_intern(const char *str, size_t size, bool 
 zend_module_entry *datadog_get_module_entry(const uint8_t *str, uintptr_t len);
 
 /**
- * Called by this extension's rinit handler. Does things that are burdensome in
- * Rust like fetching EG(vm_interrupt).
+ * Fetches the VM interrupt address of the calling PHP thread.
  */
-void datadog_php_profiling_rinit(void);
+void *datadog_php_profiling_vm_interrupt_addr(void);
 
 /**
  * For Code Hotspots, we need the tracer's local root span id and the current
@@ -111,3 +65,29 @@ extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(
  * registry and finding the ddtrace_get_profiling_context function.
  */
 void datadog_php_profiling_startup(zend_extension *extension);
+
+/**
+ * Used to hold information for overwriting the internal function handler
+ * pointer in the Zend Engine.
+ */
+typedef struct {
+    const char *name;
+    size_t name_len;
+    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
+    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
+} datadog_php_profiling_internal_function_handler;
+
+void datadog_php_profiling_install_internal_function_handler(
+    datadog_php_profiling_internal_function_handler handler);
+
+/**
+ * Copies the bytes represented by `view` into a zend_string, which is stored
+ * in `dest`, passing `persistent` along so the right allocator is used.
+ *
+ * Does an empty string optimization.
+ *
+ * `dest` is expected to be uninitialized. Any existing content will not be
+ * dtor'.
+ */
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
+                                                      bool persistent);

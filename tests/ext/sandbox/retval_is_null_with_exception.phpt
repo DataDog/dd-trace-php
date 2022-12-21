@@ -26,8 +26,8 @@ try {
     echo $e->getMessage() . PHP_EOL;
 }
 ?>
---EXPECT--
+--EXPECTF--
 bool(true)
 NULL
 Oops!
-Successfully triggered flush with trace of size 2
+Flushing trace of size 2 to send-queue for %s

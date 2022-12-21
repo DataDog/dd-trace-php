@@ -1,0 +1,12 @@
+server:
+  command: "{{roadrunner_php}}"
+  env: {{env}}
+  exec_timeout: 5s
+http:
+  address: {{roadrunner_host}}:{{roadrunner_port}}
+  pool:
+    num_workers: 1
+    destroy_timeout: 1s
+logs:
+  output: {{error_log}}
+  err_output: {{error_log}}

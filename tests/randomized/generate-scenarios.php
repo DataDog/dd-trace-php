@@ -7,6 +7,7 @@ use RandomizedTests\Tooling\EnvFileGenerator;
 use RandomizedTests\Tooling\MakefileGenerator;
 use RandomizedTests\Tooling\MakefileScenarioGenerator;
 use RandomizedTests\Tooling\PhpFpmConfigGenerator;
+use RandomizedTests\Tooling\PhpIniGenerator;
 use RandomizedTests\Tooling\RequestTargetsGenerator;
 
 include __DIR__ . '/config/envs.php';
@@ -19,6 +20,7 @@ include __DIR__ . '/lib/EnvFileGenerator.php';
 include __DIR__ . '/lib/MakefileGenerator.php';
 include __DIR__ . '/lib/MakefileScenarioGenerator.php';
 include __DIR__ . '/lib/PhpFpmConfigGenerator.php';
+include __DIR__ . '/lib/PhpIniGenerator.php';
 include __DIR__ . '/lib/RequestTargetsGenerator.php';
 
 const TMP_SCENARIOS_FOLDER = './.tmp.scenarios';
@@ -91,10 +93,15 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions)
     // INI settings modification
     $numberOfIniModifications = rand(0, min(MAX_INI_MODIFICATIONS, count(INIS)));
     $iniModifications = [];
+    $primaryIni = [];
     for ($iniModification = 0; $iniModification < $numberOfIniModifications; $iniModification++) {
         $currentIni = array_rand(INIS);
         $availableValues = INIS[$currentIni];
-        $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
+        if ($currentIni == "extension" || rand(0, 1)) {
+            $primaryIni[$currentIni] = $availableValues[array_rand($availableValues)];
+        } else {
+            $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
+        }
     }
     $identifier = "randomized-$scenarioSeed-$selectedOs-$selectedPhpVersion";
     $scenarioFolder = TMP_SCENARIOS_FOLDER . DIRECTORY_SEPARATOR . $identifier;
@@ -107,6 +114,7 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions)
     // Writing scenario specific files
     (new ApacheConfigGenerator())->generate("$scenarioFolder/www.apache.conf", $envModifications, $iniModifications);
     (new PhpFpmConfigGenerator())->generate("$scenarioFolder/www.php-fpm.conf", $envModifications, $iniModifications);
+    (new PhpIniGenerator())->generate("$scenarioFolder/php.ini", $primaryIni);
     (new RequestTargetsGenerator())->generate("$scenarioFolder/vegeta-request-targets.txt", 2000);
     (new MakefileScenarioGenerator())->generate("$scenarioFolder/Makefile", $identifier);
     (new EnvFileGenerator())->generate("$scenarioFolder/.env", $identifier);
@@ -115,7 +123,8 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions)
         [
             'identifier' => $identifier,
             'scenario_folder' => $scenarioFolder,
-            'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion-1",
+            'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion-2",
+            'php_version' => $selectedPhpVersion,
             'installation_method' => $selectedInstallationMethod,
             'project_root' => '../../../../',
         ]

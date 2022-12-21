@@ -3,12 +3,8 @@
 #include <zend_closures.h>
 #include <zend_generators.h>
 
-#if PHP_VERSION_ID < 80000
-#include "php7/compatibility.h"
-#include "php7/configuration.h"
-#else
-#include "php8/configuration.h"
-#endif
+#include "../compatibility.h"
+#include "../configuration.h"
 
 #include "uhook_arginfo.h"
 
@@ -256,12 +252,14 @@ PHP_FUNCTION(install_hook) {
     if (def->end) {
         GC_ADDREF(def->end);
     }
+    def->id = -1;
 
+    zend_long id;
     if (resolved) {
         def->resolved = resolved;
         def->function = NULL;
 
-        def->id = zai_hook_install_resolved(resolved,
+        id = zai_hook_install_resolved(resolved,
             dd_uhook_begin, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
     } else {
@@ -277,7 +275,7 @@ PHP_FUNCTION(install_hook) {
         }
         def->function = zend_string_init(function.ptr, function.len, 0);
 
-        def->id = zai_hook_install(
+        id = zai_hook_install(
                 scope, function,
                 dd_uhook_begin,
                 dd_uhook_end,
@@ -285,8 +283,13 @@ PHP_FUNCTION(install_hook) {
                 sizeof(dd_uhook_dynamic));
     }
 
+    if (id < 0) {
+        RETURN_LONG(0);
+    }
+
+    def->id = id;
     zend_hash_index_add_ptr(&dd_active_hooks, (zend_ulong)def->id, def);
-    RETURN_LONG(def->id);
+    RETURN_LONG(id);
 } /* }}} */
 
 /* {{{ proto void DDTrace\remove_hook(int $id) */

@@ -12,6 +12,7 @@ use DDTrace\Propagators\TextMap;
 use DDTrace\Transport\Internal;
 use DDTrace\Transport\Noop;
 use DDTrace\Transport\Noop as NoopTransport;
+use DDTrace\Util\ObjectKVStore;
 
 final class Tracer implements TracerInterface
 {
@@ -191,7 +192,7 @@ final class Tracer implements TracerInterface
         }
 
         // This dynamic property ensures that the scope manager does not recognize startSpan() spans without activation
-        $internalSpan->ddtrace_scope_activated = false;
+        ObjectKVStore::put($internalSpan, 'ddtrace_scope_activated', false);
 
         return $span;
     }

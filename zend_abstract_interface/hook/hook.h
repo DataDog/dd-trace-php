@@ -67,7 +67,7 @@ typedef enum {
     ZAI_HOOK_SKIP,
 } zai_hook_continued;
 
-/* {{{ zai_hook_continue shall execute begin handlers and return false if
+/* {{{ zai_hook_continue shall execute begin handlers and return ZAI_HOOK_BAILOUT if
         the caller should bail out (one of the handlers returned false) */
 zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *memory); /* }}} */
 
@@ -86,7 +86,7 @@ extern __thread HashTable zai_hook_resolved;
 /* }}} */
 
 #if PHP_VERSION_ID >= 80000
-extern void (*zai_hook_on_update)(zend_op_array *op_array, bool remove);
+extern void (*zai_hook_on_update)(zend_function *func, bool remove);
 #endif
 
 typedef struct {

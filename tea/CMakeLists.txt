@@ -5,27 +5,18 @@ project(
   VERSION 0.1.0
   LANGUAGES C)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/Modules")
+
 include(GNUInstallDirs)
 
-# Get the PHP prefix path from php-config
-execute_process(
-  COMMAND ${PHP_CONFIG} --prefix
-  OUTPUT_VARIABLE PHP_PREFIX_PATH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  RESULT_VARIABLE ret)
-
-if(NOT ret EQUAL "0")
-  message(
-    FATAL_ERROR
-      "Failed to execute 'php-config'. Check that PHP_CONFIG is set to the 'php-config' executable."
-  )
-endif()
+find_package(PhpConfig REQUIRED)
+set(TEA_PHP_VERNUM ${PhpConfig_VERNUM})
 
 find_library(
   PHP_LIB
   # Before PHP 8 the lib was named, 'libphp<version>.so'
   NAMES php php7 php5
-  PATHS "${PHP_PREFIX_PATH}/lib"
+  PATHS "${PhpConfig_ROOT_DIR}/lib"
   NO_DEFAULT_PATH
   # 'REQUIRED' added in cmake v3.18
   REQUIRED)
@@ -35,10 +26,10 @@ set_target_properties(tea-libphp PROPERTIES EXPORT_NAME PHP)
 target_link_libraries(tea-libphp INTERFACE "${PHP_LIB}")
 target_include_directories(
   tea-libphp
-  INTERFACE "${PHP_PREFIX_PATH}/include/php"
-            "${PHP_PREFIX_PATH}/include/php/TSRM"
-            "${PHP_PREFIX_PATH}/include/php/Zend"
-            "${PHP_PREFIX_PATH}/include/php/main")
+  INTERFACE "${PhpConfig_ROOT_DIR}/include/php"
+            "${PhpConfig_ROOT_DIR}/include/php/TSRM"
+            "${PhpConfig_ROOT_DIR}/include/php/Zend"
+            "${PhpConfig_ROOT_DIR}/include/php/main")
 
 add_library(
   Tea

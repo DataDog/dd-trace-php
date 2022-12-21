@@ -3,16 +3,7 @@ FROM debian:buster AS base
 ENV LANG=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV RUNTIME_DEPS \
-    apache2 \
-    apache2-dev \
-    ca-certificates \
-    clang-format \
-    curl \
-    debian-goodies \
-    gdb \
-    git \
-    less \
+ENV DEVLIBS \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
@@ -25,6 +16,19 @@ ENV RUNTIME_DEPS \
     libssl-dev \
     libxml2-dev \
     libzip-dev \
+    zlib1g-dev \
+    libasan5
+
+ENV RUNTIME_DEPS \
+    apache2 \
+    apache2-dev \
+    ca-certificates \
+    clang-format \
+    curl \
+    debian-goodies \
+    gdb \
+    git \
+    less \
     netbase \
     netcat \
     nginx \
@@ -34,8 +38,7 @@ ENV RUNTIME_DEPS \
     valgrind \
     vim \
     xz-utils \
-    zip \
-    zlib1g-dev
+    zip
 
 ENV PHPIZE_DEPS \
     autoconf \
@@ -49,6 +52,7 @@ ENV PHPIZE_DEPS \
     pkg-config \
     re2c
 
+ARG TARGETPLATFORM
 RUN set -eux; \
 # Set timezone to UTC by default
     ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime; \
@@ -74,9 +78,16 @@ RUN set -eux; \
 # persistent / runtime deps
     apt-get update; \
     apt-get install -y --no-install-recommends \
+        gcc-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
+        libc6-dev-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo arm64; else echo amd64; fi)-cross \
+        $DEVLIBS \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
-    apt-get clean; \
+    \
+# valgrind 3.14 has a fatal bug making it unusable with PHP on arm64, manually install valgrind from bullseye \
+    curl -O http://ftp.de.debian.org/debian/pool/main/v/valgrind/valgrind_3.16.1-1_${TARGETPLATFORM#linux/}.deb; \
+    dpkg -i valgrind*.deb; \
+    rm valgrind*.deb; \
     \
 # Disable DST ROOT X3 certificate explicitly to fix conflicts with older openssl versions \
     sed -ri 's/(mozilla\/DST_Root_CA_X3.crt)/!\1/' /etc/ca-certificates.conf; \
@@ -89,17 +100,26 @@ RUN set -eux; \
         echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep; \
     \
 # Allow nginx to be run as non-root for tests
-    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
+    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/;
+
+ENV CMAKE_VERSION="3.21.4"
+
 # Install CMake
-    CMAKE_VERSION="3.21.4"; \
-    CMAKE_SHA256="eddba9da5b60e0b5ec5cbb1a65e504d776e247573204df14f6d004da9bc611f9"; \
-    cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz; \
-    (echo "${CMAKE_SHA256} cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz" | sha256sum -c -); \
+RUN set -eux; \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+        CMAKE_SHA256="abe24e2e6ae8a706e771a612603ec93457dc6b71bdb09e35d2a26f051e2fa818"; \
+    else \
+        CMAKE_SHA256="eddba9da5b60e0b5ec5cbb1a65e504d776e247573204df14f6d004da9bc611f9"; \
+    fi; \
+    cd /tmp && curl -L --output cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-$(uname -m).tar.gz; \
+    (echo "${CMAKE_SHA256} cmake.tar.gz" | sha256sum -c -); \
     mkdir -p /opt/cmake/${CMAKE_VERSION}; \
-    tar --strip-components 1 -C /opt/cmake/${CMAKE_VERSION} -xf /tmp/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz; \
+    tar --strip-components 1 -C /opt/cmake/${CMAKE_VERSION} -xf /tmp/cmake.tar.gz; \
 # Currently there's only one version of cmake, make it default
-    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake; \
+    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake;
+
 # Install Catch2
+RUN set -eux; \
     CATCH2_VERSION="2.13.7"; \
     CATCH2_SHA256=""3cdb4138a072e4c0290034fe22d9f0a80d3bcfb8d7a8a5c49ad75d3a5da24fae; \
     cd /tmp && curl -OL https://github.com/catchorg/Catch2/archive/v${CATCH2_VERSION}.tar.gz; \
@@ -107,8 +127,10 @@ RUN set -eux; \
     mkdir catch2 && cd catch2; \
     tar -xf ../v${CATCH2_VERSION}.tar.gz --strip 1; \
     /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
-    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install; \
+    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install;
+
 # Install lcov
+RUN set -eux; \
     LCOV_VERSION="1.15"; \
     LCOV_SHA256="c1cda2fa33bec9aa2c2c73c87226cfe97de0831887176b45ee523c5e30f8053a"; \
     cd /tmp && curl -OL https://github.com/linux-test-project/lcov/releases/download/v${LCOV_VERSION}/lcov-${LCOV_VERSION}.tar.gz; \
@@ -116,17 +138,7 @@ RUN set -eux; \
     mkdir lcov && cd lcov; \
     tar -xf ../lcov-${LCOV_VERSION}.tar.gz --strip 1; \
     make install; \
-    lcov --version;\
-# Docker
-    DOCKERIZE_VERSION="0.6.1"; \
-    DOCKERIZE_SHA256="1fa29cd41a5854fd5423e242f3ea9737a50a8c3bcf852c9e62b9eb02c6ccd370"; \
-    curl --silent --show-error --location --fail --retry 3 \
-        --output /tmp/dockerize-linux-amd64-v${DOCKERIZE_VERSION}.tar.gz \
-        https://github.com/jwilder/dockerize/releases/download/v${DOCKERIZE_VERSION}/dockerize-linux-amd64-v${DOCKERIZE_VERSION}.tar.gz; \
-    (echo "${DOCKERIZE_SHA256} /tmp/dockerize-linux-amd64-v${DOCKERIZE_VERSION}.tar.gz" | sha256sum -c -); \
-    tar -C /usr/local/bin -xzvf /tmp/dockerize-linux-amd64-v${DOCKERIZE_VERSION}.tar.gz; \
-    rm -rf /tmp/dockerize-linux-amd64-v${DOCKERIZE_VERSION}.tar.gz; \
-    dockerize --version;
+    lcov --version;
 
 # Apache config
 ENV APACHE_CONFDIR /etc/apache2
@@ -181,10 +193,10 @@ RUN set -eux; \
         echo '\tOptions -Indexes'; \
         echo '\tAllowOverride All'; \
         echo '</Directory>'; \
-    } | tee "$APACHE_CONFDIR/conf-available/docker-php.conf" \
-    && a2enconf docker-php; \
+    } | tee "$APACHE_CONFDIR/conf-available/docker-php.conf"; \
+    a2enconf docker-php; \
 # We want to use mod_rewrite
-    a2enmod rewrite
+    a2enmod rewrite;
 
 RUN set -eux; \
 # Share welcome message with the world

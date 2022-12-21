@@ -7,6 +7,7 @@
 #include "zend_smart_str.h"
 
 #define PHP_JSON_OBJECT_AS_ARRAY (1 << 0)
+#define PHP_JSON_PRETTY_PRINT    (1 << 7)
 
 /* The JSON extension is a required module and ZAI JSON must work under the
  * following environments:

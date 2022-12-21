@@ -16,7 +16,7 @@ services:
       - agent
 
   httpbin:
-    image: kennethreitz/httpbin
+    image: kong/httpbin
 
   agent:
     image: datadog/agent:latest

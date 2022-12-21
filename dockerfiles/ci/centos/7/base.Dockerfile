@@ -17,13 +17,10 @@ RUN set -eux; \
 # data dumper needed for autoconf, apparently
         perl-Data-Dumper \
         pkg-config \
-        postgresql-devel \
-        readline-devel \
         scl-utils \
         unzip \
         vim \
-        xz \
-        zlib-devel; \
+        xz; \
     yum install -y devtoolset-7; \
     yum clean all;
 
@@ -103,24 +100,16 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     mkdir build && cd build; \
     cmake .. && make -j $(nproc) && make install;
 
-RUN echo '#define SECBIT_NO_SETUID_FIXUP (1 << 2)' > '/usr/include/linux/securebits.h'
-
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
-
-ENV PHP_SRC_DIR=/usr/local/src/php
-ENV PHP_INSTALL_DIR=/opt/php
 
 RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
 ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
-
-COPY switch-php /usr/local/bin/
 
 # Caution, takes a very long time! Since we have to build one from source,
 # I picked LLVM 14, which matches Rust 1.60.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
 RUN source scl_source enable devtoolset-7 \
-  && yum install -y rh-python36 \
-  && source scl_source enable rh-python36 \
+  && yum install -y python3 \
   && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
   && mkdir -vp "${SRC_DIR}/ninja/build" \
   && cd "${SRC_DIR}/ninja/build" \
@@ -138,7 +127,7 @@ RUN source scl_source enable devtoolset-7 \
   && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
   && cd - \
   && rm -fr llvm-project \
-  && yum remove -y rh-python36 \
+  && yum remove -y python3 \
   && yum clean all
 
 ARG PROTOBUF_VERSION="3.19.4"
@@ -196,3 +185,23 @@ RUN source scl_source enable devtoolset-7 \
     && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
 
 ENV PATH="/rust/cargo/bin:${PATH}"
+
+# now install PHP specific dependencies
+RUN set -eux; \
+    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
+    yum update -y; \
+    yum install -y \
+    re2c \
+    bzip2-devel \
+    httpd-devel \
+    libmemcached-devel \
+    libsodium-devel \
+    libsqlite3x-devel \
+    libxml2-devel \
+    libxslt-devel \
+    postgresql-devel \
+    readline-devel \
+    zlib-devel; \
+    yum clean all;
+
+RUN echo '#define SECBIT_NO_SETUID_FIXUP (1 << 2)' > '/usr/include/linux/securebits.h'

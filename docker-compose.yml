@@ -17,7 +17,7 @@ x-aliases:
         - agent
         - ddagent_integration
         - request-replayer
-        - elasticsearch2_integration
+        #- elasticsearch2_integration
         - elasticsearch7_integration
         - httpbin_integration
         - redis_integration
@@ -57,18 +57,21 @@ services:
   '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
   '8.0-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
   '8.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
+  '8.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.2_buster' }
   'php-master-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- CentOS 6 ---
-  '7.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-6' }
-  '7.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
-  '7.2-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_centos-6' }
-  '7.3-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
-  '7.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-6' }
-  '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
-  '8.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-6' }
+  '7.0-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
+  '7.1-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-7' }
+  '7.2-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_centos-7' }
+  '7.3-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-7' }
+  '7.4-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-7' }
+  '8.0-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-7' }
+  '8.1-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-7' }
+  '8.2-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.2_centos-7' }
 
   mysql_integration:
-    image: datadog/dd-trace-ci:php-mysql-dev-5.6
+    image: mysql/mysql-server:8.0
+    command: --default-authentication-plugin=mysql_native_password
     ports:
       - "3306:3306"
     environment:
@@ -105,7 +108,7 @@ services:
     image: "memcached:1.5-alpine"
 
   httpbin_integration:
-    image: kennethreitz/httpbin
+    image: kong/httpbin
     ports:
       - "8765:80"
 

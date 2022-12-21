@@ -21,7 +21,7 @@ var_dump(DDTrace\trace_method('foo', 'foo', [
     'prehook' => new stdClass(),
 ]));
 ?>
---EXPECT--
+--EXPECTF--
 Expected 'prehook' to be an instance of Closure
 bool(false)
 Expected 'prehook' to be an instance of Closure
@@ -31,4 +31,4 @@ Expected 'prehook' to be an instance of Closure
 bool(false)
 Expected 'prehook' to be an instance of Closure
 bool(false)
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

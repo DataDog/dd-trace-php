@@ -17,14 +17,23 @@ extern "C" {
 
     static PHP_RINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_rinit();
+        /* activates should be done in zend_extension's activate handler, but
+         * for this test it doesn't matter.
+         */
         zai_hook_activate();
+        zai_interceptor_activate();
+#if PHP_VERSION_ID < 80000
         zai_interceptor_rinit();
+#endif
         return SUCCESS;
     }
 
     static PHP_RSHUTDOWN_FUNCTION(ddtrace_testing_hook) {
         zai_hook_rshutdown();
-        zai_interceptor_rshutdown();
+        /* deactivate should be done in zend_extension's dactivate handler,
+         * but for this test it doesn't matter.
+         */
+        zai_interceptor_deactivate();
         return SUCCESS;
     }
 

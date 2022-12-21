@@ -19,6 +19,7 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     if ($forkPid > 0) {
         // Main
         call_httpbin('headers');
+        pcntl_waitpid($forkPid, $childStatus);
     } else if ($forkPid === 0) {
         // Child
         call_httpbin('ip');

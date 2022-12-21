@@ -5,7 +5,7 @@ hook_method prehook is called with the correct scope (parent)
 
 DDTrace\hook_method('BaseClass', 'speak',
     function ($This, $scope, $args) {
-        echo "${scope}::speak hooked.\n";
+        echo "{$scope}::speak hooked.\n";
     }
 );
 

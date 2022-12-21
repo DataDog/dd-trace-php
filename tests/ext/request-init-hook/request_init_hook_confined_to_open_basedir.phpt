@@ -13,4 +13,4 @@ echo "Request start" . PHP_EOL;
 --EXPECTF--
 open_basedir restriction in effect; cannot open request init hook: '%s/sanity_check.php'
 Request start
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

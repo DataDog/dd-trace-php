@@ -14,6 +14,7 @@ use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Nette\NetteIntegration;
+use DDTrace\Integrations\Pcntl\PcntlIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
@@ -60,17 +61,9 @@ class IntegrationsLoader
     {
         $this->integrations = $integrations;
 
-        // Add integrations as they support PHP 8
-        if (\PHP_MAJOR_VERSION >= 8) {
-            $this->integrations[CurlIntegration::NAME] =
-                '\DDTrace\Integrations\Curl\CurlIntegration';
-            $this->integrations[GuzzleIntegration::NAME] =
-                '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
-            $this->integrations[LaravelIntegration::NAME] =
-                '\DDTrace\Integrations\Laravel\LaravelIntegration';
-            $this->integrations[MysqliIntegration::NAME] =
-                '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-            return;
+        if (\PHP_MAJOR_VERSION >= 7) {
+            $this->integrations[PcntlIntegration::NAME] =
+                '\DDTrace\Integrations\Pcntl\PcntlIntegration';
         }
 
         $this->integrations[CurlIntegration::NAME] =
@@ -79,10 +72,16 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
         $this->integrations[LaravelIntegration::NAME] =
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
-        $this->integrations[MongoIntegration::NAME] =
-            '\DDTrace\Integrations\Mongo\MongoIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
+
+        // Add integrations as they support PHP 8
+        if (\PHP_MAJOR_VERSION >= 8) {
+            return;
+        }
+
+        $this->integrations[MongoIntegration::NAME] =
+            '\DDTrace\Integrations\Mongo\MongoIntegration';
         $this->integrations[ZendFrameworkIntegration::NAME] =
             '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 

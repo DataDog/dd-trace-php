@@ -171,6 +171,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'pdo';
             $excluded[] = 'phpredis';
             $excluded[] = 'predis';
+            $excluded[] = 'roadrunner';
             $excluded[] = 'slim';
             $excluded[] = 'symfony';
             $excluded[] = 'wordpress';

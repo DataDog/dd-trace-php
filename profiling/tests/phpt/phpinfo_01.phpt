@@ -31,7 +31,7 @@ $output = ob_get_clean();
 $lines = preg_split("/\R/", $output);
 $values = [];
 foreach ($lines as $line) {
-    $pair = explode("=>", $line, 2);
+    $pair = explode("=>", $line);
     if (count($pair) != 2) {
         continue;
     }
@@ -45,6 +45,7 @@ assert(isset($values["Version"]));
 $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "true"],
+    ["Endpoint Collection Enabled", "true"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],
     ["Application's Environment (DD_ENV)", "dev"],
@@ -52,8 +53,11 @@ $sections = [
     ["Application's Version (DD_VERSION)", "13"],
 ];
 
-foreach ($sections as list($key, $value)) {
-    assert($values[$key] == $value, "Expected {$values[$key]} == {$value}");
+foreach ($sections as [$key, $expected]) {
+    assert(
+        $values[$key] === $expected,
+        "Expected '{$expected}', found '{$values[$key]}', for key '{$key}'"
+    );
 }
 
 echo "Done.";

@@ -65,7 +65,7 @@ meta_to_string(
 );
 
 list($span) = dd_trace_serialize_closed_spans();
-unset($span['meta']['system.pid']);
+unset($span['meta']['process_id']);
 $i = 0;
 foreach ($span['meta'] as $key => $value) {
     var_dump($allTheTypes[$i++]);

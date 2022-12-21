@@ -63,7 +63,7 @@ class CommonScenariosTest extends CLITestCase
                 'cli',
                 'cake_console foo_error'
             )->withExistingTagsNames([
-                'error.msg',
+                'error.message',
                 'error.stack'
             ])->setError()
         ]);

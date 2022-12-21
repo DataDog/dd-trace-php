@@ -17,10 +17,6 @@ final class Http implements Transport
     // Env variables to configure trace agent. They will be moved to a configuration class once we implement it.
     const AGENT_HOST_ENV = 'DD_AGENT_HOST';
     const TRACE_AGENT_URL_ENV = 'DD_TRACE_AGENT_URL';
-
-    // The Agent has a payload cap of 10MB
-    // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/api.go#L31
-    const AGENT_REQUEST_BODY_LIMIT = 10485760; // 10 * 1024 * 1024 => 10MB
     const TRACE_AGENT_PORT_ENV = 'DD_TRACE_AGENT_PORT';
     const AGENT_TIMEOUT_ENV = 'DD_TRACE_AGENT_TIMEOUT';
     const AGENT_CONNECT_TIMEOUT_ENV = 'DD_TRACE_AGENT_CONNECT_TIMEOUT';
@@ -75,9 +71,9 @@ final class Http implements Transport
     {
         $host = ddtrace_config_read_env_or_ini(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
         $port = ddtrace_config_read_env_or_ini(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
-        $traceAgentUrl = ddtrace_config_read_env_or_ini(self::TRACE_AGENT_URL_ENV) ?: "http://${host}:${port}";
+        $traceAgentUrl = ddtrace_config_read_env_or_ini(self::TRACE_AGENT_URL_ENV) ?: "http://{$host}:{$port}";
         $path = self::PRIORITY_SAMPLING_TRACE_AGENT_PATH;
-        $endpoint = "${traceAgentUrl}${path}";
+        $endpoint = "{$traceAgentUrl}{$path}";
 
         $this->config = array_merge([
             'endpoint' => $endpoint,
@@ -121,10 +117,9 @@ final class Http implements Transport
     private function sendRequest($url, array $headers, $body, $tracesCount)
     {
         $bodySize = strlen($body);
-        // The 10MB payload cap is inclusive, thus we use >, not >=
-        // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/limited_reader.go#L37
-        if ($bodySize > self::AGENT_REQUEST_BODY_LIMIT) {
-            self::logError('Agent request payload of {bytes} bytes exceeds 10MB limit; dropping request', [
+
+        if ($bodySize >  \dd_trace_env_config('DD_TRACE_AGENT_MAX_PAYLOAD_SIZE')) {
+            self::logError('Agent request payload of {bytes} bytes exceeds configured limit; dropping request', [
                 'bytes' => $bodySize,
             ]);
             return;

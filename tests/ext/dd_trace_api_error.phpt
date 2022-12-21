@@ -47,7 +47,7 @@ var_dump(dd_trace('foo', 'foo', [
 var_dump(dd_trace('foo', 'foo', []));
 
 ?>
---EXPECT--
+--EXPECTF--
 Unexpected parameter combination, expected (class, function, closure | config_array) or (function, closure | config_array)
 bool(false)
 bool(false)
@@ -67,4 +67,4 @@ bool(false)
 bool(false)
 bool(false)
 bool(false)
-Successfully triggered flush with trace of size 1
+Flushing trace of size 1 to send-queue for %s

@@ -117,7 +117,24 @@ static bool zai_config_is_valid_int_format(const char *str) {
 static bool zai_config_decode_int(zai_string_view value, zval *decoded_value) {
     if (!zai_config_is_valid_int_format(value.ptr)) return false;
 
-    ZVAL_LONG(decoded_value, zend_atol(value.ptr, value.len));
+#if PHP_VERSION_ID >= 80200
+    zend_string *zstr = zend_string_init(value.ptr, value.len, 0);
+    zend_string *err = NULL;
+    zend_long l = zend_ini_parse_quantity(zstr, &err);
+
+    zend_string_free(zstr);
+    if (err) {
+        /* Strings are supposed to be checked by zai_config_is_valid_int_format
+         * already, so we do not expect to hit any errors here.
+         */
+        zend_string_release(err);
+        return false;
+    }
+#else
+    zend_long l = zend_atol(value.ptr, value.len);
+#endif
+
+    ZVAL_LONG(decoded_value, l);
     return true;
 }
 
@@ -278,7 +295,7 @@ static bool zai_config_decode_string(zai_string_view value, zval *decoded_value,
     return true;
 }
 
-bool zai_config_decode_value(zai_string_view value, zai_config_type type, zval *decoded_value, bool persistent) {
+bool zai_config_decode_value(zai_string_view value, zai_config_type type, zai_custom_parse custom_parser, zval *decoded_value, bool persistent) {
     assert((Z_TYPE_P(decoded_value) <= IS_NULL) && "The decoded_value must be IS_UNDEF or IS_NULL");
     switch (type) {
         case ZAI_CONFIG_TYPE_BOOL:
@@ -297,6 +314,8 @@ bool zai_config_decode_value(zai_string_view value, zai_config_type type, zval *
             return zai_config_decode_json(value, decoded_value, persistent);
         case ZAI_CONFIG_TYPE_STRING:
             return zai_config_decode_string(value, decoded_value, persistent);
+        case ZAI_CONFIG_TYPE_CUSTOM:
+            return custom_parser(value, decoded_value, persistent);
         default:
             assert(false && "Unknown zai_config_type");
     }

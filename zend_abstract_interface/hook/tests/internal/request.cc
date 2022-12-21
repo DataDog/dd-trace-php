@@ -30,6 +30,8 @@ extern "C" {
         zai_hook_test_begin_fixed   = fixed;
         zai_hook_test_begin_dynamic = dynamic;
 
+        CHECK(dynamic->u == 0);
+
         zai_hook_test_begin_check++;
 
         return zai_hook_test_begin_return;
@@ -327,4 +329,75 @@ HOOK_TEST_CASE("unresolved removal", {
     REQUIRE(zai_hook_test_index != -1);
 }, {
     REQUIRE(zai_hook_remove(ZAI_STRING_EMPTY, zai_hook_test_nonexistent, zai_hook_test_index));
+});
+
+extern "C" {
+    static zai_hook_test_dynamic_t zai_hook_add_test_begin_dynamic = {42};
+
+    static bool zai_hook_test_hook_add_begin(zend_ulong invocation, zend_execute_data *ex, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic) {
+        CHECK(dynamic->u == 0);
+        dynamic->u = 1;
+
+        REQUIRE(zai_hook_install(
+            ZAI_STRING_EMPTY,
+            zai_hook_test_target,
+            zai_hook_test_begin,
+            zai_hook_test_end,
+            ZAI_HOOK_AUX(&zai_hook_test_fixed_first, NULL),
+            sizeof(zai_hook_test_dynamic_t)) != -1);
+
+        REQUIRE(zai_hook_install(
+            ZAI_STRING_EMPTY,
+            zai_hook_test_target,
+            zai_hook_test_begin,
+            zai_hook_test_end,
+            ZAI_HOOK_AUX(&zai_hook_test_fixed_second, NULL),
+            sizeof(zai_hook_test_dynamic_t)) != -1);
+
+        CHECK(dynamic->u == 1);
+        dynamic->u = 2;
+
+        zai_hook_test_begin_check++;
+        return true;
+    }
+
+    static void zai_hook_test_hook_add_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic) {
+        zai_hook_add_test_begin_dynamic = *dynamic;
+
+        CHECK(zai_hook_test_end_check == 2); // called last
+        zai_hook_test_end_check++;
+    }
+}
+
+HOOK_TEST_CASE("hook add during begin", {
+    zai_hook_test_reset(true);
+}, {
+    zai_hook_test_index = zai_hook_install(
+        ZAI_STRING_EMPTY,
+        zai_hook_test_target,
+        zai_hook_test_hook_add_begin,
+        zai_hook_test_hook_add_end,
+        ZAI_HOOK_AUX(&zai_hook_test_fixed_first, NULL),
+        sizeof(zai_hook_test_dynamic_t));
+
+    REQUIRE(zai_hook_test_index != -1);
+}, {
+    zval result;
+
+    CHECK(zai_symbol_call(
+        ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
+        ZAI_SYMBOL_FUNCTION_NAMED, &zai_hook_test_target,
+        &result, 0));
+
+    CHECK(zai_hook_test_begin_check == 3);
+    CHECK(zai_hook_test_end_check == 3);
+
+    CHECK(zai_hook_test_begin_dynamic != zai_hook_test_end_dynamic);
+
+    CHECK(zai_hook_test_begin_fixed == &zai_hook_test_fixed_second);
+    CHECK(zai_hook_test_end_fixed == &zai_hook_test_fixed_first);
+
+    CHECK(zai_hook_add_test_begin_dynamic.u == 2);
+
+    zval_ptr_dtor(&result);
 });

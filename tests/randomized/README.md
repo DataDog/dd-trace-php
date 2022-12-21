@@ -155,3 +155,7 @@ Then load it in `gdb`:
 ```
 gdb --core=/tmp/core php-fpm|httpd|php
 ```
+
+## Rebuilding docker containers
+
+The randomized tests docker containers are based on our CentOS 7 containers.

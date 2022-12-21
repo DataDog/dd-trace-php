@@ -1,11 +1,11 @@
 parameters:
 	scanDirectories:
 		- src/DDTrace
+		- src/Integrations/Util
 	scanFiles:
 		- bridge/configuration.php
 		- bridge/dd_register_optional_deps_autoloader.php
 	excludes_analyse:
-		- src/DDTrace/Bootstrap.php
 		- src/DDTrace/Integrations
 		- src/DDTrace/OpenTracer
 	reportUnmatchedIgnoredErrors: false

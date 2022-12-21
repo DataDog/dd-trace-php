@@ -46,8 +46,8 @@ __thread HashTable zai_hook_request_classes;
 __thread HashTable zai_hook_resolved; /* }}} */
 
 #if PHP_VERSION_ID >= 80000
-static void zai_hook_on_update_empty(zend_op_array *op_array, bool remove) { (void)op_array, (void)remove; }
-void (*zai_hook_on_update)(zend_op_array *op_array, bool remove) = zai_hook_on_update_empty;
+static void zai_hook_on_update_empty(zend_function *func, bool remove) { (void)func, (void)remove; }
+void (*zai_hook_on_update)(zend_function *func, bool remove) = zai_hook_on_update_empty;
 #endif
 
 static void zai_hook_data_dtor(zai_hook_t *hook) {
@@ -106,8 +106,12 @@ static void zai_hook_entries_destroy(zval *zv) {
     zai_hooks_entry *hooks = Z_PTR_P(zv);
 
 #if PHP_VERSION_ID >= 80000
-    if (hooks->resolved && hooks->resolved->type == ZEND_USER_FUNCTION) {
-        zai_hook_on_update(&hooks->resolved->op_array, true);
+    if (hooks->resolved
+#if PHP_VERSION_ID < 80200
+        && hooks->resolved->type == ZEND_USER_FUNCTION
+#endif
+    ) {
+        zai_hook_on_update(hooks->resolved, true);
     }
 #endif
 
@@ -253,8 +257,11 @@ static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *reso
         zend_hash_index_add_ptr(&zai_hook_resolved, addr, hooks);
 
 #if PHP_VERSION_ID >= 80000
-        if (hooks->resolved->type == ZEND_USER_FUNCTION) {
-            zai_hook_on_update(&hooks->resolved->op_array, false);
+#if PHP_VERSION_ID < 80200
+        if (hooks->resolved->type == ZEND_USER_FUNCTION)
+#endif
+        {
+            zai_hook_on_update(hooks->resolved, false);
         }
 #endif
     }
@@ -379,6 +386,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     int allocated_hook_count = zend_hash_num_elements(&hooks->hooks);
     size_t hook_info_size = allocated_hook_count * sizeof(zai_hook_info);
     size_t dynamic_size = hooks->dynamic + hook_info_size;
+    // a vector of first N hook_info entries, then N entries of variable size (as much memory as the individual hooks require)
     memory->dynamic = ecalloc(1, dynamic_size);
     memory->invocation = ++zai_hook_invocation;
 
@@ -415,9 +423,12 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
             if (new_dynamic_size > dynamic_size) {
                 memory->dynamic = erealloc(memory->dynamic, new_dynamic_size);
             }
+            // Create some space for zai_hook_info entries in between, and some new dynamic memory at the end
             memmove(memory->dynamic + new_hook_info_size, memory->dynamic + hook_info_size, dynamic_size - hook_info_size);
             if (new_dynamic_size > dynamic_size) {
-                memset(memory->dynamic + dynamic_size, 0, new_dynamic_size - dynamic_size);
+                // and ensure the new dynamic memory is zeroed
+                size_t hook_info_size_delta = new_hook_info_size - hook_info_size;
+                memset(memory->dynamic + dynamic_size + hook_info_size_delta, 0, new_dynamic_size - dynamic_size - hook_info_size_delta);
                 dynamic_size = new_dynamic_size;
             }
             hook_info_size = new_hook_info_size;
@@ -600,6 +611,9 @@ zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view func
         zai_hook_aux aux, size_t dynamic) {
     if (!function.len) {
         /* not allowed: target must be known */
+        if (aux.dtor) {
+            aux.dtor(aux.data);
+        }
         return -1;
     }
 

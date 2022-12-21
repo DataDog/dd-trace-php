@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Mysqli;
 
+use DDTrace\Tag;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -55,7 +56,7 @@ class MysqliTest extends IntegrationTestCase
                 ->setError()
                 ->withExactTags(self::baseTags())
                 ->withExistingTagsNames([
-                    'error.msg',
+                    Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
                 ]),
@@ -77,7 +78,7 @@ class MysqliTest extends IntegrationTestCase
                 ->setError()
                 ->withExactTags(self::baseTags())
                 ->withExistingTagsNames([
-                    'error.msg',
+                    Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
                 ]),
@@ -285,7 +286,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct')
                 ->setError()
                 ->withExistingTagsNames([
-                    'error.msg',
+                    Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
                 ]),

@@ -30,8 +30,8 @@ class RouteNameTest extends WebFrameworkTestCase
         $isApache = \getenv('DD_TRACE_TEST_SAPI') == 'apache2handler';
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                'web.request',
-                'web.request',
+                'symfony.request',
+                'symfony',
                 'web',
                 'AppBundle\Controller\DefaultController testingRouteNameAction'
             )->withExactTags([

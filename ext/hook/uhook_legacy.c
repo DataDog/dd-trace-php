@@ -5,13 +5,7 @@
 #include <exceptions/exceptions.h>
 #include <sandbox/sandbox.h>
 
-#if PHP_VERSION_ID < 80000
-#include "../php7/logging.h"
-#include "../php7/span.h"
-#else
-#include "../php8/logging.h"
-#include "../php8/span.h"
-#endif
+#include "../logging.h"
 
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
@@ -26,7 +20,7 @@ typedef struct {
 
 typedef struct {
     zend_array *args;
-    ddtrace_span_fci *span;
+    ddtrace_span_data *span;
     bool skipped;
     bool dropped_span;
     bool was_primed;
@@ -45,7 +39,7 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
     bool success;
     if (tracing) {
         zval span_zv;
-        ZVAL_OBJ(&span_zv, &dyn->span->span.std);
+        ZVAL_OBJ(&span_zv, &dyn->span->std);
         zai_symbol_scope_t scope_type = ZAI_SYMBOL_SCOPE_GLOBAL;
         void *scope = NULL;
         if (getThis()) {
@@ -204,20 +198,20 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
     }
 
     if (def->tracing && !dyn->dropped_span) {
-        if (dyn->span->span.duration == DDTRACE_DROPPED_SPAN) {
+        if (dyn->span->duration == DDTRACE_DROPPED_SPAN) {
             dyn->dropped_span = true;
             ddtrace_clear_execute_data_span(invocation, false);
 
             if (get_DD_TRACE_ENABLED()) {
                 ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
             }
-        } else {
-            zval *exception_zv = ddtrace_spandata_property_exception(&dyn->span->span);
+        } else if (dyn->span->duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
+            zval *exception_zv = ddtrace_spandata_property_exception(dyn->span);
             if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
                 ZVAL_OBJ_COPY(exception_zv, EG(exception));
             }
 
-            dd_trace_stop_span_time(&dyn->span->span);
+            dd_trace_stop_span_time(dyn->span);
         }
     }
 
@@ -240,20 +234,20 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
     }
 
     if (def->tracing && !dyn->dropped_span) {
-        if (dyn->span->span.duration == DDTRACE_DROPPED_SPAN) {
+        if (dyn->span->duration == DDTRACE_DROPPED_SPAN) {
             dyn->dropped_span = true;
             ddtrace_clear_execute_data_span(invocation, false);
 
             if (get_DD_TRACE_ENABLED()) {
                 ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
             }
-        } else {
-            zval *exception_zv = ddtrace_spandata_property_exception(&dyn->span->span);
+        } else if (dyn->span->duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
+            zval *exception_zv = ddtrace_spandata_property_exception(dyn->span);
             if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
                 ZVAL_OBJ_COPY(exception_zv, EG(exception));
             }
 
-            dd_trace_stop_span_time(&dyn->span->span);
+            dd_trace_stop_span_time(dyn->span);
         }
     }
 

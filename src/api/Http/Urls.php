@@ -46,6 +46,8 @@ class Urls
      */
     public static function sanitize($url, $dropUserInfo = false)
     {
+        $url = (string)$url;
+
         /* The implementation of this method is an exact replica of \DDTrace\Util\Normalizer::urlSanitize() - and has to
          * be kept in sync - until \DDTrace\Util\Normalizer::urlSanitize() will be removed as part of the PHP->C
          * migration.
@@ -68,8 +70,8 @@ class Urls
 
         $sanitizedUserinfo = preg_replace(
             [
-                "/${userinfoPattern}:@/",
-                "/${userinfoPattern}:${userinfoPattern}@/",
+                "/{$userinfoPattern}:@/",
+                "/{$userinfoPattern}:{$userinfoPattern}@/",
             ],
             [
                 $dropUserInfo ? '' : '<sanitized>:@',
@@ -132,7 +134,7 @@ class Urls
      */
     public static function hostnameForTag($url)
     {
-        $url = \trim($url);
+        $url = \trim((string) $url);
 
         // Common UDS protocols are treated differently as they are not recognized by parse_url()
         $knownUnixProtocols = ['uds', 'unix', 'http+unix', 'https+unix'];

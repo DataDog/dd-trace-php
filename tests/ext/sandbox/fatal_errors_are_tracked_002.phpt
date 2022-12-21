@@ -14,7 +14,7 @@ register_shutdown_function(function () {
         echo $span['name'] . PHP_EOL;
         if (isset($span['error']) && $span['error'] === 1) {
             echo $span['meta']['error.type'] . PHP_EOL;
-            echo $span['meta']['error.msg'] . PHP_EOL;
+            echo $span['meta']['error.message'] . PHP_EOL;
             echo $span['meta']['error.stack'] . PHP_EOL;
         }
     }

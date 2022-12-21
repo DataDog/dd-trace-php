@@ -1,6 +1,12 @@
+use crate::bindings::sapi_globals_struct;
+use log::warn;
 use once_cell::sync::OnceCell;
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ffi::{CStr, OsStr};
 use std::fmt::{Display, Formatter};
+use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
 
 // todo: unify with ../component/sapi
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -38,6 +44,49 @@ impl Sapi {
         match sapis.get(name) {
             None => Sapi::Unknown,
             Some(sapi) => *sapi,
+        }
+    }
+
+    pub fn request_script_name<'a>(
+        &self,
+        sapi_globals: &'a sapi_globals_struct,
+    ) -> Option<Cow<'a, str>> {
+        match self {
+            /* Right now all we need is CLI support, but theoretically it can
+             * be obtained for web requests too if we care.
+             */
+            Sapi::Cli => {
+                let request_info = &sapi_globals.request_info;
+                if request_info.argc > 0 && !request_info.argv.is_null() {
+                    // Safety: It's not null; the VM should do the rest.
+                    let cstr = unsafe { CStr::from_ptr(*request_info.argv) };
+                    let bytes = cstr.to_bytes();
+                    return if !bytes.is_empty() {
+                        let osstr = OsStr::from_bytes(bytes);
+                        Path::new(osstr)
+                            .file_name()
+                            .map(|file| {
+                                let bytes = file.as_bytes();
+                                match std::str::from_utf8(bytes) {
+                                    Ok(str) => Cow::Borrowed(str),
+                                    Err(_) => {
+                                        let value = String::from_utf8_lossy(bytes);
+                                        warn!(
+                                            "sapi_globals.request_info.argv[0] contained non-utf8 data: {}",
+                                            value
+                                        );
+                                        value
+                                    }
+                                }
+                            })
+                    } else {
+                        None
+                    };
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 }

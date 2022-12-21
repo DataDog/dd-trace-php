@@ -7,6 +7,7 @@ Hence we exec() ourselves on top of a process with no effective capabilities.
 <?php if (PHP_OS != "Linux") die('skip: Linux specific test for capabilities(7)'); ?>
 <?php if (!extension_loaded("ffi")) die("skip: requires ext/ffi"); ?>
 <?php if (posix_getuid() != 0 && getenv("ZEND_DONT_UNLOAD_MODULES")) die("skip: detected ZEND_DONT_UNLOAD_MODULES - the test is most likely executed as non-root via valgrind"); ?>
+<?php if (getenv("SKIP_ASAN")) die("skip leak sanitizer crashes"); ?>
 <?php if (posix_getuid() != 0 && trim(shell_exec("sudo echo 1")) !== "1") die("skip: user is not root and has no password-less sudo"); ?>
 --FILE--
 <?php

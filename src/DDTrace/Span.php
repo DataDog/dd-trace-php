@@ -32,6 +32,8 @@ class Span extends DataSpan
         Tag::SERVICE_VERSION => true,
     ];
 
+    public $internalSpan;
+
     /**
      * Span constructor.
      * @param SpanData $internalSpan

@@ -56,9 +56,17 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 
 Tests memory limits, which we exceed due to tracer being loaded.
 
+## `Zend/tests/bug63882_2.php`
+
+By _chance_ the internal comparison happens against another GC protected array when arsort()'ing; given that we inject a couple custom global variables in our init.
+
 ## `ext/curl/tests/bug76675.phpt`, `ext/curl/tests/bug77535.phpt`
 
 Test does http request to shut down server.
+
+## `ext/curl/tests/curl_postfields_array.phpt`
+
+Distributed tracing headers are injected
 
 ## `ext/pcntl/tests/pcntl_unshare_01.phpt`
 

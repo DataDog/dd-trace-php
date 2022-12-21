@@ -69,6 +69,8 @@ test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 test_appsec_install_disabled.sh \
 test_appsec_install_enabled.sh \
 test_first_install.sh \
+test_install_no_ldconfig_in_path.sh \
+test_install_without_scan_dir.sh \
 test_install_add_missing_ini_settings.sh \
 test_install_custom_installation_directory.sh \
 test_install_custom_installation_root.sh \
@@ -99,6 +101,7 @@ test_first_install_php_zts.sh \
 	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
 
+test_install_non_binary.sh \
 test_fpm.sh \
 	:
 	@echo "################### $(@) ###################"

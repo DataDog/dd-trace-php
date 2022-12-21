@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Mongo;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
@@ -187,7 +188,7 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                 ])->setError('MongoDB\Exception\InvalidArgumentException')
-                ->withExistingTagsNames(['error.msg', 'error.stack']),
+                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
     }
 
@@ -768,7 +769,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
             ])->setError()
-                ->withExistingTagsNames(['error.msg', 'error.stack']),
+                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
     }
 
