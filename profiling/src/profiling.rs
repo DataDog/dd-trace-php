@@ -560,6 +560,12 @@ impl Uploader {
     }
 
     pub fn run(&self) {
+        /* Safety: Called from Profiling::new, which is after config is
+         * initialized, and before it's destroyed in mshutdown.
+         */
+        let pprof_filename = unsafe { crate::config::profiling_output_pprof() };
+        let mut i = 0;
+
         loop {
             /* Since profiling uploads are going over the Internet and not just
              * the local network, it would be ideal if they were the lowest
@@ -581,19 +587,25 @@ impl Uploader {
                 },
 
                 recv(self.upload_receiver) -> message => match message {
-                    Ok(upload_message) => match Self::upload(upload_message) {
-                        Ok(status) => {
-                            if status >= 400 {
-                                warn!(
-                                    "Unexpected HTTP status when sending profile (HTTP {}).",
-                                    status
-                                )
-                            } else {
-                                info!("Successfully uploaded profile (HTTP {}).", status)
-                            }
-                        }
-                        Err(err) => {
-                            warn!("Failed to upload profile: {}", err)
+                    Ok(upload_message) => {
+                        match pprof_filename.as_ref() {
+                            Some(filename) => {
+                                let r = upload_message.profile.serialize(None, None).unwrap();
+                                i += 1;
+                                std::fs::write(format!("{filename}.{i}"), r.buffer).expect("write to succeed")
+                            },
+                            None => match Self::upload(upload_message) {
+                                Ok(status) => {
+                                    if status >= 400 {
+                                        warn!("Unexpected HTTP status when sending profile (HTTP {status}).")
+                                    } else {
+                                        info!("Successfully uploaded profile (HTTP {status}).")
+                                    }
+                                }
+                                Err(err) => {
+                                    warn!("Failed to upload profile: {err}")
+                                }
+                            },
                         }
                     },
                     _ => {
@@ -778,7 +790,6 @@ impl Profiler {
     }
 
     /// Collect a stack sample with memory allocations
-    #[cfg(feature = "allocation_profiling")]
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,

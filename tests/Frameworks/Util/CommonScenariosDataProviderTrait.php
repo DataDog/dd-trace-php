@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Frameworks\Util;
 use DDTrace\Tests\Frameworks\TestScenarios;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use PHPUnit_Framework_ExpectationFailedException;
+use Exception;
 
 trait CommonScenariosDataProviderTrait
 {
@@ -27,7 +28,7 @@ trait CommonScenariosDataProviderTrait
         // We expect that all the expectations that we defined have a corresponding request to serve
         $unexpectedExpectations = array_diff($allExpectationNames, $allRequestNames);
         if ($unexpectedExpectations) {
-            throw new PHPUnit_Framework_ExpectationFailedException(
+            throw new \Exception(
                 'Found the following expectations not having any request defined: '
                 . implode(', ', $unexpectedExpectations)
             );
@@ -41,7 +42,7 @@ trait CommonScenariosDataProviderTrait
             unset($unexpectedRequest[$i]);
         }
         if ($unexpectedRequest) {
-            throw new PHPUnit_Framework_ExpectationFailedException(
+            throw new \Exception(
                 'Found the following scenarios not having any expectation defined: '
                 . implode(', ', $unexpectedRequest)
             );

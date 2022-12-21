@@ -135,15 +135,12 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
 > = MaybeUninit::uninit();
 
 /// The engine's previous custom allocation function, if there is one.
-#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_ALLOC: Option<zend::VmMmCustomAllocFn> = None;
 
 /// The engine's previous custom reallocation function, if there is one.
-#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_REALLOC: Option<zend::VmMmCustomReallocFn> = None;
 
 /// The engine's previous custom free function, if there is one.
-#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
 
 /* Important note on the PHP lifecycle:
@@ -1100,7 +1097,6 @@ unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     }
 }
 
-#[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_realloc(
     prev_ptr: *mut ::libc::c_void,
     len: u64,

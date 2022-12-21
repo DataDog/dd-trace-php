@@ -99,7 +99,7 @@ final class SpanAssertion
 
     /**
      * @param string|null $errorType The expected error.type
-     * @param string|null $errorMessage The expected error.msg
+     * @param string|null $errorMessage The expected error.message
      * @param bool $exceptionThrown If we would expect error.stack
      * @return $this
      */
