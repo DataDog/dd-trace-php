@@ -119,7 +119,7 @@ array(3) {
     ["metrics"]=>
     array(6) {
       ["process_id"]=>
-      int(%d)
+      float(%f)
       ["foo"]=>
       float(100)
       ["bar"]=>
@@ -184,7 +184,7 @@ array(3) {
     ["metrics"]=>
     array(4) {
       ["process_id"]=>
-      int(%d)
+      float(%f)
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
