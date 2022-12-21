@@ -144,6 +144,18 @@ class LaravelIntegration extends Integration
                 $span->name = 'laravel.queue.worker';
                 $span->type = Type::MESSAGE_CONSUMER;
 
+                // Laravel 5.6 added getJobId() to the Job contract.
+                if (\method_exists($job, 'getJobId')) {
+                    $jobId = $job->getJobId();
+                    /* The return isn't nullable according to the interface,
+                     * but some subclasses do make it nullable, see:
+                     * https://github.com/laravel/framework/blob/8da1bc911170ec9e7b168a433570856f3da8965e/src/Illuminate/Queue/Jobs/RedisJob.php#L115
+                     */
+                    if (\is_string($messageId) && \strlen($messageId) > 0) {
+                        $span->meta[Tag::MESSAGING_MESSAGE_ID] = $messageId;
+                    }
+                }
+
                 /** @var ?int $pushedAt */
                 $pushedAt = isset($payload['pushedAt']) &&
                 $payload['pushedAt'] !== '' ?

@@ -53,4 +53,7 @@ class Tag
 
     // REDIS
     const REDIS_RAW_COMMAND = 'redis.raw_command';
+
+    // Queue Messaging
+    const MESSAGING_MESSAGE_ID = 'messaging.message_id';
 }
