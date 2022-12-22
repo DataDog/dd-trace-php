@@ -133,6 +133,18 @@ class PDOIntegration extends Integration
         }
         $errorInfo = $pdoOrStatement->errorInfo();
         $span->meta[Tag::ERROR_MSG] = 'SQL error: ' . $errorCode . '. Driver error: ' . $errorInfo[1];
+
+        // Driver-specific error message will be in the rest of the array
+        // The spec suggests the error message to be at pos 2 only,
+        // but e.g. SQLServer doc states that the array can contain monre than 3 elements
+        if (count($errorInfo) > 2) {
+            $span->meta[Tag::ERROR_MSG] .= '. Driver-specific error message: ' ;
+
+            for ($i = 2; $i < count($errorInfo); $i++) {
+                $span->meta[Tag::ERROR_MSG] .= $errorInfo[$i];
+            }
+        }
+
         $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
     }
 
