@@ -787,6 +787,7 @@ impl Profiler {
     }
 
     /// Collect a stack sample with memory allocations
+    #[cfg(feature = "allocation_profiling")]
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
