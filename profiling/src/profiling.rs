@@ -336,7 +336,7 @@ impl TimeCollector {
                 duration,
             };
             if let Err(err) = self.upload_sender.try_send(message) {
-                warn!("Failed to upload profile: {}", err);
+                warn!("Failed to upload profile: {err}");
             }
         }
         wall_export
@@ -440,7 +440,7 @@ impl TimeCollector {
         match profile.add(sample) {
             Ok(_id) => {}
             Err(err) => {
-                warn!("Failed to add sample to the profile: {}", err)
+                warn!("Failed to add sample to the profile: {err}")
             }
         }
     }
@@ -773,18 +773,15 @@ impl Profiler {
                     locals,
                 )) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {} with labels {:?} to profiler.",
-                        depth,
-                        labels
+                        "Sent stack sample of depth {depth} with labels {labels:?} to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {} with labels {:?} to profiler: {}",
-                        depth, labels, err
+                        "Failed to send stack sample of depth {depth} with labels {labels:?} to profiler: {err}"
                     ),
                 }
             }
             Err(err) => {
-                warn!("Failed to collect stack sample: {}", err)
+                warn!("Failed to collect stack sample: {err}")
             }
         }
     }
@@ -814,11 +811,7 @@ impl Profiler {
                     locals
                 )) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {} with size {}, labels {:?} and count {} to profiler.",
-                        depth,
-                        bytes,
-                        labels,
-                        count,
+                        "Sent stack sample of depth {depth} with size {bytes}, labels {labels:?} and count {count} to profiler."
                     ),
                     Err(err) => warn!(
                         "Failed to send stack sample of depth {depth} with size {bytes}, labels {labels:?} and count {count} to profiler: {err}"
@@ -826,7 +819,7 @@ impl Profiler {
                 }
             }
             Err(err) => {
-                warn!("Failed to collect stack sample: {}", err)
+                warn!("Failed to collect stack sample: {err}")
             }
         }
     }
@@ -903,7 +896,7 @@ impl Profiler {
         if let Some(sapi) = crate::SAPI.get() {
             match Tag::new("php.sapi", sapi.to_string()) {
                 Ok(tag) => tags.push(tag),
-                Err(err) => warn!("Tag error: {}", err),
+                Err(err) => warn!("Tag error: {err}"),
             }
         }
 

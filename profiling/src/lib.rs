@@ -505,27 +505,25 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             if sapi_module.pretty_name.is_null() {
                 // Safety: I'm willing to bet the module name is less than `isize::MAX`.
                 let name = unsafe { CStr::from_ptr(sapi_module.name) }.to_string_lossy();
-                warn!("The SAPI module {}'s pretty name was not set!", name)
+                warn!("The SAPI module {name}'s pretty name was not set!")
             } else {
                 // Safety: I'm willing to bet the module pretty name is less than `isize::MAX`.
                 let pretty_name =
                     unsafe { CStr::from_ptr(sapi_module.pretty_name) }.to_string_lossy();
                 if SAPI.get().unwrap_or(&Sapi::Unknown) != &Sapi::Unknown {
-                    debug!("Recognized SAPI: {}.", pretty_name);
+                    debug!("Recognized SAPI: {pretty_name}.");
                 } else {
-                    warn!("Unrecognized SAPI: {}.", pretty_name);
+                    warn!("Unrecognized SAPI: {pretty_name}.");
                 }
             }
             if let Err(err) = cpu_time::ThreadTime::try_now() {
                 if profiling_experimental_cpu_time_enabled {
                     warn!(
-                        "CPU Time collection was enabled but collection failed: {}",
-                        err
+                        "CPU Time collection was enabled but collection failed: {err}"
                     );
                 } else {
                     debug!(
-                        "CPU Time collection was not enabled and isn't available: {}",
-                        err
+                        "CPU Time collection was not enabled and isn't available: {err}"
                     );
                 }
             } else if profiling_experimental_cpu_time_enabled {
@@ -579,7 +577,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                         locals.tags.push(tag);
                     }
                     Err(err) => {
-                        warn!("invalid tag: {}", err);
+                        warn!("invalid tag: {err}");
                     }
                 }
             }
@@ -591,8 +589,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 };
                 if let Err((index, interrupt)) = profiler.add_interrupt(interrupt) {
                     warn!(
-                        "VM interrupt {} already exists at offset {}",
-                        index, interrupt
+                        "VM interrupt {index} already exists at offset {interrupt}"
                     );
                 }
             }
@@ -645,7 +642,7 @@ fn log_add_tag<V: AsRef<str>>(locals: &mut RefMut<RequestLocals>, key: &str, val
             locals.tags.push(tag);
         }
         Err(err) => {
-            warn!("invalid tag: {}", err);
+            warn!("invalid tag: {err}");
         }
     }
 }
@@ -679,7 +676,7 @@ fn detect_uri_from_config(
         } else {
             match Uri::from_str(trace_agent_url.as_ref()) {
                 Ok(uri) => return AgentEndpoint::Uri(uri),
-                Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {}", err),
+                Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {err}"),
             }
         }
         // continue down priority list
@@ -688,10 +685,10 @@ fn detect_uri_from_config(
         let host = host.unwrap_or(Cow::Borrowed("localhost"));
         let port = port.unwrap_or(8126u16);
 
-        match Uri::from_str(format!("http://{}:{}", host, port).as_str()) {
+        match Uri::from_str(format!("http://{host}:{port}").as_str()) {
             Ok(uri) => return AgentEndpoint::Uri(uri),
             Err(err) => {
-                warn!("The combination of DD_AGENT_HOST({}) and DD_TRACE_AGENT_PORT({}) was not a valid URL: {}", host, port, err)
+                warn!("The combination of DD_AGENT_HOST({host}) and DD_TRACE_AGENT_PORT({port}) was not a valid URL: {err}")
             }
         }
         // continue down priority list
@@ -714,7 +711,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 if let Err(err) = profiler.remove_interrupt(interrupt) {
-                    warn!("Unable to find interrupt {}.", err);
+                    warn!("Unable to find interrupt {err}.");
                 }
             }
             locals.tags = static_tags();
@@ -946,8 +943,7 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
             // Only gather Endpoint Profiling data for web spans, partly for PII reasons.
             if span_type != "web" {
                 debug!(
-                    "Local root span id {} ended but did not have a span type of 'web' (actual: '{}'), so Endpoint Profiling data will not be sent.",
-                    local_root_span_id, span_type
+                    "Local root span id {local_root_span_id} ended but did not have a span type of 'web' (actual: '{span_type}'), so Endpoint Profiling data will not be sent."
                 );
                 return;
             }
@@ -958,11 +954,10 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
                     resource: resource.into_owned(),
                 };
                 if let Err(err) = profiler.send_local_root_span_resource(message) {
-                    warn!("Failed to enqueue endpoint profiling information: {}.", err);
+                    warn!("Failed to enqueue endpoint profiling information: {err}.");
                 } else {
                     trace!(
-                        "Enqueued endpoint profiling information for span id: {}.",
-                        local_root_span_id
+                        "Enqueued endpoint profiling information for span id: {local_root_span_id}."
                     );
                 }
             }
