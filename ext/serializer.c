@@ -1060,9 +1060,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_string *str_key;
         zval *val;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR_P(metrics), str_key, val) {
-            if (str_key && zend_string_equals_literal(str_key, "process_id")) {
-                add_assoc_long(&metrics_zv, ZSTR_VAL(str_key), zval_get_long(val));
-            }
             if (str_key) {
                 add_assoc_double(&metrics_zv, ZSTR_VAL(str_key), zval_get_double(val));
             }
