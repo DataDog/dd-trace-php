@@ -159,7 +159,7 @@ class WordPressComponent
         $library->traceFunction('render_block', function (SpanData $span, array $args) {
             $span->name = 'block';
             $blockName = isset($args[0]['blockName']) ? $args[0]['blockName'] : '?';
-            $span->resource = "(name: {$blockName})";
+            $span->resource = "(blockName: {$blockName})";
 
             if (isset($args[0]['attrs'])) {
                 $attrs = $args[0]['attrs'];
