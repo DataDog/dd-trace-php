@@ -338,7 +338,7 @@ function install($options)
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
+                        "sed -i 's@;\? \?datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
                         . escapeshellarg($iniFilePath)
                     );
                 } else {
@@ -1412,11 +1412,12 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
         [
             'name' => 'datadog.appsec.enabled',
-            'default' => 'Off',
-            'commented' => false,
+            'default' => 'On',
+            'commented' => true,
             'description' => [
                 'Enables or disables the loaded dd-appsec extension.',
                 'If disabled, the extension will do no work during the requests.',
+                'If not present/commented out, appsec will be enabled/disabled by remote config',
                 'This value is ignored on the CLI SAPI, see datadog.appsec.enabled_on_cli',
             ],
         ],
