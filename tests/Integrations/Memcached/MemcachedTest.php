@@ -4,7 +4,6 @@ namespace DDTrace\Tests\Integrations\Memcached;
 
 use DDTrace\Tag;
 use DDTrace\Obfuscation;
-use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
