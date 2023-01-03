@@ -1419,7 +1419,13 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Build extension
-          command: build-dd-trace-php
+          command: |
+            # Backtraces on Alpine are apparently sketchy, and removed in Alpine 3.17:
+            # https://gitlab.alpinelinux.org/alpine/aports/-/merge_requests/36722
+            # Ensure libexecinfo is _not_ installed, so support isn't detected
+            # by config.m4
+            apk update && apk del libexecinfo libexecinfo-dev
+            build-dd-trace-php
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']

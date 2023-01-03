@@ -32,7 +32,6 @@ apk add --no-cache \
     coreutils \
     g++ \
     gcc \
-    libexecinfo-dev \
     make \
 
 make -j all CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror" ECHO_ARG="-e"

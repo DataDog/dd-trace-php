@@ -19,6 +19,9 @@ if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php8 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php81 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php7 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
@@ -32,7 +35,6 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
     apk add --no-cache $(pwd)/build/packages/*.apk --allow-untrusted
 else
     echo "Installing dd-trace-php using the new PHP installer"
-    apk add --no-cache libexecinfo
     installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
     $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all
 fi
@@ -47,6 +49,9 @@ if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm81 || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm8 || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
@@ -55,9 +60,14 @@ fi
 if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm5 || true)
 fi
+
 WWW_CONF=/etc/php/php-fpm.d/www.conf
 if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/usr/local/etc/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.17
+    WWW_CONF=/etc/php81/php-fpm.d/www.conf
 fi
 if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/etc/php8/php-fpm.d/www.conf

@@ -63,9 +63,6 @@ function install($options)
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
-    if (is_alpine()) {
-        check_library_prerequisite_or_exit('libexecinfo');
-    }
 
     // Picking the right binaries to install the library
     $selectedBinaries = require_binaries_or_exit($options);
