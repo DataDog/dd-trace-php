@@ -1424,7 +1424,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         [
             'name' => 'datadog.appsec.enabled_on_cli',
             'default' => 'Off',
-            'commented' => true,
+            'commented' => false,
             'description' => [
                 'Enables or disables the loaded appsec extension for the CLI SAPI.',
                 'This value is only used for the CLI SAPI, see ddappsec.enabled for the',
