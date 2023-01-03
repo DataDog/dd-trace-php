@@ -159,7 +159,23 @@ class WordPressComponent
         $library->traceFunction('render_block', function (SpanData $span, array $args) {
             $span->name = 'block';
             $blockName = isset($args[0]['blockName']) ? $args[0]['blockName'] : '?';
-            $span->resource = "(name: $blockName)";
+            $span->resource = "(name: {$blockName})";
+
+            if (isset($args[0]['attrs'])) {
+                $attrs = $args[0]['attrs'];
+                // See https://developer.wordpress.org/themes/block-themes/templates-and-template-parts/#block-c5fa39a2-a27d-4bd2-98d0-dc6249a0801a
+                foreach (['slug', 'theme', 'area', 'tagName'] as $attr) {
+                    if (isset($attrs[$attr])) {
+                        $span->meta["wordpress.template_part.{$attr}"] = $attrs[$attr];
+                    }
+                }
+            }
+        });
+
+        $library->traceFunction('block_template_part', function (SpanData $span, array $args) {
+            $span->name = 'block_template_part';
+            $part = isset($args[0]) && \is_string($args[0]) ? $args[0] : '?';
+            $span->resource = "(part: {$part})";
         });
 
         // Widgets
