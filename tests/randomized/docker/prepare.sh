@@ -2,6 +2,9 @@
 
 set -e
 
+# Avoid intermittent DNS hangs: See https://github.com/curl/curl/issues/593#issuecomment-170146252
+echo "options single-request" >> /etc/resolv.conf
+
 # Install the tracers
 if [ "${INSTALL_MODE}" == "package" ]; then
     # Do not enable profiling here as profiling is enabled as part of the randomized configuration

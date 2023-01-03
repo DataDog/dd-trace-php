@@ -191,7 +191,7 @@ function install($options)
         // Trace
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so";
         if (!file_exists($extensionRealPath)) {
-            print_error_and_exit(substr($extensionSuffix ?: '-nts') . ' builds of PHP are currently not supported');
+            print_error_and_exit(substr($extensionSuffix ?: '-nts', 1) . ' builds of PHP are currently not supported');
         }
 
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';

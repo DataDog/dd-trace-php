@@ -141,6 +141,8 @@ aliases:
         );
         echo "Resolved httpbin_integration: HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME}";
         echo "export HTTPBIN_HOSTNAME='${HTTPBIN_HOSTNAME}'" >> $BASH_ENV
+        # Avoid intermittent DNS hangs: See https://github.com/curl/curl/issues/593#issuecomment-170146252
+        echo "options single-request" | sudo tee -a /etc/resolv.conf
 
   - &STEP_PERSIST_TO_WORKSPACE
     persist_to_workspace:
