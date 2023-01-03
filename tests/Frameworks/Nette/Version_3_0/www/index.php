@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-// Debug stuff:
-\DDTrace\hook_method('PDO', '__construct', function () {
-    error_log((string)new \Exception("PDO constructor invoked"));
-});
+// Avoid spurious PDO instantiations appearing in traces within FileStorage::clean() (with SQLiteJournal)
+\Nette\Caching\Storages\FileStorage::$gcProbability = 0;
 
 App\Bootstrap::boot()
     ->createContainer()
