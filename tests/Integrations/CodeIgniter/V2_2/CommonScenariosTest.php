@@ -52,13 +52,14 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_URL => 'http://localhost:9999/simple?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple::index',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple.index',
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple.index'
-                        ),
+                        )
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -72,6 +73,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_URL => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple_View::index',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple_View.index',
@@ -85,7 +87,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 Type::WEB_SERVLET,
                                 'simple_view'
                             ),
-                        ]),
+                        ])
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -100,6 +102,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // CodeIgniter's error handler does not adjust the status code
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Error_::index',
+                        Tag::SPAN_KIND => 'server',
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
                     ->withExistingTagsNames(['error.stack'])

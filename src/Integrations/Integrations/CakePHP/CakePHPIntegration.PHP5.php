@@ -55,6 +55,7 @@ class CakePHPIntegration extends Integration
                     !empty($_SERVER['argv'][1]) ? 'cake_console ' . $_SERVER['argv'][1] : 'cake_console';
             } else {
                 $integration->rootSpan->name = 'cakephp.request';
+                $integration->rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
 
             \DDTrace\trace_method(

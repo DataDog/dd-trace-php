@@ -185,6 +185,7 @@ class PredisIntegration extends Integration
     public static function setMetaAndServiceFromConnection($predis, SpanData $span)
     {
         $span->service = ObjectKVStore::get($predis, 'service', PredisIntegration::DEFAULT_SERVICE_NAME);
+        $span->meta[Tag::SPAN_KIND] = 'client';
 
         foreach (ObjectKVStore::get($predis, 'connection_meta', []) as $tag => $value) {
             $span->meta[$tag] = $value;
