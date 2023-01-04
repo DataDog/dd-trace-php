@@ -39,7 +39,7 @@ object(DDTrace\SpanData)#%d (8) {
   ["metrics"]=>
   array(1) {
     ["process_id"]=>
-    int(%d)
+    float(%f)
   }
   ["id"]=>
   string(%d) "%d"
