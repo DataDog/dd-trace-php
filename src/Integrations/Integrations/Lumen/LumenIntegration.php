@@ -83,9 +83,7 @@ class LumenIntegration extends Integration
                     }
                     $routeInfo = $args[0];
                     $resourceName = null;
-                    $span->meta[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     if (isset($routeInfo[1]['uses'])) {
                         $action = $routeInfo[1]['uses'];
                         $rootSpan->meta['lumen.route.action'] = $action;

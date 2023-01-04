@@ -57,8 +57,6 @@ class CakePHPIntegration extends Integration
                 $integration->rootSpan->name = 'cakephp.request';
                 $integration->rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
-
-            $integration->rootSpan->meta[Tag::SPAN_KIND] = 'server';
             $integration->rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
             \DDTrace\trace_method(
@@ -68,7 +66,6 @@ class CakePHPIntegration extends Integration
                     $span->name = $span->resource = 'Controller.invokeAction';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $integration->appName;
-                    $span->meta[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
                     $request = $args[0];
