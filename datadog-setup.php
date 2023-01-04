@@ -41,10 +41,10 @@ function print_help()
 
 Usage:
     Interactive
-        php get-dd-trace.php ...
+        php datadog-setup.php ...
     Non-Interactive
-        php get-dd-trace.php --php-bin php ...
-        php get-dd-trace.php --php-bin php --php-bin /usr/local/sbin/php-fpm ...
+        php datadog-setup.php --php-bin php ...
+        php datadog-setup.php --php-bin php --php-bin /usr/local/sbin/php-fpm ...
 
 Options:
     -h, --help                  Print this help text and exit
@@ -66,7 +66,6 @@ function install($options)
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
     if (is_alpine()) {
-        check_library_prerequisite_or_exit('libexecinfo');
         if (is_truthy($options[OPT_ENABLE_PROFILING])) {
             check_library_prerequisite_or_exit('libgcc_s');
         }

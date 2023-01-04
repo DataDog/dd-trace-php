@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Symfony\V3_4;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -31,6 +32,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost:9999/alternate_templating',
                 'http.status_code' => '200',
+                Tag::SPAN_KIND => 'server',
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.boot'),

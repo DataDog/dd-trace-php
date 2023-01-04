@@ -126,6 +126,7 @@ pub(crate) enum ConfigId {
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingLogLevel,
+    ProfilingOutputPprof,
 
     // todo: do these need to be kept in sync with the tracer?
     AgentHost,
@@ -146,6 +147,11 @@ impl ConfigId {
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
+
+            /* Note: this is meant only for debugging and testing. Please don't
+             * advertise this in the docs.
+             */
+            ProfilingOutputPprof => b"DD_PROFILING_OUTPUT_PPROF\0",
 
             AgentHost => b"DD_AGENT_HOST\0",
             Env => b"DD_ENV\0",
@@ -180,6 +186,13 @@ pub(crate) unsafe fn profiling_endpoint_collection_enabled() -> bool {
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
     get_bool(ProfilingExperimentalCpuTimeEnabled, true)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
+    get_str(ProfilingOutputPprof)
 }
 
 unsafe fn get_bool(id: ConfigId, default: bool) -> bool {
@@ -365,6 +378,16 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_level_filter),
                 },
                 zai_config_entry {
+                    id: transmute(ProfilingOutputPprof),
+                    name: ProfilingOutputPprof.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING,
+                    default_encoded_value: ZaiStringView::new(),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: Some(parse_utf8_string),
+                },
+                zai_config_entry {
                     id: transmute(AgentHost),
                     name: AgentHost.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
@@ -472,6 +495,10 @@ mod tests {
                 "datadog.profiling.experimental_cpu_time_enabled",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
+            (
+                b"DD_PROFILING_OUTPUT_PPROF\0",
+                "datadog.profiling.output_pprof",
+            ),
         ];
 
         for (env_name, expected_ini_name) in cases {

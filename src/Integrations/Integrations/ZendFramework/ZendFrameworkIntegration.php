@@ -78,6 +78,7 @@ class ZendFrameworkIntegration extends Integration
                     $rootSpan->meta['zf1.route_name'] = $route;
                     $rootSpan->resource = $controller . '@' . $action . ' ' . $route;
                     $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
                     if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                         $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(

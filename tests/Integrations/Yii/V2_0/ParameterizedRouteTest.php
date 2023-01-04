@@ -43,6 +43,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/homes/:state/:city/:neighborhood',
                     'app.endpoint' => 'app\controllers\HomesController::actionView',
+                    Tag::SPAN_KIND => 'server',
                 ])->withChildren([
                     SpanAssertion::build(
                         'yii\web\Application.run',

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Slim\V4;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -101,6 +102,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         $this->wrapMiddleware([
                             SpanAssertion::build(
@@ -125,6 +127,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         $this->wrapMiddleware([
                             SpanAssertion::build(
@@ -156,6 +159,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                        Tag::SPAN_KIND => 'server',
                     ])
                     ->setError(null, null)
                     ->withChildren([
@@ -167,7 +171,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     'web',
                                     'Closure::__invoke'
                                 )->withExistingTagsNames([
-                                    'error.stack'
+                                    'error.stack',
                                 ])->setError(null, 'Foo error')
                             ],
                             [null, 'Foo error']

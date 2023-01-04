@@ -2,7 +2,8 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V4;
 
-use  DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tag;
+use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
@@ -40,6 +41,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
+                        TAG::SPAN_KIND => 'server',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
@@ -49,9 +51,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('laravel.application.handle')
                             ->withChildren([
-                                SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
-                                    ->withExactTags([
-                                    ]),
+                                SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple'),
                                 SpanAssertion::exists('laravel.event.handle'),
                                 SpanAssertion::exists('laravel.event.handle'),
                                 SpanAssertion::exists('laravel.event.handle'),

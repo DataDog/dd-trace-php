@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Symfony\V5_1;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -44,6 +45,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:9999/simple',
                     'http.status_code' => '200',
+                    Tag::SPAN_KIND => 'server',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
                     '_sampling_priority_v1' => 1,

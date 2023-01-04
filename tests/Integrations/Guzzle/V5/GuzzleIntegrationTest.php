@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Integrations\Guzzle\V5;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
+use DDTrace\Tag;
 use GuzzleHttp\Client;
 use GuzzleHttp\Message\Request;
 use GuzzleHttp\Ring\Client\MockHandler;
@@ -66,6 +67,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
+                    TAG::SPAN_KIND => 'client',
                 ]),
         ]);
     }
@@ -96,6 +98,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    TAG::SPAN_KIND => 'client',
                 ]),
         ]);
     }
@@ -112,6 +115,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    TAG::SPAN_KIND => 'client',
                 ]),
         ]);
     }
@@ -129,6 +133,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
+                    TAG::SPAN_KIND => 'client',
                 ]),
         ]);
     }
@@ -314,6 +319,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    TAG::SPAN_KIND => 'client',
                 ]),
         ]);
     }
@@ -332,6 +338,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
+                    TAG::SPAN_KIND => 'client',
                 ]),
         ]);
     }
@@ -359,6 +366,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            TAG::SPAN_KIND => 'client',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('curl_exec'),

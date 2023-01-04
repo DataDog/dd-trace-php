@@ -44,6 +44,8 @@ class LumenIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
+        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
 

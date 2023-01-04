@@ -31,7 +31,6 @@ apk add --no-cache \
     coreutils \
     g++ \
     gcc \
-    libexecinfo-dev \
     make \
 
 # -Werror=return-local-addr _should be fixed_ but I need to keep working on my CI thing.

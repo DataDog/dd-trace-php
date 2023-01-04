@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Predis;
 
+use DDTrace\Tag;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -173,7 +174,9 @@ final class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'redis', 'redis', 'Predis.Client.connect')
-                ->withExactTags([]),
+                ->withExactTags([
+                    Tag::SPAN_KIND => 'client',
+                ]),
         ]);
     }
 
@@ -246,9 +249,12 @@ final class PredisTest extends IntegrationTestCase
         });
 
         if (Versions::phpVersionMatches('5')) {
-            $exactTags = [];
+            $exactTags = [
+                Tag::SPAN_KIND => 'client'
+            ];
         } else {
             $exactTags = [
+                Tag::SPAN_KIND => 'client',
                 'redis.pipeline_length' => '2',
             ];
         }
@@ -331,6 +337,7 @@ final class PredisTest extends IntegrationTestCase
         return [
             'out.host' => $this->host,
             'out.port' => $this->port,
+            Tag::SPAN_KIND => 'client',
         ];
     }
 }

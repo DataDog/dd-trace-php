@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
+use DDTrace\Tag;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
@@ -41,6 +42,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unnamed-route',
                         'http.status_code' => '200',
+                        TAG::SPAN_KIND => 'server'
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),
@@ -72,6 +74,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unnamed-route',
                         'http.status_code' => '200',
+                        TAG::SPAN_KIND => 'server'
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),

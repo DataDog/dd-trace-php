@@ -105,6 +105,7 @@ class EloquentIntegration extends Integration
     {
         $span->type = Type::SQL;
         $span->service = $this->getAppName();
+        $span->meta[Tag::SPAN_KIND] = 'client';
     }
 
     /**

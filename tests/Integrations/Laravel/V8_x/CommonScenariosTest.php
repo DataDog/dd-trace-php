@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -51,10 +52,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        TAG::SPAN_KIND => 'server'
                     ])->withChildren([
-                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple')
-                            ->withExactTags([
-                            ]),
+                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple'),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
@@ -73,10 +73,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        TAG::SPAN_KIND => 'server'
                     ])->withChildren([
-                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
-                            ->withExactTags([
-                            ]),
+                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view'),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
@@ -110,6 +109,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                        TAG::SPAN_KIND => 'server'
                     ])->setError('Exception', 'Controller error', true)->withChildren([
                         SpanAssertion::exists('laravel.action'),
 

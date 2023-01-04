@@ -14,6 +14,7 @@ function query_headers() {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_READFUNCTION, function () {}); // must not leak
     $response = curl_exec($ch);
     show_curl_error_on_fail($ch);
     curl_close($ch);

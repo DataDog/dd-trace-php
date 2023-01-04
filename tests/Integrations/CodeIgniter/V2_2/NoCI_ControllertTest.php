@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Type;
 
-class ExitTest extends WebFrameworkTestCase
+class NoCIControllertTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
@@ -25,7 +25,7 @@ class ExitTest extends WebFrameworkTestCase
     public function testScenario()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $this->call(GetSpec::create('Test that exit works', '/exits'));
+            $this->call(GetSpec::create('A call to healthcheck', '/health_check/ping'));
         });
 
         $this->assertFlameGraph(
@@ -35,21 +35,19 @@ class ExitTest extends WebFrameworkTestCase
                     'codeigniter.request',
                     'codeigniter_test_app',
                     'web',
-                    'GET /exits'
+                    'GET /health_check/ping'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/exits',
+                    Tag::HTTP_URL => 'http://localhost:9999/health_check/ping',
                     Tag::HTTP_STATUS_CODE => '200',
-                    'app.endpoint' => 'Exits::index',
-                    Tag::SPAN_KIND => 'server',
                 ])->withChildren([
                     SpanAssertion::build(
-                        'Exits.index',
+                        'Health_check.ping',
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
-                        'Exits.index'
+                        'Health_check.ping'
                     )
-                ])
+                ]),
             ]
         );
     }
