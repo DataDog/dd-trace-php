@@ -47,11 +47,12 @@ class LaravelIntegration extends Integration
         }
 
         $rootSpan = \DDTrace\root_span();
-        $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
         if (null === $rootSpan) {
             return Integration::NOT_LOADED;
         }
+
+        $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
         $integration = $this;
 
