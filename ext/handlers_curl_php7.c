@@ -532,7 +532,7 @@ static zend_object *dd_curl_wrap_ctor_obj(zend_class_entry *ce) {
 }
 
 static void dd_curl_wrap_dtor_obj(zend_object *obj) {
-    zend_objects_destroy_object(obj);
+    zend_object_std_dtor(obj);
 
     struct dd_curl_wrapper *wrapper = (struct dd_curl_wrapper *)obj;
     if (dd_multi_handles) {

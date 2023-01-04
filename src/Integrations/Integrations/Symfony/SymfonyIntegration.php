@@ -194,6 +194,7 @@ class SymfonyIntegration extends Integration
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                $integration->symfonyRequestSpan->meta[Tag::SPAN_KIND] = 'server';
 
                 if (!array_key_exists(Tag::HTTP_URL, $integration->symfonyRequestSpan->meta)) {
                     $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());

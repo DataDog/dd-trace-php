@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Roadrunner;
 
 use DDTrace\Tag;
-use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
