@@ -635,7 +635,7 @@ class MongoDBIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = 'client';
         $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;
         $span->resource = \implode(' ', array_filter([$method, $database, $collection, $command, $serializedQuery]));
-        $span->meta[Tag::COMPONENT] = $this->getName();
+        $span->meta[Tag::COMPONENT] = $this::NAME;
         if ($database) {
             $span->meta[Tag::MONGODB_DATABASE] = $database;
         }
