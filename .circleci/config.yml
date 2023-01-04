@@ -1532,6 +1532,11 @@ jobs:
       - run:
           name: Build extension
           command: |
+            # Backtraces on Alpine are apparently sketchy, and removed in Alpine 3.17:
+            # https://gitlab.alpinelinux.org/alpine/aports/-/merge_requests/36722
+            # Ensure libexecinfo is _not_ installed, so support isn't detected
+            # by config.m4
+            apk update && apk del libexecinfo libexecinfo-dev
             build-dd-trace-php
             mv extensions extensions_$(uname -m)
       - persist_to_workspace:
@@ -2599,6 +2604,7 @@ workflows:
                 - alpine:3.11
                 - alpine:3.12
                 - alpine:3.15
+                - alpine:3.16
                 - alpine:latest
       - verify_alpine:
           requires: [ "package extension" ]

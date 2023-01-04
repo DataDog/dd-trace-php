@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Lumen\V5_6;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Tests\Integrations\Lumen\V5_2\CommonScenariosTest as V5_2_CommonScenariosTest;
@@ -51,6 +52,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Laravel\Lumen\Application.handleFoundRoute',
@@ -73,6 +75,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Laravel\Lumen\Application.handleFoundRoute',
@@ -109,6 +112,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                        Tag::SPAN_KIND => 'server',
                     ])->withExistingTagsNames([
                         'error.stack',
                     ])->setError('Exception', 'Controller error')

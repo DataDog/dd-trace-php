@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Elasticsearch\V8;
 
+use DDTrace\Tag;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -82,7 +83,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'count'
-            )->withChildren([
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
             SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
@@ -113,7 +116,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'delete index:my_index type:my_type'
-            )->withChildren([
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
             SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
@@ -144,7 +149,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'exists index:my_index type:my_type'
-            )->withChildren([
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
         ]);
@@ -182,7 +189,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'explain index:my_index type:my_type'
-            )->withChildren([
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ])->withChildren([
                 SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
@@ -214,7 +223,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'get index:my_index type:my_type'
-            )->setTraceAnalyticsCandidate()
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ])->setTraceAnalyticsCandidate()
             ->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
@@ -241,7 +252,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'index index:my_index type:my_type'
-            )->withChildren([
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ])->withChildren([
                 SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),
@@ -365,7 +378,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'scroll'
-            ),
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ]),
             SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
@@ -373,7 +388,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'scroll'
-            ),
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ]),
             SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.unserialize', 'Elastic.Transport.Serializer.JsonSerializer.unserialize'),
         ]);
     }
@@ -405,7 +422,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'search index:' . 'my_index'
-            )->setTraceAnalyticsCandidate()
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ])->setTraceAnalyticsCandidate()
             ->withChildren([
                 SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
@@ -446,7 +465,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                     )->withExactTags([
                         'elasticsearch.url' => '/my_index/_search',
                         'elasticsearch.method' => 'POST',
-                        'elasticsearch.body' => '{"query":{"match_all":{}}}'
+                        'elasticsearch.body' => '{"query":{"match_all":{}}}',
+                        Tag::SPAN_KIND => 'client',
                     ]),
                 ]),
         ]);
@@ -477,7 +497,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'update index:my_index type:my_type'
-            )->withChildren([
+            )->withExactTags([
+                Tag::SPAN_KIND => 'client',
+            ])->withChildren([
                 SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest'),
             ]),

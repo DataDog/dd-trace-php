@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Mysqli;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 
@@ -189,6 +190,7 @@ class MysqliIntegration extends Integration
         $span->resource = $resource;
         $span->type = Type::SQL;
         $span->service = 'mysqli';
+        $span->meta[Tag::SPAN_KIND] = 'client';
     }
 
     /**

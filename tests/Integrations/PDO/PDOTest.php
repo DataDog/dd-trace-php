@@ -570,6 +570,7 @@ final class PDOTest extends IntegrationTestCase
             'out.host' => self::MYSQL_HOST,
             'db.name' => self::MYSQL_DATABASE,
             'db.user' => self::MYSQL_USER,
+            'span.kind' => 'client',
         ];
     }
 }

@@ -48,6 +48,7 @@ class SlimIntegration extends Integration
                 $rootSpan = \DDTrace\root_span();
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->service = $appName;
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
                 if ('4' === $majorVersion) {
                     \DDTrace\hook_method('Slim\\MiddlewareDispatcher', 'addMiddleware', function ($This, $self, $args) {
