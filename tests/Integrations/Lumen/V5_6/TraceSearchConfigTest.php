@@ -11,7 +11,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "lumen";
+        return ["lumen", "laravel", ["laravel.view.render"]];
     }
 
     protected static function getAppIndexScript()

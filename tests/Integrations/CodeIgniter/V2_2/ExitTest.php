@@ -12,7 +12,7 @@ class ExitTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "codeigniter";
+        return ["codeigniter"];
     }
 
     protected static function getAppIndexScript()

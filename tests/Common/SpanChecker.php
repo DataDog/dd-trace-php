@@ -389,13 +389,11 @@ final class SpanChecker
             if (!isset($expectedTags['_dd.p.dm'])) {
                 unset($filtered['_dd.p.dm']);
             }
-            if (SpanChecker::$integrationName) {
-                if (SpanChecker::$integrationName != SpanAssertion::NOT_TESTED) {
-                    $expectedTags["component"] = SpanChecker::$integrationName;
-                } else {
-                    unset($filtered['component']);
-                }
+
+            if (SpanChecker::$integrationName == SpanAssertion::NOT_TESTED) {
+                unset($filtered['component']);
             }
+
             // http.client_ip is present depending on target SAPI and not helpful here to test
             if (!isset($expectedTags['http.client_ip'])) {
                 unset($filtered['http.client_ip']);
@@ -416,10 +414,11 @@ final class SpanChecker
                         $namePrefix . "Expected tag format for '$tagName' does not match actual value"
                     );
                 } else {
+                    $actual = $filtered[$tagName];
                     TestCase::assertEquals(
                         $tagValue,
-                        $filtered[$tagName],
-                        $namePrefix . "Expected tag value for '$tagName' does not match actual value"
+                        $actual,
+                        $namePrefix . "Expected tag value for '$tagName' does not match actual value, expected: '$tagValue', actual: '$actual'"
                     );
                 }
                 unset($filtered[$tagName]);

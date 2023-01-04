@@ -42,7 +42,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "elasticsearch";
+        return ["elasticsearch"];
     }
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()

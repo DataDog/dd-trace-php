@@ -113,6 +113,7 @@ class LumenIntegration extends Integration
             }
             $exception = $args[0];
             $integration->setError($rootSpan, $exception);
+            $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
         };
 
         \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [$hook => $exceptionRender]);

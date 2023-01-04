@@ -11,7 +11,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "cakephp";
+        return ["cakephp"];
     }
 
     protected static function getAppIndexScript()

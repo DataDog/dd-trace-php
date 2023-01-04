@@ -8,7 +8,7 @@ class CommonScenariosTest extends V5_6_CommonScenariosTest
 {
     protected function getIntegrationName()
     {
-        return "lumen";
+        return ["lumen", "laravel", ["laravel.view.render"]];
     }
 
     protected static function getAppIndexScript()

@@ -11,7 +11,7 @@ final class PCNTLTest extends IntegrationTestCase
 {
     protected function getIntegrationName()
     {
-        return "pcntl";
+        return ["pcntl"];
     }
 
     protected function ddSetUp()

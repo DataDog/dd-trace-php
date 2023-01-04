@@ -16,7 +16,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
 
     protected function getIntegrationName()
     {
-        return "laravel";
+        return ["laravel"];
     }
 
     protected static function getAppIndexScript()

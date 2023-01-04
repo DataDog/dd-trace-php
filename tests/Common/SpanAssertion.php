@@ -10,6 +10,12 @@ final class SpanAssertion
     const NOT_TESTED = '__not_tested__';
 
     private static $integrationName;
+    /** @var string primary integration name, ie: lumen */
+    private static $alternateIntegrationName;
+    /** @var string secondary integration name within trace, ie: laravel view component used by lumen */
+
+    private static $operationNamesToOverrideIntegrationName;
+    /** @var string[] Trray of operation name to override the default integration component name for alternate */
 
     private $operationName;
     private $hasError;
@@ -45,15 +51,23 @@ final class SpanAssertion
         $this->hasError = $error;
         $this->onlyCheckExistence = $onlyCheckExistance;
         if (SpanAssertion::$integrationName != SpanAssertion::NOT_TESTED) {
-            $this->exactTags = [
-                Tag::COMPONENT => SpanAssertion::$integrationName,
-            ];
+            if (in_array($name, (array) SpanAssertion::$operationNamesToOverrideIntegrationName)) {
+                $this->exactTags = [
+                    'component' => SpanAssertion::$alternateIntegrationName,
+                ];
+            } else {
+                $this->exactTags = [
+                    'component' => SpanAssertion::$integrationName,
+                ];
+            }
         }
     }
 
-    public static function setIntegrationName($integrationName)
+    public static function setIntegrationName($integrationName, $alternateIntegrationName = SpanAssertion::NOT_TESTED, $operationNamesToOverrideIntegrationName = array())
     {
         SpanAssertion::$integrationName = $integrationName;
+        SpanAssertion::$alternateIntegrationName = $alternateIntegrationName;
+        SpanAssertion::$operationNamesToOverrideIntegrationName = $operationNamesToOverrideIntegrationName;
     }
 
     /**

@@ -20,7 +20,7 @@ class MongoTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "mongo";
+        return ["mongo"];
     }
 
     public static function ddSetUpBeforeClass()

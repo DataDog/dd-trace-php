@@ -17,7 +17,7 @@ class MysqliTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "mysqli";
+        return ["mysqli"];
     }
 
     public static function ddSetUpBeforeClass()

@@ -33,7 +33,7 @@ class MongoDBTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "mongodb";
+        return ["mongodb"];
     }
 
     protected function ddSetUp()

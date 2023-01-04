@@ -19,7 +19,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "memcached";
+        return ["memcached"];
     }
 
     protected function ddSetUp()

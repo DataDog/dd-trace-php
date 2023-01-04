@@ -11,7 +11,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "zendframework";
+        return ["zendframework"];
     }
 
     protected static function getAppIndexScript()

@@ -11,7 +11,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "symfony";
+        return ["symfony"];
     }
 
     protected static function getAppIndexScript()

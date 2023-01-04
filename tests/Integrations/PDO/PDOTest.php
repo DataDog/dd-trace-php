@@ -21,7 +21,7 @@ final class PDOTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "pdo";
+        return ["pdo"];
     }
 
     public static function ddSetUpBeforeClass()

@@ -11,7 +11,7 @@ final class DeferredLoadingTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "PDO";
+        return ["PDO"];
     }
 
     protected static function getAppIndexScript()

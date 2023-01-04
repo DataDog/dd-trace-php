@@ -11,7 +11,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "roadrunner";
+        return ["roadrunner"];
     }
 
     protected static function getAppIndexScript()

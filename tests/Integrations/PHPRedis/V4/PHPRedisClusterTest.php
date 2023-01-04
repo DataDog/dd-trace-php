@@ -34,7 +34,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "phpredis";
+        return ["phpredis"];
     }
 
     public function ddSetUp()

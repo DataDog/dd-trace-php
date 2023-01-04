@@ -10,7 +10,7 @@ class CommonScenariosTest extends CLITestCase
 {
     protected function getIntegrationName()
     {
-        return "laravel";
+        return ["laravel"];
     }
 
     protected function getScriptLocation()

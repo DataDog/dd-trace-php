@@ -11,7 +11,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "slim";
+        return ["slim"];
     }
 
     protected static function getAppIndexScript()

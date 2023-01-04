@@ -16,7 +16,7 @@ final class PredisTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "predis";
+        return ["predis"];
     }
 
     public static function ddSetUpBeforeClass()

@@ -21,7 +21,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "guzzle";
+        return ['guzzle', 'laravel', ['web.request']];
     }
 
     public static function ddSetUpBeforeClass()

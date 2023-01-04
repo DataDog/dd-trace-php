@@ -9,7 +9,7 @@ class CommonScenariosTest extends CLITestCase
 {
     protected function getIntegrationName()
     {
-        return "cakephp";
+        return ["cakephp"];
     }
 
     protected function getScriptLocation()

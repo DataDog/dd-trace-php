@@ -33,7 +33,7 @@ class PHPRedisTest extends IntegrationTestCase
 
     protected function getIntegrationName()
     {
-        return "phpredis";
+        return ["phpredis"];
     }
 
     public function ddSetUp()

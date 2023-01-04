@@ -12,7 +12,7 @@ final class NetteTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
-        return "nette";
+        return ["nette"];
     }
 
     protected static function getAppIndexScript()

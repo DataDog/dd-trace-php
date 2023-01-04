@@ -9,7 +9,7 @@ class ConsoleCommandTest extends IntegrationTestCase
 {
     protected function getIntegrationName()
     {
-        return "symfony";
+        return ["symfony"];
     }
 
     protected static function getConsoleScript()
