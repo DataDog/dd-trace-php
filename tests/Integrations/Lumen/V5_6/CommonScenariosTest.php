@@ -142,7 +142,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'web',
                             'Laravel\Lumen\Application.sendExceptionToHandler'
                         )->withExactTags([
-                            TAG::COMPONENT => 'laravel'
+                            TAG::COMPONENT => 'lumen'
                         ]),
                     ]),
                 ],

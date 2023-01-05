@@ -138,7 +138,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Laravel\Lumen\Application.sendExceptionToHandler'
                         )->withExactTags([
-                            TAG::COMPONENT => 'laravel',
+                            TAG::COMPONENT => 'lumen',
                         ]),
                     ]),
                 ],
