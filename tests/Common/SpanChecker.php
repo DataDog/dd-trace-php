@@ -407,7 +407,7 @@ final class SpanChecker
                     TestCase::assertEquals(
                         $tagValue,
                         $actual,
-                        $namePrefix . "Expected tag value for '$tagName' does not match actual value, expected: '$tagValue', actual: '$actual'"
+                        $namePrefix . "Exp. value for '$tagName' does not match actual | '$tagValue' != '$actual'"
                     );
                 }
                 unset($filtered[$tagName]);

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V5_7;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;

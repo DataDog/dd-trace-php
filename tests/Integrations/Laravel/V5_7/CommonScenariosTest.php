@@ -80,7 +80,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         TAG::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'laravel',
                     ])->withChildren([
-                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view'),
+                        SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
+                        ->withExactTags([
+                            Tag::COMPONENT => 'laravel',
+                        ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'

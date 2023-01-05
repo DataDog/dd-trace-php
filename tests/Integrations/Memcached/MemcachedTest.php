@@ -42,7 +42,6 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'add',
                     Tag::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'laravel',
                 ])),
         ]);
     }
@@ -241,6 +240,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'deleteMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'deleteMulti',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::exists('Memcached.get'),
@@ -456,6 +456,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags([
                     'memcached.command' => 'flush',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -496,6 +497,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
                 ]),
         ]);
     }
@@ -630,6 +632,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'setMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'setMulti',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.getMulti'),
         ]);
