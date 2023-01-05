@@ -79,7 +79,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'web',
                                     '*/resources/views/simple_view.blade.php'
                                 )->withExactTags([
-                                    TAG::COMPONENT => 'lumen'
+                                    TAG::COMPONENT => 'laravel'
                                 ]),
                                 SpanAssertion::build(
                                     'laravel.event.handle',

@@ -104,7 +104,9 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette_test_app',
                             Type::WEB_SERVLET,
                             'nette.configurator.createRobotLoader'
-                        ),
+                        )->withExactTags([
+                            Tag::COMPONENT => 'nette'
+                        ]),
                         SpanAssertion::build(
                             'nette.application.run',
                             'nette_test_app',
@@ -118,7 +120,9 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
                                 'nette.presenter.run'
-                            ),
+                            )->withExactTags([
+                                Tag::COMPONENT => 'nette'
+                            ]),
                             SpanAssertion::build(
                                 'nette.latte.render',
                                 'nette_test_app',

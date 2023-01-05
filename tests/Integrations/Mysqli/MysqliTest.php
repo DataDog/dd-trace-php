@@ -292,7 +292,7 @@ class MysqliTest extends IntegrationTestCase
                     'error.type',
                     'error.stack',
                     Tag::SPAN_KIND,
-                    Tag::COMPONENT => 'mysqli'
+                    Tag::COMPONENT,
                 ]),
         ]);
     }
@@ -303,7 +303,7 @@ class MysqliTest extends IntegrationTestCase
             'out.host' => self::$host,
             'out.port' => self::$port,
             'db.type' => 'mysql',
-            Tag::SPAN_KIND => "client",
+            Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'mysqli'
         ];
     }
