@@ -15,8 +15,19 @@ abstract class IntegrationTestCase extends BaseTestCase
 
     private $errorReportingBefore;
 
+    public static function debug_to_console($data)
+    {
+        $output = $data;
+        if (is_array($output)) {
+            $output = implode(',', $output);
+        }
+
+        echo "<script>console.log('Debug Objects: " . $output . "' );</script>";
+    }
+
     public static function ddSetUpBeforeClass()
     {
+        IntegrationTestCase::debug_to_console("ddsetupbeforeclassIntegrationTestCase");
         parent::ddSetUpBeforeClass();
     }
 
@@ -30,14 +41,6 @@ abstract class IntegrationTestCase extends BaseTestCase
     {
         $this->errorReportingBefore = error_reporting();
         parent::ddSetUp();
-        $integrationDetails = $this->getIntegrationName();
-        call_user_func_array("\\DDTrace\Tests\Common\\SpanAssertion::setIntegrationName", $integrationDetails);
-        SpanChecker::setIntegrationName($integrationDetails[0]);
-    }
-
-    protected function getIntegrationName()
-    {
-        return [SpanAssertion::NOT_TESTED];
     }
 
     protected function ddTearDown()

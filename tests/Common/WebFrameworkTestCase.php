@@ -35,22 +35,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             ini_set('error_log', dirname($index) . '/' . static::ERROR_LOG_NAME);
         }
         parent::ddSetUpBeforeClass();
-        static::setIntegrationName();
         static::setUpWebServer();
-    }
-
-    public static function setIntegrationName()
-    {
-        $integrationDetails = static::getIntegrationNameStatic();
-        if ($integrationDetails) {
-            call_user_func_array("\\DDTrace\Tests\Common\\SpanAssertion::setIntegrationName", $integrationDetails);
-            SpanChecker::setIntegrationName($integrationDetails[0]);
-        }
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return null;
     }
 
     public static function ddTearDownAfterClass()

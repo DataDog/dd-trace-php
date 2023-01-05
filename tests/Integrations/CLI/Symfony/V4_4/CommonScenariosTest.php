@@ -2,21 +2,12 @@
 
 namespace DDTrace\Tests\Integrations\CLI\Symfony\V4_4;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
 class CommonScenariosTest extends IntegrationTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["symfony"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["symfony"];
-    }
-
     protected static function getConsoleScript()
     {
         return __DIR__ . '/../../../../Frameworks/Symfony/Version_4_4/bin/console';
@@ -38,19 +29,24 @@ class CommonScenariosTest extends IntegrationTestCase
                     'console',
                     'cli',
                     'console'
-                )->withChildren([
+                )->withExactTags([
+                    Tag::COMPONENT => 'symfony',
+                ])->withChildren([
                     SpanAssertion::build(
                         'symfony.console.terminate',
                         'symfony',
                         'cli',
                         'symfony.console.terminate'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'symfony',
+                    ]),
                     SpanAssertion::build(
                         'symfony.console.command.run',
                         'symfony',
                         'cli',
                         'about'
                     )->withExactTags([
+                        Tag::COMPONENT => 'symfony',
                         'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand'
                     ]),
                     SpanAssertion::build(
@@ -58,13 +54,17 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony',
                         'cli',
                         'symfony.console.command'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'symfony',
+                    ]),
                     SpanAssertion::build(
                         'symfony.httpkernel.kernel.boot',
                         'symfony',
                         'web',
                         'App\Kernel'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'symfony',
+                    ]),
                 ]),
             ]
         );

@@ -73,6 +73,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -104,6 +105,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -121,6 +123,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -139,6 +142,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -325,6 +329,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -344,6 +349,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -363,6 +369,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
+                ->withExactTags([
+                    Tag::Component => 'laravel'
+                ])
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
@@ -372,6 +381,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
+                            Tag::Component => 'guzzle'
                         ])
                         ->withChildren([
                             SpanAssertion::exists('curl_exec'),

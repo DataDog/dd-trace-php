@@ -9,16 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class DeprecatedResourceNameTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["lumen", "laravel", ["laravel.view.render"]];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["lumen", "laravel", ["laravel.view.render"]];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_6/public/index.php';
@@ -56,6 +46,7 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'lumen',
                     ])
                     ->withChildren([
                         SpanAssertion::build(
@@ -65,6 +56,7 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                             'simple_route'
                         )->withExactTags([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
+                            Tag::COMPONENT => 'lumen',
                         ]),
                     ]),
             ]

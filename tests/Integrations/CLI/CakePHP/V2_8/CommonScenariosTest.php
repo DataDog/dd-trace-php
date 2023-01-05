@@ -2,16 +2,12 @@
 
 namespace DDTrace\Tests\Integrations\CLI\CakePHP\V2_8;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["cakephp"];
-    }
-
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/CakePHP/Version_2_8/app/Console/cake.php';
@@ -34,7 +30,9 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console'
-            )
+            )->withExactTags([
+                Tag::COMPONENT => 'cakephp',
+            ])
         ]);
     }
 
@@ -48,7 +46,9 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console command_list'
-            )
+            )->withExactTags([
+                Tag::COMPONENT => 'cakephp',
+            ])
         ]);
     }
 

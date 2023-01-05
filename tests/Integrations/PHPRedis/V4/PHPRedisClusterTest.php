@@ -77,6 +77,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 "RedisCluster.close"
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis',
             ]),
         ]);
     }
@@ -100,7 +101,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $this->normalizeRawCommand($method, $rawCommand), Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $this->normalizeRawCommand($method, $rawCommand), Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
     }
 
@@ -146,6 +148,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 "RedisCluster.$method"
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis',
             ]),
         ]);
     }
@@ -191,7 +194,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         $this->assertSame($expected, $redis->get($args[0]));
@@ -327,7 +331,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.mSet"
-            )->withExactTags(['redis.raw_command' => 'mSet k1 v1 k2 v2', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'mSet k1 v1 k2 v2', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -348,7 +353,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.mSetNx"
-            )->withExactTags(['redis.raw_command' => 'mSetNx k1 v1 k2 v2', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'mSetNx k1 v1 k2 v2', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -384,7 +390,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
         $this->assertSame($expected, $result);
     }
@@ -492,7 +499,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         $this->assertSame($expectedResult, $result);
@@ -642,7 +650,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         $this->assertSame($expectedResult, $result);
@@ -882,7 +891,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         if ($expectedResult === self::A_STRING) {
@@ -1050,7 +1060,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         if ($expectedResult === self::A_STRING) {
@@ -1232,7 +1243,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.publish"
-            )->withExactTags(['redis.raw_command' => 'publish ch1 hi', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'publish ch1 hi', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
     }
 
@@ -1251,25 +1263,29 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.multi"
-            )->withExactTags(['redis.raw_command' => 'multi', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'multi', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'phpredis',
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags(['redis.raw_command' => 'set k1 v1', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'set k1 v1', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
             SpanAssertion::build(
                 "RedisCluster.get",
                 'phpredis',
                 'redis',
                 "RedisCluster.get"
-            )->withExactTags(['redis.raw_command' => 'get k1', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'get k1', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
             SpanAssertion::build(
                 "RedisCluster.exec",
                 'phpredis',
                 'redis',
                 "RedisCluster.exec"
-            )->withExactTags(['redis.raw_command' => 'exec', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'exec', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
     }
 
@@ -1301,7 +1317,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $this->normalizeRawCommand($method, $rawCommand), Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $this->normalizeRawCommand($method, $rawCommand), Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
         $this->assertEquals($expectedResult, $result);
     }
@@ -1370,7 +1387,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.dump"
-            )->withExactTags(['redis.raw_command' => 'dump k1', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'dump k1', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
             SpanAssertion::build(
                 "RedisCluster.restore",
                 'phpredis',
@@ -1378,6 +1396,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 "RedisCluster.restore"
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis',
             ]),
         ]);
 
@@ -1415,7 +1434,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         if ($expectedResult === self::A_FLOAT) {
@@ -1490,7 +1510,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xAdd"
-            )->withExactTags(['redis.raw_command' => 'xAdd s1 123-456 k1 v1', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xAdd s1 123-456 k1 v1', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xGroup
@@ -1504,7 +1525,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xGroup"
-            )->withExactTags(['redis.raw_command' => 'xGroup CREATE s1 group1 0', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xGroup CREATE s1 group1 0', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xInfo
@@ -1518,7 +1540,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xInfo"
-            )->withExactTags(['redis.raw_command' => 'xInfo GROUPS s1', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xInfo GROUPS s1', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xLen
@@ -1532,7 +1555,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xLen"
-            )->withExactTags(['redis.raw_command' => 'xLen s1', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xLen s1', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xPending
@@ -1546,7 +1570,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xPending"
-            )->withExactTags(['redis.raw_command' => 'xPending s1 group1', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xPending s1 group1', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xRange
@@ -1560,7 +1585,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xRange"
-            )->withExactTags(['redis.raw_command' => 'xRange s1 - +', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xRange s1 - +', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xRevRange
@@ -1574,7 +1600,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xRevRange"
-            )->withExactTags(['redis.raw_command' => 'xRevRange s1 + -', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xRevRange s1 + -', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xRead
@@ -1588,7 +1615,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xRead"
-            )->withExactTags(['redis.raw_command' => 'xRead s1 $', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xRead s1 $', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xReadGroup
@@ -1602,7 +1630,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xReadGroup"
-            )->withExactTags(['redis.raw_command' => 'xReadGroup group1 consumer1 s1 >', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xReadGroup group1 consumer1 s1 >', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xAck
@@ -1616,7 +1645,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xAck"
-            )->withExactTags(['redis.raw_command' => 'xAck s1 group1 s1 123-456', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xAck s1 group1 s1 123-456', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xClaim
@@ -1630,7 +1660,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xClaim"
-            )->withExactTags(['redis.raw_command' => 'xClaim s1 group1 consumer1 0 s1 123-456', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xClaim s1 group1 consumer1 0 s1 123-456', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xDel
@@ -1644,7 +1675,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xDel"
-            )->withExactTags(['redis.raw_command' => 'xDel s1 123-456', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xDel s1 123-456', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
 
         // xTrim
@@ -1658,7 +1690,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xTrim"
-            )->withExactTags(['redis.raw_command' => 'xTrim s1 0', Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['redis.raw_command' => 'xTrim s1 0', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
         ]);
     }
 
@@ -1783,13 +1816,15 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'redis-cluster_name',
                 'redis',
                 "RedisCluster.__construct"
-            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'redis-cluster_name',
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags(['redis.raw_command' => 'set key value', Tag::SPAN_KIND => 'client'])
+            )->withExactTags(['redis.raw_command' => 'set key value', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis'])
         ]);
 
         $redis->close();
@@ -1814,13 +1849,15 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'redis-redis_integration',
                 'redis',
                 "RedisCluster.__construct"
-            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'redis-redis_integration',
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags(['redis.raw_command' => 'set key value', Tag::SPAN_KIND => 'client'])
+            )->withExactTags(['redis.raw_command' => 'set key value', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis'])
         ]);
 
         $redis->close();
@@ -1846,13 +1883,15 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 $serviceName,
                 'redis',
                 "RedisCluster.__construct"
-            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client']),
+            )->withExactTags(['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis']),
             SpanAssertion::build(
                 "RedisCluster.set",
                 $serviceName,
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags(['redis.raw_command' => 'set key value', Tag::SPAN_KIND => 'client'])
+            )->withExactTags(['redis.raw_command' => 'set key value', Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis'])
         ]);
 
         $redis->close();

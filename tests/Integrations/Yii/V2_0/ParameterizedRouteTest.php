@@ -10,16 +10,6 @@ use DDTrace\Type;
 
 class ParameterizedRouteTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["yii"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["yii"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Yii/Version_2_0/web/index.php';
@@ -53,26 +43,33 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/homes/:state/:city/:neighborhood',
                     'app.endpoint' => 'app\controllers\HomesController::actionView',
-                    Tag::SPAN_KIND => 'server',
+                    Tag::SPAN_KIND => "server",
+                    Tag::COMPONENT => "yii",
                 ])->withChildren([
                     SpanAssertion::build(
                         'yii\web\Application.run',
                         'yii2_test_app',
                         Type::WEB_SERVLET,
                         'yii\web\Application.run'
-                    )->withChildren([
+                    )->withExactTags([
+                        Tag::COMPONENT => "yii",
+                    ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.runAction',
                             'yii2_test_app',
                             Type::WEB_SERVLET,
                             'homes/view'
-                        )->withChildren([
+                        )->withExactTags([
+                            Tag::COMPONENT => "yii",
+                        ])->withChildren([
                             SpanAssertion::build(
                                 'app\controllers\HomesController.runAction',
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'view'
-                            )
+                            )->withExactTags([
+                                Tag::COMPONENT => "yii",
+                            ])
                         ])
                     ])
                 ])

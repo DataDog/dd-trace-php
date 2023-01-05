@@ -12,16 +12,6 @@ class EloquentTest extends WebFrameworkTestCase
 {
     use SpanAssertionTrait;
 
-    protected function getIntegrationName()
-    {
-        return ["eloquent"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["eloquent"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
@@ -47,6 +37,7 @@ class EloquentTest extends WebFrameworkTestCase
             'App\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
+            Tag::COMPONENT => 'eloquent',
         ]));
     }
 
@@ -64,6 +55,7 @@ class EloquentTest extends WebFrameworkTestCase
             'App\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
+            Tag::COMPONENT => 'eloquent',
         ]));
     }
 
@@ -81,6 +73,7 @@ class EloquentTest extends WebFrameworkTestCase
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
             'sql.query' => 'select * from `users`',
+            Tag::COMPONENT => 'eloquent',
         ]));
     }
 
@@ -97,6 +90,7 @@ class EloquentTest extends WebFrameworkTestCase
             'App\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
+            Tag::COMPONENT => 'eloquent',
         ]));
     }
 
@@ -114,6 +108,7 @@ class EloquentTest extends WebFrameworkTestCase
             'App\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
+            Tag::COMPONENT => 'eloquent',
         ]));
     }
 
@@ -131,6 +126,7 @@ class EloquentTest extends WebFrameworkTestCase
             'App\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
+            Tag::COMPONENT => 'eloquent',
         ]));
     }
 

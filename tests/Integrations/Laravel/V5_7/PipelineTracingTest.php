@@ -13,16 +13,6 @@ class PipelineTracingTest extends WebFrameworkTestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
-    protected function getIntegrationName()
-    {
-        return ["laravel"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["laravel"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
@@ -44,7 +34,9 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'laravel',
+                    ]),
                 ]),
         ]);
     }
@@ -65,13 +57,17 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'laravel',
+                    ]),
                     SpanAssertion::build(
                         'laravel.pipeline.pipe',
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'laravel',
+                    ]),
                 ]),
         ]);
     }

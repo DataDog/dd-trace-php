@@ -20,12 +20,6 @@ function array_filter_by_key($fn, array $input)
  */
 final class SpanChecker
 {
-    private static $integrationName;
-
-    public static function setIntegrationName($integrationName)
-    {
-        SpanChecker::$integrationName = $integrationName;
-    }
     /**
      * Asserts a flame graph with parent child relations.
      *
@@ -390,13 +384,22 @@ final class SpanChecker
                 unset($filtered['_dd.p.dm']);
             }
 
-            if (SpanChecker::$integrationName == SpanAssertion::NOT_TESTED) {
-                unset($filtered['component']);
-            }
-
             // http.client_ip is present depending on target SAPI and not helpful here to test
             if (!isset($expectedTags['http.client_ip'])) {
                 unset($filtered['http.client_ip']);
+            }
+            IntegrationTestCase::debug_to_console($expectedTags['component']);
+            IntegrationTestCase::debug_to_console(empty($expectedTags['component']));
+            $first = SpanAssertion::$alternateIntegrationName;
+            IntegrationTestCase::debug_to_console($first);
+            $second = SpanAssertion::$alternateIntegrationName;
+            IntegrationTestCase::debug_to_console($second);
+            if (in_array('component', $expectedTags) && empty($expectedTags['component'])) {
+                if (in_array($exp->getOperationName(), (array) SpanAssertion::$operationNamesToOverrideIntegrationName)) {
+                    $expectedTags['component'] =  SpanAssertion::$alternateIntegrationName;
+                } else {
+                    $expectedTags['component'] =  SpanAssertion::$integrationName;
+                }
             }
             foreach ($expectedTags as $tagName => $tagValue) {
                 TestCase::assertArrayHasKey(
@@ -415,11 +418,10 @@ final class SpanChecker
                     );
                 } else {
                     $actual = $filtered[$tagName];
-                    $integrationName = SpanChecker::$integrationName;
                     TestCase::assertEquals(
                         $tagValue,
                         $actual,
-                        $namePrefix . "Expected tag value for '$tagName' does not match actual value, expected: '$tagValue', actual: '$actual', spanCheckerIntName: '$integrationName'"
+                        $namePrefix . "Expected tag value for '$tagName' does not match actual value, expected: '$tagValue', actual: '$actual'"
                     );
                 }
                 unset($filtered[$tagName]);

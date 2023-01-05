@@ -9,21 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class RouteNameTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["symfony"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["symfony"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["symfony"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_2_3/web/app.php';
@@ -55,6 +40,7 @@ class RouteNameTest extends WebFrameworkTestCase
                 'http.url' => 'http://localhost:' . self::PORT . '/' . ($isApache ? '' : 'app.php'),
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
+                Tag::COMPONENT => 'symfony',
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.boot'),

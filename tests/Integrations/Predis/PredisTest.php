@@ -14,11 +14,6 @@ final class PredisTest extends IntegrationTestCase
     private $host = 'redis_integration';
     private $port = '6379';
 
-    protected function getIntegrationName()
-    {
-        return ["predis"];
-    }
-
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
@@ -181,6 +176,7 @@ final class PredisTest extends IntegrationTestCase
             SpanAssertion::build('Predis.Client.connect', 'redis', 'redis', 'Predis.Client.connect')
                 ->withExactTags([
                     Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'predis',
                 ]),
         ]);
     }
@@ -255,11 +251,13 @@ final class PredisTest extends IntegrationTestCase
 
         if (Versions::phpVersionMatches('5')) {
             $exactTags = [
-                Tag::SPAN_KIND => 'client'
+                Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'predis'
             ];
         } else {
             $exactTags = [
                 Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'predis',
                 'redis.pipeline_length' => '2',
             ];
         }
@@ -343,6 +341,7 @@ final class PredisTest extends IntegrationTestCase
             'out.host' => $this->host,
             'out.port' => $this->port,
             Tag::SPAN_KIND => 'client',
+            Tag::COMPONENT => 'predis',
         ];
     }
 }

@@ -46,6 +46,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'add',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'laravel',
                 ])),
         ]);
     }
@@ -762,6 +763,7 @@ final class MemcachedTest extends IntegrationTestCase
         return [
             'out.host' => self::$host,
             'out.port' => self::$port,
+            Tag::COMPONENT => 'memcached',
         ];
     }
 }

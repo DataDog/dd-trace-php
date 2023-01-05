@@ -9,16 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["cakephp"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["cakephp"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_2_8/app/webroot/index.php';
@@ -63,13 +53,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )
+                        )->withExactTags([
+                            Tag::COMPONENT => 'cakephp',
+                        ])
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -91,7 +84,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        ),
+                        )->withExactTags([
+                            Tag::COMPONENT => 'cakephp',
+                        ]),
                         SpanAssertion::build(
                             'cakephp.view',
                             'cakephp_test_app',
@@ -99,6 +94,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'SimpleView/index.ctp'
                         )->withExactTags([
                             'cakephp.view' => 'SimpleView/index.ctp',
+                            Tag::COMPONENT => 'cakephp',
                         ]),
                     ]),
                 ],
@@ -115,6 +111,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'cakephp',
                     ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError(
@@ -126,7 +123,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExistingTagsNames([
+                        )->withExactTags([
+                            Tag::COMPONENT => 'cakephp',
+                        ])->withExistingTagsNames([
                             'error.stack',
                         ])->setError(null, 'Foo error'),
                         SpanAssertion::build(
@@ -136,6 +135,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'Errors/index.ctp'
                         )->withExactTags([
                             'cakephp.view' => 'Errors/index.ctp',
+                            Tag::COMPONENT => 'cakephp',
                         ]),
                     ]),
                 ],

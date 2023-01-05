@@ -8,11 +8,6 @@ use DDTrace\Tests\Common\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["laravel"];
-    }
-
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/Laravel/Version_8_x/artisan';
@@ -35,7 +30,9 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan'
-            )->withChildren([
+            )->withExactTags([
+                Tag::COMPONENT => 'laravel',
+            ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
                     'Illuminate\Foundation\ProviderRepository::load'
@@ -54,7 +51,9 @@ class CommonScenariosTest extends CLITestCase
                 'artisan_test_app',
                 'cli',
                 'artisan route:list'
-            )->withChildren([
+            )->withExactTags([
+                Tag::COMPONENT => 'laravel',
+            ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
                     'Illuminate\Foundation\ProviderRepository::load'
@@ -74,6 +73,7 @@ class CommonScenariosTest extends CLITestCase
                 'cli',
                 'artisan foo:error'
             )->withExactTags([
+                Tag::COMPONENT => 'laravel',
             ])->withExistingTagsNames([
                 Tag::ERROR_MSG,
                 'error.stack'

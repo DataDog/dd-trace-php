@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -18,11 +19,6 @@ final class PDOTest extends IntegrationTestCase
     const ERROR_QUERY = 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1';
     const ERROR_STATEMENT = 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1';
     // phpcs:enable
-
-    protected function getIntegrationName()
-    {
-        return ["pdo"];
-    }
 
     public static function ddSetUpBeforeClass()
     {
@@ -576,6 +572,7 @@ final class PDOTest extends IntegrationTestCase
             'db.name' => self::MYSQL_DATABASE,
             'db.user' => self::MYSQL_USER,
             'span.kind' => 'client',
+            Tag::COMPONENT => 'pdo'
         ];
     }
 }

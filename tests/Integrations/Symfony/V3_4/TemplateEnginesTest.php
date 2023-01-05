@@ -9,16 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TemplateEnginesTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["symfony"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["symfony"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/index.php';
@@ -43,6 +33,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                 'http.url' => 'http://localhost:9999/alternate_templating',
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
+                Tag::COMPONENT => 'symfony',
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
@@ -57,13 +48,17 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                             'symfony',
                             'web',
                             'AppBundle\Controller\HomeController::indexAction'
-                        )->withChildren([
+                        )->withExactTags([
+                            Tag::COMPONENT => 'symfony',
+                        ])->withChildren([
                             SpanAssertion::build(
                                 'symfony.templating.render',
                                 'symfony',
                                 'web',
                                 'Symfony\Component\Templating\PhpEngine php_template.template.php'
-                            )->withExactTags([]),
+                            )->withExactTags([
+                                Tag::COMPONENT => 'symfony',
+                            ]),
                         ]),
                         SpanAssertion::exists('symfony.kernel.response'),
                         SpanAssertion::exists('symfony.kernel.finish_request'),

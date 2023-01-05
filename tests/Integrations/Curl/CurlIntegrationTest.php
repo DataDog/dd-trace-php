@@ -96,6 +96,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -117,6 +118,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -140,6 +142,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -163,6 +166,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://?:?@httpbin_integration/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -187,6 +191,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -208,6 +213,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
+                ->withExactTags([Tag::Component => 'laravel'])
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
@@ -215,6 +221,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            Tag::Component => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
@@ -236,6 +243,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -258,6 +266,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => '404',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -280,6 +289,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames([Tag::ERROR_MSG])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -304,6 +314,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames([Tag::ERROR_MSG])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -328,6 +339,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/')
@@ -464,6 +476,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -493,6 +506,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://?:?@httpbin_integration/status/200',
                     'http.status_code' => '200',
+                    Tag::Component => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -540,6 +554,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
+                ->withExactTags([Tag::Component => 'laravel'])
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withExactMetrics(['_sampling_priority_v1' => 1])
                 ->withChildren([
@@ -548,6 +563,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            Tag::Component => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),

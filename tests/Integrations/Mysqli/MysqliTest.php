@@ -15,11 +15,6 @@ class MysqliTest extends IntegrationTestCase
     private static $user = 'test';
     private static $password = 'test';
 
-    protected function getIntegrationName()
-    {
-        return ["mysqli"];
-    }
-
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
@@ -211,7 +206,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client'])
+                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli'])
                 ->setTraceAnalyticsCandidate(),
         ]);
     }
@@ -275,7 +270,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client']),
+                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli']),
         ]);
     }
 
@@ -296,7 +291,8 @@ class MysqliTest extends IntegrationTestCase
                     Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
-                    Tag::SPAN_KIND,
+                    Tag::SPAN_KIND,,
+                    Tag::COMPONENT => 'mysqli'
                 ]),
         ]);
     }
@@ -308,6 +304,7 @@ class MysqliTest extends IntegrationTestCase
             'out.port' => self::$port,
             'db.type' => 'mysql',
             Tag::SPAN_KIND => "client",
+            Tag::COMPONENT => 'mysqli'
         ];
     }
 

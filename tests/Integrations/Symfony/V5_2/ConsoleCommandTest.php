@@ -2,21 +2,12 @@
 
 namespace DDTrace\Tests\Integrations\Symfony\V5_2;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
 class ConsoleCommandTest extends IntegrationTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["symfony"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["symfony"];
-    }
-
     protected static function getConsoleScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_5_2/bin/console';
@@ -30,10 +21,14 @@ class ConsoleCommandTest extends IntegrationTestCase
             $traces,
             [
                 SpanAssertion::build('console', 'console', 'cli', 'console')
+                    ->withExactTags([
+                        Tag::COMPONENT => 'symfony',
+                    ])
                     ->withChildren([
                         SpanAssertion::build('symfony.console.command.run', 'symfony', 'cli', 'about')
                             ->withExactTags([
                                 'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
+                                Tag::COMPONENT => 'symfony',
                             ]),
                         SpanAssertion::exists('symfony.console.command', 'symfony.console.command'),
                         SpanAssertion::exists('symfony.console.terminate', 'symfony.console.terminate'),

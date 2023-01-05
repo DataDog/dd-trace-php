@@ -19,11 +19,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
 
-    protected function getIntegrationName()
-    {
-        return ['guzzle', 'laravel', ['web.request']];
-    }
-
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
@@ -66,6 +61,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -96,6 +92,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
@@ -105,6 +102,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.url' => 'http://example.com',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
+                            Tag::Component => 'guzzle'
                         ]),
                 ])
         ]);
@@ -123,6 +121,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -141,6 +140,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -289,6 +289,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -339,6 +340,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -358,6 +360,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::Component => 'guzzle'
                 ]),
         ]);
     }
@@ -377,6 +380,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
+                ->withExactTags([
+                    Tag::Component => 'laravel'
+                ])
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
@@ -386,6 +392,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
+                            Tag::Component => 'guzzle'
                         ])
                         ->withChildren([
                             SpanAssertion::exists('GuzzleHttp\Client.transfer')

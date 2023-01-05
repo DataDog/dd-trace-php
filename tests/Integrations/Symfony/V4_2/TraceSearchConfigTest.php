@@ -9,16 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["symfony"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["symfony"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_4_2/public/index.php';
@@ -56,6 +46,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'http.url' => 'http://localhost:9999/simple',
                     'http.status_code' => '200',
                     Tag::SPAN_KIND => 'server',
+                    Tag::COMPONENT => 'symfony',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
                     '_sampling_priority_v1' => 1,
@@ -75,7 +66,9 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                                     'symfony',
                                     'web',
                                     'App\Controller\CommonScenariosController::simpleAction'
-                                ),
+                                )->withExactTags([
+                                    Tag::COMPONENT => 'symfony',
+                                ]),
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                             ]),
