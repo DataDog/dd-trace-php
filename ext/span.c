@@ -371,8 +371,9 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
         // It's impossible to fuse two simple linked lists without walking one to its end and updating its last ->next pointer.
         // Having a circular structure just allows to splice the one into the other at an arbitrary location
         if (stack->closed_ring_flush) {
+            ddtrace_span_data *next = stack->closed_ring->next;
             stack->closed_ring->next = stack->closed_ring_flush->next;
-            stack->closed_ring_flush->next = stack->closed_ring;
+            stack->closed_ring_flush->next = next;
         } else {
             stack->closed_ring_flush = stack->closed_ring;
 
@@ -560,6 +561,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 
     if (stack->root_span == span) {
         ddtrace_switch_span_stack(stack->parent_stack);
+        stack->root_span = NULL;
     } else if (!stack->active || stack->active->stack != stack) {
         dd_close_entry_span_of_stack(stack);
     }

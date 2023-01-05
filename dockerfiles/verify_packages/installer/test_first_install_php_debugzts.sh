@@ -29,10 +29,10 @@ else
 fi
 
 output_last_line=$(echo "${output}" | tail -1)
-if [ -z "${output_last_line##*ZTS DEBUG*}" ]; then
-    printf "Ok: output contains text 'ZTS DEBUG'\n"
+if [ -z "${output_last_line##*debug-zts*}" ]; then
+    printf "Ok: output contains text 'debug-zts'\n"
 else
-    printf "Error: Output does not contain text 'ZTS DEBUG'. Output is\n---\n${output_last_line}\n---\n"
+    printf "Error: Output does not contain text 'debug-zts'. Output is\n---\n${output_last_line}\n---\n"
     exit 1
 fi
 
