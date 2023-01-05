@@ -1684,7 +1684,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.restore"
             )->withExactTags([
-                Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'phpredis',,
+                Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'phpredis',
             ]),
         ]);
 

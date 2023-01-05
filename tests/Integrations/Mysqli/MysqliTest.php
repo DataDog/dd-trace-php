@@ -291,7 +291,7 @@ class MysqliTest extends IntegrationTestCase
                     Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
-                    Tag::SPAN_KIND,,
+                    Tag::SPAN_KIND,
                     Tag::COMPONENT => 'mysqli'
                 ]),
         ]);
