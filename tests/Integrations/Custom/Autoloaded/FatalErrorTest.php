@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Custom\Autoloaded;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -42,6 +43,7 @@ final class FatalErrorTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:' . self::PORT . '/fatal',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'laravel',
                 ])
                 ->setError("E_ERROR", "Intentional E_ERROR")
                 ->withExistingTagsNames(['error.stack']),

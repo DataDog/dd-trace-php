@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Custom\NotAutoloaded;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 
@@ -37,6 +38,7 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:' . self::PORT . '/',
                     'http.status_code' => 200,
+                    Tag::COMPONENT => 'laravel',
                 ]),
             ]
         );
