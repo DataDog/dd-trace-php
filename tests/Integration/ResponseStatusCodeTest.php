@@ -13,6 +13,11 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
         return ["laravel"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["laravel"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/ResponseStatusCodeTest_files/index.php';

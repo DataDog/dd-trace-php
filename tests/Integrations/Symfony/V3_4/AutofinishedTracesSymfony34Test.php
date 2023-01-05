@@ -14,6 +14,11 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
         return ["symfony"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["symfony"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/index.php';

@@ -14,6 +14,11 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
         return "zendframework";
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["zendframework"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/ZendFramework/Version_1_12/public/index.php';

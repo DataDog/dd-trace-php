@@ -12,6 +12,11 @@ class CommonScenariosTest extends IntegrationTestCase
         return ["symfony"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["symfony"];
+    }
+
     protected static function getConsoleScript()
     {
         return __DIR__ . '/../../../../Frameworks/Symfony/Version_4_4/bin/console';

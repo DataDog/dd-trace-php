@@ -15,6 +15,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return ["wordpress"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["wordpress"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_5_9/index.php';

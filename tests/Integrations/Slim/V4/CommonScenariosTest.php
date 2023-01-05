@@ -14,6 +14,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return ["slim"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["slim"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Slim/Version_4/public/index.php';

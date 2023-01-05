@@ -15,6 +15,11 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
         return ["yii"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["yii"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Yii/Version_2_0/web/index.php';

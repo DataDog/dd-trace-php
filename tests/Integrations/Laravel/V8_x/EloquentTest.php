@@ -19,6 +19,11 @@ class EloquentTest extends WebFrameworkTestCase
         return "eloquent";
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return "eloquent";
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';

@@ -14,6 +14,16 @@ class RouteNameTest extends WebFrameworkTestCase
         return ["symfony"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["symfony"];
+    }
+
+    protected static function getIntegrationNameStatic()
+    {
+        return ["symfony"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_2_3/web/app.php';

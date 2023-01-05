@@ -14,6 +14,11 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
         return ["lumen", "laravel", ["laravel.view.render"]];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["lumen", "laravel", ["laravel.view.render"]];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_6/public/index.php';

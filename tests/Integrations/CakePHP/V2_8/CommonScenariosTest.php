@@ -14,6 +14,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return ["cakephp"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["cakephp"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_2_8/app/webroot/index.php';

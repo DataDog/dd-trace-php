@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integrations\CodeIgniter\V2_2;
 
 use DDTrace\Tag;
+use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -12,6 +13,12 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected function getIntegrationName()
     {
+        return ["codeigniter"];
+    }
+
+    protected static function getIntegrationNameStatic()
+    {
+        IntegrationTestCase::debug_to_console("getIntegrationNameCodeIgniter");
         return ["codeigniter"];
     }
 

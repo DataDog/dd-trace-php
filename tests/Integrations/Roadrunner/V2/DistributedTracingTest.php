@@ -12,6 +12,11 @@ class DistributedTracingTest extends WebFrameworkTestCase
         return ["roadrunner"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["roadrunner"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Roadrunner/Version_2/worker.php';

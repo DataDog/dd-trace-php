@@ -15,6 +15,11 @@ final class NetteTest extends WebFrameworkTestCase
         return ["nette"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["nette"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Nette/Version_3_0/www/index.php';

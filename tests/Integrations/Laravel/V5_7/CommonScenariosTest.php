@@ -14,6 +14,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return ["laravel"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["laravel"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';

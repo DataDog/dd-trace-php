@@ -14,6 +14,11 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
         return ["symfony"];
     }
 
+    protected static function getIntegrationNameStatic()
+    {
+        return ["symfony"];
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_4_2/public/index.php';
