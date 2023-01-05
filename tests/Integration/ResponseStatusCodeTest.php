@@ -8,16 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class ResponseStatusCodeTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["laravel"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["laravel"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/ResponseStatusCodeTest_files/index.php';

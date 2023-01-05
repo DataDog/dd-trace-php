@@ -17,10 +17,6 @@ final class MemcachedTest extends IntegrationTestCase
     private static $host = 'memcached_integration';
     private static $port = '11211';
 
-    protected function getIntegrationName()
-    {
-        return ["memcached"];
-    }
 
     protected function ddSetUp()
     {

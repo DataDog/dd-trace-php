@@ -9,16 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["lumen", "laravel", ["laravel.view.render"]];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["lumen", "laravel", ["laravel.view.render"]];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_8/public/index.php';

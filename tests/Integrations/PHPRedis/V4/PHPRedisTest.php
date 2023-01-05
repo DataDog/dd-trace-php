@@ -27,12 +27,6 @@ class PHPRedisTest extends IntegrationTestCase
     /** Redis */
     private $redis;
     private $redisSecondInstance;
-
-    protected function getIntegrationName()
-    {
-        return ["phpredis"];
-    }
-
     public function ddSetUp()
     {
         parent::ddSetUp();

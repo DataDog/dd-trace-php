@@ -15,19 +15,8 @@ abstract class IntegrationTestCase extends BaseTestCase
 
     private $errorReportingBefore;
 
-    public static function debug_to_console($data)
-    {
-        $output = $data;
-        if (is_array($output)) {
-            $output = implode(',', $output);
-        }
-
-        echo "<script>console.log('Debug Objects: " . $output . "' );</script>";
-    }
-
     public static function ddSetUpBeforeClass()
     {
-        IntegrationTestCase::debug_to_console("ddsetupbeforeclassIntegrationTestCase");
         parent::ddSetUpBeforeClass();
     }
 

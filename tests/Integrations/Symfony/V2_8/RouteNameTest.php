@@ -9,16 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class RouteNameTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["symfony"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["symfony"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_2_8/web/app.php';

@@ -9,11 +9,6 @@ use PHPUnit\Framework\TestCase;
 
 final class DeferredLoadingTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["PDO"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/index.php';

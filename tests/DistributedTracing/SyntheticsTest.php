@@ -8,11 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class SyntheticsTest extends WebFrameworkTestCase
 {
-    protected function getIntegrationName()
-    {
-        return ["laravel"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../Frameworks/Custom/Version_Not_Autoloaded/index.php';
@@ -61,6 +56,7 @@ class SyntheticsTest extends WebFrameworkTestCase
                 'http.url' => 'http://localhost:9999/index.php',
                 'http.status_code' => '200',
                 '_dd.origin' => 'synthetics-browser',
+                Tag::COMPONENT => 'laravel',
             ])->withExactMetrics([
                 '_sampling_priority_v1' => 1,
             ])

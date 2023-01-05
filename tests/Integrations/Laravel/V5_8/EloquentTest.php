@@ -14,16 +14,6 @@ class EloquentTest extends WebFrameworkTestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
-    protected function getIntegrationName()
-    {
-        return ["eloquent"];
-    }
-
-    protected static function getIntegrationNameStatic()
-    {
-        return ["eloquent"];
-    }
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_8/public/index.php';

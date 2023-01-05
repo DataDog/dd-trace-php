@@ -383,23 +383,9 @@ final class SpanChecker
             if (!isset($expectedTags['_dd.p.dm'])) {
                 unset($filtered['_dd.p.dm']);
             }
-
             // http.client_ip is present depending on target SAPI and not helpful here to test
             if (!isset($expectedTags['http.client_ip'])) {
                 unset($filtered['http.client_ip']);
-            }
-            IntegrationTestCase::debug_to_console($expectedTags['component']);
-            IntegrationTestCase::debug_to_console(empty($expectedTags['component']));
-            $first = SpanAssertion::$alternateIntegrationName;
-            IntegrationTestCase::debug_to_console($first);
-            $second = SpanAssertion::$alternateIntegrationName;
-            IntegrationTestCase::debug_to_console($second);
-            if (in_array('component', $expectedTags) && empty($expectedTags['component'])) {
-                if (in_array($exp->getOperationName(), (array) SpanAssertion::$operationNamesToOverrideIntegrationName)) {
-                    $expectedTags['component'] =  SpanAssertion::$alternateIntegrationName;
-                } else {
-                    $expectedTags['component'] =  SpanAssertion::$integrationName;
-                }
             }
             foreach ($expectedTags as $tagName => $tagValue) {
                 TestCase::assertArrayHasKey(
