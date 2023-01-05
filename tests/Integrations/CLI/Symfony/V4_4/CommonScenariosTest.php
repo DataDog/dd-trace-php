@@ -30,7 +30,7 @@ class CommonScenariosTest extends IntegrationTestCase
                     'cli',
                     'console'
                 )->withExactTags([
-                    Tag::COMPONENT => 'symfony',
+                    Tag::COMPONENT => 'symfony'
                 ])->withChildren([
                     SpanAssertion::build(
                         'symfony.console.terminate',

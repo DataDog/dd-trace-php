@@ -386,6 +386,7 @@ class SymfonyIntegration extends Integration
 
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->meta['symfony.route.action'] = $action;
+        $requestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
         return true;
     }

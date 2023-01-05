@@ -165,7 +165,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'symfony',
                                             'web',
                                             'Symfony\Bundle\TwigBundle\Controller\ExceptionController::showAction'
-                                        )->withChildren([
+                                        )->withExactTags([
+                                            Tag::COMPONENT => 'symfony',
+                                        ])->withChildren([
                                             SpanAssertion::build(
                                                 'symfony.templating.render',
                                                 'symfony',

@@ -53,7 +53,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
-                        TAG::COMPONENT => 'lumen'
+                        TAG::COMPONENT => 'lumen',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Laravel\Lumen\Application.handleFoundRoute',
@@ -62,7 +62,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'simple_route'
                         )->withExactTags([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
-                            TAG::COMPONENT => 'lumen'
+                            TAG::COMPONENT => 'lumen',
                         ]),
                     ]),
                 ],
@@ -78,7 +78,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
-                        TAG::COMPONENT => 'lumen'
+                        TAG::COMPONENT => 'lumen',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Laravel\Lumen\Application.handleFoundRoute',
@@ -87,6 +87,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'Laravel\Lumen\Application.handleFoundRoute'
                         )->withExactTags([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
+                            TAG::COMPONENT => 'lumen',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'laravel.view.render',
@@ -94,7 +95,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                                 'web',
                                 'simple_view'
                             )->withExactTags([
-                                TAG::COMPONENT => 'laravel'
+                                TAG::COMPONENT => 'laravel',
                             ])->withChildren([
                                 SpanAssertion::build(
                                     'lumen.view',
@@ -102,7 +103,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                                     'web',
                                     '*/resources/views/simple_view.blade.php'
                                 )->withExactTags([
-                                    TAG::COMPONENT => 'laravel'
+                                    TAG::COMPONENT => 'laravel',
                                 ]),
                             ]),
                         ]),
