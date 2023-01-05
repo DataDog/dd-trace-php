@@ -21,7 +21,7 @@ class EloquentTest extends WebFrameworkTestCase
 
     protected static function getIntegrationNameStatic()
     {
-        return "eloquent";
+        return ["eloquent"];
     }
 
     protected static function getAppIndexScript()

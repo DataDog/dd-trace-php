@@ -415,10 +415,11 @@ final class SpanChecker
                     );
                 } else {
                     $actual = $filtered[$tagName];
+                    $integrationName = SpanChecker::$integrationName;
                     TestCase::assertEquals(
                         $tagValue,
                         $actual,
-                        $namePrefix . "Expected tag value for '$tagName' does not match actual value, expected: '$tagValue', actual: '$actual'"
+                        $namePrefix . "Expected tag value for '$tagName' does not match actual value, expected: '$tagValue', actual: '$actual', spanCheckerIntName: '$integrationName'"
                     );
                 }
                 unset($filtered[$tagName]);
