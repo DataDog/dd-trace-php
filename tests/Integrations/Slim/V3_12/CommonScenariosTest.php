@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Slim\V3_12;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -52,6 +53,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:' . self::PORT . '/simple',
                             'http.status_code' => '200',
+                            Tag::SPAN_KIND => 'server',
                         ]),
                     ],
                     'A simple GET request with a view' => [
@@ -64,6 +66,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:' . self::PORT . '/simple_view',
                             'http.status_code' => '200',
+                            Tag::SPAN_KIND => 'server',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'slim.view',
@@ -85,6 +88,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:' . self::PORT . '/error',
                             'http.status_code' => '500',
+                            Tag::SPAN_KIND => 'server',
                         ])->setError(null, null /* On PHP 5.6 slim error messages are not traced on sandboxed */),
                     ],
                 ]
@@ -103,6 +107,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                             'http.status_code' => '200',
+                            Tag::SPAN_KIND => 'server',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'slim.route.controller',
@@ -123,6 +128,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                             'http.status_code' => '200',
+                            Tag::SPAN_KIND => 'server',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'slim.route.controller',
@@ -152,6 +158,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                             'http.status_code' => '500',
+                            Tag::SPAN_KIND => 'server',
                         ])->setError(null, null)
                             ->withChildren([
                                 SpanAssertion::build(
@@ -160,7 +167,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     'web',
                                     'Closure::__invoke'
                                 )->withExistingTagsNames([
-                                    'error.stack'
+                                    'error.stack',
                                 ])->setError(null, 'Foo error')
                             ]),
                     ],

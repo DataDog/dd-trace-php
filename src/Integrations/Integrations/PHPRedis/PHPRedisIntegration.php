@@ -37,6 +37,7 @@ class PHPRedisIntegration extends Integration
             $span->meta[Tag::TARGET_PORT] = isset($args[1]) && \is_numeric($args[1]) ?
                 $args[1] :
                 PHPRedisIntegration::DEFAULT_PORT;
+            $span->meta[Tag::SPAN_KIND] = 'client';
 
             // Service name
             if (empty($hostOrUDS) || !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
@@ -316,6 +317,7 @@ class PHPRedisIntegration extends Integration
     {
         $span->service = ObjectKVStore::get($instance, 'service', 'phpredis');
         $span->type = Type::REDIS;
+        $span->meta[Tag::SPAN_KIND] = 'client';
         if (null !== $method) {
             // method names for internal functions are lowered so we need to explitly set them if we want to have the
             // proper case.

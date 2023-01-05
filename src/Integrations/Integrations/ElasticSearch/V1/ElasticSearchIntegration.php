@@ -105,6 +105,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = 'performRequest';
             $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
+            $span->meta[Tag::SPAN_KIND] = 'client';
 
             try {
                 $span->meta[Tag::ELASTICSEARCH_URL] = $this->getURI();
@@ -123,6 +124,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = 'performRequest';
             $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
+            $span->meta[Tag::SPAN_KIND] = 'client';
 
             $span->meta[Tag::ELASTICSEARCH_URL] = $args[1];
             $span->meta[Tag::ELASTICSEARCH_METHOD] = $args[0];
@@ -163,6 +165,7 @@ class ElasticSearchIntegration extends Integration
                         $integration->addTraceAnalyticsIfEnabled($span);
                     }
 
+                    $span->meta[Tag::SPAN_KIND] = 'client';
                     $span->service = ElasticSearchIntegration::NAME;
                     $span->type = Type::ELASTICSEARCH;
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);

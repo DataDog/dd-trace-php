@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Symfony\V3_4;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -51,6 +52,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                             SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
@@ -85,6 +87,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
                     ])->withChildren([
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                             SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
@@ -128,6 +131,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                             'http.status_code' => '500',
+                            Tag::SPAN_KIND => 'server',
                         ])
                         ->setError('Exception', 'An exception occurred')
                         ->withExistingTagsNames(['error.stack'])
@@ -179,6 +183,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
                             'http.status_code' => '404',
+                            Tag::SPAN_KIND => 'server',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\WordPress\V4_8;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -104,6 +105,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => "server",
                     ])->withChildren($children),
                 ],
                 'A simple GET request with a view' => [
@@ -116,6 +118,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => "server",
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),
                         SpanAssertion::exists('WP.main')
@@ -226,6 +229,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         // WordPress doesn't appear to automatically set the proper error code
                         'http.status_code' => '200',
+                        Tag::SPAN_KIND => "server",
                     ])
                     ->setError("Exception", "Uncaught Exception: Oops! in %s:%d")
                     ->withExistingTagsNames(['error.stack'])

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V5_8;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -45,6 +46,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
+                        TAG::SPAN_KIND => 'server',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
