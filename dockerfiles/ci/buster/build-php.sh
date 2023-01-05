@@ -56,6 +56,8 @@ ${PHP_SRC_DIR}/configure \
     --host=$HOST_ARCH-linux-gnu \
     $(if [[ $INSTALL_VERSION == *debug* ]]; then echo --enable-debug; fi) \
     $(if [[ $INSTALL_VERSION == *zts* ]]; then echo --enable$(if grep -q 'maintainer-zts' ${PHP_SRC_DIR}/configure; then echo "-maintainer"; fi)-zts; fi) \
+    `# https://externals.io/message/118859` \
+    $(if [[ $INSTALL_VERSION == *zts* ]]; then echo --disable-zend-signals; fi) \
     --prefix=${INSTALL_DIR} \
     --with-config-file-path=${INSTALL_DIR} \
     --with-config-file-scan-dir=${INSTALL_DIR}/conf.d

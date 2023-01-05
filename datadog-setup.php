@@ -198,7 +198,7 @@ function install($options)
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Profiling
-        $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling.so";
+        $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling$extensionSuffix.so";
         $shouldInstallProfiling = file_exists($profilingExtensionRealPath);
 
         if ($shouldInstallProfiling) {
