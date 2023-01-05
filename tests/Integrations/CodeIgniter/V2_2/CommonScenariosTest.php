@@ -18,7 +18,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 
     protected static function getIntegrationNameStatic()
     {
-        IntegrationTestCase::debug_to_console("getIntegrationNameCodeIgniter");
         return ["codeigniter"];
     }
 
