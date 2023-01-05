@@ -2147,6 +2147,7 @@ class PHPRedisTest extends IntegrationTestCase
             ->withExactTags([
                 'out.host' => 'non-existing-host',
                 'out.port' => $this->port,
+                Tag::COMPONENT => 'phpredis'
             ]),
         ]);
     }
@@ -2201,13 +2202,18 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.set"
-            )->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
+            )->withExactTags([
+                Tag::COMPONENT => 'phpredis'
+            ])
+            ->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
             SpanAssertion::build(
                 "Redis.get",
                 'phpredis',
                 'redis',
                 "Redis.get"
-            )->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
+            )->withExactTags([
+                Tag::COMPONENT => 'phpredis'
+            ])->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
         ]);
     }
 
@@ -2225,13 +2231,17 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.set"
-            )->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
+            )->withExactTags([
+                Tag::COMPONENT => 'phpredis'
+            ])->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
             SpanAssertion::build(
                 "Redis.get",
                 'phpredis',
                 'redis',
                 "Redis.get"
-            )->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
+            )->withExactTags([
+                Tag::COMPONENT => 'phpredis'
+            ])->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
         ]);
     }
 

@@ -48,7 +48,9 @@ class NoCIControllertTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
                         'Health_check.ping'
-                    )
+                    )->withExactTags([
+                        Tag::COMPONENT => 'codeigniter',
+                    ])
                 ]),
             ]
         );

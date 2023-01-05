@@ -73,7 +73,6 @@ class PHPRedisClusterTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis',
-                Tag::COMPONENT => 'phpredis',
             ])
         ]);
     }
@@ -98,7 +97,6 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'redis',
                 "RedisCluster.$method"
             )->withExactTags([Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'phpredis',
                 Tag::COMPONENT => 'phpredis', 'redis.raw_command' => $this->normalizeRawCommand($method, $rawCommand)]),
         ]);
     }
@@ -1489,13 +1487,17 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.set"
-            )->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
+            )->withExactTags([
+                Tag::COMPONENT => 'phpredis',
+            ])->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
             SpanAssertion::build(
                 "RedisCluster.get",
                 'phpredis',
                 'redis',
                 "RedisCluster.get"
-            )->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
+            )->withExactTags([
+                Tag::COMPONENT => 'phpredis',
+            ])->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
         ]);
     }
 
@@ -1513,13 +1515,17 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.set"
-            )->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
+            )->withExactTags([
+                Tag::COMPONENT => 'phpredis',
+            ])->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
             SpanAssertion::build(
                 "RedisCluster.get",
                 'phpredis',
                 'redis',
                 "RedisCluster.get"
-            )->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
+            )->withExactTags([
+                Tag::COMPONENT => 'phpredis',
+            ])->withExistingTagsNames(['redis.raw_command', Tag::SPAN_KIND]),
         ]);
     }
 

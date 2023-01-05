@@ -138,7 +138,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
                         ->withExactTags([
                             'http.method' => 'GET',
-                            Tag::COMPONENT => 'memcached',
                         ]),
                 ]),
         ]);
@@ -215,7 +214,6 @@ class ComposerInteroperabilityTest extends BaseTestCase
                     SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
                         ->withExactTags([
                             'http.method' => 'GET',
-                            Tag::COMPONENT => 'memcached',
                         ]),
                 ]),
         ]);
