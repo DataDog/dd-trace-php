@@ -198,7 +198,9 @@ function install($options)
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Profiling
+        // phpcs:disable Generic.Files.LineLength.TooLong
         $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling$extensionSuffix.so";
+        // phpcs:enable Generic.Files.LineLength.TooLong
         $shouldInstallProfiling = file_exists($profilingExtensionRealPath);
 
         if ($shouldInstallProfiling) {

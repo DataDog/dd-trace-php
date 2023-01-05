@@ -267,6 +267,7 @@ commands:
                   bash -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
               tail -F /tmp/docker.out | grep -Em1 'Started|Error response from daemon'
               if ! grep -q "Error response from daemon" /tmp/docker.out; then
+                sleep 1 # docker ps race condition?!
                 container_name=$(docker ps | grep "$image" | awk '{ print $NF }')
                 [[ -z $container_name ]]
               fi
