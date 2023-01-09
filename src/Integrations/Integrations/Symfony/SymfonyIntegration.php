@@ -123,7 +123,7 @@ class SymfonyIntegration extends Integration
         /** @var SpanData $symfonyRequestSpan */
         $this->symfonyRequestSpan = $rootSpan;
         $this->addTraceAnalyticsIfEnabled($rootSpan);
-        # $this->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+        // $this->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
         if (
             defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
