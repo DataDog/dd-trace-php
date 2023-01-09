@@ -550,7 +550,8 @@ static void _extract_dd_multiple_ip_headers(
 
 static void _dd_http_client_ip(zend_array *meta_ht, zval *_server)
 {
-    if (zend_hash_exists(meta_ht, _dd_tag_http_client_ip_zstr)) {
+    if (zend_hash_exists(meta_ht, _dd_tag_http_client_ip_zstr) ||
+        zend_hash_exists(meta_ht, _dd_multiple_ip_headers)) {
         return;
     }
 
