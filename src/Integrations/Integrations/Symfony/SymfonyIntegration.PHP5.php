@@ -312,7 +312,7 @@ class SymfonyIntegration extends Integration
                 if ($integration->symfonyRequestSpan) {
                     if (count($resourceParts) > 0) {
                         $integration->symfonyRequestSpan->resource = \implode(' ', $resourceParts);
-                        $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                        // $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                     }
                 }
 
@@ -349,6 +349,6 @@ class SymfonyIntegration extends Integration
 
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->meta['symfony.route.action'] = $action;
-        $requestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+        // $requestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
     }
 }

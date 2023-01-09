@@ -106,7 +106,7 @@ class SymfonyIntegration extends Integration
                             return false;
                         }
                         $span->name = 'symfony.console.command.run';
-                        $span->resource = SymfonyIntegration::NAME ?: $span->name;
+                        $span->resource = $this->getName() ?: $span->name;
                         $span->service = \ddtrace_config_app_name('symfony');
                         $span->type = Type::CLI;
                         $span->meta['symfony.console.command.class'] = $scope;
@@ -123,7 +123,7 @@ class SymfonyIntegration extends Integration
         /** @var SpanData $symfonyRequestSpan */
         $this->symfonyRequestSpan = $rootSpan;
         $this->addTraceAnalyticsIfEnabled($rootSpan);
-        $this->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+        # $this->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
         if (
             defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
@@ -349,7 +349,8 @@ class SymfonyIntegration extends Integration
                 if ($integration->symfonyRequestSpan) {
                     if (count($resourceParts) > 0) {
                         $integration->symfonyRequestSpan->resource = \implode(' ', $resourceParts);
-                        $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                        
+                        // $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                     }
                 }
 
@@ -386,7 +387,7 @@ class SymfonyIntegration extends Integration
 
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->meta['symfony.route.action'] = $action;
-        $requestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+        // $requestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
         return true;
     }

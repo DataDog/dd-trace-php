@@ -22,7 +22,7 @@ class ConsoleCommandTest extends IntegrationTestCase
             [
                 SpanAssertion::build('console', 'console', 'cli', 'console')
                     ->withExactTags([
-                        Tag::COMPONENT => 'symfony',
+                        Tag::COMPONENT => 'laravel',
                     ])
                     ->withChildren([
                         SpanAssertion::build('symfony.console.command.run', 'symfony', 'cli', 'about')
