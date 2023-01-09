@@ -1,6 +1,7 @@
 <?php
 
-const MINIMUM_ACCEPTABLE_REQUESTS = 1000;
+// Reduce to 500 because asan has more overhead
+const MINIMUM_ACCEPTABLE_REQUESTS = 500;
 
 function analyze_web($tmpScenariosFolder)
 {
@@ -115,7 +116,13 @@ function analyze_cli($tmpScenariosFolder)
 
         $absFilePath = $resultsFolder . DIRECTORY_SEPARATOR . $identifier . DIRECTORY_SEPARATOR . 'memory.out';
 
-        $values = array_map('intval', array_filter(explode("\n", file_get_contents($absFilePath))));
+        $values = array_map('intval', array_filter(
+            explode("\n", file_get_contents($absFilePath)),
+            function ($l) {
+                // explicitly allow 0, as these occur when Zend MM is off
+                return $l != "";
+            }
+        ));
 
         if (count($values) < 50) {
             $notEnoughResults[] = $identifier;
@@ -188,7 +195,9 @@ function count_circleci_curl_error_7_failures($scenarioResultsRoot)
     $count += substr_count(file_get_contents($phpFpmLogs), 'cURL error 7');
 
     $apacheLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'apache' . DIRECTORY_SEPARATOR . 'error_log';
-    $count += substr_count(file_get_contents($apacheLogs), 'cURL error 7');
+    if (file_exists($apacheLogs)) {
+        $count += substr_count(file_get_contents($apacheLogs), 'cURL error 7');
+    }
 
     return $count;
 }
@@ -216,13 +225,17 @@ function count_possible_segfaults($scenarioResultsRoot)
      */
     // phpcs:enable Generic.Files.LineLength.TooLong
     $count -= substr_count($phpFpmLogsContent, ' signal 6 (SIGABRT');
+    // With asan shutdown timeouts may be exceeded
+    $count -= substr_count($phpFpmLogsContent, ' signal 9 (SIGKILL');
 
     $apacheLogs = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'apache' . DIRECTORY_SEPARATOR . 'error_log';
-    $apacheLogsContent = file_get_contents($apacheLogs);
-    if (!$apacheLogsContent) {
-        throw new Exception("Error while reading file $apacheLogs");
+    if (file_exists($apacheLogs)) {
+        $apacheLogsContent = file_get_contents($apacheLogs);
+        if (!$apacheLogsContent) {
+            throw new Exception("Error while reading file $apacheLogs");
+        }
+        $count += substr_count($apacheLogsContent, ' signal ');
     }
-    $count += substr_count($apacheLogsContent, ' signal ');
 
     return $count;
 }

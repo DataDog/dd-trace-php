@@ -28,6 +28,31 @@ $return_span = [
     },
 ];
 
+// Otherwise we grow var_dump() graphs exponentially...
+function ensure_bounded_nesting_depth()
+{
+    $span = DDTrace\active_span();
+    $depth = 0;
+    while ($span) {
+        ++$depth;
+        if ($span->parent) {
+            $span = $span->parent;
+        } else {
+            $stack = $span->stack;
+            do {
+                ++$depth;
+                $stack = $stack->parent;
+            } while ($stack && $stack->active);
+            $span = $stack ? $stack->active : null;
+        }
+    }
+
+    if ($depth >= 10) {
+        ini_set("datadog.trace.enabled", "0");
+        ini_set("datadog.trace.enabled", "1");
+    }
+}
+
 function garbage_stack()
 {
     global $return_span;
@@ -85,6 +110,9 @@ function generate_garbage()
     $garbage[] = [
         "foo" => $primary_garbage[array_rand($primary_garbage)],
     ];
+
+    ensure_bounded_nesting_depth();
+
     return $garbage;
 }
 

@@ -8,41 +8,53 @@ CONCURRENT_JOBS := 5
 DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
 VERSIONS := *
+PLATFORMS := *
 ARCHITECTURE := $(shell uname -m)
 
-publish: publish.centos7
+publish: publish.centos7 publish.buster
 
-pull: pull.centos7
+pull: pull.centos7 pull.buster
 
 publish.centos7: \
-	publish.centos7.5.4 \
-	publish.centos7.5.5 \
-	publish.centos7.5.6 \
 	publish.centos7.7.0 \
 	publish.centos7.7.1 \
 	publish.centos7.7.2 \
 	publish.centos7.7.3 \
 	publish.centos7.7.4 \
 	publish.centos7.8.0 \
-	publish.centos7.8.1
+	publish.centos7.8.1 \
+	publish.centos7.8.2
+
+publish.buster: \
+	publish.buster.7.4 \
+	publish.buster.8.0 \
+	publish.buster.8.1 \
+	publish.buster.8.2
 
 publish.centos7.%: build.centos7.%
 	docker buildx bake --push php-$(*)
 
 pull.centos7: \
-	pull.centos7.5.4 \
-	pull.centos7.5.5 \
-	pull.centos7.5.6 \
 	pull.centos7.7.0 \
 	pull.centos7.7.1 \
 	pull.centos7.7.2 \
 	pull.centos7.7.3 \
 	pull.centos7.7.4 \
 	pull.centos7.8.0 \
-	pull.centos7.8.1
+	pull.centos7.8.1 \
+	pull.centos7.8.2
+
+pull.buster: \
+	pull.buster.7.4 \
+	pull.buster.8.0 \
+	pull.buster.8.1 \
+	pull.buster.8.2
 
 pull.centos7.%:
 	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
+
+pull.buster.%:
+	@docker pull $(DOCKER_IMAGE_PREFIX)buster-$(*)-$(DOCKER_IMAGE_VERSION)
 
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
@@ -59,12 +71,12 @@ library.download:
 library.version:
 	@echo "Downloading library version: $(LIBRARY_VERSION)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
-#	For now we only handle centos in randomized tests
+#	For now we only handle glibc in randomized tests
 	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-$(LIBRARY_VERSION)-$(ARCHITECTURE)-linux-gnu.tar.gz"
 	@echo "Done"
 
 generate: clean results_folder
-	@php generate-scenarios.php --seed=$(SEED) --number=$(NUMBER_OF_SCENARIOS) --versions=$(VERSIONS)
+	@php generate-scenarios.php --seed=$(SEED) --number=$(NUMBER_OF_SCENARIOS) --versions=$(VERSIONS) --platforms=$(PLATFORMS)
 	@cp -r $(LIBRARY_DOWNLOAD_PATH) $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
 generate.%: clean results_folder

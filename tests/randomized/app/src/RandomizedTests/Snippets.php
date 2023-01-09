@@ -384,13 +384,18 @@ class Snippets
 
     public function elasticsearchVariant1()
     {
-        $clientBuilder = \Elasticsearch\ClientBuilder::create();
-        $clientBuilder->setHosts([$this->config->elasticSearchHost]);
+        if (PHP_VERSION_ID >= 80200) {
+            $clientBuilder = \Elastic\Elasticsearch\ClientBuilder::create();
+            $clientBuilder->setHosts(["http://{$this->config->elasticSearchHost}:9200"]);
+        } else {
+            $clientBuilder = \Elasticsearch\ClientBuilder::create();
+            $clientBuilder->setHosts([$this->config->elasticSearchHost]);
+        }
         $client = $clientBuilder->build();
 
         $params = [
             'index' => 'my_index',
-            'type' => 'my_type',
+            'type' => '_doc',
             'id' => 'my_id',
             'body' => ['testField' => 'abc']
         ];

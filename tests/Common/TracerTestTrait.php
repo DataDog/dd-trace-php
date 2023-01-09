@@ -144,32 +144,39 @@ trait TracerTestTrait
      */
     public function inWebServer($fn, $rootPath, $envs = [], $inis = [], &$curlInfo = null)
     {
-        $this->resetTracer();
-        $webServer = new WebServer($rootPath, '0.0.0.0', 6666);
-        $webServer->mergeEnvs($envs);
-        $webServer->mergeInis($inis);
-        $webServer->start();
-        $this->resetRequestDumper();
+        $retries = 1;
+        do {
+            $this->resetTracer();
+            $webServer = new WebServer($rootPath, '0.0.0.0', 6666);
+            $webServer->mergeEnvs($envs);
+            $webServer->mergeInis($inis);
+            $webServer->start();
+            $this->resetRequestDumper();
 
-        $fn(function (RequestSpec $request) use ($webServer, &$curlInfo) {
-            if ($request instanceof GetSpec) {
-                $curl = curl_init('http://127.0.0.1:6666' . $request->getPath());
-                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($curl, CURLOPT_HTTPHEADER, $request->getHeaders());
-                $response = curl_exec($curl);
-                if (\is_array($curlInfo)) {
-                    $curlInfo = \array_merge($curlInfo, \curl_getinfo($curl));
+            $fn(function (RequestSpec $request) use ($webServer, &$curlInfo) {
+                if ($request instanceof GetSpec) {
+                    $curl = curl_init('http://127.0.0.1:6666' . $request->getPath());
+                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($curl, CURLOPT_HTTPHEADER, $request->getHeaders());
+                    $response = curl_exec($curl);
+                    if (\is_array($curlInfo)) {
+                        $curlInfo = \array_merge($curlInfo, \curl_getinfo($curl));
+                    }
+                    \curl_close($curl);
+                    $webServer->stop();
+                    return $response;
                 }
-                \curl_close($curl);
+
                 $webServer->stop();
-                return $response;
+                throw new Exception('Spec type not supported.');
+            });
+
+            $traces = $this->parseTracesFromDumpedData();
+
+            if ($traces || $retries-- <= 0) {
+                return $traces;
             }
-
-            $webServer->stop();
-            throw new Exception('Spec type not supported.');
-        });
-
-        return $this->parseTracesFromDumpedData();
+        } while (true);
     }
 
     /**
