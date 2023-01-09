@@ -141,6 +141,8 @@ aliases:
         );
         echo "Resolved httpbin_integration: HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME}";
         echo "export HTTPBIN_HOSTNAME='${HTTPBIN_HOSTNAME}'" >> $BASH_ENV
+        # Avoid intermittent DNS hangs: See https://github.com/curl/curl/issues/593#issuecomment-170146252
+        echo "options single-request" | sudo tee -a /etc/resolv.conf
 
   - &STEP_PERSIST_TO_WORKSPACE
     persist_to_workspace:
@@ -151,6 +153,47 @@ aliases:
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
       path: test-results
+
+  - &STEP_CHECKOUT
+    run:
+      name: Checkout code
+      command: |
+        git config --global gc.auto 0
+
+        export CIRCLE_REPOSITORY_URL="${CIRCLE_REPOSITORY_URL/git@github.com:/https://github.com/}"
+
+        if [ -e '/home/circleci/datadog/.git' ] ; then
+          echo 'Fetching into existing repository'
+          existing_repo='true'
+          cd '/home/circleci/datadog'
+          git remote set-url origin "$CIRCLE_REPOSITORY_URL" || true
+
+          echo 'Fetching from remote repository'
+          if [ -n "$CIRCLE_TAG" ]; then
+            git fetch --force --tags origin
+          else
+            git fetch --force origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH"
+          fi
+        else
+          echo 'Cloning git repository'
+          existing_repo='false'
+          mkdir -p '/home/circleci/datadog'
+          cd '/home/circleci/datadog'
+          git clone --no-checkout "$CIRCLE_REPOSITORY_URL" .
+        fi
+
+        if [ -n "$CIRCLE_TAG" ]; then
+          echo 'Checking out tag'
+          git checkout --force "$CIRCLE_TAG"
+          git reset --hard "$CIRCLE_SHA1"
+        else
+          echo 'Checking out branch'
+          git checkout --force -B "$CIRCLE_BRANCH" "$CIRCLE_SHA1"
+          git --no-pager log --no-color -n 1 --format='HEAD is now at %h %s'
+        fi
+
+        echo 'Updating submodules'
+        git submodule update --init --recursive
 
   - &BARE_DOCKER_MACHINE
     resource_class: << parameters.resource_class >>
@@ -265,7 +308,7 @@ commands:
                   bash -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
               tail -F /tmp/docker.out | grep -Em1 'Started|Error response from daemon'
               if ! grep -q "Error response from daemon" /tmp/docker.out; then
-                container_name=$(docker ps | grep "$image" | awk '{ print $NF }')
+                container_name=$(docker ps | grep "$image" | awk '{ print $NF }' | head -1)
                 [[ -z $container_name ]]
               fi
             do
@@ -657,7 +700,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            find ~/datadog/tests -type f -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -exec cp --parents '{}' /tmp/artifacts \;
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
@@ -780,7 +823,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            find ~/datadog/tests -type f -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -exec cp --parents '{}' /tmp/artifacts \;
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
@@ -1074,6 +1117,8 @@ jobs:
     machine:
       image: ubuntu-2004:202111-02
     resource_class: xlarge
+    environment:
+      - RANDOMIZED_RESTRICT_PLATFORMS: centos7
     parameters:
       batch:
         # Batch is only used to run a number of this jobs in parallel via a testing matrix.
@@ -1093,7 +1138,7 @@ jobs:
           command: make -C tests/randomized library.local
       - run:
           name: Generate scenarios
-          command: make -C tests/randomized generate
+          command: make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS
       - run:
           name: Execute tests
           command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m30s
@@ -1111,6 +1156,34 @@ jobs:
     machine:
       image: ubuntu-2004:202101-01
     resource_class: arm.xlarge
+    environment:
+      - RANDOMIZED_RESTRICT_PLATFORMS: centos7
+    parameters:
+      batch:
+        # Batch is only used to run a number of this jobs in parallel via a testing matrix.
+        type: integer
+    steps: *randomized_tests_steps
+
+  randomized_tests_asan:
+    working_directory: ~/datadog
+    machine:
+      image: ubuntu-2004:202111-02
+    resource_class: xlarge
+    environment:
+      - RANDOMIZED_RESTRICT_PLATFORMS: buster
+    parameters:
+      batch:
+        # Batch is only used to run a number of this jobs in parallel via a testing matrix.
+        type: integer
+    steps: *randomized_tests_steps
+
+  randomized_tests_arm_asan:
+    working_directory: ~/datadog
+    machine:
+      image: ubuntu-2004:202101-01
+    resource_class: arm.xlarge
+    environment:
+      - RANDOMIZED_RESTRICT_PLATFORMS: buster
     parameters:
       batch:
         # Batch is only used to run a number of this jobs in parallel via a testing matrix.
@@ -1543,7 +1616,7 @@ jobs:
           root: '.'
           paths: ['./extensions_*']
 
-  compile_extension:
+  compile_extension_asan:
     working_directory: ~/datadog
     parameters:
       docker_image:
@@ -1551,37 +1624,25 @@ jobs:
       so_suffix:
         type: string
         default: unknown
-      catch_warnings:
-        type: boolean
-        default: true
-      lib_curl_command:
+      resource_class:
         type: string
-        default: none
-    docker: [ image: << parameters.docker_image >> ]
-    environment:
-      CFLAGS: ""
+        default: medium # mostly for more RAM for ramdisk
+    <<: *BARE_DOCKER_MACHINE
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - run: mkdir -p extensions
-      - lib_curl_workaround:
-          command: << parameters.lib_curl_command >>
+      - setup_docker:
+          docker_image: << parameters.docker_image >>
+      - run: mkdir -p extensions_$(uname -m)
       - run:
-          shell: /bin/bash -eo pipefail -l
           name: Build extension basic .so
-          command: make -j all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
-      - run:
-          name: Copy extension basic .so
-          command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
-      - run:
-          shell: /bin/bash -eo pipefail -l
-          name: Build extension debug .so
-          command: make clean && make -j all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
-      - run:
-          name: Copy extension basic .so
-          command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
+          command: |
+            set -eo pipefail
+            switch-php debug-zts-asan
+            make asan
+            cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
       - persist_to_workspace:
           root: '.'
-          paths: ['./extensions']
+          paths: ['./extensions_*']
 
   "cache cargo deps":
     working_directory: ~/datadog
@@ -1595,7 +1656,7 @@ jobs:
         default: medium # mostly for more RAM for ramdisk
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - checkout
+      - <<: *STEP_CHECKOUT
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - restore_cache:
@@ -1630,7 +1691,7 @@ jobs:
     environment:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
     steps:
-      - checkout
+      - <<: *STEP_CHECKOUT
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - restore_cache:
@@ -1669,7 +1730,7 @@ jobs:
     environment:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
     steps:
-      - checkout
+      - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: << parameters.docker_image >>
@@ -1755,7 +1816,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
             - source-v1-{{ .Branch }}-
             - source-v1-
-      - checkout
+      - <<: *STEP_CHECKOUT
       - save_cache:
           key: source-v1-{{ .Branch }}-{{ .Revision }}
           paths:
@@ -1777,35 +1838,44 @@ jobs:
   "package extension":
     working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
+    parameters:
+      asan_build:
+        type: boolean
+        default: false
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: Fetch PHP 5 packages
-          command: |
-            set -eu
-            sudo apt-get install jq
-            PIPELINE_ID=$(curl 'https://circleci.com/api/v2/project/gh/DataDog/dd-trace-php/pipeline?branch=PHP-5' | jq -r '.items[0].id')
-            WORKFLOW_ID=$(curl "https://circleci.com/api/v2/pipeline/$PIPELINE_ID/workflow" | jq -r '.items[]|select(.name == "build_packages").id' | head -1)
-            JOB_ID=$(curl "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/job" | jq -r '.items[]|select(.name == "package extension").id')
-            curl -Lo php5.tar.gz "https://output.circle-artifacts.com/output/job/$JOB_ID/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz"
-            tar xzf php5.tar.gz
-            mv opt/datadog-php/extensions/* extensions_x86_64/
-      - run:
-          name: Package Profiler
-          command: |
-            # The layout matches what the dd-prof-php releases had to minimize
-            # transition work.
-            for triplet in x86_64-unknown-linux-gnu x86_64-alpine-linux-musl aarch64-unknown-linux-gnu aarch64-alpine-linux-musl; do
-              # Add licensing. TODO: generate rust libs to third-party CSV.
-              cp -v profiling/LICENSE* profiling/NOTICE "datadog-profiling/${triplet}/"
-              mkdir -vp "datadog-profiling/${triplet}/bin"
-              # Add undocumented installer currently used by relenv
-              cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
-            done
-            tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
+      - unless:
+          condition: << parameters.asan_build >>
+          steps:
+            - run:
+                name: Fetch PHP 5 packages
+                command: |
+                  set -eu
+                  sudo apt-get install jq
+                  PIPELINE_ID=$(curl 'https://circleci.com/api/v2/project/gh/DataDog/dd-trace-php/pipeline?branch=PHP-5' | jq -r '.items[0].id')
+                  WORKFLOW_ID=$(curl "https://circleci.com/api/v2/pipeline/$PIPELINE_ID/workflow" | jq -r '.items[]|select(.name == "build_packages").id' | head -1)
+                  JOB_ID=$(curl "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/job" | jq -r '.items[]|select(.name == "package extension").id')
+                  curl -Lo php5.tar.gz "https://output.circle-artifacts.com/output/job/$JOB_ID/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz"
+                  tar xzf php5.tar.gz
+                  mv opt/datadog-php/extensions/* extensions_x86_64/
+            - run:
+                name: Package Profiler
+                command: |
+                  # The layout matches what the dd-prof-php releases had to minimize
+                  # transition work.
+                  for triplet in x86_64-unknown-linux-gnu x86_64-alpine-linux-musl aarch64-unknown-linux-gnu aarch64-alpine-linux-musl; do
+                    # Add licensing. TODO: generate rust libs to third-party CSV.
+                    cp -v profiling/LICENSE* profiling/NOTICE "datadog-profiling/${triplet}/"
+                    mkdir -vp "datadog-profiling/${triplet}/bin"
+                    # Add undocumented installer currently used by relenv
+                    cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
+                  done
+                  tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
       - run:
           name: Build packages
-          command: make packages
+          command: |
+            <<# parameters.asan_build >>export DDTRACE_MAKE_PACKAGES_ASAN=1<</ parameters.asan_build >>
+            make packages
       - run: cd build/packages && find . -type f -exec sha256sum {} +
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
@@ -2494,6 +2564,64 @@ workflows:
             - "Profiler PHP v8.1 - aarch64-unknown-linux-gnu"
             - "Profiler PHP v8.2 - aarch64-unknown-linux-gnu"
 
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile x86_64 PHP 74 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          so_suffix: "20190902"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile aarch64 PHP 74 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          so_suffix: "20190902"
+          resource_class: "arm.medium"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile x86_64 PHP 80 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          so_suffix: "20200930"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile aarch64 PHP 80 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          so_suffix: "20200930"
+          resource_class: "arm.medium"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile x86_64 PHP 81 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          so_suffix: "20210902"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile aarch64 PHP 81 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          so_suffix: "20210902"
+          resource_class: "arm.medium"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile x86_64 PHP 82 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          so_suffix: "20220829"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile aarch64 PHP 82 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          so_suffix: "20220829"
+          resource_class: "arm.medium"
+
+      - "package extension":
+          name: "package extension zts-debug-asan"
+          asan_build: true
+          requires:
+            - "Compile x86_64 PHP 74 debug-zts-asan"
+            - "Compile aarch64 PHP 74 debug-zts-asan"
+            - "Compile x86_64 PHP 80 debug-zts-asan"
+            - "Compile aarch64 PHP 80 debug-zts-asan"
+            - "Compile x86_64 PHP 81 debug-zts-asan"
+            - "Compile aarch64 PHP 81 debug-zts-asan"
+            - "Compile x86_64 PHP 82 debug-zts-asan"
+            - "Compile aarch64 PHP 82 debug-zts-asan"
+
       - "x-profiling phpt tests on Alpine":
           requires: [ 'package extension' ]
           matrix:
@@ -2511,12 +2639,22 @@ workflows:
           requires: [ 'package extension' ]
           matrix:
             parameters:
-              batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
+              batch: [ 1, 2, 3, 4, 5 ]
       - randomized_tests_arm:
           requires: [ 'package extension' ]
           matrix:
             parameters:
-              batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
+              batch: [ 1, 2, 3, 4, 5 ]
+      - randomized_tests_asan:
+          requires: [ 'package extension zts-debug-asan' ]
+          matrix:
+            parameters:
+              batch: [ 6, 7, 8, 9, 10 ]
+      - randomized_tests_arm_asan:
+          requires: [ 'package extension zts-debug-asan' ]
+          matrix:
+            parameters:
+              batch: [ 6, 7, 8, 9, 10 ]
       - installer_tests:
           requires: [ 'package extension' ]
       - placeholder:

@@ -141,7 +141,7 @@ Install the specific version of the tracer from `CircleCI` > `build_packages` > 
 ```
 curl -L -o /tmp/ddtrace-test.tar.gz https://557109-119990860-gh.circle-artifacts.com/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz
 tar -xf /tmp/ddtrace-test.tar.gz -C /
-sh /opt/datadog-php/bin/post-install.sh
+bash /opt/datadog-php/bin/post-install.sh
 ```
 
 Download the generated core dump from `CircleCI` > `build_packages` > `randomized_tests-XX` > `ARTIFACTS` (search in artifact for the scenario that is failing based on the build report, the core dump file is called `core`):

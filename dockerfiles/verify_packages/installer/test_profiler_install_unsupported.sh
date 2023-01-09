@@ -17,9 +17,9 @@ exit_status=$?
 set -e
 
 if [ "${exit_status}" = "1" ]; then
-    dashed_print "Ok: expected exit status 1." "${exit_status}"
+    dashed_print "Ok: expected exit status 1." "${exit_status}" "${output}"
 else
-    dashed_print "Error: Unexpected exit status. Should be 1." "${exit_status}"
+    dashed_print "Error: Unexpected exit status. Should be 1." "${exit_status}" "${output}"
     exit 1
 fi
 
