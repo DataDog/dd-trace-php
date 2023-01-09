@@ -19,8 +19,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.2"
-        phpTarGzUrl: https://github.com/php/php-src/archive/a814afb08823bb0cdf4ae45f67a7db83c8be9cd7.tar.gz
-        phpSha256Hash: 584d2925889a7d388084150865fa238634043f38f2e060c27ffa8ac4d682d5ec
+        phpTarGzUrl: https://www.php.net/distributions/php-8.2.0.tar.gz
+        phpSha256Hash: 435c4c2439db648cdf34236f7cd459f93f943fb788b66723a033610d4a059fc6
 
   php-8.1:
     image: datadog/dd-trace-ci:php-8.1_buster

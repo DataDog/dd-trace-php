@@ -5,7 +5,14 @@ set -e
 OS_VERSION=$(source /etc/os-release; echo $VERSION_ID)
 
 # Enable epel repo
-rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-${OS_VERSION}.noarch.rpm
+RETRIES=3
+while
+  ! rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-${OS_VERSION}.noarch.rpm
+do
+  if ! ((--RETRIES)); then
+    exit 1
+  fi
+done
 
 # Installing pre-requisites
 yum install -y wget nginx httpd
