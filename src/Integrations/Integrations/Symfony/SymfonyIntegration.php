@@ -349,7 +349,7 @@ class SymfonyIntegration extends Integration
                 if ($integration->symfonyRequestSpan) {
                     if (count($resourceParts) > 0) {
                         $integration->symfonyRequestSpan->resource = \implode(' ', $resourceParts);
-                        
+
                         // $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                     }
                 }
