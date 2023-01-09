@@ -41,13 +41,16 @@ function generate()
     } else {
         // If a scenario number has not been provided, we generate a number of different scenarios based on based
         // configuration
-        $options = getopt('', ['seed:', 'number:', 'versions:']);
+        $options = getopt('', ['seed:', 'number:', 'versions:', 'platforms:']);
         $seed = isset($options['seed']) ? intval($options['seed']) : rand();
         srand($seed);
         echo "Using seed: $seed\n";
         // Versions as a CSV, e.g. '7.4,8.0'
         $restrictedPHPVersions = isset($options['versions'])
             ? array_map('trim', explode(',', $options['versions']))
+            : null;
+        $restrictedPlatforms = isset($options['platforms'])
+            ? array_map('trim', explode(',', $options['platforms']))
             : null;
 
         if (empty($options['number'])) {
@@ -58,17 +61,21 @@ function generate()
 
         for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
             $scenarioSeed = rand();
-            $testIdentifiers[] = generateOne($scenarioSeed, $restrictedPHPVersions);
+            $testIdentifiers[] = generateOne($scenarioSeed, $restrictedPHPVersions, $restrictedPlatforms);
         }
     }
 
     (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
 }
 
-function generateOne($scenarioSeed, array $restrictedPHPVersions)
+function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restrictedPlatforms = null)
 {
     srand($scenarioSeed);
-    $selectedOs = array_rand(OS);
+    $allOS = OS;
+    if ($restrictedPlatforms !== null && $restrictedPlatforms[0] !== '*') {
+        $allOS = array_intersect_key($allOS, array_flip($restrictedPlatforms));
+    }
+    $selectedOs = array_rand($allOS);
     $availablePHPVersions = OS[$selectedOs]['php'];
     if ($restrictedPHPVersions && $restrictedPHPVersions[0] !== '*') {
         $availablePHPVersions = array_intersect($availablePHPVersions, $restrictedPHPVersions);
@@ -78,7 +85,7 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions)
 
     // Environment variables modifications
     $numberOfEnvModifications = rand(0, MAX_ENV_MODIFICATIONS);
-    $envModifications = array_merge([], DEFAULT_ENVS);
+    $envModifications = array_merge($selectedOs == "buster" ? ["USE_ZEND_ALLOC" => 0] : [], DEFAULT_ENVS);
     for ($envModification = 0; $envModification < $numberOfEnvModifications; $envModification++) {
         $currentEnv = array_rand(ENVS);
         $availableValues = ENVS[$currentEnv];
@@ -111,11 +118,13 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions)
     exec("cp -r ./app $scenarioFolder/");
     exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
 
+    $skipApache = $selectedOs == "buster"; // can't use an asan module within apache
+
     // Writing scenario specific files
     (new ApacheConfigGenerator())->generate("$scenarioFolder/www.apache.conf", $envModifications, $iniModifications);
     (new PhpFpmConfigGenerator())->generate("$scenarioFolder/www.php-fpm.conf", $envModifications, $iniModifications);
     (new PhpIniGenerator())->generate("$scenarioFolder/php.ini", $primaryIni);
-    (new RequestTargetsGenerator())->generate("$scenarioFolder/vegeta-request-targets.txt", 2000);
+    (new RequestTargetsGenerator())->generate("$scenarioFolder/vegeta-request-targets.txt", 2000, $skipApache);
     (new MakefileScenarioGenerator())->generate("$scenarioFolder/Makefile", $identifier);
     (new EnvFileGenerator())->generate("$scenarioFolder/.env", $identifier);
     (new DockerComposeFileGenerator())->generate(
