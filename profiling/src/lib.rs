@@ -604,7 +604,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         if profiling_experimental_allocation_enabled {
             if !is_zend_mm() {
                 // Neighboring custom memory handlers found
-                trace!("Found another extension using the ZendMM custom handler hook");
+                debug!("Found another extension using the ZendMM custom handler hook");
                 unsafe {
                     zend::zend_mm_get_custom_handlers(
                         zend::zend_mm_get_heap(),
@@ -625,7 +625,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             }
 
             if is_zend_mm() {
-                info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
+                error!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();
                     locals.profiling_experimental_allocation_enabled = false;
