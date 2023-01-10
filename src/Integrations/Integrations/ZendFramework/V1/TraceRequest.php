@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\ZendFramework\V1;
 
-use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 use DDTrace\Tag;
 use Zend_Controller_Front;

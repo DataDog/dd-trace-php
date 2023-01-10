@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Laravel;
 
+use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -52,8 +53,6 @@ class LaravelIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-
         $integration = $this;
 
         \DDTrace\trace_method(
@@ -68,6 +67,7 @@ class LaravelIntegration extends Integration
                 }
                 $rootSpan->service = $integration->getServiceName();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
                 $span->name = 'laravel.application.handle';
                 $span->type = Type::WEB_SERVLET;
@@ -155,12 +155,12 @@ class LaravelIntegration extends Integration
                 // This is used by both laravel and lumen. For consistency we rename it for lumen traces as otherwise
                 // users would see a span changing name as they upgrade to the new version.
                 $span->name = $integration->isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
+                $span->meta[Tag::COMPONENT] = $span->name === 'laravel.view' ? LaravelIntegration::NAME : LumenIntegration::NAME;
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 if (isset($args[0]) && \is_string($args[0])) {
                     $span->resource = $args[0];
                 }
-                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
 
@@ -175,6 +175,7 @@ class LaravelIntegration extends Integration
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = $serviceName;
+                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
@@ -186,6 +187,7 @@ class LaravelIntegration extends Integration
                 $rootSpan->name = 'laravel.artisan';
                 $rootSpan->resource = !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan';
                 unset($rootSpan->meta[Tag::SPAN_KIND]);
+                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
 

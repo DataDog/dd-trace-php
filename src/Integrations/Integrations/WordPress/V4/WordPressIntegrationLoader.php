@@ -8,7 +8,6 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
-use Illuminate\Support\Str;
 
 class WordPressIntegrationLoader
 {
@@ -37,311 +36,209 @@ class WordPressIntegrationLoader
 
         // Core
         \DDTrace\trace_method('WP', 'main', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP.main',
-                Type::WEB_SERVLET,
-                $service,
-                'WP.main'
-            );
+            $span->name = $span->resource = 'WP.main';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'init', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP.init',
-                Type::WEB_SERVLET,
-                $service,
-                'WP.init'
-            );
+            $span->name = $span->resource = 'WP.init';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'parse_request', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP.parse_request',
-                Type::WEB_SERVLET,
-                $service,
-                'WP.parse_request'
-            );
+            $span->name = $span->resource = 'WP.parse_request';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'send_headers', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP.send_headers',
-                Type::WEB_SERVLET,
-                $service,
-                'WP.send_headers'
-            );
+            $span->name = $span->resource = 'WP.send_headers';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'query_posts', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP.query_posts',
-                Type::WEB_SERVLET,
-                $service,
-                'WP.query_posts'
-            );
+            $span->name = $span->resource = 'WP.query_posts';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'handle_404', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP.handle_404',
-                Type::WEB_SERVLET,
-                $service,
-                'WP.handle_404'
-            );
+            $span->name = $span->resource = 'WP.handle_404';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP', 'register_globals', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP.register_globals',
-                Type::WEB_SERVLET,
-                $service,
-                'WP.register_globals'
-            );
+            $span->name = $span->resource = 'WP.register_globals';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('create_initial_post_types', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'create_initial_post_types',
-                Type::WEB_SERVLET,
-                $service,
-                'create_initial_post_types'
-            );
+            $span->name = $span->resource = 'create_initial_post_types';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('create_initial_taxonomies', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'create_initial_taxonomies',
-                Type::WEB_SERVLET,
-                $service,
-                'create_initial_taxonomies'
-            );
+            $span->name = $span->resource = 'create_initial_taxonomies';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('wp_print_head_scripts', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'wp_print_head_scripts',
-                Type::WEB_SERVLET,
-                $service,
-                'wp_print_head_scripts'
-            );
+            $span->name = $span->resource = 'wp_print_head_scripts';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
         \DDTrace\trace_function('wp_print_footer_scripts', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'wp_print_footer_scripts',
-                Type::WEB_SERVLET,
-                $service,
-                'wp_print_footer_scripts'
-            );
+            $span->name = $span->resource = 'wp_print_footer_scripts';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         // These not called in PHP 5 due to call_user_func_array() bug
         \DDTrace\trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'wp_maybe_load_widgets',
-                Type::WEB_SERVLET,
-                $service,
-                'wp_maybe_load_widgets'
-            );
+            $span->name = $span->resource = 'wp_maybe_load_widgets';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('wp_maybe_load_embeds', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'wp_maybe_load_embeds',
-                Type::WEB_SERVLET,
-                $service,
-                'wp_maybe_load_embeds'
-            );
+            $span->name = $span->resource = 'wp_maybe_load_embeds';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('_wp_customize_include', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                '_wp_customize_include',
-                Type::WEB_SERVLET,
-                $service,
-                '_wp_customize_include'
-            );
+            $span->name = $span->resource = '_wp_customize_include';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         // Widgets
         \DDTrace\trace_method('WP_Widget_Factory', '_register_widgets', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP_Widget_Factory._register_widgets',
-                Type::WEB_SERVLET,
-                $service,
-                'WP_Widget_Factory._register_widgets'
-            );
+            $span->name = $span->resource = 'WP_Widget_Factory._register_widgets';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('WP_Widget', 'display_callback', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'WP_Widget.display_callback',
-                Type::WEB_SERVLET,
-                $service,
-                'WP_Widget.display_callback'
-            );
+            $span->name = $span->resource = 'WP_Widget.display_callback';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         // Database
         \DDTrace\trace_method('wpdb', '__construct', function (SpanData $span, array $args) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'wpdb.__construct',
-                Type::SQL,
-                $service,
-                'wpdb.__construct',
-                array( 'db.user' => $args[0], 'db.name' => $args[2], 'db.host' => $args[3],)
-            );
+            $span->name = $span->resource = 'wpdb.__construct';
+            $span->type = Type::SQL;
+            $span->service = $service;
+            $span->meta = [
+                'db.user' => $args[0],
+                'db.name' => $args[2],
+                'db.host' => $args[3],
+            ];
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_method('wpdb', 'query', function (SpanData $span, array $args) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'wpdb.query',
-                Type::SQL,
-                $service,
-                $args[0]
-            );
+            $span->name = 'wpdb.query';
+            $span->resource = $args[0];
+            $span->type = Type::SQL;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         // Views
         \DDTrace\trace_function('get_header', function (SpanData $span, array $args) use ($service) {
-            $resource = !empty($args[0]) ? $args[0] : 'get_header';
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'get_header',
-                Type::WEB_SERVLET,
-                $service,
-                $resource
-            );
+            $span->name = 'get_header';
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('wp_head', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'wp_head',
-                Type::WEB_SERVLET,
-                $service,
-                'wp_head'
-            );
+            $span->name = $span->resource = 'wp_head';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('the_custom_header_markup', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'the_custom_header_markup',
-                Type::WEB_SERVLET,
-                $service,
-                'the_custom_header_markup'
-            );
+            $span->name = $span->resource = 'the_custom_header_markup';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('body_class', function (SpanData $span) use ($service) {
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'body_class',
-                Type::WEB_SERVLET,
-                $service,
-                'body_class'
-            );
+            $span->name = $span->resource = 'body_class';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('load_template', function (SpanData $span, array $args) use ($service) {
-            $resource = !empty($args[0]) ? $args[0] : 'load_template';
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'load_template',
-                Type::WEB_SERVLET,
-                $service,
-                $resource
-            );
+            $span->name = 'load_template';
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('comments_template', function (SpanData $span, array $args) use ($service) {
-            $resource = !empty($args[0]) ? $args[0] : 'comments_template';
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'comments_template',
-                Type::WEB_SERVLET,
-                $service,
-                $resource
-            );
+            $span->name = 'comments_template';
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('get_sidebar', function (SpanData $span, array $args) use ($service) {
-            $resource = !empty($args[0]) ? $args[0] : 'get_sidebar';
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'get_sidebar',
-                Type::WEB_SERVLET,
-                $service,
-                $resource
-            );
+            $span->name = 'get_sidebar';
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('dynamic_sidebar', function (SpanData $span, array $args) use ($service) {
-            $resource = !empty($args[0]) ? $args[0] : 'dynamic_sidebar';
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'dynamic_sidebar',
-                Type::WEB_SERVLET,
-                $service,
-                $resource
-            );
+            $span->name = 'dynamic_sidebar';
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         \DDTrace\trace_function('get_footer', function (SpanData $span, array $args) use ($service) {
-            $resource = !empty($args[0]) ? $args[0] : 'get_footer';
-            WordPressIntegrationLoader::setCommonValues(
-                $span,
-                'get_footer',
-                Type::WEB_SERVLET,
-                $service,
-                $resource
-            );
+            $span->name = 'get_footer';
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         return Integration::LOADED;
-    }
-
-    /**
-     * @param SpanData $span
-     * @param string $name
-     * @param string $type
-     * @param string $service
-     * @param string|null $resources
-     * @param array $meta
-     * @return void
-     */
-    public static function setCommonValues(
-        SpanData $span,
-        $name,
-        $type,
-        $service,
-        $resource = null,
-        array $meta = array()
-    ) {
-        $span->type = $type;
-        $span->name = $name;
-        $span->meta = $meta;
-        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        if ($resource) {
-            $span->resource = $resource;
-        }
     }
 }
