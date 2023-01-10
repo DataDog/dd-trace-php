@@ -144,7 +144,7 @@ function install($options)
     if (file_exists($tmpArchiveAppsecRoot)) {
         execute_or_exit(
             "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
-            "cp -r " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
+            "cp -rf " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
         );
         execute_or_exit(
             "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
