@@ -45,7 +45,7 @@ array(1) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
-      ["system.pid"]=>
+      [%s]=>
       string(%d) "%d"
       ["after"]=>
       string(9) "root_span"

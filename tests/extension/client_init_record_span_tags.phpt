@@ -63,7 +63,7 @@ $helper->finished_with_commands();
 root_span_get_meta():
 Array
 (
-    [system.pid] => %d
+    [%s] => %d
     [http.url] => https://localhost:8888/foo
     [http.method] => GET
     [http.useragent] => my user agent
@@ -88,7 +88,7 @@ Array
     [http.useragent] => my user agent
     [meta_1] => value_1
     [meta_2] => value_2
-    [system.pid] => %d
+    [%s] => %d
 )
 metrics:
 Array
