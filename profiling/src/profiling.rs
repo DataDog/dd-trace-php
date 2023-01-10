@@ -852,7 +852,7 @@ impl Profiler {
         cpu_time: Option<i64>,
         alloc_samples: i64,
         alloc_size: i64,
-        labels: &Vec<Label>,
+        labels: &[Label],
         locals: &RequestLocals,
     ) -> SampleMessage {
         let mut sample_types = vec![
@@ -909,7 +909,7 @@ impl Profiler {
             },
             value: SampleData {
                 frames,
-                labels: labels.clone(),
+                labels: labels.to_vec(),
                 sample_values,
             },
         }
