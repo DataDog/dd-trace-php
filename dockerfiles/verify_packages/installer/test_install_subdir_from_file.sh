@@ -12,10 +12,13 @@ if [ "$CIRCLECI" = "true" ]; then
     exit 0
 fi
 
-new_version="0.74.0"
+uname=$(uname -a)
+arch=$(if [ -z "${uname##*arm*}" ] || [ -z "${uname##*aarch*}" ]; then echo aarch64; else echo x86_64; fi)
+
+new_version="0.78.0"
 generate_installers "${new_version}"
 repo_url=${DD_TEST_INSTALLER_REPO:-"https://github.com/DataDog/dd-trace-php"}
-curl -L -o /tmp/downloaded.tar.gz "${repo_url}/releases/download/${new_version}/dd-library-php-${new_version}-x86_64-linux-gnu.tar.gz"
+curl -L -o /tmp/downloaded.tar.gz "${repo_url}/releases/download/${new_version}/dd-library-php-${new_version}-${arch}-linux-gnu.tar.gz"
 
 # Install using the php installer
 php ./build/packages/datadog-setup.php --php-bin php --file /tmp/downloaded.tar.gz

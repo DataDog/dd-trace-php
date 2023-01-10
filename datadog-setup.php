@@ -221,6 +221,17 @@ function install($options)
         // Writing the ini file
         if ($phpProperties[INI_SCANDIR]) {
             $iniFileName = '98-ddtrace.ini';
+            // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
+            // See issue https://github.com/DataDog/dd-trace-php/issues/1833
+            foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
+                $path = "{$phpProperties[INI_SCANDIR]}/$ini";
+                if (is_file($path)) {
+                    if (preg_match('(^\s*extension\s*=.+ddtrace\.so)m', file_get_contents($path))) {
+                        $iniFileName = $ini;
+                    }
+                }
+            }
+
             $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
 
             if (\strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
@@ -270,7 +281,7 @@ function install($options)
                  */
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
+                    "sed -i 's@ \?;\? \?extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
                         . escapeshellarg($iniFilePath)
                 );
 
@@ -308,12 +319,6 @@ function install($options)
 
             // phpcs:disable Generic.Files.LineLength.TooLong
             if ($shouldInstallAppsec) {
-                // Appsec crashes with missing symbols if tracing is not loaded
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?; \?extension \?= \?ddtrace.so@extension = ddtrace.so@g' "
-                        . escapeshellarg($iniFilePath)
-                );
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
