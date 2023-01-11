@@ -47,7 +47,7 @@ function ensure_bounded_nesting_depth()
         }
     }
 
-    if ($depth >= 10) {
+    if ($depth >= 8) {
         ini_set("datadog.trace.enabled", "0");
         ini_set("datadog.trace.enabled", "1");
     }

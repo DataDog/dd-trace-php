@@ -4,6 +4,12 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
+# 0.74.0 doesn't exist on arm
+uname=$(uname -a)
+if [ -z "${uname##*arm*}" ] || [ -z "${uname##*aarch*}" ]; then
+  exit 0
+fi
+
 # Initially no ddtrace
 assert_no_ddtrace
 
@@ -13,7 +19,7 @@ install_legacy_ddtrace "${old_version}"
 assert_ddtrace_version "${old_version}"
 
 # Upgrade using the php installer
-new_version="0.74.0"
+new_version="0.78.0"
 generate_installers "${new_version}"
 php ./build/packages/datadog-setup.php --php-bin php
 assert_ddtrace_version "${new_version}"

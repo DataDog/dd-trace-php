@@ -139,9 +139,9 @@ docker run --rm -ti datadog/dd-trace-ci:php-randomizedtests-centos7-8.0 bash
 Install the specific version of the tracer from `CircleCI` > `build_packages` > `package extension` > `ARTIFACTS`
 
 ```
-curl -L -o /tmp/ddtrace-test.tar.gz https://557109-119990860-gh.circle-artifacts.com/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz
-tar -xf /tmp/ddtrace-test.tar.gz -C /
-bash /opt/datadog-php/bin/post-install.sh
+curl -L -o /tmp/datadog-setup.php https://557109-119990860-gh.circle-artifacts.com/0/datadog-setup.php
+curl -L -o /tmp/ddtrace-test.tar.gz https://557109-119990860-gh.circle-artifacts.com/0/dd-library-php-1.0.0-nightly-aarch64-linux-gnu.tar.gz
+php /tmp/datadog-setup.php --php-bin all --file /tmp/ddtrace-test.tar.gz --enable-profiling
 ```
 
 Download the generated core dump from `CircleCI` > `build_packages` > `randomized_tests-XX` > `ARTIFACTS` (search in artifact for the scenario that is failing based on the build report, the core dump file is called `core`):

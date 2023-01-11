@@ -10,7 +10,7 @@ apk add php7 php7-json libcurl libexecinfo php7-openssl
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.74.0"
+new_version="0.78.0"
 generate_installers "${new_version}"
 php ./build/packages/datadog-setup.php --php-bin php
 assert_ddtrace_version "${new_version}"

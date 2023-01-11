@@ -5,7 +5,7 @@ set -e
 . "$(dirname ${0})/utils.sh"
 
 # Install using the php installer
-new_version="0.75.0"
+new_version="0.79.0"
 generate_installers "${new_version}"
 php ./build/packages/datadog-setup.php --php-bin=all
 
