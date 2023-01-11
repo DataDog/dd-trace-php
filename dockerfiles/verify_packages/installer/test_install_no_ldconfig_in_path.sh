@@ -8,7 +8,7 @@ set -e
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.74.0"
+new_version="0.78.0"
 generate_installers "${new_version}"
 
 PHP=$(which php)

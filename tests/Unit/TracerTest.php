@@ -82,7 +82,9 @@ final class TracerTest extends BaseTestCase
         \dd_trace_serialize_closed_spans();
         $tracer = new Tracer(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertEquals(getmypid(), $span->getTag(Tag::PID));
+        $metrics = $span->getMetrics();
+        $this->assertArrayHasKey(Tag::PID, $metrics);
+        $this->assertEquals(getmypid(), $metrics[Tag::PID]);
     }
 
     public function testStartActiveSpan()

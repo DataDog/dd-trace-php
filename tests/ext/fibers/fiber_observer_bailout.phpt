@@ -43,7 +43,6 @@ Fatal error: Allowed memory size of %d bytes exhausted %s in %s on line %d
 inFiber posthook
 spans(\DDTrace\SpanData) (1) {
   fiber_observer_bailout.php (fiber_observer_bailout.php, fiber_observer_bailout.php, cli) (error: Allowed memory size of %d bytes exhausted %s)
-    process_id => %d
     error.type => E_ERROR
     error.message => Allowed memory size of %d bytes exhausted %s
     error.stack => #0 %s(%d): str_repeat()

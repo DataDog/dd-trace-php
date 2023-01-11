@@ -119,9 +119,7 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(6) {
-      ["process_id"]=>
-      string(%d) "%d"
+    array(5) {
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["retval.thoughts"]=>
@@ -134,7 +132,9 @@ array(3) {
       string(2) "-1"
     }
     ["metrics"]=>
-    array(5) {
+    array(6) {
+      ["process_id"]=>
+      float(%f)
       ["foo"]=>
       float(100)
       ["bar"]=>
@@ -194,14 +194,14 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
-      ["process_id"]=>
-      string(%d) "%d"
+    array(1) {
       ["_dd.p.dm"]=>
       string(2) "-1"
     }
     ["metrics"]=>
-    array(3) {
+    array(4) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>

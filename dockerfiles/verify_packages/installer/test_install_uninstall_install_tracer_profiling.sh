@@ -4,6 +4,12 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
+# 0.75.0 doesn't exist on arm
+uname=$(uname -a)
+if [ -z "${uname##*arm*}" ] || [ -z "${uname##*aarch*}" ]; then
+  exit 0
+fi
+
 # Initially no ddtrace
 assert_no_ddtrace
 

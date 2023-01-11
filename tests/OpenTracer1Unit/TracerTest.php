@@ -111,14 +111,17 @@ final class TracerTest extends BaseTestCase
             ])
             ->unwrapped();
         $this->assertSame($context->getSpanId(), $span->getParentId());
-        $this->assertNull($span->getTag(Tag::PID));
+        $metrics = $span->getMetrics();
+        $this->assertArrayNotHasKey(Tag::PID, $metrics);
     }
 
     public function testStartSpanAsRootWithPid()
     {
         $tracer = Tracer::make(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
-        $this->assertEquals(getmypid(), $span->getTag(Tag::PID));
+        $metrics = $span->getMetrics();
+        $this->assertArrayHasKey(Tag::PID, $metrics);
+        $this->assertEquals(getmypid(), $metrics[Tag::PID]);
     }
 
     public function testStartActiveSpan()

@@ -39,9 +39,7 @@ We closed the active stack after all other stacks were closed. No other span is 
 This automatically switches back to the parent stack: bool(true)
 spans(\DDTrace\SpanData) (2) {
   span_trace_swap.php (span_trace_swap.php, span_trace_swap.php, cli)
-    process_id => %d
     _dd.p.dm => -1
   span_trace_swap.php (span_trace_swap.php, span_trace_swap.php, cli)
-    process_id => %d
     _dd.p.dm => -1
 }

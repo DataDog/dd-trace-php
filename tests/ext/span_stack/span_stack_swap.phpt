@@ -78,12 +78,10 @@ But we can still swap to stacks started before that: bool(true)
 We closed the active stack after all other stacks were closed. No other span is active right now: bool(true)
 spans(\DDTrace\SpanData) (2) {
   span_stack_swap.php (span_stack_swap.php, span_stack_swap.php, cli)
-    process_id => %d
     _dd.p.dm => -1
      (span_stack_swap.php, cli)
        (span_stack_swap.php, cli)
      (span_stack_swap.php, cli)
   span_stack_swap.php (span_stack_swap.php, span_stack_swap.php, cli)
-    process_id => %d
     _dd.p.dm => -1
 }

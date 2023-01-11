@@ -22,9 +22,7 @@ var_dump(dd_trace_serialize_closed_spans()[0]["meta"]);
 
 ?>
 --EXPECTF--
-array(3) {
-  ["process_id"]=>
-  string(%d) "%d"
+array(2) {
   ["http.request.headers.0"]=>
   string(16) "http_zero_header"
   ["_dd.p.dm"]=>

@@ -72,6 +72,7 @@ test_first_install.sh \
 test_install_no_ldconfig_in_path.sh \
 test_install_without_scan_dir.sh \
 test_install_add_missing_ini_settings.sh \
+test_install_custom_ini_name.sh \
 test_install_custom_installation_directory.sh \
 test_install_custom_installation_root.sh \
 test_install_non_root_user.sh \
