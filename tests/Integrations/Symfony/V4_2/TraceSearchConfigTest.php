@@ -49,6 +49,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
                     '_sampling_priority_v1' => 1,
+                    'process_id' => getmypid(),
                 ]) ->withChildren([
                     SpanAssertion::exists('symfony.kernel.terminate'),
                     SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([

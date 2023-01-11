@@ -44,16 +44,16 @@ array(1) {
     ["error"]=>
     int(1)
     ["meta"]=>
-    array(3) {
-      ["process_id"]=>
-      string(%d) "%d"
+    array(2) {
       ["error.message"]=>
       string(9) "Foo error"
       ["_dd.p.dm"]=>
       string(2) "-1"
     }
     ["metrics"]=>
-    array(3) {
+    array(4) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
