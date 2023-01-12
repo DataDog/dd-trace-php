@@ -1667,7 +1667,7 @@ jobs:
           name: cargo fetch
           command: |
             cd profiling
-            cargo fetch --target << parameters.triplet >>
+            cargo fetch -v --target << parameters.triplet >>
             chmod -R 777 /rust/cargo
       - save_cache:
           name: Save Cargo Package Cache
