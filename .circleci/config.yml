@@ -1667,8 +1667,18 @@ jobs:
           name: cargo fetch
           command: |
             cd profiling
+            # On occasion, we've observed the .package-cache being in the cache.
+            # If it's there, it will cause commands to stall, waiting for the file to be released.
+            if [ -e '/rust/cargo/.package-cache' ] ; then
+                echo 'WARNING: .package-cache was part of the cache and shouldn't be!'
+                rm -f '/rust/cargo/.package-cache'
+            fi
+
             cargo fetch -v --target << parameters.triplet >>
-            chmod -R 777 /rust/cargo
+            chmod -R 777 '/rust/cargo'
+
+            # ensure the .package-cache isn't there
+            rm -f '/rust/cargo/.package-cache'
       - save_cache:
           name: Save Cargo Package Cache
           key: profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
