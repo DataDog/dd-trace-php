@@ -5,6 +5,24 @@ version, refer to the [rust-toolchain](rust-toolchain) file. The profiler
 requires PHP 7.1+, and does not support debug nor ZTS builds. There are bits of
 ZTS support in the build system and profiler, but it's not complete.
 
+## Time Profiling
+
+The profiler sets the Zend VM interrupt flag approximately every 10ms. The
+Zend Engine will handle this interrupt at the next place it's safe to do so.
+Notably, this waits until an internal function like `curl_exec` has been
+popped off the stack. This information is quite valuable, so this extension
+installs a `zend_execute_internal` hook which also checks the interrupt and
+handles the profiler's portion of the interrupt, but doesn't clear the
+interrupt. This allows interrupts to continue as normal for other extensions
+while allowing the profiler to see the internal function.
+
+When the interrupt handler runs, it collects the wall-time and cpu-time since
+the last run. This makes the cpu-time biased towards functions which do I/O,
+but on the other hand it is very cheap to gather. This can be fixed by having
+separate timers for wall-time and cpu-time, but if not done carefully this can
+accidentally double the amount of latency and cpu overhead the profiler has on
+the process.
+
 ## Compiling
 
 The command `cargo build` will run the [build.rs](build.rs) script, which is
