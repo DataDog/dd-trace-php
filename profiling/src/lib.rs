@@ -521,13 +521,9 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             }
             if let Err(err) = cpu_time::ThreadTime::try_now() {
                 if profiling_experimental_cpu_time_enabled {
-                    warn!(
-                        "CPU Time collection was enabled but collection failed: {err}"
-                    );
+                    warn!("CPU Time collection was enabled but collection failed: {err}");
                 } else {
-                    debug!(
-                        "CPU Time collection was not enabled and isn't available: {err}"
-                    );
+                    debug!("CPU Time collection was not enabled and isn't available: {err}");
                 }
             } else if profiling_experimental_cpu_time_enabled {
                 info!("CPU Time profiling enabled.");
@@ -591,9 +587,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 if let Err((index, interrupt)) = profiler.add_interrupt(interrupt) {
-                    warn!(
-                        "VM interrupt {index} already exists at offset {interrupt}"
-                    );
+                    warn!("VM interrupt {index} already exists at offset {interrupt}");
                 }
             }
         });
@@ -1084,7 +1078,7 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
 // need to pass a pointer to a `free()` function as well, otherwise your custom handlers won't be
 // installed. Now that a custom memory handler is installed, we need to prepare the ZendMM heap
 // before calling the original `zend::_zend_mm_free()` function as we do in the custom alloc and
-// realloc handlers. 
+// realloc handlers.
 #[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     if PREV_CUSTOM_MM_FREE.is_none() {
