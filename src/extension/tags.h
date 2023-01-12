@@ -5,6 +5,7 @@
 // Copyright 2021 Datadog, Inc.
 #pragma once
 #include "attributes.h"
+#include <php.h>
 #include <zend.h>
 #include <stdbool.h>
 

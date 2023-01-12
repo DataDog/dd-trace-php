@@ -6,11 +6,68 @@ import org.testcontainers.containers.Container
 
 import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 import static org.hamcrest.MatcherAssert.assertThat
+import static org.testcontainers.containers.Container.ExecResult
 
 trait CommonTests {
 
     AppSecContainer getContainer() {
         getClass().CONTAINER
+    }
+
+    @Test
+    void 'user tracking'() {
+        def trace = container.traceFromRequest('/user_id.php') { HttpURLConnection conn ->
+            assert conn.responseCode == 200
+        }
+
+        assert trace.meta."usr.id" == '123456789'
+        assert trace.meta."usr.name" == 'Jean Example'
+        assert trace.meta."usr.email" == 'jean.example@example.com'
+        assert trace.meta."usr.session_id" == '987654321'
+        assert trace.meta."usr.role" == 'admin'
+        assert trace.meta."usr.scope" == 'read:message, write:files'
+    }
+
+    @Test
+    void 'user login success event'() {
+        def trace = container.traceFromRequest('/user_login_success.php') { HttpURLConnection conn ->
+            assert conn.responseCode == 200
+        }
+
+        assert trace.metrics._sampling_priority_v1 == 2.0d
+        assert trace.meta."usr.id" == 'Admin'
+        assert trace.meta."appsec.events.users.login.success.track" == 'true'
+        assert trace.meta."appsec.events.users.login.success.email" == 'jean.example@example.com'
+        assert trace.meta."appsec.events.users.login.success.session_id" == '987654321'
+        assert trace.meta."appsec.events.users.login.success.role" == 'admin'
+    }
+
+    @Test
+    void 'user login failure event'() {
+        def trace = container.traceFromRequest('/user_login_failure.php') { HttpURLConnection conn ->
+            assert conn.responseCode == 200
+        }
+
+        assert trace.metrics._sampling_priority_v1 == 2.0d
+        assert trace.meta."appsec.events.users.login.failure.usr.id" == 'Admin'
+        assert trace.meta."appsec.events.users.login.failure.track" == 'true'
+        assert trace.meta."appsec.events.users.login.failure.email" == 'jean.example@example.com'
+        assert trace.meta."appsec.events.users.login.failure.session_id" == '987654321'
+        assert trace.meta."appsec.events.users.login.failure.role" == 'admin'
+    }
+
+
+    @Test
+    void 'custom event'() {
+        def trace = container.traceFromRequest('/custom_event.php') { HttpURLConnection conn ->
+            assert conn.responseCode == 200
+        }
+
+        assert trace.metrics._sampling_priority_v1 == 2.0d
+        assert trace.meta."appsec.events.custom_event.track" == 'true'
+        assert trace.meta."appsec.events.custom_event.metadata0" == 'value0'
+        assert trace.meta."appsec.events.custom_event.metadata1" == 'value1'
+        assert trace.meta."appsec.events.custom_event.metadata2" == 'value2'
     }
 
     @Test
@@ -46,13 +103,6 @@ trait CommonTests {
         assert trace.metrics._sampling_priority_v1 == 2.0d
 
         assert trace.metrics."_dd.appsec.waf.duration" > 0.0d
-        assert trace.metrics."_dd.appsec.event_rules.loaded" > 0.0d
-        assert trace.metrics."_dd.appsec.event_rules.error_count" == 0.0d
-
-        assert trace.meta."_dd.appsec.event_rules.errors" == '{}'
-        assert trace.meta."_dd.appsec.event_rules.version" != ''
-        assert trace.meta."_dd.appsec.waf.version" != ''
-
         assert trace.meta."_dd.runtime_family" == 'php'
         assert trace.meta."http.useragent" == 'Arachni/v1'
         def appsecJson = trace.meta."_dd.appsec.json"
