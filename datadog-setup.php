@@ -226,8 +226,10 @@ function install($options)
             foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
                 $path = "{$phpProperties[INI_SCANDIR]}/$ini";
                 if (is_file($path)) {
-                    if (preg_match('(^\s*extension\s*=.+ddtrace\.so)m', file_get_contents($path))) {
-                        $iniFileName = $ini;
+                    if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
+                        if (basename($res[1]) == "ddtrace") {
+                            $iniFileName = $ini;
+                        }
                     }
                 }
             }
