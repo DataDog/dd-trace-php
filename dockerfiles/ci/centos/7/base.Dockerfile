@@ -14,6 +14,7 @@ RUN set -eux; \
         libedit-devel \
         make \
         openssl-devel \
+        gmp-devel mpc-devel mpfr-devel libmpc-devel flex \
 # data dumper needed for autoconf, apparently
         perl-Data-Dumper \
         pkg-config \
@@ -161,6 +162,32 @@ RUN source scl_source enable devtoolset-7 \
   && make install \
   && cd - \
   && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
+
+RUN source scl_source enable devtoolset-7 \
+    && git clone --depth 1 -b releases/gcc-12 git://gcc.gnu.org/git/gcc.git \
+    && cd gcc \
+    && ./configure \
+    && make -j $(nproc) \
+    && make install \
+    && cd - \
+    && rm -fr gcc
+
+RUN source scl_source enable devtoolset-7 \
+  && FILENAME=capnproto-c++-0.10.3.tar.gz \
+  && curl -O "https://capnproto.org/$FILENAME" \
+  && tar --no-same-owner -xzf "$FILENAME" \
+  && cd ${FILENAME%.tar.gz} \
+  && ./configure \
+  && make -j install \
+  && cd - \
+  && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
+
+RUN source scl_source enable devtoolset-7 \
+  && git clone https://github.com/rr-debugger/rr.git \
+  && cd rr \
+  && pip3 install pexpect \
+  && CC=/usr/local/bin/gcc CXX=/usr/local/bin/g++ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/usr/bin/python3 .
+# run with LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH /rr/bin/rr
 
 # rust sha256sum generated locally after verifying it with sha256
 ARG RUST_VERSION="1.60.0"
