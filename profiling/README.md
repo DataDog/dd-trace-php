@@ -13,7 +13,8 @@ Notably, this waits until an internal function like `curl_exec` has been
 popped off the stack. This information is quite valuable, so this extension
 installs a `zend_execute_internal` hook which also checks the interrupt and
 handles the profiler's portion of the interrupt, but doesn't clear the
-interrupt. This allows interrupts to continue as normal for other extensions.
+interrupt. This allows interrupts to continue as normal for other extensions
+while allowing the profiler to see the internal function.
 
 When the interrupt handler runs, it collects the wall-time and cpu-time since
 the last run. This makes the cpu-time biased towards functions which do I/O,
