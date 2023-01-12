@@ -5,7 +5,7 @@ use crate::bindings::{
     ZaiStringView, IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
 pub use datadog_profiling::exporter::Uri;
-use libc::{c_void, memcpy};
+use libc::c_char;
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
@@ -87,11 +87,25 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStringView, ini_name: *mut zai
         ("datadog.", "DD_")
     };
 
-    memcpy(
-        ini_name.ptr.as_mut_ptr() as *mut c_void,
-        dest_prefix.as_ptr() as *const c_void,
-        dest_prefix.len(),
-    );
+    {
+        /* Safety:
+         *  1. The src buffer's length is coming from a safe rust slice
+         *  2. The length of all these prefixes is less than the size of the
+         *     dst buffer (currently 60 bytes);
+         *  3. Both pointers are dealing with bytes, and so they are aligned.
+         *  4. These pointers do not overlap, the src string is a constant
+         *     and the destination is an in-place array in a struct.
+         */
+        std::ptr::copy_nonoverlapping(
+            dest_prefix.as_ptr() as *const c_char,
+            ini_name.ptr.as_mut_ptr(),
+            dest_prefix.len(),
+        );
+
+        // Miri doesn't like uninitialized bytes
+        let buffer = &mut ini_name.ptr[dest_prefix.len()..];
+        buffer.fill(c_char::default());
+    }
 
     // Copy in the parts after the prefix, lowercasing as we go. For example,
     // with DD_PROFILING_ENABLED copy `ENABLED` as `enabled` into the
