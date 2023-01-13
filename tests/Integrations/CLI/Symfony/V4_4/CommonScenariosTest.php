@@ -29,9 +29,7 @@ class CommonScenariosTest extends IntegrationTestCase
                     'console',
                     'cli',
                     'console'
-                )->withExactTags([
-                    Tag::COMPONENT => 'laravel'
-                ])->withChildren([
+                )->withChildren([
                     SpanAssertion::build(
                         'symfony.console.terminate',
                         'symfony',

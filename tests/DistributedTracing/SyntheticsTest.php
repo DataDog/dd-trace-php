@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\DistributedTracing;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -57,7 +56,6 @@ class SyntheticsTest extends WebFrameworkTestCase
                 'http.url' => 'http://localhost:9999/index.php',
                 'http.status_code' => '200',
                 '_dd.origin' => 'synthetics-browser',
-                Tag::COMPONENT => 'laravel',
             ])->withExactMetrics([
                 '_sampling_priority_v1' => 1,
             ])

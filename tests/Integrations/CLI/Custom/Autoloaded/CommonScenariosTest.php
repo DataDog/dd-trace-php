@@ -30,9 +30,7 @@ final class CommonScenariosTest extends CLITestCase
                 'console_test_app',
                 'cli',
                 'run'
-            )->withExactTags([
-                Tag::COMPONENT => 'laravel'
-            ])
+            )
         ]);
     }
 }

@@ -155,7 +155,9 @@ class LaravelIntegration extends Integration
                 // This is used by both laravel and lumen. For consistency we rename it for lumen traces as otherwise
                 // users would see a span changing name as they upgrade to the new version.
                 $span->name = $integration->isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
-                $span->meta[Tag::COMPONENT] = $span->name === 'laravel.view' ? LaravelIntegration::NAME : LumenIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = $span->name === 'laravel.view'
+                        ? LaravelIntegration::NAME
+                        : LumenIntegration::NAME;
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 if (isset($args[0]) && \is_string($args[0])) {
