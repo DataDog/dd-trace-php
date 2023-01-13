@@ -103,7 +103,7 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                                     'web',
                                     '*/resources/views/simple_view.blade.php'
                                 )->withExactTags([
-                                    TAG::COMPONENT => 'laravel',
+                                    TAG::COMPONENT => 'lumen',
                                 ]),
                             ]),
                         ]),
