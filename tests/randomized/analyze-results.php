@@ -1,7 +1,7 @@
 <?php
 
-// Reduce to 500 because asan has more overhead
-const MINIMUM_ACCEPTABLE_REQUESTS = 500;
+const MINIMUM_ACCEPTABLE_REQUESTS = 900;
+const MINIMUM_ASAN_ACCEPTABLE_REQUESTS = 300;
 
 function analyze_web($tmpScenariosFolder)
 {
@@ -48,7 +48,9 @@ function analyze_web($tmpScenariosFolder)
             $possibleSegfaults[$identifier] = true;
         }
 
-        if (($requestCount = array_sum($receivedStatusCodes)) < MINIMUM_ACCEPTABLE_REQUESTS) {
+        // ASAN has more overhead
+        $minimum = strpos($identifier, "buster") ? MINIMUM_ASAN_ACCEPTABLE_REQUESTS : MINIMUM_ACCEPTABLE_REQUESTS;
+        if (($requestCount = array_sum($receivedStatusCodes)) < $minimum) {
             $minimumRequestCount[$identifier] = $requestCount;
         }
     }

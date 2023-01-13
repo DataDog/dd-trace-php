@@ -2,7 +2,7 @@
 
 set -e
 
-bash /scripts/enable-coredump.sh
+. /scripts/enable-coredump.sh
 bash /scripts/prepare.sh
 
 echo "Starting web load"

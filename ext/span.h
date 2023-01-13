@@ -39,7 +39,7 @@ struct ddtrace_span_data {
         struct ddtrace_span_stack *stack;
         zval property_stack;
     };
-    uint64_t trace_id;
+    ddtrace_trace_id trace_id;
     uint64_t parent_id;
     uint64_t span_id;
     uint64_t start;
@@ -105,6 +105,7 @@ void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
 void ddtrace_serialize_closed_spans(zval *serialized);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
+zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
 
