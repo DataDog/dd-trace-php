@@ -1074,18 +1074,15 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     ptr
 }
 
-// The only reason this function exists is because when calling `zend_mm_set_custom_handlers()` you
-// need to pass a pointer to a `free()` function as well, otherwise your custom handlers won't be
-// installed. Now that a custom memory handler is installed, we need to prepare the ZendMM heap
-// before calling the original `zend::_zend_mm_free()` function as we do in the custom alloc and
-// realloc handlers.
+// The reason this function exists is because when calling `zend_mm_set_custom_handlers()` you need
+// to pass a pointer to a `free()` function as well, otherwise your custom handlers won't be
+// installed. We can not just point to the original `zend::_zend_mm_free()` as the function
+// definitions differ.
 #[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     if PREV_CUSTOM_MM_FREE.is_none() {
         let heap = zend::zend_mm_get_heap();
-        let custom_heap = prepare_zend_heap(heap);
         zend::_zend_mm_free(heap, ptr);
-        restore_zend_heap(heap, custom_heap);
     } else {
         let prev = PREV_CUSTOM_MM_FREE.unwrap();
         prev(ptr);
