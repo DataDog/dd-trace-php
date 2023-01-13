@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Custom\Autoloaded;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -50,7 +49,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:' . self::PORT . '/simple?key=value&<redacted>',
                         'http.status_code' => '200',
-                        Tag::COMPONENT => 'laravel',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -63,7 +61,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:' . self::PORT . '/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
-                        Tag::COMPONENT => 'laravel',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -76,7 +73,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:' . self::PORT . '/error?key=value&<redacted>',
                         'http.status_code' => '500',
-                        Tag::COMPONENT => 'laravel',
                     ])->setError(),
                 ],
             ]

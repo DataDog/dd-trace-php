@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Custom\Autoloaded;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -43,7 +42,6 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:' . self::PORT . '/simple',
                     'http.status_code' => '200',
-                    Tag::COMPONENT => 'laravel',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
                     '_sampling_priority_v1' => 1,

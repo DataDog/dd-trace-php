@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Custom\NotAutoloaded;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -44,7 +43,6 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
             'http.request.headers.first-header' => 'some value: with colon',
             'http.request.headers.forth-header' => '123',
             'http.response.headers.third-header' => 'separated: with  : colon',
-            Tag::COMPONENT => 'laravel',
         ];
         if (\getenv('DD_TRACE_TEST_SAPI') != 'apache2handler') {
             $tags['http.request.headers.w__rd-header'] = 'foo';
