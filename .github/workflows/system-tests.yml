@@ -17,6 +17,7 @@ jobs:
   system-tests:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - weblog-variant: apache-mod-7.0

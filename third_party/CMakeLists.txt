@@ -3,6 +3,7 @@ include(FetchContent)
 option(MPACK_DEBUG "Compile mpack with MPACK_DEBUG=1 and min buffer size" OFF)
 
 if(DD_APPSEC_BUILD_HELPER)
+    set(LIBDDWAF_TESTING OFF)
     add_subdirectory(libddwaf EXCLUDE_FROM_ALL)
 
     FetchContent_Declare(
@@ -81,7 +82,7 @@ FetchContent_MakeAvailable(spdlog)
 include(ExternalProject)
 ExternalProject_Add(event_rules
     GIT_REPOSITORY https://github.com/DataDog/appsec-event-rules.git
-    GIT_TAG 1.4.0
+    GIT_TAG 1.4.2
     GIT_SHALLOW ON
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""

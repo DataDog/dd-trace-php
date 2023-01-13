@@ -1,5 +1,56 @@
 # Datadog AppSec for PHP Release
 
+### v0.5.0
+#### Fixes
+ - ([#120](https://github.com/DataDog/dd-appsec-php/pull/120)) Return error response in helper when incoming message can't be adequately handled
+ - ([#124](https://github.com/DataDog/dd-appsec-php/pull/124)) Avoid creating log file as root
+ - ([#130](https://github.com/DataDog/dd-appsec-php/pull/130)) Reset context on shutdown
+ - ([#132](https://github.com/DataDog/dd-appsec-php/pull/132)) Handle errors on `request_shutdown`
+ - ([#170](https://github.com/DataDog/dd-appsec-php/pull/170)) Avoid regenerating ip when multiple headers are already present
+
+#### Additions
+ - ([#114](https://github.com/DataDog/dd-appsec-php/pull/114)) Add zai config
+ - ([#128](https://github.com/DataDog/dd-appsec-php/pull/128)) Replace `actor.ip` with `http.client_ip`
+ - ([#151](https://github.com/DataDog/dd-appsec-php/pull/151)) PHP 8.2RC support
+ - ([#155](https://github.com/DataDog/dd-appsec-php/pull/155)) Generate IP on appsec
+ - ([#166](https://github.com/DataDog/dd-appsec-php/pull/166)) Support PHP 8.2 Release
+ - ([#174](https://github.com/DataDog/dd-appsec-php/pull/174)) Login and custom event SDK
+
+#### Miscellaneous Changes
+ - ([#117](https://github.com/DataDog/dd-appsec-php/pull/117)) Upgrade WAF to 1.5.0 and ruleset to 1.4.0
+ - ([#125](https://github.com/DataDog/dd-appsec-php/pull/125)) Update ip extraction module
+ - ([#129](https://github.com/DataDog/dd-appsec-php/pull/129)) Make test use latest version of ddtrace 0.79.0
+ - ([#142](https://github.com/DataDog/dd-appsec-php/pull/142)) Update ddtrace-basic test to be compatible with older tracers
+ - ([#152](https://github.com/DataDog/dd-appsec-php/pull/152)) Fix package / release build
+ - ([#153](https://github.com/DataDog/dd-appsec-php/pull/153)) Update LLVM script
+ - ([#172](https://github.com/DataDog/dd-appsec-php/pull/172)) Fix package build
+ - ([#175](https://github.com/DataDog/dd-appsec-php/pull/175)) WAF upgrade to 1.6.0 and ruleset to 1.4.2
+
+### v0.4.5
+#### Miscellaneous Changes
+- ([#154](https://github.com/DataDog/dd-appsec-php/pull/154)) Support for PHP 8.2.0RC6
+
+### v0.4.4
+#### Additions
+- ([#141](https://github.com/DataDog/dd-appsec-php/pull/141)) Generate ip and duplicate ip headers on appsec
+
+### v0.4.3
+#### Fixes
+- ([#132](https://github.com/DataDog/dd-appsec-php/pull/132)) Handle errors on request shutdown
+
+### v0.4.2
+#### Fixes
+- ([#127](https://github.com/DataDog/dd-appsec-php/pull/127)) Handle helper errors gracefully
+- ([#130](https://github.com/DataDog/dd-appsec-php/pull/130)) Reset context on shutdown
+
+### v0.4.1
+#### Fixes
+- ([#120](https://github.com/DataDog/dd-appsec-php/pull/120)) Return error response in helper when incoming message can't be unpacked
+- ([#124](https://github.com/DataDog/dd-appsec-php/pull/124)) Avoid creating a log file during MINIT/MSHUTDOWN
+
+#### Miscellaneous Changes
+- ([#123](https://github.com/DataDog/dd-appsec-php/pull/123)) Enable CI on all relevant branches
+
 ### v0.4.0
 #### Fixes
 - ([#99](https://github.com/DataDog/dd-appsec-php/pull/99)) Fix interned string invalidation on PHP <= 7.2
