@@ -102,6 +102,8 @@ void ddtrace_free_span_stacks(bool silent) {
             dd_free_span_ring(stack->closed_ring_flush);
             stack->closed_ring_flush = NULL;
 
+            stack->top_closed_stack = NULL;
+
             OBJ_RELEASE(&stack->std);
         }
     } while (obj_ptr != end);
