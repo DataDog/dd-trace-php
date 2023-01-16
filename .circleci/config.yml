@@ -170,6 +170,42 @@ aliases:
     store_test_results:
       path: test-results
 
+  - &STEP_CHECKOUT
+    run:
+      name: Checkout code
+      command: |
+        git config --global gc.auto 0
+        export CIRCLE_REPOSITORY_URL="${CIRCLE_REPOSITORY_URL/git@github.com:/https://github.com/}"
+        if [ -e '/home/circleci/datadog/.git' ] ; then
+          echo 'Fetching into existing repository'
+          existing_repo='true'
+          cd '/home/circleci/datadog'
+          git remote set-url origin "$CIRCLE_REPOSITORY_URL" || true
+          echo 'Fetching from remote repository'
+          if [ -n "$CIRCLE_TAG" ]; then
+            git fetch --force --tags origin
+          else
+            git fetch --force origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH"
+          fi
+        else
+          echo 'Cloning git repository'
+          existing_repo='false'
+          mkdir -p '/home/circleci/datadog'
+          cd '/home/circleci/datadog'
+          git clone --no-checkout "$CIRCLE_REPOSITORY_URL" .
+        fi
+        if [ -n "$CIRCLE_TAG" ]; then
+          echo 'Checking out tag'
+          git checkout --force "$CIRCLE_TAG"
+          git reset --hard "$CIRCLE_SHA1"
+        else
+          echo 'Checking out branch'
+          git checkout --force -B "$CIRCLE_BRANCH" "$CIRCLE_SHA1"
+          git --no-pager log --no-color -n 1 --format='HEAD is now at %h %s'
+        fi
+        echo 'Updating submodules'
+        git submodule update --init --recursive
+
 commands:
   lib_curl_workaround:
     parameters:
@@ -1476,7 +1512,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
             - source-v1-{{ .Branch }}-
             - source-v1-
-      - checkout
+      - <<: *STEP_CHECKOUT
       - save_cache:
           key: source-v1-{{ .Branch }}-{{ .Revision }}
           paths:
