@@ -13,7 +13,7 @@ use bindings::{ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
-use libc::{c_char, c_int};
+use libc::c_char;
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
 use sapi::Sapi;
@@ -22,12 +22,16 @@ use std::cell::{RefCell, RefMut};
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ops::DerefMut;
+use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, Once};
 use std::time::Instant;
 use uuid::Uuid;
+
+#[cfg(feature = "allocation_profiling")]
+use rand_distr::{Distribution, Poisson};
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
@@ -131,12 +135,15 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
 > = MaybeUninit::uninit();
 
 /// The engine's previous custom allocation function, if there is one.
+#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_ALLOC: Option<zend::VmMmCustomAllocFn> = None;
 
 /// The engine's previous custom reallocation function, if there is one.
+#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_REALLOC: Option<zend::VmMmCustomReallocFn> = None;
 
 /// The engine's previous custom free function, if there is one.
+#[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
 
 /* Important note on the PHP lifecycle:
@@ -268,38 +275,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_execute_internal = Some(execute_internal);
     };
 
-    #[cfg(feature = "allocation_profiling")]
-    {
-        if unsafe { !zend::is_zend_mm() } {
-            // Neighboring custom memory handlers found
-            unsafe {
-                zend::zend_mm_get_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    &mut PREV_CUSTOM_MM_ALLOC,
-                    &mut PREV_CUSTOM_MM_FREE,
-                    &mut PREV_CUSTOM_MM_REALLOC,
-                );
-            }
-        }
-
-        unsafe {
-            zend::zend_mm_set_custom_handlers(
-                zend::zend_mm_get_heap(),
-                Some(alloc_profiling_malloc),
-                Some(alloc_profiling_free),
-                Some(alloc_profiling_realloc),
-            );
-        }
-
-        // returns `true` if there are no custom handlers installed
-        // `false` if there are custom handlers installed
-        if unsafe { zend::is_zend_mm() } {
-            info!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
-        } else {
-            info!("Memory allocation profiling enabled.")
-        }
-    }
-
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
      */
@@ -328,12 +303,75 @@ pub struct RequestLocals {
     pub profiling_enabled: bool,
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
+    pub profiling_experimental_allocation_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub tags: Vec<Tag>,
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt_addr: *const AtomicBool,
+}
+
+/// take a sample every X bytes
+/// this value is temporary but the overhead looks promising, Go profiler samples every 512 KiB
+#[cfg(feature = "allocation_profiling")]
+const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 50.0;
+
+#[cfg(feature = "allocation_profiling")]
+pub struct AllocationProfilingStats {
+    /// number of bytes until next sample collection
+    next_sample: i64,
+}
+
+#[cfg(feature = "allocation_profiling")]
+impl AllocationProfilingStats {
+    fn new() -> AllocationProfilingStats {
+        AllocationProfilingStats {
+            next_sample: AllocationProfilingStats::next_sampling_interval(),
+        }
+    }
+
+    fn next_sampling_interval() -> i64 {
+        Poisson::new(ALLOCATION_PROFILING_INTERVAL)
+            .unwrap()
+            .sample(&mut rand::thread_rng()) as i64
+    }
+
+    fn track_allocation(&mut self, len: u64) {
+        self.next_sample -= len as i64;
+
+        if self.next_sample > 0 {
+            return;
+        }
+
+        let scale = 1.0 / (1.0 - (len as f64 * -1.0 / ALLOCATION_PROFILING_INTERVAL).exp());
+
+        let count = 1.0 * scale;
+        let bytes = len as f64 * scale;
+
+        self.next_sample = AllocationProfilingStats::next_sampling_interval();
+
+        REQUEST_LOCALS.with(|cell| {
+            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+            let locals = cell.try_borrow();
+            if locals.is_err() {
+                return;
+            }
+            let locals = locals.unwrap();
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+                unsafe {
+                    profiler.collect_allocations(
+                        zend::ddog_php_prof_get_current_execute_data(),
+                        count as i64,
+                        bytes as i64,
+                        &locals,
+                    )
+                };
+            }
+        });
+    }
 }
 
 fn static_tags() -> Vec<Tag> {
@@ -356,6 +394,7 @@ thread_local! {
         profiling_enabled: false,
         profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
+        profiling_experimental_allocation_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
         tags: static_tags(),
@@ -363,6 +402,9 @@ thread_local! {
         version: None,
         vm_interrupt_addr: std::ptr::null_mut(),
     });
+
+    #[cfg(feature = "allocation_profiling")]
+    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats::new());
 }
 
 /// Gets the runtime-id for the process.
@@ -392,12 +434,14 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         profiling_enabled,
         profiling_endpoint_collection_enabled,
         profiling_experimental_cpu_time_enabled,
+        profiling_experimental_allocation_enabled,
         log_level,
     ) = unsafe {
         (
             config::profiling_enabled(),
             config::profiling_endpoint_collection_enabled(),
             config::profiling_experimental_cpu_time_enabled(),
+            config::profiling_experimental_allocation_enabled(),
             config::profiling_log_level(),
         )
     };
@@ -412,6 +456,8 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         locals.profiling_enabled = profiling_enabled;
         locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
+        locals.profiling_experimental_allocation_enabled =
+            profiling_experimental_allocation_enabled;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -462,28 +508,22 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             if sapi_module.pretty_name.is_null() {
                 // Safety: I'm willing to bet the module name is less than `isize::MAX`.
                 let name = unsafe { CStr::from_ptr(sapi_module.name) }.to_string_lossy();
-                warn!("The SAPI module {}'s pretty name was not set!", name)
+                warn!("The SAPI module {name}'s pretty name was not set!")
             } else {
                 // Safety: I'm willing to bet the module pretty name is less than `isize::MAX`.
                 let pretty_name =
                     unsafe { CStr::from_ptr(sapi_module.pretty_name) }.to_string_lossy();
                 if SAPI.get().unwrap_or(&Sapi::Unknown) != &Sapi::Unknown {
-                    debug!("Recognized SAPI: {}.", pretty_name);
+                    debug!("Recognized SAPI: {pretty_name}.");
                 } else {
-                    warn!("Unrecognized SAPI: {}.", pretty_name);
+                    warn!("Unrecognized SAPI: {pretty_name}.");
                 }
             }
             if let Err(err) = cpu_time::ThreadTime::try_now() {
                 if profiling_experimental_cpu_time_enabled {
-                    warn!(
-                        "CPU Time collection was enabled but collection failed: {}",
-                        err
-                    );
+                    warn!("CPU Time collection was enabled but collection failed: {err}");
                 } else {
-                    debug!(
-                        "CPU Time collection was not enabled and isn't available: {}",
-                        err
-                    );
+                    debug!("CPU Time collection was not enabled and isn't available: {err}");
                 }
             } else if profiling_experimental_cpu_time_enabled {
                 info!("CPU Time profiling enabled.");
@@ -536,7 +576,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                         locals.tags.push(tag);
                     }
                     Err(err) => {
-                        warn!("invalid tag: {}", err);
+                        warn!("invalid tag: {err}");
                     }
                 }
             }
@@ -547,14 +587,49 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 if let Err((index, interrupt)) = profiler.add_interrupt(interrupt) {
-                    warn!(
-                        "VM interrupt {} already exists at offset {}",
-                        index, interrupt
-                    );
+                    warn!("VM interrupt {index} already exists at offset {interrupt}");
                 }
             }
         });
     }
+
+    #[cfg(feature = "allocation_profiling")]
+    {
+        if profiling_experimental_allocation_enabled {
+            if !is_zend_mm() {
+                // Neighboring custom memory handlers found
+                debug!("Found another extension using the ZendMM custom handler hook");
+                unsafe {
+                    zend::zend_mm_get_custom_handlers(
+                        zend::zend_mm_get_heap(),
+                        &mut PREV_CUSTOM_MM_ALLOC,
+                        &mut PREV_CUSTOM_MM_FREE,
+                        &mut PREV_CUSTOM_MM_REALLOC,
+                    );
+                }
+            }
+
+            unsafe {
+                zend::ddog_php_prof_zend_mm_set_custom_handlers(
+                    zend::zend_mm_get_heap(),
+                    Some(alloc_profiling_malloc),
+                    Some(alloc_profiling_free),
+                    Some(alloc_profiling_realloc),
+                );
+            }
+
+            if is_zend_mm() {
+                error!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
+                REQUEST_LOCALS.with(|cell| {
+                    let mut locals = cell.borrow_mut();
+                    locals.profiling_experimental_allocation_enabled = false;
+                });
+            } else {
+                info!("Memory allocation profiling enabled.")
+            }
+        }
+    }
+
     ZendResult::Success
 }
 
@@ -564,7 +639,7 @@ fn log_add_tag<V: AsRef<str>>(locals: &mut RefMut<RequestLocals>, key: &str, val
             locals.tags.push(tag);
         }
         Err(err) => {
-            warn!("invalid tag: {}", err);
+            warn!("invalid tag: {err}");
         }
     }
 }
@@ -598,7 +673,7 @@ fn detect_uri_from_config(
         } else {
             match Uri::from_str(trace_agent_url.as_ref()) {
                 Ok(uri) => return AgentEndpoint::Uri(uri),
-                Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {}", err),
+                Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {err}"),
             }
         }
         // continue down priority list
@@ -607,10 +682,10 @@ fn detect_uri_from_config(
         let host = host.unwrap_or(Cow::Borrowed("localhost"));
         let port = port.unwrap_or(8126u16);
 
-        match Uri::from_str(format!("http://{}:{}", host, port).as_str()) {
+        match Uri::from_str(format!("http://{host}:{port}").as_str()) {
             Ok(uri) => return AgentEndpoint::Uri(uri),
             Err(err) => {
-                warn!("The combination of DD_AGENT_HOST({}) and DD_TRACE_AGENT_PORT({}) was not a valid URL: {}", host, port, err)
+                warn!("The combination of DD_AGENT_HOST({host}) and DD_TRACE_AGENT_PORT({port}) was not a valid URL: {err}")
             }
         }
         // continue down priority list
@@ -625,6 +700,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
+
         if locals.profiling_enabled {
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 let interrupt = VmInterrupt {
@@ -632,10 +708,64 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 if let Err(err) = profiler.remove_interrupt(interrupt) {
-                    warn!("Unable to find interrupt {}.", err);
+                    warn!("Unable to find interrupt {err}.");
                 }
             }
             locals.tags = static_tags();
+        }
+
+        #[cfg(feature = "allocation_profiling")]
+        {
+            if locals.profiling_experimental_allocation_enabled {
+                // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
+                // already. This is unexpected, therefore we will not touch the ZendMM handlers
+                // anymore as resetting to prev handlers might result in segfaults and other
+                // undefined behaviour.
+                if !is_zend_mm() {
+                    let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+                    let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+                    let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
+                    unsafe {
+                        zend::zend_mm_get_custom_handlers(
+                            zend::zend_mm_get_heap(),
+                            &mut custom_mm_malloc,
+                            &mut custom_mm_free,
+                            &mut custom_mm_realloc,
+                        );
+                    }
+                    if custom_mm_free != Some(alloc_profiling_free)
+                        || custom_mm_malloc != Some(alloc_profiling_malloc)
+                        || custom_mm_realloc != Some(alloc_profiling_realloc)
+                    {
+                        // Custom handlers are installed, but it's not us. Someone, somewhere might have
+                        // function pointers to our custom handlers. Best bet to avoid segfaults is to not
+                        // touch custom handlers in ZendMM and make sure our extension will not be
+                        // `dlclose()`-ed so the pointers stay valid
+                        let zend_extension = unsafe {
+                            zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char)
+                        };
+                        if !zend_extension.is_null() {
+                            // Safety: Checked for null pointer above.
+                            unsafe {
+                                (*zend_extension).handle = std::ptr::null_mut();
+                            }
+                        }
+                        // disable any further allocation profiling
+                        locals.profiling_experimental_allocation_enabled = false;
+                        info!("Memory allocation profiling disabled.");
+                    } else {
+                        // This is the happy path (restore previously installed custom handlers)!
+                        unsafe {
+                            zend::ddog_php_prof_zend_mm_set_custom_handlers(
+                                zend::zend_mm_get_heap(),
+                                PREV_CUSTOM_MM_ALLOC,
+                                PREV_CUSTOM_MM_FREE,
+                                PREV_CUSTOM_MM_REALLOC,
+                            );
+                        }
+                    }
+                }
+            }
         }
     });
 
@@ -667,6 +797,16 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             2,
             b"Experimental CPU Time Profiling Enabled\0".as_ptr(),
             if locals.profiling_experimental_cpu_time_enabled {
+                yes
+            } else {
+                no
+            },
+        );
+
+        zend::php_info_print_table_row(
+            2,
+            b"Experimental Allocation Profiling Enabled\0".as_ptr(),
+            if locals.profiling_experimental_allocation_enabled {
                 yes
             } else {
                 no
@@ -731,54 +871,6 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     let mut profiler = PROFILER.lock().unwrap();
     if let Some(profiler) = profiler.take() {
         profiler.stop();
-    }
-
-    #[cfg(feature = "allocation_profiling")]
-    {
-        // If `zend::is_zend_mm()` is true, the custom handlers have been reset
-        // to `None` already. This is unexpected, therefore we will not touch the ZendMM handlers
-        // anymore as resetting to prev handlers might result in segfaults.
-        if unsafe { !zend::is_zend_mm() } {
-            let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
-            let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
-            let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
-            unsafe {
-                zend::zend_mm_get_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    &mut custom_mm_malloc,
-                    &mut custom_mm_free,
-                    &mut custom_mm_realloc,
-                );
-            }
-            if custom_mm_free != Some(alloc_profiling_free)
-                || custom_mm_malloc != Some(alloc_profiling_malloc)
-                || custom_mm_realloc != Some(alloc_profiling_realloc)
-            {
-                // Custom handlers are installed, but it's not us. Someone, somewhere might have
-                // function pointers to our custom handlers. Best bet to avoid segfaults is to not
-                // touch custom handlers in ZendMM and make sure our extension will not be
-                // `dlclose()`-ed so the pointers stay valid
-                let zend_extension =
-                    unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const i8) };
-                if !zend_extension.is_null() {
-                    // Safety: Checked for null pointer above.
-                    unsafe {
-                        (*zend_extension).handle = std::ptr::null_mut();
-                    }
-                }
-            } else {
-                // This is the happy path (restore previously installed custom handlers)!
-                unsafe {
-                    zend::zend_mm_set_custom_handlers(
-                        zend::zend_mm_get_heap(),
-                        PREV_CUSTOM_MM_ALLOC,
-                        PREV_CUSTOM_MM_FREE,
-                        PREV_CUSTOM_MM_REALLOC,
-                    );
-                }
-            }
-            info!("Memory allocation profiling disabled.");
-        }
     }
 
     ZendResult::Success
@@ -848,8 +940,7 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
             // Only gather Endpoint Profiling data for web spans, partly for PII reasons.
             if span_type != "web" {
                 debug!(
-                    "Local root span id {} ended but did not have a span type of 'web' (actual: '{}'), so Endpoint Profiling data will not be sent.",
-                    local_root_span_id, span_type
+                    "Local root span id {local_root_span_id} ended but did not have a span type of 'web' (actual: '{span_type}'), so Endpoint Profiling data will not be sent."
                 );
                 return;
             }
@@ -860,11 +951,10 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
                     resource: resource.into_owned(),
                 };
                 if let Err(err) = profiler.send_local_root_span_resource(message) {
-                    warn!("Failed to enqueue endpoint profiling information: {}.", err);
+                    warn!("Failed to enqueue endpoint profiling information: {err}.");
                 } else {
                     trace!(
-                        "Enqueued endpoint profiling information for span id: {}.",
-                        local_root_span_id
+                        "Enqueued endpoint profiling information for span id: {local_root_span_id}."
                     );
                 }
             }
@@ -934,66 +1024,112 @@ extern "C" fn execute_internal(
     interrupt_function(execute_data);
 }
 
+/// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`
+/// (currently a `u32: 0`). This needs to be done, as the `zend_mm_gc()` and `zend_mm_shutdown()`
+/// functions alter behaviour in case custom handlers are installed.
+/// - `zend_mm_gc()` will not do anything anymore.
+/// - `zend_mm_shutdown()` wont cleanup chunks anymore, leading to memory leaks
+/// The `_zend_mm_heap`-struct itself is private, but we are lucky, as the `use_custom_heap` flag
+/// is the first element and thus the first 4 bytes.
+/// Take care and call `restore_zend_heap()` afterwards!
+#[cfg(feature = "allocation_profiling")]
+unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
+    let custom_heap: c_int = std::ptr::read(heap as *const c_int);
+    std::ptr::write(heap as *mut c_int, zend::ZEND_MM_CUSTOM_HEAP_NONE as c_int);
+    custom_heap
+}
+
+/// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
+#[cfg(feature = "allocation_profiling")]
+unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
+    std::ptr::write(heap as *mut c_int, custom_heap);
+}
+
+#[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     let ptr: *mut libc::c_void;
 
     // TODO: prepare a function pointer to use so we don't need a runtime check
     if PREV_CUSTOM_MM_ALLOC.is_none() {
-        ptr = zend::_zend_mm_alloc(zend::zend_mm_get_heap(), len);
+        let heap = zend::zend_mm_get_heap();
+        let custom_heap = prepare_zend_heap(heap);
+        ptr = zend::_zend_mm_alloc(heap, len);
+        restore_zend_heap(heap, custom_heap);
     } else {
         let prev = PREV_CUSTOM_MM_ALLOC.unwrap();
         ptr = prev(len);
     }
 
     // during startup, minit, rinit, ... current_execute_data is null
-    if zend::executor_globals.current_execute_data.is_null() {
+    // we are only interested in allocations during userland operations
+    if zend::ddog_php_prof_get_current_execute_data().is_null() {
         return ptr;
     }
 
-    REQUEST_LOCALS.with(|cell| {
-        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-        let locals = cell.try_borrow();
-        if locals.is_err() {
-            return;
-        }
-        let locals = locals.unwrap();
-
-        if !locals.profiling_enabled {
-            return;
-        }
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_allocations(
-                    zend::executor_globals.current_execute_data,
-                    len,
-                    &locals,
-                )
-            };
-        }
+    ALLOCATION_PROFILING_STATS.with(|cell| {
+        let mut allocations = cell.borrow_mut();
+        allocations.track_allocation(len)
     });
 
     ptr
 }
 
+// The reason this function exists is because when calling `zend_mm_set_custom_handlers()` you need
+// to pass a pointer to a `free()` function as well, otherwise your custom handlers won't be
+// installed. We can not just point to the original `zend::_zend_mm_free()` as the function
+// definitions differ.
+#[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
     if PREV_CUSTOM_MM_FREE.is_none() {
-        zend::_zend_mm_free(zend::zend_mm_get_heap(), ptr);
+        let heap = zend::zend_mm_get_heap();
+        zend::_zend_mm_free(heap, ptr);
     } else {
         let prev = PREV_CUSTOM_MM_FREE.unwrap();
         prev(ptr);
     }
 }
 
+#[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_realloc(
-    ptr: *mut ::libc::c_void,
+    prev_ptr: *mut ::libc::c_void,
     len: u64,
 ) -> *mut ::libc::c_void {
+    let ptr: *mut libc::c_void;
     if PREV_CUSTOM_MM_REALLOC.is_none() {
-        zend::_zend_mm_realloc(zend::zend_mm_get_heap(), ptr, len)
+        let heap = zend::zend_mm_get_heap();
+        let custom_heap = prepare_zend_heap(heap);
+        ptr = zend::_zend_mm_realloc(heap, prev_ptr, len);
+        restore_zend_heap(heap, custom_heap);
     } else {
         let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
-        prev(ptr, len)
+        ptr = prev(prev_ptr, len);
+    }
+
+    // during startup, minit, rinit, ... current_execute_data is null
+    // we are only interested in allocations during userland operations
+    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr == prev_ptr {
+        return ptr;
+    }
+
+    ALLOCATION_PROFILING_STATS.with(|cell| {
+        let mut allocations = cell.borrow_mut();
+        allocations.track_allocation(len)
+    });
+
+    ptr
+}
+
+/// safe wrapper for `zend::is_zend_mm()`.
+/// `true` means the internal ZendMM is being used, `false` means that a custom memory manager is
+/// installed. Upstream returns a `c_bool` as of PHP 8.0. PHP 7 returns a `c_int`
+#[cfg(feature = "allocation_profiling")]
+fn is_zend_mm() -> bool {
+    #[cfg(php7)]
+    {
+        unsafe { zend::is_zend_mm() == 1 }
+    }
+    #[cfg(php8)]
+    {
+        unsafe { zend::is_zend_mm() }
     }
 }

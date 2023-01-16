@@ -6,13 +6,14 @@ test verifies that certain information is present when configured by .ini.
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
-  echo "skip: test requires Datadog Continuous Profiler\n";
+    echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
 --INI--
 assert.exception=1
 datadog.profiling.enabled=no
 datadog.profiling.log_level=info
 datadog.profiling.experimental_cpu_time_enabled=yes
+datadog.profiling.experimental_allocation_enabled=yes
 datadog.service=datadog-profiling-phpt
 datadog.env=dev
 datadog.version=13
@@ -44,6 +45,7 @@ assert(isset($values["Version"]));
 $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "true"],
+    ["Experimental Allocation Profiling Enabled", "true"],
     ["Endpoint Collection Enabled", "true"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],

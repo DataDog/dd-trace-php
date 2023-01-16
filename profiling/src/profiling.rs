@@ -336,7 +336,7 @@ impl TimeCollector {
                 duration,
             };
             if let Err(err) = self.upload_sender.try_send(message) {
-                warn!("Failed to upload profile: {}", err);
+                warn!("Failed to upload profile: {err}");
             }
         }
         wall_export
@@ -440,7 +440,7 @@ impl TimeCollector {
         match profile.add(sample) {
             Ok(_id) => {}
             Err(err) => {
-                warn!("Failed to add sample to the profile: {}", err)
+                warn!("Failed to add sample to the profile: {err}")
             }
         }
     }
@@ -739,199 +739,179 @@ impl Profiler {
             Ok(frames) => {
                 let depth = frames.len();
 
-                // todo: add {cpu-time, nanoseconds}
-                let mut sample_types = vec![
-                    ValueType {
-                        r#type: Cow::Borrowed("sample"),
-                        unit: Cow::Borrowed("count"),
-                    },
-                    ValueType {
-                        r#type: Cow::Borrowed("wall-time"),
-                        unit: Cow::Borrowed("nanoseconds"),
-                    },
-                ];
-
                 let now = Instant::now();
                 let walltime = now.duration_since(locals.last_wall_time);
                 locals.last_wall_time = now;
                 let walltime: i64 = walltime.as_nanos().try_into().unwrap_or(i64::MAX);
 
-                let mut sample_values = vec![interrupt_count, walltime];
-
                 /* If CPU time is disabled, or if it's enabled but not available on the platform,
                  * then `locals.last_cpu_time` will be None.
                  */
+                let mut cputime: Option<i64> = None;
                 if let Some(last_cpu_time) = locals.last_cpu_time {
-                    sample_types.push(ValueType {
-                        r#type: Cow::Borrowed("cpu-time"),
-                        unit: Cow::Borrowed("nanoseconds"),
-                    });
-
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
-                    let cputime: i64 = now
+                    let old_cputime = now
                         .duration_since(last_cpu_time)
                         .as_nanos()
                         .try_into()
                         .unwrap_or(i64::MAX);
-                    sample_values.push(cputime);
+                    cputime = Some(old_cputime);
                     locals.last_cpu_time = Some(now);
                 }
 
-                let mut labels = vec![];
-                let gpc = datadog_php_profiling_get_profiling_context;
-                if let Some(get_profiling_context) = gpc {
-                    let context = get_profiling_context();
-                    if context.local_root_span_id != 0 {
-                        labels.push(Label {
-                            key: "local root span id".into(),
-                            value: LabelValue::Str(
-                                format!("{}", context.local_root_span_id).into(),
-                            ),
-                        });
-                        labels.push(Label {
-                            key: "span id".into(),
-                            value: LabelValue::Str(format!("{}", context.span_id).into()),
-                        });
-                    }
-                }
+                let labels = self.message_labels();
 
-                let mut tags = locals.tags.clone();
-
-                if let Some(version) = PHP_VERSION.get() {
-                    /* This should probably be "language_version", but this is
-                     * the tag that was standardized for this purpose. */
-                    let tag = Tag::new("runtime_version", version)
-                        .expect("runtime_version to be a valid tag");
-                    tags.push(tag);
-                }
-
-                if let Some(sapi) = crate::SAPI.get() {
-                    match Tag::new("php.sapi", sapi.to_string()) {
-                        Ok(tag) => tags.push(tag),
-                        Err(err) => warn!("Tag error: {}", err),
-                    }
-                }
-
-                let message = SampleMessage {
-                    key: ProfileIndex {
-                        sample_types,
-                        tags,
-                        endpoint: locals.uri.clone(),
-                    },
-                    value: SampleData {
-                        frames,
-                        labels: labels.clone(),
-                        sample_values,
-                    },
-                };
-
-                match self.send_sample(message) {
+                match self.send_sample(self.prepare_sample_message(
+                    frames,
+                    interrupt_count,
+                    walltime,
+                    cputime,
+                    0,
+                    0,
+                    &labels,
+                    locals,
+                )) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {} with labels {:?} to profiler.",
-                        depth,
-                        labels
+                        "Sent stack sample of depth {depth} with labels {labels:?} to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {} with labels {:?} to profiler: {}",
-                        depth, labels, err
+                        "Failed to send stack sample of depth {depth} with labels {labels:?} to profiler: {err}"
                     ),
                 }
             }
             Err(err) => {
-                warn!("Failed to collect stack sample: {}", err)
+                warn!("Failed to collect stack sample: {err}")
             }
         }
     }
 
     /// Collect a stack sample with memory allocations
+    #[cfg(feature = "allocation_profiling")]
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
-        allocation_size: u64,
+        count: i64,
+        bytes: i64,
         locals: &RequestLocals,
     ) {
         let result = collect_stack_sample(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
+                let labels = self.message_labels();
 
-                let sample_types = vec![
-                    ValueType {
-                        r#type: Cow::Borrowed("alloc-samples"),
-                        unit: Cow::Borrowed("count"),
-                    },
-                    ValueType {
-                        r#type: Cow::Borrowed("alloc-size"),
-                        unit: Cow::Borrowed("bytes"),
-                    },
-                ];
-
-                let sample_values = vec![1, allocation_size as i64];
-
-                let mut labels = vec![];
-                let gpc = datadog_php_profiling_get_profiling_context;
-                if let Some(get_profiling_context) = gpc {
-                    let context = get_profiling_context();
-                    if context.local_root_span_id != 0 {
-                        labels.push(Label {
-                            key: "local root span id".into(),
-                            value: LabelValue::Str(
-                                format!("{}", context.local_root_span_id).into(),
-                            ),
-                        });
-                        labels.push(Label {
-                            key: "span id".into(),
-                            value: LabelValue::Str(format!("{}", context.span_id).into()),
-                        });
-                    }
-                }
-
-                let mut tags = locals.tags.clone();
-
-                if let Some(version) = PHP_VERSION.get() {
-                    /* This should probably be "language_version", but this is
-                     * the tag that was standardized for this purpose. */
-                    let tag = Tag::new("runtime_version", version)
-                        .expect("runtime_version to be a valid tag");
-                    tags.push(tag);
-                }
-
-                if let Some(sapi) = crate::SAPI.get() {
-                    match Tag::new("php.sapi", sapi.to_string()) {
-                        Ok(tag) => tags.push(tag),
-                        Err(err) => warn!("Tag error: {}", err),
-                    }
-                }
-
-                let message = SampleMessage {
-                    key: ProfileIndex {
-                        sample_types,
-                        tags,
-                        endpoint: locals.uri.clone(),
-                    },
-                    value: SampleData {
-                        frames,
-                        labels: labels.clone(),
-                        sample_values,
-                    },
-                };
-
-                match self.send_sample(message) {
+                match self.send_sample(self.prepare_sample_message(
+                    frames,
+                    0,
+                    0,
+                    None,
+                    count,
+                    bytes,
+                    &labels,
+                    locals
+                )) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {} with labels {:?} to profiler.",
-                        depth,
-                        labels
+                        "Sent stack sample of depth {depth} with size {bytes}, labels {labels:?} and count {count} to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {} with labels {:?} to profiler: {}",
-                        depth, labels, err
+                        "Failed to send stack sample of depth {depth} with size {bytes}, labels {labels:?} and count {count} to profiler: {err}"
                     ),
                 }
             }
             Err(err) => {
-                warn!("Failed to collect stack sample: {}", err)
+                warn!("Failed to collect stack sample: {err}")
             }
+        }
+    }
+
+    fn message_labels(&self) -> Vec<Label> {
+        let mut labels = vec![];
+        let gpc = unsafe { datadog_php_profiling_get_profiling_context };
+        if let Some(get_profiling_context) = gpc {
+            let context = unsafe { get_profiling_context() };
+            if context.local_root_span_id != 0 {
+                labels.push(Label {
+                    key: "local root span id".into(),
+                    value: LabelValue::Str(format!("{}", context.local_root_span_id).into()),
+                });
+                labels.push(Label {
+                    key: "span id".into(),
+                    value: LabelValue::Str(format!("{}", context.span_id).into()),
+                });
+            }
+        }
+        labels
+    }
+
+    fn prepare_sample_message(
+        &self,
+        frames: Vec<ZendFrame>,
+        sample: i64,
+        wall_time: i64,
+        cpu_time: Option<i64>,
+        alloc_samples: i64,
+        alloc_size: i64,
+        labels: &[Label],
+        locals: &RequestLocals,
+    ) -> SampleMessage {
+        let mut sample_types = vec![
+            ValueType {
+                r#type: Cow::Borrowed("sample"),
+                unit: Cow::Borrowed("count"),
+            },
+            ValueType {
+                r#type: Cow::Borrowed("wall-time"),
+                unit: Cow::Borrowed("nanoseconds"),
+            },
+            ValueType {
+                r#type: Cow::Borrowed("alloc-samples"),
+                unit: Cow::Borrowed("count"),
+            },
+            ValueType {
+                r#type: Cow::Borrowed("alloc-size"),
+                unit: Cow::Borrowed("bytes"),
+            },
+        ];
+
+        let mut sample_values = vec![sample, wall_time, alloc_samples, alloc_size];
+
+        if locals.last_cpu_time.is_some() {
+            sample_types.push(ValueType {
+                r#type: Cow::Borrowed("cpu-time"),
+                unit: Cow::Borrowed("nanoseconds"),
+            });
+            sample_values.push(if let Some(val) = cpu_time { val } else { 0 });
+        }
+
+        let mut tags = locals.tags.clone();
+
+        if let Some(version) = PHP_VERSION.get() {
+            /* This should probably be "language_version", but this is
+             * the tag that was standardized for this purpose. */
+            let tag =
+                Tag::new("runtime_version", version).expect("runtime_version to be a valid tag");
+            tags.push(tag);
+        }
+
+        if let Some(sapi) = crate::SAPI.get() {
+            match Tag::new("php.sapi", sapi.to_string()) {
+                Ok(tag) => tags.push(tag),
+                Err(err) => warn!("Tag error: {err}"),
+            }
+        }
+
+        SampleMessage {
+            key: ProfileIndex {
+                sample_types,
+                tags,
+                endpoint: locals.uri.clone(),
+            },
+            value: SampleData {
+                frames,
+                labels: labels.to_vec(),
+                sample_values,
+            },
         }
     }
 }
