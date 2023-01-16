@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V5_7;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
@@ -34,7 +35,9 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'laravel',
+                    ]),
                 ]),
         ]);
     }
@@ -55,13 +58,17 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'laravel',
+                    ]),
                     SpanAssertion::build(
                         'laravel.pipeline.pipe',
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'laravel',
+                    ]),
                 ]),
         ]);
     }

@@ -44,6 +44,7 @@ class ElasticSearchIntegration extends Integration
                 $span->service = ElasticSearchIntegration::NAME;
                 $span->type = Type::ELASTICSEARCH;
                 $span->resource = "__construct";
+                $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
             }
         ]);
 
@@ -106,6 +107,7 @@ class ElasticSearchIntegration extends Integration
             $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
             $span->meta[Tag::SPAN_KIND] = 'client';
+            $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
 
             try {
                 $span->meta[Tag::ELASTICSEARCH_URL] = $this->getURI();
@@ -125,6 +127,7 @@ class ElasticSearchIntegration extends Integration
             $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
             $span->meta[Tag::SPAN_KIND] = 'client';
+            $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
 
             $span->meta[Tag::ELASTICSEARCH_URL] = $args[1];
             $span->meta[Tag::ELASTICSEARCH_METHOD] = $args[0];
@@ -169,6 +172,7 @@ class ElasticSearchIntegration extends Integration
                     $span->service = ElasticSearchIntegration::NAME;
                     $span->type = Type::ELASTICSEARCH;
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
+                    $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
                 }
             ]
         );
@@ -186,6 +190,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = $operationName;
             $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
+            $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
         });
     }
 
@@ -207,6 +212,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = ElasticSearchCommon::buildResourceName($name, $params);
             $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
+            $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
         });
     }
 }

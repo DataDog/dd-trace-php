@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integrations\CodeIgniter\V2_2;
 
 use DDTrace\Tag;
+use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -53,13 +54,16 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple::index',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'codeigniter',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple.index',
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple.index'
-                        )
+                        )->withExactTags([
+                            Tag::COMPONENT => 'codeigniter',
+                        ])
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -74,19 +78,24 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple_View::index',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'codeigniter',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple_View.index',
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Simple_View.index'
-                        )->withChildren([
+                        )->withExactTags([
+                            Tag::COMPONENT => 'codeigniter',
+                        ])->withChildren([
                             SpanAssertion::build(
                                 'CI_Loader.view',
                                 'codeigniter_test_app',
                                 Type::WEB_SERVLET,
                                 'simple_view'
-                            ),
+                            )->withExactTags([
+                                Tag::COMPONENT => 'codeigniter',
+                            ]),
                         ])
                     ]),
                 ],
@@ -103,6 +112,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Error_::index',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'codeigniter',
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
                     ->withExistingTagsNames(['error.stack'])
@@ -112,7 +122,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Error_.index'
-                        )->setError('Exception', 'datadog', true),
+                        )->withExactTags([
+                            Tag::COMPONENT => 'codeigniter',
+                        ])->setError('Exception', 'datadog', true),
                     ]),
                 ],
             ]

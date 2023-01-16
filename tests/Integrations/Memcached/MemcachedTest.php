@@ -17,6 +17,7 @@ final class MemcachedTest extends IntegrationTestCase
     private static $host = 'memcached_integration';
     private static $port = '11211';
 
+
     protected function ddSetUp()
     {
         parent::ddSetUp();
@@ -239,6 +240,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'deleteMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'deleteMulti',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::exists('Memcached.get'),
@@ -454,6 +456,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags([
                     'memcached.command' => 'flush',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -494,6 +497,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
                 ]),
         ]);
     }
@@ -628,6 +632,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'setMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'setMulti',
                     Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.getMulti'),
         ]);
@@ -757,6 +762,7 @@ final class MemcachedTest extends IntegrationTestCase
         return [
             'out.host' => self::$host,
             'out.port' => self::$port,
+            Tag::COMPONENT => 'memcached',
         ];
     }
 }

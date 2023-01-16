@@ -90,6 +90,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::ENV, 'env'],
             [Tag::SPAN_TYPE, 'span.type'],
             [Tag::SPAN_KIND, 'span.kind'],
+            [Tag::COMPONENT, 'component'],
             [Tag::SERVICE_NAME, 'service.name'],
             [Tag::MANUAL_KEEP, 'manual.keep'],
             [Tag::MANUAL_DROP, 'manual.drop'],

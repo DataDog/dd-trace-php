@@ -57,6 +57,7 @@ class CakePHPIntegration extends Integration
                 $integration->rootSpan->name = 'cakephp.request';
                 $integration->rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
+            $integration->rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
             \DDTrace\trace_method(
                 'Controller',
@@ -65,6 +66,7 @@ class CakePHPIntegration extends Integration
                     $span->name = $span->resource = 'Controller.invokeAction';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $integration->appName;
+                    $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
                     $request = $args[0];
                     if (!$request instanceof CakeRequest) {
@@ -94,6 +96,7 @@ class CakePHPIntegration extends Integration
                 'instrument_when_limited' => 1,
                 'posthook' => function (SpanData $span, array $args) use ($integration) {
                     $integration->setError($integration->rootSpan, $args[0]);
+                    $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
                     return false;
                 },
             ]);
@@ -102,6 +105,7 @@ class CakePHPIntegration extends Integration
                 'instrument_when_limited' => 1,
                 'posthook' => function (SpanData $span, $args, $return) use ($integration) {
                     $integration->rootSpan->meta[Tag::HTTP_STATUS_CODE] = $return;
+                    $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
                     return false;
                 },
             ]);
@@ -114,6 +118,7 @@ class CakePHPIntegration extends Integration
                 $span->resource = $file;
                 $span->meta = ['cakephp.view' => $file];
                 $span->service = $integration->appName;
+                $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
             });
 
             return false;

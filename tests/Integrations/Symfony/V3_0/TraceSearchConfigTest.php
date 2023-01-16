@@ -46,6 +46,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'http.url' => 'http://localhost:9999/simple',
                     'http.status_code' => '200',
                     Tag::SPAN_KIND => 'server',
+                    Tag::COMPONENT => 'symfony',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
                     '_sampling_priority_v1' => 1,
@@ -64,7 +65,9 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                                 'symfony',
                                 'web',
                                 'AppBundle\Controller\CommonScenariosController::simpleAction'
-                            )->skipIf(\PHP_MAJOR_VERSION !== 5), // call_user_func_array
+                            )->withExactTags([
+                                Tag::COMPONENT => 'symfony',
+                            ])->skipIf(\PHP_MAJOR_VERSION !== 5), // call_user_func_array
                             SpanAssertion::exists('symfony.kernel.response'),
                             SpanAssertion::exists('symfony.kernel.finish_request'),
                         ]),

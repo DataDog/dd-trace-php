@@ -206,7 +206,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client'])
+                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli'])
                 ->setTraceAnalyticsCandidate(),
         ]);
     }
@@ -270,7 +270,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client']),
+                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli']),
         ]);
     }
 
@@ -292,6 +292,7 @@ class MysqliTest extends IntegrationTestCase
                     'error.type',
                     'error.stack',
                     Tag::SPAN_KIND,
+                    Tag::COMPONENT,
                 ]),
         ]);
     }
@@ -302,7 +303,8 @@ class MysqliTest extends IntegrationTestCase
             'out.host' => self::$host,
             'out.port' => self::$port,
             'db.type' => 'mysql',
-            Tag::SPAN_KIND => "client",
+            Tag::SPAN_KIND => 'client',
+            Tag::COMPONENT => 'mysqli'
         ];
     }
 

@@ -87,6 +87,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -108,6 +109,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -131,6 +133,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -154,6 +157,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://?:?@httpbin_integration/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -178,6 +182,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -206,6 +211,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            Tag::COMPONENT => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
@@ -227,6 +233,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -249,6 +256,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => '404',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -271,6 +279,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames([Tag::ERROR_MSG])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -295,6 +304,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames([Tag::ERROR_MSG])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -319,6 +329,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/')
@@ -455,6 +466,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -484,6 +496,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://?:?@httpbin_integration/status/200',
                     'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -539,6 +552,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            Tag::COMPONENT => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),

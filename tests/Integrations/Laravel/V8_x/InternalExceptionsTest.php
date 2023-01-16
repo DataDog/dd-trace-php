@@ -48,7 +48,8 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/not-implemented',
                         'http.status_code' => '501',
-                        TAG::SPAN_KIND => 'server'
+                        TAG::SPAN_KIND => 'server',
+                        TAG::COMPONENT => 'laravel'
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
@@ -61,6 +62,9 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                     )
                     ->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'not-implemented')
+                            ->withExactTags([
+                                TAG::COMPONENT => 'laravel'
+                            ])
                             ->setError('Symfony\Component\HttpKernel\Exception\HttpException')
                             ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
                         SpanAssertion::exists(
@@ -94,7 +98,8 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unauthorized',
                         'http.status_code' => '403',
-                        TAG::SPAN_KIND => 'server'
+                        TAG::SPAN_KIND => 'server',
+                        TAG::COMPONENT => 'laravel'
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
@@ -106,10 +111,15 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                             'laravel_test_app',
                             'web',
                             'errors::403'
-                        )->withChildren([
+                        )->withExactTags([
+                            TAG::COMPONENT => 'laravel'
+                        ])->withChildren([
                             SpanAssertion::exists('laravel.view'),
                         ]),
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'unauthorized')
+                            ->withExactTags([
+                                TAG::COMPONENT => 'laravel'
+                            ])
                             ->setError()
                             ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
                         SpanAssertion::exists(

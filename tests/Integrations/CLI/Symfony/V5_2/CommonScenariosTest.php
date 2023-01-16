@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\CLI\Symfony\V5_2;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -34,13 +35,16 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony',
                         'cli',
                         'symfony.console.terminate'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'symfony'
+                    ]),
                     SpanAssertion::build(
                         'symfony.console.command.run',
                         'symfony',
                         'cli',
                         'about'
                     )->withExactTags([
+                        Tag::COMPONENT => 'symfony',
                         'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand'
                     ]),
                     SpanAssertion::build(
@@ -48,13 +52,17 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony',
                         'cli',
                         'symfony.console.command'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'symfony'
+                    ]),
                     SpanAssertion::build(
                         'symfony.httpkernel.kernel.boot',
                         'symfony',
                         'web',
                         'App\Kernel'
-                    ),
+                    )->withExactTags([
+                        Tag::COMPONENT => 'symfony'
+                    ]),
                 ]),
             ]
         );
