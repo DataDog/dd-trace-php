@@ -275,6 +275,11 @@ trait TracerTestTrait
                     return;
                 }
 
+                if ($rawSpan['trace_id'] == "0") {
+                    TestCase::fail(sprintf("Span '%s' has zero trace_id", $rawSpan['name']));
+                    return;
+                }
+
                 $rawSpan["duration"] = (int)($rawSpan["duration"] / 1000);
                 $rawSpan["start"] = (int)($rawSpan["start"] / 1000);
 

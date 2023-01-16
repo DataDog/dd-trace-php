@@ -1864,7 +1864,7 @@ static void dd_apply_propagated_values_to_existing_spans(void) {
     ddtrace_span_data *span = ddtrace_active_span();
     while (span) {
         zend_array *meta = ddtrace_spandata_property_meta(span);
-        span->trace_id = DDTRACE_G(distributed_trace_id);
+        span->trace_id = DDTRACE_G(distributed_trace_id) == 0 ? span->root->span_id : DDTRACE_G(distributed_trace_id);
 
         if (DDTRACE_G(dd_origin)) {
             zval value;
