@@ -53,11 +53,11 @@ jobs:
 #            version: 7.4
     runs-on: ${{ matrix.cfg.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
       - name: Cache hunter packages
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.hunter
@@ -118,7 +118,7 @@ jobs:
           gcovr -f '.*src/extension/.*' -x -d -o coverage.xml
       - name: Submit coverage
         if: matrix.cfg.coverage == 'true'
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: extension

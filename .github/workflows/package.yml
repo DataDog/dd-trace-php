@@ -16,23 +16,23 @@ jobs:
     steps:
       - name: Create /php ($PHP_HOMEDIR)
         run: sudo mkdir $PHP_HOMEDIR && sudo chown $(whoami) $PHP_HOMEDIR
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
       - name: Cache toolchain
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/toolchain.tar
           key: toolchain-${{ hashFiles('.github/workflows/release/toolchain/*') }}
       - name: Cache PHP
         id: cache_php
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.PHP_HOMEDIR }}
           key: ${{ runner.os }}-php-3
       - name: Cache Hunter
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.hunter
@@ -76,7 +76,7 @@ jobs:
             toolchain \
             /project/.github/workflows/release/build_package ${{ github.sha }} \
             8.2.0 8.1.0 8.0.11 7.4.24 7.3.31 7.2.34 7.1.33 7.0.33
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: package
           path: /tmp/out/*.tar.gz
