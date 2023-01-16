@@ -5,12 +5,12 @@ extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
-use function datadog\appsec\track_user_login_event;
+use function datadog\appsec\track_user_login_success_event;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_event("Admin", true,
+track_user_login_success_event("Admin",
 [
     "value" => "something",
     "metadata" => "some other metadata",

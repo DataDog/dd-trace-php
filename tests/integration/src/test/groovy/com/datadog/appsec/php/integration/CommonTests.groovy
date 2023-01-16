@@ -50,6 +50,7 @@ trait CommonTests {
 
         assert trace.metrics._sampling_priority_v1 == 2.0d
         assert trace.meta."appsec.events.users.login.failure.usr.id" == 'Admin'
+        assert trace.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert trace.meta."appsec.events.users.login.failure.track" == 'true'
         assert trace.meta."appsec.events.users.login.failure.email" == 'jean.example@example.com'
         assert trace.meta."appsec.events.users.login.failure.session_id" == '987654321'
