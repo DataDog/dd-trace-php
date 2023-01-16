@@ -1,5 +1,12 @@
 # Datadog AppSec for PHP Release
 
+### v0.6.0
+#### Breaking Changes
+ - ([#177](https://github.com/DataDog/dd-appsec-php/pull/177)) Update SDK with separate success/failure functions
+
+#### Miscellaneous Changes
+ - ([#176](https://github.com/DataDog/dd-appsec-php/pull/176)) Upgrade deprecated actions and ruleset to 1.4.3
+
 ### v0.5.0
 #### Fixes
  - ([#120](https://github.com/DataDog/dd-appsec-php/pull/120)) Return error response in helper when incoming message can't be adequately handled
