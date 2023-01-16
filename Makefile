@@ -20,7 +20,7 @@ ARCHITECTURE=$(shell uname -m)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
-APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.4.5/dd-appsec-php-0.4.5-amd64.tar.gz
+APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.6.0/dd-appsec-php-0.6.0-amd64.tar.gz
 
 INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
