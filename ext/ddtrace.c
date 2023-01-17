@@ -2320,6 +2320,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
         } while (0);
         zend_string_release(traceparent);
 
+       // header format: "[*,]dd=s:1;o:rum;t.dm:-4;t.usr.id:12345[,*]"
         if (read_header(ZAI_STRL_VIEW("X_TRACESTATE"), "tracestate", &tracestate, data)) {
             bool last_comma = true;
             DDTRACE_G(tracestate) = zend_string_alloc(ZSTR_LEN(tracestate), 0);
