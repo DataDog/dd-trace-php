@@ -33,6 +33,9 @@ use uuid::Uuid;
 #[cfg(feature = "allocation_profiling")]
 use rand_distr::{Distribution, Poisson};
 
+#[cfg(feature = "allocation_profiling")]
+use crate::bindings::{datadog_php_install_handler, datadog_php_zif_handler};
+
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
@@ -133,6 +136,12 @@ static mut PREV_INTERRUPT_FUNCTION: MaybeUninit<Option<zend::VmInterruptFn>> =
 static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
+
+#[cfg(feature = "allocation_profiling")]
+const GC_MEM_CACHES: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0") };
+
+#[cfg(feature = "allocation_profiling")]
+static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
 /// The engine's previous custom allocation function, if there is one.
 #[cfg(feature = "allocation_profiling")]
@@ -274,6 +283,16 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
         zend::zend_execute_internal = Some(execute_internal);
     };
+
+    #[cfg(feature = "allocation_profiling")]
+    unsafe {
+        let handle = datadog_php_zif_handler::new(
+            GC_MEM_CACHES,
+            &mut GC_MEM_CACHES_HANDLER,
+            Some(datadog_allocation_profiling_gc_mem_caches),
+        );
+        datadog_php_install_handler(handle);
+    }
 
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
@@ -1043,6 +1062,21 @@ unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
 #[cfg(feature = "allocation_profiling")]
 unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
     std::ptr::write(heap as *mut c_int, custom_heap);
+}
+
+#[cfg(feature = "allocation_profiling")]
+unsafe extern "C" fn datadog_allocation_profiling_gc_mem_caches(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    let heap = zend::zend_mm_get_heap();
+    let custom_heap = prepare_zend_heap(heap);
+    if GC_MEM_CACHES_HANDLER == None {
+        return;
+    }
+    let func = GC_MEM_CACHES_HANDLER.unwrap();
+    func(execute_data, return_value);
+    restore_zend_heap(heap, custom_heap);
 }
 
 #[cfg(feature = "allocation_profiling")]
