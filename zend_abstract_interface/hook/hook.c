@@ -48,6 +48,8 @@ __thread HashTable zai_hook_resolved; /* }}} */
 #if PHP_VERSION_ID >= 80000
 static void zai_hook_on_update_empty(zend_function *func, bool remove) { (void)func, (void)remove; }
 void (*zai_hook_on_update)(zend_function *func, bool remove) = zai_hook_on_update_empty;
+void zai_hook_on_function_resolve_empty(zend_function *func) { (void)func; }
+void (*zai_hook_on_function_resolve)(zend_function *func) = zai_hook_on_function_resolve_empty;
 #endif
 
 static void zai_hook_data_dtor(zai_hook_t *hook) {
@@ -300,6 +302,12 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
 }
 
 static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, zend_function *function, zend_string *lcname) {
+#if PHP_VERSION_ID >= 80000
+    if (function->common.scope == ce) {
+        zai_hook_on_function_resolve(function);
+    }
+#endif
+
     zai_hooks_entry *hooks = zend_hash_find_ptr(base_ht, lcname);
     if (!hooks) {
         return;
@@ -341,12 +349,20 @@ void zai_hook_resolve_function(zend_function *function, zend_string *lcname) {
 }
 
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
+    zend_function *function;
+
     HashTable *method_table = zend_hash_find_ptr(&zai_hook_request_classes, lcname);
     if (!method_table) {
+#if PHP_VERSION_ID >= 80000
+        ZEND_HASH_FOREACH_PTR(&ce->function_table, function) {
+            if (function->common.scope == ce) {
+                zai_hook_on_function_resolve(function);
+            }
+        } ZEND_HASH_FOREACH_END();
+#endif
         return;
     }
 
-    zend_function *function;
     zend_string *fnname;
     ZEND_HASH_FOREACH_STR_KEY_PTR(&ce->function_table, fnname, function) {
         zai_hook_resolve(method_table, ce, function, fnname);
@@ -569,8 +585,8 @@ void zai_hook_rshutdown(void) {
 void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 
 /* {{{ */
-zend_long zai_hook_install_resolved(zend_function *function,
-        zai_hook_begin begin, zai_hook_end end,
+zend_long zai_hook_install_resolved_generator(zend_function *function,
+        zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
     if (!PG(modules_activated)) {
         /* not allowed: can only do resolved install during request */
@@ -583,8 +599,8 @@ zend_long zai_hook_install_resolved(zend_function *function,
         .function = NULL,
         .resolved_scope = function->common.scope,
         .begin = begin,
-        .generator_resume = NULL,
-        .generator_yield = NULL,
+        .generator_resume = resumption,
+        .generator_yield = yield,
         .end = end,
         .aux = aux,
         .is_global = false,
@@ -595,6 +611,12 @@ zend_long zai_hook_install_resolved(zend_function *function,
 
     return hook->id = zai_hook_resolved_install(hook, function);
 } /* }}} */
+
+zend_long zai_hook_install_resolved(zend_function *function,
+        zai_hook_begin begin, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic) {
+    return zai_hook_install_resolved_generator(function, begin, NULL, NULL, end, aux, dynamic);
+}
 
 static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool persistent) {
     zend_string *str = zend_string_alloc(len, persistent);

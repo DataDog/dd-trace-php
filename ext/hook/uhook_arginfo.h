@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4de8a73e8b57bbbe50f608e017bfbae5378df804 */
+ * Stub hash: 9d121c2053e69043217e9fe88d197e9dfcea77a4 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 3, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING, NULL)
@@ -12,13 +12,13 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_remove_hook, 0, 1, IS_VO
 ZEND_END_ARG_INFO()
 
 
-ZEND_FUNCTION(install_hook);
-ZEND_FUNCTION(remove_hook);
+ZEND_FUNCTION(DDTrace_install_hook);
+ZEND_FUNCTION(DDTrace_remove_hook);
 
 
 static const zend_function_entry ext_functions[] = {
-	ZEND_NS_FE("DDTrace", install_hook, arginfo_DDTrace_install_hook)
-	ZEND_NS_FE("DDTrace", remove_hook, arginfo_DDTrace_remove_hook)
+	ZEND_NS_FALIAS("DDTrace", install_hook, DDTrace_install_hook, arginfo_DDTrace_install_hook)
+	ZEND_NS_FALIAS("DDTrace", remove_hook, DDTrace_remove_hook, arginfo_DDTrace_remove_hook)
 	ZEND_FE_END
 };
 
