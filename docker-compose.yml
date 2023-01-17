@@ -149,6 +149,19 @@ services:
     working_dir: /app
     volumes:
       - .:/app
+  
+  testagent:
+    # image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    build: 
+      context: https://github.com/DataDog/dd-apm-test-agent.git#add-span-tag-validation
+    ports:
+      - "127.0.0.1:8126:8126"
+    # volumes:
+    #   - ./tests/snapshots:/snapshots
+    environment:
+      - LOG_LEVEL=INFO
+      # - SNAPSHOT_DIR=/snapshots
+      # - SNAPSHOT_CI
 
 volumes:
   agent-socket:

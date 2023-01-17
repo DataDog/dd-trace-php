@@ -9,9 +9,6 @@ aliases:
   - &CACHE_NPM_KEY
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
 
-  - &IMAGE_DOCKER_DD_TEST_AGENT
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
-
   - &IMAGE_DOCKER_REDIS
     image: datadog/dd-trace-ci:php-redis-5.0
     name: redis_integration
@@ -127,6 +124,25 @@ aliases:
     run:
       name: Waiting for Dockerized request replayer
       command: wait-for request-replayer:80 --timeout=120
+
+  - &STEP_DOCKER_LOGS
+    run:
+      name: Outputting Docker Logs for APM Test Agent
+      command: docker-compose logs -f testagent
+      background: true
+
+  - &STEP_RUN_TEST_AGENT_SPAN_VALIDATION
+    run:
+      name: Getting APM Test Agent Span Validation Results
+      command: docker-compose exec -it testagent python ./tests/test_span_validations/test_span_validation_run.py
+
+  - &STEP_START_TEST_AGENT
+    run:
+      name: Starting APM Test Agent Container
+      command: |
+          for i in {1..3}; do docker-compose pull -q testagent && break || sleep 3; done
+          docker-compose build testagent
+          docker-compose up -d testagent
 
   # Fix intermittent error: "Could not resolve host: httpbin_integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
@@ -333,7 +349,6 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
   with_httpbin_and_request_replayer:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -342,7 +357,6 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
   with_integrations:
@@ -354,7 +368,6 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_ELASTICSEARCH7
       - <<: *IMAGE_DOCKER_HTTPBIN
@@ -466,6 +479,8 @@ jobs:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run xdebug tests
           command: |
@@ -520,6 +535,8 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run tests
           command: |
@@ -625,6 +642,8 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run tests
           command: |
@@ -694,6 +713,8 @@ jobs:
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
@@ -704,6 +725,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
+      - <<: *STEP_RUN_TEST_AGENT_SPAN_VALIDATION
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
@@ -727,6 +749,8 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run tests
           command: |
@@ -817,6 +841,8 @@ jobs:
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run << parameters.integration_testsuite >> integration test
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >>
@@ -827,6 +853,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
+      - <<: *STEP_RUN_TEST_AGENT_SPAN_VALIDATION
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PERSIST_TO_WORKSPACE
 
@@ -855,6 +882,8 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Ensure ext/<< parameters.ext_name >> is missing
           command: |
@@ -910,6 +939,8 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Install .deb from artifacts
           command: |
@@ -947,6 +978,9 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
+      - <<: *STEP_RUN_TEST_AGENT_SPAN_VALIDATION
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_alpine:
@@ -1230,6 +1264,8 @@ jobs:
             php --ri=ddtrace
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_START_TEST_AGENT
+      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run phpt tests with PECL
           command: |
