@@ -2282,6 +2282,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
         zend_string_release(propagated_tags);
     }
 
+    // "{version:2}-{trace-id:32}-{parent-id:16}-{trace-flags:2}"
     if (parse_tracestate && read_header(ZAI_STRL_VIEW("X_TRACEPARENT"), "traceparent", &traceparent, data)) {
         do {
             // version
