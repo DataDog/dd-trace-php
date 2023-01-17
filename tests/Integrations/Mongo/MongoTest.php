@@ -6,6 +6,7 @@ use MongoId;
 use MongoCode;
 use MongoClient;
 use MongoCollection;
+use DDTrace\Tag;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -43,6 +44,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.server' => 'mongodb://mongodb_integration:27017',
                     'mongodb.db' => self::DATABASE,
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -70,6 +72,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.server' => 'mongodb://?:?@mongodb_integration:27017',
                     'mongodb.db' => self::DATABASE,
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -97,6 +100,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.server' => 'mongodb://mongodb_integration:27017/' . self::DATABASE,
                     'mongodb.db' => self::DATABASE,
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -112,6 +116,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.collection' => 'foo_collection',
                     'mongodb.db' => self::DATABASE,
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -126,6 +131,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoClient.selectDB', 'mongo', 'mongodb', 'selectDB')
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -140,6 +146,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoClient.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
                 ->withExactTags([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -151,7 +158,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoClient.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern'),
+            SpanAssertion::build('MongoClient.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -165,7 +175,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoClient.' . $method, 'mongo', 'mongodb', $method),
+            SpanAssertion::build('MongoClient.' . $method, 'mongo', 'mongodb', $method)
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -196,6 +209,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.query' => '{"age":{"$gte":18}}',
                     'mongodb.timeout' => '500',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -211,6 +225,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.collection' => 'foo_collection',
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -225,6 +240,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoDB.createCollection', 'mongo', 'mongodb', 'createCollection')
                 ->withExactTags([
                     'mongodb.collection' => 'foo_collection',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -236,7 +252,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoDB.execute', 'mongo', 'mongodb', 'execute'),
+            SpanAssertion::build('MongoDB.execute', 'mongo', 'mongodb', 'execute')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -253,6 +272,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoDB.getDBRef', 'mongo', 'mongodb', 'getDBRef')
                 ->withExactTags([
                     'mongodb.collection' => 'foo_collection',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -267,6 +287,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoDB.selectCollection', 'mongo', 'mongodb', 'selectCollection')
                 ->withExactTags([
                     'mongodb.collection' => 'foo_collection',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -281,6 +302,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoDB.setProfilingLevel', 'mongo', 'mongodb', 'setProfilingLevel')
                 ->withExactTags([
                     'mongodb.profiling_level' => '2',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -295,6 +317,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoDB.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
                 ->withExactTags([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -306,7 +329,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoDB.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern'),
+            SpanAssertion::build('MongoDB.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ])
         ]);
     }
 
@@ -320,7 +346,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoDB.' . $method, 'mongo', 'mongodb', $method),
+            SpanAssertion::build('MongoDB.' . $method, 'mongo', 'mongodb', $method)
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -352,6 +381,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'foo_collection',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -363,7 +393,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.aggregate', 'mongo', 'mongodb', 'aggregate'),
+            SpanAssertion::build('MongoCollection.aggregate', 'mongo', 'mongodb', 'aggregate')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -388,7 +421,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.batchInsert', 'mongo', 'mongodb', 'batchInsert'),
+            SpanAssertion::build('MongoCollection.batchInsert', 'mongo', 'mongodb', 'batchInsert')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -402,6 +438,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.count', 'mongo', 'mongodb', 'count')
                 ->withExactTags([
                     'mongodb.query' => '{"title":"Foo"}',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -417,6 +454,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     'mongodb.collection' => 'foo_collection',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -428,7 +466,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.createIndex', 'mongo', 'mongodb', 'createIndex'),
+            SpanAssertion::build('MongoCollection.createIndex', 'mongo', 'mongodb', 'createIndex')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -439,7 +480,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.deleteIndex', 'mongo', 'mongodb', 'deleteIndex'),
+            SpanAssertion::build('MongoCollection.deleteIndex', 'mongo', 'mongodb', 'deleteIndex')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -454,6 +498,7 @@ class MongoTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -469,6 +514,7 @@ class MongoTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -489,6 +535,7 @@ class MongoTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -504,6 +551,7 @@ class MongoTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -522,6 +570,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     'mongodb.collection' => 'foo_collection',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -537,7 +586,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.group', 'mongo', 'mongodb', 'group'),
+            SpanAssertion::build('MongoCollection.group', 'mongo', 'mongodb', 'group')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -548,7 +600,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.insert', 'mongo', 'mongodb', 'insert'),
+            SpanAssertion::build('MongoCollection.insert', 'mongo', 'mongodb', 'insert')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -564,7 +619,10 @@ class MongoTest extends IntegrationTestCase
                 'mongo',
                 'mongodb',
                 'parallelCollectionScan'
-            ),
+            )
+            ->withExactTags([
+                Tag::COMPONENT => 'mongo',
+            ]),
         ]);
     }
 
@@ -578,6 +636,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.remove', 'mongo', 'mongodb', 'remove')
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -589,7 +648,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.save', 'mongo', 'mongodb', 'save'),
+            SpanAssertion::build('MongoCollection.save', 'mongo', 'mongodb', 'save')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -603,6 +665,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
                 ->withExactTags([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -614,7 +677,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern'),
+            SpanAssertion::build('MongoCollection.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 
@@ -632,6 +698,7 @@ class MongoTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
+                    Tag::COMPONENT => 'mongo',
                 ]),
         ]);
     }
@@ -646,7 +713,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.' . $method, 'mongo', 'mongodb', $method),
+            SpanAssertion::build('MongoCollection.' . $method, 'mongo', 'mongodb', $method)
+                ->withExactTags([
+                    Tag::COMPONENT => 'mongo',
+                ]),
         ]);
     }
 

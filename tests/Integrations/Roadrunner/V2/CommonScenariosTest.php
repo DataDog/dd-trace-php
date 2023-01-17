@@ -49,6 +49,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:' . self::PORT . '/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'roadrunner'
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -62,6 +63,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:' . self::PORT . '/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'roadrunner'
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -76,6 +78,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         'error.stack' => '#0 {main}',
                         Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'roadrunner'
                     ])->setError('Exception', 'Uncaught Exception: Error page'),
                 ],
             ]

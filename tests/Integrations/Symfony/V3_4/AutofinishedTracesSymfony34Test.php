@@ -40,6 +40,7 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                 'http.url' => 'http://localhost:9999/terminated_by_exit',
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
+                Tag::COMPONENT => 'symfony',
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
@@ -54,7 +55,9 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                             'symfony',
                             'web',
                             'AppBundle\Controller\HomeController::actionBeingTerminatedByExit'
-                        ),
+                        )->withExactTags([
+                            Tag::COMPONENT => 'symfony',
+                        ]),
                     ]),
                 ]),
             ]),

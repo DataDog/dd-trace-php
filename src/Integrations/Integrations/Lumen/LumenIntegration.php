@@ -44,6 +44,7 @@ class LumenIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
+        $rootSpan->meta[Tag::COMPONENT] = LumenIntegration::NAME;
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
         $integration = $this;
@@ -57,6 +58,7 @@ class LumenIntegration extends Integration
                 $rootSpan->name = 'lumen.request';
                 $rootSpan->service = $appName;
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
 
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->getUri());
@@ -81,6 +83,7 @@ class LumenIntegration extends Integration
                     }
                     $routeInfo = $args[0];
                     $resourceName = null;
+                    $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
                     if (isset($routeInfo[1]['uses'])) {
                         $action = $routeInfo[1]['uses'];
                         $rootSpan->meta['lumen.route.action'] = $action;
@@ -110,6 +113,7 @@ class LumenIntegration extends Integration
             }
             $exception = $args[0];
             $integration->setError($rootSpan, $exception);
+            $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
         };
 
         \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [$hook => $exceptionRender]);

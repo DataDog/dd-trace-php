@@ -6,12 +6,13 @@ test verifies that certain information is present.
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
-  echo "skip: test requires Datadog Continuous Profiler\n";
+    echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
 --ENV--
 DD_PROFILING_ENABLED=no
 DD_PROFILING_LOG_LEVEL=info
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=yes
+DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=yes
 DD_SERVICE=datadog-profiling-phpt
 DD_ENV=dev
 DD_VERSION=13
@@ -45,6 +46,7 @@ assert(isset($values["Version"]));
 $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "true"],
+    ["Experimental Allocation Profiling Enabled", "true"],
     ["Endpoint Collection Enabled", "true"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],

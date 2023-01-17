@@ -61,6 +61,7 @@ class CodeIgniterIntegration extends Integration
         $rootSpan->name = 'codeigniter.request';
         $rootSpan->service = $service;
         $rootSpan->type = Type::WEB_SERVLET;
+        $rootSpan->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
         if ('cli' !== PHP_SAPI) {
@@ -79,6 +80,7 @@ class CodeIgniterIntegration extends Integration
                 $span->name = $span->resource = "{$class}.{$method}";
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
 
                 $this->load->helper('url');
                 $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
@@ -104,6 +106,7 @@ class CodeIgniterIntegration extends Integration
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
 
                 $this->load->helper('url');
                 $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
@@ -120,6 +123,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->type = Type::WEB_SERVLET;
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -136,6 +140,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::SQL;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -158,6 +163,7 @@ class CodeIgniterIntegration extends Integration
                         $registered_cache_adapters[$class] = true;
                     }
                 }
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
                 return false;
             }
         );
@@ -178,6 +184,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -190,6 +197,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -202,6 +210,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
             }
         );
 
@@ -214,6 +223,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->type = Type::CACHE;
                 $span->resource = $span->name;
+                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
             }
         );
     }

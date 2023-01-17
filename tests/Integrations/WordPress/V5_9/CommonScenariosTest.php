@@ -59,7 +59,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
-                        Tag::SPAN_KIND => 'server',
+                        Tag::SPAN_KIND => "server",
+                        Tag::COMPONENT => "wordpress",
                     ])->withChildren([
                         SpanAssertion::exists(
                             'wpdb.query',
@@ -134,7 +135,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
-                        Tag::SPAN_KIND => 'server',
+                        Tag::SPAN_KIND => "server",
+                        Tag::COMPONENT => "wordpress",
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),
                         SpanAssertion::exists('WP.main')->withChildren([
@@ -287,7 +289,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // On php 5 WordPress returns 500 on error, as expected, while on 7.x it returns 200
                         // regardless of the extension being installed.
                         'http.status_code' => $this->matchesPhpVersion('5') ? '500' : '200',
-                        Tag::SPAN_KIND => 'server',
+                        Tag::SPAN_KIND => "server",
+                        Tag::COMPONENT => "wordpress",
                     ])->setError(
                         "Exception",
                         ($this->matchesPhpVersion('5') ? "Caught Exception (500)" : "Uncaught Exception")
@@ -358,7 +361,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
                         'http.status_code' => '404',
-                        Tag::SPAN_KIND => 'server',
+                        Tag::SPAN_KIND => "server",
+                        Tag::COMPONENT => "wordpress",
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),
                         SpanAssertion::exists('WP.main')->withChildren([

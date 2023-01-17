@@ -42,13 +42,16 @@ class ExitTest extends WebFrameworkTestCase
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.endpoint' => 'Exits::index',
                     Tag::SPAN_KIND => 'server',
+                    Tag::COMPONENT => 'codeigniter',
                 ])->withChildren([
                     SpanAssertion::build(
                         'Exits.index',
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
                         'Exits.index'
-                    )
+                    )->withExactTags([
+                        Tag::COMPONENT => 'codeigniter',
+                    ])
                 ])
             ]
         );

@@ -61,6 +61,7 @@ class NetteIntegration extends Integration
 
         $this->addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->service = $service;
+        $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
         \DDTrace\trace_method(
             'Nette\Configurator',
@@ -69,6 +70,7 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.configurator.createRobotLoader';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
+                $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
             }
         );
 
@@ -80,6 +82,7 @@ class NetteIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
+                $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
             }
         );
 
@@ -91,6 +94,7 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.presenter.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
+                $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 if (count($args) < 1 || !\is_a($args[0], '\Nette\Application\Request')) {
                     return;
@@ -114,6 +118,7 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.latte.createTemplate';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
+                $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 if (count($args) >= 1) {
                     $span->meta['nette.latte.templateName'] = $args[0];
@@ -128,6 +133,7 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.latte.render';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
+                $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 if (count($args) >= 1) {
                     $span->meta['nette.latte.templateName'] = $args[0];
@@ -142,6 +148,7 @@ class NetteIntegration extends Integration
                 $span->name = 'nette.latte.render';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
+                $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 if (count($args) >= 1) {
                     $span->meta['nette.latte.templateName'] = $args[0];

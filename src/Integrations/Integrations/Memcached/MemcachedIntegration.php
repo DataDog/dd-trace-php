@@ -184,6 +184,7 @@ class MemcachedIntegration extends Integration
         $span->resource = $command;
         $span->meta['memcached.command'] = $command;
         $span->meta[Tag::SPAN_KIND] = 'client';
+        $span->meta[Tag::COMPONENT] = MemcachedIntegration::NAME;
     }
 
     /**

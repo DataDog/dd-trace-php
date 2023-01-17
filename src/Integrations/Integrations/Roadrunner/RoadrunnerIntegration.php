@@ -44,23 +44,24 @@ class RoadrunnerIntegration extends Integration
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
 
-        \DDTrace\hook_method('Spiral\RoadRunner\Http\PSR7Worker', 'waitRequest', [
+        \DDTrace\hook_method('Spiral\RoadRunner\Http\HttpWorker', 'waitRequest', [
             'prehook' => function () use (&$activeSpan) {
                 if ($activeSpan) {
                     \DDTrace\close_spans_until($activeSpan);
                     \DDTrace\close_span();
                 }
             },
-            'posthook' => function ($psr, $scope, $args, $retval, $exception) use (&$activeSpan, $integration) {
+            'posthook' => function ($worker, $scope, $args, $retval, $exception) use (&$activeSpan, $integration) {
                 if (!$retval && !$exception) {
                     return; // shutdown
                 }
 
-                /** @var \Psr\Http\Message\ServerRequestInterface $retval */
+                /** @var ?\Spiral\RoadRunner\Http\Request $retval */
                 $activeSpan = \DDTrace\start_trace_span();
                 $activeSpan->service = \ddtrace_config_app_name('roadrunner');
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
+                $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
                 $activeSpan->meta[Tag::SPAN_KIND] = 'server';
                 $integration->addTraceAnalyticsIfEnabled($activeSpan);
                 if ($exception) {
@@ -68,44 +69,55 @@ class RoadrunnerIntegration extends Integration
                     \DDTrace\close_span();
                     $activeSpan = null;
                 } else {
-                    \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($retval) {
-                        $headers = $retval->getHeader($headername);
-                        return $headers ? implode(", ", $headers) : null;
-                    });
-                    if (($userAgent = $retval->getHeaderLine("user-agent")) != "") {
-                        $activeSpan->meta["http.useragent"] = $userAgent;
-                    }
-                    $normalizedPath = Normalizer::uriNormalizeincomingPath($retval->getUri()->getPath());
-                    $activeSpan->resource = $retval->getMethod() . " " . $normalizedPath;
-                    $activeSpan->meta["http.method"] = $retval->getMethod();
-                    $activeSpan->meta["http.url"] = Normalizer::urlSanitize((string)$retval->getUri());
+                    $headers = [];
                     $allowedHeaders = \dd_trace_env_config("DD_TRACE_HEADER_TAGS");
-                    foreach ($retval->getHeaders() as $header => $headers) {
-                        $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($header));
+                    foreach ($retval->headers as $headername => $header) {
+                        $header = implode(", ", $header);
+                        $headers[strtolower($headername)] = $header;
+                        $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($headername));
                         if (\array_key_exists($normalizedHeader, $allowedHeaders)) {
-                            $activeSpan->meta["http.request.headers.$normalizedHeader"] = reset($headers);
+                            $activeSpan->meta["http.request.headers.$normalizedHeader"] = $header;
                         }
                     }
+                    \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($headers) {
+                        return $headers[$headername] ?? null;
+                    });
+                    if (isset($headers["user-agent"])) {
+                        $activeSpan->meta["http.useragent"] = $headers["user-agent"];
+                    }
+                    if (($urlParts = \parse_url($retval->uri)) && isset($urlParts["path"])) {
+                        $normalizedPath = Normalizer::uriNormalizeincomingPath($urlParts["path"]);
+                    } else {
+                        $normalizedPath = "/";
+                    }
+
+                    $activeSpan->resource = $retval->method . " " . $normalizedPath;
+                    $activeSpan->meta["http.method"] = $retval->method;
+                    $activeSpan->meta["http.url"] = Normalizer::urlSanitize($retval->uri);
                 }
             }
         ]);
 
-        \DDTrace\hook_method('Spiral\RoadRunner\Http\PSR7Worker', 'respond', [
-            'posthook' => function ($psr, $scope, $args, $retval, $exception) use (&$activeSpan) {
+        \DDTrace\hook_method('Spiral\RoadRunner\Http\HttpWorker', 'respond', [
+            'posthook' => function ($worker, $scope, $args, $retval, $exception) use (&$activeSpan) {
                 if ($activeSpan) {
-                    /** @var \Psr\Http\Message\ResponseInterface $response */
-                    $response = $args[0];
-                    $activeSpan->meta["http.status_code"] = $response->getStatusCode();
+                    /** @var int $status */
+                    $status = $args[0];
+                    /** @var string[][] $headerList */
+                    $headerList = $args[2];
+
+                    $activeSpan->meta["http.status_code"] = $status;
+                    $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
                     $allowedHeaders = \dd_trace_env_config("DD_TRACE_HEADER_TAGS");
-                    foreach ($response->getHeaders() as $header => $headers) {
+                    foreach ($headerList as $header => $headers) {
                         $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($header));
                         if (\array_key_exists($normalizedHeader, $allowedHeaders)) {
-                            $activeSpan->meta["http.response.headers.$normalizedHeader"] = reset($headers);
+                            $activeSpan->meta["http.response.headers.$normalizedHeader"] = implode(", ", $headers);
                         }
                     }
                     if ($exception && empty($activeSpan->exception)) {
                         $activeSpan->exception = $exception;
-                    } elseif ($response->getStatusCode() >= 500 && $ex = \DDTrace\find_active_exception()) {
+                    } elseif ($status >= 500 && $ex = \DDTrace\find_active_exception()) {
                         $activeSpan->exception = $ex;
                     }
                 }

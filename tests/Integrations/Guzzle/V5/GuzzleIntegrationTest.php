@@ -68,6 +68,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -99,6 +100,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -116,6 +118,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -134,6 +137,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -320,6 +324,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -339,6 +344,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -367,6 +373,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
+                            Tag::COMPONENT => 'guzzle'
                         ])
                         ->withChildren([
                             SpanAssertion::exists('curl_exec'),

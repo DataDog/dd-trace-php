@@ -106,6 +106,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => "server",
+                        Tag::COMPONENT => "wordpress",
                     ])->withChildren($children),
                 ],
                 'A simple GET request with a view' => [
@@ -119,6 +120,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => "server",
+                        Tag::COMPONENT => "wordpress",
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),
                         SpanAssertion::exists('WP.main')
@@ -230,6 +232,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // WordPress doesn't appear to automatically set the proper error code
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => "server",
+                        Tag::COMPONENT => "wordpress",
                     ])
                     ->setError("Exception", "Uncaught Exception: Oops! in %s:%d")
                     ->withExistingTagsNames(['error.stack'])

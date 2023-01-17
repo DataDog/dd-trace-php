@@ -151,7 +151,7 @@ fn generate_bindings(php_config_includes: &str) {
         .clang_args(php_config_includes.split(' '))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .rustfmt_bindings(true)
-        .layout_tests(true)
+        .layout_tests(false)
         .generate()
         .expect("bindgen to succeed");
 

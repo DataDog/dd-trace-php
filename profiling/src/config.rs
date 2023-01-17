@@ -5,7 +5,7 @@ use crate::bindings::{
     ZaiStringView, IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
 pub use datadog_profiling::exporter::Uri;
-use libc::{c_void, memcpy};
+use libc::c_char;
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
@@ -87,11 +87,25 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStringView, ini_name: *mut zai
         ("datadog.", "DD_")
     };
 
-    memcpy(
-        ini_name.ptr.as_mut_ptr() as *mut c_void,
-        dest_prefix.as_ptr() as *const c_void,
-        dest_prefix.len(),
-    );
+    {
+        /* Safety:
+         *  1. The src buffer's length is coming from a safe rust slice
+         *  2. The length of all these prefixes is less than the size of the
+         *     dst buffer (currently 60 bytes);
+         *  3. Both pointers are dealing with bytes, and so they are aligned.
+         *  4. These pointers do not overlap, the src string is a constant
+         *     and the destination is an in-place array in a struct.
+         */
+        std::ptr::copy_nonoverlapping(
+            dest_prefix.as_ptr() as *const c_char,
+            ini_name.ptr.as_mut_ptr(),
+            dest_prefix.len(),
+        );
+
+        // Miri doesn't like uninitialized bytes
+        let buffer = &mut ini_name.ptr[dest_prefix.len()..];
+        buffer.fill(c_char::default());
+    }
 
     // Copy in the parts after the prefix, lowercasing as we go. For example,
     // with DD_PROFILING_ENABLED copy `ENABLED` as `enabled` into the
@@ -125,6 +139,7 @@ pub(crate) enum ConfigId {
     ProfilingEnabled = 0,
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
+    ProfilingExperimentalAllocationEnabled,
     ProfilingLogLevel,
     ProfilingOutputPprof,
 
@@ -146,6 +161,9 @@ impl ConfigId {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
+            ProfilingExperimentalAllocationEnabled => {
+                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0"
+            }
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             /* Note: this is meant only for debugging and testing. Please don't
@@ -186,6 +204,13 @@ pub(crate) unsafe fn profiling_endpoint_collection_enabled() -> bool {
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
     get_bool(ProfilingExperimentalCpuTimeEnabled, true)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn profiling_experimental_allocation_enabled() -> bool {
+    get_bool(ProfilingExperimentalAllocationEnabled, false)
 }
 
 /// # Safety
@@ -368,6 +393,16 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                 },
                 zai_config_entry {
+                    id: transmute(ProfilingExperimentalAllocationEnabled),
+                    name: ProfilingExperimentalAllocationEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStringView::literal(b"0\0"),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: None,
+                    parser: None,
+                },
+                zai_config_entry {
                     id: transmute(ProfilingLogLevel),
                     name: ProfilingLogLevel.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM, // store it as an int
@@ -493,6 +528,10 @@ mod tests {
             (
                 b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
                 "datadog.profiling.experimental_cpu_time_enabled",
+            ),
+            (
+                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
+                "datadog.profiling.experimental_allocation_enabled",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
             (

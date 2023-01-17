@@ -8,6 +8,7 @@ class Tag
     const ENV = 'env';
     const SPAN_TYPE = 'span.type';
     const SPAN_KIND = 'span.kind';
+    const COMPONENT = 'component';
     const SERVICE_NAME = 'service.name';
     const MANUAL_KEEP = 'manual.keep';
     const MANUAL_DROP = 'manual.drop';

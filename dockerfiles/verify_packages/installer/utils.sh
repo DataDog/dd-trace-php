@@ -116,6 +116,16 @@ assert_file_exists() {
     fi
 }
 
+assert_file_not_exists() {
+    file="${1}"
+    if ! [ -f "${file}" ]; then
+        echo "Ok: File '${file}' does not exist\n"
+    else
+        echo "Error: File '${file}' exists\n"
+        exit 1
+    fi
+}
+
 install_legacy_ddtrace() {
     version=$1
     curl -L --output "/tmp/legacy-${version}.tar.gz" \
@@ -170,3 +180,9 @@ dashed_print() {
         printf '%s\n---\n' "$line"
     done
 }
+
+is_appsec_installable() {
+  uname=$(uname -a)
+  [ -n "${uname##*arm*}" ] && [ -n "${uname##*aarch*}" ]
+}
+

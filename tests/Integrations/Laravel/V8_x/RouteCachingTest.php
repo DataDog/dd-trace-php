@@ -42,7 +42,8 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unnamed-route',
                         'http.status_code' => '200',
-                        TAG::SPAN_KIND => 'server'
+                        TAG::SPAN_KIND => 'server',
+                        TAG::COMPONENT => 'laravel'
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),
@@ -74,7 +75,8 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unnamed-route',
                         'http.status_code' => '200',
-                        TAG::SPAN_KIND => 'server'
+                        TAG::SPAN_KIND => 'server',
+                        TAG::COMPONENT => 'laravel'
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),

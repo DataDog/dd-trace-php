@@ -21,9 +21,12 @@ trait InterpolateTrait
         $replace = array();
         foreach ($context as $key => $val) {
             // check that the value can be casted to string
-            if (!is_array($val) && (!is_object($val) || method_exists($val, '__toString'))) {
-                $replace['{' . $key . '}'] = $val;
+            if (is_array($val)) {
+                $val = "{Array of size " . count($val) . "}";
+            } elseif (is_object($val) && !method_exists($val, '__toString')) {
+                $val = "{Object of type " . get_class($val) . "}";
             }
+            $replace['{' . $key . '}'] = $val;
         }
 
         // interpolate replacement values into the message and return

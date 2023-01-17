@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Common;
 
+use DDTrace\Tag;
 use PHPUnit\Framework\TestCase;
 
 function array_filter_by_key($fn, array $input)
@@ -317,6 +318,7 @@ final class SpanChecker
         TestCase::assertNotNull($span, 'Expected span was not found \'' . $exp->getOperationName() . '\'.');
 
         $spanMeta = isset($span['meta']) ? $span['meta'] : [];
+        $spanMetrics = isset($span['metrics']) ? $span['metrics'] : [];
 
         $namePrefix = $exp->getOperationName() . ': ';
 
@@ -403,10 +405,11 @@ final class SpanChecker
                         $namePrefix . "Expected tag format for '$tagName' does not match actual value"
                     );
                 } else {
+                    $actual = $filtered[$tagName];
                     TestCase::assertEquals(
                         $tagValue,
-                        $filtered[$tagName],
-                        $namePrefix . "Expected tag value for '$tagName' does not match actual value"
+                        $actual,
+                        $namePrefix . "Exp. value for '$tagName' does not match actual | '$tagValue' != '$actual'"
                     );
                 }
                 unset($filtered[$tagName]);
@@ -416,18 +419,29 @@ final class SpanChecker
                 $namePrefix . "Unexpected extra values for 'tags':\n" . print_r($filtered, true)
             );
             foreach ($exp->getExistingTagNames(isset($span['parent_id'])) as $tagName) {
-                TestCase::assertArrayHasKey($tagName, $spanMeta);
+                if ($tagName === Tag::PID) {
+                    TestCase::assertArrayHasKey($tagName, $spanMetrics);
+                    unset($spanMetrics[Tag::PID]);
+                } else {
+                    TestCase::assertArrayHasKey($tagName, $spanMeta);
+                }
             }
         }
         $metrics = $exp->getExactMetrics();
         if ($metrics !== SpanAssertion::NOT_TESTED) {
             // Ignore compilation-time metric unless explicitly tested
             if (!isset($metrics['php.compilation.total_time_ms'])) {
-                unset($span['metrics']['php.compilation.total_time_ms']);
+                unset($spanMetrics['php.compilation.total_time_ms']);
+            }
+            if (isset($metrics['process_id'])) {
+                unset($metrics['process_id']);
+            }
+            if (isset($spanMetrics["process_id"])) {
+                unset($spanMetrics['process_id']);
             }
             TestCase::assertEquals(
                 $metrics,
-                isset($span['metrics']) ? $span['metrics'] : [],
+                $spanMetrics,
                 $namePrefix . "Wrong value for 'metrics' " . print_r($span, true)
             );
         }

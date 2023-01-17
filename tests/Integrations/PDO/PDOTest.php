@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -571,6 +572,7 @@ final class PDOTest extends IntegrationTestCase
             'db.name' => self::MYSQL_DATABASE,
             'db.user' => self::MYSQL_USER,
             'span.kind' => 'client',
+            Tag::COMPONENT => 'pdo'
         ];
     }
 }

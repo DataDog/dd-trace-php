@@ -61,6 +61,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -91,6 +92,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
@@ -100,6 +102,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.url' => 'http://example.com',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
+                            Tag::COMPONENT => 'guzzle'
                         ]),
                 ])
         ]);
@@ -118,6 +121,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -136,6 +140,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -284,6 +289,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -334,6 +340,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -353,6 +360,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
                     TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
     }
@@ -381,6 +389,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
+                            Tag::COMPONENT => 'guzzle'
                         ])
                         ->withChildren([
                             SpanAssertion::exists('GuzzleHttp\Client.transfer')

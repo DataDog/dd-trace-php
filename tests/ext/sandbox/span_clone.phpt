@@ -32,12 +32,12 @@ object(DDTrace\SpanData)#%d (9) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(1) {
-    ["process_id"]=>
-    int(%d)
+  array(0) {
   }
   ["metrics"]=>
-  array(0) {
+  array(1) {
+    ["process_id"]=>
+    float(%f)
   }
   ["id"]=>
   string(%d) "%d"
@@ -66,12 +66,12 @@ object(DDTrace\SpanData)#%d (9) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(1) {
-    ["process_id"]=>
-    int(%d)
+  array(0) {
   }
   ["metrics"]=>
-  array(0) {
+  array(1) {
+    ["process_id"]=>
+    float(%f)
   }
   ["id"]=>
   string(%d) "%d"
@@ -97,12 +97,12 @@ object(DDTrace\SpanData)#%d (9) {
       ["type"]=>
       string(3) "cli"
       ["meta"]=>
-      array(1) {
-        ["process_id"]=>
-        int(%d)
+      array(0) {
       }
       ["metrics"]=>
-      array(0) {
+      array(1) {
+        ["process_id"]=>
+        float(%f)
       }
       ["id"]=>
       string(%d) "%d"
@@ -133,14 +133,14 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
-      ["process_id"]=>
-      string(%d) "%d"
+    array(1) {
       ["_dd.p.dm"]=>
       string(2) "-1"
     }
     ["metrics"]=>
-    array(3) {
+    array(4) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.rule_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>

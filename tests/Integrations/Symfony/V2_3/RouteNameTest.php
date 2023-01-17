@@ -40,6 +40,7 @@ class RouteNameTest extends WebFrameworkTestCase
                 'http.url' => 'http://localhost:' . self::PORT . '/' . ($isApache ? '' : 'app.php'),
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
+                Tag::COMPONENT => 'symfony',
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
