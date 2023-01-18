@@ -26,6 +26,15 @@ const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 
+#[derive(Default)]
+struct SampleValues {
+    interrupt_count: i64,
+    wall_time: i64,
+    cpu_time: i64,
+    alloc_samples: i64,
+    alloc_size: i64,
+}
+
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
 const WALL_TIME_PERIOD_TYPE: ValueType = ValueType {
     r#type: Cow::Borrowed("wall-time"),
@@ -740,23 +749,23 @@ impl Profiler {
                 let depth = frames.len();
 
                 let now = Instant::now();
-                let walltime = now.duration_since(locals.last_wall_time);
+                let wall_time = now.duration_since(locals.last_wall_time);
                 locals.last_wall_time = now;
-                let walltime: i64 = walltime.as_nanos().try_into().unwrap_or(i64::MAX);
+                let wall_time: i64 = wall_time.as_nanos().try_into().unwrap_or(i64::MAX);
 
                 /* If CPU time is disabled, or if it's enabled but not available on the platform,
                  * then `locals.last_cpu_time` will be None.
                  */
-                let mut cputime: Option<i64> = None;
+                let mut cpu_time: i64 = 0;
                 if let Some(last_cpu_time) = locals.last_cpu_time {
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
-                    let old_cputime = now
+                    let old_cpu_time = now
                         .duration_since(last_cpu_time)
                         .as_nanos()
                         .try_into()
                         .unwrap_or(i64::MAX);
-                    cputime = Some(old_cputime);
+                    cpu_time = old_cpu_time;
                     locals.last_cpu_time = Some(now);
                 }
 
@@ -764,11 +773,12 @@ impl Profiler {
 
                 match self.send_sample(self.prepare_sample_message(
                     frames,
-                    interrupt_count,
-                    walltime,
-                    cputime,
-                    0,
-                    0,
+                    SampleValues {
+                        interrupt_count,
+                        wall_time,
+                        cpu_time,
+                        ..Default::default()
+                    },
                     &labels,
                     locals,
                 )) {
@@ -791,8 +801,8 @@ impl Profiler {
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
-        count: i64,
-        bytes: i64,
+        alloc_samples: i64,
+        alloc_size: i64,
         locals: &RequestLocals,
     ) {
         let result = collect_stack_sample(execute_data);
@@ -803,19 +813,19 @@ impl Profiler {
 
                 match self.send_sample(self.prepare_sample_message(
                     frames,
-                    0,
-                    0,
-                    None,
-                    count,
-                    bytes,
+                    SampleValues {
+                        alloc_size,
+                        alloc_samples,
+                        ..Default::default()
+                    },
                     &labels,
                     locals
                 )) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {depth} with size {bytes}, labels {labels:?} and count {count} to profiler."
+                        "Sent stack sample of depth {depth} with size {alloc_size}, labels {labels:?} and count {alloc_samples} to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {depth} with size {bytes}, labels {labels:?} and count {count} to profiler: {err}"
+                        "Failed to send stack sample of depth {depth} with size {alloc_size}, labels {labels:?} and count {alloc_samples} to profiler: {err}"
                     ),
                 }
             }
@@ -847,11 +857,7 @@ impl Profiler {
     fn prepare_sample_message(
         &self,
         frames: Vec<ZendFrame>,
-        sample: i64,
-        wall_time: i64,
-        cpu_time: Option<i64>,
-        alloc_samples: i64,
-        alloc_size: i64,
+        samples: SampleValues,
         labels: &[Label],
         locals: &RequestLocals,
     ) -> SampleMessage {
@@ -874,14 +880,19 @@ impl Profiler {
             },
         ];
 
-        let mut sample_values = vec![sample, wall_time, alloc_samples, alloc_size];
+        let mut sample_values = vec![
+            samples.interrupt_count,
+            samples.wall_time,
+            samples.alloc_samples,
+            samples.alloc_size,
+        ];
 
         if locals.last_cpu_time.is_some() {
             sample_types.push(ValueType {
                 r#type: Cow::Borrowed("cpu-time"),
                 unit: Cow::Borrowed("nanoseconds"),
             });
-            sample_values.push(if let Some(val) = cpu_time { val } else { 0 });
+            sample_values.push(samples.cpu_time);
         }
 
         let mut tags = locals.tags.clone();
