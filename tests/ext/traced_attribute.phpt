@@ -10,33 +10,33 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 include __DIR__ . '/sandbox/dd_dumper.inc';
 
 class Foo {
-    #[DDTrace\Traced(name: "simplename", resource: "rsrc", type: "typeee", service: "test", tags: ["a" => "b", 1 => "ignored"])]
+    #[DDTrace\Trace(name: "simplename", resource: "rsrc", type: "typeee", service: "test", tags: ["a" => "b", 1 => "ignored"])]
     static function simple($arg) {}
 
-    #[DDTrace\Traced(args: ["foo"])]
+    #[DDTrace\Trace(saveArgs: ["foo"])]
     static function argRestricted($bar, $foo) {
         return 2;
     }
 
-    #[DDTrace\Traced(args: true, return: true)]
+    #[DDTrace\Trace(saveArgs: true, saveReturn: true)]
     static function allArgs($bar, $foo) {
         return 2;
     }
 }
 
-#[DDTrace\Traced]
+#[DDTrace\Trace]
 function bar() {
     Foo::simple(1);
 }
 
-#[DDTrace\Traced]
+#[DDTrace\Trace]
 function recursion($i = 2) {
     if ($i) {
         recursion($i - 1);
     }
 }
 
-#[DDTrace\Traced(recurse: false)]
+#[DDTrace\Trace(recurse: false)]
 function noRecursion($i = 2) {
     if ($i) {
         noRecursion($i - 1);

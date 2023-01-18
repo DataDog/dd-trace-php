@@ -371,7 +371,7 @@ void dd_uhook_on_function_resolve(zend_function *func) {
                 if (!def->type) {
                     def->type = zend_string_copy(Z_STR(value));
                 }
-            } else if (zend_string_equals_literal(name, "args")) {
+            } else if (zend_string_equals_literal(name, "saveArgs")) {
                 if (!def->arg_whitelist) {
                     if (Z_TYPE(value) == IS_ARRAY) {
                         def->args = true;
@@ -386,7 +386,7 @@ void dd_uhook_on_function_resolve(zend_function *func) {
                         def->args = zend_is_true(&value);
                     }
                 }
-            } else if (zend_string_equals_literal(name, "return")) {
+            } else if (zend_string_equals_literal(name, "saveReturn")) {
                 def->retval = zend_is_true(&value);
             } else if (zend_string_equals_literal(name, "run_if_limited")) {
                 def->run_if_limited = zend_is_true(&value);
@@ -412,7 +412,7 @@ void dd_uhook_on_function_resolve(zend_function *func) {
 void zai_uhook_attributes_minit(void) {
     zai_hook_on_function_resolve = dd_uhook_on_function_resolve;
 
-    ddtrace_hook_attribute_ce = register_class_DDTrace_Traced();
+    ddtrace_hook_attribute_ce = register_class_DDTrace_Trace();
 #if PHP_VERSION_ID >= 80200
     zend_mark_internal_attribute(ddtrace_hook_attribute_ce);
 #endif
@@ -423,6 +423,6 @@ void zai_uhook_attributes_mshutdown(void) {
     zend_string_release(dd_hook_attribute_lcname);
 }
 
-ZEND_METHOD(DDTrace_Traced, __construct) {
+ZEND_METHOD(DDTrace_Trace, __construct) {
     (void) execute_data, (void) return_value;
 }
