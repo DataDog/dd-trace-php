@@ -1425,6 +1425,7 @@ jobs:
             # Ensure libexecinfo is _not_ installed, so support isn't detected
             # by config.m4
             apk update && apk del libexecinfo libexecinfo-dev
+            sed -i 's/libexecinfo-dev//g' /usr/bin/build-dd-trace-php
             build-dd-trace-php
       - persist_to_workspace:
           root: '.'
