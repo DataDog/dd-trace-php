@@ -138,9 +138,6 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
 > = MaybeUninit::uninit();
 
 #[cfg(feature = "allocation_profiling")]
-const GC_MEM_CACHES: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0") };
-
-#[cfg(feature = "allocation_profiling")]
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
 /// The engine's previous custom allocation function, if there is one.
@@ -935,7 +932,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     unsafe {
         let handle = datadog_php_zif_handler::new(
-            GC_MEM_CACHES,
+            CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
             &mut GC_MEM_CACHES_HANDLER,
             Some(datadog_allocation_profiling_gc_mem_caches),
         );
