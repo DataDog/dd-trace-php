@@ -284,16 +284,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_execute_internal = Some(execute_internal);
     };
 
-    #[cfg(feature = "allocation_profiling")]
-    unsafe {
-        let handle = datadog_php_zif_handler::new(
-            GC_MEM_CACHES,
-            &mut GC_MEM_CACHES_HANDLER,
-            Some(datadog_allocation_profiling_gc_mem_caches),
-        );
-        datadog_php_install_handler(handle);
-    }
-
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
      */
@@ -941,6 +931,16 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 
     // Safety: calling this in zend_extension startup.
     unsafe { pcntl::startup() };
+
+    #[cfg(feature = "allocation_profiling")]
+    unsafe {
+        let handle = datadog_php_zif_handler::new(
+            GC_MEM_CACHES,
+            &mut GC_MEM_CACHES_HANDLER,
+            Some(datadog_allocation_profiling_gc_mem_caches),
+        );
+        datadog_php_install_handler(handle);
+    }
 
     ZendResult::Success
 }
