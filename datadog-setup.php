@@ -775,8 +775,8 @@ function execute_or_exit($exitMessage, $command)
     $lastLine = exec($command, $output, $returnCode);
     if (false === $lastLine || $returnCode > 0) {
         print_error_and_exit(
-            $exitMessage .
-            "\nFailed command (return code $returnCode): $command\n"
+            $exitMessage
+            . "\nFailed command (return code $returnCode): $command\n"
             . "---- Output ----\n"
             . implode("\n", $output)
             . "\n---- End of output ----\n"
