@@ -75,7 +75,7 @@ void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_vie
     }
 }
 
-void datadog_php_profiling_copy_long_into_zval(zval *dest, long num) {
+void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
     ZEND_ASSERT(dest);
     ZVAL_LONG(dest, num);
     return;

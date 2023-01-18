@@ -34,7 +34,7 @@ use uuid::Uuid;
 use rand_distr::{Distribution, Poisson};
 
 #[cfg(feature = "allocation_profiling")]
-use crate::bindings::{datadog_php_install_handler, datadog_php_zif_handler, datadog_php_profiling_copy_long_into_zval};
+use crate::bindings::{datadog_php_install_handler, datadog_php_zif_handler, ddog_php_prof_copy_long_into_zval};
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
@@ -1069,7 +1069,7 @@ unsafe extern "C" fn datadog_allocation_profiling_gc_mem_caches(
     // Better safe than sorry: `gc_mem_caches()` is a Zend core function which
     // always exists
     if GC_MEM_CACHES_HANDLER == None {
-        datadog_php_profiling_copy_long_into_zval(return_value, 0);
+        ddog_php_prof_copy_long_into_zval(return_value, 0);
         return;
     }
 
