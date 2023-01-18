@@ -1862,7 +1862,11 @@ static void dd_apply_propagated_values_to_existing_spans(void) {
     ddtrace_span_data *span = ddtrace_active_span();
     while (span) {
         zend_array *meta = ddtrace_spandata_property_meta(span);
-        span->trace_id = DDTRACE_G(distributed_trace_id) == 0 ? span->root->span_id : DDTRACE_G(distributed_trace_id);
+        if (!DDTRACE_G(distributed_trace_id).low && !DDTRACE_G(distributed_trace_id).high) {
+            span->trace_id = (ddtrace_trace_id){ .high = 0, .low = span->root->span_id };
+        } else {
+            span->trace_id = DDTRACE_G(distributed_trace_id);
+        }
 
         if (DDTRACE_G(dd_origin)) {
             zval value;
@@ -2166,6 +2170,13 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
 //   - set a new trace (group) id
 void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
 
+static ddtrace_trace_id dd_parse_b3_trace_id(char *trace_id, ssize_t trace_id_len) {
+    return (ddtrace_trace_id){
+        .high = trace_id_len > 16 ? ddtrace_parse_hex_span_id_str(trace_id, MIN(16, trace_id_len - 16)) : 0,
+        .low = ddtrace_parse_hex_span_id_str(trace_id + MAX(0, trace_id_len - 16), MIN(16, trace_id_len)),
+    };
+}
+
 void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, const char *, zend_string **header_value, void *data), void *data) {
     zend_string *trace_id_str, *parent_id_str, *priority_str, *propagated_tags, *b3_header_str, *traceparent, *tracestate;
 
@@ -2191,11 +2202,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
             ++b3_ptr;
         }
 
-        ptrdiff_t b3_traceid_len = b3_ptr - b3_traceid;
-        DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){
-            .high = b3_traceid_len > 16 ? ddtrace_parse_hex_span_id_str(b3_traceid, MIN(16, b3_traceid_len - 16)) : 0,
-            .low = ddtrace_parse_hex_span_id_str(b3_traceid + MAX(0, b3_traceid_len - 16), MIN(16, b3_traceid_len)),
-        };
+        DDTRACE_G(distributed_trace_id) = dd_parse_b3_trace_id(b3_traceid, b3_ptr - b3_traceid);
 
         char *b3_spanid = ++b3_ptr;
         while (b3_ptr < b3_end && *b3_ptr != '-') {
@@ -2231,10 +2238,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
         DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){ .low = ddtrace_parse_userland_span_id(&trace_zv) };
         zend_string_release(trace_id_str);
     } else if (parse_b3 && read_header(ZAI_STRL_VIEW("X_B3_TRACEID"), "b3-traceid", &trace_id_str, data)) {
-        DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){
-            .high = ZSTR_LEN(trace_id_str) > 16 ? ddtrace_parse_hex_span_id_str(ZSTR_VAL(trace_id_str), MIN(16, ZSTR_LEN(trace_id_str) - 16)) : 0,
-            .low = ddtrace_parse_hex_span_id_str(ZSTR_VAL(trace_id_str) + MAX(0, (ssize_t)ZSTR_LEN(trace_id_str) - 16), MIN(16, ZSTR_LEN(trace_id_str))),
-        };
+        DDTRACE_G(distributed_trace_id) = dd_parse_b3_trace_id(ZSTR_VAL(trace_id_str), ZSTR_LEN(trace_id_str));
         zend_string_release(trace_id_str);
     }
 
