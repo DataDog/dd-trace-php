@@ -1066,7 +1066,7 @@ unsafe extern "C" fn datadog_allocation_profiling_gc_mem_caches(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    // Better safe then sorry: `gc_mem_caches()` is a Zend core function which
+    // Better safe than sorry: `gc_mem_caches()` is a Zend core function which
     // always exists
     if GC_MEM_CACHES_HANDLER == None {
         datadog_php_profiling_copy_long_into_zval(return_value, 0);
