@@ -24,7 +24,6 @@ print_r(root_span_get_meta());
 root_span_get_meta():
 Array
 (
-    [%s] => %d
     [appsec.events.users.login.failure.usr.id] => Admin
     [appsec.events.users.login.failure.track] => true
     [appsec.events.users.login.failure.usr.exists] => true

@@ -70,7 +70,6 @@ $helper->finished_with_commands();
 root_span_get_meta():
 Array
 (
-    [%s] => %d
     [http.url] => https://localhost:8888/foo
     [http.method] => GET
     [http.useragent] => my user agent
@@ -95,11 +94,11 @@ Array
     [http.useragent] => my user agent
     [meta_1] => value_1
     [meta_2] => value_2
-    [%s] => %d
 )
 metrics:
 Array
 (
+    [%s] => %d
     [_sampling_priority_v1] => 2
     [metric_1] => 2
     [metric_2] => 10

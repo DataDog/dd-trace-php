@@ -52,6 +52,5 @@ bool(true)
 tags:
 Array
 (
-    [%s] => %d
     [_dd.p.dm] => -1
 )

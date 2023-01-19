@@ -65,6 +65,5 @@ Array
     [http.method] => GET
     [http.status_code] => 200
     [http.url] => http://localhost:8888/my/ur%69/
-    [%s] => %d
     [version] => 0.42.69
 )

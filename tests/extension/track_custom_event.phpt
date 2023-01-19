@@ -24,7 +24,6 @@ print_r(root_span_get_meta());
 root_span_get_meta():
 Array
 (
-    [%s] => %d
     [appsec.events.myevent.track] => true
     [appsec.events.myevent.value] => something
     [appsec.events.myevent.metadata] => some other metadata

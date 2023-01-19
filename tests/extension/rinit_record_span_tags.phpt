@@ -65,7 +65,6 @@ $helper->finished_with_commands();
 root_span_get_meta():
 Array
 (
-    [%s] => %d
     [http.url] => https://localhost:8888/foo
     [http.method] => GET
     [http.useragent] => my user agent
@@ -89,11 +88,11 @@ Array
     [http.url] => https://localhost:8888/foo
     [http.useragent] => my user agent
     [rshutdown_tag] => rshutdown_value
-    [%s] => %d
 )
 metrics:
 Array
 (
+    [%s] => %d
     [rshutdown_metric] => 2.1
     [_dd.appsec.enabled] => 1
     [_sampling_priority_v1] => 2

@@ -24,7 +24,6 @@ print_r(root_span_get_meta());
 root_span_get_meta():
 Array
 (
-    [%s] => %d
     [usr.id] => Admin
     [appsec.events.users.login.success.track] => true
     [appsec.events.users.login.success.value] => something

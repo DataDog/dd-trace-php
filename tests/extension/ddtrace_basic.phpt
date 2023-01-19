@@ -88,14 +88,14 @@ object(DDTrace\SpanData)#%d (%d) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(2) {
-    [%s]=>
-    int(%d)
+  array(1) {
     ["ddappsec"]=>
     string(4) "true"
   }
   ["metrics"]=>
-  array(0) {
+  array(1) {
+    [%s]=>
+    float(%d)
   }
   ["id"]=>
   string(%d) "%d"
@@ -107,7 +107,6 @@ sent trace id is the same as \DDTrace\trace_id(): yes
 tags:
 Array
 (
-    [%s] => %s
     [ddappsec] => true
     [_dd.p.dm] => -1
 )
