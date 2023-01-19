@@ -869,7 +869,7 @@ jobs:
             make test_extension_ci \
               BUILD_DIR=$(pwd)/tmp/build_extension \
               JUNIT_RESULTS_DIR=$(pwd)/test-results \
-              RUN_TESTS_EXTRA_ARGS="-d extension=<< parameters.ext_name >>.so" \
+              RUN_TESTS_EXTRA_ARGS="-d extension=mbstring.so -d extension=<< parameters.ext_name >>.so" \
               TESTS="tests/ext/integrations/<< parameters.ext_name >>"
             if [ "<< parameters.ext_name >>" = "curl" ]
             then
@@ -878,7 +878,7 @@ jobs:
                 make test_c \
                   BUILD_DIR=$(pwd)/tmp/build_extension \
                   JUNIT_RESULTS_DIR=$(pwd)/test-results \
-                  RUN_TESTS_EXTRA_ARGS="-d extension=<< parameters.ext_name >>-${curlVersion}.so" \
+                  RUN_TESTS_EXTRA_ARGS="-d extension=mbstring.so -d extension=<< parameters.ext_name >>-${curlVersion}.so" \
                   TESTS="tests/ext/integrations/<< parameters.ext_name >>"
               done
             fi
