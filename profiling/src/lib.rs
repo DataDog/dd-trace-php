@@ -1066,13 +1066,6 @@ unsafe extern "C" fn datadog_allocation_profiling_gc_mem_caches(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    // Better safe than sorry: `gc_mem_caches()` is a Zend core function which
-    // always exists
-    if GC_MEM_CACHES_HANDLER == None {
-        ddog_php_prof_copy_long_into_zval(return_value, 0);
-        return;
-    }
-
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
         // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
         let locals = cell.try_borrow();
@@ -1084,17 +1077,17 @@ unsafe extern "C" fn datadog_allocation_profiling_gc_mem_caches(
         locals.profiling_experimental_allocation_enabled
     });
 
-    if allocation_profiling {
-        let heap = zend::zend_mm_get_heap();
-        let custom_heap = prepare_zend_heap(heap);
-        // Safety: can be unwraped safely as we check it exists above already
-        let func = GC_MEM_CACHES_HANDLER.unwrap();
-        func(execute_data, return_value);
-        restore_zend_heap(heap, custom_heap);
+    if let Some(func) = GC_MEM_CACHES_HANDLER {
+        if allocation_profiling {
+            let heap = zend::zend_mm_get_heap();
+            let custom_heap = prepare_zend_heap(heap);
+            func(execute_data, return_value);
+            restore_zend_heap(heap, custom_heap);
+        } else {
+            func(execute_data, return_value);
+        }
     } else {
-        // Safety: can be unwraped safely as we check it exists above already
-        let func = GC_MEM_CACHES_HANDLER.unwrap();
-        func(execute_data, return_value);
+        ddog_php_prof_copy_long_into_zval(return_value, 0);
     }
 }
 
