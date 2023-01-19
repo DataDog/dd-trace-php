@@ -14,8 +14,8 @@ service::service(service_identifier id, std::shared_ptr<engine> engine,
     std::shared_ptr<service_config> service_config,
     const std::chrono::milliseconds &poll_interval)
     : id_(std::move(id)), engine_(std::move(engine)),
-      service_config_(std::move(service_config)), rc_client_(std::move(rc_client)),
-      poll_interval_(poll_interval)
+      service_config_(std::move(service_config)),
+      rc_client_(std::move(rc_client)), poll_interval_(poll_interval)
 {
     // The engine should always be valid
     if (!engine_) {
@@ -63,8 +63,11 @@ service::ptr service::from_settings(const service_identifier &id,
     auto listener =
         std::make_shared<remote_config::asm_features_listener>(service_config);
     std::vector<remote_config::product> products = {{"ASM_FEATURES", listener}};
+    std::vector<remote_config::protocol::capabilities_e> capabilities = {
+        remote_config::protocol::capabilities_e::ASM_ACTIVATION};
+
     auto rc_client = remote_config::client::from_settings(
-        id, rc_settings, std::move(products));
+        id, rc_settings, std::move(products), std::move(capabilities));
 
     return std::make_shared<service>(id, engine_ptr, std::move(rc_client),
         std::move(service_config),
@@ -80,9 +83,7 @@ void service::run(std::future<bool> &&exit_signal)
         // the polling interval has actually elapsed.
         auto now = std::chrono::steady_clock::now();
         if ((now - before) >= poll_interval_) {
-            if (!rc_client_->poll()) {
-                return;
-            }
+            rc_client_->poll();
             before = now;
         }
 

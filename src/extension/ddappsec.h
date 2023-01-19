@@ -15,10 +15,19 @@
 #include <php.h>
 #include <stdbool.h>
 
+typedef enum _enabled_configuration {
+    NOT_CONFIGURED = 0,
+    ENABLED,
+    DISABLED
+} enabled_configuration;
+
 // define zend_ddappsec_globals type
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
-    bool enabled;
+    //Defines if extension has been enabled/disabled by ini/env
+    enabled_configuration enabled_by_configuration;
+    //Defines enablement status computed taking into account enabled_by_configuration and remote config
+    enabled_configuration enabled;
     bool skip_rshutdown;
 ZEND_END_MODULE_GLOBALS(ddappsec)
 // clang-format on

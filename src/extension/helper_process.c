@@ -114,11 +114,9 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(client_init_func nonnull init_func)
     if (dd_conn_connected(conn)) {
         return conn;
     }
-
     if (_wait_for_next_retry()) {
         return NULL;
     }
-
     zval runtime_path;
     ZVAL_STR(&runtime_path, get_DD_APPSEC_HELPER_RUNTIME_PATH());
     dd_on_runtime_path_update(NULL, &runtime_path);

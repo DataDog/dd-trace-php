@@ -1,5 +1,7 @@
 --TEST--
 RINIT fails because helper is down
+--INI--
+datadog.appsec.enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown,backoff_status,is_connected_to_helper};

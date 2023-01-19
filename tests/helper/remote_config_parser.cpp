@@ -82,13 +82,6 @@ TEST(RemoteConfigParser, ItReturnsErrorWhenInvalidBodyIsGiven)
         remote_config::protocol::remote_config_parser_result::invalid_json);
 }
 
-TEST(RemoteConfigParser, TargetsFieldIsRequired)
-{
-    assert_parser_error("{\"target_files\": [], \"client_configs\": [] }",
-        remote_config::protocol::remote_config_parser_result::
-            targets_field_missing);
-}
-
 TEST(RemoteConfigParser, TargetsFieldMustBeString)
 {
     assert_parser_error(
@@ -97,11 +90,50 @@ TEST(RemoteConfigParser, TargetsFieldMustBeString)
             targets_field_invalid_type);
 }
 
-TEST(RemoteConfigParser, targetFilesFieldIsRequired)
+TEST(RemoteConfigParser, targetFilesFieldCanBeMissed)
 {
-    assert_parser_error("{\"targets\": \"\", \"client_configs\": [] }",
-        remote_config::protocol::remote_config_parser_result::
-            target_files_field_missing);
+    auto response = remote_config::protocol::parse(
+        "{\"targets\": "
+        "\"ewogICAgInNpZ25hdHVyZXMiOiBbCiAgICAgICAgewogICAgICAgICAgICAia2V5"
+        "aWQiOiAiNWM0ZWNlNDEyNDFhMWJiNTEzZjZlM2U1ZGY3NGFiN2Q1MTgzZGZmZmJkNz"
+        "FiZmQ0MzEyNzkyMGQ4ODA1NjlmZCIsCiAgICAgICAgICAgICJzaWciOiAiNDliOTBm"
+        "NWY0YmZjMjdjY2JkODBkOWM4NDU4ZDdkMjJiYTlmYTA4OTBmZDc3NWRkMTE2YzUyOG"
+        "IzNmRkNjA1YjFkZjc2MWI4N2I2YzBlYjliMDI2NDA1YTEzZWZlZjQ4Mjc5MzRkNmMy"
+        "NWE3ZDZiODkyNWZkYTg5MjU4MDkwMGYiCiAgICAgICAgfQogICAgXSwKICAgICJzaW"
+        "duZWQiOiB7CiAgICAgICAgIl90eXBlIjogInRhcmdldHMiLAogICAgICAgICJjdXN0"
+        "b20iOiB7CiAgICAgICAgICAgICJvcGFxdWVfYmFja2VuZF9zdGF0ZSI6ICJleUoyWl"
+        "hKemFXOXVJam94TENKemRHRjBaU0k2ZXlKbWFXeGxYMmhoYzJobGN5STZXeUpTS3pK"
+        "RFZtdGxkRVJ6WVc1cFdrZEphMFphWkZKTlQyRllhM1Z6TURGMWVsUTFNM3BuZW1sU1"
+        "RHRTBQU0lzSWtJd1dtTTNUMUlyVWxWTGNuZE9iMFZFV2pZM1VYVjVXRWxyYTJjeGIy"
+        "TkhWV1IzZWtac1MwZERaRlU5SWl3aWVIRnFUbFV4VFV4WFUzQlJiRFpOYWt4UFUyTn"
+        "ZTVUoyYjNsU2VsWnJkelp6TkdFcmRYVndPV2d3UVQwaVhYMTkiCiAgICAgICAgfSwK"
+        "ICAgICAgICAiZXhwaXJlcyI6ICIyMDIyLTExLTA0VDEzOjMxOjU5WiIsCiAgICAgIC"
+        "AgInNwZWNfdmVyc2lvbiI6ICIxLjAuMCIsCiAgICAgICAgInRhcmdldHMiOiB7CiAg"
+        "ICAgICAgICAgICJkYXRhZG9nLzIvQVBNX1NBTVBMSU5HL2R5bmFtaWNfcmF0ZXMvY2"
+        "9uZmlnIjogewogICAgICAgICAgICAgICAgImN1c3RvbSI6IHsKICAgICAgICAgICAg"
+        "ICAgICAgICAidiI6IDM2NzQwCiAgICAgICAgICAgICAgICB9LAogICAgICAgICAgIC"
+        "AgICAgImhhc2hlcyI6IHsKICAgICAgICAgICAgICAgICAgICAic2hhMjU2IjogIjA3"
+        "NDY1Y2VjZTQ3ZTQ1NDJhYmMwZGEwNDBkOWViYjQyZWM5NzIyNDkyMGQ2ODcwNjUxZG"
+        "MzMzE2NTI4NjA5ZDUiLAogICAgICAgICAgICAgICAgICAgICJzaGE1MTIiOiAic2hh"
+        "NTEyaGFzaGhlcmUwMSIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgIC"
+        "AibGVuZ3RoIjogNjYzOTkKICAgICAgICAgICAgfSwKICAgICAgICAgICAgImRhdGFk"
+        "b2cvMi9ERUJVRy9sdWtlLnN0ZWVuc2VuL2NvbmZpZyI6IHsKICAgICAgICAgICAgIC"
+        "AgICJjdXN0b20iOiB7CiAgICAgICAgICAgICAgICAgICAgInYiOiAzCiAgICAgICAg"
+        "ICAgICAgICB9LAogICAgICAgICAgICAgICAgImhhc2hlcyI6IHsKICAgICAgICAgIC"
+        "AgICAgICAgICAic2hhMjU2IjogImM2YThjZDUzNTMwYjU5MmE1MDk3YTMyMzJjZTQ5"
+        "Y2EwODA2ZmEzMjQ3MzU2NGMzYWIzODZiZWJhZWE3ZDg3NDAiLAogICAgICAgICAgIC"
+        "AgICAgICAgICJzaGE1MTIiOiAic2hhNTEyaGFzaGhlcmUwMiIKICAgICAgICAgICAg"
+        "ICAgIH0sCiAgICAgICAgICAgICAgICAibGVuZ3RoIjogMTMKICAgICAgICAgICAgfS"
+        "wKICAgICAgICAgICAgImVtcGxveWVlL0RFQlVHX0RELzIudGVzdDEuY29uZmlnL2Nv"
+        "bmZpZyI6IHsKICAgICAgICAgICAgICAgICJjdXN0b20iOiB7CiAgICAgICAgICAgIC"
+        "AgICAgICAgInYiOiAxCiAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAg"
+        "Imhhc2hlcyI6IHsKICAgICAgICAgICAgICAgICAgICAic2hhMjU2IjogIjQ3ZWQ4Mj"
+        "U2NDdhZDBlYzZhNzg5OTE4ODkwNTY1ZDQ0YzM5YTVlNGJhY2QzNWJiMzRmOWRmMzgz"
+        "Mzg5MTJkYWUiLAogICAgICAgICAgICAgICAgICAgICJzaGE1MTIiOiAic2hhNTEyaG"
+        "FzaGhlcmUwMyIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAibGVu"
+        "Z3RoIjogNDEKICAgICAgICAgICAgfQogICAgICAgIH0sCiAgICAgICAgInZlcnNpb2"
+        "4iOiAyNzQ4NzE1NgogICAgfQp9\", \"client_configs\": [] }");
+    ASSERT_TRUE(response.target_files.empty());
 }
 
 TEST(RemoteConfigParser, targetFilesFieldMustBeArray)
@@ -112,11 +144,51 @@ TEST(RemoteConfigParser, targetFilesFieldMustBeArray)
             target_files_field_invalid_type);
 }
 
-TEST(RemoteConfigParser, clientConfigsFieldIsRequired)
+TEST(RemoteConfigParser, clientConfigsFieldCanBeMissed)
 {
-    assert_parser_error("{\"targets\": \"\", \"target_files\": [] }",
-        remote_config::protocol::remote_config_parser_result::
-            client_config_field_missing);
+    auto response = remote_config::protocol::parse(
+        "{\"targets\": "
+        "\"ewogICAgInNpZ25hdHVyZXMiOiBbCiAgICAgICAgewogICAgICAgICAgICAia2V5"
+        "aWQiOiAiNWM0ZWNlNDEyNDFhMWJiNTEzZjZlM2U1ZGY3NGFiN2Q1MTgzZGZmZmJkNz"
+        "FiZmQ0MzEyNzkyMGQ4ODA1NjlmZCIsCiAgICAgICAgICAgICJzaWciOiAiNDliOTBm"
+        "NWY0YmZjMjdjY2JkODBkOWM4NDU4ZDdkMjJiYTlmYTA4OTBmZDc3NWRkMTE2YzUyOG"
+        "IzNmRkNjA1YjFkZjc2MWI4N2I2YzBlYjliMDI2NDA1YTEzZWZlZjQ4Mjc5MzRkNmMy"
+        "NWE3ZDZiODkyNWZkYTg5MjU4MDkwMGYiCiAgICAgICAgfQogICAgXSwKICAgICJzaW"
+        "duZWQiOiB7CiAgICAgICAgIl90eXBlIjogInRhcmdldHMiLAogICAgICAgICJjdXN0"
+        "b20iOiB7CiAgICAgICAgICAgICJvcGFxdWVfYmFja2VuZF9zdGF0ZSI6ICJleUoyWl"
+        "hKemFXOXVJam94TENKemRHRjBaU0k2ZXlKbWFXeGxYMmhoYzJobGN5STZXeUpTS3pK"
+        "RFZtdGxkRVJ6WVc1cFdrZEphMFphWkZKTlQyRllhM1Z6TURGMWVsUTFNM3BuZW1sU1"
+        "RHRTBQU0lzSWtJd1dtTTNUMUlyVWxWTGNuZE9iMFZFV2pZM1VYVjVXRWxyYTJjeGIy"
+        "TkhWV1IzZWtac1MwZERaRlU5SWl3aWVIRnFUbFV4VFV4WFUzQlJiRFpOYWt4UFUyTn"
+        "ZTVUoyYjNsU2VsWnJkelp6TkdFcmRYVndPV2d3UVQwaVhYMTkiCiAgICAgICAgfSwK"
+        "ICAgICAgICAiZXhwaXJlcyI6ICIyMDIyLTExLTA0VDEzOjMxOjU5WiIsCiAgICAgIC"
+        "AgInNwZWNfdmVyc2lvbiI6ICIxLjAuMCIsCiAgICAgICAgInRhcmdldHMiOiB7CiAg"
+        "ICAgICAgICAgICJkYXRhZG9nLzIvQVBNX1NBTVBMSU5HL2R5bmFtaWNfcmF0ZXMvY2"
+        "9uZmlnIjogewogICAgICAgICAgICAgICAgImN1c3RvbSI6IHsKICAgICAgICAgICAg"
+        "ICAgICAgICAidiI6IDM2NzQwCiAgICAgICAgICAgICAgICB9LAogICAgICAgICAgIC"
+        "AgICAgImhhc2hlcyI6IHsKICAgICAgICAgICAgICAgICAgICAic2hhMjU2IjogIjA3"
+        "NDY1Y2VjZTQ3ZTQ1NDJhYmMwZGEwNDBkOWViYjQyZWM5NzIyNDkyMGQ2ODcwNjUxZG"
+        "MzMzE2NTI4NjA5ZDUiLAogICAgICAgICAgICAgICAgICAgICJzaGE1MTIiOiAic2hh"
+        "NTEyaGFzaGhlcmUwMSIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgIC"
+        "AibGVuZ3RoIjogNjYzOTkKICAgICAgICAgICAgfSwKICAgICAgICAgICAgImRhdGFk"
+        "b2cvMi9ERUJVRy9sdWtlLnN0ZWVuc2VuL2NvbmZpZyI6IHsKICAgICAgICAgICAgIC"
+        "AgICJjdXN0b20iOiB7CiAgICAgICAgICAgICAgICAgICAgInYiOiAzCiAgICAgICAg"
+        "ICAgICAgICB9LAogICAgICAgICAgICAgICAgImhhc2hlcyI6IHsKICAgICAgICAgIC"
+        "AgICAgICAgICAic2hhMjU2IjogImM2YThjZDUzNTMwYjU5MmE1MDk3YTMyMzJjZTQ5"
+        "Y2EwODA2ZmEzMjQ3MzU2NGMzYWIzODZiZWJhZWE3ZDg3NDAiLAogICAgICAgICAgIC"
+        "AgICAgICAgICJzaGE1MTIiOiAic2hhNTEyaGFzaGhlcmUwMiIKICAgICAgICAgICAg"
+        "ICAgIH0sCiAgICAgICAgICAgICAgICAibGVuZ3RoIjogMTMKICAgICAgICAgICAgfS"
+        "wKICAgICAgICAgICAgImVtcGxveWVlL0RFQlVHX0RELzIudGVzdDEuY29uZmlnL2Nv"
+        "bmZpZyI6IHsKICAgICAgICAgICAgICAgICJjdXN0b20iOiB7CiAgICAgICAgICAgIC"
+        "AgICAgICAgInYiOiAxCiAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAg"
+        "Imhhc2hlcyI6IHsKICAgICAgICAgICAgICAgICAgICAic2hhMjU2IjogIjQ3ZWQ4Mj"
+        "U2NDdhZDBlYzZhNzg5OTE4ODkwNTY1ZDQ0YzM5YTVlNGJhY2QzNWJiMzRmOWRmMzgz"
+        "Mzg5MTJkYWUiLAogICAgICAgICAgICAgICAgICAgICJzaGE1MTIiOiAic2hhNTEyaG"
+        "FzaGhlcmUwMyIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAibGVu"
+        "Z3RoIjogNDEKICAgICAgICAgICAgfQogICAgICAgIH0sCiAgICAgICAgInZlcnNpb2"
+        "4iOiAyNzQ4NzE1NgogICAgfQp9\", \"target_files\": [] }");
+
+    ASSERT_TRUE(response.client_configs.empty());
 }
 
 TEST(RemoteConfigParser, clientConfigsFieldMustBeArray)
@@ -1028,11 +1100,12 @@ TEST(RemoteConfigParser, TargetsAreParsed)
 
     auto gcr = remote_config::protocol::parse(response);
 
-    remote_config::protocol::targets _targets = gcr.targets;
+    std::optional<remote_config::protocol::targets> _targets = gcr.targets;
 
-    EXPECT_EQ(27487156, _targets.version);
+    EXPECT_EQ(27487156, _targets->version);
 
-    std::unordered_map<std::string, remote_config::protocol::path> paths = _targets.paths;
+    std::unordered_map<std::string, remote_config::protocol::path> paths =
+        _targets->paths;
 
     EXPECT_EQ(3, paths.size());
 
@@ -1083,6 +1156,13 @@ TEST(RemoteConfigParser, RemoteConfigParserResultCanBeCastToString)
     EXPECT_EQ("", remote_config::protocol::remote_config_parser_result_to_str(
                       remote_config::protocol::remote_config_parser_result::
                           num_of_values));
+}
+
+TEST(RemoteConfigParser, ParseEmptyResponses)
+{
+    auto gcr = remote_config::protocol::parse("{}");
+
+    EXPECT_FALSE(gcr.targets.has_value());
 }
 
 } // namespace dds

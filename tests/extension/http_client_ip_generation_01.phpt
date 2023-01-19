@@ -1,12 +1,13 @@
 --TEST--
-ddtrace generates http.client_ip
+ddappsec generates generates http.client_ip when ddtrace does not
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
+datadog.appsec.enabled=1
 --ENV--
 HTTP_X_FORWARDED_FOR=7.7.7.7
-DD_TRACE_CLIENT_IP_HEADER_DISABLED=false
+DD_TRACE_CLIENT_IP_HEADER_DISABLED=true
 --GET--
 key=val
 --FILE--
@@ -21,10 +22,10 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     response_list(
-        response_request_init(['record', ['{"found":"attack"}','{"another":"attack"}']])
-    ),
-    response_list(
-        response_request_shutdown(['record', ['{"yet another":"attack"}'], ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]])
+            response_request_init(['record', ['{"found":"attack"}','{"another":"attack"}']])
+   ),
+   response_list(
+       response_request_shutdown(['record', ['{"yet another":"attack"}'], ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]])
     ),
 ], ['continuous' => true]);
 

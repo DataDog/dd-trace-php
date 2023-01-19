@@ -58,6 +58,7 @@ public:
     }
 
     [[nodiscard]] bool running() const { return handler_.joinable(); }
+    [[nodiscard]] service_identifier get_id() const { return id_; }
 
 protected:
     void run(std::future<bool> &&exit_signal);

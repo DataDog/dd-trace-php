@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "commands_helpers.h"
+#include "ddappsec.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
@@ -109,6 +110,16 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
         if (err != mpack_ok) {
             mlog(dd_log_error, "Array of responses could not be retrieved - %s",
                 mpack_error_to_string(err));
+            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+            err = _imsg_destroy(&imsg);
+            return dd_error;
+        }
+        if (mpack_node_type(first_response) != mpack_type_array) {
+            mlog(dd_log_error, "Invalid response. Expected array but got %s",
+                mpack_type_to_string(mpack_node_type(first_response)));
+            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+            err = _imsg_destroy(&imsg);
+            return dd_error;
         }
         mpack_node_t first_message = mpack_node_array_at(first_response, 1);
         err = mpack_node_error(first_message);
@@ -117,7 +128,37 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
                 "Message on first response could not be retrieved - %s",
                 mpack_error_to_string(err));
         }
-        res = spec->incoming_cb(first_message, ctx);
+
+        mpack_node_t type = mpack_node_array_at(first_response, 0);
+        err = mpack_node_error(type);
+        if (err != mpack_ok) {
+            mlog(dd_log_error, "Response type could not be retrieved - %s",
+                mpack_error_to_string(err));
+            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+            err = _imsg_destroy(&imsg);
+            return dd_error;
+        }
+        if (mpack_node_type(type) != mpack_type_str) {
+            mlog(dd_log_error,
+                "Unexpected type field. Expected string but got %s",
+                mpack_type_to_string(mpack_node_type(type)));
+            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+            err = _imsg_destroy(&imsg);
+            return dd_error;
+        }
+        if (dd_mpack_node_lstr_eq(type, "config_features")) {
+            res = spec->config_features_cb(first_message, ctx);
+        } else if (dd_mpack_node_str_eq(type, spec->name, spec->name_len)) {
+            res = spec->incoming_cb(first_message, ctx);
+        } else {
+            mlog(dd_log_debug,
+                "Received message for command %.*s unexpected: %.*s\n", NAME_L,
+                (int)mpack_node_strlen(type), mpack_node_str(type));
+            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+            err = _imsg_destroy(&imsg);
+            return dd_error;
+        }
+
         mlog(dd_log_debug, "Processing for command %.*s returned %s", NAME_L,
             dd_result_to_string(res));
         err = imsg.root.tree->error;
@@ -129,6 +170,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
                 "Response message for %.*s does not "
                 "have the expected form",
                 NAME_L);
+
             return dd_error;
         }
         if (res != dd_success && res != dd_should_block) {
@@ -145,6 +187,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
     }
 
     mlog(dd_log_debug, "%.*s succeed. Not blocking", NAME_L);
+
     return dd_success;
 }
 
@@ -454,4 +497,31 @@ static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs)
             (int)ZSTR_LEN(zstr), ZSTR_VAL(zstr));
         zend_string_release(zstr);
     }
+}
+
+dd_result dd_command_process_config_features(
+    mpack_node_t root, ATTR_UNUSED void *nullable ctx)
+{
+    UNUSED(ctx);
+    mpack_node_t first_element = mpack_node_array_at(root, 0);
+    bool new_status = mpack_node_bool(first_element);
+
+    if (DDAPPSEC_G(enabled_by_configuration) == ENABLED && !new_status) {
+        DDAPPSEC_G(enabled) = ENABLED; // Configuration dictates
+        mlog(dd_log_debug, "Remote config is trying to disable extension but "
+                           "it is enabled by config");
+        return dd_success;
+    }
+    DDAPPSEC_G(enabled) = new_status ? ENABLED : DISABLED;
+    return dd_success;
+}
+
+dd_result dd_command_process_config_features_unexpected(
+    mpack_node_t root, ATTR_UNUSED void *nullable ctx)
+{
+    UNUSED(root);
+    UNUSED(ctx);
+    mlog(dd_log_debug, "Unexpected config_features response to request");
+
+    return dd_error;
 }

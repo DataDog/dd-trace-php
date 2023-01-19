@@ -57,6 +57,8 @@ typedef enum _header_id {
 static header_map_node header_map[MAX_HEADER_ID];
 
 static zend_string *nonnull _remote_addr_key;
+static THREAD_LOCAL_ON_ZTS zval duplicated_ip_headers;
+static THREAD_LOCAL_ON_ZTS zend_string *nullable client_ip;
 
 static void _register_testing_objects(void);
 static zend_string *nullable _fetch_arr_str(
@@ -218,6 +220,36 @@ zend_string *nullable dd_ip_extraction_find(
     }
 
     return NULL;
+}
+
+void dd_ip_extraction_rinit(void)
+{
+    zval *_server =
+        dd_php_get_autoglobal(TRACK_VARS_SERVER, LSTRARG("_SERVER"));
+    if (!_server) {
+        mlog(dd_log_info, "No SERVER autoglobal available");
+        return;
+    }
+    array_init(&duplicated_ip_headers);
+    client_ip = dd_ip_extraction_find(_server, &duplicated_ip_headers);
+}
+
+void dd_ip_extraction_rshutdown(void)
+{
+    if (Z_TYPE(duplicated_ip_headers) == IS_ARRAY) {
+        zend_array_destroy(Z_ARR(duplicated_ip_headers));
+    }
+    if (client_ip) {
+        zend_string_release(client_ip);
+        client_ip = NULL;
+    }
+}
+
+zend_string *nullable dd_ip_extraction_get_ip() { return client_ip; }
+
+zval *nullable dd_ip_extraction_get_duplicated_headers()
+{
+    return &duplicated_ip_headers;
 }
 
 static zend_string *_try_extract(const zval *nonnull server,

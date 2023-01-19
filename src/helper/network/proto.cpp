@@ -14,6 +14,7 @@ using dds::network::client_init;
 using dds::network::request;
 using dds::network::request_id;
 using dds::network::request_init;
+using dds::network::config_sync;
 using dds::network::request_shutdown;
 
 namespace {
@@ -21,6 +22,7 @@ namespace {
 const std::map<std::string_view, request_id> mapping = {
     {client_init::request::name, client_init::request::id},
     {request_init::request::name, request_init::request::id},
+    {config_sync::request::name, config_sync::request::id},
     {request_shutdown::request::name, request_shutdown::request::id}};
 
 request_id command_name_to_id(const std::string &str)
@@ -56,6 +58,9 @@ request as<request>::operator()(const msgpack::object &o) const
         break;
     case request_init::request::id:
         r.arguments = msgpack_to_request<request_init>(o.via.array.ptr[1]);
+        break;
+    case config_sync::request::id:
+        r.arguments = msgpack_to_request<config_sync>(o.via.array.ptr[1]);
         break;
     case request_shutdown::request::id:
         r.arguments = msgpack_to_request<request_shutdown>(o.via.array.ptr[1]);

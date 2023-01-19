@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include <optional>
 #include <vector>
 
 #include "../cached_target_files.hpp"
@@ -17,7 +18,7 @@ namespace dds::remote_config::protocol {
 struct get_configs_response {
     std::unordered_map<std::string, target_file> target_files;
     std::vector<std::string> client_configs;
-    protocol::targets targets;
+    std::optional<protocol::targets> targets;
 };
 
 } // namespace dds::remote_config::protocol

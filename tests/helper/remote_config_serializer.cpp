@@ -7,6 +7,7 @@
 #include <rapidjson/document.h>
 #include <string>
 
+#include "base64.h"
 #include "common.hpp"
 #include "remote_config/protocol/client.hpp"
 #include "remote_config/protocol/client_state.hpp"
@@ -334,9 +335,9 @@ TEST(RemoteConfigSerializer, CapabilitiesCanBeSet)
 
     rapidjson::Value::ConstMemberIterator capabilities_itr =
         find_and_assert_type(
-            client_itr->value, "capabilities", rapidjson::kArrayType);
+            client_itr->value, "capabilities", rapidjson::kStringType);
 
-    EXPECT_EQ(15, capabilities_itr->value.Begin()->GetInt());
+    EXPECT_STREQ("Dw==", capabilities_itr->value.GetString());
 }
 
 } // namespace dds

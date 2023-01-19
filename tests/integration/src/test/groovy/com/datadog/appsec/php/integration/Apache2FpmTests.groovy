@@ -37,7 +37,7 @@ class Apache2FpmTests implements CommonTests {
         res = CONTAINER.execInContainer(
                 'bash', '-c',
                 'php-fpm -d extension=ddtrace.so -d extension=ddappsec.so ' +
-                        '-d datadog.appsec.enabled=1 ' +
+                        '-d datadog.appsec.enabled_on_cli=0 ' +
                         '-d datadog.appsec.helper_runtime_path=/tmp/cli ' +
                         '-i')
         if (res.exitCode != 0) {

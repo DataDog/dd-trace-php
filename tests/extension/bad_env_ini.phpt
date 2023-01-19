@@ -14,6 +14,7 @@ extension=ddtrace.so
 var_dump(ini_get("datadog.appsec.log_level"));
 ?>
 --EXPECTF--
+Notice: %s: [ddappsec] Enabled not configured, computing enabled status in Unknown on line 0
 string(5) "trace"
 
 Notice: PHP Shutdown: [ddappsec] Shutting down the file logging in Unknown on line 0

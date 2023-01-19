@@ -2,6 +2,7 @@
 request_shutdown sends headers and response code
 --INI--
 expose_php=0
+datadog.appsec.enabled=1
 --GET--
 a=b
 --FILE--

@@ -4,6 +4,7 @@ Record response from request_init and ancillary tags in root span
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
+datadog.appsec.enabled=1
 --ENV--
 DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=0
 HTTPS=on

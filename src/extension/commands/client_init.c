@@ -29,39 +29,12 @@ static const dd_command_spec _spec = {
     .num_args = 7,
     .outgoing_cb = _pack_command,
     .incoming_cb = _process_response,
+    .config_features_cb = dd_command_process_config_features_unexpected,
 };
 
 dd_result dd_client_init(dd_conn *nonnull conn)
 {
     return dd_command_exec_cred(conn, &_spec, NULL);
-}
-
-typedef enum _enabled_configuration {
-    NOT_CONFIGURED = 0,
-    ENABLED,
-    DISABLED
-} enabled_configuration;
-
-static enabled_configuration get_enabled_configuration()
-{
-    enabled_configuration result = NOT_CONFIGURED;
-    bool is_cli =
-        strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
-
-    zai_config_memoized_entry enabled_config_cli =
-        zai_config_memoized_entries[DDAPPSEC_CONFIG_DD_APPSEC_ENABLED_ON_CLI];
-    zai_config_memoized_entry enabled_config =
-        zai_config_memoized_entries[DDAPPSEC_CONFIG_DD_APPSEC_ENABLED];
-
-    // name_index = -1 means the config was not configured neither
-    // by ini nor ENV
-    if (is_cli && enabled_config_cli.name_index != -1) {
-        result = get_global_DD_APPSEC_ENABLED_ON_CLI() ? ENABLED : DISABLED;
-    } else if (enabled_config.name_index != -1) {
-        result = get_global_DD_APPSEC_ENABLED() ? ENABLED : DISABLED;
-    }
-
-    return result;
 }
 
 static dd_result _pack_command(
@@ -72,8 +45,7 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, PHP_DDAPPSEC_VERSION);
     dd_mpack_write_lstr(w, PHP_VERSION);
 
-    enabled_configuration configuration = get_enabled_configuration();
-
+    enabled_configuration configuration = DDAPPSEC_G(enabled_by_configuration);
     if (configuration == NOT_CONFIGURED) {
         mpack_write_nil(w);
     } else {
@@ -91,13 +63,15 @@ static dd_result _pack_command(
     dd_mpack_write_nullable_cstr(w, ZSTR_VAL(get_DD_ENV()));
 
     dd_mpack_write_lstr(w, "tracer_version");
-    dd_mpack_write_nullable_cstr(w, NULL);
+    dd_mpack_write_nullable_cstr(w, PHP_DDAPPSEC_VERSION);
 
     dd_mpack_write_lstr(w, "app_version");
-    dd_mpack_write_nullable_cstr(w, NULL);
+    dd_mpack_write_nullable_cstr(w, ZSTR_VAL(get_DD_VERSION()));
 
+    // We send this empty for now. The helper will check for empty and if so it
+    // will generate it
     dd_mpack_write_lstr(w, "runtime_id");
-    dd_mpack_write_nullable_cstr(w, NULL);
+    dd_mpack_write_nullable_cstr(w, "");
 
     mpack_finish_map(w);
 

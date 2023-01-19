@@ -1292,7 +1292,7 @@ TEST_F(RemoteConfigClient, OneClickActivationIsSetAsCapability)
     auto capabilities =
         serialized_doc.FindMember("client")->value.FindMember("capabilities");
 
-    EXPECT_EQ(2, capabilities->value.GetArray().Begin()->GetInt());
+    EXPECT_STREQ("Ag==", capabilities->value.GetString());
 }
 
 /*

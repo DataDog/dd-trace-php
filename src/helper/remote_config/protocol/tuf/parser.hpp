@@ -15,11 +15,11 @@ namespace dds::remote_config::protocol {
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define PARSER_RESULTS(X)                                                      \
     X(success)                                                                 \
+    X(allow_missing)                                                           \
     X(invalid_json)                                                            \
     X(targets_field_empty)                                                     \
     X(targets_field_invalid_base64)                                            \
     X(targets_field_invalid_json)                                              \
-    X(targets_field_missing)                                                   \
     X(targets_field_invalid_type)                                              \
     X(signed_targets_field_invalid)                                            \
     X(signed_targets_field_missing)                                            \
@@ -32,14 +32,12 @@ namespace dds::remote_config::protocol {
     X(custom_signed_targets_field_missing)                                     \
     X(obs_custom_signed_targets_field_invalid)                                 \
     X(obs_custom_signed_targets_field_missing)                                 \
-    X(target_files_field_missing)                                              \
     X(target_files_object_invalid)                                             \
     X(target_files_field_invalid_type)                                         \
     X(target_files_path_field_missing)                                         \
     X(target_files_path_field_invalid_type)                                    \
     X(target_files_raw_field_missing)                                          \
     X(target_files_raw_field_invalid_type)                                     \
-    X(client_config_field_missing)                                             \
     X(client_config_field_invalid_type)                                        \
     X(client_config_field_invalid_entry)                                       \
     X(targets_signed_targets_field_invalid)                                    \

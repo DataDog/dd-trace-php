@@ -52,13 +52,14 @@ extern bool runtime_config_first_init;
     CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                             \
     CONFIG(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                 \
     CONFIG(STRING, DD_ENV, "")                                                                                  \
+    CONFIG(STRING, DD_VERSION, "")                                                                              \
     CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = dd_parse_client_ip_header_config)           \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "false")                                                             \
     CONFIG(CUSTOM(uint32_t), DD_REMOTE_CONFIG_POLL_INTERVAL, "1000", .parser = _parse_uint32)                   \
     CONFIG(CUSTOM(uint64_t), DD_REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "4096", .parser = _parse_uint64)                \
     CONFIG(STRING, DD_AGENT_HOST, "")                                                                           \
-    CONFIG(INT, DD_TRACE_AGENT_PORT, "8126")                                                                    \
-// clang-format on
+    CONFIG(INT, DD_TRACE_AGENT_PORT, "8126")                                                            \
+    // clang-format on
 
 #define CALIAS CONFIG
 #define SYSCFG CONFIG
@@ -68,27 +69,31 @@ typedef enum { DD_CONFIGURATION } dd_config_id;
 #undef CONFIG
 #undef SYSCFG
 
-#define BOOL(name, value) \
+#define BOOL(name, value)                                                      \
     static inline bool name(void) { return IS_TRUE == Z_TYPE(value); }
-#define INT(name, value) \
+#define INT(name, value)                                                       \
     static inline zend_long name(void) { return Z_LVAL(value); }
-#define LVAL(name, value, type) \
+#define LVAL(name, value, type)                                                \
     static inline type name(void) { return (type)Z_LVAL(value); }
 #define uint32_t(name, value) LVAL(name, value, uint32_t)
 #define uint64_t(name, value) LVAL(name, value, uint64_t)
-#define DOUBLE(name, value) \
+#define DOUBLE(name, value)                                                    \
     static inline double name(void) { return Z_DVAL(value); }
-#define STRING(name, value) \
+#define STRING(name, value)                                                    \
     static inline zend_string *name(void) { return Z_STR(value); }
 #define SET MAP
 #define SET_LOWERCASE MAP
 #define JSON MAP
-#define MAP(name, value) \
+#define MAP(name, value)                                                       \
     static inline zend_array *name(void) { return Z_ARR(value); }
 #define CUSTOM(type) type
 
-#define SYSCFG(type, name, ...) type(get_global_##name, zai_config_memoized_entries[DDAPPSEC_CONFIG_##name].decoded_value)
-#define CONFIG(type, name, ...) type(get_##name, *zai_config_get_value(DDAPPSEC_CONFIG_##name)) SYSCFG(type, name)
+#define SYSCFG(type, name, ...)                                                \
+    type(get_global_##name,                                                    \
+        zai_config_memoized_entries[DDAPPSEC_CONFIG_##name].decoded_value)
+#define CONFIG(type, name, ...)                                                \
+    type(get_##name, *zai_config_get_value(DDAPPSEC_CONFIG_##name))            \
+        SYSCFG(type, name)
 DD_CONFIGURATION
 #undef CONFIG
 #undef SYSCFG
@@ -108,4 +113,6 @@ DD_CONFIGURATION
 #undef CUSTOM
 #undef CALIAS
 
-#endif  // DD_CONFIGURATION_H
+bool dd_is_config_using_default(dd_config_id id);
+
+#endif // DD_CONFIGURATION_H

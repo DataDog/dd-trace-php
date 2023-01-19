@@ -9,6 +9,7 @@
 #include "protocol/tuf/serializer.hpp"
 #include <algorithm>
 #include <regex>
+#include <spdlog/spdlog.h>
 #include <vector>
 
 namespace dds::remote_config {
@@ -39,8 +40,10 @@ client::client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
     }
 }
 
-client::ptr client::from_settings(
-    const service_identifier &sid, const remote_config::settings &settings, std::vector<remote_config::product> &&products)
+client::ptr client::from_settings(const service_identifier &sid,
+    const remote_config::settings &settings,
+    std::vector<remote_config::product> &&products,
+    std::vector<protocol::capabilities_e> &&capabilities)
 {
     if (!settings.enabled) {
         return {};
@@ -48,7 +51,7 @@ client::ptr client::from_settings(
 
     return std::make_unique<client>(std::make_unique<http_api>(settings.host,
                                         std::to_string(settings.port)),
-        sid, settings, std::move(products));
+        sid, settings, std::move(products), std::move(capabilities));
 }
 
 [[nodiscard]] protocol::get_configs_request client::generate_request() const
@@ -90,8 +93,12 @@ client::ptr client::from_settings(
 
 bool client::process_response(const protocol::get_configs_response &response)
 {
+    if (!response.targets.has_value()) {
+        return true;
+    }
+
     const std::unordered_map<std::string, protocol::path> paths_on_targets =
-        response.targets.paths;
+        response.targets->paths;
     const std::unordered_map<std::string, protocol::target_file> target_files =
         response.target_files;
     std::unordered_map<std::string, std::unordered_map<std::string, config>>
@@ -177,8 +184,8 @@ bool client::process_response(const protocol::get_configs_response &response)
         }
     }
 
-    targets_version_ = response.targets.version;
-    opaque_backend_state_ = response.targets.opaque_backend_state;
+    targets_version_ = response.targets->version;
+    opaque_backend_state_ = response.targets->opaque_backend_state;
 
     return true;
 }
@@ -194,6 +201,7 @@ bool client::poll()
     std::string serialized_request;
     try {
         serialized_request = protocol::serialize(request);
+        SPDLOG_TRACE("Sending request: {}", serialized_request);
     } catch (protocol::serializer_exception &e) {
         return false;
     }
@@ -204,10 +212,12 @@ bool client::poll()
     }
 
     try {
+        SPDLOG_TRACE("Received response: {}", response_body.value());
         auto response = protocol::parse(response_body.value());
         last_poll_error_.clear();
         return process_response(response);
     } catch (protocol::parser_exception &e) {
+        SPDLOG_ERROR("Error parsing remote config response - {}", e.what());
         return false;
     }
 }

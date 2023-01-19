@@ -10,6 +10,7 @@
 
 #include "parser.hpp"
 #include <base64.h>
+#include <optional>
 
 using namespace std::literals;
 
@@ -26,6 +27,9 @@ bool validate_field_is_present(const rapidjson::Value &parent_field,
     output_itr = parent_field.FindMember(key);
 
     if (output_itr == parent_field.MemberEnd()) {
+        if (missing == remote_config_parser_result::allow_missing) {
+            return false;
+        }
         throw parser_exception(missing);
     }
 
@@ -61,6 +65,7 @@ std::unordered_map<std::string, target_file> parse_target_files(
     rapidjson::Value::ConstMemberIterator target_files_itr)
 {
     std::unordered_map<std::string, target_file> result;
+
     for (rapidjson::Value::ConstValueIterator itr =
              target_files_itr->value.Begin();
          itr != target_files_itr->value.End(); ++itr) {
@@ -103,6 +108,7 @@ std::vector<std::string> parse_client_configs(
     rapidjson::Value::ConstMemberIterator client_configs_itr)
 {
     std::vector<std::string> result;
+
     for (rapidjson::Value::ConstValueIterator itr =
              client_configs_itr->value.Begin();
          itr != client_configs_itr->value.End(); ++itr) {
@@ -265,26 +271,35 @@ get_configs_response parse(const std::string &body)
     rapidjson::Value::ConstMemberIterator client_configs_itr;
     rapidjson::Value::ConstMemberIterator targets_itr;
 
-    // Lets validate the data and since we are there we get the iterators
-    validate_field_is_present(serialized_doc, "target_files",
-        rapidjson::kArrayType, target_files_itr,
-        remote_config_parser_result::target_files_field_missing,
+    // Lets validate the data and since we are here as we get the iterators
+    auto validated_target_files = validate_field_is_present(serialized_doc,
+        "target_files", rapidjson::kArrayType, target_files_itr,
+        remote_config_parser_result::allow_missing,
         remote_config_parser_result::target_files_field_invalid_type);
 
-    validate_field_is_present(serialized_doc, "client_configs",
-        rapidjson::kArrayType, client_configs_itr,
-        remote_config_parser_result::client_config_field_missing,
+    auto validated_client_configs = validate_field_is_present(serialized_doc,
+        "client_configs", rapidjson::kArrayType, client_configs_itr,
+        remote_config_parser_result::allow_missing,
         remote_config_parser_result::client_config_field_invalid_type);
 
-    validate_field_is_present(serialized_doc, "targets", rapidjson::kStringType,
-        targets_itr, remote_config_parser_result::targets_field_missing,
+    auto validated_targets = validate_field_is_present(serialized_doc,
+        "targets", rapidjson::kStringType, targets_itr,
+        remote_config_parser_result::allow_missing,
         remote_config_parser_result::targets_field_invalid_type);
 
-    const std::unordered_map<std::string, target_file> &target_files =
-        parse_target_files(target_files_itr);
-    const std::vector<std::string> &client_configs =
-        parse_client_configs(client_configs_itr);
-    const targets &targets = parse_targets(targets_itr);
+    std::unordered_map<std::string, target_file> target_files;
+    if (validated_target_files) {
+        target_files = parse_target_files(target_files_itr);
+    }
+    std::vector<std::string> client_configs;
+    if (validated_client_configs) {
+        client_configs = parse_client_configs(client_configs_itr);
+    }
+
+    std::optional<targets> targets;
+    if (validated_targets) {
+        targets = parse_targets(targets_itr);
+    }
 
     return {target_files, client_configs, targets};
 }

@@ -39,4 +39,15 @@ inline std::string generate_random_uuid()
     return boost::uuids::to_string(boost::uuids::random_generator()());
 }
 
+inline std::string dd_tolower(std::string string)
+{
+    for (auto &c : string) {
+        if (c > 'A' && c < 'Z') {
+            c += ('a' - 'A');
+        }
+    }
+
+    return string;
+}
+
 } // namespace dds

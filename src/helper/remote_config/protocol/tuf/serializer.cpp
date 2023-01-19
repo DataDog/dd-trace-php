@@ -9,6 +9,7 @@
 
 #include "../../../json_helper.hpp"
 #include "../cached_target_files.hpp"
+#include "base64.h"
 #include "exception.hpp"
 #include "serializer.hpp"
 
@@ -78,9 +79,9 @@ void serialize_client(rapidjson::Document::AllocatorType &alloc,
     client_object.AddMember("id", client.id, alloc);
     client_object.AddMember("is_tracer", true, alloc);
     // activation capability;
-    rapidjson::Value capabilities_array(rapidjson::kArrayType);
-    capabilities_array.PushBack(client.capabilities, alloc);
-    client_object.AddMember("capabilities", capabilities_array, alloc);
+    char const bytes = static_cast<char>(client.capabilities);
+    client_object.AddMember("capabilities",
+        base64_encode(std::string_view(&bytes, 1), false), alloc);
 
     rapidjson::Value products(rapidjson::kArrayType);
     for (const std::string &product_str : client.products) {

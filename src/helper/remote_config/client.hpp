@@ -43,8 +43,10 @@ public:
     client &operator=(const client &) = delete;
     client &operator=(client &&) = delete;
 
-    static client::ptr from_settings(
-        const service_identifier &sid, const remote_config::settings &settings, std::vector<remote_config::product> &&products);
+    static client::ptr from_settings(const service_identifier &sid,
+        const remote_config::settings &settings,
+        std::vector<remote_config::product> &&products,
+        std::vector<protocol::capabilities_e> &&capabilities);
 
     virtual bool poll();
 

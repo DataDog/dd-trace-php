@@ -2,6 +2,7 @@
 Raw body is not sent when testing_raw_body is disabled
 --INI--
 datadog.appsec.testing_raw_body=0
+datadog.appsec.enabled=1
 --POST_RAW--
 Content-Type: multipart/form-data; boundary=---------------------------20896060251896012921717172737
 -----------------------------20896060251896012921717172737

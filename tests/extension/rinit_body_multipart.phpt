@@ -2,6 +2,7 @@
 request_init delivers $_POST and $_FILES data of multipart request
 --INI--
 datadog.appsec.testing_raw_body=1
+datadog.appsec.enabled=1
 --POST_RAW--
 Content-Type: multipart/form-data; boundary=---------------------------20896060251896012921717172737
 -----------------------------20896060251896012921717172737

@@ -15,7 +15,7 @@
 namespace dds::remote_config::protocol {
 
 enum class capabilities_e : uint8_t {
-    RESERVED = 1 << 0,
+    RESERVED = 1,
     ASM_ACTIVATION = 1 << 1,
     ASM_IP_BLOCKING = 1 << 2,
     ASM_DD_RULES = 1 << 3,

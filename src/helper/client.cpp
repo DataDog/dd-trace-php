@@ -173,20 +173,20 @@ bool client::handle_command(network::request_init::request &command)
         return false;
     }
 
-    //    if (!compute_client_status()) {
-    //        auto response_cf =
-    //            std::make_shared<network::config_features::response>();
-    //        response_cf->enabled = false;
-    //
-    //        SPDLOG_DEBUG("sending config_features to request_init");
-    //        try {
-    //            return broker_->send(response_cf);
-    //        } catch (std::exception &e) {
-    //            SPDLOG_ERROR(e.what());
-    //        }
-    //
-    //        return true;
-    //    }
+    if (!compute_client_status()) {
+        auto response_cf =
+            std::make_shared<network::config_features::response>();
+        response_cf->enabled = false;
+
+        SPDLOG_DEBUG("sending config_features to request_init");
+        try {
+            return broker_->send(response_cf);
+        } catch (std::exception &e) {
+            SPDLOG_ERROR(e.what());
+        }
+
+        return true;
+    }
 
     // During request init we initialize the engine context
     context_.emplace(*service_->get_engine());
