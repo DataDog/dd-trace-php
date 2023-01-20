@@ -861,24 +861,34 @@ impl Profiler {
         labels: &[Label],
         locals: &RequestLocals,
     ) -> SampleMessage {
-        let mut sample_types = vec![
-            ValueType {
+        let mut sample_types = vec![];
+        let mut sample_values = vec![];
+
+        if locals.profiling_enabled {
+            sample_types.push(ValueType {
                 r#type: Cow::Borrowed("sample"),
                 unit: Cow::Borrowed("count"),
-            },
-            ValueType {
+            });
+            sample_types.push(ValueType {
                 r#type: Cow::Borrowed("wall-time"),
                 unit: Cow::Borrowed("nanoseconds"),
-            },
-            ValueType {
+            });
+            sample_values.push(samples.interrupt_count);
+            sample_values.push(samples.wall_time);
+        }
+
+        if locals.profiling_experimental_allocation_enabled {
+            sample_types.push(ValueType {
                 r#type: Cow::Borrowed("alloc-samples"),
                 unit: Cow::Borrowed("count"),
-            },
-            ValueType {
+            });
+            sample_types.push(ValueType {
                 r#type: Cow::Borrowed("alloc-size"),
                 unit: Cow::Borrowed("bytes"),
-            },
-        ];
+            });
+            sample_values.push(samples.alloc_samples);
+            sample_values.push(samples.alloc_size);
+        }
 
         let mut sample_values = vec![
             samples.interrupt_count,
@@ -887,7 +897,7 @@ impl Profiler {
             samples.alloc_size,
         ];
 
-        if locals.last_cpu_time.is_some() {
+        if locals.profiling_experimental_cpu_time_enabled {
             sample_types.push(ValueType {
                 r#type: Cow::Borrowed("cpu-time"),
                 unit: Cow::Borrowed("nanoseconds"),
