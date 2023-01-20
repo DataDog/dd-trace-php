@@ -934,7 +934,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         let handle = datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
             &mut GC_MEM_CACHES_HANDLER,
-            Some(datadog_allocation_profiling_gc_mem_caches),
+            Some(alloc_profiling_gc_mem_caches),
         );
         datadog_php_install_handler(handle);
     }
@@ -1062,7 +1062,7 @@ unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) 
 }
 
 #[cfg(feature = "allocation_profiling")]
-unsafe extern "C" fn datadog_allocation_profiling_gc_mem_caches(
+unsafe extern "C" fn alloc_profiling_gc_mem_caches(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
