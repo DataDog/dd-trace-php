@@ -10,7 +10,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static void dd_clean_old_tags() {
+void ddtrace_clean_tracer_tags() {
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
         zend_hash_del(&DDTRACE_G(root_span_tags_preset), tagname);
@@ -20,7 +20,7 @@ static void dd_clean_old_tags() {
 }
 
 void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
-    dd_clean_old_tags();
+    ddtrace_clean_tracer_tags();
 
     char *header = ZSTR_VAL(headerstr), *headerend = header + ZSTR_LEN(headerstr);
 
@@ -71,7 +71,7 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
 }
 
 void ddtrace_add_tracer_tags_from_array(zend_array *array) {
-    dd_clean_old_tags();
+    ddtrace_clean_tracer_tags();
 
     zend_string *tagname;
     zval *tag;

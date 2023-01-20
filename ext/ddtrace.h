@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #include "ext/version.h"
-#include "random.h"
+#include "compatibility.h"
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
@@ -65,12 +65,18 @@ void dd_prepare_for_new_trace(void);
 void ddtrace_disable_tracing_in_current_request(void);
 bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value);
 bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value);
+bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value);
 void dd_force_shutdown_tracing(void);
 
 typedef struct {
     int type;
     zend_string *message;
 } ddtrace_error_data;
+
+typedef struct {
+    uint64_t low;
+    uint64_t high;
+} ddtrace_trace_id;
 
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
@@ -82,6 +88,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_array *additional_global_tags;
     zend_array root_span_tags_preset;
     zend_array propagated_root_span_tags;
+    zend_string *tracestate;
+    zend_array tracestate_unknown_dd_keys;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
     dogstatsd_client dogstatsd_client;
@@ -96,7 +104,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t closed_spans_count;
     uint32_t dropped_spans_count;
     int64_t compile_time_microseconds;
-    uint64_t distributed_trace_id;
+    ddtrace_trace_id distributed_trace_id;
     uint64_t distributed_parent_trace_id;
     zend_string *dd_origin;
 
@@ -134,5 +142,7 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #define DDTRACE_SUB_NS_FE(ns, name, arg_info) DDTRACE_RAW_FENTRY("DDTrace\\" ns #name, zif_##name, arg_info, 0)
 #define DDTRACE_FALIAS(name, alias, arg_info) DDTRACE_RAW_FENTRY(#name, zif_##alias, arg_info, 0)
 #define DDTRACE_FE_END ZEND_FE_END
+
+#include "random.h"
 
 #endif  // DDTRACE_H

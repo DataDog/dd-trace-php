@@ -147,13 +147,16 @@ void ddtrace_open_span(ddtrace_span_data *span) {
         // Inherit from our current parent
         span->parent_id = ddtrace_peek_span_id();
         span->trace_id = ddtrace_peek_trace_id();
-        if (span->trace_id == 0) {
-            span->trace_id = span->span_id;
+        if (span->trace_id.high == 0 && span->trace_id.low == 0) {
+            goto set_trace_id_from_span_id;
         }
     } else {
         // custom new traces
         span->parent_id = 0;
-        span->trace_id = span->span_id;
+set_trace_id_from_span_id:
+        span->trace_id = (ddtrace_trace_id){
+            .low = span->span_id,
+        };
     }
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
     // Start time is nanoseconds from unix epoch
@@ -617,3 +620,13 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
 }
 
 zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }
+
+zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id) {
+    uint8_t reverse[DD_TRACE_MAX_ID_LEN];
+    int len = ddtrace_conv10_trace_id(id, reverse);
+    zend_string *str = zend_string_alloc(len, 0);
+    for (int i = 0; i <= len; ++i) {
+        ZSTR_VAL(str)[i] = reverse[len - i];
+    }
+    return str;
+}

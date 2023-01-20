@@ -398,3 +398,17 @@ void zai_config_ini_rinit(void) {
 }
 
 void zai_config_ini_mshutdown(void) {}
+
+bool zai_config_is_modified(zai_config_id entry_id) {
+    zai_config_memoized_entry *entry = &zai_config_memoized_entries[entry_id];
+    if (entry->name_index >= 0) {
+        return true;
+    }
+
+    zend_ini_entry *ini = entry->ini_entries[0];
+#if ZTS
+    ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
+#endif
+
+    return ini->modified;
+}
