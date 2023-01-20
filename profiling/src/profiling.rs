@@ -6,7 +6,7 @@ use crate::{
     bindings, AgentEndpoint, RequestLocals, PHP_VERSION, PROFILER_NAME_STR, PROFILER_VERSION_STR,
 };
 use crossbeam_channel::{select, Receiver, Sender, TrySendError};
-use datadog_profiling::exporter::{Endpoint, File, Tag};
+use datadog_profiling::exporter::{mime, Endpoint, File, Tag};
 use datadog_profiling::profile;
 use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
 use log::{debug, info, trace, warn};
@@ -549,6 +549,7 @@ impl Uploader {
         let end = serialized.end.into();
         let files = &[File {
             name: "profile.pprof",
+            mime: mime::APPLICATION_OCTET_STREAM,
             bytes: serialized.buffer.as_slice(),
         }];
         let timeout = Duration::from_secs(10);

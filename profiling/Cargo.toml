@@ -15,7 +15,7 @@ anyhow = { version = "1.0" }
 cfg-if = { version = "1.0" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 cpu-time = { version = "1.0" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "1924ddf9757e08484bd5b6cca82c0c19f1b5468c" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "8ca648160cd8112002ce14d390395e0bc9950a84" }
 env_logger = { version = "0.9.3" }
 indexmap = { version = "1.8" }
 lazy_static = { version = "1.4" }
