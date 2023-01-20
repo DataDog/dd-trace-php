@@ -165,15 +165,19 @@ function install($options)
         $phpProperties = ini_values($fullPath);
         if (!isset($phpProperties[INI_SCANDIR])) {
             if (!isset($phpProperties[INI_MAIN])) {
-                print_error_and_exit("It is not possible to perform installation on this system " .
-                                    "because there is no scan directory and no configuration file loaded.");
+                print_error_and_exit(
+                    "It is not possible to perform installation on this "
+                    . "system because there is no scan directory and no "
+                    . "configuration file loaded."
+                );
             }
 
-            print_warning("Performing an installation without a scan directory may result in " .
-                        "fragile installations that are broken by normal system upgrades. " .
-                        "It is advisable to use the configure switch " .
-                        "--with-config-file-scan-dir " .
-                        "when building PHP");
+            print_warning(
+                "Performing an installation without a scan directory may "
+                . "result in fragile installations that are broken by normal "
+                . "system upgrades. It is advisable to use the configure "
+                . "switch --with-config-file-scan-dir when building PHP."
+            );
         }
 
         // Copying the extension
@@ -270,11 +274,14 @@ function install($options)
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to replace the deprecated ddtrace.request_init_hook parameter with the new name.',
-                    "sed -i 's|ddtrace.request_init_hook|datadog.trace.request_init_hook|g' " . escapeshellarg($iniFilePath)
+                    "sed -i 's|ddtrace.request_init_hook|datadog.trace.request_init_hook|g' "
+                    . escapeshellarg($iniFilePath)
                 );
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '" . escapeshellarg($installDirWrapperPath) . "'@g' " . escapeshellarg($iniFilePath)
+                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '"
+                    . escapeshellarg($installDirWrapperPath)
+                    . "'@g' " . escapeshellarg($iniFilePath)
                 );
                 // phpcs:enable Generic.Files.LineLength.TooLong
 
@@ -285,7 +292,7 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@ \?;\? \?extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    . escapeshellarg($iniFilePath)
                 );
 
 
@@ -293,7 +300,7 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@zend_extension \?= \?.*datadog-profiling.*\(.*\)@extension = datadog-profiling.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    . escapeshellarg($iniFilePath)
                 );
             }
 
@@ -309,11 +316,13 @@ function install($options)
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
                         "sed -i 's@ \?; \?extension \?= \?datadog-profiling.so@extension = datadog-profiling.so@g' "
-                            . escapeshellarg($iniFilePath)
+                        . escapeshellarg($iniFilePath)
                     );
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
-                    print_error_and_exit("Option --{$enableProfiling} was provided, but it is not supported on this PHP build or version.\n");
+                    print_error_and_exit(
+                        "Option --{$enableProfiling} was provided, but it is not supported on this PHP build or version.\n"
+                    );
                 }
                 // phpcs:enable Generic.Files.LineLength.TooLong
             }
@@ -325,20 +334,20 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    . escapeshellarg($iniFilePath)
                 );
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
                         "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
-                            . escapeshellarg($iniFilePath)
+                        . escapeshellarg($iniFilePath)
                     );
                 } else {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
                         "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
-                            . escapeshellarg($iniFilePath)
+                        . escapeshellarg($iniFilePath)
                     );
                 }
             } else {
@@ -346,12 +355,14 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@extension \?= \?ddappsec.so@;extension = ddappsec.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    . escapeshellarg($iniFilePath)
                 );
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     $enableAppsec = OPT_ENABLE_APPSEC;
-                    print_error_and_exit("Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
+                    print_error_and_exit(
+                        "Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n"
+                    );
                 }
             }
             // phpcs:enable Generic.Files.LineLength.TooLong
@@ -428,8 +439,11 @@ function uninstall($options)
             }
         } else {
             if (!isset($phpProperties[INI_MAIN])) {
-                print_error_and_exit("It is not possible to perform uninstallation on this system " .
-                                    "because there is no scan directory and no configuration file loaded.");
+                print_error_and_exit(
+                    "It is not possible to perform uninstallation on this "
+                    . "system because there is no scan directory and no "
+                    . "configuration file loaded."
+                );
             }
 
             $iniFilePaths = [$phpProperties[INI_MAIN]];
@@ -629,7 +643,6 @@ function get_architecture()
 
 /**
  * Parses command line options provided by the user and generate a normalized $options array.
-
  * @return array
  */
 function parse_validate_user_options()
@@ -679,17 +692,15 @@ function parse_validate_user_options()
     }
 
     if (isset($options[OPT_PHP_BIN])) {
-        $normalizedOptions[OPT_PHP_BIN] =
-            is_array($options[OPT_PHP_BIN])
+        $normalizedOptions[OPT_PHP_BIN] = is_array($options[OPT_PHP_BIN])
             ? $options[OPT_PHP_BIN]
             : [$options[OPT_PHP_BIN]];
     }
 
-    $normalizedOptions[OPT_INSTALL_DIR] =
-        isset($options[OPT_INSTALL_DIR])
+    $normalizedOptions[OPT_INSTALL_DIR] = isset($options[OPT_INSTALL_DIR])
         ? rtrim($options[OPT_INSTALL_DIR], '/')
         : '/opt/datadog';
-    $normalizedOptions[OPT_INSTALL_DIR] =  $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
+    $normalizedOptions[OPT_INSTALL_DIR] = $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
 
     $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
     $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
@@ -764,10 +775,11 @@ function execute_or_exit($exitMessage, $command)
     $lastLine = exec($command, $output, $returnCode);
     if (false === $lastLine || $returnCode > 0) {
         print_error_and_exit(
-            $exitMessage .
-                "\nFailed command (return code $returnCode): $command\n---- Output ----\n" .
-                implode("\n", $output) .
-                "\n---- End of output ----\n"
+            $exitMessage
+            . "\nFailed command (return code $returnCode): $command\n"
+            . "---- Output ----\n"
+            . implode("\n", $output)
+            . "\n---- End of output ----\n"
         );
     }
 
@@ -1068,8 +1080,7 @@ function add_missing_ini_settings($iniFilePath, $settings)
         }
 
         // Formatting the setting to be added.
-        $description =
-            is_string($setting['description'])
+        $description = is_string($setting['description'])
             ? '; ' . $setting['description']
             : implode(
                 "\n",

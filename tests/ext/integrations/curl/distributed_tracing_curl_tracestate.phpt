@@ -8,17 +8,12 @@ ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH=25
-HTTP_X_DATADOG_ORIGIN=phpt-test
-HTTP_X_DATADOG_TAGS=_dd.p.very=looooooooooooooooong
-DD_PROPAGATION_STYLE_INJECT=B3,B3 single header,Datadog,tracecontext
+HTTP_X_TRACEPARENT=00-12345678901234567890123456789012-6543210987654321-01
+HTTP_X_TRACESTATE=foo=bar:;=,dd=o:phpt-test;unknown1:val;t.test:qvalue;s:2;unknown2:1,baz=qux
+DD_PROPAGATION_STYLE_INJECT=B3 single header,tracecontext
 --FILE--
 <?php
 include 'curl_helper.inc';
-
-DDTrace\trace_function('curl_exec', function (\DDTrace\SpanData $span) {
-    $span->name = 'curl_exec';
-});
 
 $port = getenv('HTTPBIN_PORT') ?: '80';
 $url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/headers';
@@ -35,37 +30,24 @@ dt_dump_headers_from_httpbin($headers, [
     'x-datadog-trace-id',
     'x-datadog-parent-id',
     'x-datadog-origin',
+    'x-datadog-tags',
     'b3',
-    'x-b3-traceid',
-    'x-b3-spanid',
     'traceparent',
     'tracestate',
 ]);
 
 $spans = dd_trace_serialize_closed_spans();
-var_dump($headers['x-datadog-parent-id'] === (string) $spans[0]['span_id']);
-var_dump(abs(hexdec($headers['x-b3-spanid']) - $spans[0]['span_id']) < (1 << 13));
-var_dump(abs(hexdec($headers['x-b3-traceid']) - $headers['x-datadog-trace-id']) < (1 << 13));
-var_dump($headers['b3'] == "{$headers['x-b3-traceid']}-{$headers['x-b3-spanid']}-1");
-var_dump($spans[0]["meta"]["_dd.propagation_error"]);
+var_dump(isset($spans[0]["meta"]["_dd.propagation_error"]));
 
 echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-The to be propagated tag '_dd.p.very=looooooooooooooooong' is too long and exceeds the maximum limit of 25 characters and is thus dropped.
-b3: %s-%s-1
-traceparent: 00-%s-%s
-tracestate: dd=o:phpt-test
-x-b3-spanid: %s
-x-b3-traceid: %s
+b3: 12345678901234567890123456789012-6543210987654321-d
+traceparent: 00-12345678901234567890123456789012-6543210987654321-01
+tracestate: dd=o:phpt-test;s:2;t.test:qvalue;unknown1:val;unknown2:1,foo=bar:;=,baz=qux
 x-datadog-origin: phpt-test
-x-datadog-parent-id: %d
-x-datadog-trace-id: %d
-bool(true)
-bool(true)
-bool(true)
-bool(true)
-string(15) "inject_max_size"
+x-datadog-tags: _dd.p.test=qvalue
+bool(false)
 Done.
 No finished traces to be sent to the agent

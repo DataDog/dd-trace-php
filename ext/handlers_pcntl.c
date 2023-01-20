@@ -33,7 +33,7 @@ static void dd_handle_fork(zval *return_value) {
                 DDTRACE_G(distributed_trace_id) = ddtrace_peek_trace_id();
             } else {
                 DDTRACE_G(distributed_parent_trace_id) = 0;
-                DDTRACE_G(distributed_trace_id) = 0;
+                DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){ 0 };
             }
             ddtrace_free_span_stacks(true);
             ddtrace_init_span_stacks();

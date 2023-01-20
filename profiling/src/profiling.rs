@@ -890,6 +890,13 @@ impl Profiler {
             sample_values.push(samples.alloc_size);
         }
 
+        let mut sample_values = vec![
+            samples.interrupt_count,
+            samples.wall_time,
+            samples.alloc_samples,
+            samples.alloc_size,
+        ];
+
         if locals.profiling_experimental_cpu_time_enabled {
             sample_types.push(ValueType {
                 r#type: Cow::Borrowed("cpu-time"),
