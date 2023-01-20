@@ -33,6 +33,9 @@ use uuid::Uuid;
 #[cfg(feature = "allocation_profiling")]
 use rand_distr::{Distribution, Poisson};
 
+#[cfg(feature = "allocation_profiling")]
+use crate::bindings::{datadog_php_install_handler, datadog_php_zif_handler, ddog_php_prof_copy_long_into_zval};
+
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
@@ -133,6 +136,9 @@ static mut PREV_INTERRUPT_FUNCTION: MaybeUninit<Option<zend::VmInterruptFn>> =
 static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
+
+#[cfg(feature = "allocation_profiling")]
+static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
 /// The engine's previous custom allocation function, if there is one.
 #[cfg(feature = "allocation_profiling")]
@@ -923,6 +929,16 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // Safety: calling this in zend_extension startup.
     unsafe { pcntl::startup() };
 
+    #[cfg(feature = "allocation_profiling")]
+    unsafe {
+        let handle = datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
+            &mut GC_MEM_CACHES_HANDLER,
+            Some(alloc_profiling_gc_mem_caches),
+        );
+        datadog_php_install_handler(handle);
+    }
+
     ZendResult::Success
 }
 
@@ -1043,6 +1059,36 @@ unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
 #[cfg(feature = "allocation_profiling")]
 unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
     std::ptr::write(heap as *mut c_int, custom_heap);
+}
+
+#[cfg(feature = "allocation_profiling")]
+unsafe extern "C" fn alloc_profiling_gc_mem_caches(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
+        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+        let locals = cell.try_borrow();
+        if locals.is_err() {
+            // we can't check and don't know so assume it is not activated
+            return false;
+        }
+        let locals = locals.unwrap();
+        locals.profiling_experimental_allocation_enabled
+    });
+
+    if let Some(func) = GC_MEM_CACHES_HANDLER {
+        if allocation_profiling {
+            let heap = zend::zend_mm_get_heap();
+            let custom_heap = prepare_zend_heap(heap);
+            func(execute_data, return_value);
+            restore_zend_heap(heap, custom_heap);
+        } else {
+            func(execute_data, return_value);
+        }
+    } else {
+        ddog_php_prof_copy_long_into_zval(return_value, 0);
+    }
 }
 
 #[cfg(feature = "allocation_profiling")]

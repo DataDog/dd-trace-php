@@ -96,6 +96,14 @@ void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_vie
                                                       bool persistent);
 
 /**
+ * Copies the number in `num` into a zval, which is stored in `dest`
+ *
+ * `dest` is expected to be uninitialized. Any existing content will not be
+ * dtor'.
+ */
+void ddog_php_prof_copy_long_into_zval(zval *dest, long num);
+
+/**
  * Wrapper to PHP's `zend_mm_set_custom_handlers()`. Starting from PHP 7.3
  * onwards the upstream `zend_mm_set_custom_handlers()` function will restore
  * the `use_custom_heap` flag on the `zend_mm_heap` to
