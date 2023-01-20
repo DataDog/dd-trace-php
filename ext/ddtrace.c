@@ -1856,7 +1856,10 @@ static void dd_apply_propagated_values_to_existing_spans(void) {
     while (span) {
         zend_array *meta = ddtrace_spandata_property_meta(span);
         if (!DDTRACE_G(distributed_trace_id).low && !DDTRACE_G(distributed_trace_id).high) {
-            span->trace_id = (ddtrace_trace_id){ .high = 0, .low = span->root->span_id };
+            span->trace_id = (ddtrace_trace_id) {
+                .low = span->root->span_id,
+                .high = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start : 0,
+            };
         } else {
             span->trace_id = DDTRACE_G(distributed_trace_id);
         }
@@ -2413,6 +2416,12 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
             ZSTR_LEN(DDTRACE_G(tracestate)) = persist - ZSTR_VAL(DDTRACE_G(tracestate));
             zend_string_release(tracestate);
         }
+    }
+
+    zval *tidzv = zend_hash_str_find(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.tid"));
+    if (tidzv && DDTRACE_G(distributed_trace_id).low) {
+        DDTRACE_G(distributed_trace_id).high = ddtrace_parse_hex_span_id(tidzv);
+        zend_hash_str_del(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.tid"));
     }
 
     if (priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {

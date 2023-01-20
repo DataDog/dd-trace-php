@@ -745,6 +745,10 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         add_assoc_long(el, "error", 1);
     }
 
+    if (span->trace_id.high) {
+        add_assoc_str(meta, "_dd.p.tid", zend_strpprintf(0, "%" PRIx64, span->trace_id.high));
+    }
+
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);
     } else {

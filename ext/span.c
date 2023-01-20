@@ -142,6 +142,11 @@ void ddtrace_open_span(ddtrace_span_data *span) {
     // All open spans hold a ref to their stack
     ZVAL_OBJ_COPY(&span->property_stack, &stack->std);
 
+    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
+    // Start time is nanoseconds from unix epoch
+    // @see https://docs.datadoghq.com/api/?lang=python#send-traces
+    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+
     span->span_id = ddtrace_generate_span_id();
     // if not a root span or the true root span (distributed tracing)
     bool root_span = DDTRACE_G(active_stack)->root_span == NULL;
@@ -158,12 +163,9 @@ void ddtrace_open_span(ddtrace_span_data *span) {
 set_trace_id_from_span_id:
         span->trace_id = (ddtrace_trace_id){
             .low = span->span_id,
+            .high = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start : 0,
         };
     }
-    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
-    // Start time is nanoseconds from unix epoch
-    // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
     ddtrace_span_data *parent_span = DDTRACE_G(active_stack)->active;
     ZVAL_OBJ(&DDTRACE_G(active_stack)->property_active, &span->std);
