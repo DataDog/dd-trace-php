@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\CLI\Symfony\V6_0;
+namespace DDTrace\Tests\Integrations\CLI\Symfony\V6_2;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -10,7 +10,7 @@ class CommonScenariosTest extends IntegrationTestCase
 {
     protected static function getConsoleScript()
     {
-        return __DIR__ . '/../../../../Frameworks/Symfony/Version_6_0/bin/console';
+        return __DIR__ . '/../../../../Frameworks/Symfony/Version_6_2/bin/console';
     }
 
     public function testCommand()

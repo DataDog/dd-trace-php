@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Symfony\V6_0;
+namespace DDTrace\Tests\Integrations\Symfony\V6_2;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -11,14 +11,14 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_6_0/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/public/index.php';
     }
 
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_DEBUG' => 'true',
-            'DD_SERVICE' => 'test_symfony_60',
+            'DD_SERVICE' => 'test_symfony_62',
         ]);
     }
 
@@ -44,7 +44,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'A simple GET request returning a string' => [
                     SpanAssertion::build(
                         'symfony.request',
-                        'test_symfony_60',
+                        'test_symfony_62',
                         'web',
                         'simple'
                     )->withExactTags([
@@ -68,7 +68,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                     SpanAssertion::build(
                                         'symfony.controller',
-                                        'test_symfony_60',
+                                        'test_symfony_62',
                                         'web',
                                         'App\Controller\CommonScenariosController::simpleAction'
                                     )->withExactTags([
@@ -82,7 +82,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
                         'symfony.request',
-                        'test_symfony_60',
+                        'test_symfony_62',
                         'web',
                         'simple_view'
                     )->withExactTags([
@@ -103,7 +103,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 SpanAssertion::exists('symfony.kernel.controller_arguments'),
                                 SpanAssertion::build(
                                     'symfony.controller',
-                                    'test_symfony_60',
+                                    'test_symfony_62',
                                     'web',
                                     'App\Controller\CommonScenariosController::simpleViewAction'
                                 )->withExactTags([
@@ -111,7 +111,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 ])->withChildren([
                                     SpanAssertion::build(
                                         'symfony.templating.render',
-                                        'test_symfony_60',
+                                        'test_symfony_62',
                                         'web',
                                         'Twig\Environment twig_template.html.twig'
                                     )->withExactTags([
@@ -127,7 +127,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'A GET request with an exception' => [
                     SpanAssertion::build(
                         'symfony.request',
-                        'test_symfony_60',
+                        'test_symfony_62',
                         'web',
                         'error'
                     )->withExactTags([
@@ -154,7 +154,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 SpanAssertion::exists('symfony.kernel.controller_arguments'),
                                 SpanAssertion::build(
                                     'symfony.controller',
-                                    'test_symfony_60',
+                                    'test_symfony_62',
                                     'web',
                                     'App\Controller\CommonScenariosController::errorAction'
                                 )->withExactTags([
@@ -181,7 +181,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'A GET request to a missing route' => [
                     SpanAssertion::build(
                         'symfony.request',
-                        'test_symfony_60',
+                        'test_symfony_62',
                         'web',
                         'GET /does_not_exist'
                     )->withExactTags([

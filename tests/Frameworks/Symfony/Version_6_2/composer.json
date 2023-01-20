@@ -8,12 +8,12 @@
         "ext-ctype": "*",
         "ext-iconv": "*",
         "doctrine/annotations": "^1.12",
-        "symfony/console": "6.0.*",
-        "symfony/dotenv": "6.0.*",
+        "symfony/console": "6.2.*",
+        "symfony/dotenv": "6.2.*",
         "symfony/flex": "^1.17.1",
-        "symfony/framework-bundle": "6.0.*",
-        "symfony/twig-bundle": "6.0.*",
-        "symfony/yaml": "6.0.*"
+        "symfony/framework-bundle": "6.2.*",
+        "symfony/twig-bundle": "6.2.*",
+        "symfony/yaml": "6.2.*"
     },
     "config": {
         "optimize-autoloader": true,
@@ -63,7 +63,7 @@
     "extra": {
         "symfony": {
             "allow-contrib": false,
-            "require": "6.0.*"
+            "require": "6.2.*"
         }
     }
 }
