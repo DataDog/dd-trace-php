@@ -140,6 +140,7 @@ pub(crate) enum ConfigId {
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingExperimentalAllocationEnabled,
+    ProfilingExperimentalAllocationSamplingRate,
     ProfilingLogLevel,
     ProfilingOutputPprof,
 
@@ -163,6 +164,9 @@ impl ConfigId {
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingExperimentalAllocationEnabled => {
                 b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0"
+            }
+            ProfilingExperimentalAllocationSamplingRate => {
+                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_SAMPLING_RATE\0"
             }
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
@@ -216,8 +220,19 @@ pub(crate) unsafe fn profiling_experimental_allocation_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn profiling_experimental_allocation_sampling_rate() -> i64 {
+    get_long(ProfilingExperimentalAllocationSamplingRate, 1024)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
     get_str(ProfilingOutputPprof)
+}
+
+unsafe fn get_long(id: ConfigId, default: i64) -> i64 {
+    get_value(id).try_into().unwrap_or(default) as i64
 }
 
 unsafe fn get_bool(id: ConfigId, default: bool) -> bool {
@@ -403,6 +418,17 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                 },
                 zai_config_entry {
+                    id: transmute(ProfilingExperimentalAllocationSamplingRate),
+                    name: ProfilingExperimentalAllocationSamplingRate.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_INT,
+                    default_encoded_value: ZaiStringView::literal(b"102400\0"),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    // ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: None,
+                },
+                zai_config_entry {
                     id: transmute(ProfilingLogLevel),
                     name: ProfilingLogLevel.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM, // store it as an int
@@ -532,6 +558,10 @@ mod tests {
             (
                 b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
                 "datadog.profiling.experimental_allocation_enabled",
+            ),
+            (
+                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_SAMPLING_RATE\0",
+                "datadog.profiling.experimental_allocation_sampling_rate",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
             (

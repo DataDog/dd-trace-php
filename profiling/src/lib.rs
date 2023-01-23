@@ -34,7 +34,9 @@ use uuid::Uuid;
 use rand_distr::{Distribution, Poisson};
 
 #[cfg(feature = "allocation_profiling")]
-use crate::bindings::{datadog_php_install_handler, datadog_php_zif_handler, ddog_php_prof_copy_long_into_zval};
+use crate::bindings::{
+    datadog_php_install_handler, datadog_php_zif_handler, ddog_php_prof_copy_long_into_zval,
+};
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
@@ -310,6 +312,7 @@ pub struct RequestLocals {
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_experimental_allocation_enabled: bool,
+    pub profiling_experimental_allocation_sampling_rate: i64,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub tags: Vec<Tag>,
@@ -321,10 +324,12 @@ pub struct RequestLocals {
 /// take a sample every X bytes
 /// this value is temporary but the overhead looks promising, Go profiler samples every 512 KiB
 #[cfg(feature = "allocation_profiling")]
-const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 50.0;
+const DEFAULT_ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 100.0;
 
 #[cfg(feature = "allocation_profiling")]
 pub struct AllocationProfilingStats {
+    /// take a sample every `sampling_rate` bytes
+    sampling_rate: f64,
     /// number of bytes until next sample collection
     next_sample: i64,
 }
@@ -332,15 +337,23 @@ pub struct AllocationProfilingStats {
 #[cfg(feature = "allocation_profiling")]
 impl AllocationProfilingStats {
     fn new() -> AllocationProfilingStats {
-        AllocationProfilingStats {
-            next_sample: AllocationProfilingStats::next_sampling_interval(),
-        }
+        let mut allocations_profiling_stats = AllocationProfilingStats {
+            sampling_rate: DEFAULT_ALLOCATION_PROFILING_INTERVAL,
+            next_sample: 0,
+        };
+        allocations_profiling_stats.next_sampling_interval();
+        allocations_profiling_stats
     }
 
-    fn next_sampling_interval() -> i64 {
-        Poisson::new(ALLOCATION_PROFILING_INTERVAL)
+    fn set_sampling_rate(&mut self, sampling_rate: f64) {
+        self.sampling_rate = sampling_rate;
+        self.next_sampling_interval();
+    }
+
+    fn next_sampling_interval(&mut self) {
+        self.next_sample = Poisson::new(self.sampling_rate)
             .unwrap()
-            .sample(&mut rand::thread_rng()) as i64
+            .sample(&mut rand::thread_rng()) as i64;
     }
 
     fn track_allocation(&mut self, len: u64) {
@@ -350,12 +363,12 @@ impl AllocationProfilingStats {
             return;
         }
 
-        let scale = 1.0 / (1.0 - (len as f64 * -1.0 / ALLOCATION_PROFILING_INTERVAL).exp());
+        let scale = 1.0 / (1.0 - (len as f64 * -1.0 / self.sampling_rate).exp());
 
         let count = 1.0 * scale;
         let bytes = len as f64 * scale;
 
-        self.next_sample = AllocationProfilingStats::next_sampling_interval();
+        self.next_sampling_interval();
 
         REQUEST_LOCALS.with(|cell| {
             // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
@@ -401,6 +414,7 @@ thread_local! {
         profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
         profiling_experimental_allocation_enabled: true,
+        profiling_experimental_allocation_sampling_rate: 0,
         profiling_log_level: LevelFilter::Off,
         service: None,
         tags: static_tags(),
@@ -441,6 +455,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         profiling_endpoint_collection_enabled,
         profiling_experimental_cpu_time_enabled,
         profiling_experimental_allocation_enabled,
+        profiling_experimental_allocation_sampling_rate,
         log_level,
     ) = unsafe {
         (
@@ -448,6 +463,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             config::profiling_endpoint_collection_enabled(),
             config::profiling_experimental_cpu_time_enabled(),
             config::profiling_experimental_allocation_enabled(),
+            config::profiling_experimental_allocation_sampling_rate(),
             config::profiling_log_level(),
         )
     };
@@ -464,6 +480,8 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_experimental_allocation_enabled =
             profiling_experimental_allocation_enabled;
+        locals.profiling_experimental_allocation_sampling_rate =
+            profiling_experimental_allocation_sampling_rate;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -534,6 +552,14 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             } else if profiling_experimental_cpu_time_enabled {
                 info!("CPU Time profiling enabled.");
             }
+        }
+
+        if profiling_experimental_allocation_enabled {
+            ALLOCATION_PROFILING_STATS.with(|cell| {
+                let mut allocations = cell.borrow_mut();
+                allocations
+                    .set_sampling_rate(profiling_experimental_allocation_sampling_rate as f64);
+            });
         }
     });
 
@@ -817,6 +843,16 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             } else {
                 no
             },
+        );
+
+        zend::php_info_print_table_row(
+            2,
+            b"Experimental Allocation Profiling Sampling Rate\0".as_ptr(),
+            format!(
+                "{}\0",
+                locals.profiling_experimental_allocation_sampling_rate
+            )
+            .as_ptr(),
         );
 
         zend::php_info_print_table_row(
