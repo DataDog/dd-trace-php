@@ -27,6 +27,9 @@ build:
       - 'upstream.env'
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
+docker pull ghcr.io/dtadog/dd-trace-php:snapshot
+docker 
+
 deploy_to_reliability_env:
   stage: deploy
   trigger:
