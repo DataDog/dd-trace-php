@@ -1165,6 +1165,12 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'description' => 'Enable the CPU profile type.',
         ],
         [
+            'name' => 'datadog.profiling.experimental_allocation_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the allocation profile type.',
+        ],
+        [
             'name' => 'datadog.profiling.log_level',
             'default' => 'off',
             'commented' => true,
