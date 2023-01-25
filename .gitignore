@@ -4,6 +4,7 @@ tmp/build_extension/
 composer.lock
 **/core*
 .scenarios.lock/
+.idea/
 .vscode/
 .libs
 .deps
