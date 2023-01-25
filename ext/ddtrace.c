@@ -838,6 +838,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (!DDTRACE_G(disable)) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
+        DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
     }
 
     if (get_DD_TRACE_ENABLED()) {
@@ -916,15 +917,16 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     zend_hash_destroy(&DDTRACE_G(traced_spans));
 
-    if (!get_DD_TRACE_ENABLED()) {
-        if (!DDTRACE_G(disable)) {
-            dd_shutdown_hooks_and_observer();
-        }
-
-        return SUCCESS;
+    if (get_DD_TRACE_ENABLED()) {
+        dd_force_shutdown_tracing();
+    } else if (!DDTRACE_G(disable)) {
+        dd_shutdown_hooks_and_observer();
     }
 
-    dd_force_shutdown_tracing();
+    if (!DDTRACE_G(disable)) {
+        OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
+        DDTRACE_G(active_stack) = NULL;
+    }
 
     return SUCCESS;
 }
@@ -1746,7 +1748,7 @@ static PHP_FUNCTION(close_span) {
 /* {{{ proto string DDTrace\active_stack() */
 static PHP_FUNCTION(active_stack) {
     UNUSED(execute_data);
-    if (!DDTRACE_G(active_stack)) {
+    if (DDTRACE_G(disable)) {
         RETURN_NULL();
     }
     RETURN_OBJ_COPY(&DDTRACE_G(active_stack)->std);
@@ -1775,7 +1777,7 @@ static PHP_FUNCTION(switch_stack) {
         RETURN_FALSE;
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (DDTRACE_G(disable)) {
         RETURN_NULL();
     }
 
@@ -2048,7 +2050,7 @@ static PHP_FUNCTION(set_priority_sampling) {
         RETURN_FALSE;
     }
 
-    if (global || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
+    if (global || DDTRACE_G(disable) || !DDTRACE_G(active_stack)->root_span) {
         DDTRACE_G(default_priority_sampling) = priority;
     } else {
         ddtrace_set_prioritySampling_on_root(priority);
@@ -2063,7 +2065,7 @@ static PHP_FUNCTION(get_priority_sampling) {
         RETURN_NULL();
     }
 
-    if (global || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
+    if (global || DDTRACE_G(disable) || !DDTRACE_G(active_stack)->root_span) {
         RETURN_LONG(DDTRACE_G(default_priority_sampling));
     }
 
@@ -2409,7 +2411,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
     }
 
     if (priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
-        if (!DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
+        if (!DDTRACE_G(active_stack)->root_span) {
             DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = priority_sampling;
         } else {
             ddtrace_set_prioritySampling_on_root(priority_sampling);
