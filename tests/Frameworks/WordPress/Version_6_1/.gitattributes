@@ -1,0 +1,5 @@
+** linguist-generated
+.gitattributes -linguist-generated
+docker-compose.yml -linguist-generated
+scripts/ -linguist-generated
+wp-content/plugins/datadog/ -linguist-generated
