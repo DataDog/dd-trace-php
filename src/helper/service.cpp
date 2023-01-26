@@ -41,20 +41,7 @@ service::ptr service::from_settings(const service_identifier &id,
     std::map<std::string_view, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
-    // no cache hit
-    auto &&rules_path = eng_settings.rules_file_or_default();
-    std::shared_ptr engine_ptr{engine::create(eng_settings.trace_rate_limit)};
-
-    try {
-        SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);
-        // may throw std::exception
-        const subscriber::ptr waf =
-            waf::instance::from_settings(eng_settings, meta, metrics);
-        engine_ptr->subscribe(waf);
-    } catch (...) {
-        DD_STDLOG(DD_STDLOG_WAF_INIT_FAILED, rules_path);
-        throw;
-    }
+    auto engine_ptr = engine::from_settings(eng_settings, meta, metrics);
 
     std::chrono::milliseconds poll_interval{rc_settings.poll_interval};
 

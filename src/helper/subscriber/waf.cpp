@@ -7,8 +7,6 @@
 #include "ddwaf.h"
 #include <chrono>
 #include <cstdlib>
-#include <fstream>
-#include <ios>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -19,7 +17,6 @@
 #include <string_view>
 
 #include "../json_helper.hpp"
-#include "../result.hpp"
 #include "../tags.hpp"
 #include "waf.hpp"
 
@@ -77,34 +74,16 @@ template <typename T> void json_to_object(ddwaf_object *object, T &doc)
     }
 }
 
-std::string read_rule_file(std::string_view filename)
+dds::parameter json_to_object(const rapidjson::Document &doc)
 {
-    std::ifstream rule_file(filename.data(), std::ios::in);
-    if (!rule_file) {
-        throw std::system_error(errno, std::generic_category());
-    }
-
-    // Create a buffer equal to the file size
-    rule_file.seekg(0, std::ios::end);
-    std::string buffer(rule_file.tellg(), '\0');
-    buffer.resize(rule_file.tellg());
-    rule_file.seekg(0, std::ios::beg);
-
-    auto buffer_size = buffer.size();
-    if (buffer_size > static_cast<typeof(buffer_size)>(
-                          std::numeric_limits<std::streamsize>::max())) {
-        throw std::runtime_error{"rule file is too large"};
-    }
-
-    rule_file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-    buffer.resize(rule_file.gcount());
-    rule_file.close();
-    return buffer;
+    dds::parameter obj;
+    json_to_object(obj, doc);
+    return obj;
 }
 
-dds::result format_waf_result(ddwaf_result &res)
+dds::subscriber::event format_waf_result(ddwaf_result &res)
 {
-    dds::result output;
+    dds::subscriber::event output;
     for (unsigned i = 0; i < res.actions.size; i++) {
         char *value = res.actions.array[i];
         if (value == nullptr) {
@@ -229,7 +208,8 @@ instance::listener::~listener()
     }
 }
 
-std::optional<result> instance::listener::call(dds::parameter_view &data)
+std::optional<subscriber::event> instance::listener::call(
+    dds::parameter_view &data)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
@@ -356,10 +336,11 @@ std::vector<std::string_view> instance::get_subscriptions()
 }
 
 instance::ptr instance::from_settings(const engine_settings &settings,
+    const engine_ruleset &ruleset,
     std::map<std::string_view, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
-    dds::parameter param = parse_file(settings.rules_file_or_default());
+    dds::parameter param = json_to_object(ruleset.get_document());
     return std::make_shared<instance>(param, meta, metrics,
         settings.waf_timeout_us, settings.obfuscator_key_regex,
         settings.obfuscator_value_regex);
@@ -370,28 +351,10 @@ instance::ptr instance::from_string(std::string_view rule,
     std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
 {
-    dds::parameter param = parse_string(rule);
+    engine_ruleset ruleset{rule};
+    dds::parameter param = json_to_object(ruleset.get_document());
     return std::make_shared<instance>(
         param, meta, metrics, waf_timeout_us, key_regex, value_regex);
-}
-
-parameter parse_string(std::string_view config)
-{
-    rapidjson::Document document;
-    rapidjson::ParseResult result = document.Parse(config.data());
-    if ((result == nullptr) || !document.IsObject()) {
-        throw parsing_error("invalid json rule");
-    }
-
-    parameter obj;
-    json_to_object(obj, document);
-    return obj;
-}
-
-parameter parse_file(std::string_view filename)
-{
-    auto json = read_rule_file(filename);
-    return parse_string(json);
 }
 
 } // namespace dds::waf

@@ -33,7 +33,7 @@ TEST(ServiceManagerTest, LoadRulesOK)
     auto fn = create_sample_rules_ok();
     auto service = manager.create_service(sid, {fn, 42}, {}, meta, metrics);
     EXPECT_EQ(manager.get_cache().size(), 1);
-    EXPECT_EQ(metrics[tag::event_rules_loaded], 2);
+    EXPECT_EQ(metrics[tag::event_rules_loaded], 3);
 
     // loading again should take from the cache
     auto service2 = manager.create_service(sid, {fn, 42}, {}, meta, metrics);

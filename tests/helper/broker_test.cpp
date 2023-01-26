@@ -119,12 +119,16 @@ TEST(BrokerTest, SendRequestInit)
     packer.pack_array(2);             // First message
     pack_str(packer, "request_init"); // Type
     packer.pack_array(3);
-    pack_str(packer, "record");
+    pack_str(packer, "block");
+    packer.pack_map(2);
+    pack_str(packer, "type");
+    pack_str(packer, "auto");
+    pack_str(packer, "status_code");
+    pack_str(packer, "403");
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");
-    packer.pack_array(1);
-    pack_str(packer, "block");
+
     const auto &expected_data = ss.str();
 
     network::header_t h;
@@ -135,9 +139,9 @@ TEST(BrokerTest, SendRequestInit)
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
     auto response = std::make_shared<network::request_init::response>();
-    response->verdict = "record";
+    response->verdict = "block";
     response->triggers = {"one", "two"};
-    response->actions = {"block"};
+    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
 
     std::vector<std::shared_ptr<network::base_response>> messages;
     messages.push_back(response);
@@ -159,12 +163,15 @@ TEST(BrokerTest, SendRequestShutdown)
     packer.pack_array(2);                 // First message
     pack_str(packer, "request_shutdown"); // Type
     packer.pack_array(5);
-    pack_str(packer, "record");
+    pack_str(packer, "block");
+    packer.pack_map(2);
+    pack_str(packer, "type");
+    pack_str(packer, "auto");
+    pack_str(packer, "status_code");
+    pack_str(packer, "403");
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");
-    packer.pack_array(1);
-    pack_str(packer, "block");
     packer.pack_map(0);
     packer.pack_map(0);
     const auto &expected_data = ss.str();
@@ -177,9 +184,9 @@ TEST(BrokerTest, SendRequestShutdown)
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
     auto response = std::make_shared<network::request_shutdown::response>();
-    response->verdict = "record";
+    response->verdict = "block";
     response->triggers = {"one", "two"};
-    response->actions = {"block"};
+    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
 
     std::vector<std::shared_ptr<network::base_response>> messages;
     messages.push_back(response);

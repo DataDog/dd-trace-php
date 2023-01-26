@@ -12,7 +12,6 @@
 #include "service_config.hpp"
 #include "service_identifier.hpp"
 #include "std_logging.hpp"
-#include "subscriber/waf.hpp"
 #include "utils.hpp"
 #include <future>
 #include <memory>

@@ -34,10 +34,10 @@ $helper = Helper::createRun([
         ["metric_1" => 2.0, "metric_2" => 10.0]])
     ),
     response_list(
-        response_request_init(['record', ['{"found":"attack"}','{"another":"attack"}']])
+        response_request_init(['record', [], ['{"found":"attack"}','{"another":"attack"}']])
     ),
     response_list(
-        response_request_shutdown(['record', ['{"yet another":"attack"}']])
+        response_request_shutdown(['record', [], ['{"yet another":"attack"}']])
     ),
 ], ['continuous' => true]);
 

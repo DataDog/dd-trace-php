@@ -325,10 +325,9 @@ dd_result dd_command_proc_resp_verd_span_data(
 
     bool should_block = dd_mpack_node_lstr_eq(verdict, "block");
     if (should_block || dd_mpack_node_lstr_eq(verdict, "record")) {
-        _set_appsec_span_data(mpack_node_array_at(root, 1));
+        _set_appsec_span_data(mpack_node_array_at(root, 2));
     }
 
-    // TODO handle actions?
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     if (mpack_node_array_length(root) >= 5) {
         mpack_node_t meta = mpack_node_array_at(root, 3);

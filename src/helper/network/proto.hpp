@@ -19,6 +19,12 @@ using stream_packer = msgpack::packer<std::stringstream>;
 
 namespace dds::network {
 
+struct verdict {
+    static constexpr std::string_view ok = "ok";
+    static constexpr std::string_view record = "record";
+    static constexpr std::string_view block = "block";
+};
+
 using header_t = struct __attribute__((__packed__)) header {
     char code[4]{"dds"}; // dds\0 NOLINT
     uint32_t size{0};
@@ -151,10 +157,10 @@ struct request_init {
             return request_init::name;
         };
         std::string verdict;
+        std::unordered_map<std::string, std::string> parameters;
         std::vector<std::string> triggers;
-        std::unordered_set<std::string> actions;
 
-        MSGPACK_DEFINE(verdict, triggers, actions);
+        MSGPACK_DEFINE(verdict, parameters, triggers);
     };
 };
 
@@ -226,13 +232,13 @@ struct request_shutdown {
             return request_shutdown::name;
         };
         std::string verdict;
+        std::unordered_map<std::string, std::string> parameters;
         std::vector<std::string> triggers;
-        std::unordered_set<std::string> actions;
 
         std::map<std::string_view, std::string> meta;
         std::map<std::string_view, double> metrics;
 
-        MSGPACK_DEFINE(verdict, triggers, actions, meta, metrics);
+        MSGPACK_DEFINE(verdict, parameters, triggers, meta, metrics);
     };
 };
 

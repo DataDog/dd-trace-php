@@ -15,6 +15,31 @@ std::string create_sample_rules_ok()
   "metadata": { "rules_version" : "1.2.3" },
   "rules": [
     {
+      "id": "blk-001-001",
+      "name": "Block IP Addresses",
+      "tags": {
+        "type": "block_ip",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "list": ["192.168.1.1"]
+          },
+          "operator": "ip_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
       "id": "crs-913-110",
       "name": "Found request header associated with Acunetix security scanner",
       "tags": {
@@ -107,7 +132,7 @@ int main(int argc, char **argv)
 {
     auto logger = spdlog::basic_logger_mt("ddappsec", "/tmp/helper-test.log");
     spdlog::set_default_logger(logger);
-    spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(spdlog::level::debug);
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
