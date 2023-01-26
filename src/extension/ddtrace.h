@@ -11,8 +11,11 @@
 
 typedef zend_object root_span_t;
 
-void dd_trace_startup();
-void dd_trace_shutdown();
+void dd_trace_startup(void);
+void dd_trace_shutdown(void);
+
+// Returns the tracer version
+const char *nullable dd_trace_version(void);
 
 // increases the refcount of tag, but not value (like zval_hash_add)
 // however, it destroy value if the operation fails (unlike zval_hash_add)

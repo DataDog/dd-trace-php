@@ -11,10 +11,10 @@ namespace adaptor {
 
 using dds::network::base_response;
 using dds::network::client_init;
+using dds::network::config_sync;
 using dds::network::request;
 using dds::network::request_id;
 using dds::network::request_init;
-using dds::network::config_sync;
 using dds::network::request_shutdown;
 
 namespace {

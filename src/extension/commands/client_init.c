@@ -63,7 +63,7 @@ static dd_result _pack_command(
     dd_mpack_write_nullable_cstr(w, ZSTR_VAL(get_DD_ENV()));
 
     dd_mpack_write_lstr(w, "tracer_version");
-    dd_mpack_write_nullable_cstr(w, PHP_DDAPPSEC_VERSION);
+    dd_mpack_write_nullable_cstr(w, dd_trace_version());
 
     dd_mpack_write_lstr(w, "app_version");
     dd_mpack_write_nullable_cstr(w, ZSTR_VAL(get_DD_VERSION()));
