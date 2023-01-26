@@ -3,7 +3,7 @@ When extension is disabled by ENV, it is sent to helper
 --INI--
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 --ENV--
-DD_APPSEC_ENABLED_ON_CLI=0
+DD_APPSEC_ENABLED=0
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};

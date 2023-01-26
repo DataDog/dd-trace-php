@@ -1,7 +1,7 @@
 --TEST--
 When extension is enabled by INI, it is sent to helper
 --INI--
-datadog.appsec.enabled_on_cli=1
+datadog.appsec.enabled=1
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 --FILE--
 <?php

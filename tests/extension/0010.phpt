@@ -1,7 +1,7 @@
 --TEST--
 Check for ddappsec presence
 --INI--
-datadog.appsec.enabled_on_cli=1
+datadog.appsec.enabled=1
 --FILE--
 <?php
 if (extension_loaded('ddappsec')) {

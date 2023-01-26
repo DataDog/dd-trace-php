@@ -399,13 +399,9 @@ __thread void *unspecnull TSRMLS_CACHE = NULL;
 
 static void _check_enabled()
 {
-    bool is_cli =
-        strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text;
-
-    if (is_cli &&
-        !dd_is_config_using_default(DDAPPSEC_CONFIG_DD_APPSEC_ENABLED_ON_CLI)) {
-        DDAPPSEC_G(enabled_by_configuration) =
-            get_global_DD_APPSEC_ENABLED_ON_CLI() ? ENABLED : DISABLED;
+    if ((strcmp(sapi_module.name, "cli") == 0 || sapi_module.phpinfo_as_text) &&
+        !get_global_DD_APPSEC_TESTING()) {
+        DDAPPSEC_G(enabled_by_configuration) = DISABLED;
     } else if (!dd_is_config_using_default(DDAPPSEC_CONFIG_DD_APPSEC_ENABLED)) {
         DDAPPSEC_G(enabled_by_configuration) =
             get_global_DD_APPSEC_ENABLED() ? ENABLED : DISABLED;
