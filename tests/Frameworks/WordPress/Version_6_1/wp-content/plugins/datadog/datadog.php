@@ -18,7 +18,7 @@ function datadog_parse_request($wp) {
 
     $pathInfo = $_SERVER['PATH_INFO'];
     if ('/simple' === $pathInfo) {
-        echo "Simple text endpoint!\n";
+        echo "Simple text endpoint\n";
         exit;
     }
     if ('/error' === $pathInfo) {
