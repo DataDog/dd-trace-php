@@ -42,4 +42,3 @@ services:
     environment:
       - DD_API_KEY=${DATADOG_API_KEY}
       - DD_APM_ENABLED=true
-      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
