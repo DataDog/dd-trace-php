@@ -53,7 +53,7 @@ deploy_to_reliability_env:
 
 tracer-base-image:
   extends: .ci_authenticated_job
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
+  image: tiangolo/docker-with-compose
   tags: ["runner:docker"]
   #only:
   #  - schedules
