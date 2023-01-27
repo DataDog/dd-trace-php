@@ -272,6 +272,10 @@ static int _do_rinit(INIT_FUNC_ARGS)
     UNUSED(type);
     UNUSED(module_number);
 
+    if (DDAPPSEC_G(enabled_by_configuration) == DISABLED) {
+        return SUCCESS;
+    }
+
     dd_tags_rinit();
 
     // connect/client_init
@@ -409,6 +413,11 @@ static void _check_enabled()
         DDAPPSEC_G(enabled_by_configuration) = NOT_CONFIGURED;
     };
 
+    // If not enabled explicitly and RC is disabled, then extension is disabled
+    if (DDAPPSEC_G(enabled_by_configuration) == NOT_CONFIGURED &&
+        !get_global_DD_REMOTE_CONFIG_ENABLED()) {
+        DDAPPSEC_G(enabled_by_configuration) = DISABLED;
+    }
     DDAPPSEC_G(enabled) = DDAPPSEC_G(enabled_by_configuration);
 }
 
