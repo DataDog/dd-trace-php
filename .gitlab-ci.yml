@@ -13,6 +13,12 @@ variables:
     value: "false"
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
+.ci_authenticated_job:
+  needs: []
+  before_script:
+    - export CIRCLECI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-php.circleci_token --with-decryption --query "Parameter.Value" --out text)
+    - export GH_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-php.gh_ghcr_token --with-decryption --query "Parameter.Value" --out text)
+
 build:
   stage: build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
@@ -41,3 +47,25 @@ deploy_to_reliability_env:
 #    COMMIT_SHA would be wrong because the artifact is not built here
 #    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     FORCE_TRIGGER: $FORCE_TRIGGER
+
+tracer-base-image:
+  extends: .ci_authenticated_job
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
+  tags: ["runner:docker"]
+  #only:
+  #  - schedules
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc"'
+      when: always
+    - when: manual
+      allow_failure: true
+  stage: deploy
+  script:
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
+    - ./tooling/ci/download-binary-php.sh dev
+    - docker build -t ghcr.io/datadog/system-tests/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/system-tests/dd-trace-php:latest_snapshot  
+    - rm -rf ./tooling/ci/binaries
+    - ./tooling/ci/download-binary-php.sh prod
+    - docker build -t ghcr.io/datadog/system-tests/dd-trace-php:latest -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/system-tests/dd-trace-php:latest  
