@@ -11,9 +11,11 @@ datadog.appsec.log_level=info
 use function datadog\appsec\testing\{helper_mgr_acquire_conn,backoff_status};
 
 $version = phpversion('ddappsec');
+$uid = getmyuid();
+$gid = getmygid();
 $runtime_path = ini_get('datadog.appsec.helper_runtime_path');
-$sock_path = "$runtime_path/ddappsec_$version.sock";
-$lock_path = "$runtime_path/ddappsec_$version.lock";
+$sock_path = sprintf("$runtime_path/ddappsec_%s_%s.%s.sock", $version, $uid, $gid);
+$lock_path = sprintf("$runtime_path/ddappsec_%s_%s.%s.lock", $version, $uid, $gid);
 
 $f = fopen($lock_path, "c");
 var_dump(flock($f, LOCK_EX));
@@ -21,8 +23,8 @@ var_dump(flock($f, LOCK_EX));
 var_dump(helper_mgr_acquire_conn());
 
 require __DIR__ . '/inc/logging.php';
-match_log("/Attempting to connect to UNIX socket \/tmp\/appsec-ext-test\/ddappsec_" . $version . ".sock/");
-match_log("/The helper lock on \/tmp\/appsec-ext-test\/ddappsec_" . $version . ".lock is already being held/");
+match_log("/Attempting to connect to UNIX socket \/tmp\/appsec-ext-test\/ddappsec_" . $version . "_" . $uid . "." . $gid . ".sock/");
+match_log("/The helper lock on \/tmp\/appsec-ext-test\/ddappsec_" . $version . "_" . $uid . "." . $gid . ".lock is already being held/");
 
 var_dump(backoff_status());
 ?>
