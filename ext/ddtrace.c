@@ -1748,7 +1748,7 @@ static PHP_FUNCTION(close_span) {
 /* {{{ proto string DDTrace\active_stack() */
 static PHP_FUNCTION(active_stack) {
     UNUSED(execute_data);
-    if (DDTRACE_G(disable)) {
+    if (!DDTRACE_G(active_stack)) {
         RETURN_NULL();
     }
     RETURN_OBJ_COPY(&DDTRACE_G(active_stack)->std);
@@ -1777,7 +1777,7 @@ static PHP_FUNCTION(switch_stack) {
         RETURN_FALSE;
     }
 
-    if (DDTRACE_G(disable)) {
+    if (!DDTRACE_G(active_stack)) {
         RETURN_NULL();
     }
 
@@ -2050,7 +2050,7 @@ static PHP_FUNCTION(set_priority_sampling) {
         RETURN_FALSE;
     }
 
-    if (global || DDTRACE_G(disable) || !DDTRACE_G(active_stack)->root_span) {
+    if (global || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
         DDTRACE_G(default_priority_sampling) = priority;
     } else {
         ddtrace_set_prioritySampling_on_root(priority);
@@ -2065,7 +2065,7 @@ static PHP_FUNCTION(get_priority_sampling) {
         RETURN_NULL();
     }
 
-    if (global || DDTRACE_G(disable) || !DDTRACE_G(active_stack)->root_span) {
+    if (global || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
         RETURN_LONG(DDTRACE_G(default_priority_sampling));
     }
 

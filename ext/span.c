@@ -307,7 +307,7 @@ DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
-    if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value) || DDTRACE_G(disable)) {
+    if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value) || !DDTRACE_G(active_stack)) {
         return true;
     }
 
