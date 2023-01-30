@@ -842,7 +842,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (span->parent) {
         ddtrace_span_data *parent = span->parent;
         while (ddtrace_span_is_dropped(parent)) {
-            parent = span->parent;
+            parent = parent->parent;
         }
         span->parent_id = parent->span_id;
     }
