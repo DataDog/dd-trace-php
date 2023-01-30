@@ -979,7 +979,10 @@ mod tests {
         let frames = get_frames();
         let samples = get_samples();
         let labels = Profiler::message_labels();
-        let locals = get_request_locals();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage = Profiler::prepare_sample_message(frames, samples, &labels, &locals);
 
@@ -1002,6 +1005,8 @@ mod tests {
         let samples = get_samples();
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_experimental_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage = Profiler::prepare_sample_message(frames, samples, &labels, &locals);
@@ -1029,7 +1034,9 @@ mod tests {
         let samples = get_samples();
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
         locals.profiling_experimental_allocation_enabled = true;
+        locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage = Profiler::prepare_sample_message(frames, samples, &labels, &locals);
 
@@ -1060,6 +1067,7 @@ mod tests {
         let samples = get_samples();
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
         locals.profiling_experimental_allocation_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = true;
 
