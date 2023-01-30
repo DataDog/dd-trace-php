@@ -975,7 +975,27 @@ mod tests {
     }
 
     #[test]
-    fn profiler_prepare_sample_message_works() {
+    fn profiler_prepare_sample_message_works_with_profiling_disabled() {
+        // the `Profiler::prepare_sample_message()` method will never be called with this setup,
+        // yet this is how it has to behave in case profiling is disabled
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = false;
+        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_experimental_cpu_time_enabled = false;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+
+        assert_eq!(message.key.sample_types, vec![]);
+        let expected: Vec<i64> = vec![];
+        assert_eq!(message.value.sample_values, expected);
+    }
+
+    #[test]
+    fn profiler_prepare_sample_message_works_with_profiling_enabled() {
         let frames = get_frames();
         let samples = get_samples();
         let labels = Profiler::message_labels();
