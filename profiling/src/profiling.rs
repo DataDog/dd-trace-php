@@ -931,18 +931,16 @@ impl Profiler {
 
 #[cfg(test)]
 mod tests {
-    use log::LevelFilter;
-    use crate::static_tags;
     use super::*;
+    use crate::static_tags;
+    use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {
-        vec![
-            ZendFrame {
-                function: "foobar()".to_string(),
-                file: Some("foobar.php".to_string()),
-                line: 42
-            }
-        ]
+        vec![ZendFrame {
+            function: "foobar()".to_string(),
+            file: Some("foobar.php".to_string()),
+            line: 42,
+        }]
     }
 
     fn get_request_locals() -> RequestLocals {
@@ -1004,18 +1002,22 @@ mod tests {
         locals.profiling_experimental_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = false;
 
-        let message: SampleMessage = Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
 
-        assert_eq!(message.key.sample_types, vec![
-            ValueType {
-                r#type: Cow::Borrowed("sample"),
-                unit: Cow::Borrowed("count"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("wall-time"),
-                unit: Cow::Borrowed("nanoseconds"),
-            },
-        ]);
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType {
+                    r#type: Cow::Borrowed("sample"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("wall-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+            ]
+        );
         assert_eq!(message.value.sample_values, vec![10, 20]);
     }
 
@@ -1029,22 +1031,26 @@ mod tests {
         locals.profiling_experimental_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = true;
 
-        let message: SampleMessage = Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
 
-        assert_eq!(message.key.sample_types, vec![
-            ValueType {
-                r#type: Cow::Borrowed("sample"),
-                unit: Cow::Borrowed("count"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("wall-time"),
-                unit: Cow::Borrowed("nanoseconds"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("cpu-time"),
-                unit: Cow::Borrowed("nanoseconds"),
-            },
-        ]);
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType {
+                    r#type: Cow::Borrowed("sample"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("wall-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("cpu-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+            ]
+        );
         assert_eq!(message.value.sample_values, vec![10, 20, 30]);
     }
 
@@ -1058,26 +1064,30 @@ mod tests {
         locals.profiling_experimental_allocation_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = false;
 
-        let message: SampleMessage = Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
 
-        assert_eq!(message.key.sample_types, vec![
-            ValueType {
-                r#type: Cow::Borrowed("sample"),
-                unit: Cow::Borrowed("count"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("wall-time"),
-                unit: Cow::Borrowed("nanoseconds"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("alloc-samples"),
-                unit: Cow::Borrowed("count"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("alloc-size"),
-                unit: Cow::Borrowed("bytes"),
-            },
-        ]);
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType {
+                    r#type: Cow::Borrowed("sample"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("wall-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("alloc-samples"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("alloc-size"),
+                    unit: Cow::Borrowed("bytes"),
+                },
+            ]
+        );
         assert_eq!(message.value.sample_values, vec![10, 20, 40, 50]);
     }
 
@@ -1091,31 +1101,34 @@ mod tests {
         locals.profiling_experimental_allocation_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = true;
 
-        let message: SampleMessage = Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
 
-        assert_eq!(message.key.sample_types, vec![
-            ValueType {
-                r#type: Cow::Borrowed("sample"),
-                unit: Cow::Borrowed("count"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("wall-time"),
-                unit: Cow::Borrowed("nanoseconds"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("alloc-samples"),
-                unit: Cow::Borrowed("count"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("alloc-size"),
-                unit: Cow::Borrowed("bytes"),
-            },
-            ValueType {
-                r#type: Cow::Borrowed("cpu-time"),
-                unit: Cow::Borrowed("nanoseconds"),
-            },
-        ]);
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType {
+                    r#type: Cow::Borrowed("sample"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("wall-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("alloc-samples"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("alloc-size"),
+                    unit: Cow::Borrowed("bytes"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("cpu-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+            ]
+        );
         assert_eq!(message.value.sample_values, vec![10, 20, 40, 50, 30]);
     }
-
 }
