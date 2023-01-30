@@ -350,7 +350,7 @@ bool ddtrace_has_top_internal_span(ddtrace_span_data *end) {
     return false;
 }
 
-void ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
+void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until) {
     ddtrace_span_data *span;
     while ((span = until->stack->active) && span->stack == until->stack && span != until && span->type != DDTRACE_AUTOROOT_SPAN) {
         if (span->type == DDTRACE_INTERNAL_SPAN) {
@@ -368,6 +368,29 @@ void ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
             ddtrace_drop_span(span);
         }
     }
+}
+
+// may be called with NULL
+int ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
+    if (until) {
+        ddtrace_span_data *span = ddtrace_active_span();
+        while (span && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
+            span = span->parent;
+        }
+        if (span != until) {
+            return -1;
+        }
+    }
+
+    int closed_spans = 0;
+    ddtrace_span_data *span;
+    while ((span = ddtrace_active_span()) && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
+        dd_trace_stop_span_time(span);
+        ddtrace_close_span(span);
+        ++closed_spans;
+    }
+
+    return closed_spans;
 }
 
 static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
@@ -434,7 +457,7 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         ddtrace_switch_span_stack(span->stack);
     }
 
-    ddtrace_close_userland_spans_until(span);
+    ddtrace_close_stack_userland_spans_until(span);
 
     ddtrace_close_top_span_without_stack_swap(span);
 }
