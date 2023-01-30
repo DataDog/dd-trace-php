@@ -14,7 +14,6 @@ variables:
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 .ci_authenticated_job:
-  needs: []
   before_script:
     - apk add bash jq git unzip curl
     - pip install pyyaml awscli
@@ -62,7 +61,6 @@ tracer-base-image:
       allow_failure: true
   stage: deploy
   script:
-    - echo "PROJECT NAME------->>>>>>>>>>>>>>> $CI_PROJECT_NAME	"
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - ./tooling/ci/download-binary-php.sh dev
     - docker build -t ghcr.io/datadog/system-tests/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
