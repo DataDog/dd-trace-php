@@ -3,6 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#include <algorithm>
 #include <rapidjson/rapidjson.h>
 #include <set>
 #include <spdlog/fmt/ostr.h>
@@ -20,6 +21,7 @@ namespace dds {
 
 void engine::subscribe(const subscriber::ptr &sub)
 {
+    subscribers_.emplace_back(sub);
     for (const auto &addr : sub->get_subscriptions()) {
         auto it = subscriptions_.find(addr);
         if (it == subscriptions_.end()) {
@@ -27,6 +29,15 @@ void engine::subscribe(const subscriber::ptr &sub)
                 addr, std::move(std::vector<subscriber::ptr>{sub}));
         } else {
             it->second.push_back(sub);
+        }
+    }
+}
+
+void engine::update_rule_data(parameter_view &data)
+{
+    for (auto &sub : subscribers_) {
+        if (!sub->update_rule_data(data)) {
+            SPDLOG_WARN("Failed to update rule data for {}", sub->get_name());
         }
     }
 }

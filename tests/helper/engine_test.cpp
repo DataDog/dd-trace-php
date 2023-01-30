@@ -4,12 +4,15 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "json_helper.hpp"
 #include <engine.hpp>
 #include <rapidjson/document.h>
 #include <subscriber/waf.hpp>
 
 const std::string waf_rule =
     R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}],"action":"record"}]})";
+const std::string waf_rule_with_data =
+    R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
 namespace dds {
 
@@ -29,8 +32,10 @@ class subscriber : public dds::subscriber {
 public:
     typedef std::shared_ptr<dds::mock::subscriber> ptr;
 
+    MOCK_METHOD0(get_name, std::string_view());
     MOCK_METHOD0(get_listener, dds::subscriber::listener::ptr());
     MOCK_METHOD0(get_subscriptions, std::vector<std::string_view>());
+    MOCK_METHOD1(update_rule_data, bool(dds::parameter_view &));
 };
 } // namespace mock
 
@@ -285,7 +290,11 @@ TEST(EngineTest, WafSubscriptorBasic)
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+
+    auto waf_ptr = waf::instance::from_string(waf_rule, meta, metrics);
+    e->subscribe(waf_ptr);
+
+    EXPECT_STREQ(waf_ptr->get_name().data(), "waf");
 
     auto ctx = e->get_context();
 
@@ -499,6 +508,133 @@ TEST(EngineTest, ActionsParserMultiple)
 
     auto parsed_actions = engine::parse_actions(doc, {});
     EXPECT_EQ(parsed_actions.size(), 2);
+}
+
+TEST(EngineTest, MockSubscriptorsUpdateRuleData)
+{
+    auto e{engine::create()};
+
+    mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*sub1, update_rule_data(_)).WillRepeatedly(Return(true));
+
+    mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*sub2, update_rule_data(_)).WillRepeatedly(Return(true));
+
+    e->subscribe(sub1);
+    e->subscribe(sub2);
+
+    parameter_view pv;
+    e->update_rule_data(pv);
+}
+
+TEST(EngineTest, MockSubscriptorsInvalidRuleData)
+{
+    auto e{engine::create()};
+
+    mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*sub1, update_rule_data(_)).WillRepeatedly(Return(false));
+
+    mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*sub2, update_rule_data(_)).WillRepeatedly(Return(false));
+
+    e->subscribe(sub1);
+    e->subscribe(sub2);
+
+    parameter_view pv;
+
+    // All subscribers should be called regardless of failures
+    e->update_rule_data(pv);
+}
+
+TEST(EngineTest, WafSubscriptorUpdateRuleData)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    {
+        auto rule_data = json_to_parameter(
+            R"([{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}])");
+        parameter_view rule_data_view(rule_data);
+        e->update_rule_data(rule_data_view);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->events.size(), 1);
+    }
+
+    {
+        auto rule_data = json_to_parameter(
+            R"([{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.2","expiration":"9999999999"}]}])");
+        parameter_view rule_data_view(rule_data);
+        e->update_rule_data(rule_data_view);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+}
+
+TEST(EngineTest, WafSubscriptorInvalidRuleData)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    {
+        auto rule_data = json_to_parameter(
+            R"({"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]})");
+        parameter_view rule_data_view(rule_data);
+        e->update_rule_data(rule_data_view);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
 }
 
 } // namespace dds

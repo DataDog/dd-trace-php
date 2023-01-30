@@ -6,6 +6,7 @@
 #pragma once
 
 #include "parameter_view.hpp"
+#include <rapidjson/document.h>
 #include <string>
 
 namespace dds {
@@ -43,4 +44,7 @@ protected:
 };
 
 std::string parameter_to_json(const dds::parameter_view &pv);
+dds::parameter json_to_parameter(const rapidjson::Document &doc);
+dds::parameter json_to_parameter(std::string_view json);
+
 } // namespace dds

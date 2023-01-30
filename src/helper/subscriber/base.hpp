@@ -51,8 +51,10 @@ public:
     subscriber(subscriber &&) = delete;
     subscriber &operator=(subscriber &&) = delete;
 
+    virtual std::string_view get_name() = 0;
     virtual std::vector<std::string_view> get_subscriptions() = 0;
     virtual listener::ptr get_listener() = 0;
+    virtual bool update_rule_data(parameter_view &data) = 0;
 };
 
 } // namespace dds

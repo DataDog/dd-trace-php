@@ -94,6 +94,8 @@ public:
     context get_context() { return context{*this}; }
     void subscribe(const subscriber::ptr &sub);
 
+    void update_rule_data(parameter_view &data);
+
     // Only exposed for testing purposes
     template <typename T,
         typename = std::enable_if_t<std::disjunction_v<
@@ -110,6 +112,7 @@ protected:
 
     static const action_map default_actions;
 
+    std::vector<subscriber::ptr> subscribers_;
     subscription_map subscriptions_;
     rate_limiter limiter_;
     action_map actions_;

@@ -61,9 +61,13 @@ public:
     instance &operator=(instance &&) noexcept;
     ~instance() override;
 
+    std::string_view get_name() override { return "waf"sv; }
+
     std::vector<std::string_view> get_subscriptions() override;
 
     listener::ptr get_listener() override;
+
+    bool update_rule_data(parameter_view &data) override;
 
     static ptr from_settings(const engine_settings &settings,
         const engine_ruleset &ruleset,

@@ -22,65 +22,6 @@
 
 namespace {
 
-// TODO: actually, we should limit the recursion
-// NOLINTNEXTLINE(misc-no-recursion)
-template <typename T> void json_to_object(ddwaf_object *object, T &doc)
-{
-    switch (doc.GetType()) {
-    case rapidjson::kFalseType:
-        ddwaf_object_stringl(object, "false", sizeof("false") - 1);
-        break;
-    case rapidjson::kTrueType:
-        ddwaf_object_stringl(object, "true", sizeof("true") - 1);
-        break;
-    case rapidjson::kObjectType: {
-        ddwaf_object_map(object);
-        for (auto &kv : doc.GetObject()) {
-            ddwaf_object element;
-            json_to_object(&element, kv.value);
-
-            std::string_view key = kv.name.GetString();
-            ddwaf_object_map_addl(object, key.data(), key.length(), &element);
-        }
-        break;
-    }
-    case rapidjson::kArrayType: {
-        ddwaf_object_array(object);
-        for (auto &v : doc.GetArray()) {
-            ddwaf_object element;
-            json_to_object(&element, v);
-
-            ddwaf_object_array_add(object, &element);
-        }
-        break;
-    }
-    case rapidjson::kStringType: {
-        std::string_view str = doc.GetString();
-        ddwaf_object_stringl(object, str.data(), str.size());
-        break;
-    }
-    case rapidjson::kNumberType: {
-        if (doc.IsInt64()) {
-            ddwaf_object_signed(object, doc.GetInt64());
-        } else if (doc.IsUint64()) {
-            ddwaf_object_unsigned(object, doc.GetUint64());
-        }
-        break;
-    }
-    case rapidjson::kNullType:
-    default:
-        ddwaf_object_invalid(object);
-        break;
-    }
-}
-
-dds::parameter json_to_object(const rapidjson::Document &doc)
-{
-    dds::parameter obj;
-    json_to_object(obj, doc);
-    return obj;
-}
-
 dds::subscriber::event format_waf_result(ddwaf_result &res)
 {
     dds::subscriber::event output;
@@ -325,6 +266,11 @@ instance::listener::ptr instance::get_listener()
         ddwaf_context_init(handle_), waf_timeout_, ruleset_version_));
 }
 
+bool instance::update_rule_data(parameter_view &data)
+{
+    return ddwaf_update_rule_data(handle_, data) == DDWAF_OK;
+}
+
 std::vector<std::string_view> instance::get_subscriptions()
 {
     uint32_t size;
@@ -340,7 +286,7 @@ instance::ptr instance::from_settings(const engine_settings &settings,
     std::map<std::string_view, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
-    dds::parameter param = json_to_object(ruleset.get_document());
+    dds::parameter param = json_to_parameter(ruleset.get_document());
     return std::make_shared<instance>(param, meta, metrics,
         settings.waf_timeout_us, settings.obfuscator_key_regex,
         settings.obfuscator_value_regex);
@@ -352,7 +298,7 @@ instance::ptr instance::from_string(std::string_view rule,
     std::string_view key_regex, std::string_view value_regex)
 {
     engine_ruleset ruleset{rule};
-    dds::parameter param = json_to_object(ruleset.get_document());
+    dds::parameter param = json_to_parameter(ruleset.get_document());
     return std::make_shared<instance>(
         param, meta, metrics, waf_timeout_us, key_regex, value_regex);
 }

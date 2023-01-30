@@ -4,15 +4,17 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
-#include <rapidjson/document.h>
+#include <ddwaf.h>
+#include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
-
 #include <string_view>
 
 #include "json_helper.hpp"
 #include "parameter.hpp"
 #include "parameter_view.hpp"
 #include "std_logging.hpp"
+
+using namespace std::literals;
 
 namespace dds {
 
@@ -82,6 +84,80 @@ std::string parameter_to_json(const parameter_view &pv)
     }
 
     return {};
+}
+
+// TODO: we should limit the recursion
+template <typename T,
+    typename = std::enable_if_t<std::disjunction_v<
+        std::is_same<rapidjson::Document, std::remove_cv_t<std::decay_t<T>>>,
+        std::is_same<rapidjson::Value, std::remove_cv_t<std::decay_t<T>>>>>>
+// NOLINTNEXTLINE(misc-no-recursion)
+void json_to_object(ddwaf_object *object, T &doc)
+{
+    switch (doc.GetType()) {
+    case rapidjson::kFalseType:
+        ddwaf_object_stringl(object, "false", sizeof("false") - 1);
+        break;
+    case rapidjson::kTrueType:
+        ddwaf_object_stringl(object, "true", sizeof("true") - 1);
+        break;
+    case rapidjson::kObjectType: {
+        ddwaf_object_map(object);
+        for (auto &kv : doc.GetObject()) {
+            ddwaf_object element;
+            json_to_object(&element, kv.value);
+
+            std::string_view key = kv.name.GetString();
+            ddwaf_object_map_addl(object, key.data(), key.length(), &element);
+        }
+        break;
+    }
+    case rapidjson::kArrayType: {
+        ddwaf_object_array(object);
+        for (auto &v : doc.GetArray()) {
+            ddwaf_object element;
+            json_to_object(&element, v);
+
+            ddwaf_object_array_add(object, &element);
+        }
+        break;
+    }
+    case rapidjson::kStringType: {
+        std::string_view str = doc.GetString();
+        ddwaf_object_stringl(object, str.data(), str.size());
+        break;
+    }
+    case rapidjson::kNumberType: {
+        if (doc.IsInt64()) {
+            ddwaf_object_signed(object, doc.GetInt64());
+        } else if (doc.IsUint64()) {
+            ddwaf_object_unsigned(object, doc.GetUint64());
+        }
+        break;
+    }
+    case rapidjson::kNullType:
+    default:
+        ddwaf_object_invalid(object);
+        break;
+    }
+}
+
+dds::parameter json_to_parameter(const rapidjson::Document &doc)
+{
+    dds::parameter obj;
+    json_to_object(obj, doc);
+    return obj;
+}
+
+dds::parameter json_to_parameter(std::string_view json)
+{
+    rapidjson::Document doc;
+    rapidjson::ParseResult result = doc.Parse(json.data());
+    if (result.IsError()) {
+        throw parsing_error("invalid json object: "s +
+                            rapidjson::GetParseError_En(result.Code()));
+    }
+    return json_to_parameter(doc);
 }
 
 } // namespace dds
