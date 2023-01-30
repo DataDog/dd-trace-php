@@ -62,6 +62,7 @@ tracer-base-image:
       allow_failure: true
   stage: deploy
   script:
+    - echo "PROJECT NAME------->>>>>>>>>>>>>>> $CI_PROJECT_NAME	"
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - ./tooling/ci/download-binary-php.sh dev
     - docker build -t ghcr.io/datadog/system-tests/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
