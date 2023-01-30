@@ -298,7 +298,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "2.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=8ca648160cd8112002ce14d390395e0bc9950a84#8ca648160cd8112002ce14d390395e0bc9950a84"
+source = "git+https://github.com/DataDog/libdatadog?rev=e3887c3addc202283d07dc80d0a4f3f0ce5f6931#e3887c3addc202283d07dc80d0a4f3f0ce5f6931"
 dependencies = [
  "anyhow",
  "bytes",
@@ -329,7 +329,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "2.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=8ca648160cd8112002ce14d390395e0bc9950a84#8ca648160cd8112002ce14d390395e0bc9950a84"
+source = "git+https://github.com/DataDog/libdatadog?rev=e3887c3addc202283d07dc80d0a4f3f0ce5f6931#e3887c3addc202283d07dc80d0a4f3f0ce5f6931"
 dependencies = [
  "anyhow",
  "futures",
