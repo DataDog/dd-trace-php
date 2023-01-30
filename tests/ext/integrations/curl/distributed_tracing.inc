@@ -10,7 +10,7 @@ function dt_decode_headers_from_httpbin($response)
     }
     $headers = [];
     foreach ($data['headers'] as $key => $value) {
-        $headers[strtolower($key)] = $value;
+        $headers[strtolower($key)] = mb_convert_encoding($value, 'ISO-8859-1', 'UTF-8');
     }
     return $headers;
 }

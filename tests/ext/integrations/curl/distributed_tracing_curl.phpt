@@ -11,7 +11,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH=25
 HTTP_X_DATADOG_ORIGIN=phpt-test
 HTTP_X_DATADOG_TAGS=_dd.p.very=looooooooooooooooong
-DD_PROPAGATION_STYLE_INJECT=B3,B3 single header,Datadog
+DD_PROPAGATION_STYLE_INJECT=B3,B3 single header,Datadog,tracecontext
 --FILE--
 <?php
 include 'curl_helper.inc';
@@ -38,6 +38,8 @@ dt_dump_headers_from_httpbin($headers, [
     'b3',
     'x-b3-traceid',
     'x-b3-spanid',
+    'traceparent',
+    'tracestate',
 ]);
 
 $spans = dd_trace_serialize_closed_spans();
@@ -53,6 +55,8 @@ echo 'Done.' . PHP_EOL;
 --EXPECTF--
 The to be propagated tag '_dd.p.very=looooooooooooooooong' is too long and exceeds the maximum limit of 25 characters and is thus dropped.
 b3: %s-%s-1
+traceparent: 00-%s-%s
+tracestate: dd=o:phpt-test
 x-b3-spanid: %s
 x-b3-traceid: %s
 x-datadog-origin: phpt-test

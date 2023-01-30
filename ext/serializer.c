@@ -35,7 +35,7 @@ extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_string_view span_type,
                                                zai_string_view resource);
 
-#define MAX_ID_BUFSIZ 21  // 1.8e^19 = 20 chars + 1 terminator
+#define MAX_ID_BUFSIZ 40  // 3.4e^38 = 39 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
@@ -434,7 +434,7 @@ void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     }
     ZEND_HASH_FOREACH_END();
 
-    ZVAL_STR(ddtrace_spandata_property_id(span), zend_strpprintf(DD_TRACE_MAX_ID_LEN, "%" PRIu64, span->span_id));
+    ZVAL_STR(ddtrace_spandata_property_id(span), ddtrace_span_id_as_string(span->span_id));
 }
 
 static const char *dd_get_req_uri() {
@@ -835,27 +835,20 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     el = &zv;
     array_init(el);
 
-    char trace_id_str[MAX_ID_BUFSIZ];
-    sprintf(trace_id_str, "%" PRIu64, span->trace_id);
-    add_assoc_string(el, KEY_TRACE_ID, trace_id_str);
-
-    char span_id_str[MAX_ID_BUFSIZ];
-    sprintf(span_id_str, "%" PRIu64, span->span_id);
-    add_assoc_string(el, KEY_SPAN_ID, span_id_str);
+    add_assoc_str(el, KEY_TRACE_ID, ddtrace_span_id_as_string(span->trace_id.low));
+    add_assoc_str(el, KEY_SPAN_ID, ddtrace_span_id_as_string(span->span_id));
 
     // handle dropped spans
     if (span->parent) {
         ddtrace_span_data *parent = span->parent;
         while (ddtrace_span_is_dropped(parent)) {
-            parent = span->parent;
+            parent = parent->parent;
         }
         span->parent_id = parent->span_id;
     }
 
     if (span->parent_id > 0) {
-        char parent_id_str[MAX_ID_BUFSIZ];
-        sprintf(parent_id_str, "%" PRIu64, span->parent_id);
-        add_assoc_string(el, KEY_PARENT_ID, parent_id_str);
+        add_assoc_str(el, KEY_PARENT_ID, ddtrace_span_id_as_string(span->parent_id));
     }
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);

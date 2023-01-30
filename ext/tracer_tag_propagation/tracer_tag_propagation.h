@@ -3,6 +3,7 @@
 
 #include <php.h>
 
+void ddtrace_clean_tracer_tags(void);
 void ddtrace_add_tracer_tags_from_header(zend_string *headerstr);
 void ddtrace_add_tracer_tags_from_array(zend_array *array);
 

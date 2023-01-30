@@ -158,22 +158,24 @@ function install($options)
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Installing to binary: $binaryForLog\n";
 
-        $phpMajorMinor = get_php_major_minor($fullPath);
-
         check_php_ext_prerequisite_or_exit($fullPath, 'json');
 
         $phpProperties = ini_values($fullPath);
         if (!isset($phpProperties[INI_SCANDIR])) {
             if (!isset($phpProperties[INI_MAIN])) {
-                print_error_and_exit("It is not possible to perform installation on this system " .
-                                    "because there is no scan directory and no configuration file loaded.");
+                print_error_and_exit(
+                    "It is not possible to perform installation on this "
+                    . "system because there is no scan directory and no "
+                    . "configuration file loaded."
+                );
             }
 
-            print_warning("Performing an installation without a scan directory may result in " .
-                        "fragile installations that are broken by normal system upgrades. " .
-                        "It is advisable to use the configure switch " .
-                        "--with-config-file-scan-dir " .
-                        "when building PHP");
+            print_warning(
+                "Performing an installation without a scan directory may "
+                . "result in fragile installations that are broken by normal "
+                . "system upgrades. It is advisable to use the configure "
+                . "switch --with-config-file-scan-dir when building PHP."
+            );
         }
 
         // Copying the extension
@@ -237,15 +239,15 @@ function install($options)
 
             $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
 
-            if (\strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
+            if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
                 /* debian based distros have INI folders split by SAPI, in a predefined way:
                  *   - <...>/cli/conf.d       <-- we know this from php -i
                  *   - <...>/apache2/conf.d   <-- we derive this from relative path
                  *   - <...>/fpm/conf.d       <-- we derive this from relative path
                  */
                 $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
-                if (\is_dir($apacheConfd)) {
-                    array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+                if (is_dir($apacheConfd)) {
+                    $iniFilePaths[] = "$apacheConfd/$iniFileName";
                 }
             }
         } else {
@@ -270,11 +272,14 @@ function install($options)
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to replace the deprecated ddtrace.request_init_hook parameter with the new name.',
-                    "sed -i 's|ddtrace.request_init_hook|datadog.trace.request_init_hook|g' " . escapeshellarg($iniFilePath)
+                    "sed -i 's|ddtrace.request_init_hook|datadog.trace.request_init_hook|g' "
+                    . escapeshellarg($iniFilePath)
                 );
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '" . escapeshellarg($installDirWrapperPath) . "'@g' " . escapeshellarg($iniFilePath)
+                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '"
+                    . escapeshellarg($installDirWrapperPath)
+                    . "'@g' " . escapeshellarg($iniFilePath)
                 );
                 // phpcs:enable Generic.Files.LineLength.TooLong
 
@@ -285,7 +290,7 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@ \?;\? \?extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    . escapeshellarg($iniFilePath)
                 );
 
 
@@ -293,7 +298,7 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@zend_extension \?= \?.*datadog-profiling.*\(.*\)@extension = datadog-profiling.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    . escapeshellarg($iniFilePath)
                 );
             }
 
@@ -309,11 +314,13 @@ function install($options)
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
                         "sed -i 's@ \?; \?extension \?= \?datadog-profiling.so@extension = datadog-profiling.so@g' "
-                            . escapeshellarg($iniFilePath)
+                        . escapeshellarg($iniFilePath)
                     );
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
-                    print_error_and_exit("Option --{$enableProfiling} was provided, but it is not supported on this PHP build or version.\n");
+                    print_error_and_exit(
+                        "Option --{$enableProfiling} was provided, but it is not supported on this PHP build or version.\n"
+                    );
                 }
                 // phpcs:enable Generic.Files.LineLength.TooLong
             }
@@ -325,20 +332,20 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    . escapeshellarg($iniFilePath)
                 );
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
                         "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
-                            . escapeshellarg($iniFilePath)
+                        . escapeshellarg($iniFilePath)
                     );
                 } else {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
                         "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
-                            . escapeshellarg($iniFilePath)
+                        . escapeshellarg($iniFilePath)
                     );
                 }
             } else {
@@ -346,12 +353,14 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@extension \?= \?ddappsec.so@;extension = ddappsec.so@g' "
-                        . escapeshellarg($iniFilePath)
+                    . escapeshellarg($iniFilePath)
                 );
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     $enableAppsec = OPT_ENABLE_APPSEC;
-                    print_error_and_exit("Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n");
+                    print_error_and_exit(
+                        "Option --{$enableAppsec} was provided, but it is not supported on this PHP build or version.\n"
+                    );
                 }
             }
             // phpcs:enable Generic.Files.LineLength.TooLong
@@ -415,21 +424,24 @@ function uninstall($options)
             $iniFileName = '98-ddtrace.ini';
             $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
 
-            if (\strpos('/cli/conf.d', $phpProperties[INI_SCANDIR]) >= 0) {
+            if (strpos('/cli/conf.d', $phpProperties[INI_SCANDIR]) >= 0) {
                 /* debian based distros have INI folders split by SAPI, in a predefined way:
                  *   - <...>/cli/conf.d       <-- we know this from php -i
                  *   - <...>/apache2/conf.d    <-- we derive this from relative path
                  *   - <...>/fpm/conf.d       <-- we derive this from relative path
                  */
                 $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
-                if (\is_dir($apacheConfd)) {
-                    array_push($iniFilePaths, "$apacheConfd/$iniFileName");
+                if (is_dir($apacheConfd)) {
+                    $iniFilePaths[] = "$apacheConfd/$iniFileName";
                 }
             }
         } else {
             if (!isset($phpProperties[INI_MAIN])) {
-                print_error_and_exit("It is not possible to perform uninstallation on this system " .
-                                    "because there is no scan directory and no configuration file loaded.");
+                print_error_and_exit(
+                    "It is not possible to perform uninstallation on this "
+                    . "system because there is no scan directory and no "
+                    . "configuration file loaded."
+                );
             }
 
             $iniFilePaths = [$phpProperties[INI_MAIN]];
@@ -523,9 +535,9 @@ function search_for_working_ldconfig()
     $search = function (&$path) {
         exec("find $path -name ldconfig", $found, $result);
 
-        if ($result == 0) {
-            return $path = \end($found);
-        }
+        return $result == 0
+            ? ($path = end($found))
+            : null;
     };
 
     /* searching individual paths is much faster than searching
@@ -537,8 +549,8 @@ function search_for_working_ldconfig()
     }
 
     /* probably won't get this far, but just in case */
-    foreach (\explode(":", \getenv("PATH")) as $path) {
-        if (\array_search($path, $paths) === false) {
+    foreach (explode(":", getenv("PATH")) as $path) {
+        if (!in_array($path, $paths)) {
             if ($search($path)) {
                 return $path;
             }
@@ -584,7 +596,7 @@ function check_library_prerequisite_or_exit($requiredLibrary)
  * Checks if an extension is enabled or not.
  *
  * @param string $binary
- * @param string $requiredLibrary E.g. json
+ * @param string $extName E.g. json
  * @return void
  */
 function check_php_ext_prerequisite_or_exit($binary, $extName)
@@ -607,7 +619,7 @@ function check_php_ext_prerequisite_or_exit($binary, $extName)
 function is_alpine()
 {
     $osInfoFile = '/etc/os-release';
-    // if /etc/os-release is not readable, we cannot tell and we assume NO
+    // if /etc/os-release is not readable then assume it's not alpine.
     if (!is_readable($osInfoFile)) {
         return false;
     }
@@ -629,7 +641,6 @@ function get_architecture()
 
 /**
  * Parses command line options provided by the user and generate a normalized $options array.
-
  * @return array
  */
 function parse_validate_user_options()
@@ -667,7 +678,7 @@ function parse_validate_user_options()
 
     $normalizedOptions = [];
 
-    $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]) ? true : false;
+    $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]);
 
     if (!$normalizedOptions[OPT_UNINSTALL]) {
         if (isset($options[OPT_FILE])) {
@@ -679,17 +690,15 @@ function parse_validate_user_options()
     }
 
     if (isset($options[OPT_PHP_BIN])) {
-        $normalizedOptions[OPT_PHP_BIN] =
-            is_array($options[OPT_PHP_BIN])
+        $normalizedOptions[OPT_PHP_BIN] = is_array($options[OPT_PHP_BIN])
             ? $options[OPT_PHP_BIN]
             : [$options[OPT_PHP_BIN]];
     }
 
-    $normalizedOptions[OPT_INSTALL_DIR] =
-        isset($options[OPT_INSTALL_DIR])
+    $normalizedOptions[OPT_INSTALL_DIR] = isset($options[OPT_INSTALL_DIR])
         ? rtrim($options[OPT_INSTALL_DIR], '/')
         : '/opt/datadog';
-    $normalizedOptions[OPT_INSTALL_DIR] =  $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
+    $normalizedOptions[OPT_INSTALL_DIR] = $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
 
     $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
     $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
@@ -715,6 +724,7 @@ function print_warning($message)
  * Given a certain set of available PHP binaries, let users pick in an interactive way the ones where the library
  * should be installed to.
  *
+ * @param array $options
  * @param array $php_binaries
  * @return array
  */
@@ -764,10 +774,11 @@ function execute_or_exit($exitMessage, $command)
     $lastLine = exec($command, $output, $returnCode);
     if (false === $lastLine || $returnCode > 0) {
         print_error_and_exit(
-            $exitMessage .
-                "\nFailed command (return code $returnCode): $command\n---- Output ----\n" .
-                implode("\n", $output) .
-                "\n---- End of output ----\n"
+            $exitMessage
+            . "\nFailed command (return code $returnCode): $command\n"
+            . "---- Output ----\n"
+            . implode("\n", $output)
+            . "\n---- End of output ----\n"
         );
     }
 
@@ -1010,7 +1021,7 @@ function search_php_binaries($prefix = '')
 function resolve_command_full_path($command)
 {
     $path = exec("command -v " . escapeshellarg($command));
-    if (false === $path || empty($path)) {
+    if (empty($path)) {
         // command is not defined
         return false;
     }
@@ -1068,8 +1079,7 @@ function add_missing_ini_settings($iniFilePath, $settings)
         }
 
         // Formatting the setting to be added.
-        $description =
-            is_string($setting['description'])
+        $description = is_string($setting['description'])
             ? '; ' . $setting['description']
             : implode(
                 "\n",
@@ -1089,14 +1099,6 @@ function add_missing_ini_settings($iniFilePath, $settings)
             print_error_and_exit("Cannot add additional settings to the INI file $iniFilePath");
         }
     }
-}
-
-function get_php_major_minor($binary)
-{
-    return execute_or_exit(
-        "Cannot read PHP version",
-        "$binary -v | grep -oE 'PHP [[:digit:]]+.[[:digit:]]+' | awk '{print \$NF}'"
-    );
 }
 
 /**
@@ -1152,6 +1154,12 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'default' => '1',
             'commented' => true,
             'description' => 'Enable the CPU profile type.',
+        ],
+        [
+            'name' => 'datadog.profiling.experimental_allocation_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the allocation profile type.',
         ],
         [
             'name' => 'datadog.profiling.log_level',
@@ -1485,7 +1493,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
                 'process. The extension always passes \'--lock_path - --socket_path fd:<int>\'',
                 'The arguments should be space separated. Both single and double quotes can',
                 'be used should an argument contain spaces. The backslash (\) can be used to',
-                'escape spaces, quotes, and the blackslash itself.',
+                'escape spaces, quotes, and the backslash itself.',
                 'Only relevant if ddappsec.helper_launch is enabled',
             ],
         ],

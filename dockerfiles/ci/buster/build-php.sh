@@ -5,6 +5,7 @@ TARGETPLATFORM=$1
 BASE_INSTALL_DIR=$2
 INSTALL_VERSION=$3
 PHP_VERSION=$4
+SHARED_BUILD=${5:-0}
 
 PHP_VERSION_ID=${PHP_VERSION:0:3}
 PHP_VERSION_ID=${PHP_VERSION_ID/./}
@@ -25,33 +26,42 @@ PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config \
 CC=$HOST_ARCH-linux-gnu-gcc \
 LIBS=-ldl \
 ${PHP_SRC_DIR}/configure \
-    --disable-phpdbg \
-    --enable-option-checking=fatal \
+    $(if [[ $SHARED_BUILD -ne 0 ]]; then echo \
+        --disable-all \
+        --enable-phpdbg \
+        --enable-pcntl=shared \
+        --enable-mbstring=shared \
+        $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-ffi=shared; fi) \
+        --without-pear \
+    ; else echo \
+        --disable-phpdbg \
+        --enable-ftp \
+        --enable-mbstring \
+        --enable-opcache \
+        --enable-pcntl \
+        --enable-sockets \
+        $(if [[ ${PHP_VERSION_ID} -le 73 ]]; then echo --enable-zip; fi) \
+        --with-curl \
+        $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-ffi; fi) \
+        --with-libedit \
+        $(if [[ ${PHP_VERSION_ID} -le 70 ]]; then echo --with-mcrypt; fi) \
+        --with-mhash \
+        --with-mysqli=mysqlnd \
+        --with-openssl \
+        --with-pdo-mysql=mysqlnd \
+        --with-pdo-pgsql \
+        --with-pdo-sqlite \
+        --with-pear \
+        --with-readline \
+        $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-zip; fi) \
+        --with-zlib \
+    ; fi) \
     --enable-cgi \
     --enable-embed \
     --enable-fpm \
-    --enable-ftp \
-    --enable-mbstring \
-    --enable-opcache \
-    --enable-pcntl \
-    --enable-sockets \
-    $(if [[ ${PHP_VERSION_ID} -le 73 ]]; then echo --enable-zip; fi) \
-    --with-curl \
-    $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-ffi; fi) \
     --with-fpm-user=www-data \
     --with-fpm-group=www-data \
-    --with-libedit \
-    $(if [[ ${PHP_VERSION_ID} -le 70 ]]; then echo --with-mcrypt; fi) \
-    --with-mhash \
-    --with-mysqli=mysqlnd \
-    --with-openssl \
-    --with-pdo-mysql=mysqlnd \
-    --with-pdo-pgsql \
-    --with-pdo-sqlite \
-    --with-pear \
-    --with-readline \
-    $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-zip; fi) \
-    --with-zlib \
+    --enable-option-checking=fatal \
     --program-prefix= \
     --host=$HOST_ARCH-linux-gnu \
     $(if [[ $INSTALL_VERSION == *debug* ]]; then echo --enable-debug; fi) \

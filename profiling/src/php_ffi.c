@@ -75,6 +75,12 @@ void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_vie
     }
 }
 
+void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
+    ZEND_ASSERT(dest);
+    ZVAL_LONG(dest, num);
+    return;
+}
+
 /**
  * Converts the zend_string pointer into a string view. Null pointers and
  * empty strings will be converted into a string view to a static empty

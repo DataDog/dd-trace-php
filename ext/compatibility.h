@@ -160,6 +160,16 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
         { (const char*)(zend_uintptr_t)(required_num_args), class_name, IS_OBJECT, return_reference, allow_null, 0 },
 
 typedef void zend_type;
+
+#include <Zend/zend_smart_str.h>
+static inline void smart_str_append_printf(smart_str *dest, const char *format, ...) {
+    va_list arg;
+    va_start(arg, format);
+    zend_string *str = vstrpprintf(0, format, arg);
+    va_end(arg);
+    smart_str_append(dest, str);
+    zend_string_release(str);
+}
 #endif
 
 #if PHP_VERSION_ID < 70100
