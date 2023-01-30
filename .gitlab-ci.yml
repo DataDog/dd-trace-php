@@ -55,8 +55,6 @@ tracer-base-image:
   extends: .ci_authenticated_job
   image: tiangolo/docker-with-compose
   tags: ["runner:docker"]
-  #only:
-  #  - schedules
   rules:
     - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc"'
       when: always
