@@ -49,9 +49,17 @@ client::ptr client::from_settings(const service_identifier &sid,
         return {};
     }
 
+    // TODO runtime_id will be send by the extension when the extension can get
+    // it from the profiler. When that happen, this wont be needed
+    auto sid_copy = sid;
+    if (sid_copy.runtime_id.empty()) {
+        sid_copy.runtime_id = generate_random_uuid();
+    }
+
     return std::make_unique<client>(std::make_unique<http_api>(settings.host,
                                         std::to_string(settings.port)),
-        sid, settings, std::move(products), std::move(capabilities));
+        std::move(sid_copy), settings, std::move(products),
+        std::move(capabilities));
 }
 
 [[nodiscard]] protocol::get_configs_request client::generate_request() const

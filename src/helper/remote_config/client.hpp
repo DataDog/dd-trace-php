@@ -50,6 +50,11 @@ public:
 
     virtual bool poll();
 
+    [[nodiscard]] const service_identifier &get_service_identifier()
+    {
+        return sid_;
+    }
+
 protected:
     [[nodiscard]] protocol::get_configs_request generate_request() const;
     bool process_response(const protocol::get_configs_response &response);

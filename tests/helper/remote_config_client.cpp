@@ -1295,6 +1295,34 @@ TEST_F(RemoteConfigClient, OneClickActivationIsSetAsCapability)
     EXPECT_STREQ("Ag==", capabilities->value.GetString());
 }
 
+TEST_F(RemoteConfigClient, RuntimeIdIsNotGeneratedIfProvided)
+{
+    const char *runtime_id = "runtime_id";
+    service_identifier sid = {
+        "service", "env", "tracer_version", "app_version", runtime_id};
+
+    settings.enabled = true;
+
+    auto client = remote_config::client::from_settings(sid, settings, {}, {});
+
+    EXPECT_STREQ(
+        runtime_id, client->get_service_identifier().runtime_id.c_str());
+}
+
+TEST_F(RemoteConfigClient, RuntimeIdIsGeneratedWhenNotProvided)
+{
+    const char *runtime_id = "";
+    service_identifier sid = {
+        "service", "env", "tracer_version", "app_version", runtime_id};
+
+    settings.enabled = true;
+
+    auto client = remote_config::client::from_settings(sid, settings, {}, {});
+
+    EXPECT_FALSE(client->get_service_identifier().runtime_id.empty());
+    EXPECT_TRUE(sid.runtime_id.empty());
+}
+
 /*
 TEST_F(RemoteConfigClient, TestAgainstDocker)
 {
