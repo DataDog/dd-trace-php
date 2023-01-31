@@ -150,7 +150,7 @@ class LaravelIntegration extends Integration
                 $span->name = 'laravel.event.handle';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
-                $span->resource = $args[0];
+                $span->resource = is_object($args[0]) ? get_class($args[0]) : $args[0];
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
