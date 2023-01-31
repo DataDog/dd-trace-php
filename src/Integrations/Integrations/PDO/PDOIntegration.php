@@ -136,13 +136,15 @@ class PDOIntegration extends Integration
 
         // Driver-specific error message will be in the rest of the array
         // The spec suggests the error message to be at pos 2 only,
-        // but e.g. SQLServer doc states that the array can contain monre than 3 elements
+        // for ODBC: the SQLSTATE in [3] (but e.g. SQLServer doc states that the array can contain monre than 3 elements)
+        // for DBLIB: in [3] an OSerror (integer), in [4] a severity and optionally a string representation of the OSerror in [5].
         if (count($errorInfo) > 2) {
-            $span->meta[Tag::ERROR_MSG] .= '. Driver-specific error message: ' ;
-
+            $additionalInfo = [];
             for ($i = 2; $i < count($errorInfo); $i++) {
-                $span->meta[Tag::ERROR_MSG] .= $errorInfo[$i];
+                $additionalInfo[] = $errorInfo[$i];
             }
+
+            $span->meta[Tag::ERROR_MSG] .= '. Driver-specific error data: ' . implode('. ', $additionalInfo);
         }
 
         $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
