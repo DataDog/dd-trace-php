@@ -769,9 +769,9 @@ impl Profiler {
                     locals.last_cpu_time = Some(now);
                 }
 
-                let labels = self.message_labels();
+                let labels = Profiler::message_labels();
 
-                match self.send_sample(self.prepare_sample_message(
+                match self.send_sample(Profiler::prepare_sample_message(
                     frames,
                     SampleValues {
                         interrupt_count,
@@ -809,9 +809,9 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let labels = self.message_labels();
+                let labels = Profiler::message_labels();
 
-                match self.send_sample(self.prepare_sample_message(
+                match self.send_sample(Profiler::prepare_sample_message(
                     frames,
                     SampleValues {
                         alloc_size,
@@ -835,7 +835,7 @@ impl Profiler {
         }
     }
 
-    fn message_labels(&self) -> Vec<Label> {
+    fn message_labels() -> Vec<Label> {
         let mut labels = vec![];
         let gpc = unsafe { datadog_php_profiling_get_profiling_context };
         if let Some(get_profiling_context) = gpc {
@@ -855,7 +855,6 @@ impl Profiler {
     }
 
     fn prepare_sample_message(
-        &self,
         frames: Vec<ZendFrame>,
         samples: SampleValues,
         labels: &[Label],
@@ -927,5 +926,209 @@ impl Profiler {
                 sample_values,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::static_tags;
+    use log::LevelFilter;
+
+    fn get_frames() -> Vec<ZendFrame> {
+        vec![ZendFrame {
+            function: "foobar()".to_string(),
+            file: Some("foobar.php".to_string()),
+            line: 42,
+        }]
+    }
+
+    fn get_request_locals() -> RequestLocals {
+        RequestLocals {
+            env: None,
+            interrupt_count: AtomicU32::new(0),
+            last_cpu_time: None,
+            last_wall_time: Instant::now(),
+            profiling_enabled: true,
+            profiling_endpoint_collection_enabled: true,
+            profiling_experimental_cpu_time_enabled: false,
+            profiling_experimental_allocation_enabled: false,
+            profiling_log_level: LevelFilter::Off,
+            service: None,
+            tags: static_tags(),
+            uri: Box::new(AgentEndpoint::default()),
+            version: None,
+            vm_interrupt_addr: std::ptr::null_mut(),
+        }
+    }
+
+    fn get_samples() -> SampleValues {
+        SampleValues {
+            interrupt_count: 10,
+            wall_time: 20,
+            cpu_time: 30,
+            alloc_samples: 40,
+            alloc_size: 50,
+        }
+    }
+
+    #[test]
+    fn profiler_prepare_sample_message_works_with_profiling_disabled() {
+        // the `Profiler::prepare_sample_message()` method will never be called with this setup,
+        // yet this is how it has to behave in case profiling is disabled
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = false;
+        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_experimental_cpu_time_enabled = false;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+
+        assert_eq!(message.key.sample_types, vec![]);
+        let expected: Vec<i64> = vec![];
+        assert_eq!(message.value.sample_values, expected);
+    }
+
+    #[test]
+    fn profiler_prepare_sample_message_works_with_profiling_enabled() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_experimental_cpu_time_enabled = false;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType {
+                    r#type: Cow::Borrowed("sample"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("wall-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+            ]
+        );
+        assert_eq!(message.value.sample_values, vec![10, 20]);
+    }
+
+    #[test]
+    fn profiler_prepare_sample_message_works_with_cpu_time() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_experimental_cpu_time_enabled = true;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType {
+                    r#type: Cow::Borrowed("sample"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("wall-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("cpu-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+            ]
+        );
+        assert_eq!(message.value.sample_values, vec![10, 20, 30]);
+    }
+
+    #[test]
+    fn profiler_prepare_sample_message_works_with_allocations() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_experimental_allocation_enabled = true;
+        locals.profiling_experimental_cpu_time_enabled = false;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType {
+                    r#type: Cow::Borrowed("sample"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("wall-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("alloc-samples"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("alloc-size"),
+                    unit: Cow::Borrowed("bytes"),
+                },
+            ]
+        );
+        assert_eq!(message.value.sample_values, vec![10, 20, 40, 50]);
+    }
+
+    #[test]
+    fn profiler_prepare_sample_message_works_with_allocations_and_cpu_time() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_experimental_allocation_enabled = true;
+        locals.profiling_experimental_cpu_time_enabled = true;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType {
+                    r#type: Cow::Borrowed("sample"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("wall-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("alloc-samples"),
+                    unit: Cow::Borrowed("count"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("alloc-size"),
+                    unit: Cow::Borrowed("bytes"),
+                },
+                ValueType {
+                    r#type: Cow::Borrowed("cpu-time"),
+                    unit: Cow::Borrowed("nanoseconds"),
+                },
+            ]
+        );
+        assert_eq!(message.value.sample_values, vec![10, 20, 40, 50, 30]);
     }
 }
