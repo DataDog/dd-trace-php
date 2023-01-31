@@ -208,7 +208,7 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error message: You have an error in your SQL syntax')
+                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error data: You have an error in your SQL syntax')
                 ->withExactTags($this->baseTags()),
             SpanAssertion::exists('PDO.commit'),
         ]);
@@ -271,7 +271,7 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error message: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\'')
+                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error data: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\'')
                 ->withExactTags($this->baseTags()),
         ]);
     }
