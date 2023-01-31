@@ -17,4 +17,3 @@ elif [ $VERSION = 'prod' ]; then
 else
     echo "Don't know how to load version $VERSION for $TARGET"
 fi
-  
