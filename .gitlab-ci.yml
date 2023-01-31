@@ -14,6 +14,8 @@ variables:
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 .ci_authenticated_job:
+  image: tiangolo/docker-with-compose
+  tags: ["runner:docker"]
   before_script:
     - apk add bash jq git unzip curl
     - pip install pyyaml awscli
@@ -52,8 +54,6 @@ deploy_to_reliability_env:
 
 tracer-base-image:
   extends: .ci_authenticated_job
-  image: tiangolo/docker-with-compose
-  tags: ["runner:docker"]
   rules:
     - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc"'
       when: always
