@@ -2107,11 +2107,6 @@ jobs:
           name: Clone System Tests repo
           command: git clone https://github.com/DataDog/system-tests.git
       - run:
-          name: Checkout Experimental System Testing Branch
-          command: |
-            cd system-tests
-            git checkout zach/headers-parametric-w3c
-      - run:
           name: Copy .tar.gz file to system test binaries folder
           command: |
             ls -la build/packages
