@@ -51,7 +51,6 @@ tracer-base-image:
     - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc"'
       when: always
     - when: manual
-      allow_failure: true
   stage: deploy
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
