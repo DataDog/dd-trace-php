@@ -47,12 +47,16 @@ $ docker-compose run --rm 7.3-buster bash
 $ docker-compose run --rm 7.4-buster bash
 # For 8.0
 $ docker-compose run --rm 8.0-buster bash
+# For 8.1
+$ docker-compose run --rm 8.1-buster bash
+# For 8.2
+$ docker-compose run --rm 8.2-buster bash
 ```
 
 > :memo: **Note:** To run the container in debug mode, pass `docker-compose` an environment variable: `DD_TRACE_DOCKER_DEBUG=1`, eg:
 
 ```bash
-docker-compose run --rm 8.0-buster -e DD_TRACE_DOCKER_DEBUG=1 bash
+docker-compose run --rm 8.2-buster -e DD_TRACE_DOCKER_DEBUG=1 bash
 ```
 
 #### Set up the container
