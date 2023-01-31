@@ -2153,12 +2153,12 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(find_active_exception, arginfo_ddtrace_void),
     DDTRACE_NS_FE(get_priority_sampling, arginfo_get_priority_sampling),
     DDTRACE_NS_FE(set_priority_sampling, arginfo_set_priority_sampling),
+    DDTRACE_NS_FE(extract_ip_from_headers, arginfo_extract_ip_from_headers),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
     DDTRACE_SUB_NS_FE("System\\", container_id, arginfo_ddtrace_void),
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
-    DDTRACE_SUB_NS_FE("Testing\\", extract_ip_from_headers, arginfo_extract_ip_from_headers),
     DDTRACE_FE_END};
 
 static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard")

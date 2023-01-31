@@ -4,11 +4,10 @@ Extract client IP address (ip header set)
 datadog.trace.client_ip_header=foo-Bar
 --FILE--
 <?php
-use function DDTrace\Testing\extract_ip_from_headers;
 
 function test($header, $value) {
     echo "$header: $value\n";
-    $res = extract_ip_from_headers(['HTTP_' . strtoupper($header) => $value]);
+    $res = DDTrace\extract_ip_from_headers(['HTTP_' . strtoupper($header) => $value]);
     if (array_key_exists('http.client_ip', $res)) {
         var_dump($res['http.client_ip']);
     } else {
@@ -23,7 +22,7 @@ test('foo_bar', 'for=::1, for=[::ffff:1.1.1.1]:8888');
 test('foo_bar', '10.0.0.1');
 
 echo "unused remote address fallback: 8.8.8.8\n";
-var_dump(extract_ip_from_headers(['REMOTE_ADDR' => '8.8.8.8']));
+var_dump(DDTrace\extract_ip_from_headers(['REMOTE_ADDR' => '8.8.8.8']));
 
 ?>
 --EXPECTF--

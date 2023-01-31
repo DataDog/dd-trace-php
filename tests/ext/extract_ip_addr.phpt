@@ -2,11 +2,10 @@
 Extract client IP address (no ip header set)
 --FILE--
 <?php
-use function DDTrace\Testing\extract_ip_from_headers;
 
 function test($header, $value) {
     echo "$header: $value\n";
-    $res = extract_ip_from_headers(['HTTP_' . strtoupper($header) => $value]);
+    $res = DDTrace\extract_ip_from_headers(['HTTP_' . strtoupper($header) => $value]);
     if (array_key_exists('http.client_ip', $res)) {
         var_dump($res['http.client_ip']);
     } else {
@@ -74,7 +73,7 @@ test('via', '2001:abcf:1f::55');
 test('true_client_ip', '8.8.8.8');
 
 echo "remote address fallback: 8.8.8.8\n";
-var_dump(extract_ip_from_headers(['REMOTE_ADDR' => '8.8.8.8'])['http.client_ip']);
+var_dump(DDTrace\extract_ip_from_headers(['REMOTE_ADDR' => '8.8.8.8'])['http.client_ip']);
 
 ?>
 --EXPECTF--
