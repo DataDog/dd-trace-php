@@ -82,15 +82,17 @@ void ddtrace_free_span_stacks(bool silent) {
                     span = span->parent;
                 }
 
-                stack->active = span;
-                if (span) {
-                    GC_ADDREF(&span->std);
-                } else {
-                    ZVAL_NULL(&stack->property_active);
-                }
+                stack->active = NULL;
+                ZVAL_NULL(&stack->property_active);
 
                 // drop the active span last, it holds the start of the span "chain" of parents which each hold a ref to the next
                 dd_drop_span(active_span, silent);
+            } else if (stack->active) {
+                ddtrace_span_data *parent_span = stack->active;
+                stack->active = NULL;
+                stack->root_span = NULL;
+                ZVAL_NULL(&stack->property_active);
+                OBJ_RELEASE(&parent_span->std);
             }
 
             dd_free_span_ring(stack->closed_ring);
