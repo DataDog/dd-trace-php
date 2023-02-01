@@ -229,9 +229,15 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
 
 static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
 
+static void _rinit_once()
+{
+    dd_config_first_rinit();
+    dd_request_abort_rinit_once();
+}
+
 static PHP_RINIT_FUNCTION(ddappsec)
 {
-    pthread_once(&_rinit_once_control, dd_config_first_rinit);
+    pthread_once(&_rinit_once_control, _rinit_once);
     zai_config_rinit();
 
     //_check_enabled should be run only once. However, pthread_once approach
@@ -352,6 +358,8 @@ int dd_appsec_rshutdown()
                 "request_shutdown failed with dd_network; closing "
                 "connection to helper");
             dd_helper_close_conn();
+        } else if (res == dd_should_block) {
+            dd_request_abort_static_page();
         } else if (res) {
             mlog_g(dd_log_info, "request shutdown failed: %s",
                 dd_result_to_string(res));

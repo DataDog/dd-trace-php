@@ -8,6 +8,7 @@
 #include "ddtrace.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
+#include "src/extension/request_abort.h"
 #include "tags.h"
 #include <ext/standard/base64.h>
 
@@ -308,6 +309,65 @@ static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
 static void _add_appsec_span_data_frag(mpack_node_t node);
 static void _set_appsec_span_data(mpack_node_t node);
 
+static void _command_process_block_parameters(mpack_node_t root)
+{
+    int status_code = DEFAULT_RESPONSE_CODE;
+    dd_response_type type = DEFAULT_RESPONSE_TYPE;
+
+    int expected_nodes = 2;
+    size_t count = mpack_node_map_count(root);
+    for (size_t i = 0; i < count && expected_nodes > 0; i++) {
+        mpack_node_t key = mpack_node_map_key_at(root, i);
+        mpack_node_t value = mpack_node_map_value_at(root, i);
+
+        if (mpack_node_type(key) != mpack_type_str) {
+            mlog(dd_log_warning,
+                "Failed to add response parameter: invalid type for key");
+            continue;
+        }
+        if (mpack_node_type(value) != mpack_type_str) {
+            mlog(dd_log_warning,
+                "Failed to add response parameter: invalid type for value");
+            continue;
+        }
+
+        if (dd_mpack_node_lstr_eq(key, "status_code")) {
+            size_t code_len = mpack_node_strlen(value);
+            if (code_len != 3) {
+                mlog(dd_log_warning, "Invalid http status code received %.*s",
+                    (int)code_len, mpack_node_str(value));
+                continue;
+            }
+
+            char code_str[4] = {0};
+            memcpy(code_str, mpack_node_str(value), 3);
+
+            const int base = 10;
+            long parsed_value = strtol(code_str, NULL, base);
+            // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+            if (parsed_value > 99 && parsed_value < 1000) {
+                status_code = (int)parsed_value;
+            }
+            --expected_nodes;
+        } else if (dd_mpack_node_lstr_eq(key, "type")) {
+            if (dd_mpack_node_lstr_eq(value, "json")) {
+                type = response_type_json;
+            } else if (dd_mpack_node_lstr_eq(value, "html")) {
+                type = response_type_html;
+            } else if (dd_mpack_node_lstr_eq(value, "auto")) {
+                type = response_type_auto;
+            } else {
+                mlog(dd_log_warning, "Invalid http content-type received %.*s",
+                    (int)mpack_node_strlen(value), mpack_node_str(value));
+                continue;
+            }
+            --expected_nodes;
+        }
+    }
+
+    dd_set_response_code_and_type(status_code, type);
+}
+
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, ATTR_UNUSED void *unspecnull ctx)
 {
@@ -324,6 +384,11 @@ dd_result dd_command_proc_resp_verd_span_data(
     }
 
     bool should_block = dd_mpack_node_lstr_eq(verdict, "block");
+    // Parse parameters
+    if (should_block) {
+        _command_process_block_parameters(mpack_node_array_at(root, 1));
+    }
+
     if (should_block || dd_mpack_node_lstr_eq(verdict, "record")) {
         _set_appsec_span_data(mpack_node_array_at(root, 2));
     }
