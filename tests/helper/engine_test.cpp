@@ -516,9 +516,15 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
 
     mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub1, update_rule_data(_)).WillRepeatedly(Return(true));
+    EXPECT_CALL(*sub1, get_subscriptions())
+        .WillRepeatedly(Return(std::vector<std::string_view>()));
+    EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
 
     mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub2, update_rule_data(_)).WillRepeatedly(Return(true));
+    EXPECT_CALL(*sub2, get_subscriptions())
+        .WillRepeatedly(Return(std::vector<std::string_view>()));
+    EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
 
     e->subscribe(sub1);
     e->subscribe(sub2);
@@ -533,9 +539,15 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 
     mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub1, update_rule_data(_)).WillRepeatedly(Return(false));
+    EXPECT_CALL(*sub1, get_subscriptions())
+        .WillRepeatedly(Return(std::vector<std::string_view>()));
+    EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
 
     mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub2, update_rule_data(_)).WillRepeatedly(Return(false));
+    EXPECT_CALL(*sub2, get_subscriptions())
+        .WillRepeatedly(Return(std::vector<std::string_view>()));
+    EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
 
     e->subscribe(sub1);
     e->subscribe(sub2);
