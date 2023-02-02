@@ -6,6 +6,8 @@ namespace DDTrace;
 
 require "Zend/zend_attributes.stub.php";
 
+// phpcs:disable Squiz.Functions.MultiLineFunctionDeclaration.Indent
+
 /**
  * If specified, this attribute ensures that all calls to that function are traced.
  */
@@ -29,8 +31,10 @@ final class Trace {
         string $type = "",
         string $service = "",
         array $tags = [],
+/* disable for now, until final decision on the API is taken
         bool|array $saveArgs = false,
         bool $saveReturn = false,
+*/
         bool $recurse = true,
         bool $run_if_limited = false
     ) {}

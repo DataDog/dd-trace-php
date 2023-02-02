@@ -12,7 +12,7 @@ include __DIR__ . '/sandbox/dd_dumper.inc';
 class Foo {
     #[DDTrace\Trace(name: "simplename", resource: "rsrc", type: "typeee", service: "test", tags: ["a" => "b", 1 => "ignored"])]
     static function simple($arg) {}
-
+/*
     #[DDTrace\Trace(saveArgs: ["foo"])]
     static function argRestricted($bar, $foo) {
         return 2;
@@ -22,6 +22,7 @@ class Foo {
     static function allArgs($bar, $foo) {
         return 2;
     }
+*/
 }
 
 #[DDTrace\Trace]
@@ -44,8 +45,10 @@ function noRecursion($i = 2) {
 }
 
 bar();
+/*
 Foo::argRestricted("foo", "bar");
 Foo::allArgs([[1, 2, []], 3, 4, 5, 6, true, null, "9!", false, 11, 12, 13], "bar", "additional");
+*/
 recursion();
 noRecursion();
 
@@ -53,20 +56,11 @@ dd_dump_spans();
 
 ?>
 --EXPECT--
-spans(\DDTrace\SpanData) (5) {
+spans(\DDTrace\SpanData) (3) {
   bar (traced_attribute.php, bar, cli)
     _dd.p.dm => -1
     simplename (test, rsrc, typeee)
       a => b
-  Foo.argRestricted (traced_attribute.php, Foo.argRestricted, cli)
-    arg.foo => bar
-    _dd.p.dm => -1
-  Foo.allArgs (traced_attribute.php, Foo.allArgs, cli)
-    arg.bar => [0 => [0 => '1', 1 => '2', 2 => [size 0][]], 1 => '3', 2 => '4', 3 => '5', 4 => '6', 5 => true, 6 => null, 7 => '9!', 8 => false, 9 => '11', ...]
-    arg.foo => bar
-    arg.2 => additional
-    return_value => 2
-    _dd.p.dm => -1
   recursion (traced_attribute.php, recursion, cli)
     _dd.p.dm => -1
     recursion (traced_attribute.php, recursion, cli)

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 92149a7e3aedf1da0726b9ab377e4de4872d0813 */
+ * Stub hash: f89e44d830bdaf827effa53dd5d7643c90974b11 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DDTrace_Trace___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, name, IS_STRING, 0, "\"\"")
@@ -7,8 +7,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DDTrace_Trace___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_STRING, 0, "\"\"")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, service, IS_STRING, 0, "\"\"")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, tags, IS_ARRAY, 0, "[]")
-	ZEND_ARG_TYPE_MASK(0, saveArgs, MAY_BE_BOOL|MAY_BE_ARRAY, "false")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, saveReturn, _IS_BOOL, 0, "false")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, recurse, _IS_BOOL, 0, "true")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, run_if_limited, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
