@@ -6,7 +6,10 @@ Extract client IP address (no ip header set)
 function test($header, $value) {
     echo "$header: $value\n";
     $res = DDTrace\extract_ip_from_headers(['HTTP_' . strtoupper($header) => $value]);
-    if (array_key_exists('http.client_ip', $res)) {
+    $resRaw = DDTrace\extract_ip_from_headers([strtr($header, "_", "-") => $value]);
+    if ($res !== $resRaw) {
+        var_dump($res, $resRaw);
+    } elseif (array_key_exists('http.client_ip', $res)) {
         var_dump($res['http.client_ip']);
     } else {
         echo "NULL\n";
@@ -103,12 +106,14 @@ string(7) "2001::1"
 
 x_forwarded_for: bad_value, 1.1.1.1
 Not recognized as IP address: "bad_value"
+Not recognized as IP address: "bad_value"
 string(7) "1.1.1.1"
 
 x_real_ip: 2.2.2.2
 string(7) "2.2.2.2"
 
 x_real_ip: 2.2.2.2, 3.3.3.3
+Not recognized as IP address: "2.2.2.2, 3.3.3.3"
 Not recognized as IP address: "2.2.2.2, 3.3.3.3"
 NULL
 
@@ -153,12 +158,14 @@ string(12) "2001:abcf::1"
 
 x_forwarded: for=some_host
 Not recognized as IP address: "some_host"
+Not recognized as IP address: "some_host"
 NULL
 
 x_forwarded: for=127.0.0.1, FOR=1.1.1.1
 string(7) "1.1.1.1"
 
 x_forwarded: for="\"foobar";proto=http,FOR="1.1.1.1"
+Not recognized as IP address: "\"foobar"
 Not recognized as IP address: "\"foobar"
 string(7) "1.1.1.1"
 

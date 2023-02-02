@@ -84,10 +84,8 @@ class RoadrunnerIntegration extends Integration
                     });
 
                     if (\dd_trace_env_config("DD_TRACE_CLIENT_IP_ENABLED")) {
-                        $res = \DDTrace\extract_ip_from_headers($headers);
-                        if (array_key_exists('http.client_ip', $res)) {
-                            $activeSpan->meta["http.client_ip"] = $res["http.client_ip"];
-                        }
+                        $res = \DDTrace\extract_ip_from_headers($headers + ['REMOTE_ADDR' => $retval->remoteAddr]);
+                        $activeSpan->meta += $res;
                     }
 
                     if (isset($headers["user-agent"])) {

@@ -115,16 +115,26 @@ void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta) {
     zend_string *ipheader = dd_get_ipheader(get_DD_TRACE_CLIENT_IP_HEADER());
     if (ipheader) {
         res = dd_try_extract_ip_from_custom_header(server, ipheader);
+        if (!res) {
+            res = dd_try_extract_ip_from_custom_header(server, get_DD_TRACE_CLIENT_IP_HEADER());
+        }
         zend_string_release(ipheader);
     } else {
         // Check for multiple XFF headers
         size_t final_len = 0;
         unsigned count = 0;
-        header_map_node *headers_found[ARRAY_SIZE(header_map)];
+        struct {
+            header_map_node *node;
+            zend_string *value;
+        } headers_found[ARRAY_SIZE(header_map)];
         for (unsigned i = 0; i < ARRAY_SIZE(header_map); i++) {
             zval *val = zend_hash_find(Z_ARR_P(server), header_map[i].key);
+            if (!val) {
+                val = zend_hash_find(Z_ARR_P(server), header_map[i].name);
+            }
             if (val && Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
-                headers_found[count++] = &header_map[i];
+                headers_found[count].node = &header_map[i];
+                headers_found[count++].value = Z_STR_P(val);
                 // Header size without HTTP_ and add a comma if necessary
                 final_len += ZSTR_LEN(header_map[i].name) + (count == 1 ? 0 : 1);
             }
@@ -132,25 +142,23 @@ void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta) {
 
         if (count == 1) {
             // Found a valid header, extract IP
-            header_map_node node = *headers_found[0];
-            res = dd_try_extract(server, node.key, node.parse_fn);
+            ipaddr out;
+            res = headers_found[0].node->parse_fn(headers_found[0].value, &out) ? dd_ipaddr_to_zstr(&out) : NULL;
         } else if (count > 1) {
             // Add headers to _dd.multiple-ip-headers
             smart_str ip_headers = {0};
             smart_str_alloc(&ip_headers, final_len, 0);
             for (unsigned i = 0; i < count; i++) {
-                header_map_node *node = headers_found[i];
+                header_map_node *node = headers_found[i].node;
 
                 if (i > 0) {
                     smart_str_appendc(&ip_headers, ',');
                 }
                 smart_str_appendl(&ip_headers, ZSTR_VAL(node->name), ZSTR_LEN(node->name));
 
-                // We know this will be a valid string value
-                zval *headerval = zend_hash_find(Z_ARR_P(server), node->key);
                 zend_string *headertag = zend_strpprintf(0, "http.request.headers.%s", ZSTR_VAL(node->name));
                 zval headerzv;
-                ZVAL_STR_COPY(&headerzv, Z_STR_P(headerval));
+                ZVAL_STR_COPY(&headerzv, headers_found[i].value);
                 zend_hash_update(meta, headertag, &headerzv);
                 zend_string_release(headertag);
             }
