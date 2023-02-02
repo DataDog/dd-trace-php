@@ -163,7 +163,7 @@ void ddtrace_open_span(ddtrace_span_data *span) {
 set_trace_id_from_span_id:
         span->trace_id = (ddtrace_trace_id){
             .low = span->span_id,
-            .high = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start : 0,
+            .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / 1000000000L : 0,
         };
     }
 

@@ -26,7 +26,7 @@ DDTrace\close_span();
 
 $spans = dd_trace_serialize_closed_spans();
 var_dump(!isset($spans[0]["meta"]["_dd.p.tid"]));
-var_dump(hexdec($spans[1]["meta"]["_dd.p.tid"]) == $spans[1]["start"]);
+var_dump(hexdec($spans[1]["meta"]["_dd.p.tid"]) == floor($spans[1]["start"] / 1000000000) * (1 << 32));
 
 ?>
 --EXPECT--
