@@ -105,7 +105,9 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                                 )->withExactTags([
                                     TAG::COMPONENT => 'lumen',
                                 ]),
+                                SpanAssertion::exists('laravel.event.handle'),
                             ]),
+                            SpanAssertion::exists('laravel.event.handle'),
                         ]),
                     ]),
                 ],
@@ -144,6 +146,8 @@ class CommonScenariosTest extends V5_2_CommonScenariosTest
                             'Laravel\Lumen\Application.sendExceptionToHandler'
                         )->withExactTags([
                             TAG::COMPONENT => 'lumen'
+                        ])->withChildren([
+                            SpanAssertion::exists('laravel.event.handle'),
                         ]),
                     ]),
                 ],
