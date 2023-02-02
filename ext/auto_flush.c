@@ -58,7 +58,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup) {
     return success ? SUCCESS : FAILURE;
 }
 
-
 DDTRACE_PUBLIC void ddtrace_close_all_spans_and_flush()
 {
     ddtrace_close_all_open_spans(true);
