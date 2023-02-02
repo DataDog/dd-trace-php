@@ -397,7 +397,7 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
-cbindgen: components/rust/ddtrace.h components/rust/telemetry.h
+cbindgen: components/rust/ddtrace.h components/rust/telemetry.h components/rust/telemetry.h
 	( \
 		cd libdatadog; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
@@ -407,26 +407,26 @@ cbindgen: components/rust/ddtrace.h components/rust/telemetry.h
 		cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/ddtrace.h $(PROJECT_ROOT)/components/rust/telemetry.h \
 	)
 
-components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs) libdatadog/ddcommon-ffi/cbindgen.toml
-	( \
-		cd libdatadog; \
-		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
-			--config ddcommon-ffi/cbindgen.toml \
-			--output $(PROJECT_ROOT)/$@; \
-	)
+# components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs) libdatadog/ddcommon-ffi/cbindgen.toml
+# 	( \
+# 		cd libdatadog; \
+# 		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
+# 			--config ddcommon-ffi/cbindgen.toml \
+# 			--output $(PROJECT_ROOT)/$@; \
+# 	)
 
-components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs) libdatadog/ddtelemetry-ffi/cbindgen.toml components/rust/common.h
-	( \
-		cd libdatadog; \
-		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
-			--config ddtelemetry-ffi/cbindgen.toml \
-			--output $(PROJECT_ROOT)/$@; \
-	)
+# components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs) libdatadog/ddtelemetry-ffi/cbindgen.toml components/rust/common.h
+# 	( \
+# 		cd libdatadog; \
+# 		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
+# 			--config ddtelemetry-ffi/cbindgen.toml \
+# 			--output $(PROJECT_ROOT)/$@; \
+# 	)
 
-components/rust/ddtrace.h: $(wildcard components/rust/*.rs) cbindgen.toml components/rust/common.h
-	$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
-		--config cbindgen.toml \
-		--output $(PROJECT_ROOT)/$@;
+# components/rust/ddtrace.h: $(wildcard components/rust/*.rs) cbindgen.toml components/rust/common.h
+# 	$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
+# 		--config cbindgen.toml \
+# 		--output $(PROJECT_ROOT)/$@;
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer

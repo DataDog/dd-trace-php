@@ -29,6 +29,7 @@ void ddtrace_telemetry_setup(void) {
     uint8_t formatted_run_time_id[36];
     ddtrace_format_runtime_id(formatted_run_time_id);
     ddog_CharSlice runtime_id = (ddog_CharSlice){ .ptr = (char *)formatted_run_time_id, .len = sizeof(formatted_run_time_id) };
+    // TODO: user proper session_id
     dd_telemetry_instance_id = ddog_sidecar_instanceId_build(runtime_id, runtime_id);
 
     dd_composer_hook_id = zai_hook_install(ZAI_STRING_EMPTY, ZAI_STRING_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);

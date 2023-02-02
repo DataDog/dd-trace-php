@@ -13,6 +13,7 @@
 
 typedef uint64_t ddog_QueueId;
 
+
 void ddog_MaybeError_drop(ddog_MaybeError);
 
 /**
@@ -36,105 +37,6 @@ ddog_MaybeError ddog_builder_instantiate_with_hostname(struct ddog_TelemetryWork
                                                        ddog_CharSlice language_version,
                                                        ddog_CharSlice tracer_version);
 
-ddog_MaybeError ddog_builder_with_application_service_version(struct ddog_TelemetryWorkerBuilder *builder,
-                                                              ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_application_env(struct ddog_TelemetryWorkerBuilder *builder,
-                                                  ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_application_runtime_name(struct ddog_TelemetryWorkerBuilder *builder,
-                                                           ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_application_runtime_version(struct ddog_TelemetryWorkerBuilder *builder,
-                                                              ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_application_runtime_patches(struct ddog_TelemetryWorkerBuilder *builder,
-                                                              ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_host_container_id(struct ddog_TelemetryWorkerBuilder *builder,
-                                                    ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_host_os(struct ddog_TelemetryWorkerBuilder *builder,
-                                          ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_host_kernel_name(struct ddog_TelemetryWorkerBuilder *builder,
-                                                   ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_host_kernel_release(struct ddog_TelemetryWorkerBuilder *builder,
-                                                      ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_host_kernel_version(struct ddog_TelemetryWorkerBuilder *builder,
-                                                      ddog_CharSlice param);
-
-ddog_MaybeError ddog_builder_with_runtime_id(struct ddog_TelemetryWorkerBuilder *builder,
-                                             ddog_CharSlice param);
-
-/**
- * Sets a property from it's string value.
- *
- * # Available properties:
- *
- * * application.service_version
- *
- * * application.env
- *
- * * application.runtime_name
- *
- * * application.runtime_version
- *
- * * application.runtime_patches
- *
- * * host.container_id
- *
- * * host.os
- *
- * * host.kernel_name
- *
- * * host.kernel_release
- *
- * * host.kernel_version
- *
- * * runtime_id
- *
- *
- */
-ddog_MaybeError ddog_builder_with_property(struct ddog_TelemetryWorkerBuilder *builder,
-                                           enum ddog_TelemetryWorkerBuilderProperty property,
-                                           ddog_CharSlice param);
-
-/**
- * Sets a property from it's string value.
- *
- * # Available properties:
- *
- * * application.service_version
- *
- * * application.env
- *
- * * application.runtime_name
- *
- * * application.runtime_version
- *
- * * application.runtime_patches
- *
- * * host.container_id
- *
- * * host.os
- *
- * * host.kernel_name
- *
- * * host.kernel_release
- *
- * * host.kernel_version
- *
- * * runtime_id
- *
- *
- */
-ddog_MaybeError ddog_builder_with_str_property(struct ddog_TelemetryWorkerBuilder *builder,
-                                               ddog_CharSlice property,
-                                               ddog_CharSlice param);
-
 ddog_MaybeError ddog_builder_with_native_deps(struct ddog_TelemetryWorkerBuilder *builder,
                                               bool include_native_deps);
 
@@ -151,33 +53,6 @@ ddog_MaybeError ddog_builder_with_config(struct ddog_TelemetryWorkerBuilder *bui
  */
 ddog_MaybeError ddog_builder_run(struct ddog_TelemetryWorkerBuilder *builder,
                                  struct ddog_TelemetryWorkerHandle **handle);
-
-ddog_MaybeError ddog_handle_add_dependency(const struct ddog_TelemetryWorkerHandle *handle,
-                                           ddog_CharSlice dependency_name,
-                                           ddog_CharSlice dependency_version);
-
-ddog_MaybeError ddog_handle_add_integration(const struct ddog_TelemetryWorkerHandle *handle,
-                                            ddog_CharSlice dependency_name,
-                                            ddog_CharSlice dependency_version,
-                                            struct ddog_Option_bool compatible,
-                                            struct ddog_Option_bool enabled,
-                                            struct ddog_Option_bool auto_enabled);
-
-ddog_MaybeError ddog_handle_add_log(const struct ddog_TelemetryWorkerHandle *handle,
-                                    ddog_CharSlice indentifier,
-                                    ddog_CharSlice message,
-                                    enum ddog_LogLevel level,
-                                    ddog_CharSlice stack_trace);
-
-ddog_MaybeError ddog_handle_start(const struct ddog_TelemetryWorkerHandle *handle);
-
-struct ddog_TelemetryWorkerHandle *ddog_handle_clone(const struct ddog_TelemetryWorkerHandle *handle);
-
-ddog_MaybeError ddog_handle_stop(const struct ddog_TelemetryWorkerHandle *handle);
-
-void ddog_handle_wait_for_shutdown(struct ddog_TelemetryWorkerHandle *handle);
-
-void ddog_handle_drop(struct ddog_TelemetryWorkerHandle *handle);
 
 /**
  * This creates Rust PlatformHandle<File> from supplied C std FILE object.
@@ -243,5 +118,38 @@ ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(ddog_TelemetryTransport 
                                                         const ddog_QueueId *queue_id,
                                                         const struct ddog_RuntimeMeta *runtime_meta,
                                                         ddog_CharSlice service_name);
+
+ddog_MaybeError ddog_sidecar_mock_start(struct ddog_MockServer **result);
+
+ddog_MaybeError ddog_sidecar_session_config_setAgentUrl(ddog_TelemetryTransport **transport,
+                                                        ddog_CharSlice session_id,
+                                                        ddog_CharSlice agent_url);
+
+ddog_MaybeError ddog_handle_add_dependency(const struct ddog_TelemetryWorkerHandle *handle,
+                                           ddog_CharSlice dependency_name,
+                                           ddog_CharSlice dependency_version);
+
+ddog_MaybeError ddog_handle_add_integration(const struct ddog_TelemetryWorkerHandle *handle,
+                                            ddog_CharSlice dependency_name,
+                                            ddog_CharSlice dependency_version,
+                                            struct ddog_Option_Bool compatible,
+                                            struct ddog_Option_Bool enabled,
+                                            struct ddog_Option_Bool auto_enabled);
+
+ddog_MaybeError ddog_handle_add_log(const struct ddog_TelemetryWorkerHandle *handle,
+                                    ddog_CharSlice indentifier,
+                                    ddog_CharSlice message,
+                                    enum ddog_LogLevel level,
+                                    ddog_CharSlice stack_trace);
+
+ddog_MaybeError ddog_handle_start(const struct ddog_TelemetryWorkerHandle *handle);
+
+struct ddog_TelemetryWorkerHandle *ddog_handle_clone(const struct ddog_TelemetryWorkerHandle *handle);
+
+ddog_MaybeError ddog_handle_stop(const struct ddog_TelemetryWorkerHandle *handle);
+
+void ddog_handle_wait_for_shutdown(struct ddog_TelemetryWorkerHandle *handle);
+
+void ddog_handle_drop(struct ddog_TelemetryWorkerHandle *handle);
 
 #endif /* DDOG_TELEMETRY_H */

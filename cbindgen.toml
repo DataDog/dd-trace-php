@@ -9,15 +9,20 @@ includes = ["common.h"]
 
 [export]
 prefix = "ddog_"
+renaming_overrides_prefixing = true
 
 [export.mangle]
-rename_types="SnakeCase"
+rename_types = "PascalCase"
+
+[export.rename]
+"ParseTagsResult" = "ddog_Vec_Tag_ParseResult"
+"PushTagResult" = "ddog_Vec_Tag_PushResult"
+"FILE" = "FILE"
 
 [enum]
 prefix_with_name = true
 rename_variants = "ScreamingSnakeCase"
 
 [parse]
-expand = ["ddtrace-php"]
 parse_deps = true
 include = ["ddcommon", "ddtelemetry", "ddcommon-ffi", "ddtelemetry-ffi"]
