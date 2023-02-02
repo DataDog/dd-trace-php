@@ -47,14 +47,15 @@ final class SpanChecker
                 $this->assertNode($actualGraph, $oneTrace, 'root', 'root');
             }
         } catch (\Exception $e) {
-            (function() use ($actualGraph) {
+            (function () use ($actualGraph) {
                 $this->message .= "\nReceived Spans graph:\n" . SpanChecker::dumpSpansGraph($actualGraph);
             })->call($e);
             throw $e;
         }
     }
 
-    public static function dumpSpansGraph(array $spansGraph, int $indent = 0) {
+    public static function dumpSpansGraph(array $spansGraph, int $indent = 0)
+    {
         $out = "";
         foreach ($spansGraph as $node) {
             $span = $node['span'];
