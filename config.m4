@@ -110,6 +110,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/handlers_internal.c \
     ext/handlers_pcntl.c \
     ext/integrations/integrations.c \
+    ext/ip_extraction.c \
     ext/logging.c \
     ext/memory_limit.c \
     ext/limiter/limiter.c \

@@ -132,6 +132,8 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false", .ini_change = zai_config_system_ini_change)     \
     CONFIG(STRING, DD_VERSION, "")                                                                             \
     CONFIG(STRING, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT) \
+    CONFIG(BOOL, DD_TRACE_CLIENT_IP_ENABLED, "false")                                                          \
+    CONFIG(STRING, DD_TRACE_CLIENT_IP_HEADER, "")                                                              \
     CONFIG(BOOL, DD_TRACE_FORKED_PROCESS, "true")                                                              \
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_INITIAL_SIZE, "131072", .ini_change = zai_config_system_ini_change)       \

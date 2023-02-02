@@ -41,6 +41,7 @@
 #include "excluded_modules.h"
 #include "handlers_internal.h"
 #include "integrations/integrations.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "limiter/limiter.h"
@@ -380,6 +381,10 @@ ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_extract_ip_from_headers, 0, 0, 1)
+ZEND_ARG_INFO(0, headers)
 ZEND_END_ARG_INFO()
 
 /* Legacy API */
@@ -741,6 +746,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
                        get_global_DD_TRACE_AGENT_STACK_BACKLOG());
 
     ddtrace_integrations_minit();
+    dd_ip_extraction_startup();
 
     return SUCCESS;
 }
@@ -2074,6 +2080,19 @@ static PHP_FUNCTION(find_active_exception) {
     }
 }
 
+static PHP_FUNCTION(extract_ip_from_headers) {
+    zval *arr;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &arr) == FAILURE) {
+        return;
+    }
+
+    zval meta;
+    array_init(&meta);
+    ddtrace_extract_ip_from_headers(arr, Z_ARR(meta));
+
+    RETURN_ARR(Z_ARR(meta));
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace, arginfo_dd_trace),  // Noop legacy API
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
@@ -2134,6 +2153,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(find_active_exception, arginfo_ddtrace_void),
     DDTRACE_NS_FE(get_priority_sampling, arginfo_get_priority_sampling),
     DDTRACE_NS_FE(set_priority_sampling, arginfo_set_priority_sampling),
+    DDTRACE_NS_FE(extract_ip_from_headers, arginfo_extract_ip_from_headers),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
