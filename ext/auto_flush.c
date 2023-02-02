@@ -7,7 +7,7 @@
 #include "serializer.h"
 #include "span.h"
 
-ZEND_RESULT_CODE ddtrace_flush_tracer() {
+DDTRACE_PUBLIC ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup) {
     bool success = true;
 
     zval trace, traces;
@@ -16,7 +16,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer() {
     // Prevent traces from requests not executing any PHP code:
     // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
     // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
-    if (PG(during_request_startup)) {
+    if (!force_on_startup && PG(during_request_startup)) {
         zend_array_destroy(Z_ARR(trace));
         return SUCCESS;
     }

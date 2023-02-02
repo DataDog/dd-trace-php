@@ -899,7 +899,7 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = true;
 
     ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
-    if (ddtrace_flush_tracer() == FAILURE) {
+    if (ddtrace_flush_tracer(false) == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
 
@@ -1796,7 +1796,7 @@ static PHP_FUNCTION(flush) {
     if (get_DD_AUTOFINISH_SPANS()) {
         ddtrace_close_userland_spans_until(NULL);
     }
-    if (ddtrace_flush_tracer() == FAILURE) {
+    if (ddtrace_flush_tracer(false) == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
     RETURN_NULL();
