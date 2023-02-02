@@ -13,7 +13,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup) {
     zval trace, traces;
     ddtrace_serialize_closed_spans(&trace);
 
-
     // Prevent traces from requests not executing any PHP code:
     // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
     // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
