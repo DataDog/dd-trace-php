@@ -1577,26 +1577,11 @@ static PHP_FUNCTION(close_spans_until) {
         RETURN_FALSE;
     }
 
-    ddtrace_span_data *until = untilzv ? (ddtrace_span_data *)Z_OBJ_P(untilzv) : NULL;
+    int closed_spans = ddtrace_close_userland_spans_until(untilzv ? (ddtrace_span_data *)Z_OBJ_P(untilzv) : NULL);
 
-    if (until) {
-        ddtrace_span_data *span = ddtrace_active_span();
-        while (span && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
-            span = span->parent;
-        }
-        if (span != until) {
-            RETURN_FALSE;
-        }
+    if (closed_spans == -1) {
+        RETURN_FALSE;
     }
-
-    int closed_spans = 0;
-    ddtrace_span_data *span;
-    while ((span = ddtrace_active_span()) && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
-        dd_trace_stop_span_time(span);
-        ddtrace_close_span(span);
-        ++closed_spans;
-    }
-
     RETURN_LONG(closed_spans);
 }
 
