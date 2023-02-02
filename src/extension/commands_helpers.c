@@ -387,6 +387,7 @@ dd_result dd_command_proc_resp_verd_span_data(
     // Parse parameters
     if (should_block) {
         _command_process_block_parameters(mpack_node_array_at(root, 1));
+        dd_tags_add_blocked();
     }
 
     if (should_block || dd_mpack_node_lstr_eq(verdict, "record")) {

@@ -24,6 +24,9 @@ bool dd_trace_root_span_add_tag(zend_string *nonnull tag, zval *nonnull value);
 bool dd_trace_root_span_add_tag_str(const char *nonnull tag, size_t tag_len,
     const char *nonnull value, size_t value_len);
 
+// Flush the tracer spans, can be used on RINIT
+void dd_trace_close_all_spans_and_flush(void);
+
 // Provides the array zval representing $root_span->meta, if any.
 // It is ready for modification, with refcount == 1
 zval *nullable dd_trace_root_span_get_meta(void);

@@ -22,7 +22,7 @@ RUN mkdir -p /helper_build &&                                                   
 		-DCMAKE_BUILD_TYPE=RelWithDebInfo                                                  \
 		-DDD_APPSEC_BUILD_EXTENSION=OFF                                                    \
 		-DCMAKE_INSTALL_PREFIX=/opt                                                        \
-		-DDD_APPSEC_INSTALL_RULES_FILE=/project/.github/workflows/release/recommended.json \
+		-DDD_APPSEC_INSTALL_RULES_FILE=/project/tests/docker/recommended.json \
 		-DCMAKE_TOOLCHAIN_FILE=/build/Toolchain.cmake                                      \
 		-DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON                                                \
 		/project &&                                                                        \

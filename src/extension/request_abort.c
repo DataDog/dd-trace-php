@@ -12,6 +12,7 @@
 #include "attributes.h"
 #include "configuration.h"
 #include "ddappsec.h"
+#include "ddtrace.h"
 #include "logging.h"
 #include "php_compat.h"
 #include "php_helpers.h"
@@ -265,6 +266,8 @@ static void _emit_error(const char *format, ...)
         }
     }
 
+    dd_trace_close_all_spans_and_flush();
+
     if ((PG(during_request_startup) &&
             strcmp(sapi_module.name, "fpm-fcgi") == 0)) {
         /* fpm children exit if we throw an error at this point. So emit only
@@ -327,17 +330,7 @@ static void _run_rshutdowns()
         if (found_ddappsec) {
             mlog_g(dd_log_debug, "Running RSHUTDOWN function for module %s",
                 module->name);
-            if (strcmp("ddtrace", module->name) == 0) {
-                // DDTrace prevents flushing traces during RINIT, so we need to
-                // trick into allowing it.
-                PG(during_request_startup) = 0;
-                module->request_shutdown_func(
-                    module->type, module->module_number);
-                PG(during_request_startup) = 1;
-            } else {
-                module->request_shutdown_func(
-                    module->type, module->module_number);
-            }
+            module->request_shutdown_func(module->type, module->module_number);
         }
     }
 }

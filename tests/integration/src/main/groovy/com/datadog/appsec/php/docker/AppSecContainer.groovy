@@ -103,7 +103,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         if (conn.doOutput) {
             conn.outputStream.close()
         }
-        conn.inputStream.close()
+        (conn.errorStream ?: conn.inputStream).close()
 
         Object trace = nextCapturedTrace()
         assert trace.size() == 1 && trace[0].size() == 1

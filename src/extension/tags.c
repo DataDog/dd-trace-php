@@ -18,6 +18,7 @@
 
 #define DD_TAG_DATA "_dd.appsec.json"
 #define DD_TAG_EVENT "appsec.event"
+#define DD_TAG_BLOCKED "appsec.blocked"
 #define DD_TAG_RUNTIME_FAMILY "_dd.runtime_family"
 #define DD_TAG_HTTP_METHOD "http.method"
 #define DD_TAG_HTTP_USER_AGENT "http.useragent"
@@ -41,6 +42,7 @@
 
 static zend_string *_dd_tag_data_zstr;
 static zend_string *_dd_tag_event_zstr;
+static zend_string *_dd_tag_blocked_zstr;
 static zend_string *_dd_tag_http_method_zstr;
 static zend_string *_dd_tag_http_user_agent_zstr;
 static zend_string *_dd_tag_http_status_code_zstr;
@@ -90,6 +92,8 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_DATA), 1 /* permanent */);
     _dd_tag_event_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_EVENT), 1 /* permanent */);
+    _dd_tag_blocked_zstr =
+        zend_string_init_interned(LSTRARG(DD_TAG_BLOCKED), 1 /* permanent */);
     _true_zstr = zend_string_init_interned(LSTRARG("true"), 1 /* permanent */);
     _false_zstr =
         zend_string_init_interned(LSTRARG("false"), 1 /* permanent */);
@@ -286,6 +290,18 @@ void dd_tags_add_tags()
         _set_sampling_priority(metrics_zv);
         mlog(dd_log_debug, "Added/updated metric %s",
             DD_METRIC_SAMPLING_PRIORITY);
+    }
+}
+
+void dd_tags_add_blocked()
+{
+    // tag appsec.blocked
+    zval true_zv;
+    ZVAL_STR_COPY(&true_zv, _true_zstr);
+    bool res = dd_trace_root_span_add_tag(_dd_tag_blocked_zstr, &true_zv);
+    if (!res) {
+        mlog(dd_log_info, "Failed adding tag " DD_TAG_BLOCKED " to root span");
+        return;
     }
 }
 

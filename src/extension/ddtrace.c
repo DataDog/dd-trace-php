@@ -29,6 +29,7 @@ static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS);
 static void _register_testing_objects(void);
 
 static bool (*nullable _ddtrace_root_span_add_tag)(zend_string *, zval *);
+static void (*nullable _ddtrace_close_all_spans_and_flush)();
 
 static void dd_trace_load_symbols(void)
 {
@@ -45,9 +46,18 @@ static void dd_trace_load_symbols(void)
     _ddtrace_root_span_add_tag = dlsym(handle, "ddtrace_root_span_add_tag");
     if (_ddtrace_root_span_add_tag == NULL && !testing) {
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        mlog(dd_log_error, "Failed to load _ddtrace_root_span_add_tag: %s",
+        mlog(dd_log_error, "Failed to load ddtrace_root_span_add_tag: %s",
             dlerror());
     }
+
+    _ddtrace_close_all_spans_and_flush =
+        dlsym(handle, "ddtrace_close_all_spans_and_flush");
+    if (_ddtrace_close_all_spans_and_flush == NULL && !testing) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        mlog(dd_log_error,
+            "Failed to load ddtrace_close_all_spans_and_flush: %s", dlerror());
+    }
+
     dlclose(handle);
 }
 
@@ -169,6 +179,17 @@ bool dd_trace_root_span_add_tag_str(const char *nonnull tag, size_t tag_len,
     }
 
     return true;
+}
+
+void dd_trace_close_all_spans_and_flush()
+{
+    if (UNEXPECTED(_ddtrace_close_all_spans_and_flush == NULL)) {
+        mlog_g(dd_log_debug,
+            "Skipping flushing tracer; ddtrace symbol unresolved");
+        return;
+    }
+
+    (*_ddtrace_close_all_spans_and_flush)();
 }
 
 static zval *nullable _root_span_get_prop(zend_string *propname);

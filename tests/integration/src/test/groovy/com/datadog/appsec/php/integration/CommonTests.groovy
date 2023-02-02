@@ -137,6 +137,24 @@ trait CommonTests {
         assertThat appsecJson, matchesJson(expJson, false, true)
     }
 
+   @Test
+    void 'test blocking'() {
+        def trace = container.traceFromRequest('/phpinfo.php') { HttpURLConnection conn ->
+            conn.setRequestProperty('X-Forwarded-For', '80.80.80.80')
+            assert conn.responseCode == 403
+
+            def content = (conn.errorStream ?: conn.inputStream).text
+            assert content.contains('blocked')
+        }
+        // assert sth about the trace
+
+        assert trace.metrics."_dd.appsec.enabled" == 1.0d
+        assert trace.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert trace.meta."_dd.appsec.event_rules.version" != ''
+        assert trace.meta."appsec.blocked" == "true"
+    }
+
+
     @Test
     void 'module does not have STATIC_TLS flag'() {
         Container.ExecResult res = container.execInContainer(
