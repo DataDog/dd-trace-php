@@ -44,9 +44,15 @@ typedef zend_ulong zai_install_address;
 /* {{{ zai_hook_install_resolved may only be executed during request
         this API requires no symbol names, or resolution, it may be used
         to associate a hook with anonymous symbols
-        ie. generators, closures, fibers */
+        i.e. generators, closures, fibers */
 zend_long zai_hook_install_resolved(zend_function *function,
         zai_hook_begin begin, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic); /* }}} */
+
+/* {{{ zai_hook_install_resolved_generator may only be executed during request
+        this API works similarly to zai_hook_install_resolved */
+zend_long zai_hook_install_resolved_generator(zend_function *function,
+        zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic); /* }}} */
 
 /* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
@@ -87,6 +93,7 @@ extern __thread HashTable zai_hook_resolved;
 
 #if PHP_VERSION_ID >= 80000
 extern void (*zai_hook_on_update)(zend_function *func, bool remove);
+extern void (*zai_hook_on_function_resolve)(zend_function *func);
 #endif
 
 typedef struct {

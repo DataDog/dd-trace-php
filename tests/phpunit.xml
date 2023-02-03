@@ -57,6 +57,10 @@
             <directory>./Integrations/Symfony/V5_2</directory>
             <directory>./Integrations/CLI/Symfony/V5_2</directory>
         </testsuite>
+        <testsuite name="symfony-62-test">
+            <directory>./Integrations/Symfony/V6_2</directory>
+            <directory>./Integrations/CLI/Symfony/V6_2</directory>
+        </testsuite>
         <testsuite name="custom-framework-autoloading-test">
             <directory>./Integrations/Custom/Autoloaded</directory>
             <directory>./Integrations/Custom/NotAutoloaded</directory>

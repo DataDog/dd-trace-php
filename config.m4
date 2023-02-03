@@ -69,7 +69,10 @@ if test "$PHP_DDTRACE" != "no"; then
     "
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
-    EXTRA_PHP_SOURCES="ext/handlers_curl.c"
+    EXTRA_PHP_SOURCES="\
+        ext/handlers_curl.c \
+        ext/hook/uhook_attributes.c \
+    "
     ZAI_RESOLVER_SUFFIX=""
 
     if test $PHP_VERSION_ID -lt 80200; then
@@ -110,6 +113,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/handlers_internal.c \
     ext/handlers_pcntl.c \
     ext/integrations/integrations.c \
+    ext/ip_extraction.c \
     ext/logging.c \
     ext/memory_limit.c \
     ext/limiter/limiter.c \

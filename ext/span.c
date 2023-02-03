@@ -82,15 +82,17 @@ void ddtrace_free_span_stacks(bool silent) {
                     span = span->parent;
                 }
 
-                stack->active = span;
-                if (span) {
-                    GC_ADDREF(&span->std);
-                } else {
-                    ZVAL_NULL(&stack->property_active);
-                }
+                stack->active = NULL;
+                ZVAL_NULL(&stack->property_active);
 
                 // drop the active span last, it holds the start of the span "chain" of parents which each hold a ref to the next
                 dd_drop_span(active_span, silent);
+            } else if (stack->active) {
+                ddtrace_span_data *parent_span = stack->active;
+                stack->active = NULL;
+                stack->root_span = NULL;
+                ZVAL_NULL(&stack->property_active);
+                OBJ_RELEASE(&parent_span->std);
             }
 
             dd_free_span_ring(stack->closed_ring);
@@ -118,7 +120,7 @@ void ddtrace_free_span_stacks(bool silent) {
 static uint64_t _get_nanoseconds(bool monotonic_clock) {
     struct timespec time;
     if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
-        return time.tv_sec * 1000000000L + time.tv_nsec;
+        return time.tv_sec * UINT64_C(1000000000) + time.tv_nsec;
     }
     return 0;
 }
@@ -140,6 +142,11 @@ void ddtrace_open_span(ddtrace_span_data *span) {
     // All open spans hold a ref to their stack
     ZVAL_OBJ_COPY(&span->property_stack, &stack->std);
 
+    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
+    // Start time is nanoseconds from unix epoch
+    // @see https://docs.datadoghq.com/api/?lang=python#send-traces
+    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+
     span->span_id = ddtrace_generate_span_id();
     // if not a root span or the true root span (distributed tracing)
     bool root_span = DDTRACE_G(active_stack)->root_span == NULL;
@@ -156,12 +163,9 @@ void ddtrace_open_span(ddtrace_span_data *span) {
 set_trace_id_from_span_id:
         span->trace_id = (ddtrace_trace_id){
             .low = span->span_id,
+            .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
         };
     }
-    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
-    // Start time is nanoseconds from unix epoch
-    // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
     ddtrace_span_data *parent_span = DDTRACE_G(active_stack)->active;
     ZVAL_OBJ(&DDTRACE_G(active_stack)->property_active, &span->std);
@@ -352,7 +356,7 @@ bool ddtrace_has_top_internal_span(ddtrace_span_data *end) {
     return false;
 }
 
-void ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
+void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until) {
     ddtrace_span_data *span;
     while ((span = until->stack->active) && span->stack == until->stack && span != until && span->type != DDTRACE_AUTOROOT_SPAN) {
         if (span->type == DDTRACE_INTERNAL_SPAN) {
@@ -370,6 +374,29 @@ void ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
             ddtrace_drop_span(span);
         }
     }
+}
+
+// may be called with NULL
+int ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
+    if (until) {
+        ddtrace_span_data *span = ddtrace_active_span();
+        while (span && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
+            span = span->parent;
+        }
+        if (span != until) {
+            return -1;
+        }
+    }
+
+    int closed_spans = 0;
+    ddtrace_span_data *span;
+    while ((span = ddtrace_active_span()) && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
+        dd_trace_stop_span_time(span);
+        ddtrace_close_span(span);
+        ++closed_spans;
+    }
+
+    return closed_spans;
 }
 
 static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
@@ -419,7 +446,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
             ddtrace_switch_span_stack(stack->parent_stack);
         }
 
-        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer() == FAILURE) {
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false) == FAILURE) {
             // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
@@ -436,7 +463,7 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         ddtrace_switch_span_stack(span->stack);
     }
 
-    ddtrace_close_userland_spans_until(span);
+    ddtrace_close_stack_userland_spans_until(span);
 
     ddtrace_close_top_span_without_stack_swap(span);
 }

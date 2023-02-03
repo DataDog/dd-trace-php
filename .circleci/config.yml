@@ -171,7 +171,7 @@ aliases:
           echo 'Fetching from remote repository'
           if [ -n "$CIRCLE_TAG" ]; then
             git fetch --force --tags origin
-          else
+          elif [ -z "$CIRCLE_PR_NUMBER" ]; then
             git fetch --force origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH"
           fi
         else
@@ -188,6 +188,9 @@ aliases:
           git reset --hard "$CIRCLE_SHA1"
         else
           echo 'Checking out branch'
+          if [ -n "$CIRCLE_PR_NUMBER" ]; then
+            git fetch --force origin "+refs/pull/${CIRCLE_PR_NUMBER}/head:refs/remotes/origin/$CIRCLE_BRANCH"
+          fi
           git checkout --force -B "$CIRCLE_BRANCH" "$CIRCLE_SHA1"
           git --no-pager log --no-color -n 1 --format='HEAD is now at %h %s'
         fi
@@ -2106,11 +2109,6 @@ jobs:
       - run:
           name: Clone System Tests repo
           command: git clone https://github.com/DataDog/system-tests.git
-      - run:
-          name: Checkout Experimental System Testing Branch
-          command: |
-            cd system-tests
-            git checkout zach/headers-parametric-w3c
       - run:
           name: Copy .tar.gz file to system test binaries folder
           command: |

@@ -82,6 +82,12 @@ class RoadrunnerIntegration extends Integration
                     \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($headers) {
                         return $headers[$headername] ?? null;
                     });
+
+                    if (\dd_trace_env_config("DD_TRACE_CLIENT_IP_ENABLED")) {
+                        $res = \DDTrace\extract_ip_from_headers($headers + ['REMOTE_ADDR' => $retval->remoteAddr]);
+                        $activeSpan->meta += $res;
+                    }
+
                     if (isset($headers["user-agent"])) {
                         $activeSpan->meta["http.useragent"] = $headers["user-agent"];
                     }
