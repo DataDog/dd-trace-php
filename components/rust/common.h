@@ -195,6 +195,8 @@ typedef struct ddog_Option_Bool {
   };
 } ddog_Option_Bool;
 
+typedef struct ddog_Arc_OwnedFd ddog_Arc_OwnedFd;
+
 /**
  * # Safety
  * Only pass null or a valid reference to a `ddog_Error`.

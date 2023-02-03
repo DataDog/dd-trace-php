@@ -13,7 +13,6 @@
 
 typedef uint64_t ddog_QueueId;
 
-
 void ddog_MaybeError_drop(ddog_MaybeError);
 
 /**
@@ -96,25 +95,25 @@ struct ddog_RuntimeMeta *ddog_sidecar_runtimeMeta_build(ddog_CharSlice language_
 void ddog_sidecar_runtimeMeta_drop(struct ddog_RuntimeMeta *meta);
 
 ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(ddog_TelemetryTransport **transport,
-                                                     struct ddog_InstanceId *instance_id,
+                                                     struct ddog_InstanceId *const *instance_id,
                                                      const ddog_QueueId *queue_id,
                                                      ddog_CharSlice config_key,
                                                      ddog_CharSlice config_value);
 
 ddog_MaybeError ddog_sidecar_telemetry_addDependency(ddog_TelemetryTransport **transport,
-                                                     const struct ddog_InstanceId *instance_id,
+                                                     struct ddog_InstanceId *const *instance_id,
                                                      const ddog_QueueId *queue_id,
                                                      ddog_CharSlice dependency_name,
                                                      ddog_CharSlice dependency_version);
 
 ddog_MaybeError ddog_sidecar_telemetry_addIntegration(ddog_TelemetryTransport **transport,
-                                                      const struct ddog_InstanceId *instance_id,
+                                                      struct ddog_InstanceId *const *instance_id,
                                                       const ddog_QueueId *queue_id,
                                                       ddog_CharSlice integration_name,
                                                       ddog_CharSlice integration_version);
 
 ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(ddog_TelemetryTransport **transport,
-                                                        const struct ddog_InstanceId *instance_id,
+                                                        struct ddog_InstanceId *const *instance_id,
                                                         const ddog_QueueId *queue_id,
                                                         const struct ddog_RuntimeMeta *runtime_meta,
                                                         ddog_CharSlice service_name);
