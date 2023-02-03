@@ -663,10 +663,8 @@ impl Profiler {
 
     pub fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
         let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
-        for (index, value) in vm_interrupts.iter().enumerate() {
-            if *value == interrupt {
-                return Err((index, interrupt));
-            }
+        if let Some(index) = vm_interrupts.iter().position(|v| v == &interrupt) {
+            return Err((index, interrupt))
         }
         vm_interrupts.push(interrupt);
         Ok(())
@@ -674,19 +672,12 @@ impl Profiler {
 
     pub fn remove_interrupt(&self, interrupt: VmInterrupt) -> Result<(), VmInterrupt> {
         let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
-        let mut offset = None;
-        for (index, value) in vm_interrupts.iter().enumerate() {
-            if *value == interrupt {
-                offset = Some(index);
-                break;
+        match vm_interrupts.iter().position(|v| v == &interrupt) {
+            None => Err(interrupt),
+            Some(index) => {
+                vm_interrupts.swap_remove(index);
+                Ok(())
             }
-        }
-
-        if let Some(index) = offset {
-            vm_interrupts.swap_remove(index);
-            Ok(())
-        } else {
-            Err(interrupt)
         }
     }
 
