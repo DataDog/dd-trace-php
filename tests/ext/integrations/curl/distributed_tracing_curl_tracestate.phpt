@@ -45,9 +45,9 @@ echo 'Done.' . PHP_EOL;
 --EXPECTF--
 b3: 12345678901234567890123456789012-6543210987654321-d
 traceparent: 00-12345678901234567890123456789012-6543210987654321-01
-tracestate: dd=o:phpt-test;s:2;t.test:qvalue;unknown1:val;unknown2:1,foo=bar:;=,baz=qux
+tracestate: dd=o:phpt-test;s:2;t.tid:1234567890123456;t.test:qvalue;unknown1:val;unknown2:1,foo=bar:;=,baz=qux
 x-datadog-origin: phpt-test
-x-datadog-tags: _dd.p.test=qvalue
+x-datadog-tags: _dd.p.tid=1234567890123456,_dd.p.test=qvalue
 bool(false)
 Done.
 No finished traces to be sent to the agent
