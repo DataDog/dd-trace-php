@@ -664,7 +664,7 @@ impl Profiler {
     pub fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
         let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
         if let Some(index) = vm_interrupts.iter().position(|v| v == &interrupt) {
-            return Err((index, interrupt))
+            return Err((index, interrupt));
         }
         vm_interrupts.push(interrupt);
         Ok(())
