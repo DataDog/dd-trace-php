@@ -56,7 +56,78 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-${notes}
+### Added
+- Add component tag #1834
+- Add W3C tracecontext propagation and propagate full 128 bit B3 headers #1856
+- Implement #[DDTrace\Trace] attribute #1867
+- Add 128-bit trace id generation and propagation via _dd.p.tid #1875
+- Allow IP Collection, disabled by default #1895
+- Add support for tracing Dispatched Events in Laravel 5.8+ #1897 (Thanks @ralphschindler)
+
+### Changed
+- Show error message when PDO returns an error #1839
+
+### Fixed
+- Make active_stack infallible: there always exists a stack #1883
+- Fix DDTrace\flush() with DD_AUTOFINISH_SPANS=1 #1892
+- Null the parent span of span stacks when resetting the tracer #1899
+
+### Internal changes
+- style(datadog-setup.php): reformat file #1869
+- refactor(datadog-setup.php): cleanup PhpStorm warnings #1870
+- Add test Wordpress 6.1 application #1884
+- Revert bogus revert commit #1888
+- Add apt update before fetching codecov dependencies #1893
+- Fix running CI in external PRs #1898
+- Add Symfony 6.2 testsuite #1900
+- Add exported function to close all spans and flush #1902, #1901
+
+## Profiling (0.13.0)
+
+This release adds new profile types: allocation size and allocations samples. They are off by default. Enable them with the environment variable DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=1 or INI setting datadog.profiling.experimental_allocation_enabled=1.
+
+### Added
+- Add allocation profiling beta #1815, #1865, #1874, #1878
+
+### Fixed
+- Do not send empty profile samples #1872, #1885
+
+### Changed
+- Bump profiling version for release #1879, #1881
+
+### Internal changes
+- docs: wall-time and cpu-time #1850
+- refactor: fix clippy::too_many_arguments #1871
+- tests: Add test for the fix in #1885 #1887
+
+## Application Security Monitoring (v0.6.0)
+
+#### Added
+- Add zai config DataDog/dd-appsec-php#114
+- Replace actor.ip with http.client_ip DataDog/dd-appsec-php#128
+- PHP 8.2RC support DataDog/dd-appsec-php#151
+- Generate IP on appsec DataDog/dd-appsec-php#155
+- Support PHP 8.2 Release DataDog/dd-appsec-php#166
+- Login and custom event SDK DataDog/dd-appsec-php#174
+- Update SDK with separate success/failure functions DataDog/dd-appsec-php#177
+
+### Fixed
+- Return error response in helper when incoming message can't be adequately handled DataDog/dd-appsec-php#120
+- Avoid creating log file as root DataDog/dd-appsec-php#124
+- Reset context on shutdown DataDog/dd-appsec-php#130
+- Handle errors on request_shutdown DataDog/dd-appsec-php#132
+- Avoid regenerating ip when multiple headers are already present DataDog/dd-appsec-php#170
+
+### Internal changes
+- Upgrade WAF to 1.5.0 and ruleset to 1.4.0 DataDog/dd-appsec-php#117
+- Update ip extraction module DataDog/dd-appsec-php#125
+- Make test use latest version of ddtrace 0.79.0 DataDog/dd-appsec-php#129
+- Update ddtrace-basic test to be compatible with older tracers DataDog/dd-appsec-php#142
+- Fix package / release build DataDog/dd-appsec-php#152
+- Update LLVM script DataDog/dd-appsec-php#153
+- Fix package build DataDog/dd-appsec-php#172
+- WAF upgrade to 1.6.0 and ruleset to 1.4.2 DataDog/dd-appsec-php#175
+- Upgrade deprecated actions and ruleset to 1.4.3 DataDog/dd-appsec-php#176
 ]]></notes>
     <contents>
         <dir name="/">
