@@ -132,13 +132,16 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Events\Dispatcher',
             'fire',
-            function (SpanData $span, $args) use ($integration) {
-                $span->name = 'laravel.event.handle';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->getServiceName();
-                $span->resource = $args[0];
-                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-            }
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration) {
+                    $span->name = 'laravel.event.handle';
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $integration->getServiceName();
+                    $span->resource = $args[0];
+                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                },
+                'recurse' => true,
+            ]
         );
 
         // used by Laravel >= 5.8
@@ -146,13 +149,16 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Events\Dispatcher',
             'dispatch',
-            function (SpanData $span, $args) use ($integration) {
-                $span->name = 'laravel.event.handle';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->getServiceName();
-                $span->resource = is_object($args[0]) ? get_class($args[0]) : $args[0];
-                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-            }
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration) {
+                    $span->name = 'laravel.event.handle';
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $integration->getServiceName();
+                    $span->resource = is_object($args[0]) ? get_class($args[0]) : $args[0];
+                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                },
+                'recurse' => true,
+            ]
         );
 
         \DDTrace\trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
