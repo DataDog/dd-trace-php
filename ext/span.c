@@ -120,7 +120,7 @@ void ddtrace_free_span_stacks(bool silent) {
 static uint64_t _get_nanoseconds(bool monotonic_clock) {
     struct timespec time;
     if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
-        return time.tv_sec * 1000000000L + time.tv_nsec;
+        return time.tv_sec * UINT64_C(1000000000) + time.tv_nsec;
     }
     return 0;
 }
@@ -163,7 +163,7 @@ void ddtrace_open_span(ddtrace_span_data *span) {
 set_trace_id_from_span_id:
         span->trace_id = (ddtrace_trace_id){
             .low = span->span_id,
-            .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / 1000000000L : 0,
+            .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
         };
     }
 

@@ -1858,7 +1858,7 @@ static void dd_apply_propagated_values_to_existing_spans(void) {
         if (!DDTRACE_G(distributed_trace_id).low && !DDTRACE_G(distributed_trace_id).high) {
             span->trace_id = (ddtrace_trace_id) {
                 .low = span->root->span_id,
-                .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / 1000000000L : 0,
+                .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
             };
         } else {
             span->trace_id = DDTRACE_G(distributed_trace_id);

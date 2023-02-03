@@ -78,8 +78,11 @@ typedef struct {
     union {
         uint64_t high;
         struct {
-            uint32_t padding; // zeroes
-            uint32_t time;
+            ZEND_ENDIAN_LOHI(
+                uint32_t padding // zeroes
+            ,
+                uint32_t time
+            )
         };
     };
 } ddtrace_trace_id;
