@@ -39,6 +39,7 @@
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "excluded_modules.h"
+#include "handlers_http.h"
 #include "handlers_internal.h"
 #include "integrations/integrations.h"
 #include "ip_extraction.h"
@@ -2005,6 +2006,16 @@ static PHP_FUNCTION(consume_distributed_tracing_headers) {
     RETURN_NULL();
 }
 
+/* {{{ proto array generate_distributed_tracing_headers() */
+static PHP_FUNCTION(generate_distributed_tracing_headers) {
+    UNUSED(execute_data);
+
+    array_init(return_value);
+    if (get_DD_TRACE_ENABLED()) {
+        ddtrace_inject_distributed_headers(Z_ARR_P(return_value), true);
+    }
+}
+
 /* {{{ proto string dd_trace_closed_spans_count() */
 static PHP_FUNCTION(dd_trace_closed_spans_count) {
     UNUSED(execute_data);
@@ -2126,6 +2137,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
     DDTRACE_NS_FE(set_distributed_tracing_context, arginfo_dd_trace_set_distributed_tracing_context),
     DDTRACE_NS_FE(consume_distributed_tracing_headers, arginfo_consume_distributed_tracing_headers),
+    DDTRACE_NS_FE(generate_distributed_tracing_headers, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),
