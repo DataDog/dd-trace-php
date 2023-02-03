@@ -39,12 +39,60 @@ final class SpanChecker
             ));
         }
 
-        foreach ($expectedFlameGraph as $oneTrace) {
-            if ($oneTrace->isToBeSkipped()) {
-                continue;
+        try {
+            foreach ($expectedFlameGraph as $oneTrace) {
+                if ($oneTrace->isToBeSkipped()) {
+                    continue;
+                }
+                $this->assertNode($actualGraph, $oneTrace, 'root', 'root');
             }
-            $this->assertNode($actualGraph, $oneTrace, 'root', 'root');
+        } catch (\Exception $e) {
+            (function () use ($actualGraph) {
+                $this->message .= "\nReceived Spans graph:\n" . SpanChecker::dumpSpansGraph($actualGraph);
+            })->call($e);
+            throw $e;
         }
+    }
+
+    public static function dumpSpansGraph(array $spansGraph, int $indent = 0)
+    {
+        $out = "";
+        foreach ($spansGraph as $node) {
+            $span = $node['span'];
+            $values = [];
+            if (isset($span['service'])) {
+                $values[] = "service: {$span['service']}";
+            }
+            if (isset($span['resource'])) {
+                $values[] = "resource: {$span['resource']}";
+            }
+            if (isset($span['type'])) {
+                $values[] = "type: {$span['type']}";
+            }
+
+            $out .= str_repeat(' ', $indent);
+            $out .= $span['name'] ?? "<empty span name>";
+            if (!empty($values)) {
+                $out .= ' (' . implode(', ', $values) . ')';
+            }
+            $out .= "\n";
+            if (isset($span['meta'])) {
+                unset($span['meta']['_dd.p.dm']);
+                unset($span['meta']['http.client_ip']);
+                foreach ($span['meta'] as $k => $v) {
+                    $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
+                }
+            }
+            if (isset($span['metrics'])) {
+                unset($span['metrics']['php.compilation.total_time_ms']);
+                unset($span['metrics']['process_id']);
+                foreach ($span['metrics'] as $k => $v) {
+                    $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
+                }
+            }
+            $out .= self::dumpSpansGraph($node['children'], $indent + 2);
+        }
+        return $out;
     }
 
     /**
