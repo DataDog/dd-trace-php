@@ -248,21 +248,21 @@ unsafe fn collect_stack_sample(
     let mut execute_data_ptr = top_execute_data;
 
     while let Some(execute_data) = execute_data_ptr.as_ref() {
-        /* -1 to reserve room for the [truncated] message. In case the backend
-         * and/or frontend have the same limit, without the -1 we'd ironically
-         * truncate our [truncated] message.
-         */
-        if samples.len() >= max_depth - 1 {
-            samples.push(ZendFrame {
-                function: "[truncated]".to_string(),
-                file: None,
-                line: 0,
-            });
-            break;
-        }
-
         if let Some(frame) = collect_call_frame(execute_data) {
             samples.push(frame);
+
+            /* -1 to reserve room for the [truncated] message. In case the
+             * backend and/or frontend have the same limit, without the -1
+             * then ironically the [truncated] message would be truncated.
+             */
+            if samples.len() == max_depth - 1 {
+                samples.push(ZendFrame {
+                    function: "[truncated]".to_string(),
+                    file: None,
+                    line: 0,
+                });
+                break;
+            }
         }
 
         execute_data_ptr = execute_data.prev_execute_data;
