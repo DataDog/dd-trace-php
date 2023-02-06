@@ -595,7 +595,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 if let Err((index, interrupt)) = profiler.add_interrupt(interrupt) {
-                    warn!("VM interrupt {index} already exists at offset {interrupt}");
+                    warn!("VM interrupt {interrupt} already exists at offset {index}");
                 }
             }
         });
