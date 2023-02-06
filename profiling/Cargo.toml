@@ -1,6 +1,6 @@
 [package]
 name = "datadog-php-profiling"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.60"
@@ -15,7 +15,7 @@ anyhow = { version = "1.0" }
 cfg-if = { version = "1.0" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 cpu-time = { version = "1.0" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v1.0.0" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v2.0.0" }
 env_logger = { version = "0.9.3" }
 indexmap = { version = "1.8" }
 lazy_static = { version = "1.4" }
