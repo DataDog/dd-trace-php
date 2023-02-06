@@ -221,6 +221,25 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     }
 }
 
+unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    if let Some(func) = execute_data.func.as_ref() {
+        let function = extract_function_name(func);
+        let (file, line) = extract_file_and_line(execute_data);
+
+        // Only create a new frame if there's file or function info.
+        if file.is_some() || function.is_some() {
+            // If there's no function name, use a fake name.
+            let function = function.unwrap_or_else(|| "<?php".to_owned());
+            return Some(ZendFrame {
+                function,
+                file,
+                line,
+            });
+        }
+    }
+    None
+}
+
 unsafe fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
@@ -242,22 +261,8 @@ unsafe fn collect_stack_sample(
             break;
         }
 
-        if let Some(func) = execute_data.func.as_ref() {
-            let function = extract_function_name(func);
-            let (file, line) = extract_file_and_line(execute_data);
-
-            // Only insert a new frame if there's file or function info.
-            if file.is_some() || function.is_some() {
-                // If there's no function name, use a fake name.
-                let function = function.unwrap_or_else(|| "<?php".to_owned());
-                let frame = ZendFrame {
-                    function,
-                    file,
-                    line,
-                };
-
-                samples.push(frame);
-            }
+        if let Some(frame) = collect_call_frame(execute_data) {
+            samples.push(frame);
         }
 
         execute_data_ptr = execute_data.prev_execute_data;
