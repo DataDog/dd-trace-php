@@ -327,7 +327,7 @@ ZEND_ARG_INFO(0, key)
 ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_set_user, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_set_user, 0, 0, 1)
 ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, metadata)
 ZEND_ARG_INFO(0, propagate)
@@ -1194,9 +1194,9 @@ static PHP_FUNCTION(add_distributed_tag) {
 static PHP_FUNCTION(set_user) {
     UNUSED(execute_data);
 
-    zend_string *user_id = NULL;
+    zend_string *user_id;
     HashTable *metadata = NULL;
-    zend_bool propagate = false;
+    zend_bool propagate = get_DD_TRACE_PROPAGATE_USER_ID_DEFAULT();
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata,
       &propagate) == FAILURE) {
         ddtrace_log_debug("Unexpected parameter combination, expected "
@@ -1234,8 +1234,8 @@ static PHP_FUNCTION(set_user) {
     }
 
     if (metadata != NULL) {
-        zend_string *key = NULL;
-        zval *value = NULL;
+        zend_string *key;
+        zval *value;
         ZEND_HASH_FOREACH_STR_KEY_VAL(metadata, key, value)
         {
             if (!key || Z_TYPE_P(value) != IS_STRING) {
