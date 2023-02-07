@@ -22,6 +22,7 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "priority_sampling/priority_sampling.h"
@@ -580,6 +581,12 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         }
     }
 
+    if (get_DD_TRACE_CLIENT_IP_ENABLED()) {
+        if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+            ddtrace_extract_ip_from_headers(&PG(http_globals)[TRACK_VARS_SERVER], meta);
+        }
+    }
+
     zend_string *user_agent = dd_get_user_agent();
     if (user_agent && ZSTR_LEN(user_agent) > 0) {
         zval http_useragent;
@@ -738,6 +745,10 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         add_assoc_long(el, "error", 1);
     }
 
+    if (span->trace_id.high) {
+        add_assoc_str(meta, "_dd.p.tid", zend_strpprintf(0, "%" PRIx64, span->trace_id.high));
+    }
+
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);
     } else {
@@ -842,7 +853,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (span->parent) {
         ddtrace_span_data *parent = span->parent;
         while (ddtrace_span_is_dropped(parent)) {
-            parent = span->parent;
+            parent = parent->parent;
         }
         span->parent_id = parent->span_id;
     }

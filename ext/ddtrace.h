@@ -75,7 +75,16 @@ typedef struct {
 
 typedef struct {
     uint64_t low;
-    uint64_t high;
+    union {
+        uint64_t high;
+        struct {
+            ZEND_ENDIAN_LOHI(
+                uint32_t padding // zeroes
+            ,
+                uint32_t time
+            )
+        };
+    };
 } ddtrace_trace_id;
 
 // clang-format off

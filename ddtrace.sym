@@ -1,3 +1,4 @@
+ddtrace_close_all_spans_and_flush
 ddtrace_get_profiling_context
 ddtrace_root_span_add_tag
 get_module

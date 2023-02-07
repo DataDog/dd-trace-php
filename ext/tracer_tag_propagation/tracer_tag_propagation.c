@@ -102,6 +102,7 @@ zend_string *ddtrace_format_propagated_tags(void) {
     // we propagate all tags on the current root span which were originally propagated, including the explicitly
     // defined tags here
     zend_hash_str_del(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.upstream_services"));
+    zend_hash_str_del(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.tid"));
     zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.dm"));
 
     zend_array *tags = &DDTRACE_G(root_span_tags_preset);
@@ -111,6 +112,11 @@ zend_string *ddtrace_format_propagated_tags(void) {
     }
 
     smart_str taglist = {0};
+
+    ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
+    if (trace_id.high) {
+        smart_str_append_printf(&taglist, "_dd.p.tid=%" PRIx64, trace_id.high);
+    }
 
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {

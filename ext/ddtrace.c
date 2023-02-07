@@ -39,8 +39,10 @@
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "excluded_modules.h"
+#include "handlers_http.h"
 #include "handlers_internal.h"
 #include "integrations/integrations.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "limiter/limiter.h"
@@ -380,6 +382,10 @@ ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_extract_ip_from_headers, 0, 0, 1)
+ZEND_ARG_INFO(0, headers)
 ZEND_END_ARG_INFO()
 
 /* Legacy API */
@@ -741,6 +747,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
                        get_global_DD_TRACE_AGENT_STACK_BACKLOG());
 
     ddtrace_integrations_minit();
+    dd_ip_extraction_startup();
 
     return SUCCESS;
 }
@@ -838,6 +845,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (!DDTRACE_G(disable)) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
+        DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
     }
 
     if (get_DD_TRACE_ENABLED()) {
@@ -898,7 +906,7 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = true;
 
     ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
-    if (ddtrace_flush_tracer() == FAILURE) {
+    if (ddtrace_flush_tracer(false) == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
 
@@ -916,15 +924,16 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     zend_hash_destroy(&DDTRACE_G(traced_spans));
 
-    if (!get_DD_TRACE_ENABLED()) {
-        if (!DDTRACE_G(disable)) {
-            dd_shutdown_hooks_and_observer();
-        }
-
-        return SUCCESS;
+    if (get_DD_TRACE_ENABLED()) {
+        dd_force_shutdown_tracing();
+    } else if (!DDTRACE_G(disable)) {
+        dd_shutdown_hooks_and_observer();
     }
 
-    dd_force_shutdown_tracing();
+    if (!DDTRACE_G(disable)) {
+        OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
+        DDTRACE_G(active_stack) = NULL;
+    }
 
     return SUCCESS;
 }
@@ -1575,26 +1584,11 @@ static PHP_FUNCTION(close_spans_until) {
         RETURN_FALSE;
     }
 
-    ddtrace_span_data *until = untilzv ? (ddtrace_span_data *)Z_OBJ_P(untilzv) : NULL;
+    int closed_spans = ddtrace_close_userland_spans_until(untilzv ? (ddtrace_span_data *)Z_OBJ_P(untilzv) : NULL);
 
-    if (until) {
-        ddtrace_span_data *span = ddtrace_active_span();
-        while (span && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
-            span = span->parent;
-        }
-        if (span != until) {
-            RETURN_FALSE;
-        }
+    if (closed_spans == -1) {
+        RETURN_FALSE;
     }
-
-    int closed_spans = 0;
-    ddtrace_span_data *span;
-    while ((span = ddtrace_active_span()) && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
-        dd_trace_stop_span_time(span);
-        ddtrace_close_span(span);
-        ++closed_spans;
-    }
-
     RETURN_LONG(closed_spans);
 }
 
@@ -1775,7 +1769,7 @@ static PHP_FUNCTION(switch_stack) {
         RETURN_FALSE;
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!DDTRACE_G(active_stack)) {
         RETURN_NULL();
     }
 
@@ -1794,7 +1788,7 @@ static PHP_FUNCTION(flush) {
     if (get_DD_AUTOFINISH_SPANS()) {
         ddtrace_close_userland_spans_until(NULL);
     }
-    if (ddtrace_flush_tracer() == FAILURE) {
+    if (ddtrace_flush_tracer(false) == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
     RETURN_NULL();
@@ -1863,7 +1857,10 @@ static void dd_apply_propagated_values_to_existing_spans(void) {
     while (span) {
         zend_array *meta = ddtrace_spandata_property_meta(span);
         if (!DDTRACE_G(distributed_trace_id).low && !DDTRACE_G(distributed_trace_id).high) {
-            span->trace_id = (ddtrace_trace_id){ .high = 0, .low = span->root->span_id };
+            span->trace_id = (ddtrace_trace_id) {
+                .low = span->root->span_id,
+                .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
+            };
         } else {
             span->trace_id = DDTRACE_G(distributed_trace_id);
         }
@@ -2009,6 +2006,16 @@ static PHP_FUNCTION(consume_distributed_tracing_headers) {
     RETURN_NULL();
 }
 
+/* {{{ proto array generate_distributed_tracing_headers() */
+static PHP_FUNCTION(generate_distributed_tracing_headers) {
+    UNUSED(execute_data);
+
+    array_init(return_value);
+    if (get_DD_TRACE_ENABLED()) {
+        ddtrace_inject_distributed_headers(Z_ARR_P(return_value), true);
+    }
+}
+
 /* {{{ proto string dd_trace_closed_spans_count() */
 static PHP_FUNCTION(dd_trace_closed_spans_count) {
     UNUSED(execute_data);
@@ -2087,6 +2094,19 @@ static PHP_FUNCTION(find_active_exception) {
     }
 }
 
+static PHP_FUNCTION(extract_ip_from_headers) {
+    zval *arr;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &arr) == FAILURE) {
+        return;
+    }
+
+    zval meta;
+    array_init(&meta);
+    ddtrace_extract_ip_from_headers(arr, Z_ARR(meta));
+
+    RETURN_ARR(Z_ARR(meta));
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace, arginfo_dd_trace),  // Noop legacy API
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
@@ -2117,6 +2137,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
     DDTRACE_NS_FE(set_distributed_tracing_context, arginfo_dd_trace_set_distributed_tracing_context),
     DDTRACE_NS_FE(consume_distributed_tracing_headers, arginfo_consume_distributed_tracing_headers),
+    DDTRACE_NS_FE(generate_distributed_tracing_headers, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),
@@ -2147,6 +2168,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(find_active_exception, arginfo_ddtrace_void),
     DDTRACE_NS_FE(get_priority_sampling, arginfo_get_priority_sampling),
     DDTRACE_NS_FE(set_priority_sampling, arginfo_set_priority_sampling),
+    DDTRACE_NS_FE(extract_ip_from_headers, arginfo_extract_ip_from_headers),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
@@ -2408,8 +2430,14 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
         }
     }
 
+    zval *tidzv = zend_hash_str_find(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.tid"));
+    if (tidzv && DDTRACE_G(distributed_trace_id).low) {
+        DDTRACE_G(distributed_trace_id).high = ddtrace_parse_hex_span_id(tidzv);
+        zend_hash_str_del(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.tid"));
+    }
+
     if (priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
-        if (!DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
+        if (!DDTRACE_G(active_stack)->root_span) {
             DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = priority_sampling;
         } else {
             ddtrace_set_prioritySampling_on_root(priority_sampling);

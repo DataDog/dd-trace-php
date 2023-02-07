@@ -7,9 +7,16 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static inline void ddtrace_inject_distributed_headers(zend_array *array) {
+static inline void ddtrace_inject_distributed_headers(zend_array *array, bool key_value_pairs) {
     zval headers;
     ZVAL_ARR(&headers, array);
+
+#define ADD_HEADER(header, ...) \
+    if (key_value_pairs) { \
+        add_assoc_str_ex(&headers, ZEND_STRL(header), zend_strpprintf(0, __VA_ARGS__)); \
+    } else { \
+        add_next_index_str(&headers, zend_strpprintf(0, header ": " __VA_ARGS__)); \
+    }
 
     zend_array *inject = zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_PROPAGATION_STYLE)
                          && !zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_PROPAGATION_STYLE_INJECT)
@@ -23,54 +30,53 @@ static inline void ddtrace_inject_distributed_headers(zend_array *array) {
     zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_root();
     if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         if (send_datadog) {
-            add_next_index_str(&headers,
-                               zend_strpprintf(0, "x-datadog-sampling-priority: " ZEND_LONG_FMT, sampling_priority));
+            ADD_HEADER("x-datadog-sampling-priority", ZEND_LONG_FMT, sampling_priority);
         }
         if (send_b3) {
             if (sampling_priority <= 0) {
-                add_next_index_string(&headers, "X-B3-Sampled: 0");
+                ADD_HEADER("x-b3-sampled", "0");
             } else if (sampling_priority == PRIORITY_SAMPLING_USER_KEEP) {
-                add_next_index_string(&headers, "X-B3-Flags: 1");
+                ADD_HEADER("x-b3-flags", "1");
             } else {
-                add_next_index_string(&headers, "X-B3-Sampled: 1");
+                ADD_HEADER("x-b3-sampled", "1");
             }
         }
     }
     zend_string *propagated_tags = ddtrace_format_propagated_tags();
     if (send_datadog || send_b3 || send_b3single) {
         if (propagated_tags) {
-            add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-tags: %s", ZSTR_VAL(propagated_tags)));
+            ADD_HEADER("x-datadog-tags", "%s", ZSTR_VAL(propagated_tags));
         }
         if (DDTRACE_G(dd_origin)) {
-            add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-origin: %s", ZSTR_VAL(DDTRACE_G(dd_origin))));
+            ADD_HEADER("x-datadog-origin", "%s", ZSTR_VAL(DDTRACE_G(dd_origin)));
         }
     }
     ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
     uint64_t span_id = ddtrace_peek_span_id();
     if (trace_id.low || trace_id.high) {
         if (send_datadog) {
-            add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-trace-id: %" PRIu64, trace_id.low));
+            ADD_HEADER("x-datadog-trace-id", "%" PRIu64, trace_id.low);
         }
         if (send_b3) {
             if (trace_id.high) {
-                add_next_index_str(&headers, zend_strpprintf(0, "X-B3-TraceId: %016" PRIx64 "%016" PRIx64, trace_id.high, trace_id.low));
+                ADD_HEADER("X-B3-TraceId", "%016" PRIx64 "%016" PRIx64, trace_id.high, trace_id.low);
             } else {
-                add_next_index_str(&headers, zend_strpprintf(0, "X-B3-TraceId: %016" PRIx64, trace_id.low));
+                ADD_HEADER("X-B3-TraceId", "%016" PRIx64, trace_id.low);
             }
         }
         if (span_id) {
             if (send_datadog) {
-                add_next_index_str(&headers, zend_strpprintf(0, "x-datadog-parent-id: %" PRIu64, span_id));
+                ADD_HEADER("x-datadog-parent-id", "%" PRIu64, span_id);
             }
             if (send_b3) {
-                add_next_index_str(&headers, zend_strpprintf(0, "X-B3-SpanId: %016" PRIx64, span_id));
+                ADD_HEADER("X-B3-SpanId", "%016" PRIx64, span_id);
             }
             if (send_tracestate) {
-                add_next_index_str(&headers, zend_strpprintf(0, "traceparent: 00-%016" PRIx64 "%016" PRIx64 "-%016" PRIx64 "-%02" PRIx8,
-                                                             trace_id.high,
-                                                             trace_id.low,
-                                                             span_id,
-                                                             sampling_priority > 0));
+                ADD_HEADER("traceparent", "00-%016" PRIx64 "%016" PRIx64 "-%016" PRIx64 "-%02" PRIx8,
+                           trace_id.high,
+                           trace_id.low,
+                           span_id,
+                           sampling_priority > 0);
 
                 smart_str str = {0};
 
@@ -138,7 +144,7 @@ static inline void ddtrace_inject_distributed_headers(zend_array *array) {
                 }
 
                 if (str.s) {
-                    add_next_index_str(&headers, zend_strpprintf(0, "tracestate: %s%.*s", hasdd ? "dd=" : "", (int)ZSTR_LEN(str.s), ZSTR_VAL(str.s)));
+                    ADD_HEADER("tracestate", "%s%.*s", hasdd ? "dd=" : "", (int)ZSTR_LEN(str.s), ZSTR_VAL(str.s));
                     smart_str_free(&str);
                 }
             }
@@ -163,12 +169,12 @@ static inline void ddtrace_inject_distributed_headers(zend_array *array) {
             } else {
                 sprintf(trace_id_buf, "%016" PRIx64, trace_id.low);
             }
-            add_next_index_str(&headers, zend_strpprintf(0, "b3: %s-%016" PRIx64 "%s%s",
-                                                         trace_id_buf,
-                                                         span_id,
-                                                         b3_sampling_decision ? "-" : "", b3_sampling_decision ? b3_sampling_decision : ""));
+            ADD_HEADER("b3", "%s-%016" PRIx64 "%s%s",
+                       trace_id_buf,
+                       span_id,
+                       b3_sampling_decision ? "-" : "", b3_sampling_decision ? b3_sampling_decision : "");
         } else if (b3_sampling_decision) {
-            add_next_index_str(&headers, zend_strpprintf(0, "b3: %s", b3_sampling_decision));
+            ADD_HEADER("b3", "%s", b3_sampling_decision);
         }
     }
 
@@ -176,3 +182,5 @@ static inline void ddtrace_inject_distributed_headers(zend_array *array) {
         zend_string_release(propagated_tags);
     }
 }
+
+#undef ADD_HEADER

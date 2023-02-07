@@ -67,6 +67,20 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
                         ),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -87,6 +101,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
                         ->withExactTags([
                             TAG::COMPONENT => 'laravel'
+                        ])->withChildren([
+                            SpanAssertion::exists('laravel.event.handle'),
                         ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
@@ -108,7 +124,22 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             )->withExactTags([
                                 TAG::COMPONENT => 'laravel'
                             ]),
+                            SpanAssertion::exists('laravel.event.handle'),
                         ]),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -129,12 +160,32 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists('laravel.view.render')
                             ->withChildren([
-                                SpanAssertion::exists('laravel.view'),
+                                SpanAssertion::exists('laravel.view')->withChildren([
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                ]),
+                                SpanAssertion::exists('laravel.event.handle'),
                             ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
                         ),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
                     ]),
                 ],
             ]
