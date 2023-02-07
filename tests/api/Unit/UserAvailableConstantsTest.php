@@ -96,6 +96,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::MANUAL_DROP, 'manual.drop'],
             [Tag::PID, 'process_id'],
             [Tag::RESOURCE_NAME, 'resource.name'],
+            [Tag::DB_SYSTEM, 'db.system'],
             [Tag::DB_STATEMENT, 'sql.query'],
             [Tag::ERROR, 'error'],
             [Tag::ERROR_MSG, 'error.message'],

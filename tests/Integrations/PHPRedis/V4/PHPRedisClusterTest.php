@@ -144,7 +144,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 "RedisCluster.$method"
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis',,
+                Tag::COMPONENT => 'phpredis',
+                Tag::DB_SYSTEM => 'redis',
             ]),
         ]);
     }
