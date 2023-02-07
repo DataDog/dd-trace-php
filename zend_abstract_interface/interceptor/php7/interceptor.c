@@ -1024,6 +1024,7 @@ static int (*prev_post_startup)(void);
 int zai_interceptor_post_startup(void) {
     int result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
 
+    zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
 
     return result;
@@ -1106,6 +1107,7 @@ void zai_interceptor_startup(zend_module_entry *module_entry) {
     prev_post_startup = zend_post_startup_cb;
     zend_post_startup_cb = zai_interceptor_post_startup;
 #else
+    zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
 #endif
 }
