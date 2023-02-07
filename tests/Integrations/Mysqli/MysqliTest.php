@@ -206,7 +206,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli'])
+                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli', Tag::DB_SYSTEM => 'mysql',])
                 ->setTraceAnalyticsCandidate(),
         ]);
     }
@@ -270,7 +270,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli']),
+                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli', Tag::DB_SYSTEM => 'mysql',]),
         ]);
     }
 
@@ -293,6 +293,7 @@ class MysqliTest extends IntegrationTestCase
                     'error.stack',
                     Tag::SPAN_KIND,
                     Tag::COMPONENT,
+                    Tag::DB_SYSTEM,
                 ]),
         ]);
     }
