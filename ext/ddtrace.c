@@ -55,6 +55,7 @@
 #include "startup_logging.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "ext/standard/file.h"
+#include "ext/standard/base64.h"
 
 #include "../hook/uhook.h"
 #include "handlers_fiber.h"
@@ -1226,7 +1227,8 @@ static PHP_FUNCTION(set_user) {
 
     if (propagate) {
         zval value_zv;
-        ZVAL_COPY(&value_zv, &user_id_zv);
+        zend_string *encoded_user_id = php_base64_encode_str(user_id);
+        ZVAL_STR(&value_zv, encoded_user_id);
         zend_hash_str_update(target_table, ZEND_STRL("_dd.p.usr.id"), &value_zv);
 
         zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags),

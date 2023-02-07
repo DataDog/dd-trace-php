@@ -14,7 +14,7 @@ array(4) {
   ["usr.id"]=>
   string(5) "admin"
   ["_dd.p.usr.id"]=>
-  string(5) "admin"
+  string(8) "YWRtaW4="
   ["usr.policy"]=>
   string(4) "none"
   ["usr.permissions"]=>
