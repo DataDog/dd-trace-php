@@ -6,15 +6,16 @@
 #pragma once
 
 #include "parameter_view.hpp"
+#include <optional>
 #include <rapidjson/document.h>
 #include <string>
 
 namespace dds {
 
-// This replaces rapidjson::StringBuffer providing a way to write directly into
-// an std::string without requiring an extra copy. rapidjson::StringBuffer
-// provides a const char * so it can still be used when std::string_view is
-// enough.
+// This replaces rapidjson::StringBuffer providing a way to write directly
+// into an std::string without requiring an extra copy.
+// rapidjson::StringBuffer provides a const char * so it can still be used
+// when std::string_view is enough.
 class string_buffer {
 public:
     using Ch = char;
@@ -47,4 +48,17 @@ std::string parameter_to_json(const dds::parameter_view &pv);
 dds::parameter json_to_parameter(const rapidjson::Document &doc);
 dds::parameter json_to_parameter(std::string_view json);
 
+namespace json_helper {
+std::optional<rapidjson::Value::ConstMemberIterator> get_field_of_type(
+    const rapidjson::Value &parent_field, std::string_view key,
+    rapidjson::Type type);
+std::optional<rapidjson::Value::ConstMemberIterator> get_field_of_type(
+    rapidjson::Value::ConstMemberIterator &parent_field, std::string_view key,
+    rapidjson::Type type);
+std::optional<rapidjson::Value::ConstMemberIterator> get_field_of_type(
+    rapidjson::Value::ConstValueIterator parent_field, std::string_view key,
+    rapidjson::Type type);
+bool get_json_base64_encoded_content(
+    const std::string &content, rapidjson::Document &output);
+} // namespace json_helper
 } // namespace dds

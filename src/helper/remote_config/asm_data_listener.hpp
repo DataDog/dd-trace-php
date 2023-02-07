@@ -5,24 +5,25 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "../engine.hpp"
 #include "config.hpp"
 #include "listener.hpp"
+#include "parameter.hpp"
+#include <optional>
+#include <rapidjson/document.h>
+#include <utility>
 
 namespace dds::remote_config {
 
-class asm_features_listener : public product_listener_base {
+class asm_data_listener : public product_listener_base {
 public:
-    explicit asm_features_listener(
-        std::shared_ptr<dds::service_config> service_config)
-        : service_config_(std::move(service_config)){};
+    explicit asm_data_listener(std::shared_ptr<dds::engine> engine)
+        : engine_(std::move(engine)){};
     void on_update(const config &config) override;
-    void on_unapply(const config & /*config*/) override
-    {
-        service_config_->unset_asm();
-    }
+    void on_unapply(const config & /*config*/) override{};
 
 protected:
-    std::shared_ptr<service_config> service_config_;
+    std::shared_ptr<dds::engine> engine_;
 };
 
 } // namespace dds::remote_config

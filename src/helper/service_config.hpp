@@ -5,9 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "remote_config/protocol/config_state.hpp"
 #include <atomic>
+#include <map>
 #include <optional>
+#include <unordered_map>
 
 namespace dds {
 

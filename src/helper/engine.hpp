@@ -94,7 +94,7 @@ public:
     context get_context() { return context{*this}; }
     void subscribe(const subscriber::ptr &sub);
 
-    void update_rule_data(parameter_view &data);
+    virtual void update_rule_data(parameter_view &data);
 
     // Only exposed for testing purposes
     template <typename T,

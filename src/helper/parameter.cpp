@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "parameter.hpp"
+#include "ddwaf.h"
 #include "exception.hpp"
 
 namespace dds {
@@ -43,11 +44,25 @@ parameter parameter::array() noexcept
 parameter parameter::uint64(uint64_t value) noexcept
 {
     ddwaf_object obj;
-    ddwaf_object_unsigned(&obj, value);
+    ddwaf_object_unsigned_force(&obj, value);
     return parameter{obj};
 }
 
 parameter parameter::int64(int64_t value) noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_signed_force(&obj, value);
+    return parameter{obj};
+}
+
+parameter parameter::string(uint64_t value) noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_unsigned(&obj, value);
+    return parameter{obj};
+}
+
+parameter parameter::string(int64_t value) noexcept
 {
     ddwaf_object obj;
     ddwaf_object_signed(&obj, value);

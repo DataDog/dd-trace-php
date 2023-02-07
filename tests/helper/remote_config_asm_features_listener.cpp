@@ -135,8 +135,7 @@ TEST(RemoteConfigAsmFeaturesListener,
     remote_config::asm_features_listener listener(remote_config_service);
     std::string invalid_content = "&&&";
     std::string error_message = "";
-    std::string expected_error_message =
-        "Invalid config base64 encoded contents:";
+    std::string expected_error_message = "Invalid config contents";
     remote_config::config non_base_64_content_config =
         get_config(invalid_content, false);
 
@@ -156,7 +155,7 @@ TEST(RemoteConfigAsmFeaturesListener,
     ListenerThrowsAnErrorWhenContentIsNotValidJson)
 {
     std::string error_message = "";
-    std::string expected_error_message = "Invalid config json contents";
+    std::string expected_error_message = "Invalid config contents";
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
     std::string invalid_content = "invalidJsonContent";

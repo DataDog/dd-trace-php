@@ -4,15 +4,15 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
-#include <ddwaf.h>
-#include <rapidjson/error/en.h>
-#include <rapidjson/prettywriter.h>
-#include <string_view>
-
 #include "json_helper.hpp"
 #include "parameter.hpp"
 #include "parameter_view.hpp"
 #include "std_logging.hpp"
+#include <base64.h>
+#include <ddwaf.h>
+#include <rapidjson/error/en.h>
+#include <rapidjson/prettywriter.h>
+#include <string_view>
 
 using namespace std::literals;
 
@@ -160,4 +160,61 @@ dds::parameter json_to_parameter(std::string_view json)
     return json_to_parameter(doc);
 }
 
+std::optional<rapidjson::Value::ConstMemberIterator>
+json_helper::get_field_of_type(const rapidjson::Value &parent_field,
+    std::string_view key, rapidjson::Type type)
+{
+    rapidjson::Value::ConstMemberIterator const output_itr =
+        parent_field.FindMember(key.data());
+
+    if (output_itr == parent_field.MemberEnd()) {
+        SPDLOG_DEBUG("Field {} not found", key);
+        return std::nullopt;
+    }
+
+    if (type != output_itr->value.GetType()) {
+        SPDLOG_DEBUG("Field {} is not of type {}. Instead {}", key, type,
+            output_itr->value.GetType());
+        return std::nullopt;
+    }
+
+    return output_itr;
+}
+
+std::optional<rapidjson::Value::ConstMemberIterator>
+json_helper::get_field_of_type(
+    rapidjson::Value::ConstMemberIterator &parent_field, std::string_view key,
+    rapidjson::Type type)
+{
+    return get_field_of_type(parent_field->value, key, type);
+}
+
+std::optional<rapidjson::Value::ConstMemberIterator>
+json_helper::get_field_of_type(
+    rapidjson::Value::ConstValueIterator parent_field, std::string_view key,
+    rapidjson::Type type)
+{
+    return get_field_of_type(*parent_field, key, type);
+}
+
+bool json_helper::get_json_base64_encoded_content(
+    const std::string &content, rapidjson::Document &output)
+{
+    std::string base64_decoded;
+    try {
+        base64_decoded = base64_decode(content, true);
+    } catch (const std::runtime_error &error) {
+        SPDLOG_DEBUG(
+            "Invalid base64 encoded content: " + std::string(error.what()));
+        return false;
+    }
+
+    if (output.Parse(base64_decoded).HasParseError()) {
+        SPDLOG_DEBUG("Invalid json: " + std::string(rapidjson::GetParseError_En(
+                                            output.GetParseError())));
+        return false;
+    }
+
+    return true;
+}
 } // namespace dds

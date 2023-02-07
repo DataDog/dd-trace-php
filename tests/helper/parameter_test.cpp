@@ -21,50 +21,42 @@ TEST(ParameterTest, EmptyConstructor)
     EXPECT_THROW(auto i64 = int64_t(p), bad_cast);
 }
 
-TEST(ParameterTest, UintMaxConstructor)
+TEST(ParameterTest, UintConstructor)
 {
     uint64_t value = std::numeric_limits<uint64_t>::max();
     parameter p = parameter::uint64(value);
-    EXPECT_EQ(p.type(), parameter_type::string);
+    EXPECT_EQ(p.type(), parameter_type::uint64);
     EXPECT_NE(p.stringValue, nullptr);
     EXPECT_THROW(p[0], invalid_type);
 
-    EXPECT_NO_THROW(auto s = std::string(p));
-    EXPECT_NO_THROW(auto sv = std::string_view(p));
-    EXPECT_THROW(auto u64 = uint64_t(p), bad_cast);
+    EXPECT_THROW(auto s = std::string(p), bad_cast);
+    EXPECT_THROW(auto sv = std::string_view(p), bad_cast);
+    EXPECT_NO_THROW(auto u64 = uint64_t(p));
     EXPECT_THROW(auto i64 = int64_t(p), bad_cast);
 
-    std::stringstream ss;
-    ss << value;
-    const auto &value_str = ss.str();
-    EXPECT_STREQ(p.stringValue, value_str.c_str());
-    EXPECT_STREQ(std::string_view(p).data(), value_str.c_str());
+    EXPECT_EQ(value, p.uintValue);
 }
 
-TEST(ParameterTest, UintMinConstructor)
-{
-    uint64_t value = std::numeric_limits<uint64_t>::min();
-    parameter p = parameter::uint64(value);
-    EXPECT_EQ(p.type(), parameter_type::string);
-    EXPECT_NE(p.stringValue, nullptr);
-    EXPECT_THROW(p[0], invalid_type);
-
-    EXPECT_NO_THROW(auto s = std::string(p));
-    EXPECT_NO_THROW(auto sv = std::string_view(p));
-    EXPECT_THROW(auto u64 = uint64_t(p), bad_cast);
-    EXPECT_THROW(auto i64 = int64_t(p), bad_cast);
-
-    std::stringstream ss;
-    ss << value;
-    const auto &value_str = ss.str();
-    EXPECT_STREQ(p.stringValue, value_str.c_str());
-    EXPECT_STREQ(std::string_view(p).data(), value_str.c_str());
-}
-
-TEST(ParameterTest, IntMaxConstructor)
+TEST(ParameterTest, IntConstructor)
 {
     int64_t value = std::numeric_limits<int64_t>::max();
     parameter p = parameter::int64(value);
+    EXPECT_EQ(p.type(), parameter_type::int64);
+    EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_THROW(p[0], invalid_type);
+
+    EXPECT_THROW(auto s = std::string(p), bad_cast);
+    EXPECT_THROW(auto sv = std::string_view(p), bad_cast);
+    EXPECT_THROW(auto u64 = uint64_t(p), bad_cast);
+    EXPECT_NO_THROW(auto i64 = int64_t(p));
+
+    EXPECT_EQ(value, p.intValue);
+}
+
+TEST(ParameterTest, UintMaxConstructorAsString)
+{
+    uint64_t value = std::numeric_limits<uint64_t>::max();
+    parameter p = parameter::string(value);
     EXPECT_EQ(p.type(), parameter_type::string);
     EXPECT_NE(p.stringValue, nullptr);
     EXPECT_THROW(p[0], invalid_type);
@@ -81,10 +73,50 @@ TEST(ParameterTest, IntMaxConstructor)
     EXPECT_STREQ(std::string_view(p).data(), value_str.c_str());
 }
 
-TEST(ParameterTest, IntMinConstructor)
+TEST(ParameterTest, UintMinConstructorAsString)
+{
+    uint64_t value = std::numeric_limits<uint64_t>::min();
+    parameter p = parameter::string(value);
+    EXPECT_EQ(p.type(), parameter_type::string);
+    EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_THROW(p[0], invalid_type);
+
+    EXPECT_NO_THROW(auto s = std::string(p));
+    EXPECT_NO_THROW(auto sv = std::string_view(p));
+    EXPECT_THROW(auto u64 = uint64_t(p), bad_cast);
+    EXPECT_THROW(auto i64 = int64_t(p), bad_cast);
+
+    std::stringstream ss;
+    ss << value;
+    const auto &value_str = ss.str();
+    EXPECT_STREQ(p.stringValue, value_str.c_str());
+    EXPECT_STREQ(std::string_view(p).data(), value_str.c_str());
+}
+
+TEST(ParameterTest, IntMaxConstructorAsString)
+{
+    int64_t value = std::numeric_limits<int64_t>::max();
+    parameter p = parameter::string(value);
+    EXPECT_EQ(p.type(), parameter_type::string);
+    EXPECT_NE(p.stringValue, nullptr);
+    EXPECT_THROW(p[0], invalid_type);
+
+    EXPECT_NO_THROW(auto s = std::string(p));
+    EXPECT_NO_THROW(auto sv = std::string_view(p));
+    EXPECT_THROW(auto u64 = uint64_t(p), bad_cast);
+    EXPECT_THROW(auto i64 = int64_t(p), bad_cast);
+
+    std::stringstream ss;
+    ss << value;
+    const auto &value_str = ss.str();
+    EXPECT_STREQ(p.stringValue, value_str.c_str());
+    EXPECT_STREQ(std::string_view(p).data(), value_str.c_str());
+}
+
+TEST(ParameterTest, IntMinConstructorAsString)
 {
     int64_t value = std::numeric_limits<int64_t>::min();
-    parameter p = parameter::int64(value);
+    parameter p = parameter::string(value);
     EXPECT_EQ(p.type(), parameter_type::string);
     EXPECT_NE(p.stringValue, nullptr);
     EXPECT_THROW(p[0], invalid_type);
