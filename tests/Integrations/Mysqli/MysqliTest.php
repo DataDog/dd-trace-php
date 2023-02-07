@@ -304,7 +304,8 @@ class MysqliTest extends IntegrationTestCase
             'out.port' => self::$port,
             'db.type' => 'mysql',
             Tag::SPAN_KIND => 'client',
-            Tag::COMPONENT => 'mysqli'
+            Tag::COMPONENT => 'mysqli',
+            'db.system' => 'mysql',
         ];
     }
 

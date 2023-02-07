@@ -159,6 +159,7 @@ class WordPressIntegrationLoader
                 'db.host' => $args[3],
             ];
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+            $span->meta['db.system'] = "mysql";
         });
 
         \DDTrace\trace_method('wpdb', 'query', function (SpanData $span, array $args) use ($service) {

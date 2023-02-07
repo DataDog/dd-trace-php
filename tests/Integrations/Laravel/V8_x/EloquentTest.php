@@ -39,7 +39,8 @@ class EloquentTest extends WebFrameworkTestCase
             'App\\Models\\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
-            TAG::COMPONENT => 'eloquent'
+            TAG::COMPONENT => 'eloquent',
+            'db.system' => 'eloquent',
         ]));
     }
 
@@ -57,7 +58,8 @@ class EloquentTest extends WebFrameworkTestCase
             'App\\Models\\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
-            TAG::COMPONENT => 'eloquent'
+            TAG::COMPONENT => 'eloquent',
+            'db.system' => 'eloquent',
         ]));
     }
 
@@ -75,7 +77,8 @@ class EloquentTest extends WebFrameworkTestCase
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
             'sql.query' => 'select * from `users`',
-            TAG::COMPONENT => 'eloquent'
+            TAG::COMPONENT => 'eloquent',
+            'db.system' => 'eloquent',
         ]));
     }
 
@@ -92,7 +95,8 @@ class EloquentTest extends WebFrameworkTestCase
             'App\\Models\\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
-            TAG::COMPONENT => 'eloquent'
+            TAG::COMPONENT => 'eloquent',
+            'db.system' => 'eloquent',
         ]));
     }
 
@@ -110,7 +114,8 @@ class EloquentTest extends WebFrameworkTestCase
             'App\\Models\\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
-            TAG::COMPONENT => 'eloquent'
+            TAG::COMPONENT => 'eloquent',
+            'db.system' => 'eloquent',
         ]));
     }
 
@@ -128,7 +133,8 @@ class EloquentTest extends WebFrameworkTestCase
             'App\\Models\\User'
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
-            TAG::COMPONENT => 'eloquent'
+            TAG::COMPONENT => 'eloquent',
+            'db.system' => 'eloquent',
         ]));
     }
 

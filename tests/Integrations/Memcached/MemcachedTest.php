@@ -763,6 +763,7 @@ final class MemcachedTest extends IntegrationTestCase
             'out.host' => self::$host,
             'out.port' => self::$port,
             Tag::COMPONENT => 'memcached',
+            'db.system' => 'memcached',
         ];
     }
 }

@@ -107,6 +107,7 @@ class EloquentIntegration extends Integration
         $span->service = $this->getAppName();
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = EloquentIntegration::NAME;
+        $span->meta['db.system'] = EloquentIntegration::NAME;
     }
 
     /**

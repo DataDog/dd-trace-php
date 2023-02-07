@@ -11,6 +11,7 @@ use DDTrace\Util\ObjectKVStore;
 class MysqliIntegration extends Integration
 {
     const NAME = 'mysqli';
+    const SYSTEM = 'mysql';
 
     // https://www.php.net/manual/en/mysqli.construct.php
     const DEFAULT_MYSQLI_HOST = 'localhost';
@@ -192,6 +193,7 @@ class MysqliIntegration extends Integration
         $span->service = 'mysqli';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = MysqliIntegration::NAME;
+        $span->meta['db.system'] = MysqliIntegration::SYSTEM;
     }
 
     /**

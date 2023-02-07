@@ -14,6 +14,10 @@ class PDOIntegration extends Integration
 
     const CONNECTION_TAGS_KEY = 'connection_tags';
 
+    const ENGINE_TO_SYSTEM_ARRAY = [
+        'mysql' => 'mysqldb',
+    ];
+
     /**
      * @return string The integration name.
      */
@@ -149,6 +153,7 @@ class PDOIntegration extends Integration
     {
         $engine = substr($dsn, 0, strpos($dsn, ':'));
         $tags = ['db.engine' => $engine];
+        $tags['db.system'] = self::ENGINE_TO_SYSTEM_ARRAY[$tags['db.engine']] ?? "other_sql";
         $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
         foreach ($valStrings as $valString) {
             if (!strpos($valString, '=')) {
