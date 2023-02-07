@@ -61,12 +61,12 @@ impl _zend_function {
     /// Returns a slice to the zend_string's data if it's present and not
     /// empty; otherwise returns None.
     fn zend_string_to_optional_bytes(zstr: Option<&mut zend_string>) -> Option<&[u8]> {
-        /* Safety: datadog_php_profiling_zend_string_view can be called with
+        /* Safety: ddog_php_prof_zend_string_view can be called with
          * any valid zend_string pointer, and the tailing .into_bytes() will
          * be safe as the former will always return a view with a non-null
          * pointer.
          */
-        let bytes = unsafe { datadog_php_profiling_zend_string_view(zstr).into_bytes() };
+        let bytes = unsafe { ddog_php_prof_zend_string_view(zstr).into_bytes() };
         if bytes.is_empty() {
             None
         } else {
@@ -82,43 +82,25 @@ impl _zend_function {
 
     /// Returns the name of the function's stored scope (not runtime scope).
     pub fn scope_name(&self) -> Option<&[u8]> {
-        // Safety: common is always safe to access.
-        if unsafe { self.common.scope.is_null() } {
-            return None;
-        }
-
-        // Safety: scope is a valid reference (not null was checked above).
-        let scope = unsafe { &mut *self.common.scope };
-
-        // Safety: scope name is a valid mutable reference if not null.
-        let scope_name = unsafe { scope.name.as_mut() };
-
-        Self::zend_string_to_optional_bytes(scope_name)
+        // Safety: common is always safe to access. Assume scope is a valid
+        // reference if not null.
+        unsafe { self.common.scope.as_ref() }.and_then(|scope| {
+            // Safety: assume scope name is a valid mutable reference if not null.
+            let scope_name = unsafe { scope.name.as_mut() };
+            Self::zend_string_to_optional_bytes(scope_name)
+        })
     }
 
-    /// Returns the module name, if there is one and it's not an empty string.
+    /// Returns the module name, if there is one. May return Some(b"\0").
     pub fn module_name(&self) -> Option<&[u8]> {
         // Safety: the function's type field is always safe to access.
         if unsafe { self.type_ } == ZEND_INTERNAL_FUNCTION as u8 {
-            // Safety: if body is guarded by ZEND_INTERNAL_FUNCTION check.
-            let internal_function = unsafe { &self.internal_function };
-            if internal_function.module.is_null() {
-                return None;
-            }
-
-            // Safety: guarded null module case above.
-            let name = unsafe { (*internal_function.module).name };
-            if name.is_null() {
-                return None;
-            }
-
-            // Safety: null case is guarded above.
-            let bytes = unsafe { CStr::from_ptr(name as *const c_char) }.to_bytes();
-            if bytes.is_empty() {
-                return None;
-            }
-
-            Some(bytes)
+            // Safety: union access is guarded by ZEND_INTERNAL_FUNCTION, and
+            // assume its module is valid.
+            unsafe { self.internal_function.module.as_ref() }
+                .filter(|module| !module.name.is_null())
+                // Safety: assume module.name has a valid c string.
+                .map(|module| unsafe { CStr::from_ptr(module.name as *const c_char) }.to_bytes())
         } else {
             None
         }
@@ -285,9 +267,7 @@ extern "C" {
     /// Converts the `zstr` into a `zai_string_view`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
-    pub fn datadog_php_profiling_zend_string_view(
-        zstr: Option<&mut zend_string>,
-    ) -> zai_string_view;
+    pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_string_view;
 }
 
 pub use zend_module_dep as ModuleDep;
@@ -402,9 +382,9 @@ impl TryFrom<&mut zval> for String {
             }
 
             // Safety: checked the pointer wasn't null above.
-            let view = unsafe { datadog_php_profiling_zend_string_view(zval.value.str_.as_mut()) };
+            let view = unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()) };
 
-            // Safety: datadog_php_profiling_zend_string_view returns a fully populated string.
+            // Safety: ddog_php_prof_zend_string_view returns a fully populated string.
             let bytes = unsafe { view.into_bytes() };
 
             // PHP does not guarantee UTF-8 correctness, so lossy convert.
