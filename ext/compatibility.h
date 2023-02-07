@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <php.h>
 
+#include "ext/standard/base64.h"
+
 #if !defined(ZEND_ASSERT)
 #if ZEND_DEBUG
 #include <assert.h>
@@ -239,6 +241,12 @@ static zend_always_inline zend_object *zend_weakref_key_to_object(zend_ulong key
 static zend_always_inline zend_result zend_call_function_with_return_value(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval *retval) {
     fci->retval = retval;
     return zend_call_function(fci, fci_cache);
+}
+#endif
+
+#if PHP_VERSION_ID < 70200
+static inline zend_string *php_base64_encode_str(const zend_string *str) {
+    return php_base64_encode((const unsigned char*)(ZSTR_VAL(str)), ZSTR_LEN(str));
 }
 #endif
 
