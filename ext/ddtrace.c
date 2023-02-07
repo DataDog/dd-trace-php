@@ -327,6 +327,12 @@ ZEND_ARG_INFO(0, key)
 ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_set_user, 0, 0, 3)
+ZEND_ARG_INFO(0, id)
+ZEND_ARG_INFO(0, metadata)
+ZEND_ARG_INFO(0, propagate)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_internal_fn, 0, 0, 1)
 ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_VARIADIC_INFO(0, vars)
@@ -1181,6 +1187,71 @@ static PHP_FUNCTION(add_distributed_tag) {
     zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), prefixed_key);
 
     zend_string_release(prefixed_key);
+
+    RETURN_NULL();
+}
+
+static PHP_FUNCTION(set_user) {
+    UNUSED(execute_data);
+
+    zend_string *user_id = NULL;
+    HashTable *metadata = NULL;
+    zend_bool propagate;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata,
+      &propagate) == FAILURE) {
+        ddtrace_log_debug("Unexpected parameter combination, expected "
+                          "(user_id, metadata, propagate)");
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
+        ddtrace_log_debug("Unexpected empty user id");
+        RETURN_NULL();
+    }
+
+    zend_array *target_table;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_spandata_property_meta(DDTRACE_G(active_stack)->root_span);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
+    }
+
+    zval user_id_zv;
+    ZVAL_STR_COPY(&user_id_zv, user_id);
+    zend_hash_str_update(target_table, ZEND_STRL("usr.id"), &user_id_zv);
+
+    if (propagate) {
+        zval value_zv;
+        ZVAL_COPY(&value_zv, &user_id_zv);
+        zend_hash_str_update(target_table, ZEND_STRL("_dd.p.usr.id"), &value_zv);
+
+        zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags),
+            ZEND_STRL("_dd.p.usr.id"));
+    }
+
+    if (metadata != NULL) {
+        zend_string *key = NULL;
+        zval *value = NULL;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(metadata, key, value)
+        {
+            if (!key || Z_TYPE_P(value) != IS_STRING) {
+                continue;
+            }
+
+            zend_string *prefixed_key = zend_strpprintf(0, "usr.%s", ZSTR_VAL(key));
+
+            zval value_copy;
+            ZVAL_STR_COPY(&value_copy, Z_STR_P(value));
+            zend_hash_update(target_table, prefixed_key, &value_copy);
+
+            zend_string_release(prefixed_key);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
 
     RETURN_NULL();
 }
@@ -2157,6 +2228,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
     DDTRACE_NS_FE(add_global_tag, arginfo_ddtrace_add_global_tag),
     DDTRACE_NS_FE(add_distributed_tag, arginfo_ddtrace_add_global_tag),
+    DDTRACE_NS_FE(set_user, arginfo_ddtrace_set_user),
     DDTRACE_NS_FE(additional_trace_meta, arginfo_ddtrace_void),
     DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),
