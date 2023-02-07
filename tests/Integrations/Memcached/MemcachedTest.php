@@ -241,6 +241,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'deleteMulti',
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcached',
+                    'db.system' => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::exists('Memcached.get'),
@@ -457,6 +458,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'flush',
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcached',
+                    'db.system' => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -498,6 +500,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcached',
+                    'db.system' => 'memcached',
                 ]),
         ]);
     }
@@ -633,6 +636,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'setMulti',
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcached',
+                    'db.system' => 'memcached',
                 ]),
             SpanAssertion::exists('Memcached.getMulti'),
         ]);
