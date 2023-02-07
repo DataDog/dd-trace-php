@@ -328,7 +328,7 @@ ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_set_user, 0, 0, 3)
-ZEND_ARG_INFO(0, id)
+ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, metadata)
 ZEND_ARG_INFO(0, propagate)
 ZEND_END_ARG_INFO()
@@ -1196,7 +1196,7 @@ static PHP_FUNCTION(set_user) {
 
     zend_string *user_id = NULL;
     HashTable *metadata = NULL;
-    zend_bool propagate;
+    zend_bool propagate = false;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata,
       &propagate) == FAILURE) {
         ddtrace_log_debug("Unexpected parameter combination, expected "
@@ -1245,7 +1245,7 @@ static PHP_FUNCTION(set_user) {
             zend_string *prefixed_key = zend_strpprintf(0, "usr.%s", ZSTR_VAL(key));
 
             zval value_copy;
-            ZVAL_STR_COPY(&value_copy, Z_STR_P(value));
+            ZVAL_COPY(&value_copy, value);
             zend_hash_update(target_table, prefixed_key, &value_copy);
 
             zend_string_release(prefixed_key);
