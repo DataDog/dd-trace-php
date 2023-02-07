@@ -42,6 +42,9 @@ class Tag
     const ELASTICSEARCH_PARAMS = 'elasticsearch.params';
     const ELASTICSEARCH_URL = 'elasticsearch.url';
 
+    // Database
+    const DB_SYSTEM = 'db.system';
+
     // MongoDB
     const MONGODB_BSON_ID = 'mongodb.bson.id';
     const MONGODB_COLLECTION = 'mongodb.collection';

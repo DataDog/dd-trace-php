@@ -320,7 +320,7 @@ class PHPRedisIntegration extends Integration
         $span->type = Type::REDIS;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PHPRedisIntegration::NAME;
-        $span->meta['db.system'] = PHPRedisIntegration::SYSTEM;
+        $span->meta[Tag::DB_SYSTEM] = PHPRedisIntegration::SYSTEM;
         if (null !== $method) {
             // method names for internal functions are lowered so we need to explitly set them if we want to have the
             // proper case.

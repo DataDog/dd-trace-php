@@ -193,7 +193,7 @@ class MysqliIntegration extends Integration
         $span->service = 'mysqli';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = MysqliIntegration::NAME;
-        $span->meta['db.system'] = MysqliIntegration::SYSTEM;
+        $span->meta[Tag::DB_SYSTEM] = MysqliIntegration::SYSTEM;
     }
 
     /**

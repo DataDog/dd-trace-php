@@ -637,7 +637,7 @@ class MongoDBIntegration extends Integration
         $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;
         $span->resource = \implode(' ', array_filter([$method, $database, $collection, $command, $serializedQuery]));
         $span->meta[Tag::COMPONENT] = $this::NAME;
-        $span->meta['db.system'] = $this::SYSTEM;
+        $span->meta[Tag::DB_SYSTEM] = $this::SYSTEM;
         if ($database) {
             $span->meta[Tag::MONGODB_DATABASE] = $database;
         }

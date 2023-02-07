@@ -188,7 +188,7 @@ class PredisIntegration extends Integration
         $span->service = ObjectKVStore::get($predis, 'service', PredisIntegration::DEFAULT_SERVICE_NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PredisIntegration::NAME;
-        $span->meta['db.system'] = PredisIntegration::SYSTEM;
+        $span->meta[Tag::DB_SYSTEM] = PredisIntegration::SYSTEM;
 
         foreach (ObjectKVStore::get($predis, 'connection_meta', []) as $tag => $value) {
             $span->meta[$tag] = $value;

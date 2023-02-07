@@ -177,7 +177,7 @@ final class PredisTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'predis',
-                    'db.system' => 'redis',
+                    Tag::DB_SYSTEM => 'redis',
                 ]),
         ]);
     }
@@ -254,13 +254,13 @@ final class PredisTest extends IntegrationTestCase
             $exactTags = [
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'predis',
-                'db.system' => 'redis',
+                Tag::DB_SYSTEM => 'redis',
             ];
         } else {
             $exactTags = [
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'predis',
-                'db.system' => 'redis',
+                Tag::DB_SYSTEM => 'redis',
                 'redis.pipeline_length' => '2',
             ];
         }
@@ -345,7 +345,7 @@ final class PredisTest extends IntegrationTestCase
             'out.port' => $this->port,
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'predis',
-            'db.system' => 'redis',
+            Tag::DB_SYSTEM => 'redis',
         ];
     }
 }

@@ -149,7 +149,7 @@ class PDOIntegration extends Integration
     {
         $engine = substr($dsn, 0, strpos($dsn, ':'));
         $tags = ['db.engine' => $engine];
-        $tags['db.system'] = $tags['db.engine'];
+        $tags[Tag::DB_SYSTEM] = $tags['db.engine'];
         $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
         foreach ($valStrings as $valString) {
             if (!strpos($valString, '=')) {

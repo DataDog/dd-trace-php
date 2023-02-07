@@ -300,7 +300,7 @@ class MongoIntegration extends Integration
         $span->service = MongoIntegration::NAME;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = MongoIntegration::NAME;
-        $span->meta['db.system'] = MongoIntegration::SYSTEM;
+        $span->meta[Tag::DB_SYSTEM] = MongoIntegration::SYSTEM;
     }
 
     /**
