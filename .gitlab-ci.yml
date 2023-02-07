@@ -48,7 +48,7 @@ deploy_to_reliability_env:
 tracer-base-image:
   extends: .ci_authenticated_job
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
       when: always
     - when: manual
   stage: deploy
