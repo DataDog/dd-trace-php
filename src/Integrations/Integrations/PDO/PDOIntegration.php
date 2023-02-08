@@ -14,6 +14,21 @@ class PDOIntegration extends Integration
 
     const CONNECTION_TAGS_KEY = 'connection_tags';
 
+    const DB_DRIVER_TO_SYSTEM = [
+        'cubrid' => 'other_sql',
+        'dblib' => 'other_sql',
+        # may be mssql or Sybase, not supported anymore so shouldn't be a problem
+        'firebird' => 'firebird',
+        'ibm' => 'db2',
+        'informix' => 'informix',
+        'mysql' => 'mysql',
+        'sqlsrv' => 'mssql',
+        'oci' => 'oracle',
+        'odbc' => 'other',
+        'pgsql' => 'postgresql',
+        'sqlite' => 'sqlite'
+    ];
+
     /**
      * @return string The integration name.
      */
@@ -149,7 +164,7 @@ class PDOIntegration extends Integration
     {
         $engine = substr($dsn, 0, strpos($dsn, ':'));
         $tags = ['db.engine' => $engine];
-        $tags[Tag::DB_SYSTEM] = $tags['db.engine'];
+        $tags[Tag::DB_SYSTEM] = self::DB_DRIVER_TO_SYSTEM[$tags['db.engine']];
         $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
         foreach ($valStrings as $valString) {
             if (!strpos($valString, '=')) {
