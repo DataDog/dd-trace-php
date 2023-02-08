@@ -124,10 +124,7 @@ static void zend_hash_iterators_remove(HashTable *ht) {
     }
 }
 
-
-static void zai_hook_entries_destroy(zval *zv) {
-    zai_hooks_entry *hooks = Z_PTR_P(zv);
-
+static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_address) {
 #if PHP_VERSION_ID >= 80000
     if (hooks->resolved
 #if PHP_VERSION_ID < 80200
@@ -138,6 +135,7 @@ static void zai_hook_entries_destroy(zval *zv) {
     } else if (hooks->run_time_cache) {
         zend_function func;
         func.common.fn_flags = hooks->is_generator ? ZEND_ACC_GENERATOR : 0;
+        func.op_array.opcodes = (void *)(uintptr_t *)(install_address << 5); // does not need to be valid, but sufficient to get install_address
 #if PHP_VERSION_ID >= 80200
         ZEND_MAP_PTR_INIT(func.common.run_time_cache, hooks->run_time_cache);
 #else
@@ -145,12 +143,22 @@ static void zai_hook_entries_destroy(zval *zv) {
 #endif
         zai_hook_on_update(&func, true);
     }
+#else
+    (void)install_address;
 #endif
 
     zend_hash_iterators_remove(&hooks->hooks);
     zend_hash_destroy(&hooks->hooks);
 
     efree(hooks);
+}
+
+static void zai_hook_entries_remove_resolved(zend_ulong install_address) {
+    zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, install_address);
+    if (hooks) {
+        zai_hook_entries_destroy(hooks, install_address);
+        zend_hash_index_del(&zai_hook_resolved, install_address);
+    }
 }
 
 static void zai_hook_hash_destroy(zval *zv) {
@@ -529,7 +537,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
         return ZAI_HOOK_SKIP;
     }
 
-    int allocated_hook_count = zend_hash_num_elements(&hooks->hooks);
+    uint32_t allocated_hook_count = zend_hash_num_elements(&hooks->hooks);
     size_t hook_info_size = allocated_hook_count * sizeof(zai_hook_info);
     size_t dynamic_size = hooks->dynamic + hook_info_size;
     // a vector of first N hook_info entries, then N entries of variable size (as much memory as the individual hooks require)
@@ -540,7 +548,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     HashPosition pos;
     zend_hash_internal_pointer_reset_ex(&hooks->hooks, &pos);
     uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
-    int hook_num = 0;
+    uint32_t hook_num = 0;
     size_t dynamic_offset = hook_info_size;
     bool check_scope = ex->func->common.scope != NULL;
 
@@ -559,7 +567,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
 
         // increase dynamic memory if new hooks get added during iteration
         if (UNEXPECTED(dynamic_offset + hook->dynamic > dynamic_size || allocated_hook_count <= hook_num)) {
-            for (int i = 0; i < hook_num; ++i) {
+            for (uint32_t i = 0; i < hook_num; ++i) {
                 ((zai_hook_info *)memory->dynamic)[i].dynamic_offset += sizeof(zai_hook_info);
             }
             dynamic_offset += sizeof(zai_hook_info);
@@ -592,7 +600,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
         if (!hook->begin(memory->invocation, ex, hook->aux.data, memory->dynamic + dynamic_offset)) {
             zend_hash_iterator_del(ht_iter);
 
-            memory->hook_count = hook_num;
+            memory->hook_count = (zend_ulong)hook_num;
             zai_hook_finish(ex, NULL, memory);
             return ZAI_HOOK_BAILOUT;
         }
@@ -613,7 +621,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
 
     zend_hash_iterator_del(ht_iter);
 
-    memory->hook_count = hook_num;
+    memory->hook_count = (zend_ulong)hook_num;
     return ZAI_HOOK_CONTINUED;
 } /* }}} */
 
@@ -661,7 +669,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
             zai_hook_table_find(&zai_hook_resolved, address, (void**)&hooks);
             zend_hash_index_del(&hooks->hooks, (zend_ulong) -hook->id);
             if (zend_hash_num_elements(&hooks->hooks) == 0) {
-                zend_hash_index_del(&zai_hook_resolved, address);
+                zai_hook_entries_remove_resolved(address);
             }
         }
     }
@@ -681,7 +689,7 @@ bool zai_hook_minit(void) {
 bool zai_hook_rinit(void) {
     zend_hash_init(&zai_hook_request_functions, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_request_classes, 8, NULL, zai_hook_hash_destroy, 0);
-    zend_hash_init(&zai_hook_resolved, 8, NULL, zai_hook_entries_destroy, 0);
+    zend_hash_init(&zai_hook_resolved, 8, NULL, NULL, 0);
     zend_hash_init(&zai_function_location_map, 8, NULL, zai_function_location_destroy, 0);
 
     // reserve low hook ids for static hooks
@@ -705,10 +713,17 @@ void zai_hook_activate(void) {
     zai_hook_id = current_hook_id;
 }
 
+static int zai_hook_clean_graceful_del(zval *zv) {
+    zai_hook_entries_destroy(Z_PTR_P(zv), ((Bucket *)zv)->h);
+    return ZEND_HASH_APPLY_REMOVE;
+}
+
 void zai_hook_rshutdown(void) {
     // freeing this after a bailout is a bad idea: at least resolved hooks will contain objects, which are invalid when destroyed here.
     if (!CG(unclean_shutdown)) {
+        zend_hash_apply(&zai_hook_resolved, zai_hook_clean_graceful_del);
         zend_hash_destroy(&zai_hook_resolved);
+
         zend_hash_destroy(&zai_hook_request_functions);
         zend_hash_destroy(&zai_hook_request_classes);
         zend_hash_destroy(&zai_function_location_map);
@@ -812,7 +827,7 @@ bool zai_hook_remove_resolved(zai_install_address function_address, zend_long in
         }
 
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
-            zend_hash_index_del(&zai_hook_resolved, function_address);
+            zai_hook_entries_remove_resolved(function_address);
         }
 
         return true;
@@ -853,11 +868,6 @@ bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
     }
 
     return false;
-}
-
-static int zai_hook_clean_graceful_del(zval *zv) {
-    (void) zv;
-    return ZEND_HASH_APPLY_REMOVE;
 }
 
 void zai_hook_clean(void) {

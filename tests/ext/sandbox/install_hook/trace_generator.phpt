@@ -30,8 +30,8 @@ include __DIR__ . '/../dd_dumper.inc';
 ?>
 --EXPECTF--
 spans(\DDTrace\SpanData) (1) {
-  test\trace_generator.php:5\{closure} (trace_generator.php, test\trace_generator.php:5\{closure}, cli)
-    closure.declaration => /home/circleci/app/tmp/build_extension/tests/ext/sandbox/install_hook/trace_generator.php:5
+  test\trace_generator.php:%d\{closure} (trace_generator.php, test\trace_generator.php:%d\{closure}, cli)
+    closure.declaration => %s:%d
     result => 3
      (trace_generator.php, cli)
 }
