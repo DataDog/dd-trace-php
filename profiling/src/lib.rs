@@ -323,7 +323,7 @@ pub struct RequestLocals {
 /// take a sample every X bytes
 /// this value is temporary but the overhead looks promising, Go profiler samples every 512 KiB
 #[cfg(feature = "allocation_profiling")]
-const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 50.0;
+const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 512.0;
 
 #[cfg(feature = "allocation_profiling")]
 pub struct AllocationProfilingStats {
