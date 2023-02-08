@@ -61,7 +61,7 @@ __thread HashTable zai_hook_resolved;
 typedef struct {
     uint32_t ordered;
     uint32_t size;
-    zend_function *functions[1]; // struct hack
+    zend_function *functions[];
 } zai_function_location_entry;
 
 // zai_function_location_map maps from a filename to a possibly ordered array of values
@@ -371,7 +371,7 @@ static inline void zai_store_func_location(zend_function *func) {
     zval *entryzv;
     zai_function_location_entry *entry;
     if (!(entryzv = zend_hash_find(&zai_function_location_map, func->op_array.filename))) {
-        entry = emalloc(sizeof(zai_function_location_entry) + (min_size - 1) * sizeof(zend_function *));
+        entry = emalloc(sizeof(zai_function_location_entry) + min_size * sizeof(zend_function *));
         entry->size = 1;
         entry->ordered = 1;
         zend_hash_add_new_ptr(&zai_function_location_map, func->op_array.filename, entry);
@@ -379,7 +379,7 @@ static inline void zai_store_func_location(zend_function *func) {
         entry = Z_PTR_P(entryzv);
         entry->ordered = 0;
         if (++entry->size > min_size && (entry->size & (entry->size - 1)) == 0) { // power of two test
-            Z_PTR_P(entryzv) = entry = erealloc(entry, sizeof(zai_function_location_entry) + (entry->size * 2 - 2) * sizeof(zend_function *));
+            Z_PTR_P(entryzv) = entry = erealloc(entry, sizeof(zai_function_location_entry) + (entry->size * 2 - 1) * sizeof(zend_function *));
         }
     }
 
@@ -401,7 +401,7 @@ zend_function *zai_hook_find_containing_function(zend_function *func) {
     }
 
     if (UNEXPECTED(entry->ordered == 0)) {
-        qsort(entry->functions, entry->size, sizeof(entry->functions), zai_function_location_map_cmp);
+        qsort(entry->functions, entry->size, sizeof(zend_function *), zai_function_location_map_cmp);
         entry->ordered = 1;
     }
 

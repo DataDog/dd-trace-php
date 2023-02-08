@@ -25,7 +25,7 @@ static __thread HashTable dd_active_hooks;
 
 typedef struct {
     size_t size;
-    zend_long id[1]; // struct hack
+    zend_long id[];
 } dd_closure_list;
 
 typedef struct {
@@ -313,9 +313,9 @@ PHP_FUNCTION(DDTrace_install_hook) {
             dd_closure_list *hooks;
             if ((hooks_zv = zend_hash_index_find(&dd_closure_hooks, (zend_ulong)(uintptr_t)closure))) {
                 hooks = Z_PTR_P(hooks_zv);
-                Z_PTR_P(hooks_zv) = hooks = erealloc(hooks, sizeof(dd_closure_list) + sizeof(zend_long) * hooks->size++);
+                Z_PTR_P(hooks_zv) = hooks = erealloc(hooks, sizeof(dd_closure_list) + sizeof(zend_long) * ++hooks->size);
             } else {
-                hooks = emalloc(sizeof(dd_closure_list));
+                hooks = emalloc(sizeof(dd_closure_list) + sizeof(zend_long));
                 hooks->size = 1;
                 zend_hash_index_add_new_ptr(&dd_closure_hooks, (zend_ulong)(uintptr_t)closure, hooks);
             }
