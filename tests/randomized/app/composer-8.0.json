@@ -4,6 +4,11 @@
             "RandomizedTests\\": "./src/RandomizedTests"
         }
     },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
     "require": {
         "elasticsearch/elasticsearch": "^7.0",
         "guzzlehttp/guzzle": "7.*",

@@ -35,7 +35,8 @@
     "config": {
         "sort-packages": true,
         "allow-plugins": {
-            "g1a/composer-test-scenarios": true
+            "g1a/composer-test-scenarios": true,
+            "php-http/discovery": true
         }
     },
     "autoload": {

@@ -17,14 +17,14 @@ class PDOIntegration extends Integration
     const DB_DRIVER_TO_SYSTEM = [
         'cubrid' => 'other_sql',
         'dblib' => 'other_sql',
-        # may be mssql or Sybase, not supported anymore so shouldn't be a problem
+        // may be mssql or Sybase, not supported anymore so shouldn't be a problem
         'firebird' => 'firebird',
         'ibm' => 'db2',
         'informix' => 'informix',
         'mysql' => 'mysql',
         'sqlsrv' => 'mssql',
         'oci' => 'oracle',
-        'odbc' => 'other',
+        'odbc' => 'other_sql',
         'pgsql' => 'postgresql',
         'sqlite' => 'sqlite'
     ];
