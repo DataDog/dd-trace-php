@@ -2382,7 +2382,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
     }
 
     // "{version:2}-{trace-id:32}-{parent-id:16}-{trace-flags:2}"
-    if (parse_tracestate && read_header(ZAI_STRL_VIEW("X_TRACEPARENT"), "traceparent", &traceparent, data)) {
+    if (parse_tracestate && read_header(ZAI_STRL_VIEW("TRACEPARENT"), "traceparent", &traceparent, data)) {
         do {
             // version
             char *start = ZSTR_VAL(traceparent), *end = strchr(start, '-');
@@ -2420,7 +2420,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
         zend_string_release(traceparent);
 
        // header format: "[*,]dd=s:1;o:rum;t.dm:-4;t.usr.id:12345[,*]"
-        if (read_header(ZAI_STRL_VIEW("X_TRACESTATE"), "tracestate", &tracestate, data)) {
+        if (read_header(ZAI_STRL_VIEW("TRACESTATE"), "tracestate", &tracestate, data)) {
             bool last_comma = true;
             DDTRACE_G(tracestate) = zend_string_alloc(ZSTR_LEN(tracestate), 0);
             char *persist = ZSTR_VAL(DDTRACE_G(tracestate));
