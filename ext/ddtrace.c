@@ -2332,7 +2332,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
         ZVAL_STR(&trace_zv, trace_id_str);
         DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){ .low = ddtrace_parse_userland_span_id(&trace_zv) };
         zend_string_release(trace_id_str);
-    } else if (parse_b3 && read_header(ZAI_STRL_VIEW("X_B3_TRACEID"), "b3-traceid", &trace_id_str, data)) {
+    } else if (parse_b3 && read_header(ZAI_STRL_VIEW("X_B3_TRACEID"), "x-b3-traceid", &trace_id_str, data)) {
         DDTRACE_G(distributed_trace_id) = dd_parse_b3_trace_id(ZSTR_VAL(trace_id_str), ZSTR_LEN(trace_id_str));
         zend_string_release(trace_id_str);
     }
@@ -2351,7 +2351,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
         }
     }
 
-    read_header(ZAI_STRL_VIEW("X_DATADOG_ORIGIN"), "datadog-origin", &DDTRACE_G(dd_origin), data);
+    read_header(ZAI_STRL_VIEW("X_DATADOG_ORIGIN"), "x-datadog-origin", &DDTRACE_G(dd_origin), data);
 
     if (parse_datadog && read_header(ZAI_STRL_VIEW("X_DATADOG_SAMPLING_PRIORITY"), "x-datadog-sampling-priority", &priority_str, data)) {
         priority_sampling = strtol(ZSTR_VAL(priority_str), NULL, 10);
