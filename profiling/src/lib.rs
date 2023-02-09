@@ -689,8 +689,13 @@ fn detect_uri_from_config(
     if port.is_some() || host.is_some() {
         let host = host.unwrap_or(Cow::Borrowed("localhost"));
         let port = port.unwrap_or(8126u16);
+        let url = if host.contains(':') {
+            format!("http://[{host}]:{port}")
+        } else {
+            format!("http://{host}:{port}")
+        };
 
-        match Uri::from_str(format!("http://{host}:{port}").as_str()) {
+        match Uri::from_str(url.as_str()) {
             Ok(uri) => return AgentEndpoint::Uri(uri),
             Err(err) => {
                 warn!("The combination of DD_AGENT_HOST({host}) and DD_TRACE_AGENT_PORT({port}) was not a valid URL: {err}")
