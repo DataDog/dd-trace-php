@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: f89e44d830bdaf827effa53dd5d7643c90974b11 */
+ * Stub hash: 6e695ec08c44692b1b361afd99a4521067cfb6de */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DDTrace_Trace___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, name, IS_STRING, 0, "\"\"")

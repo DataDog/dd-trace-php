@@ -474,7 +474,7 @@ static void zai_interceptor_observer_placeholder_handler(zend_execute_data *exec
 }
 
 void zai_interceptor_replace_observer(zend_function *func, bool remove) {
-    if (!RUN_TIME_CACHE(&func->op_array)) {
+    if (!RUN_TIME_CACHE(&func->op_array) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
         return;
     }
 
@@ -543,7 +543,7 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove) {
     ZEND_OP_ARRAY_EXTENSION((&(function)->common), zend_observer_fcall_op_array_extension)
 
 void zai_interceptor_replace_observer(zend_function *func, bool remove) {
-    if (!RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func)) {
+    if (!RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
         return;
     }
 

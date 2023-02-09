@@ -96,6 +96,8 @@ extern void (*zai_hook_on_update)(zend_function *func, bool remove);
 extern void (*zai_hook_on_function_resolve)(zend_function *func);
 #endif
 
+zend_function *zai_hook_find_containing_function(zend_function *func);
+
 typedef struct {
     bool active;
     zend_ulong index;
@@ -115,13 +117,13 @@ void zai_hook_iterator_advance(zai_hook_iterator *iterator);
 void zai_hook_iterator_free(zai_hook_iterator *iterator);
 
 /* {{{ */
-static inline zai_install_address zai_hook_install_address_user(zend_op_array *op_array) {
+static inline zai_install_address zai_hook_install_address_user(const zend_op_array *op_array) {
     return ((zend_ulong)op_array->opcodes) >> 5;
 }
-static inline zai_install_address zai_hook_install_address_internal(zend_internal_function *function) {
+static inline zai_install_address zai_hook_install_address_internal(const zend_internal_function *function) {
     return ((zend_ulong)function) >> 5;
 }
-static inline zai_install_address zai_hook_install_address(zend_function *function) {
+static inline zai_install_address zai_hook_install_address(const zend_function *function) {
     if (function->type == ZEND_INTERNAL_FUNCTION) {
         return zai_hook_install_address_internal(&function->internal_function);
     }

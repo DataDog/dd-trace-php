@@ -88,11 +88,7 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
 
         char *deffile;
         int defline = 0;
-#if PHP_VERSION_ID < 80000
-        const zend_function *func = zend_get_closure_method_def(&closure_zv);
-#else
         const zend_function *func = zend_get_closure_method_def(closure);
-#endif
         if (func->type == ZEND_USER_FUNCTION) {
             deffile = ZSTR_VAL(func->op_array.filename);
             defline = (int) func->op_array.opcodes[0].lineno;

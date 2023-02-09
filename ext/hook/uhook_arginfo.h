@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9d121c2053e69043217e9fe88d197e9dfcea77a4 */
+ * Stub hash: 21ff52413a495e771ae1b590efcab9349585887d */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 3, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING, NULL)
@@ -11,9 +11,14 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_remove_hook, 0, 1, IS_VO
 	ZEND_ARG_TYPE_INFO(0, id, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_HookData_span, 0, 0, DDTrace\\SpanData, 0)
+	ZEND_ARG_OBJ_TYPE_MASK(0, parent, DDTrace\\SpanStack|DDTrace\\SpanData, MAY_BE_NULL, "null")
+ZEND_END_ARG_INFO()
+
 
 ZEND_FUNCTION(DDTrace_install_hook);
 ZEND_FUNCTION(DDTrace_remove_hook);
+ZEND_METHOD(DDTrace_HookData, span);
 
 
 static const zend_function_entry ext_functions[] = {
@@ -24,6 +29,7 @@ static const zend_function_entry ext_functions[] = {
 
 
 static const zend_function_entry class_DDTrace_HookData_methods[] = {
+	ZEND_ME(DDTrace_HookData, span, arginfo_class_DDTrace_HookData_span, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -33,6 +39,12 @@ static zend_class_entry *register_class_DDTrace_HookData(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "HookData", class_DDTrace_HookData_methods);
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
+
+	zval property_data_default_value;
+	ZVAL_UNDEF(&property_data_default_value);
+	zend_string *property_data_name = zend_string_init("data", sizeof("data") - 1, 1);
+	zend_declare_typed_property(class_entry, property_data_name, &property_data_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
+	zend_string_release(property_data_name);
 
 	zval property_id_default_value;
 	ZVAL_UNDEF(&property_id_default_value);
@@ -58,12 +70,6 @@ static zend_class_entry *register_class_DDTrace_HookData(void)
 	zend_string *property_exception_name = zend_string_init("exception", sizeof("exception") - 1, 1);
 	zend_declare_typed_property(class_entry, property_exception_name, &property_exception_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_exception_class_Throwable, 0, MAY_BE_NULL));
 	zend_string_release(property_exception_name);
-
-	zval property_data_default_value;
-	ZVAL_UNDEF(&property_data_default_value);
-	zend_string *property_data_name = zend_string_init("data", sizeof("data") - 1, 1);
-	zend_declare_typed_property(class_entry, property_data_name, &property_data_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
-	zend_string_release(property_data_name);
 
 	return class_entry;
 }
