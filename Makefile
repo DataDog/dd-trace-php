@@ -42,6 +42,8 @@ TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' 
 INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
+all: $(BUILD_DIR)/configure $(SO_FILE)
+
 # The following differentiation exists so we can build only (but always) the relevant files while executing tests
 #  - when a `.phpt` changes, we only copy the file to the build dir and we DO NOT rebuild
 #  - when a `.c` changes, we copy the file to the build dir and we DO the specific .lo build and linking
@@ -65,6 +67,12 @@ $(BUILD_DIR)/%Cargo.toml: %Cargo.toml
 	$(Q) echo Copying $*Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $*Cargo.toml $@
+	sed -i 's/"..\/../"..\/..\/..\/../g; s/, "profiling"//' $@
+
+$(BUILD_DIR)/Cargo.toml: Cargo.toml
+	$(Q) echo Copying Cargo.toml to $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a Cargo.toml $@
 	sed -i 's/"..\/../"..\/..\/..\/../g; s/, "profiling"//' $@
 
 $(BUILD_DIR)/%: %
@@ -1080,4 +1088,4 @@ composer.lock: composer.json
 	$(Q) composer update
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
+	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all cbindgen
