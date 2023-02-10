@@ -13,6 +13,9 @@ variables:
     value: "false"
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
+include:
+  remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+
 build:
   stage: build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
@@ -41,3 +44,20 @@ deploy_to_reliability_env:
 #    COMMIT_SHA would be wrong because the artifact is not built here
 #    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     FORCE_TRIGGER: $FORCE_TRIGGER
+
+tracer-base-image:
+  extends: .ci_authenticated_job
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: always
+    - when: manual
+  stage: deploy
+  script:
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
+    - ./tooling/ci/download-binary-php.sh dev
+    - docker build -t ghcr.io/datadog/system-tests/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/system-tests/dd-trace-php:latest_snapshot
+    - rm -rf ./tooling/ci/binaries
+    - ./tooling/ci/download-binary-php.sh prod
+    - docker build -t ghcr.io/datadog/system-tests/dd-trace-php:latest -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/system-tests/dd-trace-php:latest
