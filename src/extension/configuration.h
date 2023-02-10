@@ -57,7 +57,7 @@ extern bool runtime_config_first_init;
     CONFIG(CUSTOM(uint32_t), DD_REMOTE_CONFIG_POLL_INTERVAL, "1000", .parser = _parse_uint32)                   \
     CONFIG(CUSTOM(uint64_t), DD_REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "4096", .parser = _parse_uint64)                \
     CONFIG(STRING, DD_AGENT_HOST, "")                                                                           \
-    CONFIG(INT, DD_TRACE_AGENT_PORT, "8126")                                                                    \
+    CONFIG(INT, DD_TRACE_AGENT_PORT, "0")                                                                       \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                    \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")
     // clang-format on

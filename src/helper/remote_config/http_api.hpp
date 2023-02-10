@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <spdlog/spdlog.h>
 #include <string>
 
 namespace beast = boost::beast; // from <boost/beast.hpp>
@@ -98,8 +99,7 @@ public:
             }
             // If we get here then the connection is closed gracefully
         } catch (std::exception const &e) {
-            //@todo log these errors somewhere else
-            //            std::cerr << "Error: " << e.what() << std::endl;
+            SPDLOG_ERROR("Connection error - {}", e.what());
             return std::nullopt;
         }
         return result;
