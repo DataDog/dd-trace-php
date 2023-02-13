@@ -21,6 +21,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function getInis()
+    {
+        return \array_merge(parent::getInis(), [
+            'zend_extension' => 'xdebug-3.2.0RC1.so',
+        ]);
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

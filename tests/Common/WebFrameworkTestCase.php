@@ -99,6 +99,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'xdebug.remote_enable' => 1,
             'xdebug.remote_host' => 'host.docker.internal',
             'xdebug.remote_autostart' => 1,
+            // New xdebug versions
+            'xdebug.mode' => 'develop,debug',
+            'xdebug.start_with_request' => 'yes',
+            'xdebug.client_host' => 'host.docker.internal',
         ];
     }
 
