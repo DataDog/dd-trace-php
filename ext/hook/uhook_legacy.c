@@ -56,7 +56,10 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
                         &rv, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv, &args_zv, retval, &exception_zv);
     } else {
         if (EX(func)->common.scope) {
-            zval *This = getThis() ? &EX(This) : &EG(uninitialized_zval);
+            zval *This = getThis();
+            if (!This) {
+                This = &EG(uninitialized_zval);
+            }
             zval scope;
             ZVAL_NULL(&scope);
             zend_class_entry *scope_ce = zend_get_called_scope(execute_data);
