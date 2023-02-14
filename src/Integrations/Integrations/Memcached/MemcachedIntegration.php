@@ -124,11 +124,7 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration, $command) {
                 $integration->setCommonData($span, $command);
                 if ($command === 'get') {
-                    if (isset($retval) && $retval) {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 1;
-                    } else {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
-                    }
+                    $span->metrics[Tag::DB_ROWCOUNT] = isset($retval) && $retval ? 1 : 0;
                 }
                 if (!is_array($args[0])) {
                     $integration->setServerTags($span, $this);
@@ -149,11 +145,7 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration, $command) {
                 $integration->setCommonData($span, $command);
                 if ($command === 'getByKey') {
-                    if (isset($retval)) {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 1;
-                    } else {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
-                    }
+                    $span->metrics[Tag::DB_ROWCOUNT] = isset($retval) && $retval ? 1 : 0;
                 }
                 if (!is_array($args[0])) {
                     $integration->setServerTags($span, $this);
@@ -175,13 +167,7 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration, $command) {
                 $integration->setCommonData($span, $command);
                 if ($command === 'getMulti') {
-                    if (!isset($retval)) {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
-                    } elseif (is_array($retval)) {
-                        $span->metrics[Tag::DB_ROWCOUNT] = count($retval);
-                    } else {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 1;
-                    }
+                    $span->metrics[Tag::DB_ROWCOUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
                 }
                 if (!is_array($args[0])) {
                     $integration->setServerTags($span, $this);
@@ -201,13 +187,7 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration, $command) {
                 $integration->setCommonData($span, $command);
                 if ($command === 'getMultiByKey') {
-                    if (!isset($retval)) {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
-                    } elseif (is_array($retval)) {
-                        $span->metrics[Tag::DB_ROWCOUNT] = count($retval);
-                    } else {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 1;
-                    }
+                    $span->metrics[Tag::DB_ROWCOUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
                 }
                 $span->meta['memcached.server_key'] = $args[0];
                 $integration->setServerTags($span, $this);
