@@ -118,56 +118,104 @@ class MemcachedIntegration extends Integration
     public function traceCommand($command)
     {
         $integration = $this;
-        \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
-            $integration->setCommonData($span, $command);
-            if (!is_array($args[0])) {
-                $integration->setServerTags($span, $this);
-                $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
-            }
+        \DDTrace\trace_method(
+            'Memcached',
+            $command,
+            function (SpanData $span, $args, $retval) use ($integration, $command) {
+                $integration->setCommonData($span, $command);
+                if ($command === 'get') {
+                    if (isset($retval) && $retval) {
+                        $span->metrics[Tag::DB_ROWCOUNT] = 1;
+                    } else {
+                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
+                    }
+                }
+                if (!is_array($args[0])) {
+                    $integration->setServerTags($span, $this);
+                    $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
+                }
 
-            $integration->markForTraceAnalytics($span, $command);
-        });
+                $integration->markForTraceAnalytics($span, $command);
+            }
+        );
     }
 
     public function traceCommandByKey($command)
     {
         $integration = $this;
-        \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
-            $integration->setCommonData($span, $command);
-            if (!is_array($args[0])) {
-                $integration->setServerTags($span, $this);
-                $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
-                $span->meta['memcached.server_key'] = $args[0];
-            }
+        \DDTrace\trace_method(
+            'Memcached',
+            $command,
+            function (SpanData $span, $args, $retval) use ($integration, $command) {
+                $integration->setCommonData($span, $command);
+                if ($command === 'getByKey') {
+                    if (isset($retval)) {
+                        $span->metrics[Tag::DB_ROWCOUNT] = 1;
+                    } else {
+                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
+                    }
+                }
+                if (!is_array($args[0])) {
+                    $integration->setServerTags($span, $this);
+                    $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
+                    $span->meta['memcached.server_key'] = $args[0];
+                }
 
-            $integration->markForTraceAnalytics($span, $command);
-        });
+                $integration->markForTraceAnalytics($span, $command);
+            }
+        );
     }
 
     public function traceMulti($command)
     {
         $integration = $this;
-        \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
-            $integration->setCommonData($span, $command);
-            if (!is_array($args[0])) {
-                $integration->setServerTags($span, $this);
+        \DDTrace\trace_method(
+            'Memcached',
+            $command,
+            function (SpanData $span, $args, $retval) use ($integration, $command) {
+                $integration->setCommonData($span, $command);
+                if ($command === 'getMulti') {
+                    if (!isset($retval)) {
+                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
+                    } elseif (is_array($retval)) {
+                        $span->metrics[Tag::DB_ROWCOUNT] = count($retval);
+                    } else {
+                        $span->metrics[Tag::DB_ROWCOUNT] = 1;
+                    }
+                }
+                if (!is_array($args[0])) {
+                    $integration->setServerTags($span, $this);
+                }
+                $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0], ',');
+                $integration->markForTraceAnalytics($span, $command);
             }
-            $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0], ',');
-            $integration->markForTraceAnalytics($span, $command);
-        });
+        );
     }
 
     public function traceMultiByKey($command)
     {
         $integration = $this;
-        \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
-            $integration->setCommonData($span, $command);
-            $span->meta['memcached.server_key'] = $args[0];
-            $integration->setServerTags($span, $this);
-            $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
-            $span->meta['memcached.query'] = $query;
-            $integration->markForTraceAnalytics($span, $command);
-        });
+        \DDTrace\trace_method(
+            'Memcached',
+            $command,
+            function (SpanData $span, $args, $retval) use ($integration, $command) {
+                $integration->setCommonData($span, $command);
+                if ($command === 'getMultiByKey') {
+                    if (!isset($retval)) {
+                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
+                    } elseif (is_array($retval)) {
+                        $span->metrics[Tag::DB_ROWCOUNT] = count($retval);
+                    } else {
+                        $span->metrics[Tag::DB_ROWCOUNT] = 1;
+                    }
+                }
+                $span->meta['memcached.server_key'] = $args[0];
+                $integration->setServerTags($span, $this);
+                $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
+                $span->meta['memcached.query'] = $query;
+                $integration->markForTraceAnalytics($span, $command);
+            }
+        );
     }
 
     /**
