@@ -18,7 +18,7 @@ RUN set -eux; \
         oniguruma-dev
 
 # Profiling deps
-RUN apk add --no-cache llvm15-libs
+RUN apk add --no-cache llvm15-libs clang15-dev
 RUN apk add --no-cache rust-stdlib
 RUN apk add --no-cache cargo
 RUN apk add --no-cache clang git protoc unzip
