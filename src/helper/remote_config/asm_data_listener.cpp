@@ -12,7 +12,7 @@
 struct rule_data {
     struct data_with_expiration {
         std::string_view value;
-        int expiration;
+        std::optional<uint64_t> expiration;
     };
 
     std::string_view id;
@@ -31,26 +31,43 @@ void extract_data(
                 "Entry on data not a valid object");
         }
 
-        auto expiration_itr = dds::json_helper::get_field_of_type(
-            data_entry_itr, "expiration", rapidjson::kNumberType);
         auto value_itr = dds::json_helper::get_field_of_type(
             data_entry_itr, "value", rapidjson::kStringType);
-        if (!expiration_itr || !value_itr) {
+        if (!value_itr) {
             throw dds::remote_config::error_applying_config(
-                "Invalid content of data entry");
+                "Invalid value of data entry");
+        }
+
+        std::optional<rapidjson::Value::ConstMemberIterator> expiration_itr =
+            data_entry_itr->FindMember("expiration");
+        if (expiration_itr == data_entry_itr->MemberEnd()) {
+            expiration_itr = std::nullopt;
+        } else if (expiration_itr.value()->value.GetType() !=
+                   rapidjson::kNumberType) {
+            throw dds::remote_config::error_applying_config(
+                "Invalid type for expiration entry");
         }
 
         auto value = value_itr.value();
-        auto expiration = expiration_itr.value();
 
         auto previous = rule_data.data.find(value->value.GetString());
         if (previous != rule_data.data.end()) {
-            if (previous->second.expiration < expiration->value.GetInt()) {
-                previous->second.expiration = expiration->value.GetInt();
+            if (!expiration_itr) {
+                // This has no expiration so it last forever
+                previous->second.expiration = std::nullopt;
+            } else if (previous->second.expiration &&
+                       previous->second.expiration <
+                           expiration_itr.value()->value.GetUint64()) {
+                previous->second.expiration =
+                    expiration_itr.value()->value.GetUint64();
             }
         } else {
+            std::optional<uint64_t> expiration = std::nullopt;
+            if (expiration_itr) {
+                expiration = expiration_itr.value()->value.GetUint64();
+            }
             rule_data.data.insert({value->value.GetString(),
-                {value->value.GetString(), expiration->value.GetInt()}});
+                {value->value.GetString(), expiration}});
         }
     }
 }
@@ -58,9 +75,9 @@ void extract_data(
 dds::parameter rules_to_parameter(
     const std::unordered_map<std::string, rule_data> &rules)
 {
-    dds::parameter parameter = dds::parameter::map();
     dds::parameter rules_data = dds::parameter::array();
     for (const auto &[key, rule] : rules) {
+
         dds::parameter parameter_rule = dds::parameter::map();
 
         parameter_rule.add("id", dds::parameter::string(rule.id));
@@ -70,8 +87,10 @@ dds::parameter rules_to_parameter(
         dds::parameter data = dds::parameter::array();
         for (const auto &[value, data_entry] : rule.data) {
             dds::parameter data_parameter = dds::parameter::map();
-            data_parameter.add(
-                "expiration", dds::parameter::uint64(data_entry.expiration));
+            if (data_entry.expiration) {
+                data_parameter.add("expiration",
+                    dds::parameter::uint64(data_entry.expiration.value()));
+            }
             data_parameter.add("value", dds::parameter::string(value));
             data.add(std::move(data_parameter));
         }
@@ -80,9 +99,7 @@ dds::parameter rules_to_parameter(
         rules_data.add(std::move(parameter_rule));
     }
 
-    parameter.add("rules_data", std::move(rules_data));
-
-    return parameter;
+    return rules_data;
 }
 
 void dds::remote_config::asm_data_listener::on_update(const config &config)
@@ -140,6 +157,5 @@ void dds::remote_config::asm_data_listener::on_update(const config &config)
 
     auto parameter = rules_to_parameter(rules_data);
     auto parameter_view = dds::parameter_view(parameter);
-
     engine_->update_rule_data(parameter_view);
 }

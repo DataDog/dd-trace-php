@@ -38,7 +38,7 @@ ACTION_P(SaveParameterView, param)
 }
 
 struct test_rule_data_data {
-    int expiration;
+    std::optional<uint64_t> expiration;
     std::string value;
 };
 
@@ -79,8 +79,10 @@ remote_config::config get_rules_data(std::vector<test_rule_data> data)
         for (const auto &data_entry : rule_data.data) {
             rapidjson::Value data_json_entry(rapidjson::kObjectType);
             data_json_entry.AddMember("value", data_entry.value, alloc);
-            data_json_entry.AddMember(
-                "expiration", data_entry.expiration, alloc);
+            if (data_entry.expiration) {
+                data_json_entry.AddMember(
+                    "expiration", data_entry.expiration.value(), alloc);
+            }
             data_json.PushBack(data_json_entry, alloc);
         }
 
@@ -106,8 +108,8 @@ TEST(RemoteConfigAsmDataListener, ItParsesRulesData)
     rapidjson::Document rules;
 
     std::vector<test_rule_data> rules_data = {
-        {"id01", "type01", {{11, "1.2.3.4"}, {22, "5.6.7.8"}}},
-        {"id02", "type02", {{33, "user1"}}}};
+        {"id01", "type01", {{11, "1.2.3.4"}, {3657529743, "5.6.7.8"}}},
+        {"id02", "type02", {{std::nullopt, "user1"}}}};
 
     EXPECT_CALL(*engine, update_rule_data(_))
         .Times(1)
@@ -117,28 +119,29 @@ TEST(RemoteConfigAsmDataListener, ItParsesRulesData)
 
     listener.on_update(get_rules_data(rules_data));
 
-    auto rules_data_json = rules.FindMember("rules_data")->value.GetArray();
-    const auto &first = rules_data_json[0];
+    const auto &first = rules[0];
     EXPECT_STREQ("id02", first.FindMember("id")->value.GetString());
     EXPECT_STREQ("type02", first.FindMember("type")->value.GetString());
     const auto &first_in_data = first.FindMember("data")->value.GetArray()[0];
     EXPECT_STREQ("user1", first_in_data.FindMember("value")->value.GetString());
-    EXPECT_EQ(33, first_in_data.FindMember("expiration")->value.GetInt64());
+    EXPECT_TRUE(
+        first_in_data.FindMember("expiration") == first_in_data.MemberEnd());
 
-    const auto &second = rules_data_json[1];
+    const auto &second = rules[1];
     EXPECT_STREQ("id01", second.FindMember("id")->value.GetString());
     EXPECT_STREQ("type01", second.FindMember("type")->value.GetString());
     const auto &second_first_data =
         second.FindMember("data")->value.GetArray()[0];
     EXPECT_STREQ(
         "1.2.3.4", second_first_data.FindMember("value")->value.GetString());
-    EXPECT_EQ(11, second_first_data.FindMember("expiration")->value.GetInt64());
+    EXPECT_EQ(
+        11, second_first_data.FindMember("expiration")->value.GetUint64());
     const auto &second_second_data =
         second.FindMember("data")->value.GetArray()[1];
     EXPECT_STREQ(
         "5.6.7.8", second_second_data.FindMember("value")->value.GetString());
-    EXPECT_EQ(
-        22, second_second_data.FindMember("expiration")->value.GetInt64());
+    EXPECT_EQ(3657529743,
+        second_second_data.FindMember("expiration")->value.GetUint64());
 }
 
 TEST(RemoteConfigAsmDataListener, ItMergesValuesWhenIdIsTheSame)
@@ -155,10 +158,9 @@ TEST(RemoteConfigAsmDataListener, ItMergesValuesWhenIdIsTheSame)
         .WillOnce(DoAll(SaveParameterView(&rules)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
-    auto rules_data_json = rules.FindMember("rules_data")->value.GetArray();
 
-    EXPECT_EQ(1, rules_data_json.Size());
-    const auto &first = rules_data_json[0];
+    EXPECT_EQ(1, rules.Size());
+    const auto &first = rules[0];
     EXPECT_STREQ("id01", first.FindMember("id")->value.GetString());
     EXPECT_STREQ("type01", first.FindMember("type")->value.GetString());
     const auto &first_in_data = first.FindMember("data")->value.GetArray()[0];
@@ -184,11 +186,10 @@ TEST(RemoteConfigAsmDataListener, WhenIdMatchesTypeIsSecondTypeIsIgnored)
         .WillOnce(DoAll(SaveParameterView(&rules)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
-    auto rules_data_json = rules.FindMember("rules_data")->value.GetArray();
 
-    EXPECT_EQ(1, rules_data_json.Size());
+    EXPECT_EQ(1, rules.Size());
     // First
-    const auto &first = rules_data_json[0];
+    const auto &first = rules[0];
     EXPECT_STREQ("id01", first.FindMember("id")->value.GetString());
     EXPECT_STREQ("type01", first.FindMember("type")->value.GetString());
     EXPECT_EQ(2, first.FindMember("data")->value.GetArray().Size());
@@ -209,11 +210,10 @@ TEST(RemoteConfigAsmDataListener,
         .WillOnce(DoAll(SaveParameterView(&rules)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
-    auto rules_data_json = rules.FindMember("rules_data")->value.GetArray();
 
-    EXPECT_EQ(1, rules_data_json.Size());
+    EXPECT_EQ(1, rules.Size());
     // First
-    const auto &first = rules_data_json[0];
+    const auto &first = rules[0];
     EXPECT_STREQ("id01", first.FindMember("id")->value.GetString());
     EXPECT_STREQ("type01", first.FindMember("type")->value.GetString());
     EXPECT_EQ(1, first.FindMember("data")->value.GetArray().Size());
@@ -236,11 +236,10 @@ TEST(RemoteConfigAsmDataListener,
         .WillOnce(DoAll(SaveParameterView(&rules)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
-    auto rules_data_json = rules.FindMember("rules_data")->value.GetArray();
 
-    EXPECT_EQ(1, rules_data_json.Size());
+    EXPECT_EQ(1, rules.Size());
     // First
-    const auto &first = rules_data_json[0];
+    const auto &first = rules[0];
     EXPECT_STREQ("id01", first.FindMember("id")->value.GetString());
     EXPECT_STREQ("type01", first.FindMember("type")->value.GetString());
     EXPECT_EQ(1, first.FindMember("data")->value.GetArray().Size());
@@ -248,6 +247,34 @@ TEST(RemoteConfigAsmDataListener,
     EXPECT_STREQ(
         "1.2.3.4", first_in_data.FindMember("value")->value.GetString());
     EXPECT_EQ(33, first_in_data.FindMember("expiration")->value.GetInt64());
+}
+
+TEST(RemoteConfigAsmDataListener,
+    NonExitingExprirationMeansItNeversExpireAndThereforeTakesPriority)
+{
+    std::vector<test_rule_data> rules_data = {{"id01", "type01",
+        {{11, "1.2.3.4"}, {std::nullopt, "1.2.3.4"},
+            {std::numeric_limits<uint64_t>::max(), "1.2.3.4"}}}};
+
+    auto engine = mock::engine::create();
+    rapidjson::Document rules;
+    EXPECT_CALL(*engine, update_rule_data(_))
+        .Times(1)
+        .WillOnce(DoAll(SaveParameterView(&rules)));
+    remote_config::asm_data_listener listener(engine);
+    listener.on_update(get_rules_data(rules_data));
+
+    EXPECT_EQ(1, rules.Size());
+    // First
+    const auto &first = rules[0];
+    EXPECT_STREQ("id01", first.FindMember("id")->value.GetString());
+    EXPECT_STREQ("type01", first.FindMember("type")->value.GetString());
+    EXPECT_EQ(1, first.FindMember("data")->value.GetArray().Size());
+    const auto &first_in_data = first.FindMember("data")->value.GetArray()[0];
+    EXPECT_STREQ(
+        "1.2.3.4", first_in_data.FindMember("value")->value.GetString());
+    EXPECT_TRUE(
+        first_in_data.FindMember("expiration") == first_in_data.MemberEnd());
 }
 
 TEST(RemoteConfigAsmDataListener, IfDataIsEmptyItDoesNotAddAnyRule)
@@ -261,9 +288,8 @@ TEST(RemoteConfigAsmDataListener, IfDataIsEmptyItDoesNotAddAnyRule)
         .WillOnce(DoAll(SaveParameterView(&rules)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
-    auto rules_data_json = rules.FindMember("rules_data")->value.GetArray();
 
-    EXPECT_EQ(0, rules_data_json.Size());
+    EXPECT_EQ(0, rules.Size());
 }
 
 TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfContentNotInBase64)
@@ -562,30 +588,6 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataEntryNotObject)
                      expected_error_message));
 }
 
-TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataExpirationMissing)
-{
-    std::string invalid_content =
-        "{\"rules_data\": [{\"data\": [{\"value\": \"1.2.3.4\"} ], \"id\": "
-        "\"some_id\", \"type\": \"some_type\"} ] }";
-    std::string error_message = "";
-    std::string expected_error_message = "Invalid content of data entry";
-    remote_config::config invalid_content_config =
-        get_asm_data(invalid_content, true);
-
-    auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
-    remote_config::asm_data_listener listener(engine);
-
-    try {
-        listener.on_update(invalid_content_config);
-    } catch (remote_config::error_applying_config &error) {
-        error_message = error.what();
-    }
-    EXPECT_EQ(0, error_message.compare(0, expected_error_message.length(),
-                     expected_error_message));
-}
-
 TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataExpirationHasInvalidType)
 {
     std::string invalid_content =
@@ -593,7 +595,7 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataExpirationHasInvalidType)
         "\"value\": \"1.2.3.4\"} ], \"id\": \"some_id\", \"type\": "
         "\"some_type\"} ] }";
     std::string error_message = "";
-    std::string expected_error_message = "Invalid content of data entry";
+    std::string expected_error_message = "Invalid type for expiration entry";
     remote_config::config invalid_content_config =
         get_asm_data(invalid_content, true);
 
@@ -617,7 +619,7 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataValueMissing)
         "{\"rules_data\": [{\"data\": [{\"expiration\": 11} ], \"id\": "
         "\"some_id\", \"type\": \"some_type\"} ] }";
     std::string error_message = "";
-    std::string expected_error_message = "Invalid content of data entry";
+    std::string expected_error_message = "Invalid value of data entry";
     remote_config::config invalid_content_config =
         get_asm_data(invalid_content, true);
 
@@ -642,7 +644,7 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataValueHasInvalidType)
         "\"value\": 1234} ], \"id\": \"some_id\", \"type\": "
         "\"some_type\"} ] }";
     std::string error_message = "";
-    std::string expected_error_message = "Invalid content of data entry";
+    std::string expected_error_message = "Invalid value of data entry";
     remote_config::config invalid_content_config =
         get_asm_data(invalid_content, true);
 
