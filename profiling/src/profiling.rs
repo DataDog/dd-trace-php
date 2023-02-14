@@ -742,9 +742,9 @@ impl Profiler {
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
                     let old_cpu_time = now
-                        .duration_since(last_cpu_time)
-                        .as_nanos()
-                        .try_into()
+                        .as_duration()
+                        .checked_sub(last_cpu_time.as_duration())
+                        .and_then(|t| t.as_nanos().try_into().ok())
                         .unwrap_or(i64::MAX);
                     cpu_time = old_cpu_time;
                     locals.last_cpu_time = Some(now);
