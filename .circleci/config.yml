@@ -1753,7 +1753,12 @@ jobs:
             # https://gitlab.alpinelinux.org/alpine/aports/-/merge_requests/36722
             # Ensure libexecinfo is _not_ installed, so support isn't detected
             # by config.m4
-            apk update && apk del libexecinfo libexecinfo-dev
+            alpine_version=$(cat /etc/os-release | awk -F= '$1 == "VERSION_ID" { print $2 }')
+            alpine_major_version=$(echo $version | cut -d . -f 1)
+            alpine_minor_version=$(echo $version | cut -d . -f 2)
+            if [ $alpine_major_version -eq 3 ] && [ $alpine_minor_version -lt 17 ] ; then
+                apk update && apk del libexecinfo libexecinfo-dev
+            fi
             build-dd-trace-php
             mv extensions extensions_$(uname -m)
       - persist_to_workspace:
