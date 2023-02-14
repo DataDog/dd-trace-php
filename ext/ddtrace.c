@@ -938,6 +938,13 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = false;
 }
 
+static void dd_finalize_telemtry(void) {
+    if (DDTRACE_G(telemetry_queue_id)) {
+        ddtrace_telemetry_finalize();
+        DDTRACE_G(telemetry_queue_id) = 0;
+    }
+}
+
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
@@ -954,10 +961,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(active_stack) = NULL;
     }
 
-    if (DDTRACE_G(telemetry_queue_id)) {
-        ddtrace_telemetry_finalize();
-        DDTRACE_G(telemetry_queue_id) = 0;
-    }
+    dd_finalize_telemtry();
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
     }
@@ -1649,6 +1653,9 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("test_msgpack_consumer")) {
             ddtrace_coms_test_msgpack_consumer();
+            RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
+            dd_finalize_telemtry();
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 100;

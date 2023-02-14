@@ -118,6 +118,10 @@ ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(ddog_TelemetryTransport 
                                                         const struct ddog_RuntimeMeta *runtime_meta,
                                                         ddog_CharSlice service_name);
 
+ddog_MaybeError ddog_sidecar_telemetry_end(ddog_TelemetryTransport **transport,
+                                           struct ddog_InstanceId *const *instance_id,
+                                           const ddog_QueueId *queue_id);
+
 ddog_MaybeError ddog_sidecar_mock_start(struct ddog_MockServer **result);
 
 ddog_MaybeError ddog_sidecar_session_config_setAgentUrl(ddog_TelemetryTransport **transport,

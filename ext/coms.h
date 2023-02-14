@@ -81,6 +81,9 @@ char *ddtrace_agent_url(void);
 void ddtrace_curl_set_hostname(CURL *curl);
 void ddtrace_curl_set_timeout(CURL *curl);
 void ddtrace_curl_set_connect_timeout(CURL *curl);
+
+// Maybe extract that somewhere else
+char *ddtrace_agent_url(void);
 /* }}} */
 
 #endif  // DD_COMS_H

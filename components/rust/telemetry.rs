@@ -6,7 +6,7 @@ use ddcommon_ffi::slice::AsBytes;
 use ddtelemetry::data::{Dependency, DependencyType};
 use ddtelemetry::ipc::interface::blocking::TelemetryTransport;
 use ddtelemetry::ipc::interface::{blocking, InstanceId, QueueId};
-use ddtelemetry::worker::{TelemetryActions, TelemetryWorkerHandle};
+use ddtelemetry::worker::TelemetryActions;
 
 #[must_use]
 #[no_mangle]
@@ -26,7 +26,7 @@ fn parse_composer_installed_json(transport: &mut Box<TelemetryTransport>, instan
 
     let mut deps = Vec::new();
 
-    for dep in parsed.members() {
+    for dep in parsed["packages"].members() {
         if let Some(name) = dep["name"].as_str() {
             deps.push(TelemetryActions::AddDependecy(Dependency {
                 name: String::from(name),
@@ -38,6 +38,7 @@ fn parse_composer_installed_json(transport: &mut Box<TelemetryTransport>, instan
     }
 
     if deps.len() > 0 {
+        deps.push(TelemetryActions::SendDependencies);
         blocking::enqueue_actions(transport, instance_id, queue_id, deps)?;
     }
 

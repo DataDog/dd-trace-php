@@ -415,7 +415,7 @@ cbindgen: components/rust/ddtrace.h components/rust/telemetry.h components/rust/
 		cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/ddtrace.h $(PROJECT_ROOT)/components/rust/telemetry.h \
 	)
 
-components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs) libdatadog/ddcommon-ffi/cbindgen.toml
+components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs libdatadog/ddcommon-ffi/src/**/*.rs) libdatadog/ddcommon-ffi/cbindgen.toml
 	( \
 		if command -v cbindgen &> /dev/null; then \
 			cd libdatadog; \
@@ -425,7 +425,7 @@ components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs) libdatado
 		fi \
 	)
 
-components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs) libdatadog/ddtelemetry-ffi/cbindgen.toml components/rust/common.h
+components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs libdatadog/ddtelemetry-ffi/src/**/*.rs) libdatadog/ddtelemetry-ffi/cbindgen.toml components/rust/common.h
 	( \
 		if command -v cbindgen &> /dev/null; then \
 			cd libdatadog; \

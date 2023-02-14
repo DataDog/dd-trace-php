@@ -1,6 +1,7 @@
 #include "telemetry.h"
 #include "ddtrace.h"
 #include "configuration.h"
+#include "coms.h"
 #include <hook/hook.h>
 #include <components/rust/ddtrace.h>
 
@@ -32,7 +33,9 @@ void ddtrace_telemetry_setup(void) {
     ddog_CharSlice runtime_id = (ddog_CharSlice){ .ptr = (char *)formatted_run_time_id, .len = sizeof(formatted_run_time_id) };
     // TODO: user proper session_id
     dd_telemetry_instance_id = ddog_sidecar_instanceId_build(runtime_id, runtime_id);
-    ddog_sidecar_session_config_setAgentUrl(&dd_sidecar, runtime_id, DDOG_CHARSLICE_C("file:///tmp/out.txt"));
+    char *agent_url = ddtrace_agent_url();
+    ddog_sidecar_session_config_setAgentUrl(&dd_sidecar, runtime_id, (ddog_CharSlice){ .ptr = agent_url, .len = strlen(agent_url) });
+    free(agent_url);
 
     dd_composer_hook_id = zai_hook_install(ZAI_STRING_EMPTY, ZAI_STRING_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
 }
@@ -66,6 +69,8 @@ void ddtrace_telemetry_finalize(void) {
     ddog_sidecar_telemetry_flushServiceData(&dd_sidecar, &dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name);
 
     ddog_sidecar_runtimeMeta_drop(meta);
+
+    ddog_sidecar_telemetry_end(&dd_sidecar, &dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id));
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {

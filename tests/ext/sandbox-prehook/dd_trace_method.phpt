@@ -110,7 +110,7 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(4) {
+    array(3) {
       ["runtime-id"]=>
       string(36) "%s"
       ["args.0"]=>
