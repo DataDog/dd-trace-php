@@ -12,6 +12,8 @@
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
+#include "ext/standard/php_string.h"
+#include <hook/hook.h>
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -207,7 +209,35 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
         // SpanData::$name defaults to fully qualified called name
         zval *prop_name = ddtrace_spandata_property_name(span);
 
-        if (EX(func) && EX(func)->common.function_name) {
+        if (EX(func) && (EX(func)->common.fn_flags & (ZEND_ACC_CLOSURE | ZEND_ACC_FAKE_CLOSURE)) == ZEND_ACC_CLOSURE) {
+            zend_function *containing_function = zai_hook_find_containing_function(EX(func));
+            if (containing_function) {
+                // possible class name followed by function name
+                zval_ptr_dtor(prop_name);
+                if (EX(func)->common.scope) {
+                    ZVAL_STR(prop_name, strpprintf(0, "%s.%s.{closure}",
+                                                   ZSTR_VAL(containing_function->common.scope->name),
+                                                   ZSTR_VAL(containing_function->common.function_name)));
+                } else {
+                    ZVAL_STR(prop_name, strpprintf(0, "%s.{closure}", ZSTR_VAL(containing_function->common.function_name)));
+                }
+            } else if (EX(func)->common.function_name && ZSTR_LEN(EX(func)->common.function_name) >= strlen("{closure}")) {
+                // namespace followed by filename and lineno
+                zval_ptr_dtor(prop_name);
+                zend_string *basename = php_basename(ZSTR_VAL(EX(func)->op_array.filename), ZSTR_LEN(EX(func)->op_array.filename), NULL, 0);
+                ZVAL_STR(prop_name, strpprintf(0, "%.*s%s:%d\\{closure}",
+                                               (int)ZSTR_LEN(EX(func)->common.function_name) - (int)strlen("{closure}"),
+                                               ZSTR_VAL(EX(func)->common.function_name),
+                                               ZSTR_VAL(basename),
+                                               EX(func)->op_array.opcodes->lineno));
+                zend_string_release(basename);
+            }
+
+            zend_array *meta = ddtrace_spandata_property_meta(span);
+            zval location;
+            ZVAL_STR(&location, zend_strpprintf(0, "%s:%d", ZSTR_VAL(EX(func)->op_array.filename), EX(func)->op_array.opcodes->lineno));
+            zend_hash_str_add_new(meta, ZEND_STRL("closure.declaration"), &location);
+        } else if (EX(func) && EX(func)->common.function_name) {
             zval_ptr_dtor(prop_name);
 
             zend_class_entry *called_scope = EX(func)->common.scope ? zend_get_called_scope(execute_data) : NULL;
