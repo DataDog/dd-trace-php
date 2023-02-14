@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eux
 
-SHARED_BUILD=$(if php -i | grep -q shared; then echo 1; else echo 0; fi)
+SHARED_BUILD=$(if php -i | grep -q =shared; then echo 1; else echo 0; fi)
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 XDEBUG_VERSIONS=(-3.1.2)
