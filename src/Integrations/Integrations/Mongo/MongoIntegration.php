@@ -272,20 +272,8 @@ class MongoIntegration extends Integration
         \DDTrace\trace_method(
             $class,
             $method,
-            function (SpanData $span, $args, $retval) use ($class, $method, $isTraceAnalithicsCandidate, $integration) {
+            function (SpanData $span, $args) use ($class, $method, $isTraceAnalithicsCandidate, $integration) {
                 $integration->addSpanDefaultMetadata($span, $class, $method);
-                if (in_array($method, ["find", "findOne", "findAndModify", "update"])) {
-                    if (!isset($retval)) {
-                        $span->metrics[Tag::DB_ROWCOUNT] = 0;
-                    } else if (is_array($retval)) {
-                        $span->metrics[Tag::DB_ROWCOUNT] = count($retval);
-                    } else {
-                        $span->metrics[Tag::DB_ROWCOUNT] = $retval ? 1 : 0;
-                    }
-                } else if ($method === "count") {
-                    $span->metrics[Tag::DB_ROWCOUNT] = $retval;
-                }
-
                 if ($isTraceAnalithicsCandidate) {
                     $integration->addTraceAnalyticsIfEnabled($span);
                 }
