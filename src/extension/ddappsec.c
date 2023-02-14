@@ -310,6 +310,8 @@ static int _do_rinit(INIT_FUNC_ARGS)
         dd_helper_close_conn();
     } else if (res == dd_should_block) {
         dd_request_abort_static_page();
+    } else if (res == dd_should_redirect) {
+        dd_request_abort_redirect();
     } else if (res) {
         mlog_g(
             dd_log_info, "request init failed: %s", dd_result_to_string(res));

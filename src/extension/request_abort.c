@@ -54,9 +54,10 @@ static const char static_error_json[] =
 
 static zend_string *_custom_error_html = NULL;
 static zend_string *_custom_error_json = NULL;
-static THREAD_LOCAL_ON_ZTS int _response_code = DEFAULT_RESPONSE_CODE;
+static THREAD_LOCAL_ON_ZTS int _response_code = DEFAULT_BLOCKING_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS dd_response_type _response_type =
     DEFAULT_RESPONSE_TYPE;
+static THREAD_LOCAL_ON_ZTS zend_string *_redirection_location = NULL;
 
 static void _abort_prelude(void);
 ATTR_FORMAT(1, 2)
@@ -150,7 +151,7 @@ exit:
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void dd_set_response_code_and_type(int code, dd_response_type type)
+void dd_set_block_code_and_type(int code, dd_response_type type)
 {
     _response_code = code;
 
@@ -165,6 +166,44 @@ void dd_set_response_code_and_type(int code, dd_response_type type)
         _response_type = response_type_auto;
         break;
     }
+}
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void dd_set_redirect_code_and_location(int code, zend_string *nullable location)
+{
+    _response_code = code;
+    _redirection_location = location;
+}
+
+void dd_request_abort_redirect()
+{
+    if (_redirection_location == NULL || ZSTR_LEN(_redirection_location) == 0) {
+        mlog(dd_log_warning, "Failing to redirect: No location set");
+        return;
+    }
+    _abort_prelude();
+    char *line;
+    uint line_len = (uint)spprintf(
+        &line, 0, "Location: %s", ZSTR_VAL(_redirection_location));
+
+    SG(sapi_headers).http_response_code = _response_code;
+    int res = sapi_header_op(SAPI_HEADER_REPLACE,
+        &(sapi_header_line){.line = line, .line_len = line_len});
+    if (res == FAILURE) {
+        mlog(dd_log_warning, "Could not forward to %s",
+            ZSTR_VAL(_redirection_location));
+    }
+
+    efree(line);
+
+    if (sapi_flush() == SUCCESS) {
+        mlog(dd_log_debug, "Successful call to sapi_flush()");
+    } else {
+        mlog(dd_log_warning, "Call to sapi_flush() failed");
+    }
+
+    _emit_error("Datadog blocked the request and attempted a redirection to %s",
+        ZSTR_VAL(_redirection_location));
 }
 
 void dd_request_abort_static_page()

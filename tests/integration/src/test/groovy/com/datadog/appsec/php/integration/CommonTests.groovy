@@ -140,6 +140,7 @@ trait CommonTests {
    @Test
     void 'test blocking'() {
         def trace = container.traceFromRequest('/phpinfo.php') { HttpURLConnection conn ->
+            //Set ip which is blocked
             conn.setRequestProperty('X-Forwarded-For', '80.80.80.80')
             assert conn.responseCode == 403
 
@@ -154,6 +155,21 @@ trait CommonTests {
         assert trace.meta."appsec.blocked" == "true"
     }
 
+   @Test
+    void 'test redirecting'() {
+        def trace = container.traceFromRequest('/phpinfo.php') { HttpURLConnection conn ->
+            conn.setInstanceFollowRedirects(false)
+            //Set ip which is set to be redirected
+            conn.setRequestProperty('X-Forwarded-For', '80.80.80.81')
+            assert conn.responseCode == 303
+        }
+        // assert sth about the trace
+
+        assert trace.metrics."_dd.appsec.enabled" == 1.0d
+        assert trace.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert trace.meta."_dd.appsec.event_rules.version" != ''
+        assert trace.meta."appsec.blocked" == "true"
+    }
 
     @Test
     void 'module does not have STATIC_TLS flag'() {

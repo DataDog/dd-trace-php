@@ -127,7 +127,12 @@ template <typename T> engine::action parse_action(T &action_object)
     }
     std::string type = action_object["type"].GetString();
 
-    if (type != "block_request") {
+    engine::action action;
+    if (type == "block_request") {
+        action.type = engine::action_type::block;
+    } else if (type == "redirect_request") {
+        action.type = engine::action_type::redirect;
+    } else {
         throw parsing_error(
             "unknown action.type " + type + " only block_request supported");
     }
@@ -137,9 +142,6 @@ template <typename T> engine::action parse_action(T &action_object)
         throw parsing_error("no action.parameters found or unexpected type");
     }
     const auto &parameters = action_object["parameters"];
-
-    engine::action action;
-    action.type = engine::action_type::block;
     for (auto iter = parameters.MemberBegin(); iter != parameters.MemberEnd();
          ++iter) {
         if (!iter->name.IsString()) {

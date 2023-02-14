@@ -30,6 +30,31 @@
       ]
     },
     {
+      "id": "redirect-001-001",
+      "name": "Redirected IP Addresses",
+      "tags": {
+        "type": "redirected_ip",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "data": "redirected_ips"
+          },
+          "operator": "ip_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "redirect"
+      ]
+    },
+    {
       "id": "crs-913-110",
       "name": "Acunetix",
       "tags": {
@@ -6595,6 +6620,26 @@
           "expiration": 0
         }
       ]
+    },
+    {
+      "id": "redirected_ips",
+      "type": "ip_with_expiration",
+      "data": [
+        {
+          "value": "80.80.80.81",
+          "expiration": 0
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "redirect",
+      "type": "redirect_request",
+      "parameters": {
+        "status_code": "303",
+        "location": "datadoghq.com"
+      }
     }
   ]
 }

@@ -88,10 +88,9 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
     }
 
     // in
-    bool should_block;
+    dd_result res;
     {
         dd_imsg imsg = {0};
-        dd_result res;
         if (check_cred) {
             res = _imsg_recv_cred(&imsg, conn);
         } else {
@@ -174,22 +173,18 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
 
             return dd_error;
         }
-        if (res != dd_success && res != dd_should_block) {
+        if (res != dd_success && res != dd_should_block &&
+            res != dd_should_redirect) {
             mlog(dd_log_warning, "Processing for command %.*s failed: %s",
                 NAME_L, dd_result_to_string(res));
             return res;
         }
-        should_block = res == dd_should_block;
     }
 
-    if (should_block) {
-        mlog(dd_log_info, "%.*s succeed and told to block", NAME_L);
-        return dd_should_block;
-    }
+    mlog(dd_log_info, "%.*s succeed and told to %s", NAME_L,
+        dd_result_to_string(res));
 
-    mlog(dd_log_debug, "%.*s succeed. Not blocking", NAME_L);
-
-    return dd_success;
+    return res;
 }
 
 dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
@@ -311,7 +306,7 @@ static void _set_appsec_span_data(mpack_node_t node);
 
 static void _command_process_block_parameters(mpack_node_t root)
 {
-    int status_code = DEFAULT_RESPONSE_CODE;
+    int status_code = DEFAULT_BLOCKING_RESPONSE_CODE;
     dd_response_type type = DEFAULT_RESPONSE_TYPE;
 
     int expected_nodes = 2;
@@ -365,13 +360,63 @@ static void _command_process_block_parameters(mpack_node_t root)
         }
     }
 
-    dd_set_response_code_and_type(status_code, type);
+    dd_set_block_code_and_type(status_code, type);
+}
+
+static void _command_process_redirect_parameters(mpack_node_t root)
+{
+    int status_code = DEFAULT_REDIRECTION_RESPONSE_CODE;
+    zend_string *location = NULL;
+
+    int expected_nodes = 2;
+    size_t count = mpack_node_map_count(root);
+    for (size_t i = 0; i < count && expected_nodes > 0; i++) {
+        mpack_node_t key = mpack_node_map_key_at(root, i);
+        mpack_node_t value = mpack_node_map_value_at(root, i);
+
+        if (mpack_node_type(key) != mpack_type_str) {
+            mlog(dd_log_warning,
+                "Failed to add response parameter: invalid type for key");
+            continue;
+        }
+        if (mpack_node_type(value) != mpack_type_str) {
+            mlog(dd_log_warning,
+                "Failed to add response parameter: invalid type for value");
+            continue;
+        }
+
+        if (dd_mpack_node_lstr_eq(key, "status_code")) {
+            size_t code_len = mpack_node_strlen(value);
+            if (code_len != 3) {
+                mlog(dd_log_warning, "Invalid http status code received %.*s",
+                    (int)code_len, mpack_node_str(value));
+                continue;
+            }
+
+            char code_str[4] = {0};
+            memcpy(code_str, mpack_node_str(value), 3);
+
+            const int base = 10;
+            long parsed_value = strtol(code_str, NULL, base);
+            // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+            if (parsed_value >= 300 && parsed_value < 400) {
+                status_code = (int)parsed_value;
+            }
+            --expected_nodes;
+        } else if (dd_mpack_node_lstr_eq(key, "location")) {
+            size_t location_len = mpack_node_strlen(value);
+            location = zend_string_init(mpack_node_str(value), location_len, 0);
+            --expected_nodes;
+        }
+    }
+
+    dd_set_redirect_code_and_location(status_code, location);
 }
 
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, ATTR_UNUSED void *unspecnull ctx)
 {
-    // expected: ['ok' / 'record' / 'block']
+    // expected: ['ok' / 'record' / 'block' / 'redirect']
     mpack_node_t verdict = mpack_node_array_at(root, 0);
     if (mlog_should_log(dd_log_debug)) {
         const char *verd_str = mpack_node_str(verdict);
@@ -383,14 +428,20 @@ dd_result dd_command_proc_resp_verd_span_data(
             verd_str);
     }
 
-    bool should_block = dd_mpack_node_lstr_eq(verdict, "block");
+    dd_result res = dd_success;
     // Parse parameters
-    if (should_block) {
+    if (dd_mpack_node_lstr_eq(verdict, "block")) {
+        res = dd_should_block;
         _command_process_block_parameters(mpack_node_array_at(root, 1));
+        dd_tags_add_blocked();
+    } else if (dd_mpack_node_lstr_eq(verdict, "redirect")) {
+        res = dd_should_redirect;
+        _command_process_redirect_parameters(mpack_node_array_at(root, 1));
         dd_tags_add_blocked();
     }
 
-    if (should_block || dd_mpack_node_lstr_eq(verdict, "record")) {
+    if (res == dd_should_block || res == dd_should_redirect ||
+        dd_mpack_node_lstr_eq(verdict, "record")) {
         _set_appsec_span_data(mpack_node_array_at(root, 2));
     }
 
@@ -403,7 +454,7 @@ dd_result dd_command_proc_resp_verd_span_data(
         dd_command_process_metrics(metrics);
     }
 
-    return should_block ? dd_should_block : dd_success;
+    return res;
 }
 
 static void _add_appsec_span_data_frag(mpack_node_t node)

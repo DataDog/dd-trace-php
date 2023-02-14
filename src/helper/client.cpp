@@ -202,6 +202,10 @@ bool client::handle_command(network::request_init::request &command)
                 response->verdict = network::verdict::block;
                 response->parameters = std::move(res->parameters);
                 break;
+            case engine::action_type::redirect:
+                response->verdict = network::verdict::redirect;
+                response->parameters = std::move(res->parameters);
+                break;
             case engine::action_type::record:
             default:
                 response->verdict = network::verdict::record;
@@ -318,6 +322,10 @@ bool client::handle_command(network::request_shutdown::request &command)
             switch (res->type) {
             case engine::action_type::block:
                 response->verdict = network::verdict::block;
+                response->parameters = std::move(res->parameters);
+                break;
+            case engine::action_type::redirect:
+                response->verdict = network::verdict::redirect;
                 response->parameters = std::move(res->parameters);
                 break;
             case engine::action_type::record:

@@ -347,7 +347,7 @@ TEST(EngineTest, WafSubscriptorTimeout)
     EXPECT_FALSE(res);
 }
 
-TEST(EngineTest, ActionsParser)
+TEST(EngineTest, ActionsParserBlockRequest)
 {
     const std::string action_ruleset =
         R"({"actions": [{"id": "cabbage","type": "block_request","parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}}]})";
@@ -371,6 +371,27 @@ TEST(EngineTest, ActionsParser)
     EXPECT_STREQ(action_spec.parameters["negative"].c_str(), "-44");
     EXPECT_STREQ(action_spec.parameters["true"].c_str(), "true");
     EXPECT_STREQ(action_spec.parameters["false"].c_str(), "false");
+}
+
+TEST(EngineTest, ActionsParserRedirectRequest)
+{
+    const std::string action_ruleset =
+        R"({"actions": [{"id": "cabbage","type": "redirect_request","parameters": {"status_code": 300,"location": "datadoghq.com"}}]})";
+
+    rapidjson::Document doc;
+    rapidjson::ParseResult result = doc.Parse(action_ruleset);
+    EXPECT_NE(result, nullptr);
+    EXPECT_TRUE(doc.IsObject());
+
+    auto parsed_actions = engine::parse_actions(doc, {});
+    EXPECT_EQ(parsed_actions.size(), 1);
+    EXPECT_NE(parsed_actions.find("cabbage"), parsed_actions.end());
+
+    auto &action_spec = parsed_actions["cabbage"];
+    EXPECT_EQ(action_spec.type, engine::action_type::redirect);
+    EXPECT_EQ(action_spec.parameters.size(), 2);
+    EXPECT_STREQ(action_spec.parameters["status_code"].c_str(), "300");
+    EXPECT_STREQ(action_spec.parameters["location"].c_str(), "datadoghq.com");
 }
 
 TEST(EngineTest, ActionsParseInvalidActionsType)
