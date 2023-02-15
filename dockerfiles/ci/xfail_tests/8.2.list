@@ -111,6 +111,7 @@ ext/spl/tests/bug65006.phpt
 ext/spl/tests/bug71236.phpt
 ext/spl/tests/bug75049.phpt
 ext/spl/tests/fixedarray_003.phpt
+ext/spl/tests/gh10011.phpt
 ext/spl/tests/spl_autoload_002.phpt
 ext/spl/tests/spl_autoload_004.phpt
 ext/spl/tests/spl_autoload_006.phpt
