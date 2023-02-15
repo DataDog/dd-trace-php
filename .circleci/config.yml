@@ -170,9 +170,9 @@ aliases:
 
           echo 'Fetching from remote repository'
           if [ -n "$CIRCLE_TAG" ]; then
-            git fetch --force --tags origin
+            git fetch --force --no-recurse-submodules --tags origin
           elif [ -z "$CIRCLE_PR_NUMBER" ]; then
-            git fetch --force origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH"
+            git fetch --force --no-recurse-submodules origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH"
           fi
         else
           echo 'Cloning git repository'
