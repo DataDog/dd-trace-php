@@ -656,7 +656,7 @@ impl Profiler {
 
         match result {
             Ok(handle) => handle,
-            Err(err) => panic!("Failed to spawn thread {name}: {err}");
+            Err(err) => panic!("Failed to spawn thread {name}: {err}"),
         }
     }
 
@@ -687,7 +687,7 @@ impl Profiler {
             fork_senders: [fork_sender0, fork_sender1],
             vm_interrupts,
             message_sender,
-            time_collector_handle: Self::spawn("ddprof_time", time_collector.run),
+            time_collector_handle: Self::spawn("ddprof_time", move || time_collector.run()),
             uploader_handle: Self::spawn("ddprof_upload", move || uploader.run()),
         }
     }
