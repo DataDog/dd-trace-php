@@ -4,6 +4,7 @@ Zend/tests/fibers/out-of-memory-in-recursive-fiber.phpt
 Zend/tests/014.phpt
 Zend/tests/arginfo_zpp_mismatch.phpt
 Zend/tests/arginfo_zpp_mismatch_strict.phpt
+Zend/tests/bug63882_2.phpt
 Zend/tests/bug69315.phpt
 Zend/tests/bug70258.phpt
 Zend/tests/bug70805.phpt
@@ -17,6 +18,7 @@ Zend/tests/bug81104.phpt
 Zend/tests/each_002.phpt
 Zend/tests/gc_031.phpt
 Zend/tests/gc_037.phpt
+Zend/tests/gc_045.phpt
 Zend/tests/get_defined_functions_basic.phpt
 Zend/tests/get_required_files.phpt
 Zend/tests/gh7958.phpt
@@ -111,6 +113,7 @@ ext/spl/tests/bug65006.phpt
 ext/spl/tests/bug71236.phpt
 ext/spl/tests/bug75049.phpt
 ext/spl/tests/fixedarray_003.phpt
+ext/spl/tests/gh10011.phpt
 ext/spl/tests/spl_autoload_002.phpt
 ext/spl/tests/spl_autoload_004.phpt
 ext/spl/tests/spl_autoload_006.phpt

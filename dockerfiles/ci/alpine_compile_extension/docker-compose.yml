@@ -70,8 +70,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.4.30
-        php_sha: e37ea37e0f79109351ac615da85eb7c2c336101fc5bc802ee79a124a4310dc10
+        php_version: 7.4.33
+        php_sha: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
         php_api: 20190902
     command: build-dd-trace-php
     volumes:
@@ -83,8 +83,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.0.21
-        php_sha: 2f51f6e90e2e8efd3a20db08f0dd61d7f8d5a9362f8c7325f1ad28ccea5be0ac
+        php_version: 8.0.27
+        php_sha: fe2376faaf91c28ead89a36e118c177f4a8c9a7280a189b97265da1af1f4d305
         php_api: 20200930
     command: build-dd-trace-php
     volumes:
@@ -96,8 +96,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.1.8
-        php_sha: 889d910558d2492f7f2236921b9bcde620674c8b684ec02d126060f8ca45dc8d
+        php_version: 8.1.15
+        php_sha: 4035236180efac535ff4f22db9ef3195672f31e3e0aa88f89c38ac0715beca3b
         php_api: 20210902
     command: build-dd-trace-php
     volumes:
@@ -109,10 +109,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.2.0RC5
-        php_sha: c879b316d6f9c06ae6c6d7a418d94ddd569f32ab06c13d6d8ffc88643a0692ec
+        php_version: 8.2.2
+        php_sha: d82dda50356cebf6b6e14dbb576b14bc8b85f0f4476a787f0f50611f11eb37d2
         php_api: 20220829
-        php_url: https://downloads.php.net/~pierrick/php-8.2.0RC5.tar.gz
     command: build-dd-trace-php
     volumes:
       - ../../:/app
