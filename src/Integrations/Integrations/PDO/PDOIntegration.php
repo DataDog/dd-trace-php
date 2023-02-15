@@ -49,7 +49,7 @@ class PDOIntegration extends Integration
             $span->name = 'PDO.exec';
             $span->resource = Integration::toString($args[0]);
             if (is_numeric($retval)) {
-                $span->meta['db.row_count'] = $retval;
+                $span->metrics[Tag::DB_ROW_COUNT] = $retval;
             }
             PDOIntegration::setCommonSpanInfo($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
@@ -67,7 +67,7 @@ class PDOIntegration extends Integration
             $span->type = Type::SQL;
             $span->resource = Integration::toString($args[0]);
             if ($retval instanceof \PDOStatement) {
-                $span->meta['db.row_count'] = $retval->rowCount();
+                $span->metrics[Tag::DB_ROW_COUNT] = $retval->rowCount();
                 ObjectKVStore::propagate($this, $retval, PDOIntegration::CONNECTION_TAGS_KEY);
             }
             PDOIntegration::setCommonSpanInfo($this, $span);
@@ -99,7 +99,7 @@ class PDOIntegration extends Integration
                 $span->type = Type::SQL;
                 $span->resource = $this->queryString;
                 if ($retval === true) {
-                    $span->meta['db.row_count'] = $this->rowCount();
+                    $span->metrics[Tag::DB_ROW_COUNT] = $this->rowCount();
                 }
                 PDOIntegration::setCommonSpanInfo($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);

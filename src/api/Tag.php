@@ -43,7 +43,7 @@ class Tag
     const ELASTICSEARCH_URL = 'elasticsearch.url';
 
     // DB
-    const DB_ROWCOUNT = 'db.row_count';
+    const DB_ROW_COUNT = 'db.row_count';
 
     // MongoDB
     const MONGODB_BSON_ID = 'mongodb.bson.id';

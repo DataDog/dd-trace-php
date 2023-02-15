@@ -195,7 +195,7 @@ class MysqliIntegration extends Integration
         $span->meta[Tag::COMPONENT] = MysqliIntegration::NAME;
 
         if (is_object($result) && property_exists($result, 'num_rows')) {
-            $span->metrics[Tag::DB_ROWCOUNT] = $result->num_rows;
+            $span->metrics[Tag::DB_ROW_COUNT] = $result->num_rows;
         }
     }
 

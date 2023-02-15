@@ -72,7 +72,7 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
-                    'db.row_count' => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ])),
         ]);
     }
@@ -185,7 +185,7 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
-                    'db.row_count' => '1',
+                    Tag::DB_ROW_COUNT => '1',
                 ])),
             SpanAssertion::exists('PDO.commit'),
         ]);
@@ -251,7 +251,7 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
-                    'db.row_count' => '1',
+                    Tag::DB_ROW_COUNT => '1',
                 ])),
         ]);
     }
@@ -344,7 +344,7 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
-                    'db.row_count' => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ])),
         ]);
     }
@@ -378,7 +378,7 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
-                    'db.row_count' => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ])),
         ]);
     }

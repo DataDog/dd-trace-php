@@ -112,7 +112,7 @@ class MysqliTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
     }
@@ -134,7 +134,7 @@ class MysqliTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
     }
@@ -153,7 +153,7 @@ class MysqliTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
     }
@@ -176,7 +176,7 @@ class MysqliTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
     }

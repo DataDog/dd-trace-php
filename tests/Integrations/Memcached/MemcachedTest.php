@@ -478,7 +478,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'get',
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
     }
@@ -499,7 +499,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'get',
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 0,
+                    Tag::DB_ROW_COUNT => 0,
                 ]),
         ]);
     }
@@ -522,7 +522,7 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcached',
                 ])->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 2,
+                    Tag::DB_ROW_COUNT => 2,
                 ]),
         ]);
     }
@@ -545,7 +545,7 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcached',
                 ])->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
     }
@@ -563,7 +563,7 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcached',
                 ])->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 0,
+                    Tag::DB_ROW_COUNT => 0,
                 ]),
         ]);
     }
@@ -584,7 +584,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 1,
+                    Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
     }
@@ -610,7 +610,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
-                    Tag::DB_ROWCOUNT => 2,
+                    Tag::DB_ROW_COUNT => 2,
                 ]),
         ]);
     }
