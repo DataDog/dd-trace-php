@@ -34,7 +34,9 @@ static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int ty
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
     zend_op_array *op_array = prev_compile_file(file_handle, type);
 
-    zai_hook_resolve_file(op_array);
+    if (op_array) {
+        zai_hook_resolve_file(op_array);
+    }
 
     return op_array;
 }
