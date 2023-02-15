@@ -164,9 +164,8 @@ class PDOIntegration extends Integration
     {
         $engine = substr($dsn, 0, strpos($dsn, ':'));
         $tags = ['db.engine' => $engine];
-        $tags[Tag::DB_SYSTEM] = isset(self::DB_DRIVER_TO_SYSTEM[$engine])
-            ? self::DB_DRIVER_TO_SYSTEM[$engine]
-            : 'other_sql';
+        $db_system = self::DB_DRIVER_TO_SYSTEM[$engine];
+        $tags[Tag::DB_SYSTEM] = isset($db_system) ? $db_system : 'other_sql';
         $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
         foreach ($valStrings as $valString) {
             if (!strpos($valString, '=')) {
