@@ -60,6 +60,14 @@
 #define RETURN_COPY(zv) do { RETVAL_COPY(zv); return; } while (0)
 #define RETURN_OBJ_COPY(r) do { RETVAL_OBJ_COPY(r); return; } while (0)
 
+ZEND_API const zend_function *zend_get_closure_method_def(zval *obj);
+static inline const zend_function *dd_zend_get_closure_method_def(zend_object *obj) {
+    zval zv;
+    ZVAL_OBJ(&zv, obj);
+    return zend_get_closure_method_def(&zv);
+}
+#define zend_get_closure_method_def dd_zend_get_closure_method_def
+
 #define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)
 #define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
 #define ZEND_TYPE_INIT_MASK(type) NULL
@@ -131,6 +139,9 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
 #define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
 
+#define ZEND_CLOSURE_OBJECT(op_array) \
+    ((zend_object*)((char*)(op_array) - sizeof(zend_object)))
+
 // make ZEND_STRL work
 #undef zend_hash_str_update
 #define zend_hash_str_update(...) _zend_hash_str_update(__VA_ARGS__ ZEND_FILE_LINE_CC)
@@ -146,6 +157,8 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
 #if PHP_VERSION_ID < 70200
+#define ZEND_ACC_FAKE_CLOSURE ZEND_ACC_INTERFACE
+
 #define zend_strpprintf strpprintf
 #define zend_vstrpprintf vstrpprintf
 
@@ -159,7 +172,7 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
         { (const char*)(zend_uintptr_t)(required_num_args), NULL, type, return_reference, allow_null, 0 },
 #define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
     static const zend_internal_arg_info name[] = { \
-        { (const char*)(zend_uintptr_t)(required_num_args), class_name, IS_OBJECT, return_reference, allow_null, 0 },
+        { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
 
 typedef void zend_type;
 

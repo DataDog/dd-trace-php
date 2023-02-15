@@ -56,7 +56,10 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
                         &rv, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv, &args_zv, retval, &exception_zv);
     } else {
         if (EX(func)->common.scope) {
-            zval *This = getThis() ? &EX(This) : &EG(uninitialized_zval);
+            zval *This = getThis();
+            if (!This) {
+                This = &EG(uninitialized_zval);
+            }
             zval scope;
             ZVAL_NULL(&scope);
             zend_class_entry *scope_ce = zend_get_called_scope(execute_data);
@@ -88,11 +91,7 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
 
         char *deffile;
         int defline = 0;
-#if PHP_VERSION_ID < 80000
-        const zend_function *func = zend_get_closure_method_def(&closure_zv);
-#else
         const zend_function *func = zend_get_closure_method_def(closure);
-#endif
         if (func->type == ZEND_USER_FUNCTION) {
             deffile = ZSTR_VAL(func->op_array.filename);
             defline = (int) func->op_array.opcodes[0].lineno;

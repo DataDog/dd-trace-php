@@ -48,6 +48,11 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 - `ext/pdo_sqlite/tests/pdo_fetch_func_001.phpt` PHP 7+
 - `ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt` PHP 8.1
 
+## Tests exposing loaded structures of the tracer
+
+- `ext/spl/tests/gh10011.phpt`
+- `Zend/tests/gc_045.phpt`
+
 ---
 
 # Specific tests
