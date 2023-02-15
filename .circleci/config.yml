@@ -2074,7 +2074,7 @@ jobs:
           command: |
               set -eu
               apk update
-              apk add autoconf coreutils gcc libexecinfo make
+              apk add autoconf coreutils gcc make
               cd ./build/packages
               installable_bundle=$(find . -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
               php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
