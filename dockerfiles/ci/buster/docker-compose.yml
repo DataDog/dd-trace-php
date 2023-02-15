@@ -70,8 +70,8 @@ services:
   php-7.4-shared-ext:
     image: datadog/dd-trace-ci:php-7.4-shared-ext
     build:
-      context: ./php-7.4
-      dockerfile: Dockerfile_shared_ext
+      context: .
+      dockerfile: php-7.4/Dockerfile
       x-bake: *bake
       args:
         sharedBuild: 1
