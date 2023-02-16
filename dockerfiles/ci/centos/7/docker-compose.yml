@@ -62,8 +62,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "7.4"
-        phpTarGzUrl: https://www.php.net/distributions/php-7.4.30.tar.gz
-        phpSha256Hash: e37ea37e0f79109351ac615da85eb7c2c336101fc5bc802ee79a124a4310dc10
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.33.tar.gz
+        phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
     image: 'datadog/dd-trace-ci:php-7.4_centos-7'
 
   php-8.0:
@@ -73,8 +73,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.0"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.21.tar.gz
-        phpSha256Hash: 2f51f6e90e2e8efd3a20db08f0dd61d7f8d5a9362f8c7325f1ad28ccea5be0ac
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.27.tar.gz
+        phpSha256Hash: fe2376faaf91c28ead89a36e118c177f4a8c9a7280a189b97265da1af1f4d305
     image: 'datadog/dd-trace-ci:php-8.0_centos-7'
 
   php-8.1:
@@ -84,8 +84,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.1"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.1.14.tar.gz
-        phpSha256Hash: 4755af2563ad187ceaf4a3632359c55e3f3be4050e0299e0f713bbb5e0531965
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.15.tar.gz
+        phpSha256Hash: 4035236180efac535ff4f22db9ef3195672f31e3e0aa88f89c38ac0715beca3b
     image: 'datadog/dd-trace-ci:php-8.1_centos-7'
 
   php-8.2:
@@ -95,6 +95,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.2"
-        phpTarGzUrl: https://github.com/php/php-src/archive/a814afb08823bb0cdf4ae45f67a7db83c8be9cd7.tar.gz
-        phpSha256Hash: 584d2925889a7d388084150865fa238634043f38f2e060c27ffa8ac4d682d5ec
+        # Avoiding PHP 8.2.2-8.2.3, which have a crash in fibers:
+        # https://github.com/php/php-src/commit/95016138a54b3352a0988878cd71c2ebe7cdeca5
+        phpTarGzUrl: https://www.php.net/distributions/php-8.2.1.tar.gz
+        phpSha256Hash: 6d7b1b8feb14fd1c65a2bc9d0f72c75589a61a946566cf9c3bf9536a5530b635
     image: 'datadog/dd-trace-ci:php-8.2_centos-7'

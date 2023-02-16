@@ -14,6 +14,7 @@ use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
+use std::mem::MaybeUninit;
 use std::str;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -619,6 +620,46 @@ impl Uploader {
 }
 
 impl Profiler {
+    /// Spawns a thread and masks off the signals that the Zend Engine uses.
+    fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
+    where
+        F: FnOnce() -> T + Send + 'static,
+        T: Send + 'static,
+    {
+        let result = std::thread::Builder::new()
+            .name(name.to_string())
+            .spawn(move || {
+                /* Thread must not handle signals intended for PHP threads.
+                 * See Zend/zend_signal.c for which signals it registers.
+                 */
+                unsafe {
+                    let mut sigset_mem = MaybeUninit::uninit();
+                    let sigset = sigset_mem.as_mut_ptr();
+                    libc::sigemptyset(sigset);
+
+                    const SIGNALS: [libc::c_int; 6] = [
+                        libc::SIGPROF, // todo: SIGALRM on __CYGWIN__/__PHASE__
+                        libc::SIGHUP,
+                        libc::SIGINT,
+                        libc::SIGTERM,
+                        libc::SIGUSR1,
+                        libc::SIGUSR2,
+                    ];
+
+                    for signal in SIGNALS {
+                        libc::sigaddset(sigset, signal);
+                    }
+                    libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
+                }
+                f()
+            });
+
+        match result {
+            Ok(handle) => handle,
+            Err(err) => panic!("Failed to spawn thread {name}: {err}"),
+        }
+    }
+
     pub fn new() -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
@@ -646,8 +687,8 @@ impl Profiler {
             fork_senders: [fork_sender0, fork_sender1],
             vm_interrupts,
             message_sender,
-            time_collector_handle: std::thread::spawn(move || time_collector.run()),
-            uploader_handle: std::thread::spawn(move || uploader.run()),
+            time_collector_handle: Self::spawn("ddprof_time", move || time_collector.run()),
+            uploader_handle: Self::spawn("ddprof_upload", move || uploader.run()),
         }
     }
 
@@ -714,6 +755,25 @@ impl Profiler {
         }
     }
 
+    fn cpu_sub(now: cpu_time::ThreadTime, prev: cpu_time::ThreadTime) -> i64 {
+        let now = now.as_duration();
+        let prev = prev.as_duration();
+
+        match now.checked_sub(prev) {
+            // If a 128 bit value doesn't fit in 64 bits, use the max.
+            Some(duration) => duration.as_nanos().try_into().unwrap_or(i64::MAX),
+
+            // If this happened, then either the programmer screwed up and
+            // passed args in backwards, or cpu time has gone backward... ish.
+            // Supposedly it can happen if the thread migrates CPUs:
+            // https://www.percona.com/blog/what-time-18446744073709550000-means/
+            // Regardless of why, a customer hit this:
+            // https://github.com/DataDog/dd-trace-php/issues/1880
+            // In these cases, zero is much closer to reality than i64::MAX.
+            None => 0,
+        }
+    }
+
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     pub unsafe fn collect_time(
@@ -737,18 +797,15 @@ impl Profiler {
                 /* If CPU time is disabled, or if it's enabled but not available on the platform,
                  * then `locals.last_cpu_time` will be None.
                  */
-                let mut cpu_time: i64 = 0;
-                if let Some(last_cpu_time) = locals.last_cpu_time {
+                let cpu_time = if let Some(last_cpu_time) = locals.last_cpu_time {
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
-                    let old_cpu_time = now
-                        .duration_since(last_cpu_time)
-                        .as_nanos()
-                        .try_into()
-                        .unwrap_or(i64::MAX);
-                    cpu_time = old_cpu_time;
+                    let cpu_time = Self::cpu_sub(now, last_cpu_time);
                     locals.last_cpu_time = Some(now);
-                }
+                    cpu_time
+                } else {
+                    0
+                };
 
                 let labels = Profiler::message_labels();
 

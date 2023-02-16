@@ -271,7 +271,7 @@ static bool dd_parse_forwarded(zend_string *zvalue, ipaddr *out) {
     } state = between;
     const char *r = ZSTR_VAL(zvalue);
     const char *end = r + ZSTR_LEN(zvalue);
-    const char *start;
+    const char *start = NULL;
     bool consider_value = false;
 
     // https://datatracker.ietf.org/doc/html/rfc7239#section-4

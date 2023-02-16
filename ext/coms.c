@@ -841,7 +841,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         ddtrace_curl_set_connect_timeout(writer->curl);
 
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
+        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long)get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
 
         res = curl_easy_perform(writer->curl);
 
@@ -849,7 +849,11 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
             ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
         } else if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
             double uploaded;
+// only deprecated on relatively new libcurl versions
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
             curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+#pragma GCC diagnostic pop
             ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
         }
 
