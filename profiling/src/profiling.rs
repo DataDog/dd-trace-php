@@ -490,8 +490,8 @@ impl TimeCollector {
                         let vm_interrupts = self.vm_interrupts.lock().unwrap();
 
                         vm_interrupts.iter().for_each(|obj| unsafe {
-                            (&*obj.engine_ptr).store(true, Ordering::SeqCst);
-                            (&*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
+                            (*obj.engine_ptr).store(true, Ordering::SeqCst);
+                            (*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
                         });
                     }
                 },
