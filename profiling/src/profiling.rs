@@ -14,6 +14,7 @@ use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
+use std::mem::MaybeUninit;
 use std::str;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -619,6 +620,46 @@ impl Uploader {
 }
 
 impl Profiler {
+    /// Spawns a thread and masks off the signals that the Zend Engine uses.
+    fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
+    where
+        F: FnOnce() -> T + Send + 'static,
+        T: Send + 'static,
+    {
+        let result = std::thread::Builder::new()
+            .name(name.to_string())
+            .spawn(move || {
+                /* Thread must not handle signals intended for PHP threads.
+                 * See Zend/zend_signal.c for which signals it registers.
+                 */
+                unsafe {
+                    let mut sigset_mem = MaybeUninit::uninit();
+                    let sigset = sigset_mem.as_mut_ptr();
+                    libc::sigemptyset(sigset);
+
+                    const SIGNALS: [libc::c_int; 6] = [
+                        libc::SIGPROF, // todo: SIGALRM on __CYGWIN__/__PHASE__
+                        libc::SIGHUP,
+                        libc::SIGINT,
+                        libc::SIGTERM,
+                        libc::SIGUSR1,
+                        libc::SIGUSR2,
+                    ];
+
+                    for signal in SIGNALS {
+                        libc::sigaddset(sigset, signal);
+                    }
+                    libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
+                }
+                f()
+            });
+
+        match result {
+            Ok(handle) => handle,
+            Err(err) => panic!("Failed to spawn thread {name}: {err}"),
+        }
+    }
+
     pub fn new() -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
@@ -646,8 +687,8 @@ impl Profiler {
             fork_senders: [fork_sender0, fork_sender1],
             vm_interrupts,
             message_sender,
-            time_collector_handle: std::thread::spawn(move || time_collector.run()),
-            uploader_handle: std::thread::spawn(move || uploader.run()),
+            time_collector_handle: Self::spawn("ddprof_time", move || time_collector.run()),
+            uploader_handle: Self::spawn("ddprof_upload", move || uploader.run()),
         }
     }
 
