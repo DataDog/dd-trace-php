@@ -42,13 +42,9 @@ use crate::bindings::{
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
-lazy_static! {
-    /// The global profiler. Profiler gets made during the first rinit after
-    /// an rinit, and is destroyed on mshutdown.
-    /// In Rust 1.63+, Mutex::new is const and this can be made a regular
-    /// global instead of a lazy_static one.
-    static ref PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
-}
+/// The global profiler. Profiler gets made during the first rinit after an
+/// minit, and is destroyed on mshutdown.
+static PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
