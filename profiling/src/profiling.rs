@@ -755,6 +755,25 @@ impl Profiler {
         }
     }
 
+    fn cpu_sub(now: cpu_time::ThreadTime, prev: cpu_time::ThreadTime) -> i64 {
+        let now = now.as_duration();
+        let prev = prev.as_duration();
+
+        match now.checked_sub(prev) {
+            // If a 128 bit value doesn't fit in 64 bits, use the max.
+            Some(duration) => duration.as_nanos().try_into().unwrap_or(i64::MAX),
+
+            // If this happened, then either the programmer screwed up and
+            // passed args in backwards, or cpu time has gone backward... ish.
+            // Supposedly it can happen if the thread migrates CPUs:
+            // https://www.percona.com/blog/what-time-18446744073709550000-means/
+            // Regardless of why, a customer hit this:
+            // https://github.com/DataDog/dd-trace-php/issues/1880
+            // In these cases, zero is much closer to reality than i64::MAX.
+            None => 0,
+        }
+    }
+
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     pub unsafe fn collect_time(
@@ -778,18 +797,15 @@ impl Profiler {
                 /* If CPU time is disabled, or if it's enabled but not available on the platform,
                  * then `locals.last_cpu_time` will be None.
                  */
-                let mut cpu_time: i64 = 0;
-                if let Some(last_cpu_time) = locals.last_cpu_time {
+                let cpu_time = if let Some(last_cpu_time) = locals.last_cpu_time {
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
-                    let old_cpu_time = now
-                        .as_duration()
-                        .checked_sub(last_cpu_time.as_duration())
-                        .and_then(|t| t.as_nanos().try_into().ok())
-                        .unwrap_or(i64::MAX);
-                    cpu_time = old_cpu_time;
+                    let cpu_time = Self::cpu_sub(now, last_cpu_time);
                     locals.last_cpu_time = Some(now);
-                }
+                    cpu_time
+                } else {
+                    0
+                };
 
                 let labels = Profiler::message_labels();
 
