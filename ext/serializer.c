@@ -784,7 +784,7 @@ static bool dd_rule_matches(zval *pattern, zend_string* value) {
             free_alloca(backtrack_points, use_heap);
             return !*p;
         }
-        if (*s == *p || *p == '.') {
+        if (*s == *p || *p == '?') {
             ++s, ++p;
         } else if (*p == '*') {
             backtrack_points[backtrack_idx++] = ++p;
