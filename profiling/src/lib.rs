@@ -1194,47 +1194,28 @@ mod tests {
     #[test]
     fn detect_uri_from_config_works() {
         // expected
-        let endpoint = detect_uri_from_config(
-            None,
-            None,
-            None
-        );
+        let endpoint = detect_uri_from_config(None, None, None);
         let expected = AgentEndpoint::default();
         assert_eq!(endpoint, expected);
 
         // ipv4 host
-        let endpoint = detect_uri_from_config(
-            None,
-            Some(Cow::Owned("127.0.0.1".to_owned())),
-            None
-        );
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("127.0.0.1".to_owned())), None);
         let expected = AgentEndpoint::Uri(Uri::from_static("http://127.0.0.1:8126"));
         assert_eq!(endpoint, expected);
 
         // ipv6 host
-        let endpoint = detect_uri_from_config(
-            None,
-            Some(Cow::Owned("::1".to_owned())),
-            None
-        );
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), None);
         let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
         assert_eq!(endpoint, expected);
 
         // ipv6 host, custom port
-        let endpoint = detect_uri_from_config(
-            None,
-            Some(Cow::Owned("::1".to_owned())),
-            Some(9000),
-        );
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), Some(9000));
         let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:9000"));
         assert_eq!(endpoint, expected);
 
         // agent_url
-        let endpoint = detect_uri_from_config(
-            Some(Cow::Owned("http://[::1]:8126".to_owned())),
-            None,
-            None,
-        );
+        let endpoint =
+            detect_uri_from_config(Some(Cow::Owned("http://[::1]:8126".to_owned())), None, None);
         let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
         assert_eq!(endpoint, expected);
 
