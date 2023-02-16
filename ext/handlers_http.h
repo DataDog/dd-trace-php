@@ -85,7 +85,9 @@ static inline void ddtrace_inject_distributed_headers(zend_array *array, bool ke
                     signed char *cur = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s);
                     smart_str_append(&str, DDTRACE_G(dd_origin));
                     for (signed char *end = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s); cur < end; ++cur) {
-                        if (*cur < 0x20 || *cur == ',' || *cur == ';' || *cur == '=') {
+                        if (*cur == '=') {
+                            *cur = '~';
+                        } else if (*cur < 0x20 || *cur == ',' || *cur == ';' || *cur == '~') {
                             *cur = '_';
                         }
                     }
