@@ -114,3 +114,29 @@ void ddtrace_signals_mshutdown(void) { free(ddtrace_altstack.ss_sp); }
 void ddtrace_signals_first_rinit(void) {}
 void ddtrace_signals_mshutdown(void) {}
 #endif
+
+// This allows us to include the executing php binary and extensions themselves in the core dump too
+void ddtrace_set_coredumpfilter(void) {
+    FILE *fp = fopen("/proc/self/coredump_filter", "r+");
+    if (!fp) {
+        return;
+    }
+
+    // reading from that file returns a hex number, but to write it, it needs to be prefixed 0x, otherwise it's interpreted as octal
+    char buf[10];
+    if (fread(buf + 2, 8, 1, fp) != 8) {
+        return;
+    }
+
+    buf[0] = '0';
+    buf[1] = 'x';
+    // From core(5) man page:
+    // bit 0  Dump anonymous private mappings.
+    // bit 1  Dump anonymous shared mappings.
+    // bit 2  Dump file-backed private mappings.
+    // bit 3  Dump file-backed shared mappings.
+    buf[9] = 'f';
+
+    fseek(fp, 0, SEEK_SET);
+    fwrite(buf, 10, 1, fp);
+}
