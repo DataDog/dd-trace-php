@@ -57,9 +57,12 @@ static zend_string *_custom_error_json = NULL;
 static THREAD_LOCAL_ON_ZTS int _response_code = DEFAULT_BLOCKING_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS dd_response_type _response_type =
     DEFAULT_RESPONSE_TYPE;
+static THREAD_LOCAL_ON_ZTS int _redirection_response_code =
+    DEFAULT_REDIRECTION_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS zend_string *_redirection_location = NULL;
 
 static void _abort_prelude(void);
+void _request_abort_static_page(int response_code, int type);
 ATTR_FORMAT(1, 2)
 static void _emit_error(const char *format, ...);
 
@@ -171,14 +174,19 @@ void dd_set_block_code_and_type(int code, dd_response_type type)
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void dd_set_redirect_code_and_location(int code, zend_string *nullable location)
 {
-    _response_code = code;
+    _redirection_response_code = DEFAULT_REDIRECTION_RESPONSE_CODE;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    if (code >= 300 && code < 400) {
+        _redirection_response_code = code;
+    }
     _redirection_location = location;
 }
 
 void dd_request_abort_redirect()
 {
     if (_redirection_location == NULL || ZSTR_LEN(_redirection_location) == 0) {
-        mlog(dd_log_warning, "Failing to redirect: No location set");
+        _request_abort_static_page(
+            DEFAULT_BLOCKING_RESPONSE_CODE, DEFAULT_RESPONSE_TYPE);
         return;
     }
     _abort_prelude();
@@ -186,7 +194,7 @@ void dd_request_abort_redirect()
     uint line_len = (uint)spprintf(
         &line, 0, "Location: %s", ZSTR_VAL(_redirection_location));
 
-    SG(sapi_headers).http_response_code = _response_code;
+    SG(sapi_headers).http_response_code = _redirection_response_code;
     int res = sapi_header_op(SAPI_HEADER_REPLACE,
         &(sapi_header_line){.line = line, .line_len = line_len});
     if (res == FAILURE) {
@@ -206,13 +214,14 @@ void dd_request_abort_redirect()
         ZSTR_VAL(_redirection_location));
 }
 
-void dd_request_abort_static_page()
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void _request_abort_static_page(int response_code, int type)
 {
     _abort_prelude();
 
-    SG(sapi_headers).http_response_code = _response_code;
+    SG(sapi_headers).http_response_code = response_code;
 
-    dd_response_type response_type = _response_type;
+    dd_response_type response_type = type;
     if (response_type == response_type_auto) {
         response_type = _get_response_type_from_accept_header();
     }
@@ -241,6 +250,11 @@ void dd_request_abort_static_page()
 
     _emit_error(
         "Datadog blocked the request and presented a static error page");
+}
+
+void dd_request_abort_static_page()
+{
+    _request_abort_static_page(_response_code, _response_type);
 }
 
 static void _force_destroy_output_handlers(void);

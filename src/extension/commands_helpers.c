@@ -365,7 +365,7 @@ static void _command_process_block_parameters(mpack_node_t root)
 
 static void _command_process_redirect_parameters(mpack_node_t root)
 {
-    int status_code = DEFAULT_REDIRECTION_RESPONSE_CODE;
+    int status_code = 0;
     zend_string *location = NULL;
 
     int expected_nodes = 2;
@@ -398,10 +398,7 @@ static void _command_process_redirect_parameters(mpack_node_t root)
 
             const int base = 10;
             long parsed_value = strtol(code_str, NULL, base);
-            // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-            if (parsed_value >= 300 && parsed_value < 400) {
-                status_code = (int)parsed_value;
-            }
+            status_code = (int)parsed_value;
             --expected_nodes;
         } else if (dd_mpack_node_lstr_eq(key, "location")) {
             size_t location_len = mpack_node_strlen(value);

@@ -1,5 +1,7 @@
 --TEST--
 Redirect request as a result of rinit, with valid status_code and missing location
+--DESCRIPTION--
+Since location is missing, it defaults to block request with default behaviour
 --INI--
 datadog.appsec.enabled=1
 --FILE--
@@ -15,9 +17,10 @@ $helper = Helper::createInitedRun([
 rinit();
 
 ?>
-Some content here which should be displayed
+Some content here which should not be displayed
 --EXPECTHEADERS--
-Content-type: text/html; charset=UTF-8
+Status: 403 Forbidden
+Content-type: application/json
 --EXPECTF--
-Warning: datadog\appsec\testing\rinit(): [ddappsec] Failing to redirect: No location set in %s on line %s
-Some content here which should be displayed
+{"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}
+Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page in %s on line %d
