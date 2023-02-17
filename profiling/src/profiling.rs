@@ -9,6 +9,7 @@ use crossbeam_channel::{select, Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::{Endpoint, File, Tag};
 use datadog_profiling::profile;
 use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
+use libc::sched_yield;
 use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
@@ -739,20 +740,55 @@ impl Profiler {
             .try_send(ProfilerMessage::LocalRootSpanResource(message))
     }
 
-    pub fn stop(self) {
-        // todo: what should be done when a thread panics?
-        debug!("Stopping profiler.");
-        let _ = self.message_sender.send(ProfilerMessage::Cancel);
-        if let Err(err) = self.time_collector_handle.join() {
-            std::panic::resume_unwind(err)
+    /// Waits for the handle to be finished. If finished, it will join the
+    /// handle. Otherwise, it will leak the handle.
+    /// # Panics
+    /// Panics if the thread being joined has panic'd.
+    fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
+        // After notifying the other threads, it's likely they'll need some
+        // time to respond adequately. Joining on the JoinHandle is supposed
+        // to be the correct way to do this, but we've observed this can
+        // panic:
+        // https://github.com/DataDog/dd-trace-php/issues/1919
+        // Thus far, we have not been able to reproduce it and address the
+        // root cause. So, for now, mitigate it instead with a busy loop.
+        let start = Instant::now();
+        while !handle.is_finished() {
+            unsafe { sched_yield() };
+            if start.elapsed() >= timeout {
+                let name = handle.thread().name().unwrap_or("{unknown}");
+                warn!("Timeout of {timeout:?} reached when joining thread '{name}'. {impact}");
+                return;
+            }
         }
 
-        // Wait for the time_collector to join, since that will drop the sender
-        // half of the channel that the uploader is holding, allowing it to
-        // finish.
-        if let Err(err) = self.uploader_handle.join() {
+        if let Err(err) = handle.join() {
             std::panic::resume_unwind(err)
         }
+    }
+
+    pub fn stop(self) {
+        debug!("Stopping profiler.");
+        match self.message_sender.send(ProfilerMessage::Cancel) {
+            Err(err) => warn!("Failed to notify other threads of cancellation: {err}."),
+            Ok(_) => debug!("Notified other threads of cancellation."),
+        }
+
+        let timeout = Duration::from_secs(2);
+        Self::join_timeout(
+            self.time_collector_handle,
+            timeout,
+            "Recent samples may be lost.",
+        );
+
+        // Wait for the time_collector to join, since that will drop
+        // the sender half of the channel that the uploader is
+        // holding, allowing it to finish.
+        Self::join_timeout(
+            self.uploader_handle,
+            timeout,
+            "Recent samples are most likely lost.",
+        );
     }
 
     fn cpu_sub(now: cpu_time::ThreadTime, prev: cpu_time::ThreadTime) -> i64 {
