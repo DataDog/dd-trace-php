@@ -40,7 +40,8 @@ service::ptr service::from_settings(const service_identifier &id,
     const dds::engine_settings &eng_settings,
     const remote_config::settings &rc_settings,
     std::map<std::string_view, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+    std::map<std::string_view, double> &metrics,
+    std::vector<remote_config::protocol::capabilities_e> &&capabilities)
 {
     auto engine_ptr = engine::from_settings(eng_settings, meta, metrics);
 
@@ -55,10 +56,6 @@ service::ptr service::from_settings(const service_identifier &id,
     std::vector<remote_config::product> products = {
         {"ASM_FEATURES", asm_features_listener},
         {"ASM_DATA", asm_data_listener}};
-    std::vector<remote_config::protocol::capabilities_e> capabilities = {
-        remote_config::protocol::capabilities_e::ASM_ACTIVATION,
-        remote_config::protocol::capabilities_e::ASM_IP_BLOCKING,
-    };
 
     auto rc_client = remote_config::client::from_settings(
         id, rc_settings, std::move(products), std::move(capabilities));

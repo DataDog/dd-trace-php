@@ -23,11 +23,12 @@ class service_manager {
 public:
     service_manager() = default;
 
-    std::shared_ptr<service> create_service(const service_identifier &id,
-        const engine_settings &settings,
+    virtual std::shared_ptr<service> create_service(
+        const service_identifier &id, const engine_settings &settings,
         const remote_config::settings &rc_settings,
         std::map<std::string_view, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+        std::map<std::string_view, double> &metrics,
+        std::vector<remote_config::protocol::capabilities_e> &&capabilities);
 
 protected:
     using cache_t = std::unordered_map<service_identifier,
