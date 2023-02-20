@@ -44,4 +44,4 @@ array_map(function($span) {
 --EXPECTF--
 Finally retval
 doCatchWithFinally, Finally retval
-throwException, throwException, Uncaught FooException: Oops! in %s:%d
+throwException, throwException, Thrown FooException: Oops! in %s:%d
