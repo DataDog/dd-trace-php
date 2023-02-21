@@ -282,6 +282,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames([Tag::ERROR_MSG])
+                ->withExistingTagsNames([Tag::ERROR_STACK])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/')
                 ->setError('curl error'),
@@ -307,6 +308,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames([Tag::ERROR_MSG])
+                ->withExistingTagsNames([Tag::ERROR_STACK])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/')
                 ->setError('curl error'),
@@ -333,7 +335,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/')
-                ->setError('curl error', 'Could not resolve host: __i_am_not_real__.invalid'),
+                ->setError('curl error', 'Could not resolve host: __i_am_not_real__.invalid', true),
         ]);
     }
 

@@ -59,6 +59,7 @@
 #include "../hook/uhook.h"
 #include "handlers_fiber.h"
 #include "handlers_exception.h"
+#include "exceptions/exceptions.h"
 
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
@@ -392,6 +393,10 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_extract_ip_from_headers, 0, 0, 1)
 ZEND_ARG_INFO(0, headers)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_get_sanitized_exception_trace, 0, 0, 1)
+ZEND_ARG_INFO(0, exception)
 ZEND_END_ARG_INFO()
 
 /* Legacy API */
@@ -2151,6 +2156,19 @@ static PHP_FUNCTION(get_priority_sampling) {
     RETURN_LONG(ddtrace_fetch_prioritySampling_from_root());
 }
 
+static PHP_FUNCTION(get_sanitized_exception_trace) {
+    zend_object *ex;
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 1)
+        Z_PARAM_OBJ_OF_CLASS(ex, zend_ce_throwable)
+    ZEND_PARSE_PARAMETERS_END_EX({
+        ddtrace_log_debug("unexpected parameter for DDTrace\\get_sanitized_exception_trace. The first argument must be a Throwable.");
+        RETURN_FALSE;
+    });
+
+    RETURN_STR(zai_get_trace_without_args_from_exception(ex));
+}
+
 static PHP_FUNCTION(startup_logs) {
     UNUSED(execute_data);
 
@@ -2239,6 +2257,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FALIAS(dd_trace_method, trace_method, arginfo_ddtrace_trace_method),
     DDTRACE_NS_FE(hook_function, arginfo_ddtrace_hook_function),
     DDTRACE_NS_FE(hook_method, arginfo_ddtrace_hook_method),
+    DDTRACE_NS_FE(get_sanitized_exception_trace, arginfo_ddtrace_get_sanitized_exception_trace),
     DDTRACE_NS_FE(startup_logs, arginfo_ddtrace_void),
     DDTRACE_NS_FE(find_active_exception, arginfo_ddtrace_void),
     DDTRACE_NS_FE(get_priority_sampling, arginfo_get_priority_sampling),
