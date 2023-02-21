@@ -1297,7 +1297,8 @@ TEST_F(RemoteConfigClient, RuntimeIdIsNotGeneratedIfProvided)
 
     settings.enabled = true;
 
-    auto client = remote_config::client::from_settings(sid, settings, {}, {});
+    auto client = remote_config::client::from_settings(sid, settings, {},
+        {dds::remote_config::protocol::capabilities_e::ASM_ACTIVATION});
 
     EXPECT_STREQ(
         runtime_id, client->get_service_identifier().runtime_id.c_str());
@@ -1311,45 +1312,36 @@ TEST_F(RemoteConfigClient, RuntimeIdIsGeneratedWhenNotProvided)
 
     settings.enabled = true;
 
-    auto client = remote_config::client::from_settings(sid, settings, {}, {});
+    auto client = remote_config::client::from_settings(sid, settings, {},
+        {dds::remote_config::protocol::capabilities_e::ASM_ACTIVATION});
 
     EXPECT_FALSE(client->get_service_identifier().runtime_id.empty());
     EXPECT_TRUE(sid.runtime_id.empty());
 }
 
-/*
-TEST_F(RemoteConfigClient, TestAgainstDocker)
+TEST_F(RemoteConfigClient, ItdoesNotGenerateClientIfRCNotEnabled)
 {
-    dds::cout_listener *listener = new dds::cout_listener();
-    std::vector<remote_config::product_listener *> listeners = {
-(remote_config::product_listener *)listener}; remote_config::product
-product(asm_dd, listeners);
+    service_identifier sid = {
+        "service", "env", "tracer_version", "app_version", "runtime_id"};
 
-    std::vector<dds::remote_config::product> _products = {product};
+    settings.enabled = false;
 
-    remote_config::http_api api;
+    auto client = remote_config::client::from_settings(sid, settings, {},
+        {dds::remote_config::protocol::capabilities_e::ASM_ACTIVATION});
 
-    auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
-
-    std::ostringstream oss;
-    oss << std::put_time(&tm, "%d-%m-%Y %H-%M-%S");
-    auto current_id = oss.str();
-
-    dds::test_client api_client(id, std::move(api), current_id,
-runtime_id, tracer_version, service, env, app_version, _products);
-
-    std::cout << "First poll" << std::endl;
-    auto result = api_client.poll();
-
-    EXPECT_EQ(true, result);
-
-    sleep(6);
-    std::cout << "Second poll" << std::endl;
-    result = api_client.poll();
-
-    EXPECT_EQ(true, result);
+    EXPECT_FALSE(client);
 }
-*/
+
+TEST_F(RemoteConfigClient, ItdoesNotGenerateClientIfNoCapabilities)
+{
+    service_identifier sid = {
+        "service", "env", "tracer_version", "app_version", "runtime_id"};
+
+    settings.enabled = true;
+
+    auto client = remote_config::client::from_settings(sid, settings, {}, {});
+
+    EXPECT_FALSE(client);
+}
 
 } // namespace dds

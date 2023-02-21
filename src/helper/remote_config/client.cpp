@@ -45,7 +45,8 @@ client::ptr client::from_settings(const service_identifier &sid,
     std::vector<remote_config::product> &&products,
     std::vector<protocol::capabilities_e> &&capabilities)
 {
-    if (!settings.enabled) {
+    // If there are no capabilities, there is no point on calling RC
+    if (!settings.enabled || capabilities.empty()) {
         return {};
     }
 

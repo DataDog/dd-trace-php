@@ -123,13 +123,16 @@ bool client::handle_command(const network::client_init::request &command)
 
     client_enabled_conf = command.enabled_configuration;
 
-    std::vector<remote_config::protocol::capabilities_e> capabilities = {
-        remote_config::protocol::capabilities_e::ASM_IP_BLOCKING,
-    };
+    std::vector<remote_config::protocol::capabilities_e> capabilities = {};
 
     if (!client_enabled_conf.has_value()) {
         capabilities.push_back(
             remote_config::protocol::capabilities_e::ASM_ACTIVATION);
+    }
+
+    if (eng_settings.rules_file.empty()) {
+        capabilities.push_back(
+            remote_config::protocol::capabilities_e::ASM_IP_BLOCKING);
     }
 
     try {
