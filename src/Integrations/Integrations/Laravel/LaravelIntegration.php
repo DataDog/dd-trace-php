@@ -234,6 +234,29 @@ class LaravelIntegration extends Integration
             }
         );
 
+        \DDTrace\hook_method(
+            '\Illuminate\Auth\SessionGuard',
+            'user',
+            ["posthook" => function ($This, $scope, $args, $retval) {
+                if (!\dd_trace_env_config("DD_TRACE_STORE_USER_DATA")) {
+                    return;
+                }
+
+                /** @var \Illuminate\Contracts\Auth\Authenticatable|null $retval */
+                if ($retval !== null && $retval->getAuthIdentifier() !== (\DDTrace\root_span()["usr.id"] ?? null)) {
+                    $meta = [];
+                    // Standard Laravel names as per App\User
+                    if (isset($retval->name)) {
+                        $meta['name'] = $retval->name;
+                    }
+                    if (isset($retval->email)) {
+                        $meta['email'] = $retval->email;
+                    }
+                    \DDTrace\set_user($retval->getAuthIdentifier(), $meta);
+                }
+            }]
+        );
+
         return Integration::LOADED;
     }
 
