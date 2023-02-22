@@ -124,7 +124,7 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration, $command) {
                 $integration->setCommonData($span, $command);
                 if ($command === 'get') {
-                    $span->metrics[Tag::DB_ROW_COUNT] = isset($retval) && $retval ? 1 : 0;
+                    $span->metrics[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
                 }
                 if (!is_array($args[0])) {
                     $integration->setServerTags($span, $this);
