@@ -68,6 +68,7 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
 }
 #define zend_get_closure_method_def dd_zend_get_closure_method_def
 
+#define ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, classname, allow_null, default_value) ZEND_ARG_OBJ_INFO(pass_by_ref, name, classname, allow_null)
 #define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)
 #define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
 #define ZEND_TYPE_INIT_MASK(type) NULL

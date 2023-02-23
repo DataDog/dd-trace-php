@@ -32,5 +32,5 @@ class HookData {
     public function overrideArguments(array $arguments): void;
 }
 
-function install_hook(string|\Closure|\Generator $target, ?\Closure $begin, ?\Closure $end): int {}
+function install_hook(string|\Closure|\Generator $target, ?\Closure $begin = null, ?\Closure $end = null): int {}
 function remove_hook(int $id): void {}

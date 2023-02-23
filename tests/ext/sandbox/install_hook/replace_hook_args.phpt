@@ -59,9 +59,11 @@ Array
     [0] => 1
     [1] => 2
 )
+Can't pass less args to an untyped function than originally passed (minus extra args) in %s:%d
 Array
 (
-    [0] => 5
+    [0] => 1
+    [1] => 2
 )
-int(5)
-int(3)
+int(1)
+int(2)

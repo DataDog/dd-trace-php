@@ -51,7 +51,6 @@ typedef struct {
     zend_execute_data *execute_data;
     ddtrace_span_data *span;
     ddtrace_span_stack *prior_stack;
-    const zend_op *update_op;
 } dd_hook_data;
 
 typedef struct {
@@ -143,27 +142,6 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         def->running = true;
         dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
         def->running = false;
-
-        // Within our hooks, we may update EX(opline) of the hooked function, but the global opline register isn't read back after observer hooks.
-        // However, this may happen within another execute_ex: it backups the old opline and puts it back after execution.
-        // Hence, to actually modify the register, we have to update the register outside of execute_ex, i.e. here.
-        // Now, this is not even guaranteed to have the desired effect, as a compiler _may_ decide to push and pop the register.
-        // (There sadly is no way to tell the compiler, hey, please don't use x28/%r15 in this function.)
-        // Practically though, we have a test for this, so at least our self-compiled artifacts *do* properly replace these.
-        // Also, realistically, in the worst practical case, nothing really will happen, except that refcounted arguments are replaced with IS_NULL.
-        // Additionally, as of now, this code is only ever executed if we pass *less* values to replace than there are originally passed and
-        // less than the number of *untyped optional* arguments.
-        if (dyn->hook_data->update_op) {
-#if defined(HAVE_GCC_GLOBAL_REGS) && defined(__GNUC__) && ZEND_GCC_VERSION >= 4008
-# if defined(__x86_64__)
-#  define ZEND_VM_IP_GLOBAL_REG "%r15"
-            __asm__ volatile("mov %0, " ZEND_VM_IP_GLOBAL_REG : : "r"(dyn->hook_data->update_op));
-# elif defined(__aarch64__)
-#  define ZEND_VM_IP_GLOBAL_REG "x28"
-            __asm__ volatile("mov " ZEND_VM_IP_GLOBAL_REG ", %0" : : "r"(dyn->hook_data->update_op));
-# endif
-#endif
-        }
     }
     dyn->hook_data->execute_data = NULL;
 
@@ -485,6 +463,12 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
         RETURN_NULL();
     }
 
+    if (ZEND_USER_CODE(func->type) && hookData->execute_data->opline > func->op_array.opcodes + zend_hash_num_elements(args)) {
+        ddtrace_log_errf("Can't pass less args to an untyped function than originally passed (minus extra args) in %s:%d",
+                         zend_get_executed_filename(), zend_get_executed_lineno());
+        RETURN_NULL();
+    }
+
     // When observers are executed, moving extra args behind the last temporary already happened
     zval *arg = ZEND_CALL_VAR_NUM(hookData->execute_data, 0), *last_arg = ZEND_USER_CODE(func->type) ? arg + func->common.num_args : ((void *)~0);
     zval *val;
@@ -508,10 +492,6 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
     } ZEND_HASH_FOREACH_END();
 
     ZEND_CALL_NUM_ARGS(hookData->execute_data) = i;
-    if (ZEND_USER_CODE(func->type) && hookData->execute_data->opline > func->op_array.opcodes + i) {
-        // reset skipped ZEND_RECV* opcodes
-        hookData->update_op = hookData->execute_data->opline = func->op_array.opcodes + i;
-    }
 
     while (i++ < passed_args) {
         if (arg >= last_arg) {
@@ -519,11 +499,7 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
             arg = ZEND_CALL_VAR(hookData->execute_data, func->op_array.last_var + func->op_array.T);
             last_arg = (void *)~0;
         }
-        if (Z_OPT_REFCOUNTED_P(arg)) {
-            zval_ptr_dtor(arg);
-            ZVAL_NULL(arg); // don't leave dangling data on the stack, especially if update_op doesn't happen (see comment in dd_uhook_begin)
-        }
-        ++arg;
+        zval_ptr_dtor(++arg);
     }
 
     RETURN_NULL();
