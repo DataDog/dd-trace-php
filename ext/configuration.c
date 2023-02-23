@@ -51,9 +51,25 @@ DD_CONFIGURATION
 #undef CALIASES
 #undef CONFIG
 
+static int dd_parse_dbm_mode(zai_string_view value, zval *decoded_value, bool persistent) {
+    UNUSED(persistent);
+    if (zai_string_equals_literal(value, "disabled")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_DISABLED);
+    } else if (zai_string_equals_literal(value, "service")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_SERVICE);
+    } else if (zai_string_equals_literal(value, "full")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_FULL);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
 // Allow for partially defined struct initialization here
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 
+#define CUSTOM(...) CUSTOM
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
 #define CALIASES(...) ((zai_string_view[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
 #define CONFIG(type, name, ...) ZAI_CONFIG_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),

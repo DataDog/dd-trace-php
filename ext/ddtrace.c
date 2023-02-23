@@ -61,6 +61,8 @@
 #include "handlers_exception.h"
 #include "exceptions/exceptions.h"
 
+#include "ddtrace_arginfo.h"
+
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
@@ -684,19 +686,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_setup_fiber_observers();
 #endif
 
-    REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP", PRIORITY_SAMPLING_AUTO_KEEP,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT", PRIORITY_SAMPLING_AUTO_REJECT,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_KEEP", PRIORITY_SAMPLING_USER_KEEP,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_REJECT", PRIORITY_SAMPLING_USER_REJECT,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNKNOWN", DDTRACE_PRIORITY_SAMPLING_UNKNOWN,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNSET", DDTRACE_PRIORITY_SAMPLING_UNSET,
-                           CONST_CS | CONST_PERSISTENT);
+    register_ddtrace_symbols(module_number);
     REGISTER_INI_ENTRIES();
 
     zval *ddtrace_module_zv = zend_hash_str_find(&module_registry, ZEND_STRL("ddtrace"));
