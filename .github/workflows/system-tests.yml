@@ -70,9 +70,38 @@ jobs:
       - name: Build
         run: ./build.sh
 
-      - name: Run
-        run: ./run.sh
-
+      - name: Run DEFAULT scenario
+        run: ./run.sh DEFAULT
+      - name: Run REMOTE_CONFIG_MOCKED_BACKEND_ASM_FEATURES scenario
+        run: ./run.sh REMOTE_CONFIG_MOCKED_BACKEND_ASM_FEATURES
+      - name: Run REMOTE_CONFIG_MOCKED_BACKEND_LIVE_DEBUGGING scenario
+        run: ./run.sh REMOTE_CONFIG_MOCKED_BACKEND_LIVE_DEBUGGING
+      - name: Run REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD scenario
+        run: ./run.sh REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD
+      - name: Run APPSEC_MISSING_RULES scenario
+        run: ./run.sh APPSEC_MISSING_RULES
+      - name: Run APPSEC_CORRUPTED_RULES scenario
+        run: ./run.sh APPSEC_CORRUPTED_RULES
+      - name: Run APPSEC_CUSTOM_RULES scenario
+        run: ./run.sh APPSEC_CUSTOM_RULES
+      - name: Run APPSEC_RULES_MONITORING_WITH_ERRORS scenario
+        run: ./run.sh APPSEC_RULES_MONITORING_WITH_ERRORS
+      - name: Run APPSEC_BLOCKING scenario
+        run: ./run.sh APPSEC_BLOCKING
+      - name: Run APPSEC_DISABLED scenario
+        run: ./run.sh APPSEC_DISABLED
+      - name: Run APPSEC_LOW_WAF_TIMEOUT scenario
+        run: ./run.sh APPSEC_LOW_WAF_TIMEOUT
+      - name: Run APPSEC_CUSTOM_OBFUSCATION scenario
+        run: ./run.sh APPSEC_CUSTOM_OBFUSCATION
+      - name: Run APPSEC_RATE_LIMITER scenario
+        run: ./run.sh APPSEC_RATE_LIMITER
+      - name: Run APPSEC_IP_BLOCKING scenario
+        run: ./run.sh APPSEC_IP_BLOCKING
+      - name: Run APPSEC_RUNTIME_ACTIVATION scenario
+        run: ./run.sh APPSEC_RUNTIME_ACTIVATION
+      - name: Run APPSEC_WAF_TELEMETRY scenario
+        run: ./run.sh APPSEC_WAF_TELEMETRY
       - name: Compress artifact
         if: ${{ always() }}
         run: tar -czvf artifact.tar.gz $(ls | grep logs)

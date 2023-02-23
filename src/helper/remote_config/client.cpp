@@ -210,7 +210,7 @@ bool client::poll()
     std::string serialized_request;
     try {
         serialized_request = protocol::serialize(request);
-        SPDLOG_TRACE("Sending request: {}", serialized_request);
+        SPDLOG_DEBUG("Sending request: {}", serialized_request);
     } catch (protocol::serializer_exception &e) {
         return false;
     }
@@ -221,7 +221,7 @@ bool client::poll()
     }
 
     try {
-        SPDLOG_TRACE("Received response: {}", response_body.value());
+        SPDLOG_DEBUG("Received response: {}", response_body.value());
         auto response = protocol::parse(response_body.value());
         last_poll_error_.clear();
         return process_response(response);
