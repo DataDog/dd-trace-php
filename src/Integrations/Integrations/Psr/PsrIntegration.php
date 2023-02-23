@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Integrations\PSR;
+namespace DDTrace\Integrations\Psr;
 
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
@@ -8,7 +8,7 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class PSRIntegration extends Integration
+class PsrIntegration extends Integration
 {
     const NAME = 'psr';
 
@@ -38,7 +38,7 @@ class PSRIntegration extends Integration
                 $span->service = 'psr';
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
-                $span->meta[Tag::COMPONENT] = PSRIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = PsrIntegration::NAME;
 
                 if (isset($args[0])) {
                     $integration->addRequestInfo($span, $args[0]);

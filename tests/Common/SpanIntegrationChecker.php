@@ -31,7 +31,7 @@ final class SpanIntegrationChecker
             '/mysqli.*/' => 'DDTrace\Integrations\Mysqli\MysqliIntegration',
             '/PDO(.)|(Statement).*/' => $pdoIntegration,
             '/Predis.*/' => 'DDTrace\Integrations\Predis\PredisIntegration',
-            '/PSR.*/' => 'DDTrace\Integrations\PSR\PSRIntegration',
+            '/Psr.*/' => 'DDTrace\Integrations\Psr\PsrIntegration',
             '/symfony.*/' => 'DDTrace\Integrations\Symfony\SymfonyIntegration',
             '/web.*/' => 'DDTrace\Integrations\Web\WebIntegration',
             '/zf.*/' => 'DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration',

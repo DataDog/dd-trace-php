@@ -17,7 +17,7 @@ use DDTrace\Integrations\Nette\NetteIntegration;
 use DDTrace\Integrations\Pcntl\PcntlIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
-use DDTrace\Integrations\PSR\PSRIntegration;
+use DDTrace\Integrations\Psr\PsrIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
@@ -75,8 +75,8 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[PSRIntegration::NAME] =
-            '\DDTrace\Integrations\PSR\PSRIntegration';
+        $this->integrations[PsrIntegration::NAME] =
+            '\DDTrace\Integrations\Psr\PsrIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
