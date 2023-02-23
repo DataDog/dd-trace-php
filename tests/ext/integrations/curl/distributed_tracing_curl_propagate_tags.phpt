@@ -5,6 +5,7 @@ Distributed tracing header tags propagate with curl_exec()
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
+HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_TAGS=custom_tag=inherited,to_remove=,_dd.p.foo=bar,_dd.p.dm=abcdef-2
 --FILE--
 <?php

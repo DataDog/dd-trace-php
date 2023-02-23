@@ -2332,6 +2332,10 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
         zend_string_release(b3_header_str);
     }
 
+    if (parse_datadog_meta_headers) {
+        read_header(ZAI_STRL_VIEW("X_DATADOG_ORIGIN"), "x-datadog-origin", &DDTRACE_G(dd_origin), data);
+    }
+
     if (parse_datadog && read_header(ZAI_STRL_VIEW("X_DATADOG_TRACE_ID"), "x-datadog-trace-id", &trace_id_str, data)) {
         zval trace_zv;
         ZVAL_STR(&trace_zv, trace_id_str);
@@ -2354,10 +2358,10 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
             DDTRACE_G(distributed_parent_trace_id) = ddtrace_parse_hex_span_id(&parent_zv);
             zend_string_release(parent_id_str);
         }
-    }
-
-    if (parse_datadog_meta_headers) {
-        read_header(ZAI_STRL_VIEW("X_DATADOG_ORIGIN"), "x-datadog-origin", &DDTRACE_G(dd_origin), data);
+    } else {
+        // skip, if no valid trace is present
+        parse_datadog_meta_headers = 0;
+        parse_datadog = 0;
     }
 
     if (parse_datadog && read_header(ZAI_STRL_VIEW("X_DATADOG_SAMPLING_PRIORITY"), "x-datadog-sampling-priority", &priority_str, data)) {
@@ -2391,6 +2395,17 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
     // "{version:2}-{trace-id:32}-{parent-id:16}-{trace-flags:2}"
     if (parse_tracestate && read_header(ZAI_STRL_VIEW("TRACEPARENT"), "traceparent", &traceparent, data)) {
         do {
+            // skip whitespace
+            char *ws = ZSTR_VAL(traceparent), *wsend = ws + ZSTR_LEN(traceparent);
+            while (ws < wsend && isspace(*ws)) {
+                ++ws;
+            }
+            if (ws == wsend) {
+                break;
+            }
+            while (isspace(*--wsend));
+
+            size_t tracedata_len = wsend + 1 - ws;
             struct {
                 char version[2];
                 char version_hyphen;
@@ -2400,16 +2415,17 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
                 char parent_id_hyphen;
                 char trace_flags[2];
                 char trailing_data[];
-            } *tracedata = (void *)ZSTR_VAL(traceparent);
+            } *tracedata = (void *)ws;
 
-            if (ZSTR_LEN(traceparent) < sizeof(*tracedata)
+            if (tracedata_len < sizeof(*tracedata)
              || !dd_is_hex_char(tracedata->version[0]) || !dd_is_hex_char(tracedata->version[1])
              || *(uint16_t *)tracedata->version == ('f' << 8) + 'f' // 0xFF is invalid version
              || tracedata->version_hyphen != '-'
              || tracedata->trace_id_hyphen != '-'
              || tracedata->parent_id_hyphen != '-'
              || !dd_is_hex_char(tracedata->trace_flags[0]) || !dd_is_hex_char(tracedata->trace_flags[1])
-             || (ZSTR_LEN(traceparent) > sizeof(*tracedata) && tracedata->trailing_data[0] != '-')
+             || (tracedata_len > sizeof(*tracedata)
+                 && ((tracedata->version[0] == '0' && tracedata->version[1] == '0') || tracedata->trailing_data[0] != '-'))
              ) {
                 parse_tracestate = 0;
                 break;
