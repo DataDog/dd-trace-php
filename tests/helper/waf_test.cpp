@@ -7,6 +7,7 @@
 
 #include "common.hpp"
 #include "engine_settings.hpp"
+#include "json_helper.hpp"
 #include <rapidjson/document.h>
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
@@ -16,6 +17,8 @@
 
 const std::string waf_rule =
     R"({"version":"2.1","metadata":{"rules_version":"1.2.3"},"rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}],"action":"record"}]})";
+const std::string waf_rule_with_data =
+    R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
 namespace dds {
 
@@ -47,7 +50,7 @@ TEST(WafTest, InitWithInvalidRules)
         waf::instance::from_settings(cs, ruleset, meta, metrics)};
 
     EXPECT_EQ(meta.size(), 2);
-    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.6.2");
+    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.8.2");
 
     rapidjson::Document doc;
     doc.Parse(meta[tag::event_rules_errors]);
@@ -213,6 +216,90 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
     ctx->get_meta_and_metrics(meta, metrics);
     EXPECT_STREQ(meta[tag::event_rules_version].c_str(), "1.2.3");
     EXPECT_GT(metrics[tag::waf_duration], 0.0);
+}
+
+TEST(WafTest, UpdateRuleData)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    subscriber::ptr wi{
+        waf::instance::from_string(waf_rule_with_data, meta, metrics)};
+    ASSERT_TRUE(wi);
+
+    auto addresses = wi->get_subscriptions();
+    EXPECT_EQ(addresses.size(), 1);
+    EXPECT_STREQ(addresses.begin()->c_str(), "http.client_ip");
+
+    {
+        auto ctx = wi->get_listener();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        parameter_view pv(p);
+        auto res = ctx->call(pv);
+        EXPECT_TRUE(!res);
+    }
+
+    auto param = json_to_parameter(
+        R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
+
+    wi = wi->update(param, meta, metrics);
+    ASSERT_TRUE(wi);
+
+    addresses = wi->get_subscriptions();
+    EXPECT_EQ(addresses.size(), 1);
+    EXPECT_STREQ(addresses.begin()->c_str(), "http.client_ip");
+
+    {
+        auto ctx = wi->get_listener();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        parameter_view pv(p);
+        auto res = ctx->call(pv);
+        EXPECT_TRUE(res);
+
+        EXPECT_EQ(res->data.size(), 1);
+        rapidjson::Document doc;
+        doc.Parse(res->data[0]);
+        EXPECT_FALSE(doc.HasParseError());
+        EXPECT_TRUE(doc.IsObject());
+
+        EXPECT_STREQ(
+            doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
+            "192.168.1.1");
+
+        EXPECT_EQ(res->actions.size(), 1);
+        EXPECT_STREQ(res->actions.begin()->c_str(), "block");
+    }
+}
+
+TEST(WafTest, UpdateInvalid)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    subscriber::ptr wi{
+        waf::instance::from_string(waf_rule_with_data, meta, metrics)};
+    ASSERT_TRUE(wi);
+
+    {
+        auto ctx = wi->get_listener();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        parameter_view pv(p);
+        auto res = ctx->call(pv);
+        EXPECT_TRUE(!res);
+    }
+
+    auto param = json_to_parameter(R"({})");
+
+    ASSERT_THROW(wi->update(param, meta, metrics), invalid_object);
 }
 
 TEST(WafTest, Logging)

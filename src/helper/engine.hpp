@@ -6,6 +6,7 @@
 #pragma once
 
 #include "config.hpp"
+#include "engine_ruleset.hpp"
 #include "engine_settings.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
@@ -30,7 +31,7 @@ namespace dds {
  *    - address: addresses to which a subscriber subscribes.
  *    - subscription: the mapping between an address and a subscriber.
  **/
-class engine : std::enable_shared_from_this<engine> {
+class engine {
 public:
     using ptr = std::shared_ptr<engine>;
     using subscription_map =
@@ -51,14 +52,21 @@ public:
         std::vector<std::string> events;
     };
 
+protected:
+    struct shared_state {
+        std::vector<subscriber::ptr> subscribers;
+        action_map actions;
+    };
+
+public:
     // Assuming here the callers are nice enough that context doesn't live
     // beyond the engine. This could be enforced by having the context
     // store a shared_ptr to the engine
     class context {
     public:
         explicit context(engine &engine)
-            : subscriptions_(engine.subscriptions_), limiter_(engine.limiter_),
-              actions_(engine.actions_)
+            : common_(std::atomic_load(&engine.common_)),
+              limiter_(engine.limiter_)
         {}
         context(const context &) = delete;
         context &operator=(const context &) = delete;
@@ -74,10 +82,15 @@ public:
     protected:
         std::vector<parameter> prev_published_params_;
         std::map<subscriber::ptr, subscriber::listener::ptr> listeners_;
-        const subscription_map &subscriptions_;
+        std::shared_ptr<shared_state> common_;
         rate_limiter &limiter_;
-        const action_map &actions_;
     };
+
+    engine(const engine &) = delete;
+    engine &operator=(const engine &) = delete;
+    engine(engine &&) = delete;
+    engine &operator=(engine &&) = delete;
+    virtual ~engine() = default;
 
     static engine::ptr from_settings(const dds::engine_settings &eng_settings,
         std::map<std::string_view, std::string> &meta,
@@ -94,7 +107,11 @@ public:
     context get_context() { return context{*this}; }
     void subscribe(const subscriber::ptr &sub);
 
-    virtual void update_rule_data(parameter_view &data);
+    // Update is not thread-safe, although only one remote config client should
+    // be able to update it so in practice it should not be a problem.
+    virtual void update(engine_ruleset &ruleset,
+        std::map<std::string_view, std::string> &meta,
+        std::map<std::string_view, double> &metrics);
 
     // Only exposed for testing purposes
     template <typename T,
@@ -107,15 +124,14 @@ public:
 
 protected:
     explicit engine(uint32_t trace_rate_limit, action_map &&actions = {})
-        : limiter_(trace_rate_limit), actions_(std::move(actions))
+        : limiter_(trace_rate_limit),
+          common_(new shared_state{{}, std::move(actions)})
     {}
 
     static const action_map default_actions;
 
-    std::vector<subscriber::ptr> subscribers_;
-    subscription_map subscriptions_;
+    std::shared_ptr<shared_state> common_;
     rate_limiter limiter_;
-    action_map actions_;
 };
 
 } // namespace dds

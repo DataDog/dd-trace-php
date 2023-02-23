@@ -13,6 +13,8 @@ namespace dds {
 class engine_ruleset {
 public:
     explicit engine_ruleset(std::string_view ruleset);
+    explicit engine_ruleset(rapidjson::Document doc) : doc_(std::move(doc)) {}
+
     [[nodiscard]] const rapidjson::Document &get_document() const
     {
         return doc_;
@@ -24,6 +26,12 @@ public:
     }
 
     static engine_ruleset from_path(std::string_view path);
+
+    // Used only for testing
+    void copy(rapidjson::Document &new_doc)
+    {
+        new_doc.CopyFrom(doc_, new_doc.GetAllocator(), true);
+    }
 
 protected:
     rapidjson::Document doc_;

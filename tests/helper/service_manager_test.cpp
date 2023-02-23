@@ -36,7 +36,8 @@ TEST(ServiceManagerTest, LoadRulesOK)
     EXPECT_EQ(metrics[tag::event_rules_loaded], 3);
 
     // loading again should take from the cache
-    auto service2 = manager.create_service(sid, {fn, 42}, {}, meta, metrics, {});
+    auto service2 =
+        manager.create_service(sid, {fn, 42}, {}, meta, metrics, {});
     EXPECT_EQ(manager.get_cache().size(), 1);
 
     // destroying the services should expire the cache ptr
@@ -53,12 +54,14 @@ TEST(ServiceManagerTest, LoadRulesOK)
 
     // loading another service should cleanup the cache
     service_identifier sid2{"service2", "env"};
-    auto service3 = manager.create_service(sid2, {fn, 42}, {}, meta, metrics, {});
+    auto service3 =
+        manager.create_service(sid2, {fn, 42}, {}, meta, metrics, {});
     ASSERT_TRUE(weak_ptr.expired());
     EXPECT_EQ(manager.get_cache().size(), 1);
 
     // another service identifier should result in another service
-    auto service4 = manager.create_service(sid, {fn, 42}, {}, meta, metrics, {});
+    auto service4 =
+        manager.create_service(sid, {fn, 42}, {}, meta, metrics, {});
     EXPECT_EQ(manager.get_cache().size(), 2);
 }
 

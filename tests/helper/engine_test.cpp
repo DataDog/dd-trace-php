@@ -34,8 +34,10 @@ public:
 
     MOCK_METHOD0(get_name, std::string_view());
     MOCK_METHOD0(get_listener, dds::subscriber::listener::ptr());
-    MOCK_METHOD0(get_subscriptions, std::vector<std::string_view>());
-    MOCK_METHOD1(update_rule_data, bool(dds::parameter_view &));
+    MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
+    MOCK_METHOD3(update, dds::subscriber::ptr(dds::parameter &,
+                             std::map<std::string_view, std::string> &meta,
+                             std::map<std::string_view, double> &metrics));
 };
 } // namespace mock
 
@@ -59,8 +61,6 @@ TEST(EngineTest, SingleSubscriptor)
         .WillRepeatedly(Return(subscriber::event{{}, {"block"}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_subscriptions())
-        .WillRepeatedly(Return(std::vector<std::string_view>{"a", "b"}));
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
 
     e->subscribe(sub);
@@ -78,40 +78,45 @@ TEST(EngineTest, SingleSubscriptor)
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
     EXPECT_EQ(res->type, engine::action_type::block);
-
-    p = parameter::map();
-    p.add("c", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
-    EXPECT_FALSE(res);
 }
+
+using namespace std::literals;
 
 TEST(EngineTest, MultipleSubscriptors)
 {
     auto e{engine::create()};
     mock::listener::ptr blocker = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*blocker, call(_))
-        .WillRepeatedly(Return(subscriber::event{{"some event"}, {"block"}}));
+        .WillRepeatedly(Invoke([](dds::parameter_view &data)
+                                   -> std::optional<dds::subscriber::event> {
+            std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
+            if (subs.find(data[0].parameterName) != subs.end()) {
+                return subscriber::event{{"some event"}, {"block"}};
+            }
+            return std::nullopt;
+        }));
+
     mock::listener::ptr recorder = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*recorder, call(_))
-        .WillRepeatedly(Return(subscriber::event{{"some event"}, {}}));
+        .WillRepeatedly(Invoke([](dds::parameter_view &data)
+                                   -> std::optional<dds::subscriber::event> {
+            std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
+            if (subs.find(data[0].parameterName) != subs.end()) {
+                return subscriber::event{{"some event"}, {}};
+            }
+            return std::nullopt;
+        }));
+
     mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
 
     mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub1, get_subscriptions())
-        .WillRepeatedly(
-            Return(std::vector<std::string_view>{"a", "b", "e", "f"}));
     EXPECT_CALL(*sub1, get_listener()).WillRepeatedly(Return(blocker));
 
     mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub2, get_subscriptions())
-        .WillRepeatedly(
-            Return(std::vector<std::string_view>{"c", "d", "e", "g"}));
     EXPECT_CALL(*sub2, get_listener()).WillRepeatedly(Return(recorder));
 
     mock::subscriber::ptr sub3 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub3, get_subscriptions())
-        .WillRepeatedly(Return(std::vector<std::string_view>{"f", "g", "h"}));
     EXPECT_CALL(*sub3, get_listener()).WillRepeatedly(Return(ignorer));
 
     e->subscribe(sub1);
@@ -198,9 +203,6 @@ TEST(EngineTest, StatefulSubscriptor)
         .WillOnce(Return(subscriber::event{{}, {"block"}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_subscriptions())
-        .WillRepeatedly(
-            Return(std::vector<std::string_view>{"sub1", "sub2", "final"}));
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
 
     e->subscribe(sub);
@@ -214,11 +216,6 @@ TEST(EngineTest, StatefulSubscriptor)
 
     p = parameter::map();
     p.add("sub2", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
-    EXPECT_FALSE(res);
-
-    p = parameter::map();
-    p.add("irrelevant", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_FALSE(res);
 
@@ -258,8 +255,6 @@ TEST(EngineTest, CustomActions)
         .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_subscriptions())
-        .WillRepeatedly(Return(std::vector<std::string_view>{"a", "b"}));
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
 
     e->subscribe(sub);
@@ -277,11 +272,6 @@ TEST(EngineTest, CustomActions)
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
     EXPECT_EQ(res->type, engine::action_type::redirect);
-
-    p = parameter::map();
-    p.add("c", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
-    EXPECT_FALSE(res);
 }
 
 TEST(EngineTest, WafSubscriptorBasic)
@@ -535,48 +525,80 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
 {
     auto e{engine::create()};
 
+    mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
+    EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
+
+    mock::subscriber::ptr new_sub1 =
+        mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*new_sub1, get_listener()).WillOnce(Return(ignorer));
+
     mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub1, update_rule_data(_)).WillRepeatedly(Return(true));
-    EXPECT_CALL(*sub1, get_subscriptions())
-        .WillRepeatedly(Return(std::vector<std::string_view>()));
+    EXPECT_CALL(*sub1, update(_, _, _)).WillOnce(Return(new_sub1));
     EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
 
+    mock::subscriber::ptr new_sub2 =
+        mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*new_sub2, get_listener()).WillOnce(Return(ignorer));
+
     mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub2, update_rule_data(_)).WillRepeatedly(Return(true));
-    EXPECT_CALL(*sub2, get_subscriptions())
-        .WillRepeatedly(Return(std::vector<std::string_view>()));
+    EXPECT_CALL(*sub2, update(_, _, _)).WillOnce(Return(new_sub2));
     EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
 
     e->subscribe(sub1);
     e->subscribe(sub2);
 
-    parameter_view pv;
-    e->update_rule_data(pv);
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    engine_ruleset ruleset(
+        R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
+    e->update(ruleset, meta, metrics);
+
+    // Ensure after the update we still have the same number of subscribers
+    auto ctx = e->get_context();
+
+    auto p = parameter::map();
+    p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+    auto res = ctx.publish(std::move(p));
+    EXPECT_FALSE(res);
 }
 
 TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 {
     auto e{engine::create()};
 
+    mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
+    EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
+
     mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub1, update_rule_data(_)).WillRepeatedly(Return(false));
-    EXPECT_CALL(*sub1, get_subscriptions())
-        .WillRepeatedly(Return(std::vector<std::string_view>()));
+    EXPECT_CALL(*sub1, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
     EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
+    EXPECT_CALL(*sub1, get_listener()).WillOnce(Return(ignorer));
 
     mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub2, update_rule_data(_)).WillRepeatedly(Return(false));
-    EXPECT_CALL(*sub2, get_subscriptions())
-        .WillRepeatedly(Return(std::vector<std::string_view>()));
+    EXPECT_CALL(*sub2, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
     EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
+    EXPECT_CALL(*sub2, get_listener()).WillOnce(Return(ignorer));
 
     e->subscribe(sub1);
     e->subscribe(sub2);
 
-    parameter_view pv;
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
 
+    engine_ruleset ruleset(R"({})");
     // All subscribers should be called regardless of failures
-    e->update_rule_data(pv);
+    e->update(ruleset, meta, metrics);
+
+    // Ensure after the update we still have the same number of subscribers
+    auto ctx = e->get_context();
+
+    auto p = parameter::map();
+    p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+    auto res = ctx.publish(std::move(p));
+    EXPECT_FALSE(res);
 }
 
 TEST(EngineTest, WafSubscriptorUpdateRuleData)
@@ -598,10 +620,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
     }
 
     {
-        auto rule_data = json_to_parameter(
-            R"([{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}])");
-        parameter_view rule_data_view(rule_data);
-        e->update_rule_data(rule_data_view);
+
+        engine_ruleset rule_data(
+            R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
+        e->update(rule_data, meta, metrics);
     }
 
     {
@@ -617,10 +639,9 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
     }
 
     {
-        auto rule_data = json_to_parameter(
-            R"([{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.2","expiration":"9999999999"}]}])");
-        parameter_view rule_data_view(rule_data);
-        e->update_rule_data(rule_data_view);
+        engine_ruleset rule_data(
+            R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.2","expiration":"9999999999"}]}]})");
+        e->update(rule_data, meta, metrics);
     }
 
     {
@@ -653,10 +674,9 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
     }
 
     {
-        auto rule_data = json_to_parameter(
+        engine_ruleset rule_data(
             R"({"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]})");
-        parameter_view rule_data_view(rule_data);
-        e->update_rule_data(rule_data_view);
+        e->update(rule_data, meta, metrics);
     }
 
     {

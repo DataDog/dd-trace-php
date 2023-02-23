@@ -22,19 +22,21 @@ public:
         action_map &&actions = {})
         : dds::engine(trace_rate_limit, std::move(actions))
     {}
-    MOCK_METHOD(
-        void, update_rule_data, (dds::parameter_view & parameter), (override));
+    MOCK_METHOD(void, update,
+        (engine_ruleset &, (std::map<std::string_view, std::string> &),
+            (std::map<std::string_view, double> &)),
+        (override));
 
     static auto create() { return std::shared_ptr<engine>(new engine()); }
 };
 } // namespace mock
 
-ACTION_P(SaveParameterView, param)
+ACTION_P(SaveDocument, param)
 {
     rapidjson::Document &document =
         *reinterpret_cast<rapidjson::Document *>(param);
-    std::string str = parameter_to_json(arg0);
-    document.Parse(str);
+
+    arg0.copy(document);
 }
 
 struct test_rule_data_data {
@@ -105,20 +107,21 @@ TEST(RemoteConfigAsmDataListener, ItParsesRulesData)
 {
     auto engine = mock::engine::create();
 
-    rapidjson::Document rules;
+    rapidjson::Document doc;
 
     std::vector<test_rule_data> rules_data = {
         {"id01", "type01", {{11, "1.2.3.4"}, {3657529743, "5.6.7.8"}}},
         {"id02", "type02", {{std::nullopt, "user1"}}}};
 
-    EXPECT_CALL(*engine, update_rule_data(_))
+    EXPECT_CALL(*engine, update(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SaveParameterView(&rules)));
+        .WillOnce(DoAll(SaveDocument(&doc)));
 
     remote_config::asm_data_listener listener(engine);
 
     listener.on_update(get_rules_data(rules_data));
 
+    const auto &rules = doc["rules_data"];
     const auto &first = rules[0];
     EXPECT_STREQ("id02", first.FindMember("id")->value.GetString());
     EXPECT_STREQ("type02", first.FindMember("type")->value.GetString());
@@ -152,13 +155,14 @@ TEST(RemoteConfigAsmDataListener, ItMergesValuesWhenIdIsTheSame)
         {"id01", "type01", {{22, "5.6.7.8"}}}};
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_))
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SaveParameterView(&rules)));
+        .WillOnce(DoAll(SaveDocument(&doc)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
 
+    const auto &rules = doc["rules_data"];
     EXPECT_EQ(1, rules.Size());
     const auto &first = rules[0];
     EXPECT_STREQ("id01", first.FindMember("id")->value.GetString());
@@ -180,13 +184,14 @@ TEST(RemoteConfigAsmDataListener, WhenIdMatchesTypeIsSecondTypeIsIgnored)
         {"id01", "another type", {{22, "5.6.7.8"}}}};
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_))
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SaveParameterView(&rules)));
+        .WillOnce(DoAll(SaveDocument(&doc)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
 
+    const auto &rules = doc["rules_data"];
     EXPECT_EQ(1, rules.Size());
     // First
     const auto &first = rules[0];
@@ -204,13 +209,14 @@ TEST(RemoteConfigAsmDataListener,
         {"id01", "type01", {{22, "1.2.3.4"}}}};
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_))
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SaveParameterView(&rules)));
+        .WillOnce(DoAll(SaveDocument(&doc)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
 
+    const auto &rules = doc["rules_data"];
     EXPECT_EQ(1, rules.Size());
     // First
     const auto &first = rules[0];
@@ -230,13 +236,14 @@ TEST(RemoteConfigAsmDataListener,
         {{11, "1.2.3.4"}, {33, "1.2.3.4"}, {22, "1.2.3.4"}}}};
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_))
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SaveParameterView(&rules)));
+        .WillOnce(DoAll(SaveDocument(&doc)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
 
+    const auto &rules = doc["rules_data"];
     EXPECT_EQ(1, rules.Size());
     // First
     const auto &first = rules[0];
@@ -257,13 +264,14 @@ TEST(RemoteConfigAsmDataListener,
             {std::numeric_limits<uint64_t>::max(), "1.2.3.4"}}}};
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_))
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SaveParameterView(&rules)));
+        .WillOnce(DoAll(SaveDocument(&doc)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
 
+    const auto &rules = doc["rules_data"];
     EXPECT_EQ(1, rules.Size());
     // First
     const auto &first = rules[0];
@@ -282,13 +290,14 @@ TEST(RemoteConfigAsmDataListener, IfDataIsEmptyItDoesNotAddAnyRule)
     std::vector<test_rule_data> rules_data = {{"id01", "type01", {}}};
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_))
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SaveParameterView(&rules)));
+        .WillOnce(DoAll(SaveDocument(&doc)));
     remote_config::asm_data_listener listener(engine);
     listener.on_update(get_rules_data(rules_data));
 
+    const auto &rules = doc["rules_data"];
     EXPECT_EQ(0, rules.Size());
 }
 
@@ -301,8 +310,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfContentNotInBase64)
         get_asm_data(invalid_content, false);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -324,8 +333,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfContentNotValidJsonContent)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -348,8 +357,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfNoRulesDataKey)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -372,8 +381,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfRulesDataNotArray)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -395,8 +404,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfRulesDataEntryNotObject)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -421,8 +430,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfNoId)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -447,8 +456,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfIdNotString)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -473,8 +482,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfNoType)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -499,8 +508,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfTypeNotString)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -524,8 +533,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfNoData)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -550,8 +559,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataNotArray)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -575,8 +584,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataEntryNotObject)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -600,8 +609,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataExpirationHasInvalidType)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -624,8 +633,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataValueMissing)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {
@@ -649,8 +658,8 @@ TEST(RemoteConfigAsmDataListener, ItThrowsAnErrorIfDataValueHasInvalidType)
         get_asm_data(invalid_content, true);
 
     auto engine = mock::engine::create();
-    rapidjson::Document rules;
-    EXPECT_CALL(*engine, update_rule_data(_)).Times(0);
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
     remote_config::asm_data_listener listener(engine);
 
     try {

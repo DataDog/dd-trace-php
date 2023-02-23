@@ -20,6 +20,7 @@ using ::testing::AtLeast;
 using ::testing::ByRef;
 using ::testing::DoAll;
 using ::testing::ElementsAre;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;

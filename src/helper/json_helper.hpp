@@ -12,6 +12,11 @@
 
 namespace dds {
 
+inline rapidjson::GenericStringRef<char> StringRef(std::string_view str)
+{
+    return {str.data(), static_cast<rapidjson::SizeType>(str.size())};
+}
+
 // This replaces rapidjson::StringBuffer providing a way to write directly
 // into an std::string without requiring an extra copy.
 // rapidjson::StringBuffer provides a const char * so it can still be used

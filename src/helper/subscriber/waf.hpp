@@ -63,13 +63,18 @@ public:
 
     std::string_view get_name() override { return "waf"sv; }
 
-    std::vector<std::string_view> get_subscriptions() override;
+    std::unordered_set<std::string> get_subscriptions() override
+    {
+        return addresses_;
+    }
 
     listener::ptr get_listener() override;
 
-    bool update_rule_data(parameter_view &data) override;
+    subscriber::ptr update(parameter &rule,
+        std::map<std::string_view, std::string> &meta,
+        std::map<std::string_view, double> &metrics) override;
 
-    static ptr from_settings(const engine_settings &settings,
+    static instance::ptr from_settings(const engine_settings &settings,
         const engine_ruleset &ruleset,
         std::map<std::string_view, std::string> &meta,
         std::map<std::string_view, double> &metrics);
@@ -83,9 +88,13 @@ public:
         std::string_view value_regex = std::string_view());
 
 protected:
+    instance(ddwaf_handle handle, std::chrono::microseconds timeout,
+        std::string version);
+
     ddwaf_handle handle_{nullptr};
     std::chrono::microseconds waf_timeout_;
     std::string ruleset_version_;
+    std::unordered_set<std::string> addresses_;
 };
 
 parameter parse_file(std::string_view filename);

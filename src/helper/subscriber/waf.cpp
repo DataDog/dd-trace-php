@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "../std_logging.hpp"
 #include "ddwaf.h"
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <limits>
@@ -236,10 +237,18 @@ instance::instance(parameter &rule,
     if (handle_ == nullptr) {
         throw invalid_object();
     }
+
+    uint32_t size;
+    const auto *addrs = ddwaf_required_addresses(handle_, &size);
+
+    addresses_.clear();
+    for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
 }
 
 instance::instance(instance &&other) noexcept
-    : handle_{other.handle_}, waf_timeout_{other.waf_timeout_}
+    : handle_(other.handle_), waf_timeout_(other.waf_timeout_),
+      ruleset_version_(std::move(other.ruleset_version_)),
+      addresses_(std::move(other.addresses_))
 {
     other.handle_ = nullptr;
     other.waf_timeout_ = {};
@@ -249,6 +258,12 @@ instance &instance::operator=(instance &&other) noexcept
 {
     handle_ = other.handle_;
     other.handle_ = nullptr;
+
+    waf_timeout_ = other.waf_timeout_;
+    other.waf_timeout_ = {};
+
+    ruleset_version_ = std::move(other.ruleset_version_);
+    addresses_ = std::move(other.addresses_);
 
     return *this;
 }
@@ -266,19 +281,47 @@ instance::listener::ptr instance::get_listener()
         ddwaf_context_init(handle_), waf_timeout_, ruleset_version_));
 }
 
-bool instance::update_rule_data(parameter_view &data)
-{
-    return ddwaf_update_rule_data(handle_, data) == DDWAF_OK;
-}
-
-std::vector<std::string_view> instance::get_subscriptions()
+instance::instance(
+    ddwaf_handle handle, std::chrono::microseconds timeout, std::string version)
+    : handle_(handle), waf_timeout_(timeout),
+      ruleset_version_(std::move(version))
 {
     uint32_t size;
     const auto *addrs = ddwaf_required_addresses(handle_, &size);
 
-    std::vector<std::string_view> output(size);
-    for (uint32_t i = 0; i < size; i++) { output.emplace_back(addrs[i]); }
-    return output;
+    addresses_.clear();
+    for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
+}
+
+subscriber::ptr instance::update(parameter &rule,
+    std::map<std::string_view, std::string> &meta,
+    std::map<std::string_view, double> &metrics)
+{
+    ddwaf_ruleset_info info;
+    auto *new_handle = ddwaf_update(handle_, rule, &info);
+
+    metrics[tag::event_rules_loaded] = info.loaded;
+    metrics[tag::event_rules_failed] = info.failed;
+    meta[tag::event_rules_errors] =
+        parameter_to_json(dds::parameter_view(info.errors));
+
+    meta[tag::waf_version] = ddwaf_get_version();
+
+    std::string version;
+    if (info.version != nullptr) {
+        version = info.version;
+    } else {
+        version = ruleset_version_;
+    }
+
+    ddwaf_ruleset_info_free(&info);
+
+    if (new_handle == nullptr) {
+        throw invalid_object();
+    }
+
+    return subscriber::ptr(
+        new instance(new_handle, waf_timeout_, std::move(version)));
 }
 
 instance::ptr instance::from_settings(const engine_settings &settings,
