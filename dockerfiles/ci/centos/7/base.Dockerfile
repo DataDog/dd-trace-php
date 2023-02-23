@@ -149,23 +149,10 @@ RUN source scl_source enable devtoolset-7 \
   && cd - \
   && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
 
-ARG PROTOBUF_C_VERSION="1.4.0"
-ARG PROTOBUF_C_SHA256="26d98ee9bf18a6eba0d3f855ddec31dbe857667d269bc0b6017335572f85bbcb"
-RUN source scl_source enable devtoolset-7 \
-  && FILENAME=protobuf-c-${PROTOBUF_C_VERSION}.tar.gz \
-  && curl -L  -O "https://github.com/protobuf-c/protobuf-c/releases/download/v${PROTOBUF_C_VERSION}/${FILENAME}" \
-  && tar --no-same-owner -xf "$FILENAME" \
-  && cd ${FILENAME%.tar.gz} \
-  && ./configure --with-pic --disable-shared --enable-static --prefix=/usr/local --libdir=/usr/local/lib64 \
-  && make -j $(nproc) \
-  && make install \
-  && cd - \
-  && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
-
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.60.0"
-ARG RUST_SHA256_ARM="99c419c2f35d4324446481c39402c7baecd7a8baed7edca9f8d6bbd33c05550c"
-ARG RUST_SHA256_X86="b8a4c3959367d053825e31f90a5eb86418eb0d80cacda52bfa80b078e18150d5"
+ARG RUST_VERSION="1.64.0"
+ARG RUST_SHA256_ARM="7d8860572431bd4ee1b9cd0cd77cf7ff29fdd5b91ed7c92a820f872de6ced558"
+ARG RUST_SHA256_X86="a893977f238291370ab96726a74b6b9ae854dc75fbf5730954d901a93843bf9b"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

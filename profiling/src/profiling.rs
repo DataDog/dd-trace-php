@@ -9,11 +9,13 @@ use crossbeam_channel::{select, Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::{Endpoint, File, Tag};
 use datadog_profiling::profile;
 use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
+use libc::sched_yield;
 use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
+use std::mem::MaybeUninit;
 use std::str;
 use std::str::Utf8Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -489,8 +491,8 @@ impl TimeCollector {
                         let vm_interrupts = self.vm_interrupts.lock().unwrap();
 
                         vm_interrupts.iter().for_each(|obj| unsafe {
-                            (&*obj.engine_ptr).store(true, Ordering::SeqCst);
-                            (&*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
+                            (*obj.engine_ptr).store(true, Ordering::SeqCst);
+                            (*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
                         });
                     }
                 },
@@ -619,6 +621,46 @@ impl Uploader {
 }
 
 impl Profiler {
+    /// Spawns a thread and masks off the signals that the Zend Engine uses.
+    fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
+    where
+        F: FnOnce() -> T + Send + 'static,
+        T: Send + 'static,
+    {
+        let result = std::thread::Builder::new()
+            .name(name.to_string())
+            .spawn(move || {
+                /* Thread must not handle signals intended for PHP threads.
+                 * See Zend/zend_signal.c for which signals it registers.
+                 */
+                unsafe {
+                    let mut sigset_mem = MaybeUninit::uninit();
+                    let sigset = sigset_mem.as_mut_ptr();
+                    libc::sigemptyset(sigset);
+
+                    const SIGNALS: [libc::c_int; 6] = [
+                        libc::SIGPROF, // todo: SIGALRM on __CYGWIN__/__PHASE__
+                        libc::SIGHUP,
+                        libc::SIGINT,
+                        libc::SIGTERM,
+                        libc::SIGUSR1,
+                        libc::SIGUSR2,
+                    ];
+
+                    for signal in SIGNALS {
+                        libc::sigaddset(sigset, signal);
+                    }
+                    libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
+                }
+                f()
+            });
+
+        match result {
+            Ok(handle) => handle,
+            Err(err) => panic!("Failed to spawn thread {name}: {err}"),
+        }
+    }
+
     pub fn new() -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
@@ -646,8 +688,8 @@ impl Profiler {
             fork_senders: [fork_sender0, fork_sender1],
             vm_interrupts,
             message_sender,
-            time_collector_handle: std::thread::spawn(move || time_collector.run()),
-            uploader_handle: std::thread::spawn(move || uploader.run()),
+            time_collector_handle: Self::spawn("ddprof_time", move || time_collector.run()),
+            uploader_handle: Self::spawn("ddprof_upload", move || uploader.run()),
         }
     }
 
@@ -698,19 +740,73 @@ impl Profiler {
             .try_send(ProfilerMessage::LocalRootSpanResource(message))
     }
 
-    pub fn stop(self) {
-        // todo: what should be done when a thread panics?
-        debug!("Stopping profiler.");
-        let _ = self.message_sender.send(ProfilerMessage::Cancel);
-        if let Err(err) = self.time_collector_handle.join() {
-            std::panic::resume_unwind(err)
+    /// Waits for the handle to be finished. If finished, it will join the
+    /// handle. Otherwise, it will leak the handle.
+    /// # Panics
+    /// Panics if the thread being joined has panic'd.
+    fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
+        // After notifying the other threads, it's likely they'll need some
+        // time to respond adequately. Joining on the JoinHandle is supposed
+        // to be the correct way to do this, but we've observed this can
+        // panic:
+        // https://github.com/DataDog/dd-trace-php/issues/1919
+        // Thus far, we have not been able to reproduce it and address the
+        // root cause. So, for now, mitigate it instead with a busy loop.
+        let start = Instant::now();
+        while !handle.is_finished() {
+            unsafe { sched_yield() };
+            if start.elapsed() >= timeout {
+                let name = handle.thread().name().unwrap_or("{unknown}");
+                warn!("Timeout of {timeout:?} reached when joining thread '{name}'. {impact}");
+                return;
+            }
         }
 
-        // Wait for the time_collector to join, since that will drop the sender
-        // half of the channel that the uploader is holding, allowing it to
-        // finish.
-        if let Err(err) = self.uploader_handle.join() {
+        if let Err(err) = handle.join() {
             std::panic::resume_unwind(err)
+        }
+    }
+
+    pub fn stop(self) {
+        debug!("Stopping profiler.");
+        match self.message_sender.send(ProfilerMessage::Cancel) {
+            Err(err) => warn!("Failed to notify other threads of cancellation: {err}."),
+            Ok(_) => debug!("Notified other threads of cancellation."),
+        }
+
+        let timeout = Duration::from_secs(2);
+        Self::join_timeout(
+            self.time_collector_handle,
+            timeout,
+            "Recent samples may be lost.",
+        );
+
+        // Wait for the time_collector to join, since that will drop
+        // the sender half of the channel that the uploader is
+        // holding, allowing it to finish.
+        Self::join_timeout(
+            self.uploader_handle,
+            timeout,
+            "Recent samples are most likely lost.",
+        );
+    }
+
+    fn cpu_sub(now: cpu_time::ThreadTime, prev: cpu_time::ThreadTime) -> i64 {
+        let now = now.as_duration();
+        let prev = prev.as_duration();
+
+        match now.checked_sub(prev) {
+            // If a 128 bit value doesn't fit in 64 bits, use the max.
+            Some(duration) => duration.as_nanos().try_into().unwrap_or(i64::MAX),
+
+            // If this happened, then either the programmer screwed up and
+            // passed args in backwards, or cpu time has gone backward... ish.
+            // Supposedly it can happen if the thread migrates CPUs:
+            // https://www.percona.com/blog/what-time-18446744073709550000-means/
+            // Regardless of why, a customer hit this:
+            // https://github.com/DataDog/dd-trace-php/issues/1880
+            // In these cases, zero is much closer to reality than i64::MAX.
+            None => 0,
         }
     }
 
@@ -737,18 +833,15 @@ impl Profiler {
                 /* If CPU time is disabled, or if it's enabled but not available on the platform,
                  * then `locals.last_cpu_time` will be None.
                  */
-                let mut cpu_time: i64 = 0;
-                if let Some(last_cpu_time) = locals.last_cpu_time {
+                let cpu_time = if let Some(last_cpu_time) = locals.last_cpu_time {
                     let now = cpu_time::ThreadTime::try_now()
                         .expect("CPU time to work since it's worked before during this process");
-                    let old_cpu_time = now
-                        .as_duration()
-                        .checked_sub(last_cpu_time.as_duration())
-                        .and_then(|t| t.as_nanos().try_into().ok())
-                        .unwrap_or(i64::MAX);
-                    cpu_time = old_cpu_time;
+                    let cpu_time = Self::cpu_sub(now, last_cpu_time);
                     locals.last_cpu_time = Some(now);
-                }
+                    cpu_time
+                } else {
+                    0
+                };
 
                 let labels = Profiler::message_labels();
 
