@@ -30,11 +30,11 @@ class PSRIntegration extends Integration
          * it for us anyway. Just do a post-hook to get the response.
          */
         \DDTrace\trace_method(
-            'Psr\Http\Client\ClientExceptionInterface',
+            'Psr\Http\Client\ClientInterface',
             'sendRequest',
             function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'sendRequest';
-                $span->name = 'Psr\Http\Client\ClientExceptionInterface';
+                $span->name = 'Psr\Http\Client\ClientInterface';
                 $span->service = 'psr';
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
