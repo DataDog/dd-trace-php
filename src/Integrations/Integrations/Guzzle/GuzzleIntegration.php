@@ -63,32 +63,6 @@ class GuzzleIntegration extends Integration
             }
         );
 
-        /* Until we support both pre- and post- hooks on the same function, do
-         * not send distributed tracing headers; curl will almost guaranteed do
-         * it for us anyway. Just do a post-hook to get the response.
-         */
-        \DDTrace\trace_method(
-            'GuzzleHttp\Client',
-            'sendRequest',
-            function (SpanData $span, $args, $retval) use ($integration) {
-                $span->resource = 'sendRequest';
-                $span->name = 'GuzzleHttp\Client.sendRequest';
-                $span->service = 'guzzle';
-                $span->type = Type::HTTP_CLIENT;
-                $span->meta[Tag::SPAN_KIND] = 'client';
-                $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
-
-                if (isset($args[0])) {
-                    $integration->addRequestInfo($span, $args[0]);
-                }
-
-                if (isset($retval)) {
-                    /** @var \Psr\Http\Message\ResponseInterface $retval */
-                    $span->meta[Tag::HTTP_STATUS_CODE] = $retval->getStatusCode();
-                }
-            }
-        );
-
         \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'transfer',

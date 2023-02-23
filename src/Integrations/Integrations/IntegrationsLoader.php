@@ -17,6 +17,7 @@ use DDTrace\Integrations\Nette\NetteIntegration;
 use DDTrace\Integrations\Pcntl\PcntlIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\PSR\PSRIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
@@ -68,6 +69,8 @@ class IntegrationsLoader
 
         $this->integrations[CurlIntegration::NAME] =
             '\DDTrace\Integrations\Curl\CurlIntegration';
+        $this->integrations[PSRIntegration::NAME] =
+            '\DDTrace\Integrations\PSR\PSRIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
             '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
         $this->integrations[LaravelIntegration::NAME] =
