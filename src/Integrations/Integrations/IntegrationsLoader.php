@@ -69,14 +69,14 @@ class IntegrationsLoader
 
         $this->integrations[CurlIntegration::NAME] =
             '\DDTrace\Integrations\Curl\CurlIntegration';
-        $this->integrations[PSRIntegration::NAME] =
-            '\DDTrace\Integrations\PSR\PSRIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
             '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
         $this->integrations[LaravelIntegration::NAME] =
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
+        $this->integrations[PSRIntegration::NAME] =
+            '\DDTrace\Integrations\PSR\PSRIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
