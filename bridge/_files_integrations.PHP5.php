@@ -27,7 +27,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/Laravel/LaravelIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Lumen/LumenIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Guzzle/GuzzleIntegration.php',
-    __DIR__ . '/../src/Integrations/Integrations/PSR/PSRIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/Psr/PsrIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Yii/YiiIntegration.PHP5.php',
     __DIR__ . '/../src/Integrations/Integrations/Nette/NetteIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/WordPress/WordPressIntegration.php',
