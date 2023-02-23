@@ -45,7 +45,7 @@ service::ptr service::from_settings(const service_identifier &id,
 {
     auto engine_ptr = engine::from_settings(eng_settings, meta, metrics);
 
-    std::chrono::milliseconds poll_interval{rc_settings.poll_interval};
+    std::chrono::milliseconds const poll_interval{rc_settings.poll_interval};
 
     // Create remote configs stuff
     auto service_config = std::make_shared<dds::service_config>();

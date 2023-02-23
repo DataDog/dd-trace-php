@@ -92,10 +92,11 @@ dds::engine_ruleset rules_to_engine_ruleset(
         // Data
         rapidjson::Value data(rapidjson::kArrayType);
         for (const auto &[value, data_entry] : rule.data) {
+            const auto &expiration = data_entry.expiration;
             rapidjson::Value data_parameter(rapidjson::kObjectType);
-            if (data_entry.expiration) {
+            if (expiration.has_value()) {
                 data_parameter.AddMember(
-                    "expiration", data_entry.expiration.value(), alloc);
+                    "expiration", expiration.value(), alloc);
             }
             data_parameter.AddMember("value", StringRef(value), alloc);
             data.PushBack(data_parameter, alloc);

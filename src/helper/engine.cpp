@@ -52,7 +52,7 @@ void engine::update(engine_ruleset &ruleset,
         }
     }
 
-    std::shared_ptr<shared_state> new_common(
+    std::shared_ptr<shared_state> const new_common(
         new shared_state{std::move(new_subscribers), std::move(new_actions)});
 
     std::atomic_store(&common_, new_common);
@@ -133,7 +133,7 @@ template <typename T> engine::action parse_action(T &action_object)
     if (it == action_object.MemberEnd() || !it->value.IsString()) {
         throw parsing_error("no action.type found or unexpected type");
     }
-    std::string type = action_object["type"].GetString();
+    std::string const type = action_object["type"].GetString();
 
     engine::action action;
     if (type == "block_request") {
@@ -219,7 +219,7 @@ engine::action_map engine::parse_actions(
             SPDLOG_ERROR("no action.id found or unexpected type");
             continue;
         }
-        std::string id = it->value.GetString();
+        std::string const id = it->value.GetString();
         try {
             actions[id] = parse_action(action_object);
         } catch (const std::exception &e) {

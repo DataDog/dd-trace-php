@@ -20,9 +20,9 @@ network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
     auto value{cfg.get<std::string_view>("socket_path")};
     if (value.size() >= 4 && value.substr(0, 3) == "fd:") {
         auto rest{value.substr(3)};
-        int fd = std::stoi(std::string{rest}); // can throw
+        int const fd = std::stoi(std::string{rest}); // can throw
         struct stat statbuf {};
-        int res = fstat(fd, &statbuf);
+        int const res = fstat(fd, &statbuf);
         if (res == -1 || !S_ISSOCK(statbuf.st_mode)) {
             throw std::invalid_argument{
                 "fd specified on config is invalid or no socket"};

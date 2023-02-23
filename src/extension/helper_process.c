@@ -36,7 +36,6 @@
 #include "php_objects.h"
 #include "string_helpers.h"
 #include "version.h"
-#include <unistd.h>
 
 typedef struct _dd_helper_mgr {
     dd_conn conn;
@@ -779,7 +778,6 @@ static ATTR_NO_RETURN void _continue_in_intermediate_process(
 
     __builtin_unreachable();
 }
-// NOLINTEND(concurrency-mt-unsafe)
 
 #define DEFAULT_RLIMIT 1024
 static void _close_file_descriptors(int log_fd, int lock_fd, int sock_fd)
@@ -807,6 +805,7 @@ static bool _reset_signals_state(int log_fd)
 #    define SIGRTMIN 32
 #endif
     // ignored signals are kept ignored across exec()
+    // NOLINTNEXTLINE(cert-err33-c)
     for (int i = 1; i < SIGRTMIN; i++) { signal(i, SIG_DFL); }
 
     // the signal mask is also kept across exec()

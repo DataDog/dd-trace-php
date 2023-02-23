@@ -23,10 +23,11 @@ namespace dds::remote_config {
 struct settings {
     static constexpr uint32_t default_poll_interval{1000};
     static constexpr uint64_t default_max_payload_size{4096};
+    static constexpr unsigned default_port{8126};
     // Remote config settings
     bool enabled{false};
     std::string host;
-    unsigned port;
+    unsigned port = default_port;
     std::uint32_t poll_interval = default_poll_interval;
     std::uint64_t max_payload_size = default_max_payload_size;
 

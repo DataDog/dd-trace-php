@@ -44,7 +44,7 @@ void parameter_to_json_helper(const parameter_view &pv, T &output,
             rapidjson::Value value;
             parameter_to_json_helper(v, value, alloc);
 
-            std::string_view sv = v.key();
+            std::string_view const sv = v.key();
             key.SetString(sv.data(), sv.size(), alloc);
 
             output.AddMember(key, value, alloc);
@@ -107,7 +107,7 @@ void json_to_object(ddwaf_object *object, T &doc)
             ddwaf_object element;
             json_to_object(&element, kv.value);
 
-            std::string_view key = kv.name.GetString();
+            std::string_view const key = kv.name.GetString();
             ddwaf_object_map_addl(object, key.data(), key.length(), &element);
         }
         break;
@@ -123,7 +123,7 @@ void json_to_object(ddwaf_object *object, T &doc)
         break;
     }
     case rapidjson::kStringType: {
-        std::string_view str = doc.GetString();
+        std::string_view const str = doc.GetString();
         ddwaf_object_stringl(object, str.data(), str.size());
         break;
     }
@@ -152,7 +152,7 @@ dds::parameter json_to_parameter(const rapidjson::Document &doc)
 dds::parameter json_to_parameter(std::string_view json)
 {
     rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(json.data());
+    rapidjson::ParseResult const result = doc.Parse(json.data());
     if (result.IsError()) {
         throw parsing_error("invalid json object: "s +
                             rapidjson::GetParseError_En(result.Code()));

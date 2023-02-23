@@ -71,7 +71,8 @@ parameter parameter::string(int64_t value) noexcept
 
 parameter parameter::string(const std::string &str) noexcept
 {
-    length_type length = str.length() <= max_length ? str.length() : max_length;
+    length_type const length =
+        str.length() <= max_length ? str.length() : max_length;
     ddwaf_object obj;
     ddwaf_object_stringl(&obj, str.c_str(), length);
     return parameter{obj};
@@ -79,7 +80,8 @@ parameter parameter::string(const std::string &str) noexcept
 
 parameter parameter::string(std::string_view str) noexcept
 {
-    length_type length = str.length() <= max_length ? str.length() : max_length;
+    length_type const length =
+        str.length() <= max_length ? str.length() : max_length;
     ddwaf_object obj;
     ddwaf_object_stringl(&obj, str.data(), length);
     return parameter{obj};
@@ -96,7 +98,7 @@ bool parameter::add(parameter &&entry) noexcept
 
 bool parameter::add(std::string_view name, parameter &&entry) noexcept
 {
-    length_type length =
+    length_type const length =
         name.length() <= max_length ? name.length() : max_length;
     if (!ddwaf_object_map_addl(this, name.data(), length, entry)) {
         return false;

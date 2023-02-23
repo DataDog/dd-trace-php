@@ -41,7 +41,7 @@ const std::string &engine_settings::default_rules_file()
         std::string file;
     };
 
-    static def_rules_file drf;
+    static def_rules_file const drf;
     return drf.file;
 }
 } // namespace dds

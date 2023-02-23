@@ -39,7 +39,7 @@ bool rate_limiter::allow()
 
     auto [now_ms, now_s] = get_time();
 
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::mutex> const lock(mtx_);
 
     if (now_s != index_) {
         if (index_ == now_s - 1) {
@@ -52,7 +52,8 @@ bool rate_limiter::allow()
     }
 
     constexpr uint64_t mil = 1000;
-    uint32_t count = (precounter_ * (mil - (now_ms % mil))) / mil + counter_;
+    uint32_t const count =
+        (precounter_ * (mil - (now_ms % mil))) / mil + counter_;
 
     if (count >= max_per_second_) {
         return false;

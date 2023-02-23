@@ -41,7 +41,7 @@ std::string read_rule_file(std::string_view filename)
 
 engine_ruleset::engine_ruleset(std::string_view ruleset)
 {
-    rapidjson::ParseResult result = doc_.Parse(ruleset.data());
+    rapidjson::ParseResult const result = doc_.Parse(ruleset.data());
     if ((result == nullptr) || !doc_.IsObject()) {
         throw parsing_error("invalid json rule");
     }

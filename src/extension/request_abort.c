@@ -326,6 +326,7 @@ static void _emit_error(const char *format, ...)
         /* fpm children exit if we throw an error at this point. So emit only
          * warning and use other means to prevent the script from executing */
         php_verror(NULL, "", E_WARNING, format, args);
+        va_end(args);
         // fpm doesn't try to run the script if it sees this null
         SG(request_info).request_method = NULL;
         return;
@@ -354,8 +355,8 @@ static void _emit_error(const char *format, ...)
     _suppress_error_reporting();
     php_verror(NULL, "", E_ERROR, format, args);
 
+    va_end(args);
     __builtin_unreachable();
-    /* va_end(args); */ // never reached;
 }
 
 /* work around bugs in extensions that expect their request_shutdown to be

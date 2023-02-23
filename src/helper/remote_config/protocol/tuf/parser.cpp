@@ -75,7 +75,7 @@ std::unordered_map<std::string, target_file> parse_target_files(
         }
 
         // Path checks
-        rapidjson::Value::ConstMemberIterator path_itr =
+        rapidjson::Value::ConstMemberIterator const path_itr =
             itr->GetObject().FindMember("path");
         if (path_itr == itr->GetObject().MemberEnd()) {
             throw parser_exception(
@@ -87,7 +87,7 @@ std::unordered_map<std::string, target_file> parse_target_files(
         }
 
         // Raw checks
-        rapidjson::Value::ConstMemberIterator raw_itr =
+        rapidjson::Value::ConstMemberIterator const raw_itr =
             itr->GetObject().FindMember("raw");
         if (raw_itr == itr->GetObject().MemberEnd()) {
             throw parser_exception(
@@ -152,7 +152,7 @@ std::pair<std::string, path> parse_target(
                     hash_hashes_path_targets_field_invalid);
         }
 
-        std::pair<std::string, std::string> hash_pair(
+        std::pair<std::string, std::string> const hash_pair(
             itr->name.GetString(), itr->value.GetString());
         hashes_mapped.insert(hash_pair);
     }
@@ -168,8 +168,8 @@ std::pair<std::string, path> parse_target(
         remote_config_parser_result::length_path_targets_field_missing,
         remote_config_parser_result::length_path_targets_field_invalid);
 
-    std::string target_name(target_itr->name.GetString());
-    path path_object = {
+    std::string const target_name(target_itr->name.GetString());
+    path const path_object = {
         v_itr->value.GetInt(), hashes_mapped, length_itr->value.GetInt()};
 
     return {target_name, path_object};
@@ -229,7 +229,7 @@ targets parse_targets_signed(
 
 targets parse_targets(rapidjson::Value::ConstMemberIterator targets_itr)
 {
-    std::string targets_encoded_content = targets_itr->value.GetString();
+    std::string const targets_encoded_content = targets_itr->value.GetString();
 
     if (targets_encoded_content.empty()) {
         throw parser_exception(

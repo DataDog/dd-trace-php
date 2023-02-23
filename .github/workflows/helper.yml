@@ -74,8 +74,8 @@ jobs:
           key: ${{ runner.os }}-helper
       - name: Install clang-{tidy,format}
         run: |
-          sudo .github/workflows/scripts/llvm.sh 13
-          sudo apt-get install -y clang-tidy-13 clang-format-13 libboost-system-dev
+          sudo .github/workflows/scripts/llvm.sh 15
+          sudo apt-get install -y clang-tidy-15 clang-format-15 libboost-system-dev
       - name: Generate Build Scripts
         run: |
             mkdir build
@@ -86,8 +86,8 @@ jobs:
             -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
             -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-            -DCLANG_TIDY=/usr/bin/clang-tidy-13 \
-            -DCLANG_FORMAT=/usr/bin/clang-format-13 \
+            -DCLANG_TIDY=/usr/bin/run-clang-tidy-15 \
+            -DCLANG_FORMAT=/usr/bin/run-clang-format-15 \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
       - name: Build
         run: make -j $(nproc) ddappsec-helper ddappsec_helper_test
@@ -115,15 +115,15 @@ jobs:
           key: ${{ runner.os }}-helper
       - name: Install clang
         run: |
-          sudo .github/workflows/scripts/llvm.sh 13
+          sudo .github/workflows/scripts/llvm.sh 15
       - name: Generate Build Scripts
         run: |
             mkdir build
             cd build
             cmake .. -DCMAKE_BUILD_TYPE=Debug  -DDD_APPSEC_BUILD_EXTENSION=OFF
         env:
-            CXX: clang++-13
-            CC: clang-13
+            CXX: clang++-15
+            CC: clang-15
       - name: Build
         run: make -j $(nproc) ddappsec_helper_fuzzer corpus_generator
         working-directory: ${{ github.workspace }}/build
@@ -162,9 +162,9 @@ jobs:
             LLVM_PROFILE_FILE: body.profraw
       - name: Generate coverage
         run: |
-            llvm-profdata-13 merge -sparse *.profraw -o default.profdata
-            llvm-cov-13 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > coverage.html
-            llvm-cov-13 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
+            llvm-profdata-15 merge -sparse *.profraw -o default.profdata
+            llvm-cov-15 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > coverage.html
+            llvm-cov-15 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
         working-directory: ${{ github.workspace }}
       - uses: actions/upload-artifact@v3
         if: always()
@@ -173,3 +173,31 @@ jobs:
           path: |
               ${{ github.workspace }}/tests/fuzzer/results/*
               ${{ github.workspace }}/coverage.html
+  helper-test-valgrind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+      - name: Cache hunter packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.hunter
+          key: ${{ runner.os }}-helper
+      - name: Generate Build Scripts
+        run: |
+            mkdir build
+            cd build
+            cmake .. -DDD_APPSEC_BUILD_EXTENSION=OFF
+      - name: Build
+        run: VERBOSE=1 make -j ddappsec-helper ddappsec_helper_test
+        working-directory: ${{ github.workspace }}/build
+      - name: Test
+        run: valgrind --leak-check=full --show-reachable=yes --suppressions=../tests/helper/re2.supp --error-exitcode=1 ./tests/helper/ddappsec_helper_test
+        working-directory: ${{ github.workspace }}/build
+

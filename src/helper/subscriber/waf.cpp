@@ -340,7 +340,7 @@ instance::ptr instance::from_string(std::string_view rule,
     std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
 {
-    engine_ruleset ruleset{rule};
+    engine_ruleset const ruleset{rule};
     dds::parameter param = json_to_parameter(ruleset.get_document());
     return std::make_shared<instance>(
         param, meta, metrics, waf_timeout_us, key_regex, value_regex);

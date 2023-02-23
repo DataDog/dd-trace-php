@@ -42,7 +42,7 @@ bool ensure_unique(const dds::config::config &config)
         return false;
     }
 
-    int res = ::flock(fd, LOCK_EX | LOCK_NB);
+    int const res = ::flock(fd, LOCK_EX | LOCK_NB);
     // If we fail to obtain the lock, for whichever reason, assume we can't
     // run for now.
     return res != -1;
@@ -50,9 +50,9 @@ bool ensure_unique(const dds::config::config &config)
 
 int main(int argc, char *argv[])
 {
-    std::signal(SIGTERM, signal_handler);
-    std::signal(SIGPIPE, SIG_IGN); // NOLINT
-    dds::config::config config(argc, argv);
+    std::signal(SIGTERM, signal_handler); // NOLINT(cert-err33-c)
+    std::signal(SIGPIPE, SIG_IGN);        // NOLINT
+    dds::config::config const config(argc, argv);
 
     auto logger = spdlog::stderr_color_mt("ddappsec");
     spdlog::set_default_logger(logger);

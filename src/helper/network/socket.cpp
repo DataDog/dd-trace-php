@@ -21,7 +21,7 @@ std::size_t socket::recv(char *buffer, std::size_t len)
 {
     size_t received = 0;
     while (received < len) {
-        ssize_t res =
+        ssize_t const res =
             ::recv(sock_, &buffer[received], len - received, MSG_WAITALL);
         if (res == -1) {
             throw std::system_error(errno, std::generic_category());
@@ -37,7 +37,7 @@ std::size_t socket::recv(char *buffer, std::size_t len)
 
 std::size_t socket::send(const char *buffer, std::size_t len)
 {
-    ssize_t res = ::send(sock_, buffer, len, 0);
+    ssize_t const res = ::send(sock_, buffer, len, 0);
     if (res == -1) {
         throw std::system_error(errno, std::generic_category());
     }
@@ -58,7 +58,8 @@ struct timeval from_chrono(std::chrono::milliseconds duration)
 void socket::set_send_timeout(std::chrono::milliseconds timeout)
 {
     struct timeval tv = from_chrono(timeout);
-    int res = ::setsockopt(sock_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    int const res =
+        ::setsockopt(sock_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
     if (res == -1) {
         throw std::system_error(errno, std::generic_category());
     }
@@ -66,7 +67,7 @@ void socket::set_send_timeout(std::chrono::milliseconds timeout)
 void socket::set_recv_timeout(std::chrono::milliseconds timeout)
 {
     struct timeval tv = from_chrono(timeout);
-    int res = setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    int const res = setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     if (res == -1) {
         throw std::system_error(errno, std::generic_category());
     }
