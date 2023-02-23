@@ -19,6 +19,7 @@
 #include <stdatomic.h>
 
 #include "commands/client_init.h"
+#include "commands/request_exec.h"
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
 #include "configuration.h"
@@ -497,8 +498,32 @@ static PHP_FUNCTION(datadog_appsec_testing_stop_for_debugger)
     RETURN_TRUE;
 }
 
+static PHP_FUNCTION(datadog_appsec_testing_request_exec)
+{
+    zval *data = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &data) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    dd_conn *conn = dd_helper_mgr_acquire_conn(_acquire_conn_cb);
+    if (conn == NULL) {
+        mlog_g(dd_log_debug, "No connection; skipping request_exec");
+        RETURN_FALSE;
+    }
+
+    if (dd_request_exec(conn, data) != dd_success) {
+        RETURN_FALSE;
+    }
+
+    RETURN_TRUE;
+}
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
     void_ret_bool_arginfo, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
+ZEND_ARG_INFO(0, "data")
 ZEND_END_ARG_INFO()
 
 // clang-format off
@@ -511,6 +536,7 @@ static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on

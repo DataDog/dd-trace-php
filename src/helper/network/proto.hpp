@@ -35,6 +35,7 @@ enum class request_id : unsigned {
     unknown,
     client_init,
     request_init,
+    request_exec,
     request_shutdown,
     config_sync
 };
@@ -43,6 +44,7 @@ enum class response_id : unsigned {
     unknown,
     client_init,
     request_init,
+    request_exec,
     request_shutdown,
     error,
     config_sync,
@@ -156,6 +158,40 @@ struct request_init {
         [[nodiscard]] std::string_view get_type() const override
         {
             return request_init::name;
+        };
+        std::string verdict;
+        std::unordered_map<std::string, std::string> parameters;
+        std::vector<std::string> triggers;
+
+        MSGPACK_DEFINE(verdict, parameters, triggers);
+    };
+};
+
+struct request_exec {
+    static constexpr const char *name = "request_exec";
+
+    struct request : base_request {
+        static constexpr const char *name = request_exec::name;
+        static constexpr request_id id = request_id::request_exec;
+
+        dds::parameter data;
+
+        request() = default;
+        request(const request &) = delete;
+        request &operator=(const request &) = delete;
+        request(request &&) = default;
+        request &operator=(request &&) = default;
+        ~request() override = default;
+
+        MSGPACK_DEFINE(data)
+    };
+
+    struct response : base_response_generic<response> {
+        static constexpr response_id id = response_id::request_exec;
+
+        [[nodiscard]] std::string_view get_type() const override
+        {
+            return request_exec::name;
         };
         std::string verdict;
         std::unordered_map<std::string, std::string> parameters;

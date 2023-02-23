@@ -212,6 +212,10 @@ function response_request_init($message) {
     return response("request_init", $message);
 }
 
+function response_request_exec($message) {
+    return response("request_exec", $message);
+}
+
 function response_request_shutdown($message) {
     return response("request_shutdown", $message);
 }

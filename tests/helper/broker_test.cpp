@@ -782,6 +782,27 @@ TEST(BrokerTest, ConfigSyncTypeIsAddedToMessage)
     assert_type_equal_to(buffer, 0, "config_sync");
 }
 
+TEST(BrokerTest, RequestExecutionTypeIsAddedToMessage)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    network::header_t h;
+    std::string buffer;
+
+    EXPECT_CALL(*socket, send(_, _))
+        .WillOnce(Return(sizeof(network::header_t)))
+        .WillOnce(DoAll(SaveString(&buffer), Return(123)));
+
+    auto response = std::make_shared<network::request_exec::response>();
+    std::vector<std::shared_ptr<network::base_response>> responses;
+    responses.push_back(response);
+
+    EXPECT_FALSE(broker.send(responses));
+
+    assert_type_equal_to(buffer, 0, "request_exec");
+}
+
 TEST(BrokerTest, RequestShutdownTypeIsAddedToMessage)
 {
     mock::socket *socket = new mock::socket();
