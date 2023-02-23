@@ -114,6 +114,26 @@ static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest,
 #define Z_PARAM_OBJ_OR_NULL(dest) \
     Z_PARAM_OBJ_EX(dest, 1, 0)
 
+#define Z_PARAM_OBJ_OF_CLASS_EX2(dest, _ce, check_null, deref, separate) \
+        DD_PARAM_PROLOGUE(deref, separate); \
+        if (UNEXPECTED(!zend_parse_arg_obj(_arg, &dest, _ce, check_null))) { \
+            if (_ce) { \
+                _error = ZSTR_VAL((_ce)->name); \
+                DD_PARAM_ERROR_CODE = ZPP_ERROR_WRONG_CLASS; \
+                break; \
+            } else { \
+                _expected_type = Z_EXPECTED_OBJECT; \
+                DD_PARAM_ERROR_CODE = ZPP_ERROR_WRONG_ARG; \
+                break; \
+            } \
+        }
+
+#define Z_PARAM_OBJ_OF_CLASS_EX(dest, _ce, check_null, separate) \
+    Z_PARAM_OBJ_OF_CLASS_EX2(dest, _ce, check_null, separate, separate)
+
+#define Z_PARAM_OBJ_OF_CLASS(dest, _ce) \
+    Z_PARAM_OBJ_OF_CLASS_EX(dest, _ce, 0, 0)
+
 typedef ZEND_RESULT_CODE zend_result;
 #endif
 

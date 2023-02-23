@@ -42,13 +42,9 @@ use crate::bindings::{
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
-lazy_static! {
-    /// The global profiler. Profiler gets made during the first rinit after
-    /// an rinit, and is destroyed on mshutdown.
-    /// In Rust 1.63+, Mutex::new is const and this can be made a regular
-    /// global instead of a lazy_static one.
-    static ref PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
-}
+/// The global profiler. Profiler gets made during the first rinit after an
+/// minit, and is destroyed on mshutdown.
+static PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
@@ -1194,47 +1190,28 @@ mod tests {
     #[test]
     fn detect_uri_from_config_works() {
         // expected
-        let endpoint = detect_uri_from_config(
-            None,
-            None,
-            None
-        );
+        let endpoint = detect_uri_from_config(None, None, None);
         let expected = AgentEndpoint::default();
         assert_eq!(endpoint, expected);
 
         // ipv4 host
-        let endpoint = detect_uri_from_config(
-            None,
-            Some(Cow::Owned("127.0.0.1".to_owned())),
-            None
-        );
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("127.0.0.1".to_owned())), None);
         let expected = AgentEndpoint::Uri(Uri::from_static("http://127.0.0.1:8126"));
         assert_eq!(endpoint, expected);
 
         // ipv6 host
-        let endpoint = detect_uri_from_config(
-            None,
-            Some(Cow::Owned("::1".to_owned())),
-            None
-        );
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), None);
         let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
         assert_eq!(endpoint, expected);
 
         // ipv6 host, custom port
-        let endpoint = detect_uri_from_config(
-            None,
-            Some(Cow::Owned("::1".to_owned())),
-            Some(9000),
-        );
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), Some(9000));
         let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:9000"));
         assert_eq!(endpoint, expected);
 
         // agent_url
-        let endpoint = detect_uri_from_config(
-            Some(Cow::Owned("http://[::1]:8126".to_owned())),
-            None,
-            None,
-        );
+        let endpoint =
+            detect_uri_from_config(Some(Cow::Owned("http://[::1]:8126".to_owned())), None, None);
         let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
         assert_eq!(endpoint, expected);
 
