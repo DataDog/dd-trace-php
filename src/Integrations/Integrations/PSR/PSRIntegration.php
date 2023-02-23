@@ -10,7 +10,7 @@ use DDTrace\Type;
 
 class PSRIntegration extends Integration
 {
-    const NAME = 'PSR';
+    const NAME = 'psr';
 
     public function getName()
     {
