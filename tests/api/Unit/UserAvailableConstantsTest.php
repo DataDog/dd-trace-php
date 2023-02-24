@@ -122,6 +122,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::ELASTICSEARCH_PARAMS, 'elasticsearch.params'],
             [Tag::ELASTICSEARCH_URL, 'elasticsearch.url'],
             [Tag::DB_SYSTEM, 'db.system'],
+            [Tag::DB_ROW_COUNT, 'db.row_count'],
             [Tag::MONGODB_BSON_ID, 'mongodb.bson.id'],
             [Tag::MONGODB_COLLECTION, 'mongodb.collection'],
             [Tag::MONGODB_DATABASE, 'mongodb.db'],

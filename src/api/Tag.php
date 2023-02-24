@@ -44,6 +44,7 @@ class Tag
 
     // Database
     const DB_SYSTEM = 'db.system';
+    const DB_ROW_COUNT = 'db.row_count';
 
     // MongoDB
     const MONGODB_BSON_ID = 'mongodb.bson.id';
