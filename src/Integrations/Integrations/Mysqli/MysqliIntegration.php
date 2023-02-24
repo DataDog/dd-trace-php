@@ -83,7 +83,7 @@ class MysqliIntegration extends Integration
 
         \DDTrace\trace_function('mysqli_query', function (SpanData $span, $args, $result) use ($integration) {
             list($mysqli, $query) = $args;
-            $integration->setDefaultAttributes($span, 'mysqli_query', $query);
+            $integration->setDefaultAttributes($span, 'mysqli_query', $query, $result);
             $integration->addTraceAnalyticsIfEnabled($span);
             $integration->setConnectionInfo($span, $mysqli);
 
@@ -130,7 +130,7 @@ class MysqliIntegration extends Integration
 
         \DDTrace\trace_method('mysqli', 'query', function (SpanData $span, $args, $result) use ($integration) {
             list($query) = $args;
-            $integration->setDefaultAttributes($span, 'mysqli.query', $query);
+            $integration->setDefaultAttributes($span, 'mysqli.query', $query, $result);
             $integration->addTraceAnalyticsIfEnabled($span);
             $integration->setConnectionInfo($span, $this);
             MysqliCommon::storeQuery($this, $query);
@@ -167,7 +167,7 @@ class MysqliIntegration extends Integration
 
         \DDTrace\trace_method('mysqli_stmt', 'get_result', function (SpanData $span, $a, $result) use ($integration) {
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.get_result');
-            $integration->setDefaultAttributes($span, 'mysqli_stmt.get_result', $resource);
+            $integration->setDefaultAttributes($span, 'mysqli_stmt.get_result', $resource, $result);
             $integration->setConnectionInfo($span, $this);
 
             ObjectKVStore::propagate($this, $result, 'host_info');
@@ -183,8 +183,9 @@ class MysqliIntegration extends Integration
      * @param SpanData $span
      * @param string $name
      * @param string $resource
+     * @param $result
      */
-    public function setDefaultAttributes(SpanData $span, $name, $resource)
+    public function setDefaultAttributes(SpanData $span, $name, $resource, $result = null)
     {
         $span->name = $name;
         $span->resource = $resource;
@@ -192,6 +193,10 @@ class MysqliIntegration extends Integration
         $span->service = 'mysqli';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = MysqliIntegration::NAME;
+
+        if (is_object($result) && property_exists($result, 'num_rows')) {
+            $span->metrics[Tag::DB_ROW_COUNT] = $result->num_rows;
+        }
     }
 
     /**

@@ -42,7 +42,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'add',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))
         ]);
     }
 
@@ -59,7 +59,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'addByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))
         ]);
     }
 
@@ -477,7 +477,30 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'get ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'get',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
+        ]);
+    }
+
+    public function testGetMissingKey()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key', 'value');
+
+            $this->assertSame(false, $this->client->get('missing_key'));
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Memcached.add'),
+            SpanAssertion::build('Memcached.get', 'memcached', 'memcached', 'get')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(), [
+                    'memcached.query' => 'get ' . Obfuscation::toObfuscatedString('missing_key'),
+                    'memcached.command' => 'get',
+                    Tag::SPAN_KIND => 'client',
+                ]))->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 0,
+                ]),
         ]);
     }
 
@@ -498,6 +521,49 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcached',
+                ])->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 2,
+                ]),
+        ]);
+    }
+
+    public function testGetMultiNotAllExist()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key1', 'value1');
+            $this->client->add('key2', 'value2');
+
+            $this->assertEquals(['key1' => 'value1'], $this->client->getMulti(['key1', 'missing_key']));
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Memcached.add'),
+            SpanAssertion::exists('Memcached.add'),
+            SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
+                ->withExactTags([
+                    'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'missing_key'], ','),
+                    'memcached.command' => 'getMulti',
+                    Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
+                ])->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
+        ]);
+    }
+
+    public function testGetMultiNoneExist()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->assertEquals([], $this->client->getMulti(['key1', 'key2']));
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
+                ->withExactTags([
+                    'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
+                    'memcached.command' => 'getMulti',
+                    Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'memcached',
+                ])->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 0,
                 ]),
         ]);
     }
@@ -517,7 +583,9 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
         ]);
     }
 
@@ -541,7 +609,9 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMultiByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 2,
+                ]),
         ]);
     }
 

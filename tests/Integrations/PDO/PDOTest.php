@@ -71,9 +71,8 @@ final class PDOTest extends IntegrationTestCase
                 $query
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => 1,
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
@@ -184,9 +183,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => '1',
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
             SpanAssertion::exists('PDO.commit'),
         ]);
     }
@@ -250,9 +248,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => '1',
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
@@ -343,9 +340,8 @@ final class PDOTest extends IntegrationTestCase
                 "SELECT * FROM tests WHERE id = ?"
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => 1,
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
@@ -377,9 +373,8 @@ final class PDOTest extends IntegrationTestCase
                 "SELECT * FROM tests WHERE id = ?"
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => 1,
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 

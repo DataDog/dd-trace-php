@@ -110,7 +110,10 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
         ]);
     }
 
@@ -129,7 +132,10 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
         ]);
     }
 
@@ -145,7 +151,10 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
         ]);
     }
 
@@ -165,7 +174,10 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
         ]);
     }
 
