@@ -1301,7 +1301,7 @@ jobs:
     working_directory: ~/datadog
     machine:
       image: ubuntu-2004:202101-01
-    resource_class: arm.large
+    resource_class: arm.xlarge
     environment:
       - RANDOMIZED_RESTRICT_PLATFORMS: buster
     parameters:
