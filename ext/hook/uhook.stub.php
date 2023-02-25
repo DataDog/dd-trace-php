@@ -12,15 +12,25 @@ class HookData {
     public ?\Throwable $exception;
     /**
      * Creates a span if none exists yet, otherwise returns the span attached to the current function call.
-     * If called outside the pre-hook and no span is attached yet, it will also return null.
+     * If called outside the pre-hook and no span is attached yet, it will return an empty span object.
      *
      * @param SpanStack|SpanData|null $parent May be specified to start a span on a specific stack.
      *                                        As an example, when instrumenting closures, it might conceptually make
      *                                        sense to attach the Closure to the current executing function instead of
      *                                        where it ends up called. In that case the initial call to span() needs to
      *                                        provide the proper stack.
+     * @return SpanData The new or existing span.
      */
     public function span(SpanStack|SpanData|null $parent = null): SpanData;
+
+    /**
+     * Works similarly to self::spqn(), but always pushes the span onto the active span stack, even if running in
+     * limited mode.
+     *
+     * @param SpanStack|SpanData|null $parent See self::span().
+     * @return SpanData The new or existing span.
+     */
+    public function unlimitedSpan(SpanStack|SpanData|null $parent = null): SpanData;
 
     /**
      * Replaces the arguments of a function call. Must be called within a pre-hook.

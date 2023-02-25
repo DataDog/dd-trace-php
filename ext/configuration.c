@@ -51,7 +51,7 @@ DD_CONFIGURATION
 #undef CALIASES
 #undef CONFIG
 
-static int dd_parse_dbm_mode(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool dd_parse_dbm_mode(zai_string_view value, zval *decoded_value, bool persistent) {
     UNUSED(persistent);
     if (zai_string_equals_literal(value, "disabled")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_DISABLED);

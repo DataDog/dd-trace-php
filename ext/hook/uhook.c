@@ -13,6 +13,7 @@
 
 #include "uhook.h"
 #include "../ddtrace.h"
+#include <exceptions/exceptions.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -108,6 +109,53 @@ HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
     return ht;
 }
 
+void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure, zai_sandbox *sandbox) {
+    if (get_DD_TRACE_DEBUG()) {
+        char *scope = "";
+        char *colon = "";
+        char *name = "(unknown function)";
+        if (execute_data->func && execute_data->func->common.function_name) {
+            zend_function *fbc = execute_data->func;
+            name = ZSTR_VAL(fbc->common.function_name);
+            if (fbc->common.scope) {
+                scope = ZSTR_VAL(fbc->common.scope->name);
+                colon = "::";
+            }
+        }
+
+        char *deffile;
+        int defline = 0;
+        const zend_function *func = zend_get_closure_method_def(closure);
+        if (func->type == ZEND_USER_FUNCTION) {
+            deffile = ZSTR_VAL(func->op_array.filename);
+            defline = (int) func->op_array.opcodes[0].lineno;
+        } else {
+            deffile = ZSTR_VAL(func->op_array.function_name);
+        }
+
+        zend_object *ex = EG(exception);
+        if (ex) {
+            const char *type = ZSTR_VAL(ex->ce->name);
+            zend_string *msg = zai_exception_message(ex);
+            ddtrace_log_errf("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
+                             type, deffile, defline, scope, colon, name, ZSTR_VAL(msg));
+        } else if (PG(last_error_message) && sandbox->error_state.message != PG(last_error_message)) {
+#if PHP_VERSION_ID < 80000
+            char *error = PG(last_error_message);
+#else
+            char *error = ZSTR_VAL(PG(last_error_message));
+#endif
+#if PHP_VERSION_ID < 80100
+            char *filename = PG(last_error_file);
+#else
+            char *filename = ZSTR_VAL(PG(last_error_file));
+#endif
+            ddtrace_log_errf("Error raised in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
+                             deffile, defline, scope, colon, name, error, filename, PG(last_error_lineno));
+        }
+    }
+}
+
 static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *closure, dd_hook_data *hook_data) {
     zval closure_zv, hook_data_zv;
     ZVAL_OBJ(&closure_zv, closure);
@@ -115,9 +163,14 @@ static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
 
     bool has_this = getThis() != NULL;
     zval rv;
-    zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
-                    ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
-                    &rv, 1, &hook_data_zv);
+    zai_sandbox sandbox;
+    bool success = zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
+                                   ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
+                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &hook_data_zv);
+    if (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message))) {
+        dd_uhook_report_sandbox_error(execute_data, closure, &sandbox);
+    }
+    zai_sandbox_close(&sandbox);
     zval_ptr_dtor(&rv);
 }
 
@@ -201,10 +254,15 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 
     if (span) {
         dyn->hook_data->span = NULL;
-        ddtrace_clear_execute_data_span(invocation, true);
-        if (dyn->hook_data->prior_stack) {
-            ddtrace_switch_span_stack(dyn->hook_data->prior_stack);
-            OBJ_RELEASE(&dyn->hook_data->prior_stack->std);
+        // e.g. spans started in limited mode are never properly started
+        if (span->start) {
+            ddtrace_clear_execute_data_span(invocation, true);
+            if (dyn->hook_data->prior_stack) {
+                ddtrace_switch_span_stack(dyn->hook_data->prior_stack);
+                OBJ_RELEASE(&dyn->hook_data->prior_stack->std);
+            }
+        } else {
+            OBJ_RELEASE(&span->std);
         }
     }
 
@@ -376,7 +434,7 @@ PHP_FUNCTION(DDTrace_remove_hook) {
     }
 }
 
-ZEND_METHOD(DDTrace_HookData, span) {
+void dd_uhook_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
     zend_object *stack = NULL;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 0, 1)
@@ -405,8 +463,11 @@ ZEND_METHOD(DDTrace_HookData, span) {
     }
 
     // pre-hook check
-    if (!hookData->execute_data) {
-        RETURN_NULL();
+    if (!hookData->execute_data || (!unlimited && ddtrace_tracer_is_limited())) {
+        // dummy span, which never gets pushed
+        hookData->span = ddtrace_init_span(DDTRACE_USER_SPAN);
+        hookData->span->duration = DDTRACE_SILENTLY_DROPPED_SPAN;
+        RETURN_OBJ_COPY(&hookData->span->std);
     }
 
     // By this functionality we provide the ability to also switch the stack automatically back when the span attached to the function is closed
@@ -433,6 +494,14 @@ ZEND_METHOD(DDTrace_HookData, span) {
     hookData->span = ddtrace_alloc_execute_data_span(hookData->invocation, hookData->execute_data);
 
     RETURN_OBJ_COPY(&hookData->span->std);
+}
+
+ZEND_METHOD(DDTrace_HookData, span) {
+    dd_uhook_span(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+ZEND_METHOD(DDTrace_HookData, unlimitedSpan) {
+    dd_uhook_span(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 ZEND_METHOD(DDTrace_HookData, overrideArguments) {

@@ -115,7 +115,7 @@ enum ddtrace_dbm_propagation_mode {
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL),             \
            .ini_change = zai_config_system_ini_change)                                                         \
-    CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1")                                                                \
+    CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1", .ini_change = ddtrace_reseed_seed_change)                      \
     CONFIG(BOOL, DD_LOG_BACKTRACE, "false")                                                                    \
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \

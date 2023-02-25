@@ -2077,11 +2077,28 @@ static PHP_FUNCTION(consume_distributed_tracing_headers) {
 
 /* {{{ proto array generate_distributed_tracing_headers() */
 static PHP_FUNCTION(generate_distributed_tracing_headers) {
-    UNUSED(execute_data);
+    zend_array *inject = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_HT(inject)
+    ZEND_PARSE_PARAMETERS_END();
 
     array_init(return_value);
     if (get_DD_TRACE_ENABLED()) {
-        ddtrace_inject_distributed_headers(Z_ARR_P(return_value), true);
+        if (inject) {
+            zend_array *inject_set = zend_new_array(zend_hash_num_elements(inject));
+            zval *val;
+            ZEND_HASH_FOREACH_VAL(inject, val) {
+                if (Z_TYPE_P(val) == IS_STRING) {
+                    zend_hash_add_empty_element(inject_set, Z_STR_P(val));
+                }
+            } ZEND_HASH_FOREACH_END();
+            ddtrace_inject_distributed_headers_config(Z_ARR_P(return_value), true, inject_set);
+            zend_array_destroy(inject_set);
+        } else {
+            ddtrace_inject_distributed_headers(Z_ARR_P(return_value), true);
+        }
     }
 }
 

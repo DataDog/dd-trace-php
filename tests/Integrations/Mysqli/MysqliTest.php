@@ -117,6 +117,26 @@ class MysqliTest extends IntegrationTestCase
         ]);
     }
 
+    public function testProceduralExecuteQuery()
+    {
+        if (PHP_VERSION_ID < 80200) {
+            $this->markTestSkipped("mysqli_execute_query is a new function introduced in PHP 8.2");
+        }
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            \mysqli_execute_query($mysqli, 'SELECT * from tests WHERE 1 = ?', [1]);
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags()),
+        ]);
+    }
+
     public function testProceduralQueryRealConnect()
     {
         $traces = $this->isolateTracer(function () {
