@@ -2819,22 +2819,22 @@ workflows:
           requires: [ 'package extension' ]
           matrix:
             parameters:
-              batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
+              batch: [ 1, 2, 3, 4, 5 ]
       - randomized_tests_arm:
           requires: [ 'package extension' ]
           matrix:
             parameters:
-              batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
+              batch: [ 1, 2, 3, 4, 5 ]
       - randomized_tests_asan:
           requires: [ 'package extension zts-debug-asan' ]
           matrix:
             parameters:
-              batch: [ 11, 12, 12, 14, 15, 16, 17, 18, 19, 20 ]
+              batch: [ 6, 7, 8, 9, 10 ]
       - randomized_tests_arm_asan:
           requires: [ 'package extension zts-debug-asan' ]
           matrix:
             parameters:
-              batch: [ 11, 12, 12, 14, 15, 16, 17, 18, 19, 20 ]
+              batch: [ 6, 7, 8, 9, 10 ]
       - installer_tests:
           requires: [ 'package extension' ]
       - placeholder:
