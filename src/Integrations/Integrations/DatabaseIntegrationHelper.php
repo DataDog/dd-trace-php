@@ -71,7 +71,8 @@ class DatabaseIntegrationHelper
             // Note: we also urlencode single quotes and backslashes, hence no particular handling needed for these
             $escaped[] = rawurlencode($tag) . "='" . rawurlencode($val) . "'";
         }
-        $comment = "/*" . implode(',', $escaped) . "*/";
+        // "/" . "*" to prevent comment stripping from removing this...
+        $comment = "/" . "*" . implode(',', $escaped) . "*/";
 
         if ($query == "") {
             return $comment;
