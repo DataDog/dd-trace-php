@@ -5,6 +5,7 @@ mod logging;
 mod pcntl;
 mod profiling;
 mod sapi;
+mod thread_utils;
 
 use crate::bindings::sapi_globals;
 use crate::profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
