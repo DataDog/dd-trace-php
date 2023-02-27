@@ -11,6 +11,7 @@ use DDTrace\Util\ObjectKVStore;
 class MysqliIntegration extends Integration
 {
     const NAME = 'mysqli';
+    const SYSTEM = 'mysql';
 
     // https://www.php.net/manual/en/mysqli.construct.php
     const DEFAULT_MYSQLI_HOST = 'localhost';
@@ -193,7 +194,7 @@ class MysqliIntegration extends Integration
         $span->service = 'mysqli';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = MysqliIntegration::NAME;
-
+        $span->meta[Tag::DB_SYSTEM] = MysqliIntegration::SYSTEM;
         if (is_object($result) && property_exists($result, 'num_rows')) {
             $span->metrics[Tag::DB_ROW_COUNT] = $result->num_rows;
         }

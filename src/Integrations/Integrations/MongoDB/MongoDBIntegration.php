@@ -40,6 +40,7 @@ function register_subscriber()
 class MongoDBIntegration extends Integration
 {
     const NAME = 'mongodb';
+    const SYSTEM = 'mongodb';
 
     private static $loaded = false;
 
@@ -636,6 +637,7 @@ class MongoDBIntegration extends Integration
         $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;
         $span->resource = \implode(' ', array_filter([$method, $database, $collection, $command, $serializedQuery]));
         $span->meta[Tag::COMPONENT] = $this::NAME;
+        $span->meta[Tag::DB_SYSTEM] = $this::SYSTEM;
         if ($database) {
             $span->meta[Tag::MONGODB_DATABASE] = $database;
         }
