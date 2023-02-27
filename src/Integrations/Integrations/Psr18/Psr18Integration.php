@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Integrations\Psr;
+namespace DDTrace\Integrations\Psr18;
 
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
@@ -8,7 +8,7 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class PsrIntegration extends Integration
+class Psr18Integration extends Integration
 {
     const NAME = 'psr';
 
