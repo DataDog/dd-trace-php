@@ -49,7 +49,9 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("phpunit")->withChildren([
-                SpanAssertion::exists('instrumented')
+                SpanAssertion::exists('instrumented')->withExactTags([
+                    "_dd.dbm_trace_injected" => "true"
+                ])
             ])
         ]);
     }
