@@ -74,6 +74,8 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
+        $this->integrations[ZendFrameworkIntegration::NAME] =
+            '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
@@ -82,8 +84,6 @@ class IntegrationsLoader
 
         $this->integrations[MongoIntegration::NAME] =
             '\DDTrace\Integrations\Mongo\MongoIntegration';
-        $this->integrations[ZendFrameworkIntegration::NAME] =
-            '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION < 7) {
