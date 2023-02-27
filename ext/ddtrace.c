@@ -390,6 +390,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_consume_distributed_tracing_headers, 0, 0, 1)
 ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_generate_distributed_tracing_headers, 0, 0, 0)
+ZEND_ARG_INFO(0, inject)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -2236,7 +2240,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
     DDTRACE_NS_FE(set_distributed_tracing_context, arginfo_dd_trace_set_distributed_tracing_context),
     DDTRACE_NS_FE(consume_distributed_tracing_headers, arginfo_consume_distributed_tracing_headers),
-    DDTRACE_NS_FE(generate_distributed_tracing_headers, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(generate_distributed_tracing_headers, arginfo_generate_distributed_tracing_headers),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),
