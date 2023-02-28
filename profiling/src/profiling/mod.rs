@@ -3,7 +3,7 @@ mod stalk_walking;
 mod thread_utils;
 mod uploader;
 
-use interrupt_manager::*;
+pub use interrupt_manager::*;
 use stalk_walking::*;
 use uploader::*;
 
@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::str;
-use std::sync::atomic::{AtomicBool, AtomicU32};
+use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
@@ -152,26 +152,6 @@ impl Default for Globals {
         }
     }
 }
-
-#[derive(Debug, Eq, PartialEq, Hash)]
-pub struct VmInterrupt {
-    pub interrupt_count_ptr: *const AtomicU32,
-    pub engine_ptr: *const AtomicBool,
-}
-
-impl std::fmt::Display for VmInterrupt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "VmInterrupt{{{:?}, {:?}}}",
-            self.interrupt_count_ptr, self.engine_ptr
-        )
-    }
-}
-
-// This is a lie, technically, but we're trying to build it safely on top of
-// the PHP VM.
-unsafe impl Send for VmInterrupt {}
 
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
