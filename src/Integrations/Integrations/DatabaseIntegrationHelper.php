@@ -25,7 +25,7 @@ class DatabaseIntegrationHelper
         $tags = [];
 
         if ($databaseService != "") {
-            $tags["ddbs"] = $databaseService;
+            $tags["dddbs"] = $databaseService;
         }
 
         $env = $rootSpan->meta["env"] ?? "";
