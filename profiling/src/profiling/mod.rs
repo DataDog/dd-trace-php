@@ -1,13 +1,13 @@
-use super::thread_utils;
+mod thread_utils;
+mod uploader;
+
 use crate::bindings::{
     datadog_php_profiling_get_profiling_context, zend_execute_data, zend_function, zend_string,
     ZEND_USER_FUNCTION,
 };
-use crate::{
-    bindings, AgentEndpoint, RequestLocals, PHP_VERSION, PROFILER_NAME_STR, PROFILER_VERSION_STR,
-};
-use crossbeam_channel::{select, Receiver, Sender, TrySendError};
-use datadog_profiling::exporter::{Endpoint, File, Tag};
+use crate::{bindings, AgentEndpoint, RequestLocals, PHP_VERSION};
+use crossbeam_channel::{Receiver, Sender, TrySendError};
+use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
 use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
 use log::{debug, info, trace, warn};
@@ -21,6 +21,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
+use uploader::Uploader;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -516,107 +517,11 @@ impl TimeCollector {
     }
 }
 
-struct UploadMessage {
+pub struct UploadMessage {
     index: ProfileIndex,
     profile: profile::Profile,
     end_time: SystemTime,
     duration: Option<Duration>,
-}
-
-struct Uploader {
-    fork_barrier: Arc<Barrier>,
-    fork_receiver: Receiver<()>,
-    upload_receiver: Receiver<UploadMessage>,
-}
-
-impl Uploader {
-    fn upload(message: UploadMessage) -> anyhow::Result<u16> {
-        let index = message.index;
-        let profile = message.profile;
-
-        let profiling_library_name: &str = &PROFILER_NAME_STR;
-        let profiling_library_version: &str = &PROFILER_VERSION_STR;
-        let endpoint: Endpoint = (&*index.endpoint).try_into()?;
-        let exporter = datadog_profiling::exporter::ProfileExporter::new(
-            profiling_library_name,
-            profiling_library_version,
-            "php",
-            Some(index.tags),
-            endpoint,
-        )?;
-
-        let serialized = profile.serialize(Some(message.end_time), message.duration)?;
-        let start = serialized.start.into();
-        let end = serialized.end.into();
-        let files = &[File {
-            name: "profile.pprof",
-            bytes: serialized.buffer.as_slice(),
-        }];
-        let timeout = Duration::from_secs(10);
-        let request = exporter.build(start, end, files, None, None, timeout)?;
-        debug!("Sending profile to: {}", index.endpoint);
-        let result = exporter.send(request, None)?;
-        Ok(result.status().as_u16())
-    }
-
-    pub fn run(&self) {
-        /* Safety: Called from Profiling::new, which is after config is
-         * initialized, and before it's destroyed in mshutdown.
-         */
-        let pprof_filename = unsafe { crate::config::profiling_output_pprof() };
-        let mut i = 0;
-
-        loop {
-            /* Since profiling uploads are going over the Internet and not just
-             * the local network, it would be ideal if they were the lowest
-             * priority message, but crossbeam selects at random.
-             * todo: fix fork message priority.
-             */
-            select! {
-                recv(self.fork_receiver) -> message => match message {
-                    Ok(_) => {
-                        // First, wait for every thread to finish what they are currently doing.
-                        self.fork_barrier.wait();
-                        // Then, wait for the fork to be completed.
-                        self.fork_barrier.wait();
-                    }
-                    _ => {
-                        trace!("Fork channel closed; joining upload thread.");
-                        break;
-                    }
-                },
-
-                recv(self.upload_receiver) -> message => match message {
-                    Ok(upload_message) => {
-                        match pprof_filename.as_ref() {
-                            Some(filename) => {
-                                let r = upload_message.profile.serialize(None, None).unwrap();
-                                i += 1;
-                                std::fs::write(format!("{filename}.{i}"), r.buffer).expect("write to succeed")
-                            },
-                            None => match Self::upload(upload_message) {
-                                Ok(status) => {
-                                    if status >= 400 {
-                                        warn!("Unexpected HTTP status when sending profile (HTTP {status}).")
-                                    } else {
-                                        info!("Successfully uploaded profile (HTTP {status}).")
-                                    }
-                                }
-                                Err(err) => {
-                                    warn!("Failed to upload profile: {err}")
-                                }
-                            },
-                        }
-                    },
-                    _ => {
-                        trace!("No more upload messages to handle; joining thread.");
-                        break;
-                    }
-
-                },
-            }
-        }
-    }
 }
 
 impl Profiler {
@@ -637,11 +542,7 @@ impl Profiler {
             upload_period: UPLOAD_PERIOD,
         };
 
-        let uploader = Uploader {
-            fork_barrier: fork_barrier.clone(),
-            fork_receiver: fork_receiver1,
-            upload_receiver,
-        };
+        let uploader = Uploader::new(fork_barrier.clone(), fork_receiver1, upload_receiver);
         Profiler {
             fork_barrier,
             fork_senders: [fork_sender0, fork_sender1],
