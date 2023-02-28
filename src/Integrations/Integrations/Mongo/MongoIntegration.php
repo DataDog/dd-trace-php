@@ -12,6 +12,7 @@ use DDTrace\Util\Versions;
 class MongoIntegration extends Integration
 {
     const NAME = 'mongo';
+    const SYSTEM = 'mongodb';
 
     /**
      * @return string The integration name.
@@ -299,6 +300,7 @@ class MongoIntegration extends Integration
         $span->service = MongoIntegration::NAME;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = MongoIntegration::NAME;
+        $span->meta[Tag::DB_SYSTEM] = MongoIntegration::SYSTEM;
     }
 
     /**

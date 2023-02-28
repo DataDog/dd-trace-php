@@ -11,6 +11,7 @@ use DDTrace\Util\ObjectKVStore;
 class PHPRedisIntegration extends Integration
 {
     const NAME = 'phpredis';
+    const SYSTEM = 'redis';
 
     const NOT_SET = '__DD_NOT_SET__';
     const CMD_MAX_LEN = 1000;
@@ -319,6 +320,7 @@ class PHPRedisIntegration extends Integration
         $span->type = Type::REDIS;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PHPRedisIntegration::NAME;
+        $span->meta[Tag::DB_SYSTEM] = PHPRedisIntegration::SYSTEM;
         if (null !== $method) {
             // method names for internal functions are lowered so we need to explitly set them if we want to have the
             // proper case.
