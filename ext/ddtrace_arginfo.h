@@ -18,7 +18,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_DDTrace_close_spans_until, 0, 1,
 	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 1)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_DDTrace_active_span, 0, 0, DDTrace\\SpanData, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_active_span, 0, 0, DDTrace\\SpanData, 1)
 ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_root_span arginfo_DDTrace_active_span
@@ -40,7 +40,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_create_stack, 0, 0, DDTrace\\SpanStack, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_DDTrace_switch_stack, 0, 0, DDTrace\\SpanStack, MAY_BE_NULL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_switch_stack, 0, 0, DDTrace\\SpanStack, 1)
 	ZEND_ARG_OBJ_TYPE_MASK(0, newStack, DDTrace\\SpanData|DDTrace\\SpanStack, MAY_BE_NULL, "null")
 ZEND_END_ARG_INFO()
 
@@ -123,7 +123,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_dd_tracer_circuit_breaker_info arginfo_DDTrace_generate_distributed_tracing_headers
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_ddtrace_config_app_name, 0, 0, MAY_BE_NULL|MAY_BE_STRING)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, fallbackName, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
