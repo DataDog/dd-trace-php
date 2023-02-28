@@ -60,6 +60,9 @@ namespace DDTrace {
         public readonly SpanStack $stack;
     }
 
+    /**
+     *
+     */
     readonly class SpanStack {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
@@ -93,10 +96,10 @@ namespace DDTrace {
      * Add user information to monitor authenticated requests in the application.
      *
      * @param string $userId Unique identifier of the user (usr.id)
-     * @param array|null $metadata User monitoring tags (usr.<TAG_NAME>) applied to the 'meta' section of the root span
+     * @param array $metadata User monitoring tags (usr.<TAG_NAME>) applied to the 'meta' section of the root span
      * @param bool|null $propagate If set to 'true', user's information will be propagated in distributed traces
      */
-    function set_user(string $userId, ?array $metadata = [], bool|null $propagate = null): void {}
+    function set_user(string $userId, array $metadata = [], bool|null $propagate = null): void {}
 
     /**
      * Close child spans of a parent span if a non-internal span is given,
@@ -135,8 +138,7 @@ namespace DDTrace {
     /**
      * Close the currently active user-span on the top of the stack
      *
-     * @param float $finishTime Finish time in seconds. if passing float or int, it should
-     * represent the timestamp (including as many decimal places as you need)
+     * @param float $finishTime Finish time in seconds.
      * @return void
      */
     function close_span(float $finishTime = 0): void {}
@@ -198,10 +200,10 @@ namespace DDTrace {
     /**
      * Sanitize an exception
      *
-     * @param \Exception $exception
+     * @param \Exception|\Throwable $exception
      * @return string
      */
-    function get_sanitized_exception_trace(\Exception $exception): string {}
+    function get_sanitized_exception_trace(\Exception|\Throwable $exception): string {}
 
     /**
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
@@ -228,9 +230,9 @@ namespace DDTrace {
     /**
      * Searches parent frames to see whether it's currently within a catch block and returns that exception.
      *
-     * @return \Exception|null The active exception if there is one, else 'null'.
+     * @return \Throwable|null The active exception if there is one, else 'null'.
      */
-    function find_active_exception(): \Exception|null {}
+    function find_active_exception(): \Throwable|null {}
 
     /**
      * Retrieve IPs from the given array if valid headers are found, and return them in
@@ -465,10 +467,10 @@ namespace {
     function dd_trace_send_traces_via_thread(int $numTraces, array $curlHeaders, string $payload): bool {}
 
     /**
-     * Send raw data to the agent's buffer span
+     * Serializes and sends traces to the agent (in the format dd_trace_serialize_closed_spans() returns spans).
      *
      * @internal
-     * @param array $traceArray Trace Array
+     * @param array $traceArray Array in the format returned by dd_trace_serialize_closed_spans()
      */
     function dd_trace_buffer_span(array $traceArray): bool {}
 
@@ -495,7 +497,7 @@ namespace {
     function dd_trace_internal_fn(string $functionName, mixed ...$args): bool {}
 
     /**
-     * Change the distributed trace id
+     * Set the distributed trace id
      *
      * @param string|null $traceId New trace id
      * @return bool 'true' if the change was properly applied, else 'false'
@@ -503,7 +505,7 @@ namespace {
     function dd_trace_set_trace_id(?string $traceId = null): bool {}
 
     /**
-     * Tracks closed spans from user-land and C-level
+     * Tracks closed spans
      *
      * @return int Number of closed spans
      */
@@ -517,22 +519,22 @@ namespace {
     function dd_trace_tracer_is_limited(): bool {}
 
     /**
-     * Get the compile time of all files compiled up to now (in µs)
+     * Get the compiling time of all files compiled up to now (in µs)
      *
      * @return int Compile time
      */
     function dd_trace_compile_time_microseconds(): int {}
 
     /**
-     * Get serialized information about closed spans as arrays and send it to the agent (flush). Note that calling
-     * this function will result in automatically closing unfinished spans (destroys the open span stack).
+     * Get serialized information about closed spans as arrays. Note that calling this function will result in
+     * automatically closing unfinished spans (destroys the open span stack).
      *
      * @return array Closed spans data
      */
     function dd_trace_serialize_closed_spans(): array {}
 
     /**
-     * Get the currently active span id, or the distributed parent trace id if there is no currently active stack
+     * Get the currently active span id, or the distributed parent trace id if there is no currently active span
      *
      * @return string Currently active span/trace unique identifier
      */
