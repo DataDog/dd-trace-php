@@ -13,8 +13,7 @@ namespace DDTrace {
         public string $name = "";
 
         /**
-         * @var string The resource you are tracing (Optional as of ddtrace v0.47.0; defaults to SpanData::$name
-         * if not set)
+         * @var string The resource you are tracing
          */
         public string $resource = "";
 
@@ -31,19 +30,17 @@ namespace DDTrace {
         public string $type = "";
 
         /**
-         * @var string[] $meta An array of key-value span metadata; keys and values must be strings. Defaults to '[]'
+         * @var string[] $meta An array of key-value span metadata; keys and values must be strings.
          */
         public array $meta = [];
 
         /**
          * @var float[] $metrics An array of key-value span metrics; keys must be strings and values must be floats.
-         * Defaults to '[]'
          */
         public array $metrics = [];
 
         /**
          * @var \Throwable|null $exception An exception generated during the execution of the original function, if any.
-         * Defaults to 'null'
          */
         public \Throwable|null $exception = null;
 
@@ -130,7 +127,7 @@ namespace DDTrace {
      * root span, on its own new span stack (i.e., it is equivalent to 'start_trace_span'). In that case, distributed
      * tracing information will be applied if available.
      *
-     * @param float $startTime Start time of the span in seconds. Defaults to zero.
+     * @param float $startTime Start time of the span in seconds.
      * @return SpanData The newly started span
      */
     function start_span(float $startTime = 0): SpanData {}
