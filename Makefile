@@ -776,6 +776,7 @@ TEST_INTEGRATIONS_82 := \
 
 TEST_WEB_82 := \
 	test_metrics \
+	test_web_lumen_100 \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
 	test_web_nette_24 \
@@ -785,7 +786,6 @@ TEST_WEB_82 := \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_wordpress_59 \
-	test_web_lumen_100 \
 	test_web_custom
 #	test_web_yii_2 \
 
