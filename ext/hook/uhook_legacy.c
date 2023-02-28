@@ -2,7 +2,6 @@
 #include <zend_closures.h>
 #include <hook/hook.h>
 #include "uhook.h"
-#include <exceptions/exceptions.h>
 #include <sandbox/sandbox.h>
 
 #include "../logging.h"
@@ -76,49 +75,8 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
         }
     }
 
-    if (get_DD_TRACE_DEBUG() && (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message)))) {
-        char *scope = "";
-        char *colon = "";
-        char *name = "(unknown function)";
-        if (execute_data->func && execute_data->func->common.function_name) {
-            zend_function *fbc = execute_data->func;
-            name = ZSTR_VAL(fbc->common.function_name);
-            if (fbc->common.scope) {
-                scope = ZSTR_VAL(fbc->common.scope->name);
-                colon = "::";
-            }
-        }
-
-        char *deffile;
-        int defline = 0;
-        const zend_function *func = zend_get_closure_method_def(closure);
-        if (func->type == ZEND_USER_FUNCTION) {
-            deffile = ZSTR_VAL(func->op_array.filename);
-            defline = (int) func->op_array.opcodes[0].lineno;
-        } else {
-            deffile = ZSTR_VAL(func->op_array.function_name);
-        }
-
-        zend_object *ex = EG(exception);
-        if (ex) {
-            const char *type = ZSTR_VAL(ex->ce->name);
-            zend_string *msg = zai_exception_message(ex);
-            ddtrace_log_errf("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
-                             type, deffile, defline, scope, colon, name, ZSTR_VAL(msg));
-        } else if (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message)) {
-#if PHP_VERSION_ID < 80000
-            char *error = PG(last_error_message);
-#else
-            char *error = ZSTR_VAL(PG(last_error_message));
-#endif
-#if PHP_VERSION_ID < 80100
-            char *filename = PG(last_error_file);
-#else
-            char *filename = ZSTR_VAL(PG(last_error_file));
-#endif
-            ddtrace_log_errf("Error raised in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
-                             deffile, defline, scope, colon, name, error, filename, PG(last_error_lineno));
-        }
+    if (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message))) {
+        dd_uhook_report_sandbox_error(execute_data, closure, &sandbox);
     }
     zai_sandbox_close(&sandbox);
 

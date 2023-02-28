@@ -61,6 +61,8 @@
 #include "handlers_exception.h"
 #include "exceptions/exceptions.h"
 
+#include "ddtrace_arginfo.h"
+
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
@@ -388,6 +390,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_consume_distributed_tracing_headers, 0, 0, 1)
 ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_generate_distributed_tracing_headers, 0, 0, 0)
+ZEND_ARG_INFO(0, inject)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -684,19 +690,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_setup_fiber_observers();
 #endif
 
-    REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP", PRIORITY_SAMPLING_AUTO_KEEP,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT", PRIORITY_SAMPLING_AUTO_REJECT,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_KEEP", PRIORITY_SAMPLING_USER_KEEP,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_REJECT", PRIORITY_SAMPLING_USER_REJECT,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNKNOWN", DDTRACE_PRIORITY_SAMPLING_UNKNOWN,
-                           CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNSET", DDTRACE_PRIORITY_SAMPLING_UNSET,
-                           CONST_CS | CONST_PERSISTENT);
+    register_ddtrace_symbols(module_number);
     REGISTER_INI_ENTRIES();
 
     zval *ddtrace_module_zv = zend_hash_str_find(&module_registry, ZEND_STRL("ddtrace"));
@@ -2087,11 +2081,28 @@ static PHP_FUNCTION(consume_distributed_tracing_headers) {
 
 /* {{{ proto array generate_distributed_tracing_headers() */
 static PHP_FUNCTION(generate_distributed_tracing_headers) {
-    UNUSED(execute_data);
+    zend_array *inject = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_HT(inject)
+    ZEND_PARSE_PARAMETERS_END();
 
     array_init(return_value);
     if (get_DD_TRACE_ENABLED()) {
-        ddtrace_inject_distributed_headers(Z_ARR_P(return_value), true);
+        if (inject) {
+            zend_array *inject_set = zend_new_array(zend_hash_num_elements(inject));
+            zval *val;
+            ZEND_HASH_FOREACH_VAL(inject, val) {
+                if (Z_TYPE_P(val) == IS_STRING) {
+                    zend_hash_add_empty_element(inject_set, Z_STR_P(val));
+                }
+            } ZEND_HASH_FOREACH_END();
+            ddtrace_inject_distributed_headers_config(Z_ARR_P(return_value), true, inject_set);
+            zend_array_destroy(inject_set);
+        } else {
+            ddtrace_inject_distributed_headers(Z_ARR_P(return_value), true);
+        }
     }
 }
 
@@ -2229,7 +2240,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(current_context, arginfo_ddtrace_void),
     DDTRACE_NS_FE(set_distributed_tracing_context, arginfo_dd_trace_set_distributed_tracing_context),
     DDTRACE_NS_FE(consume_distributed_tracing_headers, arginfo_consume_distributed_tracing_headers),
-    DDTRACE_NS_FE(generate_distributed_tracing_headers, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(generate_distributed_tracing_headers, arginfo_generate_distributed_tracing_headers),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),

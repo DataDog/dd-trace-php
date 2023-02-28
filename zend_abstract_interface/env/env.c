@@ -1,10 +1,8 @@
-#include "env.h"
-
 #include <main/SAPI.h>
 #include <main/php.h>
-#include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
+
+#include "env.h"
 
 #if PHP_VERSION_ID >= 80000
 #define sapi_getenv_compat(name, name_len) sapi_getenv(name, name_len)

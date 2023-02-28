@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: dcc1a86fd80805580c286be7a183b1f2f30ccb63 */
+ * Stub hash: 9218febfac16a97f178da2ba77d4232a080ca5f6 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING, NULL)
@@ -15,6 +15,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_HookData_span, 0, 0
 	ZEND_ARG_OBJ_TYPE_MASK(0, parent, DDTrace\\SpanStack|DDTrace\\SpanData, MAY_BE_NULL, "null")
 ZEND_END_ARG_INFO()
 
+#define arginfo_class_DDTrace_HookData_unlimitedSpan arginfo_class_DDTrace_HookData_span
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_overrideArguments, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, arguments, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -23,6 +25,7 @@ ZEND_END_ARG_INFO()
 ZEND_FUNCTION(DDTrace_install_hook);
 ZEND_FUNCTION(DDTrace_remove_hook);
 ZEND_METHOD(DDTrace_HookData, span);
+ZEND_METHOD(DDTrace_HookData, unlimitedSpan);
 ZEND_METHOD(DDTrace_HookData, overrideArguments);
 
 
@@ -35,6 +38,7 @@ static const zend_function_entry ext_functions[] = {
 
 static const zend_function_entry class_DDTrace_HookData_methods[] = {
 	ZEND_ME(DDTrace_HookData, span, arginfo_class_DDTrace_HookData_span, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_HookData, unlimitedSpan, arginfo_class_DDTrace_HookData_unlimitedSpan, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_HookData, overrideArguments, arginfo_class_DDTrace_HookData_overrideArguments, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
