@@ -404,6 +404,7 @@ ZEND_METHOD(DDTrace_HookData, span) {
         RETURN_OBJ_COPY(&hookData->span->std);
     }
 
+    // pre-hook check
     if (!hookData->execute_data) {
         RETURN_NULL();
     }
@@ -432,6 +433,76 @@ ZEND_METHOD(DDTrace_HookData, span) {
     hookData->span = ddtrace_alloc_execute_data_span(hookData->invocation, hookData->execute_data);
 
     RETURN_OBJ_COPY(&hookData->span->std);
+}
+
+ZEND_METHOD(DDTrace_HookData, overrideArguments) {
+    (void)return_value;
+
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+
+    zend_array *args;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY_HT(args)
+    ZEND_PARSE_PARAMETERS_END();
+
+    // pre-hook check
+    if (!hookData->execute_data) {
+        RETURN_FALSE;
+    }
+
+    int passed_args = ZEND_CALL_NUM_ARGS(hookData->execute_data);
+    zend_function *func = hookData->execute_data->func;
+    if (MAX(func->common.num_args, passed_args) < zend_hash_num_elements(args)) {
+        // Adding args would mean that we would have to possibly transfer execute_data to a new stack, but changing that pointer may break all sorts of extensions
+        ddtrace_log_errf("Cannot set more args than provided: got too many arguments for hook in %s:%d", zend_get_executed_filename(), zend_get_executed_lineno());
+        RETURN_FALSE;
+    }
+
+    if (func->common.required_num_args > zend_hash_num_elements(args)) {
+        ddtrace_log_errf("Not enough args provided for hook in %s:%d", zend_get_executed_filename(), zend_get_executed_lineno());
+        RETURN_FALSE;
+    }
+
+    if (ZEND_USER_CODE(func->type) && hookData->execute_data->opline > func->op_array.opcodes + zend_hash_num_elements(args)) {
+        ddtrace_log_errf("Can't pass less args to an untyped function than originally passed (minus extra args) in %s:%d",
+                         zend_get_executed_filename(), zend_get_executed_lineno());
+        RETURN_FALSE;
+    }
+
+    // When observers are executed, moving extra args behind the last temporary already happened
+    zval *arg = ZEND_CALL_VAR_NUM(hookData->execute_data, 0), *last_arg = ZEND_USER_CODE(func->type) ? arg + func->common.num_args : ((void *)~0);
+    zval *val;
+    int i = 0;
+    ZEND_HASH_FOREACH_VAL(args, val) {
+        if (arg >= last_arg) {
+            // extra-arg handling
+            arg = ZEND_CALL_VAR_NUM(hookData->execute_data, func->op_array.last_var + func->op_array.T);
+            last_arg = (void *)~0;
+        }
+        if (i++ >= passed_args) {
+            ZVAL_COPY(arg, val);
+        } else {
+            zval garbage;
+            ZVAL_COPY_VALUE(&garbage, arg);
+            ZVAL_COPY(arg, val);
+            zval_ptr_dtor(&garbage);
+        }
+
+        ++arg;
+    } ZEND_HASH_FOREACH_END();
+
+    ZEND_CALL_NUM_ARGS(hookData->execute_data) = i;
+
+    while (i++ < passed_args) {
+        if (arg >= last_arg) {
+            // extra-arg handling
+            arg = ZEND_CALL_VAR(hookData->execute_data, func->op_array.last_var + func->op_array.T);
+            last_arg = (void *)~0;
+        }
+        zval_ptr_dtor(++arg);
+    }
+
+    RETURN_TRUE;
 }
 
 void zai_uhook_rinit() {
