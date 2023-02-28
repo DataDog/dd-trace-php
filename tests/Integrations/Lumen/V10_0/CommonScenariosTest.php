@@ -2,9 +2,9 @@
 
 namespace DDTrace\Tests\Integrations\Lumen\V10_0;
 
-use DDTrace\Tests\Integrations\Lumen\V5_8\CommonScenariosTest as V5_8_CommonScenariosTest;
+use DDTrace\Tests\Integrations\Lumen\V5_6\CommonScenariosTest as V5_6_CommonScenariosTest;
 
-class CommonScenariosTest extends V5_8_CommonScenariosTest
+class CommonScenariosTest extends V5_6_CommonScenariosTest
 {
     protected static function getAppIndexScript()
     {

@@ -14,5 +14,18 @@ class ExampleController extends Controller
         //
     }
 
-    //
+    public function simple()
+    {
+        return 'simple';
+    }
+
+    public function simpleView()
+    {
+        return view('simple_view');
+    }
+
+    public function error()
+    {
+        throw new \Exception('Controller error');
+    }
 }
