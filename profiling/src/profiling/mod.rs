@@ -1,9 +1,9 @@
-mod interrupt_manager;
+mod interrupts;
 mod stalk_walking;
 mod thread_utils;
 mod uploader;
 
-pub use interrupt_manager::*;
+pub use interrupts::*;
 use stalk_walking::*;
 use uploader::*;
 
