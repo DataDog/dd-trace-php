@@ -72,6 +72,12 @@ Link: https://lumen.laravel.com/docs/5.8/installation
 
     $ composer create-project laravel/lumen Version_5_8 "5.8.*"
 
+### Lumen 10.0
+
+Link: https://lumen.laravel.com/docs/10.x/installation
+
+    $ composer create-project laravel/lumen Version_10_0 "10.0.*"
+
 ## Slim Framework
 
 In order to generate the sample Slim Framework apps we used the default commands from the [framework's 'Getting started' guide](http://www.slimframework.com/).
