@@ -77,6 +77,8 @@ class IntegrationsLoader
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
+            $this->integrations[LumenIntegration::NAME] =
+                '\DDTrace\Integrations\Lumen\LumenIntegration';
             return;
         }
 

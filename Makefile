@@ -785,6 +785,7 @@ TEST_WEB_82 := \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_wordpress_59 \
+	test_web_lumen_100 \
 	test_web_custom
 #	test_web_yii_2 \
 
@@ -943,6 +944,9 @@ test_web_lumen_56: global_test_run_dependencies
 test_web_lumen_58: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_8 update
 	$(call run_tests,tests/Integrations/Lumen/V5_8)
+test_web_lumen_100: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_10_0 update
+	$(call run_tests,tests/Integrations/Lumen/V10_0)
 test_web_slim_312: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 update
 	$(call run_tests,--testsuite=slim-312-test)
