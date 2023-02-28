@@ -74,8 +74,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[ZendFrameworkIntegration::NAME] =
-            '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
@@ -113,6 +111,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Symfony\SymfonyIntegration';
             $this->integrations[WordPressIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressIntegration';
+            $this->integrations[ZendFrameworkIntegration::NAME] =
+                '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
         }
     }
 
