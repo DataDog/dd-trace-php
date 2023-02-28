@@ -28,8 +28,9 @@ class HookData {
      * whichever is greater.
      *
      * @param array $arguments An array of arguments, which will replace the hooked functions arguments.
+     * @return bool 'true' on success, otherwise 'false'
      */
-    public function overrideArguments(array $arguments): void;
+    public function overrideArguments(array $arguments): bool;
 }
 
 function install_hook(string|\Closure|\Generator $target, ?\Closure $begin = null, ?\Closure $end = null): int {}

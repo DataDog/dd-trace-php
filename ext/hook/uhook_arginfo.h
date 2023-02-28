@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 7b351d95b93fa290c529679c1bdd7c4a42ed7d68 */
+ * Stub hash: dcc1a86fd80805580c286be7a183b1f2f30ccb63 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING, NULL)
@@ -15,7 +15,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_HookData_span, 0, 0
 	ZEND_ARG_OBJ_TYPE_MASK(0, parent, DDTrace\\SpanStack|DDTrace\\SpanData, MAY_BE_NULL, "null")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_overrideArguments, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_overrideArguments, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, arguments, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
