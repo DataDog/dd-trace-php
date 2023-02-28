@@ -1,7 +1,9 @@
+mod interrupt_manager;
 mod stalk_walking;
 mod thread_utils;
 mod uploader;
 
+use interrupt_manager::*;
 use stalk_walking::*;
 use uploader::*;
 
@@ -17,7 +19,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::str;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
@@ -174,7 +176,7 @@ unsafe impl Send for VmInterrupt {}
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
     fork_senders: [Sender<()>; 2],
-    vm_interrupts: Arc<Mutex<Vec<VmInterrupt>>>,
+    interrupt_manager: Arc<InterruptManager>,
     message_sender: Sender<ProfilerMessage>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
@@ -183,7 +185,7 @@ pub struct Profiler {
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
     fork_receiver: Receiver<()>,
-    vm_interrupts: Arc<Mutex<Vec<VmInterrupt>>>,
+    interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     wall_time_period: Duration,
@@ -367,12 +369,7 @@ impl TimeCollector {
 
                 recv(wall_time_tick) -> message => {
                     if message.is_ok() {
-                        let vm_interrupts = self.vm_interrupts.lock().unwrap();
-
-                        vm_interrupts.iter().for_each(|obj| unsafe {
-                            (*obj.engine_ptr).store(true, Ordering::SeqCst);
-                            (*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
-                        });
+                        self.interrupt_manager.trigger_interrupts()
                     }
                 },
 
@@ -407,14 +404,14 @@ impl Profiler {
     pub fn new() -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
-        let vm_interrupts = Arc::new(Mutex::new(Vec::with_capacity(1)));
+        let interrupt_manager = Arc::new(InterruptManager::new(Mutex::new(Vec::with_capacity(1))));
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             fork_receiver: fork_receiver0,
-            vm_interrupts: vm_interrupts.clone(),
+            interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender,
             wall_time_period: WALL_TIME_PERIOD,
@@ -425,7 +422,7 @@ impl Profiler {
         Profiler {
             fork_barrier,
             fork_senders: [fork_sender0, fork_sender1],
-            vm_interrupts,
+            interrupt_manager,
             message_sender,
             time_collector_handle: thread_utils::spawn("ddprof_time", move || time_collector.run()),
             uploader_handle: thread_utils::spawn("ddprof_upload", move || uploader.run()),
@@ -433,23 +430,11 @@ impl Profiler {
     }
 
     pub fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
-        let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
-        if let Some(index) = vm_interrupts.iter().position(|v| v == &interrupt) {
-            return Err((index, interrupt));
-        }
-        vm_interrupts.push(interrupt);
-        Ok(())
+        self.interrupt_manager.add_interrupt(interrupt)
     }
 
     pub fn remove_interrupt(&self, interrupt: VmInterrupt) -> Result<(), VmInterrupt> {
-        let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
-        match vm_interrupts.iter().position(|v| v == &interrupt) {
-            None => Err(interrupt),
-            Some(index) => {
-                vm_interrupts.swap_remove(index);
-                Ok(())
-            }
-        }
+        self.interrupt_manager.remove_interrupt(interrupt)
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
