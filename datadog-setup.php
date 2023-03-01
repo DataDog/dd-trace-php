@@ -220,40 +220,7 @@ function install($options)
         }
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
-        // Writing the ini file
-        if ($phpProperties[INI_SCANDIR]) {
-            $iniFileName = '98-ddtrace.ini';
-            // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
-            // See issue https://github.com/DataDog/dd-trace-php/issues/1833
-            foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
-                $path = "{$phpProperties[INI_SCANDIR]}/$ini";
-                if (is_file($path)) {
-                    // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
-                    if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
-                        if (basename($res[1]) == "ddtrace") {
-                            $iniFileName = $ini;
-                        }
-                    }
-                }
-            }
-
-            $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
-
-            if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
-                /* debian based distros have INI folders split by SAPI, in a predefined way:
-                 *   - <...>/cli/conf.d       <-- we know this from php -i
-                 *   - <...>/apache2/conf.d   <-- we derive this from relative path
-                 *   - <...>/fpm/conf.d       <-- we derive this from relative path
-                 */
-                $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
-                if (is_dir($apacheConfd)) {
-                    $iniFilePaths[] = "$apacheConfd/$iniFileName";
-                }
-            }
-        } else {
-            $iniFileName = $phpProperties[INI_MAIN];
-            $iniFilePaths = [$iniFileName];
-        }
+        $iniFilePahts = find_ini_files($phpProperties);
 
         foreach ($iniFilePaths as $iniFilePath) {
             if (!file_exists($iniFilePath)) {
@@ -384,6 +351,50 @@ function install($options)
         );
         echo "  php " . implode(" ", array_map("escapeshellarg", $args)) . "\n";
     }
+}
+
+/**
+ * Finds the INI files for the
+ *
+ * @return string[]
+ */
+function find_ini_files(array $phpProperties): array
+{
+    $iniFilePaths = [];
+    if ($phpProperties[INI_SCANDIR]) {
+        $iniFileName = '98-ddtrace.ini';
+        // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
+        // See issue https://github.com/DataDog/dd-trace-php/issues/1833
+        foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
+            $path = "{$phpProperties[INI_SCANDIR]}/$ini";
+            if (is_file($path)) {
+                // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
+                if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
+                    if (basename($res[1]) == "ddtrace") {
+                        $iniFileName = $ini;
+                    }
+                }
+            }
+        }
+
+        $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
+
+        if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
+            /* debian based distros have INI folders split by SAPI, in a predefined way:
+             *   - <...>/cli/conf.d       <-- we know this from php -i
+             *   - <...>/apache2/conf.d   <-- we derive this from relative path
+             *   - <...>/fpm/conf.d       <-- we derive this from relative path
+             */
+            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
+            if (is_dir($apacheConfd)) {
+                $iniFilePaths[] = "$apacheConfd/$iniFileName";
+            }
+        }
+    } else {
+        $iniFileName = $phpProperties[INI_MAIN];
+        $iniFilePaths = [$iniFileName];
+    }
+    return $iniFilePaths;
 }
 
 /**
