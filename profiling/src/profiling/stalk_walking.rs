@@ -9,6 +9,10 @@ use std::cell::{RefCell, RefMut};
 use std::mem::transmute;
 use std::str::Utf8Error;
 
+/// Used to help track the function run_time_cache hit rate. It glosses over
+/// the fact that there are two cache slots used, and they don't have to be in
+/// sync. However, they usually are, so we simplify.
+#[cfg(php8)]
 #[derive(Debug, Default)]
 pub struct FunctionRunTimeCacheStats {
     hit: usize,
@@ -16,6 +20,14 @@ pub struct FunctionRunTimeCacheStats {
     not_applicable: usize,
 }
 
+impl FunctionRunTimeCacheStats {
+    pub fn hit_rate(&self) -> f64 {
+        let denominator = (self.hit + self.missed + self.not_applicable) as f64;
+        self.hit as f64 / denominator
+    }
+}
+
+#[cfg(php8)]
 thread_local! {
     static CACHED_STRINGS: RefCell<OwnedStringTable> = RefCell::new(OwnedStringTable::new());
     pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = RefCell::new(Default::default())
@@ -160,6 +172,7 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     }
 }
 
+#[cfg(php8)]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
     let func = execute_data.func.as_ref()?;
     CACHED_STRINGS.with(|cell| {
@@ -169,17 +182,8 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
                 FUNCTION_CACHE_STATS.with(|cell| {
                     let mut stats = cell.borrow_mut();
                     if cache_slots[0] == 0 {
-                        if cache_slots[1] != 0 {
-                            debug!(
-                                "function cache slot 0 was zero, but slot 1 was {}",
-                                cache_slots[1]
-                            );
-                        }
                         stats.missed += 1;
                     } else {
-                        if cache_slots[1] == 0 {
-                            debug!("function cache slot 0 was non-zero, but slot 1 was zero");
-                        }
                         stats.hit += 1;
                     }
                 });
@@ -212,6 +216,26 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
             None
         }
     })
+}
+
+#[cfg(php7)]
+unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    if let Some(func) = execute_data.func.as_ref() {
+        let function = extract_function_name(func);
+        let (file, line) = extract_file_and_line(execute_data);
+
+        // Only create a new frame if there's file or function info.
+        if file.is_some() || function.is_some() {
+            // If there's no function name, use a fake name.
+            let function = function.map(Cow::Owned).unwrap_or_else(|| "<?php".into());
+            return Some(ZendFrame {
+                function,
+                file: file.map(Cow::Owned),
+                line,
+            });
+        }
+    }
+    None
 }
 
 pub(super) unsafe fn collect_stack_sample(

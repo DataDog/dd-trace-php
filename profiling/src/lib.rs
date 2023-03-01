@@ -736,7 +736,8 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     {
         profiling::FUNCTION_CACHE_STATS.with(|cell| {
             let stats = cell.borrow();
-            debug!("Process cumulative {stats:?}");
+            let hit_rate = stats.hit_rate();
+            debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
         });
     }
 
@@ -942,8 +943,11 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // Safety: called during startup hook with correct params.
     unsafe { zend::datadog_php_profiling_startup(extension) };
 
+    #[cfg(php8)]
     // Safety: calling this in startup/minit as required.
-    unsafe { bindings::ddog_php_prof_function_run_time_cache_init(PROFILER_NAME_CSTR.as_ptr()) };
+    unsafe {
+        bindings::ddog_php_prof_function_run_time_cache_init(PROFILER_NAME_CSTR.as_ptr())
+    };
 
     // Ignore a failure as ZEND_VERSION.get() will return an Option if it's not set.
     let _ = ZEND_VERSION.get_or_try_init(|| {
