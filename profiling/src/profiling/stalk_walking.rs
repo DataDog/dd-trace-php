@@ -174,10 +174,11 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
 
 #[cfg(php8)]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    use crate::bindings::ddog_php_prof_function_run_time_cache;
     let func = execute_data.func.as_ref()?;
     CACHED_STRINGS.with(|cell| {
         let mut string_table = cell.borrow_mut();
-        let (function, file, line) = match bindings::ddog_php_prof_function_run_time_cache(func) {
+        let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
             Some(cache_slots) => {
                 FUNCTION_CACHE_STATS.with(|cell| {
                     let mut stats = cell.borrow_mut();
