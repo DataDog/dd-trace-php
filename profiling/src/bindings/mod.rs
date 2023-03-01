@@ -268,6 +268,16 @@ extern "C" {
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
     pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_string_view;
+
+    /// Registers the run_time_cache slot with the engine. Must be done in
+    /// module init or extension startup.
+    pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
+
+    /// Gets the address of a function's run_time_cache slot. May return None
+    /// if it detects incomplete initialization, which is always a bug but
+    /// none-the-less has been seen in the wild. It may also return None if
+    /// the run_time_cache is not available on this function type.
+    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
 }
 
 #[cfg(php_preload)]
@@ -497,4 +507,22 @@ pub struct ZaiConfigMemoizedEntry {
             stage: c_int,
         ) -> c_int,
     >,
+}
+
+#[cfg(test)]
+mod tests {
+
+    // If this fails, then ddog_php_prof_function_run_time_cache needs to be
+    // adjusted accordingly.
+    #[test]
+    fn test_sizeof_fixed_size_slice_is_same_as_pointer() {
+        assert_eq!(
+            std::mem::size_of::<&[usize; 2]>(),
+            std::mem::size_of::<*mut usize>()
+        );
+        assert_eq!(
+            std::mem::align_of::<&[usize; 2]>(),
+            std::mem::align_of::<*mut usize>()
+        );
+    }
 }
