@@ -3,7 +3,6 @@ use crate::bindings::{
     zend_function, zend_string, ZEND_USER_FUNCTION,
 };
 use datadog_profiling_store::{OwnedStringTable, StringTable};
-use log::debug;
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
 use std::mem::transmute;

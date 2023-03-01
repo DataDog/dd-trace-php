@@ -266,7 +266,7 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = vec![];
+        let mut locations = Vec::with_capacity(message.value.frames.len());
 
         let values = message.value.sample_values;
         let labels = message
