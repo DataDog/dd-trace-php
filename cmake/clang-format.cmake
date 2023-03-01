@@ -7,7 +7,7 @@ endif()
 set(FILE_LIST "")
 
 if(DD_APPSEC_BUILD_HELPER)
-    file(GLOB_RECURSE HELPER_FILES ${HELPER_SOURCE_DIR}/*.*pp tests/helper/*.*pp)
+    file(GLOB_RECURSE HELPER_FILES ${HELPER_SOURCE_DIR}/*.*pp tests/helper/*.cpp tests/helper/*.hpp)
     list(APPEND FILE_LIST ${HELPER_FILES})
 endif()
 

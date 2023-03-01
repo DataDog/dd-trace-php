@@ -17,13 +17,28 @@ namespace dds::remote_config {
 
 class asm_data_listener : public product_listener_base {
 public:
+    struct rule_data {
+        struct data_with_expiration {
+            std::string value;
+            std::optional<uint64_t> expiration;
+        };
+
+        std::string id;
+        std::string type;
+        std::map<std::string, data_with_expiration> data;
+    };
+
     explicit asm_data_listener(std::shared_ptr<dds::engine> engine)
         : engine_(std::move(engine)){};
     void on_update(const config &config) override;
     void on_unapply(const config & /*config*/) override{};
 
+    void init() override { rules_data_.clear(); }
+    void commit() override;
+
 protected:
     std::shared_ptr<dds::engine> engine_;
+    std::unordered_map<std::string, rule_data> rules_data_;
 };
 
 } // namespace dds::remote_config

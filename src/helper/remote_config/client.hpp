@@ -35,7 +35,7 @@ public:
     client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
         remote_config::settings settings,
         const std::vector<product> &products = {},
-        std::vector<protocol::capabilities_e> &&capabilities = {});
+        std::vector<protocol::capabilities_e> capabilities = {});
     virtual ~client() = default;
 
     client(const client &) = delete;
@@ -46,7 +46,7 @@ public:
     static client::ptr from_settings(const service_identifier &sid,
         const remote_config::settings &settings,
         std::vector<remote_config::product> &&products,
-        std::vector<protocol::capabilities_e> &&capabilities);
+        std::vector<protocol::capabilities_e> capabilities);
 
     virtual bool poll();
 

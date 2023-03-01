@@ -4,7 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
-#include "common.hpp"
+#include "../common.hpp"
 #include "remote_config/config.hpp"
 #include "remote_config/listener.hpp"
 #include "remote_config/product.hpp"
@@ -21,10 +21,14 @@ ACTION(ThrowErrorApplyingConfig)
 class listener_mock : public remote_config::product_listener_base {
 public:
     listener_mock() = default;
+    ~listener_mock() override = default;
+
     MOCK_METHOD(
         void, on_update, ((const remote_config::config &config)), (override));
     MOCK_METHOD(
         void, on_unapply, ((const remote_config::config &config)), (override));
+    MOCK_METHOD(void, init, (), (override));
+    MOCK_METHOD(void, commit, (), (override));
 };
 } // namespace mock
 
@@ -51,25 +55,38 @@ remote_config::config acknowledged(remote_config::config c)
     return c;
 }
 
+TEST(RemoteConfigProduct, InvalidListener)
+{
+    EXPECT_THROW(
+        remote_config::product("some name", nullptr), std::runtime_error);
+}
+
 TEST(RemoteConfigProduct, NameIsSaved)
 {
-    remote_config::product product("some name", nullptr);
+    auto listener = std::make_shared<mock::listener_mock>();
+    remote_config::product product("some name", listener);
 
     EXPECT_EQ("some name", product.get_name());
 }
 
 TEST(RemoteConfigProduct, ConfigsAreEmptyByDefault)
 {
-    remote_config::product product("some name", nullptr);
+    auto listener = std::make_shared<mock::listener_mock>();
+    remote_config::product product("some name", listener);
 
     EXPECT_EQ(0, product.get_configs().size());
 }
 
 TEST(RemoteConfigProduct, ConfigsAreSaved)
 {
-    remote_config::product product("some name", nullptr);
+    auto listener = std::make_shared<mock::listener_mock>();
+    remote_config::product product("some name", listener);
 
     remote_config::config config = get_config();
+
+    EXPECT_CALL(*listener, init()).Times(1);
+    EXPECT_CALL(*listener, on_update(config)).Times(1);
+    EXPECT_CALL(*listener, commit()).Times(1);
 
     product.assign_configs({{"config name", config}});
 
@@ -78,7 +95,7 @@ TEST(RemoteConfigProduct, ConfigsAreSaved)
 
     EXPECT_EQ(1, configs_on_product.size());
     EXPECT_EQ("config name", config_saved->first);
-    EXPECT_EQ(config, config_saved->second);
+    EXPECT_EQ(acknowledged(config), config_saved->second);
 }
 
 TEST(
@@ -86,8 +103,10 @@ TEST(
 {
     auto listener = std::make_shared<mock::listener_mock>();
     remote_config::config config = get_config();
+    EXPECT_CALL(*listener, init()).Times(1);
     EXPECT_CALL(*listener, on_update(config)).Times(1);
     EXPECT_CALL(*listener, on_unapply(_)).Times(0);
+    EXPECT_CALL(*listener, commit()).Times(1);
     remote_config::product product("some name", listener);
 
     product.assign_configs({{"config name", config}});
@@ -103,8 +122,10 @@ TEST(RemoteConfigProduct,
     auto listener = std::make_shared<mock::listener_mock>();
     remote_config::config config = get_config();
 
+    EXPECT_CALL(*listener, init()).Times(2);
     EXPECT_CALL(*listener, on_update(unacknowledged(config))).Times(1);
     EXPECT_CALL(*listener, on_unapply(acknowledged(config))).Times(1);
+    EXPECT_CALL(*listener, commit()).Times(2);
     remote_config::product product("some name", listener);
 
     product.assign_configs({{"config name", unacknowledged(config)}});
@@ -113,12 +134,16 @@ TEST(RemoteConfigProduct,
     EXPECT_EQ(0, product.get_configs().size());
 }
 
-TEST(RemoteConfigProduct, WhenAConfigDoesNotChangeItsListenerShouldNotBeCalled)
+TEST(RemoteConfigProduct, WhenAConfigDoesNotChangeItsListenerShouldBeCalled)
 {
     auto listener = std::make_shared<mock::listener_mock>();
     remote_config::config config = get_config();
 
+    EXPECT_CALL(*listener, init()).Times(2);
     EXPECT_CALL(*listener, on_update(unacknowledged(config))).Times(1);
+    EXPECT_CALL(*listener, on_update(acknowledged(config))).Times(1);
+    EXPECT_CALL(*listener, commit()).Times(2);
+
     remote_config::product product("some name", listener);
 
     product.assign_configs({{"config name", unacknowledged(config)}});
@@ -134,11 +159,13 @@ TEST(RemoteConfigProduct, WhenAConfigChangeItsHashItsListenerUpdateIsCalled)
     remote_config::config same_config_different_hash = get_config();
     same_config_different_hash.hashes.emplace("hash key", "hash value");
 
+    EXPECT_CALL(*listener, init()).Times(2);
     EXPECT_CALL(*listener, on_update(unacknowledged(config))).Times(1);
     EXPECT_CALL(
         *listener, on_update(unacknowledged(same_config_different_hash)))
         .Times(1);
     EXPECT_CALL(*listener, on_unapply(_)).Times(0);
+    EXPECT_CALL(*listener, commit()).Times(2);
     remote_config::product product("some name", listener);
 
     product.assign_configs({{"config name", config}});
@@ -152,8 +179,10 @@ TEST(RemoteConfigProduct, SameConfigWithDifferentNameItsTreatedAsNewConfig)
     auto listener = std::make_shared<mock::listener_mock>();
     remote_config::config config = get_config();
 
+    EXPECT_CALL(*listener, init()).Times(2);
     EXPECT_CALL(*listener, on_update(unacknowledged(config))).Times(2);
     EXPECT_CALL(*listener, on_unapply(acknowledged(config))).Times(1);
+    EXPECT_CALL(*listener, commit()).Times(2);
     remote_config::product product("some name", listener);
 
     product.assign_configs({{"config name 01", config}});
@@ -167,9 +196,11 @@ TEST(RemoteConfigProduct, WhenAListenerFailsUpdatingAConfigItsStateGetsError)
     auto listener = std::make_shared<mock::listener_mock>();
     remote_config::config config = get_config();
 
+    EXPECT_CALL(*listener, init()).Times(1);
     EXPECT_CALL(*listener, on_update(_))
         .WillRepeatedly(mock::ThrowErrorApplyingConfig());
     remote_config::product product("some name", listener);
+    EXPECT_CALL(*listener, commit()).Times(1);
 
     product.assign_configs({{"config name", config}});
 

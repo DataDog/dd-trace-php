@@ -29,7 +29,7 @@ config_path config_path::from_path(const std::string &path)
 
 client::client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
     remote_config::settings settings, const std::vector<product> &products,
-    std::vector<protocol::capabilities_e> &&capabilities)
+    std::vector<protocol::capabilities_e> capabilities)
     : api_(std::move(arg_api)), id_(dds::generate_random_uuid()),
       sid_(std::move(sid)), settings_(std::move(settings)),
       capabilities_(std::move(capabilities))
@@ -43,7 +43,7 @@ client::client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
 client::ptr client::from_settings(const service_identifier &sid,
     const remote_config::settings &settings,
     std::vector<remote_config::product> &&products,
-    std::vector<protocol::capabilities_e> &&capabilities)
+    std::vector<protocol::capabilities_e> capabilities)
 {
     // If there are no capabilities, there is no point on calling RC
     if (!settings.enabled || capabilities.empty()) {

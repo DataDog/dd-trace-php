@@ -7,7 +7,7 @@
 #include <rapidjson/document.h>
 #include <string>
 
-#include "common.hpp"
+#include "../common.hpp"
 #include "remote_config/protocol/tuf/parser.hpp"
 
 namespace dds {

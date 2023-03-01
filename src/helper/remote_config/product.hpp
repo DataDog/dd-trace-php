@@ -21,7 +21,11 @@ class product {
 public:
     product(std::string &&name, std::shared_ptr<product_listener_base> listener)
         : name_(std::move(name)), listener_(std::move(listener))
-    {}
+    {
+        if (listener_ == nullptr) {
+            throw std::runtime_error("invalid listener " + name);
+        }
+    }
 
     void assign_configs(const std::unordered_map<std::string, config> &configs);
     [[nodiscard]] const std::unordered_map<std::string, config> &

@@ -7,8 +7,8 @@
 #include <rapidjson/document.h>
 #include <string>
 
+#include "../common.hpp"
 #include "base64.h"
-#include "common.hpp"
 #include "remote_config/protocol/client.hpp"
 #include "remote_config/protocol/client_state.hpp"
 #include "remote_config/protocol/client_tracer.hpp"
@@ -337,7 +337,7 @@ TEST(RemoteConfigSerializer, CapabilitiesCanBeSet)
         find_and_assert_type(
             client_itr->value, "capabilities", rapidjson::kStringType);
 
-    EXPECT_STREQ("Dw==", capabilities_itr->value.GetString());
+    EXPECT_STREQ("DwA=", capabilities_itr->value.GetString());
 }
 
 } // namespace dds

@@ -21,6 +21,9 @@ public:
         service_config_->unset_asm();
     }
 
+    void init() override {}
+    void commit() override {}
+
 protected:
     std::shared_ptr<service_config> service_config_;
 };
