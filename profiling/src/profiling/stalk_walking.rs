@@ -19,6 +19,7 @@ pub struct FunctionRunTimeCacheStats {
     not_applicable: usize,
 }
 
+#[cfg(php8)]
 impl FunctionRunTimeCacheStats {
     pub fn hit_rate(&self) -> f64 {
         let denominator = (self.hit + self.missed + self.not_applicable) as f64;
