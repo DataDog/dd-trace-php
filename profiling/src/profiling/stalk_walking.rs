@@ -101,6 +101,7 @@ unsafe fn handle_file_cache_slot_helper(
     // Safety: changing the lifetime to 'static is safe because
     // the other threads using it are joined before this thread
     // ever dies.
+    // todo: this is _not_ ZTS safe.
     Some(Cow::Borrowed(transmute(str)))
 }
 
@@ -139,6 +140,7 @@ unsafe fn handle_function_cache_slot(
     // Safety: changing the lifetime to 'static is safe because
     // the other threads using it are joined before this thread
     // ever dies.
+    // todo: this is _not_ ZTS safe.
     Some(Cow::Borrowed(transmute(str)))
 }
 
