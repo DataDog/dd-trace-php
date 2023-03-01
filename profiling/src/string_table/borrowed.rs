@@ -3,15 +3,8 @@ use std::collections::HashMap;
 use std::ops::Range;
 
 pub struct BorrowedStringTable<'a> {
-    pub(super) vec: Vec<&'a str>,
-    pub(super) map: HashMap<&'a str, usize, RandomState>,
-}
-
-impl<'a> BorrowedStringTable<'a> {
-    #[inline]
-    pub fn new() -> Self {
-        Self::default()
-    }
+    pub vec: Vec<&'a str>,
+    pub map: HashMap<&'a str, usize, RandomState>,
 }
 
 impl<'a> Default for BorrowedStringTable<'a> {
@@ -81,7 +74,7 @@ mod tests {
 
     #[test]
     pub fn borrowed_string_table() {
-        let set = BorrowedStringTable::<'static>::new();
+        let set = BorrowedStringTable::<'static>::default();
         super::super::tests::basic(set);
     }
 }

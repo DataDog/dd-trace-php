@@ -1,14 +1,14 @@
 use bumpalo::{collections, Bump};
 use std::ops::Range;
 
-pub(super) struct BorrowedStringTable<'b> {
+pub struct BorrowedStringTable<'b> {
     arena: &'b Bump,
-    pub(super) set: super::borrowed::BorrowedStringTable<'b>,
+    pub set: super::borrowed::BorrowedStringTable<'b>,
 }
 
 impl<'b> BorrowedStringTable<'b> {
     #[inline]
-    pub(super) fn new(arena: &'b Bump) -> Self {
+    pub fn new(arena: &'b Bump) -> Self {
         Self {
             arena,
             set: Default::default(),

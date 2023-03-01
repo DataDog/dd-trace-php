@@ -31,7 +31,7 @@ mod tests {
     use super::*;
 
     /// Pass in an empty set, which should only include the empty string at 0.
-    pub(crate) fn basic<S: StringTable>(mut set: S) {
+    pub fn basic<S: StringTable>(mut set: S) {
         // the empty string must always be included in the set at 0.
         let empty_str = set.get_offset(0);
         assert_eq!("", empty_str);

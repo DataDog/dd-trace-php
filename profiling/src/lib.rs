@@ -5,6 +5,7 @@ mod logging;
 mod pcntl;
 mod profiling;
 mod sapi;
+mod string_table;
 
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};

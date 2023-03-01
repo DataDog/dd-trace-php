@@ -2,7 +2,7 @@ use crate::bindings::{
     ddog_php_prof_zend_string_view, zend_execute_data, zend_function, zend_string,
     ZEND_USER_FUNCTION,
 };
-use datadog_profiling_store::{OwnedStringTable, StringTable};
+use crate::string_table::{OwnedStringTable, StringTable};
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
 use std::mem::transmute;
