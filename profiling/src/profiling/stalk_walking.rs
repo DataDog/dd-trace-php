@@ -1,6 +1,6 @@
 use crate::bindings::{
-    ddog_php_prof_function_run_time_cache, ddog_php_prof_zend_string_view, zend_execute_data,
-    zend_function, zend_string, ZEND_USER_FUNCTION,
+    ddog_php_prof_zend_string_view, zend_execute_data, zend_function, zend_string,
+    ZEND_USER_FUNCTION,
 };
 use datadog_profiling_store::{OwnedStringTable, StringTable};
 use std::borrow::Cow;
@@ -177,7 +177,7 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
     let func = execute_data.func.as_ref()?;
     CACHED_STRINGS.with(|cell| {
         let mut string_table = cell.borrow_mut();
-        let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
+        let (function, file, line) = match bindings::ddog_php_prof_function_run_time_cache(func) {
             Some(cache_slots) => {
                 FUNCTION_CACHE_STATS.with(|cell| {
                     let mut stats = cell.borrow_mut();
