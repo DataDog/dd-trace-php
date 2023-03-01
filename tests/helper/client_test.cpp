@@ -2213,4 +2213,55 @@ TEST(ClientTest, RequestExecDisabledClient)
     }
 }
 
+TEST(ClientTest, AsmDDRulesIsAddedWhenRulesFileIsEmpty)
+{
+    auto smanager = std::make_shared<mock::service_manager>();
+    auto broker = new mock::broker();
+
+    std::vector<dds::remote_config::protocol::capabilities_e> capabilities;
+
+    EXPECT_CALL(*smanager, create_service(_, _, _, _, _, _))
+        .WillOnce(SaveCapabilities(&capabilities));
+    std::shared_ptr<network::base_response> res;
+    EXPECT_CALL(*broker,
+        send(testing::An<const std::shared_ptr<network::base_response> &>()))
+        .WillOnce(Return(true));
+
+    client client(smanager, std::unique_ptr<mock::broker>(broker));
+
+    network::client_init::request msg;
+    client.handle_command(msg);
+
+    EXPECT_TRUE(
+        std::find(capabilities.begin(), capabilities.end(),
+            dds::remote_config::protocol::capabilities_e::ASM_DD_RULES) !=
+        capabilities.end());
+}
+
+TEST(ClientTest, AsmDDRulesIsNotAddedWhenRulesFileSet)
+{
+    auto smanager = std::make_shared<mock::service_manager>();
+    auto broker = new mock::broker();
+
+    std::vector<dds::remote_config::protocol::capabilities_e> capabilities;
+
+    EXPECT_CALL(*smanager, create_service(_, _, _, _, _, _))
+        .WillOnce(SaveCapabilities(&capabilities));
+    std::shared_ptr<network::base_response> res;
+    EXPECT_CALL(*broker,
+        send(testing::An<const std::shared_ptr<network::base_response> &>()))
+        .WillOnce(Return(true));
+
+    client client(smanager, std::unique_ptr<mock::broker>(broker));
+
+    network::client_init::request msg;
+    msg.engine_settings.rules_file = "/some/file";
+    client.handle_command(msg);
+
+    EXPECT_FALSE(
+        std::find(capabilities.begin(), capabilities.end(),
+            dds::remote_config::protocol::capabilities_e::ASM_DD_RULES) !=
+        capabilities.end());
+}
+
 } // namespace dds

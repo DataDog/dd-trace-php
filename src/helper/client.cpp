@@ -133,6 +133,8 @@ bool client::handle_command(const network::client_init::request &command)
     if (eng_settings.rules_file.empty()) {
         capabilities.push_back(
             remote_config::protocol::capabilities_e::ASM_IP_BLOCKING);
+        capabilities.push_back(
+            remote_config::protocol::capabilities_e::ASM_DD_RULES);
     }
 
     try {
