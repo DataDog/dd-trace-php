@@ -575,12 +575,23 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             let runtime_id = runtime_id();
             if !runtime_id.is_nil() {
                 match Tag::new("runtime-id", runtime_id.to_string()) {
-                    Ok(tag) => {
-                        locals.tags.push(tag);
-                    }
-                    Err(err) => {
-                        warn!("invalid tag: {err}");
-                    }
+                    Ok(tag) => locals.tags.push(tag),
+                    Err(err) => warn!("invalid tag: {err}"),
+                }
+            }
+
+            if let Some(version) = PHP_VERSION.get() {
+                /* This should probably be "language_version", but this is
+                 * the tag that was standardized for this purpose. */
+                let tag = Tag::new("runtime_version", version)
+                    .expect("runtime_version to be a valid tag");
+                locals.tags.push(tag);
+            }
+
+            if let Some(sapi) = SAPI.get() {
+                match Tag::new("php.sapi", sapi.to_string()) {
+                    Ok(tag) => locals.tags.push(tag),
+                    Err(err) => warn!("invalid tag: {err}"),
                 }
             }
 
