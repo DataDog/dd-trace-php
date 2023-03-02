@@ -5,6 +5,7 @@ DD_TRACE_DEBUG=1
 DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
+error_reporting(E_ALL & ~E_DEPRECATED);
 # Functions
 var_dump(dd_trace('foo', 'bar'));
 var_dump(dd_trace('foo', ['bar']));
@@ -45,7 +46,7 @@ var_dump(dd_trace('foo', 'foo', [
     'posthook' => function () {},
 ]));
 var_dump(dd_trace('foo', 'foo', []));
-
+error_reporting(E_ALL);
 ?>
 --EXPECTF--
 Unexpected parameter combination, expected (class, function, closure | config_array) or (function, closure | config_array)

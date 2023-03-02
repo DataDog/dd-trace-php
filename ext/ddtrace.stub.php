@@ -75,16 +75,35 @@ namespace DDTrace {
          * @var SpanStack The span's stack trace
          */
         public readonly SpanStack $stack;
+
+        /**
+         * @return int Get the current span duration
+         */
+        public function getDuration(): int {}
+
+        /**
+         * @return int Get the start time of the span
+         */
+        public function getStartTime(): int {}
     }
 
     /**
+     * The SpanStack class allows context transfer between spans.
      *
+     * When a new span is created, it will always be on the top the of active stack, becoming the new active span. This
+     * new span's stack property is assigned the stack of the previous active span (or a primary stack is initialized in
+     * the case of a root span). The parent of a SpanStack is the active stack at the time of the creation of the new
+     * stack.
+     *
+     * Each SpanStack has only one active span at a time, and can be manipulated using the 'create_stack' and
+     * 'switch_stack' functions. 'create_stack' creates a new SpanStack whose parent is the currently active stack,
+     * while 'switch_stack' switches the active span.
      */
     readonly class SpanStack {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
          */
-        public SpanStack|null $parent;
+        public readonly SpanStack|null $parent;
 
         /**
          * @var SpanData The active span
@@ -92,6 +111,123 @@ namespace DDTrace {
         public SpanData $active;
     }
 
+    // phpcs:disable Generic.Files.LineLength.TooLong
+
+    /**
+     * Instrument (trace) a specific method call. This function automatically handle the following tasks:
+     * - Open a span before the code executes
+     * - Set any errors from the instrumented call on the span
+     * - Close the span when the instrumented call is done.
+     *
+     * Additional tags are set on the span from the closure (called a tracing closure).
+     *
+     * @param string $className The name of the class that contains the method.
+     * @param string $methodName The name of the method to instrument.
+     * @param \Closure(SpanData, array, mixed, \Exception|null):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * The tracing closure is a function that adds extra tags to the span after the
+     * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData', an array of
+     * arguments from the instrumented call, the return value of the instrumented call, and an instance of the exception
+     * that was thrown in the instrumented call (if any), or 'null' if no exception was thrown.
+     *
+     * Alternatively, an associative configuration array can be given whose recognized keys are:
+     * - 'prehook': a closure to be run prior to the method call
+     * - 'posthook': a closure to be run after the method was executed
+     * - 'instrument_when_limited': set to 1 shall the method be traced in limited mode (e.g., when span limit
+     * exceeded)
+     * - 'recurse': a boolean to state whether should recursive calls be traced as well
+     * @return bool 'true' if the call was successfully instrumented, else 'false'
+     */
+    function trace_method(
+        string $className,
+        string $methodName,
+        \Closure|array $tracingClosureOrConfigArray
+    ): bool {}
+
+    /**
+     * Instrument (trace) a specific function call. This function automatically handle the following tasks:
+     * - Open a span before the code executes
+     * - Set any errors from the instrumented call on the span
+     * - Close the span when the instrumented call is done.
+     *
+     * Additional tags are set on the span from the closure (called a tracing closure).
+     *
+     * @param string $functionName The name of the function to trace.
+     * @param \Closure(SpanData, array, mixed, \Exception|null):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * The tracing closure is a function that adds extra tags to the span after the
+     * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData' that writes
+     * to the span properties, an array of arguments from the instrumented call, the return value of the instrumented
+     * call, and an instance of the exception that was thrown in the instrumented call (if any), or 'null' if no
+     * exception was thrown.
+     *
+     * Alternatively, an associative configuration array can be given whose recognized keys are:
+     * - 'prehook': a closure to be run prior to the function call
+     * - 'posthook': a closure to be run after the function was executed
+     * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
+     * exceeded)
+     * - 'recurse': a boolean to state whether should recursive calls be traced as well
+     * @return bool 'true' if the call was successfully instrumented, else 'false'
+     */
+    function trace_function(string $functionName, \Closure|array $tracingClosureOrConfigArray): bool {}
+
+    /**
+     * This function allows to define pre- and post-hooks that will be executed before and after the function is called.
+     *
+     * @param string $functionName The name of the function to be instrumented.
+     * @param \Closure(mixed $args):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
+     * A pre-hook function that will be called before the instrumented function is
+     * executed. This can be useful for things like asserting the function is passed the  correct arguments.
+     *
+     * Alternatively, an associative configuration array can be given whose recognized keys are:
+     * - 'prehook': a closure to be run prior to the function call
+     * - 'posthook': a closure to be run after the function was executed
+     * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
+     * exceeded)
+     * - 'recurse': a boolean to state whether should recursive calls be traced as well
+     * @param \Closure(mixed $args, mixed $retval):void|null $posthook A post-hook function that will be called after
+     * the instrumented function is executed. This can be useful for things like formatting output data or logging the
+     * results of the function call.
+     *
+     * Note that the $posthook argument shouldn't be given when calling hook_function if a configuration array has been
+     * passed.
+     * @return bool 'false' if the hook could not be successfully installed, else 'true'
+     */
+    function hook_function(
+        string $functionName,
+        \Closure|array|null $prehookOrConfigArray = null,
+        ?\Closure $posthook = null
+    ): bool {}
+
+    /**
+     * This function allows to define pre- and post-hooks that will be executed before and after the method is called.
+     *
+     * @param string $className The name of the class that contains the method.
+     * @param string $methodName The name of the method to instrument.
+     * @param \Closure(mixed $args):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
+     * A pre-hook function that will be called before the instrumented
+     * method is executed. This can be useful for things like asserting the method is passed the correct arguments.
+     *
+     * Alternatively, an associative configuration array can be given whose recognized keys are:
+     * - 'prehook': a closure to be run prior to the function call
+     * - 'posthook': a closure to be run after the function was executed
+     * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
+     * exceeded)
+     * - 'recurse': a boolean to state whether should recursive calls be traced as well
+     * @param \Closure(mixed $args, mixed $retval):void|null $posthook A post-hook function that will be called after
+     * the instrumented method is executed. This can be useful for things like formatting output data or logging the
+     * results of the method call.
+     *
+     * Note that the $posthook argument shouldn't be given when calling hook_function if a configuration array has been
+     * passed.
+     * @return bool 'false' when no hook is passed, else 'true'
+     */
+    function hook_method(
+        string $className,
+        string $methodName,
+        \Closure|array|null $prehookOrConfigArray = null,
+        ?\Closure $posthook = null
+    ): bool {}
+
+    // phpcs:enable Generic.Files.LineLength.TooLong
 
     /**
      * Add a tag to be automatically applied to every span that is created, if tracing is enabled.
@@ -226,13 +362,15 @@ namespace DDTrace {
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
      * if there is one, as well as the future ones if it isn't overwritten
      *
-     * @param callable(string):mixed $func Given a header name for distributed tracing, return the value it should
+     * @param callable(string):mixed $callback Given a header name for distributed tracing, return the value it should
      * be updated to
      */
-    function consume_distributed_tracing_headers(callable $func): void {}
+    function consume_distributed_tracing_headers(callable $callback): void {}
 
     /**
      * Get information on the key-value pairs of the datadog headers for distributed tracing
+     *
+     * @param array|null $inject dfdsq
      *
      * @return array{x-datadog-sampling-priority: string,
      *               x-datadog-origin: string,
@@ -242,7 +380,7 @@ namespace DDTrace {
      *               tracestate: string
      *          }
      */
-    function generate_distributed_tracing_headers(): array {}
+    function generate_distributed_tracing_headers(array $inject = null): array {}
 
     /**
      * Searches parent frames to see whether it's currently within a catch block and returns that exception.
@@ -300,6 +438,11 @@ namespace DDTrace {
         ?string $origin = null,
         array|string|null $propagated_tags = null
     ): bool {}
+
+    /**
+     * Closes all spans and force-send finished traces to the agent
+     */
+    function flush(): void {}
 }
 
 namespace DDTrace\System {
@@ -329,6 +472,18 @@ namespace DDTrace\Config {
      * @return float The sample rate of the app analytics of the integration
      */
     function integration_analytics_sample_rate(string $integrationName): float {}
+}
+
+namespace DDTrace\Testing {
+    /**
+     * Overrides PHP's default error handling.
+     *
+     * @param string $message Error message
+     * @param int $errorType Error Type. Supported error types are: E_ERROR, E_WARNING, E_PARSE, E_NOTICE, E_CORE_ERROR,
+     * E_CORE_WARNING, E_COMPILE_ERROR, E_USER_ERROR, E_USER_WARNING, E_USER_NOTICE, E_STRICT, E_RECOVERABLE_ERROR,
+     * E_DEPRECATED, E_USER_DEPRECATED
+     */
+    function trigger_error(string $message, int $errorType): void {}
 }
 
 namespace {
@@ -598,4 +753,78 @@ namespace {
      * @return string Currently active span/trace unique identifier
      */
     function dd_trace_peek_span_id(): string {}
+
+    /**
+     * @alias DDTrace_trace_function
+     */
+    function dd_trace_function(string $functionName, \Closure|array $tracingClosureOrConfigArray): bool {}
+
+    /**
+     * @alias DDTrace_trace_method
+     */
+    function dd_trace_method(
+        string $className,
+        string $methodName,
+        \Closure|array $tracingClosureOrConfigArray
+    ): bool {}
+
+    /**
+     * Untrace a function or a method.
+     *
+     * @param string $functionName The name of the function or method to untrace
+     * @param string|null $className In the case of a method, its respective class should be provided as well
+     * @return bool 'true' if the un-tracing process was successful, else 'false'
+     */
+    function dd_untrace(string $functionName, string $className = null): bool {}
+
+    /**
+     * Parameter combination:
+     * - (class, function, closure | config_array)
+     * - (function, closure | config_array)
+     *
+     * @param mixed $classOrFunctionName
+     * @param mixed $methodNameOrTracingClosure
+     * @param mixed $tracingClosure
+     * @return bool
+     * @deprecated
+     */
+    function dd_trace(
+        mixed $classOrFunctionName,
+        mixed $methodNameOrTracingClosure,
+        mixed $tracingClosure = null
+    ): bool {}
+
+    /**
+     * @deprecated
+     * @return bool
+     */
+    function dd_trace_forward_call(): bool {}
+
+    /**
+     * Alias to dd_trace_push_span_id
+     *
+     * @alias dd_trace_push_span_id
+     * @deprecated
+     * @return void
+     */
+    function dd_trace_generate_id(): void {}
+
+    /**
+     * @deprecated
+     * @param string $existingID
+     * @return string
+     */
+    function dd_trace_push_span_id(string $existingID): string {}
+
+    /**
+     * @deprecated
+     * @return string
+     */
+    function dd_trace_pop_span_id(): string {}
+
+    /**
+     * @deprecated
+     * @return array
+     */
+    function additional_trace_meta(): array {}
 }

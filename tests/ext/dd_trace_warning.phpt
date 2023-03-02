@@ -4,8 +4,10 @@ Warn on dd_trace usage only once
 DD_TRACE_WARN_LEGACY_DD_TRACE=1
 --FILE--
 <?php
+error_reporting(E_ALL & ~E_DEPRECATED);
 dd_trace('dd_trace_noop', function () {});
 dd_trace('dd_trace_noop', function () {});
+error_reporting(E_ALL);
 echo "Done.\n";
 ?>
 --EXPECT--
