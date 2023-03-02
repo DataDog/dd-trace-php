@@ -152,8 +152,15 @@ static int ddog_php_prof_run_time_cache_handle = -1;
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 #if PHP_VERSION_ID >= 80000
     // Grab 2, one for function name and one for filename.
+#if PHP_VERSION_ID < 80200
+    ddog_php_prof_run_time_cache_handle =
+        zend_get_op_array_extension_handle(module_name);
+    int second = zend_get_op_array_extension_handle(module_name);
+    ZEND_ASSERT(ddog_php_prof_run_time_cache_handle + 1 == second);
+#else
     ddog_php_prof_run_time_cache_handle =
         zend_get_op_array_extension_handles(module_name, 2);
+#endif
 #endif
 
     /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
