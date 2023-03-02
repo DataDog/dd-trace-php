@@ -40,7 +40,8 @@ build:
 deploy_to_reliability_env:
   stage: deploy
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" && $FORCE_TRIGGER != "true"'
+    - if: '$FORCE_TRIGGER == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
