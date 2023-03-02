@@ -326,10 +326,10 @@ namespace DDTrace {
      *
      * @param SpanData|SpanStack|null $newStack Stack to switch to. If 'null' is given, switches to the parent of the
      * active stack. If a SpanData object is given, it will switch to the stack of the latter.
-     * @return SpanStack|null The newly active stack, or 'null' if the tracer is disabled. Won't happen under normal
-     * operation.
+     * @return null|false|SpanStack The newly active stack, or 'null' if the tracer is disabled (Won't happen under
+     * normal operation), or 'false' if unexpected parameters were given.
      */
-    function switch_stack(SpanData|SpanStack|null $newStack = null): null|SpanStack {}
+    function switch_stack(SpanData|SpanStack|null $newStack = null): null|false|SpanStack {}
 
     /**
      * Set the priority sampling level
@@ -346,9 +346,9 @@ namespace DDTrace {
      *
      * @param bool|null $global If set to 'true' and if there is no active stack (or the active stack doesn't have a
      * root span), then the default priority sampling will be returned, else it will be fetched from the root.
-     * @return int The priority sampling level.
+     * @return int|null The priority sampling level, or 'null' if an unexpected parameter was given.
      */
-    function get_priority_sampling(bool $global = false): int {}
+    function get_priority_sampling(bool $global = false): int|null {}
 
     /**
      * Sanitize an exception
