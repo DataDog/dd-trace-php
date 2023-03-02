@@ -5,34 +5,17 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "../common.hpp"
-#include "base64.h"
 #include "json_helper.hpp"
+#include "mocks.hpp"
 #include "remote_config/asm_dd_listener.hpp"
 #include "remote_config/product.hpp"
 #include <rapidjson/document.h>
 #include <subscriber/waf.hpp>
 
-const std::string waf_rule_with_data =
+const std::string waf_rule =
     R"({"rules": [{"id": "someId", "name": "Test", "tags": {"type": "security_scanner", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "http.url"} ], "regex": "(?i)\\evil\\b"}, "operator": "match_regex"} ], "transformers": [], "on_match": ["block"] } ] })";
 
-namespace dds {
-
-namespace mock {
-class engine : public dds::engine {
-public:
-    explicit engine(
-        uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit,
-        action_map &&actions = {})
-        : dds::engine(trace_rate_limit, std::move(actions))
-    {}
-    MOCK_METHOD(void, update,
-        (engine_ruleset &, (std::map<std::string_view, std::string> &),
-            (std::map<std::string_view, double> &)),
-        (override));
-
-    static auto create() { return std::shared_ptr<engine>(new engine()); }
-};
-} // namespace mock
+namespace dds::remote_config {
 
 remote_config::config get_asm_dd_data(
     const std::string &content, bool encode = true)
@@ -68,7 +51,7 @@ TEST(RemoteConfigAsmDdListener, ItParsesRules)
 
     remote_config::asm_dd_listener listener(engine, "");
 
-    listener.on_update(get_asm_dd_data(waf_rule_with_data));
+    listener.on_update(get_asm_dd_data(waf_rule));
 
     const auto &rules = doc["rules"];
     const auto &first = rules[0];
@@ -87,7 +70,7 @@ TEST(RemoteConfigAsmDdListener, OnUnApplyUsesFallback)
 
     remote_config::asm_dd_listener listener(engine, create_sample_rules_ok());
 
-    listener.on_unapply(get_asm_dd_data(waf_rule_with_data));
+    listener.on_unapply(get_asm_dd_data(waf_rule));
 
     const auto &rules = doc["rules"];
     const auto &first = rules[0];
@@ -211,4 +194,5 @@ TEST(RemoteConfigAsmDdListener, ItFallbackEngine)
         EXPECT_FALSE(res);
     }
 }
-} // namespace dds
+
+} // namespace dds::remote_config

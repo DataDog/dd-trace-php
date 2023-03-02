@@ -8,6 +8,7 @@
 #include "remote_config/asm_data_listener.hpp"
 #include "remote_config/asm_dd_listener.hpp"
 #include "remote_config/asm_features_listener.hpp"
+#include "remote_config/asm_listener.hpp"
 
 namespace dds {
 
@@ -56,9 +57,12 @@ service::ptr service::from_settings(const service_identifier &id,
         std::make_shared<remote_config::asm_data_listener>(engine_ptr);
     auto asm_dd_listener = std::make_shared<remote_config::asm_dd_listener>(
         engine_ptr, dds::engine_settings::default_rules_file());
+    auto asm_listener =
+        std::make_shared<remote_config::asm_listener>(engine_ptr);
     std::vector<remote_config::product> products = {
         {"ASM_FEATURES", asm_features_listener},
-        {"ASM_DATA", asm_data_listener}, {"ASM_DD", asm_dd_listener}};
+        {"ASM_DATA", asm_data_listener}, {"ASM_DD", asm_dd_listener},
+        {"ASM", asm_listener}};
 
     auto rc_client = remote_config::client::from_settings(
         id, rc_settings, std::move(products), std::move(capabilities));

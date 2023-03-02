@@ -10,7 +10,7 @@
 #include <subscriber/waf.hpp>
 
 const std::string waf_rule =
-    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}],"action":"record"}]})";
+    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]}]})";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -709,9 +709,9 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
     }
 
     {
-        engine_ruleset rule_data(
+        engine_ruleset update(
             R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/some-url"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })");
-        e->update(rule_data, meta, metrics);
+        e->update(update, meta, metrics);
     }
 
     {
@@ -724,6 +724,170 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
         EXPECT_TRUE(res);
         EXPECT_EQ(res->type, engine::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
+    }
+}
+
+TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+    }
+
+    {
+        engine_ruleset update(
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "enabled": "false"}]})");
+        e->update(update, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    {
+        engine_ruleset update(R"({"rules_override": []})");
+        e->update(update, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+    }
+}
+
+TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::record);
+    }
+
+    {
+        engine_ruleset update(
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "on_match": ["redirect"]}], "actions": [{"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}]})");
+        e->update(update, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::redirect);
+    }
+
+    {
+        engine_ruleset update(
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "on_match": ["redirect"]}], "actions": []})");
+        e->update(update, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::record);
+    }
+}
+
+TEST(EngineTest, WafSubscriptorExclusions)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::record);
+    }
+
+    {
+        engine_ruleset update(
+            R"({"exclusions": [{"id": "1", "rules_target":[{"rule_id":"1"}]}]})");
+        e->update(update, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    {
+        engine_ruleset update(R"({"exclusions": []})");
+        e->update(update, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
     }
 }
 

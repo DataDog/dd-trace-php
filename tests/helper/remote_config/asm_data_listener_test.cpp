@@ -7,6 +7,7 @@
 #include "../common.hpp"
 #include "base64.h"
 #include "json_helper.hpp"
+#include "mocks.hpp"
 #include "remote_config/asm_data_listener.hpp"
 #include "remote_config/product.hpp"
 #include <engine.hpp>
@@ -14,24 +15,7 @@
 #include <rapidjson/prettywriter.h>
 #include <subscriber/waf.hpp>
 
-namespace dds {
-
-namespace mock {
-class engine : public dds::engine {
-public:
-    explicit engine(
-        uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit,
-        action_map &&actions = {})
-        : dds::engine(trace_rate_limit, std::move(actions))
-    {}
-    MOCK_METHOD(void, update,
-        (engine_ruleset &, (std::map<std::string_view, std::string> &),
-            (std::map<std::string_view, double> &)),
-        (override));
-
-    static auto create() { return std::shared_ptr<engine>(new engine()); }
-};
-} // namespace mock
+namespace dds::remote_config {
 
 ACTION_P(SaveDocument, param)
 {
@@ -366,6 +350,24 @@ TEST(RemoteConfigAsmDataListener, ParseMultipleConfigurations)
     }
 }
 
+TEST(RemoteConfigAsmDataListener, EmptyUpdate)
+{
+    std::vector<test_rule_data> rules_data = {
+        {"id01", "ip_with_expiration", {}}};
+
+    auto engine = mock::engine::create();
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SaveDocument(&doc)));
+    remote_config::asm_data_listener listener(engine);
+    listener.init();
+    listener.commit();
+
+    const auto &rules = doc["rules_data"];
+    EXPECT_EQ(0, rules.Size());
+}
+
 TEST(RemoteConfigAsmDataListener, IfDataIsEmptyItDoesNotAddAnyRule)
 {
     std::vector<test_rule_data> rules_data = {
@@ -382,6 +384,34 @@ TEST(RemoteConfigAsmDataListener, IfDataIsEmptyItDoesNotAddAnyRule)
 
     const auto &rules = doc["rules_data"];
     EXPECT_EQ(0, rules.Size());
+}
+
+TEST(RemoteConfigAsmDataListener, IgnoreUnknownRuleDataType)
+{
+    std::vector<test_rule_data> rules_data = {
+        {"id01", "cidr_with_expiration",
+            {{11, "1.2.3.0/24"}, {3657529743, "5.6.0.0/16"}}},
+        {"id02", "data_with_expiration", {{std::nullopt, "user1"}}}};
+
+    auto engine = mock::engine::create();
+    rapidjson::Document doc;
+    EXPECT_CALL(*engine, update(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SaveDocument(&doc)));
+    remote_config::asm_data_listener listener(engine);
+    listener.on_update(get_rules_data(rules_data));
+    listener.commit();
+
+    const auto &rules = doc["rules_data"];
+    EXPECT_TRUE(rules.IsArray());
+    EXPECT_EQ(1, rules.Size());
+
+    const auto &data = rules[0];
+    EXPECT_TRUE(data.IsObject());
+
+    const auto &it = data.FindMember("id");
+    EXPECT_NE(it, data.MemberEnd());
+    EXPECT_STREQ(it->value.GetString(), "id02");
 }
 
 TEST(RemoteConfigAsmDataListener, ThrowsAnErrorIfContentNotInBase64)
@@ -800,4 +830,5 @@ TEST(RemoteConfigAsmDataListener, ItUpdatesEngine)
         EXPECT_EQ(res->events.size(), 1);
     }
 }
-} // namespace dds
+
+} // namespace dds::remote_config

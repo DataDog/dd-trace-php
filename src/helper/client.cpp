@@ -131,10 +131,23 @@ bool client::handle_command(const network::client_init::request &command)
     }
 
     if (eng_settings.rules_file.empty()) {
+        // ASM_DATA
         capabilities.push_back(
             remote_config::protocol::capabilities_e::ASM_IP_BLOCKING);
+
+        // ASM_DD
         capabilities.push_back(
             remote_config::protocol::capabilities_e::ASM_DD_RULES);
+
+        // ASM
+        capabilities.push_back(
+            remote_config::protocol::capabilities_e::ASM_EXCLUSIONS);
+        capabilities.push_back(remote_config::protocol::capabilities_e::
+                ASM_CUSTOM_BLOCKING_RESPONSE);
+        capabilities.push_back(
+            remote_config::protocol::capabilities_e::ASM_REQUEST_BLOCKING);
+        capabilities.push_back(
+            remote_config::protocol::capabilities_e::ASM_RESPONSE_BLOCKING);
     }
 
     try {
