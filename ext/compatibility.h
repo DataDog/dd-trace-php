@@ -173,10 +173,10 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 }
 
 #define ZVAL_EMPTY_ARRAY(z) do {						\
-		zval *__z = (z);								\
-		Z_ARR_P(__z) = (zend_array*)NULL;	\
-		Z_TYPE_INFO_P(__z) = IS_ARRAY; \
-	} while (0)
+        zval *__z = (z);								\
+        Z_ARR_P(__z) = (zend_array*)NULL;	\
+        Z_TYPE_INFO_P(__z) = IS_ARRAY; \
+    } while (0)
 
 #define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
 #define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)

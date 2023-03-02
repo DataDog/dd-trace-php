@@ -284,17 +284,17 @@ namespace DDTrace {
      * tracing information will be applied if available.
      *
      * @param float $startTime Start time of the span in seconds.
-     * @return SpanData The newly started span
+     * @return SpanData|false The newly started span, or 'false' if a wrong parameter was given.
      */
-    function start_span(float $startTime = 0): SpanData {}
+    function start_span(float $startTime = 0): SpanData|false {}
 
     /**
      * Close the currently active user-span on the top of the stack
      *
      * @param float $finishTime Finish time in seconds.
-     * @return void
+     * @return false|null 'false' if unexpected parameters were given, else 'null'
      */
-    function close_span(float $finishTime = 0): void {}
+    function close_span(float $finishTime = 0): false|null {}
 
     /**
      * Start a new trace
@@ -450,9 +450,9 @@ namespace DDTrace\System {
     /**
      * Get the unique identifier of the container
      *
-     * @return string The container id
+     * @return string|null The container id, or 'null' if no id was found
      */
-    function container_id(): string {}
+    function container_id(): string|null {}
 }
 
 namespace DDTrace\Config {
