@@ -12,7 +12,9 @@ on:
       - dd-appsec-php-**
   schedule:
     - cron: '29 17 * * 0'
-
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   analyze-helper:
     name: Analyze Helper
