@@ -8,6 +8,7 @@
         Note: installation of hooks may occur after minit */
 bool zai_hook_minit(void);
 bool zai_hook_rinit(void);
+void zai_hook_post_startup(void);
 void zai_hook_activate(void);
 void zai_hook_clean(void);
 void zai_hook_rshutdown(void);

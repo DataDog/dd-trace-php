@@ -139,7 +139,7 @@ static user_opcode_handler_t prev_post_declare_handler;
 static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data) {
     if (EX(opline) == &zai_interceptor_post_declare_ops[0] || EX(opline) == &zai_interceptor_post_declare_ops[1]) {
 #if PHP_VERSION_ID < 70400
-        if (zai_interceptor_post_declare_ops[0].opcode == ZEND_BIND_TRAITS) {
+        if (zai_interceptor_post_declare_ops[0].opcode == ZEND_BIND_TRAITS || zai_interceptor_post_declare_ops[0].opcode == ZEND_ADD_INTERFACE) {
             zend_class_entry *ce = Z_CE_P(EX_VAR(zai_interceptor_post_declare_ops[0].op1.var));
             zend_string *lcname = zend_string_tolower(ce->name);
             zai_hook_resolve_class(ce, lcname);
@@ -188,7 +188,12 @@ static int zai_interceptor_declare_function_handler(zend_execute_data *execute_d
 static user_opcode_handler_t prev_declare_class_handler;
 static int zai_interceptor_declare_class_handler(zend_execute_data *execute_data) {
     if (ZEND_DECLARE_CLASS == EX(opline)->opcode) {
-        zai_interceptor_install_post_declare_op(execute_data);
+#if PHP_VERSION_ID < 70400
+        if (EX(opline)[1].opcode != ZEND_BIND_TRAITS && EX(opline)[1].opcode != ZEND_ADD_INTERFACE)
+#endif
+        {
+            zai_interceptor_install_post_declare_op(execute_data);
+        }
     }
     return prev_declare_class_handler ? prev_declare_class_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
@@ -204,7 +209,7 @@ static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *exec
 #else
 static user_opcode_handler_t prev_declare_inherited_class_handler;
 static int zai_interceptor_declare_inherited_class_handler(zend_execute_data *execute_data) {
-    if (ZEND_DECLARE_INHERITED_CLASS == EX(opline)->opcode) {
+    if (ZEND_DECLARE_INHERITED_CLASS == EX(opline)->opcode && EX(opline)[1].opcode != ZEND_BIND_TRAITS && EX(opline)[1].opcode != ZEND_ADD_INTERFACE) {
         zai_interceptor_install_post_declare_op(execute_data);
     }
     return prev_declare_inherited_class_handler ? prev_declare_inherited_class_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
@@ -212,7 +217,7 @@ static int zai_interceptor_declare_inherited_class_handler(zend_execute_data *ex
 
 static user_opcode_handler_t prev_declare_inherited_class_delayed_handler;
 static int zai_interceptor_declare_inherited_class_delayed_handler(zend_execute_data *execute_data) {
-    if (ZEND_DECLARE_INHERITED_CLASS_DELAYED == EX(opline)->opcode) {
+    if (ZEND_DECLARE_INHERITED_CLASS_DELAYED == EX(opline)->opcode && EX(opline)[1].opcode != ZEND_BIND_TRAITS && EX(opline)[1].opcode != ZEND_ADD_INTERFACE) {
         zai_interceptor_install_post_declare_op(execute_data);
     }
     return prev_declare_inherited_class_delayed_handler ? prev_declare_inherited_class_delayed_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
@@ -220,10 +225,18 @@ static int zai_interceptor_declare_inherited_class_delayed_handler(zend_execute_
 
 static user_opcode_handler_t prev_bind_traits_handler;
 static int zai_interceptor_bind_traits_handler(zend_execute_data *execute_data) {
-    if (ZEND_BIND_TRAITS == EX(opline)->opcode) {
+    if (ZEND_BIND_TRAITS == EX(opline)->opcode && EX(opline)[1].opcode != ZEND_ADD_INTERFACE) {
         zai_interceptor_install_post_declare_op(execute_data);
     }
     return prev_bind_traits_handler ? prev_bind_traits_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
+
+static user_opcode_handler_t prev_add_interface_handler;
+static int zai_interceptor_add_interface_handler(zend_execute_data *execute_data) {
+    if (ZEND_ADD_INTERFACE == EX(opline)->opcode && EX(opline)[1].opcode != ZEND_ADD_INTERFACE) {
+        zai_interceptor_install_post_declare_op(execute_data);
+    }
+    return prev_add_interface_handler ? prev_add_interface_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 #endif
 
@@ -272,6 +285,8 @@ void zai_interceptor_setup_resolving_post_startup(void) {
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS_DELAYED, zai_interceptor_declare_inherited_class_delayed_handler);
     prev_bind_traits_handler = zend_get_user_opcode_handler(ZEND_BIND_TRAITS);
     zend_set_user_opcode_handler(ZEND_BIND_TRAITS, zai_interceptor_bind_traits_handler);
+    prev_add_interface_handler = zend_get_user_opcode_handler(ZEND_ADD_INTERFACE);
+    zend_set_user_opcode_handler(ZEND_ADD_INTERFACE, zai_interceptor_add_interface_handler);
 #endif
 
     prev_post_declare_handler = zend_get_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP);
@@ -298,6 +313,7 @@ void zai_interceptor_shutdown_resolving(void) {
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS, NULL);
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS_DELAYED, NULL);
     zend_set_user_opcode_handler(ZEND_BIND_TRAITS, NULL);
+    zend_set_user_opcode_handler(ZEND_ADD_INTERFACE, NULL);
 #endif
     zend_set_user_opcode_handler(ZAI_INTERCEPTOR_POST_DECLARE_OP, NULL);
 }

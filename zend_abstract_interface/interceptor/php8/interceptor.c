@@ -715,6 +715,7 @@ static zend_result (*prev_post_startup)(void);
 zend_result zai_interceptor_post_startup(void) {
     zend_result result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
 
+    zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
 #if PHP_VERSION_ID < 80200
     zai_registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
