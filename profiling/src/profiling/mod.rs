@@ -531,6 +531,7 @@ impl Profiler {
                 };
 
                 let labels = Profiler::message_labels();
+                let n_labels = labels.len();
 
                 match self.send_sample(Profiler::prepare_sample_message(
                     frames,
@@ -540,14 +541,14 @@ impl Profiler {
                         cpu_time,
                         ..Default::default()
                     },
-                    &labels,
+                    labels,
                     locals,
                 )) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {depth} with labels {labels:?} to profiler."
+                        "Sent stack sample of {depth} frames and {n_labels} labels to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {depth} with labels {labels:?} to profiler: {err}"
+                        "Failed to send stack sample of {depth} frames and {n_labels} labels to profiler: {err}"
                     ),
                 }
             }
@@ -571,6 +572,7 @@ impl Profiler {
             Ok(frames) => {
                 let depth = frames.len();
                 let labels = Profiler::message_labels();
+                let n_labels = labels.len();
 
                 match self.send_sample(Profiler::prepare_sample_message(
                     frames,
@@ -579,14 +581,14 @@ impl Profiler {
                         alloc_samples,
                         ..Default::default()
                     },
-                    &labels,
+                    labels,
                     locals
                 )) {
                     Ok(_) => trace!(
-                        "Sent stack sample of depth {depth} with size {alloc_size}, labels {labels:?} and count {alloc_samples} to profiler."
+                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of depth {depth} with size {alloc_size}, labels {labels:?} and count {alloc_samples} to profiler: {err}"
+                        "Failed to send stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
                     ),
                 }
             }
@@ -597,7 +599,6 @@ impl Profiler {
     }
 
     fn message_labels() -> Vec<Label> {
-        let mut labels = vec![];
         let gpc = unsafe { datadog_php_profiling_get_profiling_context };
         if let Some(get_profiling_context) = gpc {
             let context = unsafe { get_profiling_context() };
@@ -609,23 +610,25 @@ impl Profiler {
                 let local_root_span_id: i64 = unsafe { transmute(context.local_root_span_id) };
                 let span_id: i64 = unsafe { transmute(context.span_id) };
 
-                labels.push(Label {
-                    key: "local root span id",
-                    value: LabelValue::Num(local_root_span_id, None),
-                });
-                labels.push(Label {
-                    key: "span id",
-                    value: LabelValue::Num(span_id, None),
-                });
+                return vec![
+                    Label {
+                        key: "local root span id",
+                        value: LabelValue::Num(local_root_span_id, None),
+                    },
+                    Label {
+                        key: "span id",
+                        value: LabelValue::Num(span_id, None),
+                    },
+                ];
             }
         }
-        labels
+        vec![]
     }
 
     fn prepare_sample_message(
         frames: Vec<ZendFrame>,
         samples: SampleValues,
-        labels: &[Label],
+        labels: Vec<Label>,
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
@@ -671,7 +674,7 @@ impl Profiler {
             },
             value: SampleData {
                 frames,
-                labels: labels.to_vec(),
+                labels,
                 sample_values,
             },
         }
@@ -734,7 +737,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
 
         assert_eq!(message.key.sample_types, vec![]);
         let expected: Vec<i64> = vec![];
@@ -752,7 +755,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
 
         assert_eq!(
             message.key.sample_types,
@@ -775,7 +778,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
 
         assert_eq!(
             message.key.sample_types,
@@ -799,7 +802,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
 
         assert_eq!(
             message.key.sample_types,
@@ -824,7 +827,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, &labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
 
         assert_eq!(
             message.key.sample_types,
