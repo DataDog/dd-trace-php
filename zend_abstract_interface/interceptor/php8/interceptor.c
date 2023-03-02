@@ -1,6 +1,7 @@
 #include <Zend/zend_observer.h>
 #include <hook/hook.h>
 #include <hook/table.h>
+#include <Zend/zend_attributes.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_generators.h>
 #include "interceptor.h"
@@ -408,6 +409,22 @@ static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(ze
 }
 
 #if PHP_VERSION_ID < 80200
+static inline bool zai_interceptor_is_attribute_ctor(zend_function *func) {
+    zend_class_entry *ce = func->common.scope;
+    return ce && UNEXPECTED(ce->attributes) && UNEXPECTED(zend_get_attribute_str(ce->attributes, ZEND_STRL("attribute")) != NULL)
+        && zend_string_equals_literal_ci(func->common.function_name, "__construct");
+}
+
+static void zai_interceptor_observer_begin_handler_attribute_ctor(zend_execute_data *execute_data) {
+    // On PHP 8.1.2 and prior, there exists a bug (see https://github.com/php/php-src/pull/7885).
+    // It causes the dummy frame of observers to not be skipped, which has no run_time_cache and thereby crashes, if unwound across.
+    // Adding the ZEND_ACC_CALL_VIA_TRAMPOLINE flag causes the frame to be always skipped on observer_end unwind
+    if (execute_data->prev_execute_data && !ZEND_MAP_PTR(execute_data->prev_execute_data->func->op_array.run_time_cache)) {
+        execute_data->prev_execute_data->func->common.fn_flags |= ZEND_ACC_CALL_VIA_TRAMPOLINE;
+    }
+    zai_interceptor_observer_begin_handler(execute_data);
+}
+
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
 #define ZEND_OBSERVER_DATA(op_array) \
@@ -432,6 +449,11 @@ void zai_interceptor_replace_observer_legacy(zend_function *func, bool remove) {
 
     zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(op_array);
     if (!data) {
+        return;
+    }
+
+    // Always observe these for their special handling, to add trampoline flag on parent call
+    if (zai_interceptor_is_attribute_ctor(func)) {
         return;
     }
 
@@ -591,12 +613,20 @@ static zend_always_inline bool zai_interceptor_shall_install_handlers(zend_funct
 
 static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_execute_data *execute_data) {
     zend_function *func = execute_data->func;
+#if PHP_VERSION_ID < 80200
+    #undef zai_interceptor_replace_observer
+
+    // short-circuit this, it only happens on old versions, avoid checking overhead if unnecessary
+    if (zai_interceptor_replace_observer != zai_interceptor_replace_observer_current && zai_interceptor_is_attribute_ctor(func)) {
+        return (zend_observer_fcall_handlers){zai_interceptor_observer_begin_handler_attribute_ctor, zai_interceptor_observer_end_handler};
+    }
+#endif
+
     if (UNEXPECTED(zai_interceptor_shall_install_handlers(func))) {
         return zai_interceptor_determine_handlers(func);
     }
 
 #if PHP_VERSION_ID < 80200
-#undef zai_interceptor_replace_observer
     // Use one-time begin handler which will remove itself
     return (zend_observer_fcall_handlers){zai_interceptor_replace_observer == zai_interceptor_replace_observer_current ? NULL : zai_interceptor_observer_placeholder_handler, NULL};
 #else
