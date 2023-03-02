@@ -172,6 +172,12 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     return ht;
 }
 
+#define ZVAL_EMPTY_ARRAY(z) do {						\
+		zval *__z = (z);								\
+		Z_ARR_P(__z) = (zend_array*)NULL;	\
+		Z_TYPE_INFO_P(__z) = IS_ARRAY; \
+	} while (0)
+
 #define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
 #define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
 #define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
@@ -206,12 +212,6 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
 #undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
 #define ZEND_ARG_VARIADIC_TYPE_INFO(pass_by_ref, name, type_hint, allow_null) ZEND_ARG_INFO(pass_by_ref, name)
 
-#define ZVAL_EMPTY_ARRAY(z) do {						\
-		zval *__z = (z);								\
-		Z_ARR_P(__z) = (zend_array*)&zend_empty_array;	\
-		Z_TYPE_INFO_P(__z) = IS_ARRAY; \
-	} while (0)
-
 #define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
     static const zend_internal_arg_info name[] = { \
         { (const char*)(zend_uintptr_t)(required_num_args), NULL, type, return_reference, allow_null, 0 },
@@ -234,8 +234,6 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
 
 #if PHP_VERSION_ID < 70100
 #define IS_VOID 0
-#undef ZVAL_EMPTY_ARRAY
-#define ZVAL_EMPTY_ARRAY(z) do { } while (0)
 #endif
 
 #if PHP_VERSION_ID < 80100
