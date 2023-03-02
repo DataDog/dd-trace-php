@@ -33,11 +33,14 @@ impl Uploader {
         let profiling_library_name: &str = &PROFILER_NAME_STR;
         let profiling_library_version: &str = &PROFILER_VERSION_STR;
         let endpoint: Endpoint = (&*index.endpoint).try_into()?;
+
+        // This is the currently unstable Arc::unwrap_or_clone.
+        let tags = Some(Arc::try_unwrap(index.tags).unwrap_or_else(|arc| (*arc).clone()));
         let exporter = datadog_profiling::exporter::ProfileExporter::new(
             profiling_library_name,
             profiling_library_version,
             "php",
-            Some(index.tags),
+            tags,
             endpoint,
         )?;
 

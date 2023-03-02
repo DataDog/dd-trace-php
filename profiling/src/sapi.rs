@@ -91,9 +91,9 @@ impl Sapi {
     }
 }
 
-impl Display for Sapi {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let name = match self {
+impl AsRef<str> for Sapi {
+    fn as_ref(&self) -> &str {
+        match self {
             Sapi::Unknown => "unknown",
             Sapi::Apache2Handler => "apache2handler",
             Sapi::CgiFcgi => "cgi-fcgi",
@@ -104,7 +104,13 @@ impl Display for Sapi {
             Sapi::Litespeed => "litespeed",
             Sapi::PhpDbg => "phpdbg",
             Sapi::Tea => "tea",
-        };
+        }
+    }
+}
+
+impl Display for Sapi {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let name = self.as_ref();
         f.write_str(name)
     }
 }

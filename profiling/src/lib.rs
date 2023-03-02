@@ -17,7 +17,7 @@ use once_cell::sync::OnceCell;
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ops::DerefMut;
@@ -25,7 +25,7 @@ use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Mutex, Once};
+use std::sync::{Arc, Mutex, Once};
 use std::time::Instant;
 use uuid::Uuid;
 
@@ -309,7 +309,7 @@ pub struct RequestLocals {
     pub profiling_experimental_allocation_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
-    pub tags: Vec<Tag>,
+    pub tags: Arc<Vec<Tag>>,
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt_addr: *const AtomicBool,
@@ -400,7 +400,7 @@ thread_local! {
         profiling_experimental_allocation_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
-        tags: static_tags(),
+        tags: Arc::new(static_tags()),
         uri: Box::new(AgentEndpoint::default()),
         version: None,
         vm_interrupt_addr: std::ptr::null_mut(),
@@ -558,41 +558,33 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 locals.last_cpu_time = Some(now);
             }
 
-            // Bleh, clone for borrow checker.
-            let vars = [
-                ("service", locals.service.clone()),
-                ("env", locals.env.clone()),
-                ("version", locals.version.clone()),
-            ];
+            {
+                // Calling make_mut would be more efficient, but we get into
+                // issues with borrowing part of `locals` mutably and others
+                // immutably. So, we clone the tags and replace locals.tags
+                // later.
+                let mut tags = (*locals.tags).clone();
 
-            for (key, value) in vars {
-                if let Some(value) = value {
-                    assert!(!value.is_empty());
-                    log_add_tag(&mut locals, key, value);
+                local_add_optional_tag(&mut tags, "service", &locals.service);
+                local_add_optional_tag(&mut tags, "env", &locals.env);
+                local_add_optional_tag(&mut tags, "version", &locals.version);
+
+                let runtime_id = runtime_id();
+                if !runtime_id.is_nil() {
+                    local_add_tag(&mut tags, "runtime-id", &runtime_id.to_string());
                 }
-            }
 
-            let runtime_id = runtime_id();
-            if !runtime_id.is_nil() {
-                match Tag::new("runtime-id", runtime_id.to_string()) {
-                    Ok(tag) => locals.tags.push(tag),
-                    Err(err) => warn!("invalid tag: {err}"),
+                if let Some(version) = PHP_VERSION.get() {
+                    /* This should probably be "language_version", but this is
+                     * the tag that was standardized for this purpose. */
+                    local_add_tag(&mut tags, "runtime_version", version);
                 }
-            }
 
-            if let Some(version) = PHP_VERSION.get() {
-                /* This should probably be "language_version", but this is
-                 * the tag that was standardized for this purpose. */
-                let tag = Tag::new("runtime_version", version)
-                    .expect("runtime_version to be a valid tag");
-                locals.tags.push(tag);
-            }
-
-            if let Some(sapi) = SAPI.get() {
-                match Tag::new("php.sapi", sapi.to_string()) {
-                    Ok(tag) => locals.tags.push(tag),
-                    Err(err) => warn!("invalid tag: {err}"),
+                if let Some(sapi) = SAPI.get() {
+                    local_add_tag(&mut tags, "php.sapi", sapi.as_ref());
                 }
+
+                locals.tags = Arc::new(tags);
             }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
@@ -647,10 +639,17 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-fn log_add_tag<V: AsRef<str>>(locals: &mut RefMut<RequestLocals>, key: &str, value: V) {
+fn local_add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Option<T>) {
+    if let Some(value) = value {
+        local_add_tag(tags, key, value.as_ref());
+    }
+}
+
+fn local_add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
+    assert!(!value.is_empty());
     match Tag::new(key, value) {
         Ok(tag) => {
-            locals.tags.push(tag);
+            tags.push(tag);
         }
         Err(err) => {
             warn!("invalid tag: {err}");
@@ -730,7 +729,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                     warn!("Unable to find interrupt {err}.");
                 }
             }
-            locals.tags = static_tags();
+            locals.tags = Arc::new(static_tags());
         }
 
         #[cfg(feature = "allocation_profiling")]

@@ -118,7 +118,7 @@ impl ValueType {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct ProfileIndex {
     pub sample_types: Vec<ValueType>,
-    pub tags: Vec<Tag>,
+    pub tags: Arc<Vec<Tag>>,
     pub endpoint: Box<AgentEndpoint>,
 }
 
@@ -661,7 +661,7 @@ impl Profiler {
             }
         }
 
-        let tags = locals.tags.clone();
+        let tags = Arc::clone(&locals.tags);
 
         SampleMessage {
             key: ProfileIndex {
@@ -704,7 +704,7 @@ mod tests {
             profiling_experimental_allocation_enabled: false,
             profiling_log_level: LevelFilter::Off,
             service: None,
-            tags: static_tags(),
+            tags: Arc::new(static_tags()),
             uri: Box::new(AgentEndpoint::default()),
             version: None,
             vm_interrupt_addr: std::ptr::null_mut(),
