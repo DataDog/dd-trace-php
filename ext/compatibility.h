@@ -46,6 +46,11 @@
 #define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, _5, ARITY, ...) UNUSED_##ARITY
 #define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 5, 4, 3, 2, 1)(__VA_ARGS__)
 
+#if PHP_VERSION_ID < 80200
+#define ZEND_ACC_READONLY 0
+#define ZEND_ACC_READONLY_CLASS 0
+#endif
+
 #if PHP_VERSION_ID < 80000
 #define ZVAL_OBJ_COPY(z, o) do { \
         zval *__z = (z); \
@@ -67,9 +72,6 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
     return zend_get_closure_method_def(&zv);
 }
 #define zend_get_closure_method_def dd_zend_get_closure_method_def
-
-#define ZEND_ACC_READONLY 0
-#define ZEND_ACC_READONLY_CLASS 0
 
 #define ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, classname, allow_null, default_value) ZEND_ARG_OBJ_INFO(pass_by_ref, name, classname, allow_null)
 #define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)
