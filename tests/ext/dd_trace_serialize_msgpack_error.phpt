@@ -2,6 +2,11 @@
 dd_trace_serialize_msgpack() error conditions
 --ENV--
 DD_TRACE_DEBUG=1
+--SKIPIF--
+<?php
+if (version_compare(PHP_VERSION, '8.2.0', '<'))
+    die('skip: test only works in 8.2+');
+?>
 --FILE--
 <?php
 array_map(function ($data) {

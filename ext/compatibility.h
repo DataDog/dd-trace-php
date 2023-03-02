@@ -68,11 +68,24 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
 }
 #define zend_get_closure_method_def dd_zend_get_closure_method_def
 
+#define ZEND_ACC_READONLY 0
+#define ZEND_ACC_READONLY_CLASS 0
+
 #define ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, classname, allow_null, default_value) ZEND_ARG_OBJ_INFO(pass_by_ref, name, classname, allow_null)
 #define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)
 #define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
 #define ZEND_TYPE_INIT_MASK(type) NULL
 #define ZEND_TYPE_INIT_CLASS(class_name, allow_null, extra_flags) NULL; zend_string_release(class_name)
+
+#define ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value) ZEND_ARG_INFO(pass_by_ref, name)
+#define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(name, return_reference, required_num_args, type) ZEND_BEGIN_ARG_INFO_EX(name, 0, return_reference, required_num_args)
+#define ZEND_ARG_TYPE_MASK(pass_by_ref, name, type_mask, default_value) ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value)
+#define ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, type_hint, allow_null, default_value) ZEND_ARG_TYPE_INFO(pass_by_ref, name, type_hint, allow_null)
+
+#define IS_MIXED 0
+#define MAY_BE_NULL 0
+#define MAY_BE_STRING 0
+#define MAY_BE_ARRAY 0
 
 static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest, zend_class_entry *ce, bool check_null) {
     if (EXPECTED(Z_TYPE_P(arg) == IS_OBJECT) &&
@@ -188,6 +201,8 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
 }
 
 #undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
+#define ZEND_ARG_VARIADIC_TYPE_INFO(pass_by_ref, name, type_hint, allow_null) ZEND_ARG_INFO(pass_by_ref, name)
+#define ZVAL_EMPTY_ARRAY(z) do { } while (0)
 #define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
     static const zend_internal_arg_info name[] = { \
         { (const char*)(zend_uintptr_t)(required_num_args), NULL, type, return_reference, allow_null, 0 },
