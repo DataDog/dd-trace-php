@@ -10,6 +10,7 @@
 #include "remote_config/asm_dd_listener.hpp"
 #include "remote_config/product.hpp"
 #include <rapidjson/document.h>
+#include <subscriber/waf.hpp>
 
 const std::string waf_rule_with_data =
     R"({"rules": [{"id": "someId", "name": "Test", "tags": {"type": "security_scanner", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "http.url"} ], "regex": "(?i)\\evil\\b"}, "operator": "match_regex"} ], "transformers": [], "on_match": ["block"] } ] })";
@@ -138,4 +139,76 @@ TEST(RemoteConfigAsmDdListener, ItThrowsAnErrorIfContentNotValidJsonContent)
                      expected_error_message));
 }
 
+TEST(RemoteConfigAsmDdListener, ItUpdatesEngine)
+{
+    const std::string rules =
+        R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/other/url"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })";
+
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(rules, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("server.request.query", parameter::string("/anotherUrl"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    const std::string new_rules =
+        R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/anotherUrl"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })";
+    remote_config::asm_dd_listener listener(e, "");
+    listener.on_update(get_asm_dd_data(new_rules));
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("server.request.query", parameter::string("/anotherUrl"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->events.size(), 1);
+    }
+}
+
+TEST(RemoteConfigAsmDdListener, ItFallbackEngine)
+{
+    const std::string rules =
+        R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/a/url"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })";
+
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(rules, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("server.request.query", parameter::string("/a/url"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->events.size(), 1);
+    }
+
+    remote_config::asm_dd_listener listener(e, create_sample_rules_ok());
+    listener.on_unapply(get_asm_dd_data(""));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("server.request.query", parameter::string("/a/url"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+}
 } // namespace dds

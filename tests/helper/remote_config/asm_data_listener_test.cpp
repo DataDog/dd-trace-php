@@ -9,8 +9,10 @@
 #include "json_helper.hpp"
 #include "remote_config/asm_data_listener.hpp"
 #include "remote_config/product.hpp"
+#include <engine.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
+#include <subscriber/waf.hpp>
 
 namespace dds {
 
@@ -749,4 +751,53 @@ TEST(RemoteConfigAsmDataListener, ThrowsAnErrorIfDataValueHasInvalidType)
                      expected_error_message));
 }
 
+TEST(RemoteConfigAsmDataListener, ItUpdatesEngine)
+{
+    std::string ip = "1.2.3.4";
+    const std::string waf_rule_with_data =
+        R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
+
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+
+    std::vector<test_rule_data> rules_data = {
+        {"blocked_ips", "data_with_expiration", {{std::nullopt, ip}}}};
+
+    remote_config::asm_data_listener listener(e);
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string(ip));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    listener.on_update(get_rules_data(rules_data));
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string(ip));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    listener.commit();
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("http.client_ip", parameter::string(ip));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->events.size(), 1);
+    }
+}
 } // namespace dds

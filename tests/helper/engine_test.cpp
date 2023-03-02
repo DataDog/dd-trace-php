@@ -690,4 +690,41 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
     }
 }
 
+TEST(EngineTest, WafSubscriptorUpdateRules)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("server.request.query", parameter::string("/some-url"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    {
+        engine_ruleset rule_data(
+            R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/some-url"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })");
+        e->update(rule_data, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("server.request.query", parameter::string("/some-url"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->events.size(), 1);
+    }
+}
+
 } // namespace dds

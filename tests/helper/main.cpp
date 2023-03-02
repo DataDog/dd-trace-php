@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
+#include "subscriber/waf.hpp"
 #include <gtest/gtest.h>
 #include <spdlog/spdlog.h>
 
@@ -133,6 +134,7 @@ int main(int argc, char **argv)
     auto logger = spdlog::basic_logger_mt("ddappsec", "/tmp/helper-test.log");
     spdlog::set_default_logger(logger);
     spdlog::set_level(spdlog::level::debug);
+    dds::waf::initialise_logging(spdlog::level::debug);
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
