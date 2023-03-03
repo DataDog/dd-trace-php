@@ -39,6 +39,8 @@ object(DDTrace\SpanData)#%d (9) {
     ["process_id"]=>
     float(%f)
   }
+  ["exception"]=>
+  uninitialized(?Throwable)
   ["id"]=>
   string(%d) "%d"
   ["parent"]=>
@@ -73,6 +75,8 @@ object(DDTrace\SpanData)#%d (9) {
     ["process_id"]=>
     float(%f)
   }
+  ["exception"]=>
+  uninitialized(?Throwable)
   ["id"]=>
   string(%d) "%d"
   ["parent"]=>
@@ -104,6 +108,8 @@ object(DDTrace\SpanData)#%d (9) {
         ["process_id"]=>
         float(%f)
       }
+      ["exception"]=>
+      uninitialized(?Throwable)
       ["id"]=>
       string(%d) "%d"
       ["parent"]=>

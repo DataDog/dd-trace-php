@@ -25,26 +25,26 @@ namespace DDTrace {
 
     class SpanData {
         /**
-         * @var string The span name
+         * @var string|null The span name
          */
-        public string $name = "";
+        public string|null $name = "";
 
         /**
-         * @var string The resource you are tracing
+         * @var string|null The resource you are tracing
          */
-        public string $resource = "";
+        public string|null $resource = "";
 
         /**
-         * @var string The service you are tracing. Defaults to active service at the time of span creation (i.e., the
+         * @var string|null The service you are tracing. Defaults to active service at the time of span creation (i.e., the
          * parent span), or datadog.service initialization settings if no parent exists
          */
-        public string $service = "";
+        public string|null $service = "";
 
         /**
-         * @var string The type of request which can be set to: web, db, cache, or custom (Optional). Inherited from
+         * @var string|null The type of request which can be set to: web, db, cache, or custom (Optional). Inherited from
          * parent.
          */
-        public string $type = "";
+        public string|null $type = "";
 
         /**
          * @var string[] $meta An array of key-value span metadata; keys and values must be strings.
@@ -805,9 +805,10 @@ namespace {
      *
      * @alias dd_trace_push_span_id
      * @deprecated
-     * @return void
+     * @param string $existingID
+     * @return string
      */
-    function dd_trace_generate_id(): void {}
+    function dd_trace_generate_id(string $existingID): string {}
 
     /**
      * @deprecated

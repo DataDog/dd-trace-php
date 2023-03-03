@@ -47,7 +47,6 @@
 #define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 5, 4, 3, 2, 1)(__VA_ARGS__)
 
 #if PHP_VERSION_ID < 80200
-#define ZEND_ACC_READONLY 0
 #define ZEND_ACC_READONLY_CLASS 0
 #endif
 
@@ -172,10 +171,11 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     return ht;
 }
 
-#define ZVAL_EMPTY_ARRAY(z) do {						\
-        zval *__z = (z);								\
-        Z_ARR_P(__z) = (zend_array*)NULL;	\
-        Z_TYPE_INFO_P(__z) = IS_ARRAY; \
+#define ZVAL_EMPTY_ARRAY(z) do {						         \
+        zval *__z = (z);								         \
+        Z_ARR_P(__z) = malloc(sizeof(HashTable));                \
+        zend_hash_init(Z_ARR_P(__z), 0, NULL, ZVAL_PTR_DTOR, 1); \
+        Z_TYPE_INFO_P(__z) = IS_ARRAY;                           \
     } while (0)
 
 #define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
@@ -243,6 +243,7 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
 #else
 #define ZEND_ATOL(s) atol((s))
 #endif
+#define ZEND_ACC_READONLY 0
 #endif
 
 #if PHP_VERSION_ID < 80200

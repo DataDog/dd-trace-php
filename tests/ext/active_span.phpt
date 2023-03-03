@@ -29,6 +29,8 @@ bool(true)
 object(DDTrace\SpanData)#%d (8) {
   ["name"]=>
   string(15) "active_span.php"
+  ["resource"]=>
+  uninitialized(?string)
   ["service"]=>
   string(15) "active_span.php"
   ["type"]=>
@@ -41,6 +43,8 @@ object(DDTrace\SpanData)#%d (8) {
     ["process_id"]=>
     float(%f)
   }
+  ["exception"]=>
+  uninitialized(?Throwable)
   ["id"]=>
   string(%d) "%d"
   ["parent"]=>

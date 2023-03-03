@@ -440,29 +440,8 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
     ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
     ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
-
-    zend_class_entry ce;
-    INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanData", class_DDTrace_SpanData_methods);
-    ddtrace_ce_span_data = zend_register_internal_class(&ce);
+    ddtrace_ce_span_data = register_class_DDTrace_SpanData();
     ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
-
-    // trace_id, span_id, parent_id, start & duration are stored directly on
-    // ddtrace_span_data so we don't need to make them properties on DDTrace\SpanData
-    /*
-     * ORDER MATTERS: If you make any changes to the properties below, update the
-     * corresponding ddtrace_spandata_property_*() function with the proper offset.
-     * ALSO: Update the properties_table_placeholder size of ddtrace_span_data to property count - 1.
-     */
-    zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "id", sizeof("id") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "stack", sizeof("stack") - 1, ZEND_ACC_PUBLIC);
 
     ddtrace_ce_span_stack = register_class_DDTrace_SpanStack();
     ddtrace_ce_span_stack->create_object = ddtrace_span_stack_create;
