@@ -110,8 +110,7 @@ impl AsRef<str> for Sapi {
 
 impl Display for Sapi {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let name = self.as_ref();
-        f.write_str(name)
+        f.write_str(self.as_ref())
     }
 }
 
