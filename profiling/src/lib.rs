@@ -565,23 +565,23 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 // later.
                 let mut tags = (*locals.tags).clone();
 
-                local_add_optional_tag(&mut tags, "service", &locals.service);
-                local_add_optional_tag(&mut tags, "env", &locals.env);
-                local_add_optional_tag(&mut tags, "version", &locals.version);
+                add_optional_tag(&mut tags, "service", &locals.service);
+                add_optional_tag(&mut tags, "env", &locals.env);
+                add_optional_tag(&mut tags, "version", &locals.version);
 
                 let runtime_id = runtime_id();
                 if !runtime_id.is_nil() {
-                    local_add_tag(&mut tags, "runtime-id", &runtime_id.to_string());
+                    add_tag(&mut tags, "runtime-id", &runtime_id.to_string());
                 }
 
                 if let Some(version) = PHP_VERSION.get() {
                     /* This should probably be "language_version", but this is
                      * the tag that was standardized for this purpose. */
-                    local_add_tag(&mut tags, "runtime_version", version);
+                    add_tag(&mut tags, "runtime_version", version);
                 }
 
                 if let Some(sapi) = SAPI.get() {
-                    local_add_tag(&mut tags, "php.sapi", sapi.as_ref());
+                    add_tag(&mut tags, "php.sapi", sapi.as_ref());
                 }
 
                 locals.tags = Arc::new(tags);
@@ -639,13 +639,13 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-fn local_add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Option<T>) {
+fn add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Option<T>) {
     if let Some(value) = value {
-        local_add_tag(tags, key, value.as_ref());
+        add_tag(tags, key, value.as_ref());
     }
 }
 
-fn local_add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
+fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
     assert!(!value.is_empty());
     match Tag::new(key, value) {
         Ok(tag) => {
