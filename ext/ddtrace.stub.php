@@ -35,14 +35,14 @@ namespace DDTrace {
         public string|null $resource = "";
 
         /**
-         * @var string|null The service you are tracing. Defaults to active service at the time of span creation (i.e., the
-         * parent span), or datadog.service initialization settings if no parent exists
+         * @var string|null The service you are tracing. Defaults to active service at the time of span creation (i.e.,
+         * the parent span), or datadog.service initialization settings if no parent exists
          */
         public string|null $service = "";
 
         /**
-         * @var string|null The type of request which can be set to: web, db, cache, or custom (Optional). Inherited from
-         * parent.
+         * @var string|null The type of request which can be set to: web, db, cache, or custom (Optional). Inherited
+         * from parent.
          */
         public string|null $type = "";
 
