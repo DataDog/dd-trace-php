@@ -574,15 +574,10 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                     add_tag(&mut tags, "runtime-id", &runtime_id.to_string());
                 }
 
-                if let Some(version) = PHP_VERSION.get() {
-                    /* This should probably be "language_version", but this is
-                     * the tag that was standardized for this purpose. */
-                    add_tag(&mut tags, "runtime_version", version);
-                }
-
-                if let Some(sapi) = SAPI.get() {
-                    add_tag(&mut tags, "php.sapi", sapi.as_ref());
-                }
+                /* This should probably be "language_version", but this is
+                 * the tag that was standardized for this purpose. */
+                add_optional_tag(&mut tags, "runtime_version", &PHP_VERSION.get());
+                add_optional_tag(&mut tags, "php.sapi", &SAPI.get());
 
                 locals.tags = Arc::new(tags);
             }
