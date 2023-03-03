@@ -733,6 +733,7 @@ TEST_WEB_80 := \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
 	test_web_yii_2 \
+	test_web_zend_1_21 \
 	test_web_custom
 
 TEST_INTEGRATIONS_81 := \
@@ -757,7 +758,8 @@ TEST_WEB_81 := \
 	test_web_slim_4 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
-	test_web_custom
+	test_web_custom \
+	test_web_zend_1_21
 #	test_web_yii_2 \
 
 TEST_INTEGRATIONS_82 := \
@@ -785,7 +787,8 @@ TEST_WEB_82 := \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_wordpress_59 \
-	test_web_custom
+	test_web_custom \
+	test_web_zend_1_21
 #	test_web_yii_2 \
 
 FILTER := .
@@ -1015,6 +1018,8 @@ test_web_nette_30: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/Nette/V3_0)
 test_web_zend_1: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/ZendFramework/V1)
+test_web_zend_1_21: global_test_run_dependencies
+	$(call run_tests,tests/Integrations/ZendFramework/V1_21)
 test_web_custom: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
 	$(call run_tests,--testsuite=custom-framework-autoloading-test)
