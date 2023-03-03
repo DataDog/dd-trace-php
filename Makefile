@@ -733,6 +733,7 @@ TEST_WEB_80 := \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
 	test_web_yii_2 \
+	test_web_zend_1_21 \
 	test_web_custom
 
 TEST_INTEGRATIONS_81 := \
@@ -757,7 +758,8 @@ TEST_WEB_81 := \
 	test_web_slim_4 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
-	test_web_custom
+	test_web_custom \
+	test_web_zend_1_21
 #	test_web_yii_2 \
 
 TEST_INTEGRATIONS_82 := \
