@@ -214,7 +214,7 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
 
 #define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
     static const zend_internal_arg_info name[] = { \
-        { (const char*)(zend_uintptr_t)(required_num_args), NULL, type, return_reference, allow_null, 0 },
+        { (const char*)(zend_uintptr_t)(required_num_args), NULL, (type) == IS_FALSE ? _IS_BOOL : (type), return_reference, allow_null, 0 },
 #define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
     static const zend_internal_arg_info name[] = { \
         { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
