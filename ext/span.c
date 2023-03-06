@@ -290,6 +290,13 @@ ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type) {
     return span;
 }
 
+ddtrace_span_data *ddtrace_init_dummy_span(void) {
+    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN);
+    span->std.handlers->get_constructor(&span->std);
+    span->duration = DDTRACE_SILENTLY_DROPPED_SPAN;
+    return span;
+}
+
 static ddtrace_span_stack *dd_alloc_span_stack(void) {
     zval fci_zv;
     object_init_ex(&fci_zv, ddtrace_ce_span_stack);

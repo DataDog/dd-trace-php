@@ -61,6 +61,12 @@
 #include "handlers_exception.h"
 #include "exceptions/exceptions.h"
 
+// On PHP 7.0 - 7.2 we cannot declare arrays as internal values. Assign null and handle in create_object where necessary.
+#if PHP_VERSION_ID < 70300
+#undef ZVAL_EMPTY_ARRAY
+#define ZVAL_EMPTY_ARRAY ZVAL_NULL
+#endif
+
 #include "ddtrace_arginfo.h"
 
 bool ddtrace_has_excluded_module;
@@ -277,8 +283,12 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_data *span = ecalloc(1, sizeof(*span));
     zend_object_std_init(&span->std, class_type);
     span->std.handlers = &ddtrace_span_data_handlers;
+    object_properties_init(&span->std, class_type);
+#if PHP_VERSION_ID < 70300
+    // Not handled in arginfo on these old versions
     array_init(ddtrace_spandata_property_meta_zval(span));
     array_init(ddtrace_spandata_property_metrics_zval(span));
+#endif
     return &span->std;
 }
 
@@ -287,7 +297,14 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
     zend_object_std_init(&stack->std, class_type);
     stack->root_stack = stack;
     stack->std.handlers = &ddtrace_span_stack_handlers;
+    object_properties_init(&stack->std, class_type);
     return &stack->std;
+}
+
+// Init with empty span stack if directly allocated via new()
+static zend_function *ddtrace_span_data_get_constructor(zend_object *object) {
+    object_init_ex(&((ddtrace_span_data *)object)->property_stack, ddtrace_ce_span_stack);
+    return NULL;
 }
 
 static void ddtrace_span_stack_dtor_obj(zend_object *object) {
@@ -440,6 +457,7 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
     ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
     ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
+    ddtrace_span_data_handlers.get_constructor = ddtrace_span_data_get_constructor;
 #if PHP_VERSION_ID >= 80000
     ddtrace_ce_span_data = register_class_DDTrace_SpanData();
     ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
@@ -1587,10 +1605,13 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
         RETURN_FALSE;
     }
 
-    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN);
+    ddtrace_span_data *span;
 
     if (get_DD_TRACE_ENABLED()) {
+        span = ddtrace_init_span(DDTRACE_USER_SPAN);
         ddtrace_open_span(span);
+    } else {
+        span = ddtrace_init_dummy_span();
     }
 
     if (start_time_seconds > 0) {

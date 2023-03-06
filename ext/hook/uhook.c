@@ -465,8 +465,7 @@ void dd_uhook_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
     // pre-hook check
     if (!hookData->execute_data || (!unlimited && ddtrace_tracer_is_limited())) {
         // dummy span, which never gets pushed
-        hookData->span = ddtrace_init_span(DDTRACE_USER_SPAN);
-        hookData->span->duration = DDTRACE_SILENTLY_DROPPED_SPAN;
+        hookData->span = ddtrace_init_dummy_span();
         RETURN_OBJ_COPY(&hookData->span->std);
     }
 

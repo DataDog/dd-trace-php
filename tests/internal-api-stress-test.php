@@ -168,7 +168,8 @@ function runOneIteration()
             $prop->setAccessible(true);
             try {
                 $stringProp = PHP_VERSION_ID >= 80000 && $prop->getType() && $prop->getType()->getName() == "string";
-                $prop->setValue($ex, !$stringProp && rand(1, 5) == 1 ? $ex : $garbages[array_rand($garbages)]);
+                $selfAssign = !$stringProp && rand(1, 5) == 1 && $prop->getName() != "message";
+                $prop->setValue($ex, $selfAssign ? $ex : $garbages[array_rand($garbages)]);
             } catch (TypeError $e) {
             }
         }
@@ -181,7 +182,7 @@ function runOneIteration()
                 foreach ($props as $prop) {
                     try {
                         $prop->setValue($span, $garbages[array_rand($garbages)]);
-                    } catch (TypeError $e) {
+                    } catch (Error $e) {
                     }
                 }
             }

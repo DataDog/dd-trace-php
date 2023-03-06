@@ -171,8 +171,8 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     return ht;
 }
 
-#define ZVAL_EMPTY_ARRAY(z) do {						         \
-        zval *__z = (z);								         \
+#define ZVAL_EMPTY_ARRAY(z) do {                                 \
+        zval *__z = (z);                                         \
         Z_ARR_P(__z) = malloc(sizeof(HashTable));                \
         zend_hash_init(Z_ARR_P(__z), 0, NULL, ZVAL_PTR_DTOR, 1); \
         Z_TYPE_INFO_P(__z) = IS_ARRAY;                           \
