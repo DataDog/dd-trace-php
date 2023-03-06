@@ -164,7 +164,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'codeigniter';
             $excluded[] = 'elasticsearch';
             $excluded[] = 'eloquent';
-            $excluded[] = 'lumen';
             $excluded[] = 'memcached';
             $excluded[] = 'mongodb';
             $excluded[] = 'nette';
