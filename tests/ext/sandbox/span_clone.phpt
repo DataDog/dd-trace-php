@@ -2,13 +2,6 @@
 Clone DDTrace\SpanData
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
---SKIPIF--
-<?php
-if (version_compare(PHP_VERSION, '8.0.0', '<'))
-    die('skip: test only works in PHP 8.0+');
-# In 7.4 and before, the way the SpanData class is registered in C is different compared to 8.0+, therefore the
-# 'resource' and 'exception' properties won't be dumped
-?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -29,7 +22,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (9) {
+object(DDTrace\SpanData)#%d (10) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -47,7 +40,7 @@ object(DDTrace\SpanData)#%d (9) {
     float(%f)
   }
   ["exception"]=>
-  uninitialized(?Throwable)
+  NULL
   ["id"]=>
   string(%d) "%d"
   ["parent"]=>
@@ -65,7 +58,7 @@ object(DDTrace\SpanData)#%d (9) {
     *RECURSION*
   }
 }
-object(DDTrace\SpanData)#%d (9) {
+object(DDTrace\SpanData)#%d (10) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -83,7 +76,7 @@ object(DDTrace\SpanData)#%d (9) {
     float(%f)
   }
   ["exception"]=>
-  uninitialized(?Throwable)
+  NULL
   ["id"]=>
   string(%d) "%d"
   ["parent"]=>
@@ -98,7 +91,7 @@ object(DDTrace\SpanData)#%d (9) {
       NULL
     }
     ["active"]=>
-    object(DDTrace\SpanData)#%d (9) {
+    object(DDTrace\SpanData)#%d (10) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -116,7 +109,7 @@ object(DDTrace\SpanData)#%d (9) {
         float(%f)
       }
       ["exception"]=>
-      uninitialized(?Throwable)
+      NULL
       ["id"]=>
       string(%d) "%d"
       ["parent"]=>

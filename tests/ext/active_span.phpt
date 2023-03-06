@@ -1,12 +1,5 @@
 --TEST--
 DDTrace\active_span basic functionality
---SKIPIF--
-<?php
-if (version_compare(PHP_VERSION, '8.0.0', '<'))
-    die('skip: test only works in PHP 8.0+');
-# In 7.4 and before, the way the SpanData class is registered in C is different compared to 8.0+, therefore the
-# 'resource' and 'exception' properties won't be dumped
-?>
 --FILE--
 <?php
 
@@ -33,11 +26,11 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\SpanData)#%d (8) {
+object(DDTrace\SpanData)#%d (10) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
-  uninitialized(?string)
+  string(0) ""
   ["service"]=>
   string(15) "active_span.php"
   ["type"]=>
@@ -51,7 +44,7 @@ object(DDTrace\SpanData)#%d (8) {
     float(%f)
   }
   ["exception"]=>
-  uninitialized(?Throwable)
+  NULL
   ["id"]=>
   string(%d) "%d"
   ["parent"]=>

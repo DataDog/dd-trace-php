@@ -167,8 +167,7 @@ function runOneIteration()
         foreach ($exceptionClass->getProperties() as $prop) {
             $prop->setAccessible(true);
             try {
-                $stringProp = PHP_VERSION_ID >= 80000 && $prop->getType() && $prop->getType()->getName() == "string";
-                $selfAssign = !$stringProp && rand(1, 5) == 1 && $prop->getName() != "message";
+                $selfAssign = $prop->getName() == "previous" && rand(1, 5) == 1;
                 $prop->setValue($ex, $selfAssign ? $ex : $garbages[array_rand($garbages)]);
             } catch (TypeError $e) {
             }
