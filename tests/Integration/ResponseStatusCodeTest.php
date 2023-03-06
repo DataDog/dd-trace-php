@@ -33,20 +33,22 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
             }
         );
 
-        $expectedSpan = SpanAssertion::build('web.request', 'web.request', 'web', 'GET /success')->withExactTags([
+        $tags = [
             'http.method' => 'GET',
             'http.url' => 'http://localhost:' . self::PORT . '/success',
             'http.status_code' => '200'
-        ]);
+        ];
 
         if (PHP_MAJOR_VERSION >= 8) {
-            $expectedSpan->withExactTags([
-                Tag::COMPONENT => 'lumen',
-                Tag::SPAN_KIND => 'server'
-            ]);
+            $tags[Tag::COMPONENT] = 'lumen';
+            $tags[Tag::SPAN_KIND] = 'server';
         }
 
-        $this->assertOneExpectedSpan($traces, $expectedSpan);
+        $this->assertOneExpectedSpan(
+            $traces,
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /success')
+                ->withExactTags($tags)
+        );
     }
 
     /**

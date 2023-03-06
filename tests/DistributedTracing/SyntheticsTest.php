@@ -45,28 +45,31 @@ class SyntheticsTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $expectedSpan = SpanAssertion::build(
-            'web.request',
-            'web.request',
-            'web',
-            'GET /index.php'
-        )->withExactTags([
+        $tags = [
             'http.method' => 'GET',
             'http.url' => 'http://localhost:9999/index.php',
             'http.status_code' => '200',
             '_dd.origin' => 'synthetics-browser'
-        ])->withExactMetrics([
-            '_sampling_priority_v1' => 1,
-        ]);
+        ];
 
         if (PHP_MAJOR_VERSION >= 8) {
-            $expectedSpan->withExactTags([
-                Tag::COMPONENT => 'lumen',
-                Tag::SPAN_KIND => 'server'
-            ]);
+            $tags[Tag::COMPONENT] = 'lumen';
+            $tags[Tag::SPAN_KIND] = 'server';
         }
 
-        $this->assertOneExpectedSpan($traces, $expectedSpan);
+        $this->assertOneExpectedSpan(
+            $traces,
+            SpanAssertion::build(
+                'web.request',
+                'web.request',
+                'web',
+                'GET /index.php'
+            )->withExactTags(
+                $tags
+            )->withExactMetrics([
+                '_sampling_priority_v1' => 1,
+            ])
+        );
         $this->assertSame('123456', $traces[0][0]['trace_id']);
     }
 }

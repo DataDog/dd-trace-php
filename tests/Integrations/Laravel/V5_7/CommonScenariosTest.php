@@ -152,12 +152,15 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         TAG::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'laravel',
-                    ])->setError('Exception', 'Controller error', true)->withChildren([
+                    ])->setError('Error', 'Caught Error', true)->withChildren([
                         SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
                         ),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
                         SpanAssertion::exists('laravel.event.handle'),
                         SpanAssertion::exists('laravel.event.handle'),
                         SpanAssertion::exists('laravel.event.handle'),

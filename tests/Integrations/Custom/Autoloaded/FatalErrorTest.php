@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Custom\Autoloaded;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -30,6 +31,17 @@ final class FatalErrorTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
+        $tags = [
+            'http.method' => 'GET',
+            'http.url' => 'http://localhost:' . self::PORT . '/fatal',
+            'http.status_code' => '200',
+        ];
+
+        if (PHP_MAJOR_VERSION >= 8) {
+            $tags[Tag::COMPONENT] = 'lumen';
+            $tags[Tag::SPAN_KIND] = 'server';
+        }
+
         $this->assertExpectedSpans(
             $traces,
             [
@@ -38,11 +50,7 @@ final class FatalErrorTest extends WebFrameworkTestCase
                     'autoload',
                     'web',
                     'GET /fatal'
-                )->withExactTags([
-                    'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/fatal',
-                    'http.status_code' => '200',
-                ])
+                )->withExactTags($tags)
                 ->setError("E_ERROR", "Intentional E_ERROR")
                 ->withExistingTagsNames(['error.stack']),
             ]

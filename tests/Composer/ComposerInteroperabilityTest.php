@@ -17,21 +17,19 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     private function createExpectedSpan(string $extension): SpanAssertion
     {
-        $expectedSpan = SpanAssertion::build('web.request', 'web.request', 'web', "GET /$extension")
-            ->withExactTags([
-                'http.method' => 'GET',
-                'http.url' => "http://127.0.0.1:6666/$extension",
-                'http.status_code' => '200'
-            ]);
+        $tags = [
+            'http.method' => 'GET',
+            'http.url' => "http://127.0.0.1:6666/$extension",
+            'http.status_code' => '200'
+        ];
 
         if (PHP_MAJOR_VERSION >= 8) {
-            $expectedSpan->withExactTags([
-                Tag::COMPONENT => 'lumen',
-                Tag::SPAN_KIND => 'server'
-            ]);
+            $tags[Tag::COMPONENT] = 'lumen';
+            $tags[Tag::SPAN_KIND] = 'server';
         }
 
-        return $expectedSpan;
+        return SpanAssertion::build('web.request', 'web.request', 'web', "GET /$extension")
+            ->withExactTags($tags);
     }
 
     public static function ddSetUpBeforeClass()
