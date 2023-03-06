@@ -202,25 +202,28 @@ final class CurlIntegrationTest extends IntegrationTestCase
             ]
         );
 
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
-                ->withExactTags([
+        $expectedSpan = SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
+            ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+            ->withChildren([
+                SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
+                    ->setTraceAnalyticsCandidate()
+                    ->withExactTags([
+                        'http.url' => self::URL . '/status/200',
+                        'http.status_code' => '200',
+                        Tag::COMPONENT => 'curl',
+                    ])
+                    ->withExistingTagsNames(self::commonCurlInfoTags())
+                    ->skipTagsLike('/^curl\..*/'),
+            ]);
+
+        if (PHP_MAJOR_VERSION >= 8) {
+            $expectedSpan->withExactTags([
                 TAG::COMPONENT => 'lumen',
                 TAG::SPAN_KIND => 'server'
-                ])
-                ->withChildren([
-                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
-                        ->setTraceAnalyticsCandidate()
-                        ->withExactTags([
-                            'http.url' => self::URL . '/status/200',
-                            'http.status_code' => '200',
-                            Tag::COMPONENT => 'curl',
-                        ])
-                        ->withExistingTagsNames(self::commonCurlInfoTags())
-                        ->skipTagsLike('/^curl\..*/'),
-                ]),
-        ]);
+            ]);
+        }
+
+        $this->assertFlameGraph($traces, [$expectedSpan]);
     }
 
     public function testPrivateCallbackForResponseHeaders()
@@ -548,26 +551,29 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $metrics = array_merge($metrics, [ '_dd1.sr.eausr' => $expectedSampleRate ]);
         }
 
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
-                ->withExactTags([
-                    TAG::COMPONENT => 'lumen',
-                    TAG::SPAN_KIND => 'server'
-                ])
-                ->withExactMetrics(['_sampling_priority_v1' => 1, 'process_id' => getmypid()])
-                ->withChildren([
-                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
-                        ->setTraceAnalyticsCandidate()
-                        ->withExactTags([
-                            'http.url' => self::URL . '/status/200',
-                            'http.status_code' => '200',
-                            Tag::COMPONENT => 'curl',
-                        ])
-                        ->withExistingTagsNames(self::commonCurlInfoTags())
-                        ->skipTagsLike('/^curl\..*/'),
-                ]),
-        ]);
+        $expectedSpan = SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
+            ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+            ->withExactMetrics(['_sampling_priority_v1' => 1, 'process_id' => getmypid()])
+            ->withChildren([
+                SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
+                    ->setTraceAnalyticsCandidate()
+                    ->withExactTags([
+                        'http.url' => self::URL . '/status/200',
+                        'http.status_code' => '200',
+                        Tag::COMPONENT => 'curl',
+                    ])
+                    ->withExistingTagsNames(self::commonCurlInfoTags())
+                    ->skipTagsLike('/^curl\..*/'),
+            ]);
+
+        if (PHP_MAJOR_VERSION >= 8) {
+            $expectedSpan->withExactTags([
+                TAG::COMPONENT => 'lumen',
+                TAG::SPAN_KIND => 'server'
+            ]);
+        }
+
+        $this->assertFlameGraph($traces, [$expectedSpan]);
     }
 
     public function dataProviderTestTraceAnalytics()

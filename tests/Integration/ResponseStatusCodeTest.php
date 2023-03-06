@@ -33,18 +33,20 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
             }
         );
 
-        $this->assertExpectedSpans(
-            $traces,
-            [
-                SpanAssertion::build('web.request', 'web.request', 'web', 'GET /success')->withExactTags([
-                    'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/success',
-                    'http.status_code' => '200',
-                    Tag::COMPONENT => 'lumen',
-                    Tag::SPAN_KIND => 'server'
-                ]),
-            ]
-        );
+        $expectedSpan = SpanAssertion::build('web.request', 'web.request', 'web', 'GET /success')->withExactTags([
+            'http.method' => 'GET',
+            'http.url' => 'http://localhost:' . self::PORT . '/success',
+            'http.status_code' => '200'
+        ]);
+
+        if (PHP_MAJOR_VERSION >= 8) {
+            $expectedSpan->withExactTags([
+                Tag::COMPONENT => 'lumen',
+                Tag::SPAN_KIND => 'server'
+            ]);
+        }
+
+        $this->assertOneExpectedSpan($traces, $expectedSpan);
     }
 
     /**
@@ -59,19 +61,19 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
             }
         );
 
-        $this->assertExpectedSpans(
-            $traces,
-            [
-                SpanAssertion::build('web.request', 'web.request', 'web', 'GET /error')->withExactTags(
-                    [
-                        'http.method'      => 'GET',
-                        'http.url'         => 'http://localhost:' . self::PORT . '/error',
-                        'http.status_code' => '500',
-                        Tag::COMPONENT     => 'lumen',
-                        Tag::SPAN_KIND     => 'server'
-                    ]
-                )->setError(),
-            ]
-        );
+        $expectedSpan = SpanAssertion::build('web.request', 'web.request', 'web', 'GET /error')->withExactTags([
+                'http.method'      => 'GET',
+                'http.url'         => 'http://localhost:' . self::PORT . '/error',
+                'http.status_code' => '500'
+            ])->setError();
+
+        if (PHP_MAJOR_VERSION >= 8) {
+            $expectedSpan->withExactTags([
+                Tag::COMPONENT     => 'lumen',
+                Tag::SPAN_KIND     => 'server'
+            ]);
+        }
+
+        $this->assertOneExpectedSpan($traces, $expectedSpan);
     }
 }
