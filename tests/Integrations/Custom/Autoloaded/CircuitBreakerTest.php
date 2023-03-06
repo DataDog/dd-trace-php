@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Custom\Autoloaded;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -43,17 +42,6 @@ final class CircuitBreakerTest extends WebFrameworkTestCase
             usleep(self::FLUSH_INTERVAL_MS * 2 * 1000);
         });
 
-        $tags = [
-            'http.method' => 'GET',
-            'http.url' => 'http://localhost:' . self::PORT . '/circuit_breaker',
-            'http.status_code' => '200',
-        ];
-
-        if (PHP_MAJOR_VERSION >= 8) {
-            $tags[Tag::COMPONENT] = 'lumen';
-            $tags[Tag::SPAN_KIND] = 'server';
-        }
-
         $this->assertExpectedSpans(
             $traces,
             [
@@ -62,7 +50,11 @@ final class CircuitBreakerTest extends WebFrameworkTestCase
                     'web.request',
                     'web',
                     'GET /circuit_breaker'
-                )->withExactTags($tags),
+                )->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://localhost:' . self::PORT . '/circuit_breaker',
+                    'http.status_code' => '200',
+                ]),
             ]
         );
     }

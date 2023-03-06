@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Custom\NotAutoloaded;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -47,10 +46,6 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
         ];
         if (\getenv('DD_TRACE_TEST_SAPI') != 'apache2handler') {
             $tags['http.request.headers.w__rd-header'] = 'foo';
-        }
-        if (PHP_MAJOR_VERSION >= 8) {
-            $tags[Tag::COMPONENT] = 'lumen';
-            $tags[Tag::SPAN_KIND] = 'server';
         }
 
         $this->assertFlameGraph(

@@ -21,11 +21,6 @@ class CommonScenariosTest extends IntegrationTestCase
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
         ], [], 'about');
 
-        $tags = PHP_MAJOR_VERSION >= 8 ? [
-            Tag::COMPONENT => 'lumen',
-            Tag::SPAN_KIND => 'server',
-        ] : [];
-
         $this->assertFlameGraph(
             $traces,
             [
@@ -34,8 +29,6 @@ class CommonScenariosTest extends IntegrationTestCase
                     'console',
                     'cli',
                     'console'
-                )->withExactTags(
-                    $tags
                 )->withChildren([
                     SpanAssertion::build(
                         'symfony.console.terminate',

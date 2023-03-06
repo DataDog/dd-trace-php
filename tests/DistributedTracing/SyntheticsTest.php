@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\DistributedTracing;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -45,18 +44,6 @@ class SyntheticsTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $tags = [
-            'http.method' => 'GET',
-            'http.url' => 'http://localhost:9999/index.php',
-            'http.status_code' => '200',
-            '_dd.origin' => 'synthetics-browser'
-        ];
-
-        if (PHP_MAJOR_VERSION >= 8) {
-            $tags[Tag::COMPONENT] = 'lumen';
-            $tags[Tag::SPAN_KIND] = 'server';
-        }
-
         $this->assertOneExpectedSpan(
             $traces,
             SpanAssertion::build(
@@ -64,9 +51,12 @@ class SyntheticsTest extends WebFrameworkTestCase
                 'web.request',
                 'web',
                 'GET /index.php'
-            )->withExactTags(
-                $tags
-            )->withExactMetrics([
+            )->withExactTags([
+                'http.method' => 'GET',
+                'http.url' => 'http://localhost:9999/index.php',
+                'http.status_code' => '200',
+                '_dd.origin' => 'synthetics-browser',
+            ])->withExactMetrics([
                 '_sampling_priority_v1' => 1,
             ])
         );

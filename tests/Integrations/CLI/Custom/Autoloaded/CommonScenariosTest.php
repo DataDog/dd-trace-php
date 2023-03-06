@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\CLI\Custom\Autoloaded;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\CLITestCase;
 
@@ -24,20 +23,13 @@ final class CommonScenariosTest extends CLITestCase
     {
         $traces = $this->getTracesFromCommand();
 
-        $expectedSpan = SpanAssertion::build(
-            'run',
-            'console_test_app',
-            'cli',
-            'run'
-        );
-
-        if (PHP_MAJOR_VERSION >= 8) {
-            $expectedSpan->withExactTags([
-                Tag::COMPONENT => 'lumen',
-                Tag::SPAN_KIND => 'server'
-            ]);
-        }
-
-        $this->assertSpans($traces, [$expectedSpan]);
+        $this->assertSpans($traces, [
+            SpanAssertion::build(
+                'run',
+                'console_test_app',
+                'cli',
+                'run'
+            )
+        ]);
     }
 }

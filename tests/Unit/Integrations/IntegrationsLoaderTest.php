@@ -181,9 +181,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
             // Integrations that do not support PHP 8
             $excluded[] = 'mongo';
             $excluded[] = 'zendframework';
-            if (($key = array_search('lumen', $excluded)) !== false) {
-                unset($excluded[$key]);
-            }
         }
         foreach ($excluded as $integrationToExclude) {
             $index = array_search($integrationToExclude, $expected, true);

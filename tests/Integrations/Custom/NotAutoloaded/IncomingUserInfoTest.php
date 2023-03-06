@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Custom\NotAutoloaded;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 
@@ -26,17 +25,6 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
             $response = $this->sendRequest('GET', self::HOST_WITH_CREDENTIALS . ':' . self::PORT);
         });
 
-        $tags = [
-            'http.method' => 'GET',
-            'http.url' => 'http://localhost:' . self::PORT . '/',
-            'http.status_code' => 200,
-        ];
-
-        if (PHP_MAJOR_VERSION >= 8) {
-            $tags[Tag::COMPONENT] = 'lumen';
-            $tags[Tag::SPAN_KIND] = 'server';
-        }
-
         $this->assertFlameGraph(
             $traces,
             [
@@ -45,7 +33,11 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
                     'my-service',
                     'web',
                     'GET /'
-                )->withExactTags($tags),
+                )->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://localhost:' . self::PORT . '/',
+                    'http.status_code' => 200,
+                ]),
             ]
         );
         $this->markTestIncomplete(

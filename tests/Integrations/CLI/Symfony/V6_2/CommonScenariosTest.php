@@ -29,10 +29,7 @@ class CommonScenariosTest extends IntegrationTestCase
                     'console',
                     'cli',
                     'console'
-                )->withExactTags([
-                    Tag::COMPONENT => 'lumen',
-                    Tag::SPAN_KIND => 'server'
-                ])->withChildren([
+                )->withChildren([
                     SpanAssertion::build(
                         'symfony.console.terminate',
                         'symfony',

@@ -17,16 +17,10 @@ class ConsoleCommandTest extends IntegrationTestCase
     {
         list($traces) = $this->inCli(self::getConsoleScript(), [], [], 'about');
 
-        $tags = PHP_MAJOR_VERSION >= 8 ? [
-            Tag::COMPONENT => 'lumen',
-            Tag::SPAN_KIND => 'server',
-        ] : [];
-
         $this->assertFlameGraph(
             $traces,
             [
                 SpanAssertion::build('console', 'console', 'cli', 'console')
-                    ->withExactTags($tags)
                     ->withChildren([
                         SpanAssertion::build('symfony.console.command.run', 'symfony', 'cli', 'about')
                             ->withExactTags([
