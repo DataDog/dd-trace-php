@@ -722,7 +722,6 @@ TEST_INTEGRATIONS_80 := \
 
 TEST_WEB_80 := \
 	test_metrics \
-	test_web_lumen_100 \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
 	test_web_nette_24 \
