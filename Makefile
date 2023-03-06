@@ -722,6 +722,7 @@ TEST_INTEGRATIONS_80 := \
 
 TEST_WEB_80 := \
 	test_metrics \
+	test_web_lumen_90 \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
 	test_web_nette_24 \
@@ -749,6 +750,7 @@ TEST_INTEGRATIONS_81 := \
 
 TEST_WEB_81 := \
 	test_metrics \
+	test_web_lumen_90 \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
 	test_web_nette_24 \
@@ -776,6 +778,7 @@ TEST_INTEGRATIONS_82 := \
 
 TEST_WEB_82 := \
 	test_metrics \
+	test_web_lumen_90 \
 	test_web_lumen_100 \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
@@ -944,6 +947,9 @@ test_web_lumen_56: global_test_run_dependencies
 test_web_lumen_58: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_8 update
 	$(call run_tests,tests/Integrations/Lumen/V5_8)
+test_web_lumen_90: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_9_0 update
+	$(call run_tests,tests/Integrations/Lumen/V9_0)
 test_web_lumen_100: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_10_0 update
 	$(call run_tests,tests/Integrations/Lumen/V10_0)

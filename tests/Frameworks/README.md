@@ -72,6 +72,12 @@ Link: https://lumen.laravel.com/docs/5.8/installation
 
     $ composer create-project laravel/lumen Version_5_8 "5.8.*"
 
+### Lumen 9.0
+
+Link: https://lumen.laravel.com/docs/9.x/installation
+
+    $ composer create-project laravel/lumen Version_9_0 "9.0.*"
+
 ### Lumen 10.0
 
 Link: https://lumen.laravel.com/docs/10.x/installation
