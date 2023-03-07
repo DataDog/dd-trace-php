@@ -30,6 +30,9 @@ function actual_version {
     8.1)
       echo 8.1.0
       ;;
+    8.2)
+      echo 8.2.0
+      ;;
     *)
       echo "Unknown version: $1" >&2
       exit 1

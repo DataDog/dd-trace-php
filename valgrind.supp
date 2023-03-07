@@ -70,3 +70,70 @@
    fun:zend_llist_apply
    fun:php_ini_register_extensions
 }
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:zai_hook_register_inheritor
+   fun:zai_hook_register_all_inheritors
+   fun:zai_hook_post_startup
+   fun:zai_interceptor_post_startup
+   ...
+}
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:_dd_compile_file
+   fun:zai_interceptor_compile_file
+   ...
+}
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:_dd_compile_file
+   fun:zai_interceptor_compile_file
+   ...
+}
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:zai_hook_activate
+   fun:zm_activate_ddtrace
+   ...
+}
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:zai_hook_rinit
+   fun:ddtrace_activate
+   ...
+}
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:zai_hook_resolve_class
+   fun:zai_interceptor_add_new_entries
+   fun:zai_interceptor_compile_file
+   ...
+}
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:zai_hook_resolve_class
+   fun:zai_interceptor_add_new_entries
+   fun:zai_interceptor_compile_file
+   ...
+}

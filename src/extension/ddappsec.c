@@ -35,6 +35,7 @@
 #include "php_objects.h"
 #include "request_abort.h"
 #include "src/extension/commands/config_sync.h"
+#include "src/extension/user_tracking.h"
 #include "string_helpers.h"
 #include "tags.h"
 
@@ -203,6 +204,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
 
     dd_helper_startup();
     dd_trace_startup();
+    dd_user_tracking_startup();
     dd_request_abort_startup();
     dd_tags_startup();
     dd_ip_extraction_startup();
@@ -220,6 +222,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     runtime_config_first_init = false;
 
     dd_tags_shutdown();
+    dd_user_tracking_shutdown();
     dd_trace_shutdown();
     dd_helper_shutdown();
 

@@ -6,6 +6,10 @@
 
 #pragma once
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "attributes.h"
 #include "zai_string/string.h"
 #include <php.h>

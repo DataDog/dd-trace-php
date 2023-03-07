@@ -30,6 +30,31 @@
       ]
     },
     {
+      "id": "blk-001-002",
+      "name": "Block User Addresses",
+      "tags": {
+        "type": "block_user",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "data": "blocked_users"
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
       "id": "redirect-001-001",
       "name": "Redirected IP Addresses",
       "tags": {
@@ -47,6 +72,31 @@
             "data": "redirected_ips"
           },
           "operator": "ip_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "redirect"
+      ]
+    },
+    {
+      "id": "redirect-001-002",
+      "name": "Redirect User Addresses",
+      "tags": {
+        "type": "redirect_user",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "data": "redirected_users"
+          },
+          "operator": "exact_match"
         }
       ],
       "transformers": [],
@@ -6627,6 +6677,26 @@
       "data": [
         {
           "value": "80.80.80.81",
+          "expiration": 0
+        }
+      ]
+    },
+    {
+      "id": "blocked_users",
+      "type": "data_with_expiration",
+      "data": [
+        {
+          "value": "user2020",
+          "expiration": 0
+        }
+      ]
+    },
+    {
+      "id": "redirected_users",
+      "type": "data_with_expiration",
+      "data": [
+        {
+          "value": "user2023",
           "expiration": 0
         }
       ]

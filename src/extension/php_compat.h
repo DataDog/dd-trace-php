@@ -36,6 +36,12 @@ static zend_always_inline zend_string *zend_string_init_interned(
 #if PHP_VERSION_ID < 70300
 zend_bool zend_ini_parse_bool(zend_string *str);
 #   define zend_string_efree zend_string_free
+
+static inline HashTable *zend_new_array(uint32_t nSize) {
+    HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
+    zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
+    return ht;
+}
 #endif
 
 #if PHP_VERSION_ID < 70400

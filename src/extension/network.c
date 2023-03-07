@@ -3,7 +3,11 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#define _GNU_SOURCE
+
+#ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>

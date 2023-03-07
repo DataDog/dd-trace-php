@@ -524,6 +524,38 @@
    fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
    fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
    fun:_ZN5ddwaf12_GLOBAL__N_15matchERN3re23RE2ESt17basic_string_viewIcSt11char_traitsIcEE
+   fun:_ZNK5ddwaf10obfuscator16is_sensitive_valueESt17basic_string_viewIcSt11char_traitsIcEE
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq4markEv
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   fun:_ZN5ddwaf12_GLOBAL__N_15matchERN3re23RE2ESt17basic_string_viewIcSt11char_traitsIcEE
+   fun:_ZNK5ddwaf10obfuscator16is_sensitive_valueESt17basic_string_viewIcSt11char_traitsIcEE
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq4markEv
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   fun:_ZN5ddwaf12_GLOBAL__N_15matchERN3re23RE2ESt17basic_string_viewIcSt11char_traitsIcEE
    fun:_ZNK5ddwaf10obfuscator16is_sensitive_keyESt17basic_string_viewIcSt11char_traitsIcEE
 }
 {

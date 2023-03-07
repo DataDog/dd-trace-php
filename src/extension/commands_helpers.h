@@ -7,7 +7,6 @@
 
 #include "attributes.h"
 #include "dddefs.h"
-#include "logging.h"
 #include "mpack-node.h"
 #include "network.h"
 #include <mpack.h>

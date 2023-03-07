@@ -12,6 +12,7 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "string_helpers.h"
+#include "user_tracking.h"
 #include <SAPI.h>
 #include <zend_smart_str.h>
 #include <zend_types.h>
@@ -794,6 +795,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
         mlog(dd_log_warning, "Unexpected empty user id");
         return;
     }
+
+    dd_find_and_apply_verdict_for_user(user_id);
 
     zval *nullable meta = dd_trace_root_span_get_meta();
     if (!meta) {
