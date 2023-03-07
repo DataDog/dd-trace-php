@@ -289,6 +289,9 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     array_init(ddtrace_spandata_property_meta_zval(span));
     array_init(ddtrace_spandata_property_metrics_zval(span));
 #endif
+    // Explicitly assign property-mapped NULLs
+    span->stack = NULL;
+    span->parent = NULL;
     return &span->std;
 }
 
@@ -298,6 +301,9 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
     stack->root_stack = stack;
     stack->std.handlers = &ddtrace_span_stack_handlers;
     object_properties_init(&stack->std, class_type);
+    // Explicitly assign property-mapped NULLs
+    stack->active = NULL;
+    stack->parent_stack = NULL;
     return &stack->std;
 }
 
