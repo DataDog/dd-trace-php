@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
+#include <functional>
 #include <rapidjson/document.h>
 #include <string>
 
@@ -63,12 +64,13 @@ std::string get_example_response()
     return response;
 }
 
-void assert_parser_error(std::string payload,
+void assert_parser_error(std::function<void(std::string)> parser,
+    std::string payload,
     remote_config::protocol::remote_config_parser_result result)
 {
     remote_config::protocol::remote_config_parser_result error;
     try {
-        remote_config::protocol::parse(payload);
+        parser(payload);
     } catch (remote_config::protocol::parser_exception &e) {
         error = e.get_error();
     }
@@ -78,13 +80,19 @@ void assert_parser_error(std::string payload,
 
 TEST(RemoteConfigParser, ItReturnsErrorWhenInvalidBodyIsGiven)
 {
-    assert_parser_error("invalid_json",
+    assert_parser_error(remote_config::protocol::parse, "invalid_json",
         remote_config::protocol::remote_config_parser_result::invalid_json);
+}
+
+TEST(RemoteConfigParser, ParsingNonObjectPayloadThrowsException)
+{
+    assert_parser_error(remote_config::protocol::parse, "[]",
+        remote_config::protocol::remote_config_parser_result::invalid_response);
 }
 
 TEST(RemoteConfigParser, TargetsFieldMustBeString)
 {
-    assert_parser_error(
+    assert_parser_error(remote_config::protocol::parse,
         "{\"targets\": [], \"target_files\": [], \"client_configs\": [] }",
         remote_config::protocol::remote_config_parser_result::
             targets_field_invalid_type);
@@ -138,7 +146,7 @@ TEST(RemoteConfigParser, targetFilesFieldCanBeMissed)
 
 TEST(RemoteConfigParser, targetFilesFieldMustBeArray)
 {
-    assert_parser_error(
+    assert_parser_error(remote_config::protocol::parse,
         "{\"targets\": \"\", \"target_files\": \"\", \"client_configs\": [] }",
         remote_config::protocol::remote_config_parser_result::
             target_files_field_invalid_type);
@@ -193,7 +201,7 @@ TEST(RemoteConfigParser, clientConfigsFieldCanBeMissed)
 
 TEST(RemoteConfigParser, clientConfigsFieldMustBeArray)
 {
-    assert_parser_error(
+    assert_parser_error(remote_config::protocol::parse,
         "{\"targets\": \"\", \"target_files\": [], \"client_configs\": \"\" }",
         remote_config::protocol::remote_config_parser_result::
             client_config_field_invalid_type);
@@ -224,7 +232,7 @@ TEST(RemoteConfigParser, TargetFilesAreParsed)
 
 TEST(RemoteConfigParser, TargetFilesWithoutPathAreInvalid)
 {
-    assert_parser_error(
+    assert_parser_error(remote_config::protocol::parse,
         "{\"roots\": [], \"targets\": \"b2s=\", \"target_files\": [{\"path\": "
         "\"employee/DEBUG_DD/2.test1.config/config\", \"raw\": "
         "\"UmVtb3RlIGNvbmZpZ3VyYXRpb24gaXMgc3VwZXIgc3VwZXIgY29vbAo=\"}, "
@@ -238,7 +246,7 @@ TEST(RemoteConfigParser, TargetFilesWithoutPathAreInvalid)
 
 TEST(RemoteConfigParser, TargetFilesWithNonStringPathAreInvalid)
 {
-    assert_parser_error(
+    assert_parser_error(remote_config::protocol::parse,
         "{\"roots\": [], \"targets\": \"b2s=\", \"target_files\": [{\"path\": "
         "\"employee/DEBUG_DD/2.test1.config/config\", \"raw\": "
         "\"UmVtb3RlIGNvbmZpZ3VyYXRpb24gaXMgc3VwZXIgc3VwZXIgY29vbAo=\"}, "
@@ -252,7 +260,7 @@ TEST(RemoteConfigParser, TargetFilesWithNonStringPathAreInvalid)
 
 TEST(RemoteConfigParser, TargetFilesWithoutRawAreInvalid)
 {
-    assert_parser_error(
+    assert_parser_error(remote_config::protocol::parse,
         "{\"roots\": [], \"targets\": \"b2s=\", \"target_files\": [{\"path\": "
         "\"employee/DEBUG_DD/2.test1.config/config\", \"raw\": "
         "\"UmVtb3RlIGNvbmZpZ3VyYXRpb24gaXMgc3VwZXIgc3VwZXIgY29vbAo=\"}, "
@@ -266,7 +274,7 @@ TEST(RemoteConfigParser, TargetFilesWithoutRawAreInvalid)
 
 TEST(RemoteConfigParser, TargetFilesWithNonNonStringRawAreInvalid)
 {
-    assert_parser_error(
+    assert_parser_error(remote_config::protocol::parse,
         "{\"roots\": [], \"targets\": \"b2s=\", \"target_files\": [{\"path\": "
         "\"employee/DEBUG_DD/2.test1.config/config\", \"raw\": "
         "\"UmVtb3RlIGNvbmZpZ3VyYXRpb24gaXMgc3VwZXIgc3VwZXIgY29vbAo=\"}, "
@@ -280,7 +288,7 @@ TEST(RemoteConfigParser, TargetFilesWithNonNonStringRawAreInvalid)
 
 TEST(RemoteConfigParser, TargetFilesMustBeObjects)
 {
-    assert_parser_error(
+    assert_parser_error(remote_config::protocol::parse,
         "{\"roots\": [], \"targets\": \"b2s=\", \"target_files\": [ "
         "\"invalid\", "
         "{\"path\": \"datadog/2/DEBUG/luke.steensen/config\", \"raw\": "
@@ -307,10 +315,11 @@ TEST(RemoteConfigParser, ClientConfigsAreParsed)
 
 TEST(RemoteConfigParser, ClientConfigsMustBeStrings)
 {
-    assert_parser_error("{\"roots\": [], \"targets\": \"b2s=\", "
-                        "\"target_files\": [], \"client_configs\": "
-                        "[[\"invalid\"], "
-                        "\"employee/DEBUG_DD/2.test1.config/config\"] }",
+    assert_parser_error(remote_config::protocol::parse,
+        "{\"roots\": [], \"targets\": \"b2s=\", "
+        "\"target_files\": [], \"client_configs\": "
+        "[[\"invalid\"], "
+        "\"employee/DEBUG_DD/2.test1.config/config\"] }",
         remote_config::protocol::remote_config_parser_result::
             client_config_field_invalid_entry);
 }
@@ -327,7 +336,7 @@ TEST(RemoteConfigParser, TargetsMustBeNotEmpty)
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
 
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             targets_field_empty);
 }
@@ -343,7 +352,7 @@ TEST(RemoteConfigParser, TargetsnMustBeValidBase64Encoded)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             targets_field_invalid_base64);
 }
@@ -359,7 +368,7 @@ TEST(RemoteConfigParser, TargetsDecodedMustBeValidJson)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             targets_field_invalid_json);
 }
@@ -382,7 +391,7 @@ TEST(RemoteConfigParser, SignedFieldOnTargetsMustBeObject)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             signed_targets_field_invalid);
 }
@@ -400,7 +409,7 @@ TEST(RemoteConfigParser, SignedFieldOnTargetsMustBePresent)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             signed_targets_field_missing);
 }
@@ -427,7 +436,7 @@ TEST(RemoteConfigParser, _TypeFieldOnSignedTargetsMustBePresent)
          "\"UmVtb3RlIGNvbmZpZ3VyYXRpb24gaXMgc3VwZXIgc3VwZXIgY29vbAo=\"}], "
          "\"client_configs\": "
          "[ \"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             type_signed_targets_field_missing);
 }
@@ -454,7 +463,7 @@ TEST(RemoteConfigParser, _TypeFieldOnSignedTargetsMustBeString)
          "\"UmVtb3RlIGNvbmZpZ3VyYXRpb24gaXMgc3VwZXIgc3VwZXIgY29vbAo=\"}], "
          "\"client_configs\": "
          "[ \"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             type_signed_targets_field_invalid);
 }
@@ -481,7 +490,7 @@ TEST(RemoteConfigParser, _TypeFieldOnSignedTargetsMustBeEqualToTargets)
          "\"UmVtb3RlIGNvbmZpZ3VyYXRpb24gaXMgc3VwZXIgc3VwZXIgY29vbAo=\"}], "
          "\"client_configs\": "
          "[ \"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             type_signed_targets_field_invalid_type);
 }
@@ -525,7 +534,7 @@ TEST(RemoteConfigParser, VersionFieldOnSignedTargetsMustBePresent)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             version_signed_targets_field_missing);
 }
@@ -569,7 +578,7 @@ TEST(RemoteConfigParser, VersionFieldOnSignedTargetsMustBeNumber)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             version_signed_targets_field_invalid);
 }
@@ -625,7 +634,7 @@ TEST(RemoteConfigParser, CustomFieldOnSignedTargetsMustBePresent)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             custom_signed_targets_field_missing);
 }
@@ -681,7 +690,7 @@ TEST(RemoteConfigParser, CustomFieldOnSignedTargetsMustBeObject)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             custom_signed_targets_field_invalid);
 }
@@ -738,7 +747,7 @@ TEST(RemoteConfigParser,
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             obs_custom_signed_targets_field_missing);
 }
@@ -797,7 +806,7 @@ TEST(RemoteConfigParser,
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             obs_custom_signed_targets_field_invalid);
 }
@@ -818,7 +827,7 @@ TEST(RemoteConfigParser, TargetsFieldOnSignedTargetsMustBeObject)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             targets_signed_targets_field_invalid);
 }
@@ -839,7 +848,7 @@ TEST(RemoteConfigParser, TargetsFieldOnSignedTargetsMustExists)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             targets_signed_targets_field_missing);
 }
@@ -864,7 +873,7 @@ TEST(RemoteConfigParser, CustomOnPathMustBePresent)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             custom_path_targets_field_missing);
 }
@@ -891,7 +900,7 @@ TEST(RemoteConfigParser, CustomOnPathMustBeObject)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             custom_path_targets_field_invalid);
 }
@@ -916,7 +925,7 @@ TEST(RemoteConfigParser, VCustomOnPathMustBePresent)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             v_path_targets_field_missing);
 }
@@ -942,7 +951,7 @@ TEST(RemoteConfigParser, VCustomOnPathMustBeNumber)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             v_path_targets_field_invalid);
 }
@@ -965,7 +974,7 @@ TEST(RemoteConfigParser, HashesOnPathMustBePresent)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             hashes_path_targets_field_missing);
 }
@@ -989,7 +998,7 @@ TEST(RemoteConfigParser, HashesOnPathMustBeObject)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             hashes_path_targets_field_invalid);
 }
@@ -1013,7 +1022,7 @@ TEST(RemoteConfigParser, AtLeastOneHashMustBePresent)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             hashes_path_targets_field_empty);
 }
@@ -1038,7 +1047,7 @@ TEST(RemoteConfigParser, HashesOnPathMustBeString)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             hash_hashes_path_targets_field_invalid);
 }
@@ -1063,7 +1072,7 @@ TEST(RemoteConfigParser, LengthOnPathMustBePresent)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             length_path_targets_field_missing);
 }
@@ -1089,7 +1098,7 @@ TEST(RemoteConfigParser, LengthOnPathMustBeString)
          "\"aGVsbG8gdmVjdG9yIQ==\"} ], \"client_configs\": "
          "[\"datadog/2/DEBUG/luke.steensen/config\", "
          "\"employee/DEBUG_DD/2.test1.config/config\"] }");
-    assert_parser_error(invalid_response,
+    assert_parser_error(remote_config::protocol::parse, invalid_response,
         remote_config::protocol::remote_config_parser_result::
             length_path_targets_field_invalid);
 }
@@ -1163,6 +1172,56 @@ TEST(RemoteConfigParser, ParseEmptyResponses)
     auto gcr = remote_config::protocol::parse("{}");
 
     EXPECT_FALSE(gcr.targets.has_value());
+}
+
+TEST(RemoteConfigParser, ParseInfoResponse)
+{
+    const std::string response =
+        R"({"endpoints": ["/some/endpoint", "/another/endpoint"] })";
+    auto info_response = remote_config::protocol::parse_info(response);
+
+    EXPECT_EQ(2, info_response.endpoints.size());
+    EXPECT_TRUE(std::find(info_response.endpoints.begin(),
+                    info_response.endpoints.end(),
+                    "/some/endpoint") != info_response.endpoints.end());
+    EXPECT_TRUE(std::find(info_response.endpoints.begin(),
+                    info_response.endpoints.end(),
+                    "/another/endpoint") != info_response.endpoints.end());
+}
+
+TEST(RemoteConfigParser, ParseInfoInvalidJsonThrowsException)
+{
+    assert_parser_error(remote_config::protocol::parse_info, "invalid_json",
+        remote_config::protocol::remote_config_parser_result::invalid_json);
+}
+
+TEST(RemoteConfigParser, ParseInfoNonObjectPayloadThrowsException)
+{
+    assert_parser_error(remote_config::protocol::parse_info, "[]",
+        remote_config::protocol::remote_config_parser_result::invalid_response);
+}
+
+TEST(RemoteConfigParser, ParseInfoWithoutEndpointsThrowsException)
+{
+    assert_parser_error(remote_config::protocol::parse_info,
+        R"({"some":"value"})",
+        remote_config::protocol::remote_config_parser_result::
+            endpoints_field_missing);
+}
+
+TEST(RemoteConfigParser, ParseInfoWithEndpointsNotArrayThrowsException)
+{
+    assert_parser_error(remote_config::protocol::parse_info,
+        R"({"endpoints":"invalid_type"})",
+        remote_config::protocol::remote_config_parser_result::
+            endpoints_field_invalid);
+}
+
+TEST(RemoteConfigParser, ParseInfoWithNonStringEndpointThrowsException)
+{
+    assert_parser_error(remote_config::protocol::parse_info,
+        R"({"endpoints": [ 1234 ]})",
+        remote_config::protocol::remote_config_parser_result::invalid_endpoint);
 }
 
 } // namespace dds

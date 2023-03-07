@@ -81,8 +81,7 @@ ACTION(ThrowErrorApplyingConfig)
 class api : public remote_config::http_api {
 public:
     api() : http_api("0.0.0.0", "1234"){};
-    MOCK_METHOD((std::optional<std::string>), get_configs,
-        (std::string && request), (const));
+    MOCK_METHOD(std::string, get_configs, (std::string && request), (const));
 };
 
 class listener_mock : public remote_config::product_listener_base {
@@ -373,17 +372,25 @@ public:
     }
 };
 
-TEST_F(RemoteConfigClient, ItReturnsErrorIfApiReturnsError)
+TEST_F(RemoteConfigClient, OnNetworkApiErrorTheExceptionsFlows)
 {
+    bool exception_thrown = false;
     auto api = std::make_unique<mock::api>();
-    EXPECT_CALL(*api, get_configs).WillOnce(Return(std::nullopt));
+    EXPECT_CALL(*api, get_configs)
+        .WillOnce(Throw(dds::remote_config::network_exception("some")));
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
     dds::test_client api_client(
         id, std::move(api), sid, settings, _products, std::move(capabilities));
 
-    EXPECT_FALSE(api_client.poll());
+    try {
+        api_client.poll();
+    } catch (dds::remote_config::network_exception & /** e*/) {
+        exception_thrown = true;
+    }
+
+    EXPECT_TRUE(exception_thrown);
 }
 
 std::string sort_arrays(std::string json)

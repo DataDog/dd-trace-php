@@ -10,6 +10,7 @@
 #include <string>
 
 #include "get_configs_response.hpp"
+#include "info_response.hpp"
 
 namespace dds::remote_config::protocol {
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
@@ -51,7 +52,11 @@ namespace dds::remote_config::protocol {
     X(hashes_path_targets_field_empty)                                         \
     X(hash_hashes_path_targets_field_invalid)                                  \
     X(length_path_targets_field_invalid)                                       \
-    X(length_path_targets_field_missing)
+    X(length_path_targets_field_missing)                                       \
+    X(invalid_response)                                                        \
+    X(endpoints_field_missing)                                                 \
+    X(endpoints_field_invalid)                                                 \
+    X(invalid_endpoint)
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define RESULT_AS_ENUM_ENTRY(entry) entry,
@@ -76,5 +81,6 @@ protected:
 };
 
 get_configs_response parse(const std::string &body);
+info_response parse_info(const std::string &body);
 
 } // namespace dds::remote_config::protocol

@@ -62,6 +62,7 @@ public:
 
 protected:
     void run(std::future<bool> &&exit_signal);
+    void handle_error();
 
     service_identifier id_;
     std::shared_ptr<engine> engine_;
@@ -69,6 +70,12 @@ protected:
     std::shared_ptr<service_config> service_config_;
 
     std::chrono::milliseconds poll_interval_;
+    std::chrono::milliseconds interval_;
+    void poll();
+    void discover();
+    std::function<void()> rc_action_;
+
+    std::uint16_t errors_ = {0};
 
     std::promise<bool> exit_;
     std::thread handler_;

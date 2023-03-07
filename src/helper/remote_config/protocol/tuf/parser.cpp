@@ -36,7 +36,6 @@ bool validate_field_is_present(const rapidjson::Value &parent_field,
     if (type == output_itr->value.GetType()) {
         return true;
     }
-
     throw parser_exception(invalid);
 }
 
@@ -266,6 +265,9 @@ get_configs_response parse(const std::string &body)
     if (serialized_doc.Parse(body).HasParseError()) {
         throw parser_exception(remote_config_parser_result::invalid_json);
     }
+    if (!serialized_doc.IsObject()) {
+        throw parser_exception(remote_config_parser_result::invalid_response);
+    }
 
     rapidjson::Value::ConstMemberIterator target_files_itr;
     rapidjson::Value::ConstMemberIterator client_configs_itr;
@@ -303,6 +305,38 @@ get_configs_response parse(const std::string &body)
 
     return {target_files, client_configs, targets};
 }
+
+info_response parse_info(const std::string &body)
+{
+    info_response response;
+    rapidjson::Document serialized_doc;
+    if (serialized_doc.Parse(body).HasParseError()) {
+        throw parser_exception(remote_config_parser_result::invalid_json);
+    }
+    if (!serialized_doc.IsObject()) {
+        throw parser_exception(remote_config_parser_result::invalid_response);
+    }
+
+    rapidjson::Value::ConstMemberIterator endpoints_itr;
+    validate_field_is_present(serialized_doc, "endpoints",
+        rapidjson::kArrayType, endpoints_itr,
+        remote_config_parser_result::endpoints_field_missing,
+        remote_config_parser_result::endpoints_field_invalid);
+
+    for (rapidjson::Value::ConstValueIterator itr =
+             endpoints_itr->value.Begin();
+         itr != endpoints_itr->value.End(); ++itr) {
+        if (itr->GetType() != rapidjson::kStringType) {
+            throw parser_exception(
+                remote_config_parser_result::invalid_endpoint);
+        }
+
+        response.endpoints.emplace_back(itr->GetString());
+    }
+
+    return response;
+}
+
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define RESULT_AS_STR(entry) #entry,
 namespace {
