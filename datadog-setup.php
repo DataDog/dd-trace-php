@@ -1418,17 +1418,6 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
                 'Enables or disables the loaded dd-appsec extension.',
                 'If disabled, the extension will do no work during the requests.',
                 'If not present/commented out, appsec will be enabled/disabled by remote config',
-                'This value is ignored on the CLI SAPI, see datadog.appsec.enabled_on_cli',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.enabled_on_cli',
-            'default' => 'Off',
-            'commented' => false,
-            'description' => [
-                'Enables or disables the loaded appsec extension for the CLI SAPI.',
-                'This value is only used for the CLI SAPI, see ddappsec.enabled for the',
-                'corresponding setting on other SAPIs',
             ],
         ],
         [
