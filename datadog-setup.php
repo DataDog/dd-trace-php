@@ -1490,7 +1490,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         [
             'name' => 'datadog.appsec.rules',
             'default' => $appsecRulesPath,
-            'commented' => false,
+            'commented' => true,
             'description' => [
                 'The path to the rules json file. The helper process must be able to read the',
                 'file. This ini setting is configured by the installer',
