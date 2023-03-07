@@ -62,7 +62,7 @@
 #include "exceptions/exceptions.h"
 
 // On PHP 7.0 - 7.2 we cannot declare arrays as internal values. Assign null and handle in create_object where necessary.
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 80000
 #undef ZVAL_EMPTY_ARRAY
 #define ZVAL_EMPTY_ARRAY ZVAL_NULL
 #endif
@@ -284,7 +284,7 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     zend_object_std_init(&span->std, class_type);
     span->std.handlers = &ddtrace_span_data_handlers;
     object_properties_init(&span->std, class_type);
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 80000
     // Not handled in arginfo on these old versions
     array_init(ddtrace_spandata_property_meta_zval(span));
     array_init(ddtrace_spandata_property_metrics_zval(span));
@@ -458,34 +458,8 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
     ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
     ddtrace_span_data_handlers.get_constructor = ddtrace_span_data_get_constructor;
-#if PHP_VERSION_ID >= 80000
     ddtrace_ce_span_data = register_class_DDTrace_SpanData();
     ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
-#else
-    (void)(register_class_DDTrace_SpanData); // Unused
-    zend_class_entry ce;
-    INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanData", class_DDTrace_SpanData_methods);
-    ddtrace_ce_span_data = zend_register_internal_class(&ce);
-    ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
-
-    // trace_id, span_id, parent_id, start & duration are stored directly on
-    // ddtrace_span_data so we don't need to make them properties on DDTrace\SpanData
-    /*
-     * ORDER MATTERS: If you make any changes to the properties below, update the
-     * corresponding ddtrace_spandata_property_*() function with the proper offset.
-     * ALSO: Update the properties_table_placeholder size of ddtrace_span_data to property count - 1.
-     */
-    zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "exception", sizeof("exception") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "id", sizeof("id") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "parent", sizeof("parent") - 1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(ddtrace_ce_span_data, "stack", sizeof("stack") - 1, ZEND_ACC_PUBLIC);
-#endif
     ddtrace_ce_span_stack = register_class_DDTrace_SpanStack();
     ddtrace_ce_span_stack->create_object = ddtrace_span_stack_create;
     memcpy(&ddtrace_span_stack_handlers, &std_object_handlers, sizeof(zend_object_handlers));
