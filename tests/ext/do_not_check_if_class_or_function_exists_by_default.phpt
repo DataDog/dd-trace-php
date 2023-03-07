@@ -20,23 +20,20 @@ function format_bool($rv) {
     return ($rv ? "TRUE" : "FALSE" ) . PHP_EOL;
 }
 
-error_reporting(E_ALL & ~E_DEPRECATED);
-echo format_bool(dd_trace("ThisClassDoesntExists", "m", function(){}));
-echo format_bool(dd_trace("ExampleClass", "this_method_exists", function(){}));
-echo format_bool(dd_trace("ExampleClass", "method_doesnt_exist", function(){}));
+echo format_bool(DDTrace\trace_method("ThisClassDoesntExists", "m", function(){}));
+echo format_bool(DDTrace\trace_method("ExampleClass", "this_method_exists", function(){}));
+echo format_bool(DDTrace\trace_method("ExampleClass", "method_doesnt_exist", function(){}));
 
-echo format_bool(dd_trace("this_function_doesnt_exist", function(){}));
-echo format_bool(dd_trace("this_function_exists", function(){}));
-error_reporting(E_ALL);
+echo format_bool(DDTrace\trace_function("this_function_doesnt_exist", function(){}));
+echo format_bool(DDTrace\trace_function("this_function_exists", function(){}));
 
 echo  "no exception thrown" . PHP_EOL;
 
-// dd_trace always returns false now
 ?>
 --EXPECT--
-FALSE
-FALSE
-FALSE
-FALSE
-FALSE
+TRUE
+TRUE
+TRUE
+TRUE
+TRUE
 no exception thrown

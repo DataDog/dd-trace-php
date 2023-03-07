@@ -123,7 +123,7 @@ namespace DDTrace {
      *
      * @param string $className The name of the class that contains the method.
      * @param string $methodName The name of the method to instrument.
-     * @param \Closure(SpanData, array, mixed, \Exception|null):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * @param null|\Closure(SpanData, array, mixed, \Exception|null):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
      * The tracing closure is a function that adds extra tags to the span after the
      * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData', an array of
      * arguments from the instrumented call, the return value of the instrumented call, and an instance of the exception
@@ -140,7 +140,7 @@ namespace DDTrace {
     function trace_method(
         string $className,
         string $methodName,
-        \Closure|array $tracingClosureOrConfigArray
+        null|\Closure|array $tracingClosureOrConfigArray
     ): bool {}
 
     /**
@@ -152,7 +152,7 @@ namespace DDTrace {
      * Additional tags are set on the span from the closure (called a tracing closure).
      *
      * @param string $functionName The name of the function to trace.
-     * @param \Closure(SpanData, array, mixed, \Exception|null):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * @param null|\Closure(SpanData, array, mixed, \Exception|null):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
      * The tracing closure is a function that adds extra tags to the span after the
      * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData' that writes
      * to the span properties, an array of arguments from the instrumented call, the return value of the instrumented
@@ -167,7 +167,7 @@ namespace DDTrace {
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
      * @return bool 'true' if the call was successfully instrumented, else 'false'
      */
-    function trace_function(string $functionName, \Closure|array $tracingClosureOrConfigArray): bool {}
+    function trace_function(string $functionName, \Closure|array|null $tracingClosureOrConfigArray): bool {}
 
     /**
      * This function allows to define pre- and post-hooks that will be executed before and after the function is called.
@@ -569,7 +569,7 @@ namespace {
      * @internal
      * @return bool Return 'true' if tracing is enabled, else 'false'
      */
-    function dd_trace_noop(): bool {}
+    function dd_trace_noop(mixed ...$args): bool {}
 
     /**
      * Get the parsed value of the memory limit DD_TRACE_MEMORY_LIMIT in binary bytes
@@ -757,7 +757,7 @@ namespace {
     /**
      * @alias DDTrace_trace_function
      */
-    function dd_trace_function(string $functionName, \Closure|array $tracingClosureOrConfigArray): bool {}
+    function dd_trace_function(string $functionName, \Closure|array|null $tracingClosureOrConfigArray): bool {}
 
     /**
      * @alias DDTrace_trace_method
@@ -765,7 +765,7 @@ namespace {
     function dd_trace_method(
         string $className,
         string $methodName,
-        \Closure|array $tracingClosureOrConfigArray
+        \Closure|array|null $tracingClosureOrConfigArray
     ): bool {}
 
     /**
@@ -776,23 +776,6 @@ namespace {
      * @return bool 'true' if the un-tracing process was successful, else 'false'
      */
     function dd_untrace(string $functionName, string $className = null): bool {}
-
-    /**
-     * Parameter combination:
-     * - (class, function, closure | config_array)
-     * - (function, closure | config_array)
-     *
-     * @param mixed $classOrFunctionName
-     * @param mixed $methodNameOrTracingClosure
-     * @param mixed $tracingClosure
-     * @return bool
-     * @deprecated
-     */
-    function dd_trace(
-        mixed $classOrFunctionName,
-        mixed $methodNameOrTracingClosure,
-        mixed $tracingClosure = null
-    ): bool {}
 
     /**
      * @deprecated

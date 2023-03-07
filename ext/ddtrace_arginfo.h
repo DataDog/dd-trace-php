@@ -1,15 +1,15 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: f076cb2755ad337af740a716980ac70960fb3a92 */
+ * Stub hash: 61ba5ebfb7dbc9f467eea3201c97b05192018f97 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, methodName, IS_STRING, 0)
-	ZEND_ARG_OBJ_TYPE_MASK(0, tracingClosureOrConfigArray, Closure, MAY_BE_ARRAY, NULL)
+	ZEND_ARG_OBJ_TYPE_MASK(0, tracingClosureOrConfigArray, Closure, MAY_BE_NULL|MAY_BE_ARRAY, NULL)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_function, 0, 2, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, functionName, IS_STRING, 0)
-	ZEND_ARG_OBJ_TYPE_MASK(0, tracingClosureOrConfigArray, Closure, MAY_BE_ARRAY, NULL)
+	ZEND_ARG_OBJ_TYPE_MASK(0, tracingClosureOrConfigArray, Closure, MAY_BE_ARRAY|MAY_BE_NULL, NULL)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_hook_function, 0, 1, _IS_BOOL, 0)
@@ -143,7 +143,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_dd_trace_serialize_msgpack, 0, 1
 	ZEND_ARG_TYPE_INFO(0, traceArray, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_noop arginfo_dd_trace_disable_in_request
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_noop, 0, 0, _IS_BOOL, 0)
+	ZEND_ARG_VARIADIC_TYPE_INFO(0, args, IS_MIXED, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_dd_get_memory_limit, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
@@ -205,17 +207,15 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_function arginfo_DDTrace_trace_function
 
-#define arginfo_dd_trace_method arginfo_DDTrace_trace_method
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_method, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, methodName, IS_STRING, 0)
+	ZEND_ARG_OBJ_TYPE_MASK(0, tracingClosureOrConfigArray, Closure, MAY_BE_ARRAY|MAY_BE_NULL, NULL)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_untrace, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, functionName, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, className, IS_STRING, 0, "null")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace, 0, 2, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, classOrFunctionName, IS_MIXED, 0)
-	ZEND_ARG_TYPE_INFO(0, methodNameOrTracingClosure, IS_MIXED, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, tracingClosure, IS_MIXED, 0, "null")
 ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_forward_call arginfo_dd_trace_disable_in_request
@@ -296,7 +296,6 @@ ZEND_FUNCTION(dd_trace_peek_span_id);
 ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(dd_untrace);
-ZEND_FUNCTION(dd_trace);
 ZEND_FUNCTION(dd_trace_forward_call);
 ZEND_FUNCTION(dd_trace_push_span_id);
 ZEND_FUNCTION(dd_trace_pop_span_id);
@@ -367,7 +366,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FALIAS(dd_trace_function, DDTrace_trace_function, arginfo_dd_trace_function)
 	ZEND_FALIAS(dd_trace_method, DDTrace_trace_method, arginfo_dd_trace_method)
 	ZEND_FE(dd_untrace, arginfo_dd_untrace)
-	ZEND_DEP_FE(dd_trace, arginfo_dd_trace)
 	ZEND_DEP_FE(dd_trace_forward_call, arginfo_dd_trace_forward_call)
 	ZEND_DEP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, arginfo_dd_trace_generate_id)
 	ZEND_DEP_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id)

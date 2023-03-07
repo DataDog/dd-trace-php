@@ -186,8 +186,12 @@ set_trace_id_from_span_id:
     } else {
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
-        ZVAL_COPY(ddtrace_spandata_property_service(span), ddtrace_spandata_property_service(parent_span));
-        ZVAL_COPY(ddtrace_spandata_property_type(span), ddtrace_spandata_property_type(parent_span));
+        zval *prop_service = ddtrace_spandata_property_service(span);
+        zval_ptr_dtor(prop_service);
+        ZVAL_COPY(prop_service, ddtrace_spandata_property_service(parent_span));
+        zval *prop_type = ddtrace_spandata_property_type(span);
+        zval_ptr_dtor(prop_type);
+        ZVAL_COPY(prop_type, ddtrace_spandata_property_type(parent_span));
     }
 
     span->root = DDTRACE_G(active_stack)->root_span;

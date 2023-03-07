@@ -3,11 +3,6 @@ DDTrace\trace_function() can trace with internal spans
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand
---SKIPIF--
-<?php
-if (version_compare(PHP_VERSION, '8.2.0', '<'))
-    die('skip: test only works in 8.2+');
-?>
 --FILE--
 <?php
 use DDTrace\SpanData;

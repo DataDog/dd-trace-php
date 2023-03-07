@@ -312,7 +312,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
         // clang-format on
     ZEND_PARSE_PARAMETERS_END_EX({
-        ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 2 + method, 2 + method)
+        ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 2 + method, 2 + method)
             // clang-format off
             if (method) {
                 Z_PARAM_STR(class_name)
@@ -320,11 +320,13 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
             Z_PARAM_STR(method_name)
             Z_PARAM_ARRAY(config_array)
         ZEND_PARSE_PARAMETERS_END_EX({
-            ddtrace_log_debugf(
-                "Unable to parse parameters for DDTrace\\%s_%s; expected "
-                "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)",
-                tracing ? "trace" : "hook", method ? "method" : "function");
-             RETURN_FALSE;
+            if (ddtrace_quiet_zpp()) {
+                ddtrace_log_onceerrf(
+                        "Unable to parse parameters for DDTrace\\%s_%s; expected "
+                        "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)",
+                        tracing ? "trace" : "hook", method ? "method" : "function");
+                RETURN_FALSE;
+            }
         });
     });
 
@@ -373,12 +375,12 @@ PHP_FUNCTION(DDTrace_trace_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, 
 PHP_FUNCTION(dd_untrace) {
     zend_string *class_name = NULL, *method_name = NULL;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 2)
+    ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 1, 2)
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(class_name)
     ZEND_PARSE_PARAMETERS_END_EX({
-         ddtrace_log_debug("unexpected parameter for dd_untrace. the function name must be provided");
+         ddtrace_log_onceerrf("unexpected parameter for dd_untrace. the function name must be provided");
          RETURN_FALSE;
     });
 
