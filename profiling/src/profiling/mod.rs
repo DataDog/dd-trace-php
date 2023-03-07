@@ -1,26 +1,23 @@
-mod interrupts;
 mod stalk_walking;
-mod thread_utils;
 mod uploader;
 
-pub use interrupts::*;
 pub use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
-use crate::{AgentEndpoint, RequestLocals};
+use crate::{thread_utils, AgentEndpoint, RequestLocals};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
-use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
+use datadog_profiling::profile::api::{Function, Line, Location, Sample};
 use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::str;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -43,11 +40,7 @@ struct SampleValues {
     alloc_size: i64,
 }
 
-const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
-const WALL_TIME_PERIOD_TYPE: ValueType = ValueType {
-    r#type: "wall-time",
-    unit: "nanoseconds",
-};
+pub const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
 
 #[derive(Debug, Clone)]
 struct WallTime {
@@ -148,42 +141,24 @@ pub enum ProfilerMessage {
     LocalRootSpanResource(LocalRootSpanResourceMessage),
 }
 
-pub struct Globals {
-    pub interrupt_count: AtomicU32,
-    pub last_interrupt: SystemTime,
-    // todo: current_profile
-}
-
-impl Default for Globals {
-    fn default() -> Self {
-        Self {
-            interrupt_count: AtomicU32::new(0),
-            last_interrupt: SystemTime::now(),
-        }
-    }
-}
-
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
     fork_senders: [Sender<()>; 2],
-    interrupt_manager: Arc<InterruptManager>,
     message_sender: Sender<ProfilerMessage>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
 }
 
-struct TimeCollector {
+struct ProfileCollector {
     fork_barrier: Arc<Barrier>,
     fork_receiver: Receiver<()>,
-    interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
-    wall_time_period: Duration,
     upload_period: Duration,
 }
 
-impl TimeCollector {
+impl ProfileCollector {
     fn handle_timeout(
         &self,
         profiles: &mut HashMap<ProfileIndex, profile::Profile>,
@@ -230,15 +205,7 @@ impl TimeCollector {
             })
             .collect();
 
-        let period = WALL_TIME_PERIOD.as_nanos();
         profile::ProfileBuilder::new()
-            .period(Some(Period {
-                r#type: profile::api::ValueType {
-                    r#type: WALL_TIME_PERIOD_TYPE.r#type.borrow(),
-                    unit: WALL_TIME_PERIOD_TYPE.unit.borrow(),
-                },
-                value: period.min(i64::MAX as u128) as i64,
-            }))
             .start_time(Some(started_at))
             .sample_types(sample_types)
             .build()
@@ -327,7 +294,6 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs(),
             WALL_TIME_PERIOD.as_millis());
 
-        let wall_time_tick = crossbeam_channel::tick(self.wall_time_period);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let mut running = true;
 
@@ -355,12 +321,6 @@ impl TimeCollector {
                              */
                             break;
                         }
-                    }
-                },
-
-                recv(wall_time_tick) -> message => {
-                    if message.is_ok() {
-                        self.interrupt_manager.trigger_interrupts()
                     }
                 },
 
@@ -395,17 +355,14 @@ impl Profiler {
     pub fn new(output_pprof: Option<Cow<'static, str>>) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
-        let interrupt_manager = Arc::new(InterruptManager::new(Mutex::new(Vec::with_capacity(1))));
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
-        let time_collector = TimeCollector {
+        let time_collector = ProfileCollector {
             fork_barrier: fork_barrier.clone(),
             fork_receiver: fork_receiver0,
-            interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender,
-            wall_time_period: WALL_TIME_PERIOD,
             upload_period: UPLOAD_PERIOD,
         };
 
@@ -419,20 +376,13 @@ impl Profiler {
         Profiler {
             fork_barrier,
             fork_senders: [fork_sender0, fork_sender1],
-            interrupt_manager,
             message_sender,
-            time_collector_handle: thread_utils::spawn("ddprof_time", move || time_collector.run()),
+            time_collector_handle: thread_utils::spawn("ddprof_collect", move || {
+                time_collector.run()
+            }),
             uploader_handle: thread_utils::spawn("ddprof_upload", move || uploader.run()),
             should_join: AtomicBool::new(true),
         }
-    }
-
-    pub fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
-        self.interrupt_manager.add_interrupt(interrupt)
-    }
-
-    pub fn remove_interrupt(&self, interrupt: VmInterrupt) -> Result<(), VmInterrupt> {
-        self.interrupt_manager.remove_interrupt(interrupt)
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
@@ -726,7 +676,7 @@ mod tests {
     fn get_request_locals() -> RequestLocals {
         RequestLocals {
             env: None,
-            interrupt_count: AtomicU32::new(0),
+            wall_samples: AtomicU32::new(0),
             last_cpu_time: None,
             last_wall_time: Instant::now(),
             profiling_enabled: true,
@@ -738,7 +688,7 @@ mod tests {
             tags: Arc::new(static_tags()),
             uri: Box::new(AgentEndpoint::default()),
             version: None,
-            vm_interrupt_addr: std::ptr::null_mut(),
+            vm_interrupt: std::ptr::null_mut(),
         }
     }
 

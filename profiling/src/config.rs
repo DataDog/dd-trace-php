@@ -332,7 +332,7 @@ unsafe extern "C" fn parse_level_filter(
                 }
                 _ => false,
             }
-        },
+        }
         _ => false,
     }
 }
