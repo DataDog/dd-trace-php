@@ -35,7 +35,12 @@ const std::string &engine_settings::default_rules_file()
                 file = "<error resolving /proc/self/exe: " + ec.message() + ">";
             } else {
                 auto self_dir = self.parent_path();
-                file = self_dir / "../etc/dd-appsec/recommended.json";
+                file = self_dir / "../etc/recommended.json";
+                if (!std::filesystem::exists(file)) {
+                    // This fallback file is set by a custom/old installer on
+                    // appsec repository
+                    file = self_dir / "../etc/dd-appsec/recommended.json";
+                }
             }
         }
         std::string file;
