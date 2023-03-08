@@ -72,6 +72,10 @@ test('true_client_ip', '8.8.8.8');
 
 echo "remote address fallback: 8.8.8.8\n";
 var_dump(extract_ip_addr(['REMOTE_ADDR' => '8.8.8.8']));
+echo "\n";
+
+echo "remote address fallback: 192.168.1.1\n";
+var_dump(extract_ip_addr(['REMOTE_ADDR' => '192.168.1.1']));
 
 ?>
 --EXPECTF--
@@ -234,3 +238,7 @@ string(7) "8.8.8.8"
 
 remote address fallback: 8.8.8.8
 string(7) "8.8.8.8"
+
+remote address fallback: 192.168.1.1
+string(11) "192.168.1.1"
+

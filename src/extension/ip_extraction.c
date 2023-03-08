@@ -70,6 +70,7 @@ static zend_string *_try_extract(const zval *nonnull server,
 static bool _parse_x_forwarded_for(
     zend_string *nonnull value, ipaddr *nonnull out);
 static bool _parse_plain(zend_string *nonnull zvalue, ipaddr *nonnull out);
+static bool _parse_plain_raw(zend_string *nonnull zvalue, ipaddr *nonnull out);
 static bool _parse_forwarded(zend_string *nonnull zvalue, ipaddr *nonnull out);
 static bool _parse_via(zend_string *nonnull zvalue, ipaddr *nonnull out);
 
@@ -199,7 +200,7 @@ zend_string *nullable dd_ip_extraction_find(
     relevant_ip_header ip_headers[MAX_HEADER_ID] = {};
     int found_headers = _dd_request_headers(server, ip_headers);
     if (found_headers == 0) {
-        return _try_extract(server, _remote_addr_key, &_parse_plain);
+        return _try_extract(server, _remote_addr_key, &_parse_plain_raw);
     }
 
     if (found_headers > 1) {
@@ -456,6 +457,11 @@ static bool _parse_via(zend_string *nonnull zvalue, ipaddr *nonnull out)
     } while (!succ && p);
 
     return succ;
+}
+
+static bool _parse_plain_raw(zend_string *nonnull zvalue, ipaddr *nonnull out)
+{
+    return _parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), out);
 }
 
 static bool _parse_plain(zend_string *nonnull zvalue, ipaddr *nonnull out)
