@@ -1,4 +1,35 @@
 # Datadog AppSec for PHP Release
+### v0.7.0
+#### Breaking Changes
+ - ([#182](https://github.com/DataDog/dd-appsec-php/pull/182)) Delete `enabled_on_cli` ini setting
+
+#### Fixes
+ - ([#183](https://github.com/DataDog/dd-appsec-php/pull/183)) Add uid and gid to sock and lock files
+
+#### Additions
+ - ([#115](https://github.com/DataDog/dd-appsec-php/pull/115)) Remote configuration client
+ - ([#163](https://github.com/DataDog/dd-appsec-php/pull/163)) Plug remote config service
+ - ([#164](https://github.com/DataDog/dd-appsec-php/pull/164)) Add `config_sync` helper command
+ - ([#188](https://github.com/DataDog/dd-appsec-php/pull/188)) Add ASM\_DATA Product Listener
+ - ([#188](https://github.com/DataDog/dd-appsec-php/pull/188)) IP Blocking
+ - ([#195](https://github.com/DataDog/dd-appsec-php/pull/195)) Redirect support
+ - ([#196](https://github.com/DataDog/dd-appsec-php/pull/196)) Add `request_exec` helper command
+ - ([#207](https://github.com/DataDog/dd-appsec-php/pull/207)) ASM\_DD Product Listener
+ - ([#210](https://github.com/DataDog/dd-appsec-php/pull/210)) ASM Product Listener
+ - ([#210](https://github.com/DataDog/dd-appsec-php/pull/210)) Rule Blocking
+ - ([#212](https://github.com/DataDog/dd-appsec-php/pull/212)) Check if RC is available before polling
+ - ([#213](https://github.com/DataDog/dd-appsec-php/pull/213)) User Blocking
+
+#### Miscellaneous Changes
+ - ([#184](https://github.com/DataDog/dd-appsec-php/pull/184)) Support actions and refactor
+ - ([#186](https://github.com/DataDog/dd-appsec-php/pull/186)) Update `engine::subscriber` rule data
+ - ([#187](https://github.com/DataDog/dd-appsec-php/pull/187)) Blocking templates, missing traces fix and set blocking parameters
+ - ([#193](https://github.com/DataDog/dd-appsec-php/pull/193)) Upgrade tracer to v0.84.0
+ - ([#202](https://github.com/DataDog/dd-appsec-php/pull/202)) Upgrade WAF 1.8.2
+ - ([#208](https://github.com/DataDog/dd-appsec-php/pull/208)) Add init / commit stage to listeners
+ - ([#213](https://github.com/DataDog/dd-appsec-php/pull/213)) Ruleset 1.5.2
+ - ([#215](https://github.com/DataDog/dd-appsec-php/pull/215)) Allow new and old default rules file to be loaded
+ - ([#216](https://github.com/DataDog/dd-appsec-php/pull/216)) Fallback to local IP on extraction
 
 ### v0.6.0
 #### Breaking Changes
