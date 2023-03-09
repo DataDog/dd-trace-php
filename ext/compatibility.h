@@ -140,6 +140,8 @@ typedef ZEND_RESULT_CODE zend_result;
 
 #if PHP_VERSION_ID < 70400
 #define ZEND_THIS (&EX(This))
+
+#define Z_PROP_FLAG_P(z) Z_EXTRA_P(z)
 #endif
 
 #if PHP_VERSION_ID < 70300
@@ -210,6 +212,8 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
 
 #if PHP_VERSION_ID < 70100
 #define IS_VOID 0
+
+#define Z_EXTRA_P(z) Z_NEXT_P(z)
 #endif
 
 #if PHP_VERSION_ID < 80100

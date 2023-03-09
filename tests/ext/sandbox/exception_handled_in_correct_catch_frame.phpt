@@ -78,5 +78,5 @@ Exception was handled by level1(): Oops!
 HANDLED
 Span: level0-HANDLED
 Span: level1-HANDLED
-Span: level2-level2 (Uncaught Exception: Oops! in %s:%d)
-Span: level3-level3 (Uncaught Exception: Oops! in %s:%d)
+Span: level2-level2 (Thrown Exception: Oops! in %s:%d)
+Span: level3-level3 (Thrown Exception: Oops! in %s:%d)
