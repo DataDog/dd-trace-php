@@ -317,9 +317,9 @@ static void _emit_error(const char *format, ...)
             dd_appsec_rshutdown();
             DDAPPSEC_G(skip_rshutdown) = true;
         }
-    }
 
-    dd_trace_close_all_spans_and_flush();
+        dd_trace_close_all_spans_and_flush();
+    }
 
     if ((PG(during_request_startup) &&
             strcmp(sapi_module.name, "fpm-fcgi") == 0)) {

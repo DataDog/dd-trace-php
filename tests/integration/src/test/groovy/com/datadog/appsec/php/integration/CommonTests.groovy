@@ -157,16 +157,14 @@ trait CommonTests {
 
     @Test
     void 'user blocking'() {
-        def trace = container.tracesFromRequest('/user_id.php?id=user2020') { HttpURLConnection conn ->
+        def trace = container.traceFromRequest('/user_id.php?id=user2020') { HttpURLConnection conn ->
             assert conn.responseCode == 403
 
             def content = (conn.errorStream ?: conn.inputStream).text
             assert content.contains('blocked')
         }
 
-        assert trace[0][0].meta."appsec.blocked" == "true"
-
-        trace = trace[1][0]
+        assert trace.meta."appsec.blocked" == "true"
         assert trace.metrics."_dd.appsec.enabled" == 1.0d
         assert trace.metrics."_dd.appsec.waf.duration" > 0.0d
         assert trace.meta."_dd.appsec.event_rules.version" != ''
@@ -174,16 +172,14 @@ trait CommonTests {
 
     @Test
     void 'user login success blocking'() {
-        def trace = container.tracesFromRequest('/user_login_success.php?id=user2020') { HttpURLConnection conn ->
+        def trace = container.traceFromRequest('/user_login_success.php?id=user2020') { HttpURLConnection conn ->
             assert conn.responseCode == 403
 
             def content = (conn.errorStream ?: conn.inputStream).text
             assert content.contains('blocked')
         }
 
-        assert trace[0][0].meta."appsec.blocked" == "true"
-
-        trace = trace[1][0]
+        assert trace.meta."appsec.blocked" == "true"
         assert trace.metrics."_dd.appsec.enabled" == 1.0d
         assert trace.metrics."_dd.appsec.waf.duration" > 0.0d
         assert trace.meta."_dd.appsec.event_rules.version" != ''
@@ -191,14 +187,12 @@ trait CommonTests {
 
     @Test
     void 'user redirecting'() {
-        def trace = container.tracesFromRequest('/user_id.php?id=user2023') { HttpURLConnection conn ->
+        def trace = container.traceFromRequest('/user_id.php?id=user2023') { HttpURLConnection conn ->
             conn.setInstanceFollowRedirects(false)
             assert conn.responseCode == 303
         }
 
-        assert trace[0][0].meta."appsec.blocked" == "true"
-
-        trace = trace[1][0]
+        assert trace,meta."appsec.blocked" == "true"
         assert trace.metrics."_dd.appsec.enabled" == 1.0d
         assert trace.metrics."_dd.appsec.waf.duration" > 0.0d
         assert trace.meta."_dd.appsec.event_rules.version" != ''
@@ -206,14 +200,12 @@ trait CommonTests {
 
     @Test
     void 'user login success redirecting'() {
-        def trace = container.tracesFromRequest('/user_login_success.php?id=user2023') { HttpURLConnection conn ->
+        def trace = container.traceFromRequest('/user_login_success.php?id=user2023') { HttpURLConnection conn ->
             conn.setInstanceFollowRedirects(false)
             assert conn.responseCode == 303
         }
 
-        assert trace[0][0].meta."appsec.blocked" == "true"
-
-        trace = trace[1][0]
+        assert trace.meta."appsec.blocked" == "true"
         assert trace.metrics."_dd.appsec.enabled" == 1.0d
         assert trace.metrics."_dd.appsec.waf.duration" > 0.0d
         assert trace.meta."_dd.appsec.event_rules.version" != ''
