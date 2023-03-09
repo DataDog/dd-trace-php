@@ -2,16 +2,10 @@
 
 #include "config.h"
 
-#ifdef ZTS
-#define ZAI_TLS static __thread
-#else
-#define ZAI_TLS static
-#endif
-
 extern HashTable zai_config_name_map;
 
-ZAI_TLS zval *runtime_config;  // dynamically allocated, otherwise TLS alignment limits may be exceeded
-ZAI_TLS bool runtime_config_initialized = false;
+ZEND_TLS zval *runtime_config;  // dynamically allocated, otherwise TLS alignment limits may be exceeded
+ZEND_TLS bool runtime_config_initialized = false;
 
 void zai_config_replace_runtime_config(zai_config_id id, zval *value) {
     zval *rt_value = &runtime_config[id];
