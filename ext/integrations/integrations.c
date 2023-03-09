@@ -212,6 +212,9 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_YII, "yii\\di\\Container", "__construct",
                                          "DDTrace\\Integrations\\Yii\\YiiIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ZENDFRAMEWORK, "Zend_Controller_Plugin_Broker", "preDispatch",
+                                         "DDTrace\\Integrations\\ZendFramework\\ZendFrameworkIntegration");
 }
 
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {

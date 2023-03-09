@@ -82,8 +82,6 @@ class IntegrationsLoader
 
         $this->integrations[MongoIntegration::NAME] =
             '\DDTrace\Integrations\Mongo\MongoIntegration';
-        $this->integrations[ZendFrameworkIntegration::NAME] =
-            '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION < 7) {
@@ -113,6 +111,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Symfony\SymfonyIntegration';
             $this->integrations[WordPressIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressIntegration';
+            $this->integrations[ZendFrameworkIntegration::NAME] =
+                '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
         }
     }
 

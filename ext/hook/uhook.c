@@ -21,8 +21,8 @@ extern void (*profiling_interrupt_function)(zend_execute_data *);
 
 zend_class_entry *ddtrace_hook_data_ce;
 
-static __thread HashTable dd_closure_hooks;
-static __thread HashTable dd_active_hooks;
+ZEND_TLS HashTable dd_closure_hooks;
+ZEND_TLS HashTable dd_active_hooks;
 
 typedef struct {
     size_t size;
