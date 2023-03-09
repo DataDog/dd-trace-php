@@ -152,6 +152,8 @@ int __attribute__((nonnull(1, 4))) ddog_php_prof_timer_create(
     union sigval value,
     void (*notify_function)(union sigval)) {
     struct sigevent sev = {
+        // SIGEV_THREAD will not interrupt active syscalls, or at least as far
+        // as I can tell.
         .sigev_notify = SIGEV_THREAD,
         .sigev_value = value,
         .sigev_notify_function = notify_function,
@@ -162,7 +164,10 @@ int __attribute__((nonnull(1, 4))) ddog_php_prof_timer_create(
 
 int ddog_php_prof_timer_settime(timer_t timerid, uint64_t ns) {
     struct itimerspec its = {
-        .it_interval = {0, 0},
+        .it_interval = {
+            .tv_sec = 0,
+            .tv_nsec = ns,
+        },
         .it_value = {
             .tv_sec = 0,
             .tv_nsec = ns,

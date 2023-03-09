@@ -26,27 +26,35 @@ mod platform {
         // used by the notify handlers.
         #[allow(unused)]
         signal_pointers: Box<SignalPointers>,
-        cpu_time_period_nanoseconds: u64,
+        cpu_time_period_nanoseconds: Option<u64>,
         wall_time_period_nanoseconds: u64,
-        cpu_timer: Timer,
+        cpu_timer: Option<Timer>,
         wall_timer: Timer,
     }
 
     impl Interrupter {
         pub fn new(
             signal_pointers: SignalPointers,
-            cpu_time_period_nanoseconds: u64,
+            cpu_time_period_nanoseconds: Option<u64>,
             wall_time_period_nanoseconds: u64,
         ) -> Self {
             let mut signal_pointers = Box::new(signal_pointers);
             let sival_ptr = signal_pointers.as_mut() as *mut SignalPointers as *mut libc::c_void;
             let cpu_sigval = libc::sigval { sival_ptr };
             let wall_sigval = libc::sigval { sival_ptr };
+            let cpu_timer = match cpu_time_period_nanoseconds {
+                Some(_) => Some(Timer::new(
+                    libc::CLOCK_THREAD_CPUTIME_ID,
+                    cpu_sigval,
+                    Self::notify_cpu,
+                )),
+                None => None,
+            };
             Self {
                 signal_pointers,
                 cpu_time_period_nanoseconds,
                 wall_time_period_nanoseconds,
-                cpu_timer: Timer::new(libc::CLOCK_THREAD_CPUTIME_ID, cpu_sigval, Self::notify_cpu),
+                cpu_timer,
                 wall_timer: Timer::new(libc::CLOCK_MONOTONIC, wall_sigval, Self::notify_wall),
             }
         }
@@ -70,19 +78,28 @@ mod platform {
         }
 
         pub fn start(&self) -> anyhow::Result<()> {
-            let cpu_result = self.cpu_timer.start(self.cpu_time_period_nanoseconds);
+            let cpu_result = match &self.cpu_timer {
+                Some(cpu_timer) => cpu_timer.start(self.cpu_time_period_nanoseconds.unwrap()),
+                None => Ok(()),
+            };
             let wall_result = self.wall_timer.start(self.wall_time_period_nanoseconds);
             cpu_result.and(wall_result)
         }
 
         pub fn stop(&self) -> anyhow::Result<()> {
-            let cpu_result = self.cpu_timer.stop();
+            let cpu_result = match &self.cpu_timer {
+                Some(cpu_timer) => cpu_timer.stop(),
+                None => Ok(()),
+            };
             let wall_result = self.wall_timer.stop();
             cpu_result.and(wall_result)
         }
 
         pub fn shutdown(&mut self) -> anyhow::Result<()> {
-            let cpu_result = self.cpu_timer.shutdown();
+            let cpu_result = match &self.cpu_timer {
+                Some(cpu_timer) => cpu_timer.shutdown(),
+                None => Ok(()),
+            };
             let wall_result = self.wall_timer.shutdown();
             cpu_result.and(wall_result)
         }
@@ -200,16 +217,19 @@ mod platform {
     }
 
     impl SendableSignalPointers {
-        fn notify(&self) {
+        fn notify(&self, cpu_time_enabled: bool) {
             let sp = SignalPointers::from(self);
 
-            // It's not going to be accurate, but it's there.
-            let cpu_samples: &AtomicU32 = unsafe { sp.cpu_samples.as_ref() };
-            cpu_samples.fetch_add(1, Ordering::SeqCst);
+            if cpu_time_enabled {
+                // It's not going to be accurate, but it's there.
+                let cpu_samples: &AtomicU32 = unsafe { sp.cpu_samples.as_ref() };
+                cpu_samples.fetch_add(1, Ordering::SeqCst);
+            }
 
             let wall_samples: &AtomicU32 = unsafe { sp.wall_samples.as_ref() };
             wall_samples.fetch_add(1, Ordering::SeqCst);
 
+            // Trigger the VM interrupt after the others.
             let vm_interrupt: &AtomicBool = unsafe { sp.vm_interrupt.as_ref() };
             vm_interrupt.store(true, Ordering::SeqCst);
         }
@@ -222,7 +242,7 @@ mod platform {
     impl Interrupter {
         pub fn new(
             signal_pointers: SignalPointers,
-            _cpu_time_period_nanoseconds: u64,
+            cpu_time_period_nanoseconds: Option<u64>,
             wall_time_period_nanoseconds: u64,
         ) -> Self {
             // > A special case is zero-capacity channel, which cannot hold
@@ -270,7 +290,7 @@ mod platform {
                             Ok(_instant) => {
                                 // should always be true, just being careful.
                                 if active {
-                                    signal_pointers.notify()
+                                    signal_pointers.notify(cpu_time_period_nanoseconds.is_some())
                                 }
                             }
 

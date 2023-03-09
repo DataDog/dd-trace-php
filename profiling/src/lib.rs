@@ -624,11 +624,12 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 wall_samples: NonNull::from(&locals.wall_samples),
             };
 
+            let cpu_enabled = locals.profiling_experimental_cpu_time_enabled;
             if let Err(err) = locals
                 .time_interrupter
                 .get_or_init(move || {
                     // todo: stagger the first cpu interval?
-                    let cpu_nanos: u64 = 9970001;
+                    let cpu_nanos = cpu_enabled.then(|| 9970001_u64);
                     let wall_nanos: u64 = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
                     Interrupter::new(pointers, cpu_nanos, wall_nanos)
                 })
@@ -943,6 +944,7 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     let mut profiler = PROFILER.lock().unwrap();
     if let Some(profiler) = profiler.take() {
         profiler.stop(Duration::from_secs(1));
+        profiler.shutdown(Duration::from_secs(1));
     }
 
     ZendResult::Success
@@ -1067,18 +1069,23 @@ fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
         /* Other extensions/modules or the engine itself may trigger an
          * interrupt, but given how expensive it is to gather a stack trace,
          * it should only be done if we triggered it ourselves. So
-         * interrupt_count serves dual purposes:
+         * these serve dual purposes:
          *  1. Track how many interrupts there were.
          *  2. Ensure we don't collect on someone else's interrupt.
          */
-        let interrupt_count = locals.wall_samples.swap(0, Ordering::SeqCst);
-        if interrupt_count == 0 {
+        let cpu_samples = locals.cpu_samples.swap(0, Ordering::SeqCst);
+        let wall_samples = locals.wall_samples.swap(0, Ordering::SeqCst);
+
+        // The bitwise-or allows for a single conditional.
+        if (cpu_samples | wall_samples) == 0 {
             return;
         }
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe { profiler.collect_time(execute_data, interrupt_count, locals.deref_mut()) };
+            unsafe {
+                profiler.collect_time(execute_data, cpu_samples, wall_samples, locals.deref_mut())
+            };
         }
     });
 }
