@@ -407,24 +407,6 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
 
 void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
-    zval value;
-
-    zend_string *version = get_DD_VERSION();
-    if (ZSTR_LEN(version) > 0) {  // non-empty
-        ZVAL_STR_COPY(&value, version);
-        zend_hash_str_add_new(meta, ZEND_STRL("version"), &value);
-    }
-
-    zend_string *env = get_DD_ENV();
-    if (ZSTR_LEN(env) > 0) {  // non-empty
-        ZVAL_STR_COPY(&value, env);
-        zend_hash_str_add_new(meta, ZEND_STRL("env"), &value);
-    }
-
-    if (DDTRACE_G(dd_origin)) {
-        ZVAL_STR_COPY(&value, DDTRACE_G(dd_origin));
-        zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), &value);
-    }
 
     zend_array *global_tags = get_DD_TAGS();
     zend_string *global_key;
@@ -665,6 +647,25 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
             ZVAL_STR(&hostname_zv, hostname);
             zend_hash_str_add_new(meta, ZEND_STRL("_dd.hostname"), &hostname_zv);
         }
+    }
+
+    zval value;
+
+    zend_string *version = get_DD_VERSION();
+    if (ZSTR_LEN(version) > 0) {  // non-empty
+        ZVAL_STR_COPY(&value, version);
+        zend_hash_str_add_new(meta, ZEND_STRL("version"), &value);
+    }
+
+    zend_string *env = get_DD_ENV();
+    if (ZSTR_LEN(env) > 0) {  // non-empty
+        ZVAL_STR_COPY(&value, env);
+        zend_hash_str_add_new(meta, ZEND_STRL("env"), &value);
+    }
+
+    if (DDTRACE_G(dd_origin)) {
+        ZVAL_STR_COPY(&value, DDTRACE_G(dd_origin));
+        zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), &value);
     }
 
     ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
