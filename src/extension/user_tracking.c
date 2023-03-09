@@ -11,6 +11,7 @@
 #include "logging.h"
 #include "php_compat.h"
 #include "src/extension/request_abort.h"
+#include "src/extension/tags.h"
 #include "string_helpers.h"
 
 static void (*_ddtrace_set_user)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
@@ -86,6 +87,8 @@ void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id)
 
     dd_result res = dd_request_exec(conn, &data_zv);
     zval_ptr_dtor(&data_zv);
+
+    dd_tags_set_event_user_id(user_id);
 
     if (res == dd_should_block) {
         dd_request_abort_static_page();

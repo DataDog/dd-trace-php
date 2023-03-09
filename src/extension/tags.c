@@ -75,6 +75,8 @@ static HashTable _relevant_headers;
 static HashTable _relevant_ip_headers;
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
+static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
+static THREAD_LOCAL_ON_ZTS bool _blocked;
 
 static void _init_relevant_headers(void);
 static zend_string *_concat_json_fragments(void);
@@ -230,6 +232,10 @@ void dd_tags_rinit()
         zend_llist_init(&_appsec_json_frags, sizeof(zend_string *),
             _zend_string_release_indirect, 0);
     }
+
+    // Just in case...
+    _event_user_id = NULL;
+    _blocked = false;
 }
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
@@ -237,7 +243,20 @@ void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
     zend_llist_add_element(&_appsec_json_frags, &zstr);
 }
 
-void dd_tags_rshutdown() { zend_llist_clean(&_appsec_json_frags); }
+void dd_tags_set_event_user_id(zend_string *nonnull zstr)
+{
+    _event_user_id = zend_string_copy(zstr);
+}
+
+void dd_tags_rshutdown()
+{
+    zend_llist_clean(&_appsec_json_frags);
+
+    if (_event_user_id) {
+        zend_string_release(_event_user_id);
+        _event_user_id = NULL;
+    }
+}
 
 void dd_tags_add_tags()
 {
@@ -294,17 +313,7 @@ void dd_tags_add_tags()
     }
 }
 
-void dd_tags_add_blocked()
-{
-    // tag appsec.blocked
-    zval true_zv;
-    ZVAL_STR_COPY(&true_zv, _true_zstr);
-    bool res = dd_trace_root_span_add_tag(_dd_tag_blocked_zstr, &true_zv);
-    if (!res) {
-        mlog(dd_log_info, "Failed adding tag " DD_TAG_BLOCKED " to root span");
-        return;
-    }
-}
+void dd_tags_add_blocked() { _blocked = true; }
 
 void dd_tags_rshutdown_testing()
 {
@@ -378,6 +387,8 @@ static void _dd_http_client_ip(zend_array *meta_ht);
 static void _dd_request_headers(
     zend_array *meta_ht, zval *_server, HashTable *relevant_headers);
 static void _dd_response_headers(zend_array *meta_ht);
+static void _dd_event_user_id(zend_array *meta_ht);
+static void _dd_appsec_blocked(zend_array *meta_ht);
 
 static void _add_basic_ancillary_tags()
 {
@@ -431,6 +442,8 @@ static void _add_all_tags_to_meta(zval *nonnull meta)
     _dd_request_headers(meta_ht, _server, &_relevant_headers);
     _dd_http_client_ip(meta_ht);
     _dd_response_headers(meta_ht);
+    _dd_event_user_id(meta_ht);
+    _dd_appsec_blocked(meta_ht);
 }
 
 static void _add_new_zstr_to_meta(
@@ -704,6 +717,20 @@ static void _dd_response_headers(zend_array *meta_ht)
         } else {
             zend_string_efree(header_value);
         }
+    }
+}
+
+static void _dd_event_user_id(zend_array *meta_ht)
+{
+    if (_event_user_id) {
+        _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, _event_user_id, true);
+    }
+}
+
+static void _dd_appsec_blocked(zend_array *meta_ht)
+{
+    if (_blocked) {
+        _add_new_zstr_to_meta(meta_ht, _dd_tag_blocked_zstr, _true_zstr, true);
     }
 }
 

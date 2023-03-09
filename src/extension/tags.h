@@ -21,5 +21,8 @@ void dd_tags_rshutdown_testing(void);
 
 void dd_tags_set_sampling_priority(void);
 
+// Copies (or increases refcount) of zstr
+void dd_tags_set_event_user_id(zend_string *nonnull zstr);
+
 // does not increase the refcount on zstr
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr);
