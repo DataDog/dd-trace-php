@@ -395,6 +395,20 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
     }
 }
 
+static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_string *postkey, zend_string *postval) {
+    for (char *ptr = ZSTR_VAL(postkey); *ptr; ++ptr) {
+        if ((*ptr < 'a' || *ptr > 'z') && *ptr != '-' && (*ptr < '0' || *ptr > '9')) {
+            *ptr = '_';
+        }
+    }
+
+    zend_string *posttag = zend_strpprintf(0, "http.%s.post.%s", type, ZSTR_VAL(postkey));
+    zval postzv;
+    ZVAL_STR_COPY(&postzv, postval);
+    zend_hash_update(meta, posttag, &postzv);
+    zend_string_release(posttag);
+}
+
 void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
     zval value;
@@ -628,6 +642,24 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
 
                 dd_add_header_to_meta(meta, "request", lowerheader, Z_STR_P(headerval));
                 zend_string_release(lowerheader);
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    if (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST"))) {
+        zend_string *postkey;
+        zval *postval;
+        ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR(PG(http_globals)[TRACK_VARS_POST]), postkey, postval) {
+            ZVAL_DEREF(postval);
+            if (Z_TYPE_P(postval) == IS_STRING) {
+                if (zai_match_regex(get_DD_TRACE_OBFUSCATION_PARAMETER_STRING_REGEXP(), postkey)) {
+                    zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+                    dd_add_post_fields_to_meta(meta, "request", postkey, replacement);
+                    zend_string_release(replacement);
+                } else {
+                    dd_add_post_fields_to_meta(meta, "request", postkey, Z_STR_P(postval));
+                }
             }
         }
         ZEND_HASH_FOREACH_END();

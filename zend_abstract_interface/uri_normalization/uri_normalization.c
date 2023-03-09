@@ -196,3 +196,28 @@ zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *wh
     }
     return ZSTR_EMPTY_ALLOC();
 }
+
+bool zai_match_regex(zend_string *pattern, zend_string *subject) {
+    // If the subject matches the pattern, return true.
+    // If the subject does not match the pattern, return false.
+
+    if (ZSTR_LEN(pattern) == 0) {
+        return false;
+    }
+
+    // Use php_pcre_match_impl() to match the subject against the pattern.
+    // If the subject matches the pattern, return true.
+    // If the subject does not match the pattern, return false.
+    // If an error occurs, return false.
+
+    zend_string *regex = zend_strpprintf(0, "(%s)", ZSTR_VAL(pattern));
+    pcre_cache_entry *pce = pcre_get_compiled_regex_cache(regex);
+    zval ret;
+#if PHP_VERSION_ID < 70400
+    php_pcre_match_impl(pce, ZSTR_VAL(subject), ZSTR_LEN(subject), &ret, NULL, 0, 0, 0, 0);
+#else
+    php_pcre_match_impl(pce, subject, &ret, NULL, 0, 0, 0, 0);
+#endif
+    zend_string_release(regex);
+    return Z_TYPE(ret) == IS_LONG && Z_LVAL(ret) > 0;
+}

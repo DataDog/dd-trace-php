@@ -200,6 +200,53 @@ class Normalizer
         );
     }
 
+    private static function cleanRequestBody(array $requestBody, $allowedSetting)
+    {
+        $allowedSet = self::decodeConfigSet($allowedSetting);
+
+        if (empty($allowedSet)) {
+            return [];
+        }
+
+        if ($allowedSet == ["*"]) {
+            $obfuscationRegex = \ini_get('datadog.trace.obfuscation_parameter_string_regexp');
+            if ($obfuscationRegex !== "") {
+                $obfuscationRegex = '(' . $obfuscationRegex . ')';
+                // Replace by <redacted> the value of the parameters when its key matches the obfuscation regex
+                foreach ($requestBody as $key => $value) {
+                    if (preg_match($obfuscationRegex, $key)) {
+                        $requestBody[$key] = '<redacted>';
+                    }
+                }
+            }
+            return $requestBody;
+        }
+
+        $allowedSet = array_flip($allowedSet);
+        $preserve = array_intersect_key($requestBody, $allowedSet);
+        $obfuscationRegex = \ini_get('datadog.trace.obfuscation_parameter_string_regexp');
+        if ($obfuscationRegex !== "") {
+            $obfuscationRegex = '(' . $obfuscationRegex . ')';
+            // Replace by <redacted> the value of the parameters when its key matches the obfuscation regex
+            foreach ($preserve as $key => $value) {
+                if (preg_match($obfuscationRegex, $key)) {
+                    $preserve[$key] = '<redacted>';
+                }
+            }
+        }
+        return $preserve;
+    }
+
+    public static function requestBodySanitize($requestBody)
+    {
+        $requestBody = self::cleanRequestBody($requestBody, "datadog.trace.http_post_data_param_allowed");
+        if (empty($requestBody)) {
+            return "";
+        }
+
+        return $requestBody;
+    }
+
     private static function cleanQueryString($queryString, $allowedSetting)
     {
         if (!preg_match('(\?\K[^:?@#][^#]*)', $queryString, $m)) {
