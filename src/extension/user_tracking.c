@@ -18,13 +18,16 @@ static void (*_ddtrace_set_user)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
 static PHP_FUNCTION(set_user_wrapper)
 {
-    zend_string *user_id = NULL;
-    HashTable *metadata = NULL;
-    zend_bool propagate = false;
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(),
-            "S|hb", &user_id, &metadata, &propagate) == SUCCESS) {
-        if (user_id != NULL) {
-            dd_find_and_apply_verdict_for_user(user_id);
+    if (DDAPPSEC_G(enabled) == ENABLED ||
+        UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
+        zend_string *user_id = NULL;
+        HashTable *metadata = NULL;
+        zend_bool propagate = false;
+        if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(),
+                "S|hb", &user_id, &metadata, &propagate) == SUCCESS) {
+            if (user_id != NULL) {
+                dd_find_and_apply_verdict_for_user(user_id);
+            }
         }
     }
 
@@ -66,6 +69,11 @@ void dd_user_tracking_shutdown(void)
 
 void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id)
 {
+    if (DDAPPSEC_G(enabled) != ENABLED &&
+        UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
+        return;
+    }
+
     if (ZSTR_LEN(user_id) == 0) {
         mlog(dd_log_debug, "Empty user name, ignoring");
         return;

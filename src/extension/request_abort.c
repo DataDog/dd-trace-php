@@ -319,21 +319,29 @@ static void _emit_error(const char *format, ...)
         }
 
         dd_trace_close_all_spans_and_flush();
-    }
 
-    if ((PG(during_request_startup) &&
-            strcmp(sapi_module.name, "fpm-fcgi") == 0)) {
-        /* fpm children exit if we throw an error at this point. So emit only
-         * warning and use other means to prevent the script from executing */
-        php_verror(NULL, "", E_WARNING, format, args);
-        va_end(args);
-        // fpm doesn't try to run the script if it sees this null
-        SG(request_info).request_method = NULL;
-        return;
-    }
+        if (strcmp(sapi_module.name, "fpm-fcgi") == 0) {
+            /* fpm children exit if we throw an error at this point. So emit
+             * only warning and use other means to prevent the script from
+             * executing */
+            php_verror(NULL, "", E_WARNING, format, args);
+            va_end(args);
+            // fpm doesn't try to run the script if it sees this null
+            SG(request_info).request_method = NULL;
+            return;
+        }
 
-    if (PG(during_request_startup)) {
         _run_rshutdowns();
+    } else {
+        if (Z_TYPE(EG(user_error_handler)) != IS_UNDEF) {
+            zval_ptr_dtor(&EG(user_error_handler));
+            ZVAL_UNDEF(&EG(user_error_handler));
+        }
+
+        if (Z_TYPE(EG(user_exception_handler)) != IS_UNDEF) {
+            zval_ptr_dtor(&EG(user_exception_handler));
+            ZVAL_UNDEF(&EG(user_exception_handler));
+        }
     }
 
     /* Avoid logging the error message on error level. This is done by first

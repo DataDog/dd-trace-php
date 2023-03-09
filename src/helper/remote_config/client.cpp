@@ -203,7 +203,7 @@ bool client::is_remote_config_available()
 {
     auto response_body = api_->get_info();
     try {
-        SPDLOG_DEBUG("Received info response: {}", response_body);
+        SPDLOG_TRACE("Received info response: {}", response_body);
         auto response = protocol::parse_info(response_body);
 
         return std::find(response.endpoints.begin(), response.endpoints.end(),
@@ -225,7 +225,7 @@ bool client::poll()
     std::string serialized_request;
     try {
         serialized_request = protocol::serialize(request);
-        SPDLOG_DEBUG("Sending request: {}", serialized_request);
+        SPDLOG_TRACE("Sending request: {}", serialized_request);
     } catch (protocol::serializer_exception &e) {
         return false;
     }
@@ -233,7 +233,7 @@ bool client::poll()
     auto response_body = api_->get_configs(std::move(serialized_request));
 
     try {
-        SPDLOG_DEBUG("Received response: {}", response_body);
+        SPDLOG_TRACE("Received response: {}", response_body);
         auto response = protocol::parse(response_body);
         last_poll_error_.clear();
         return process_response(response);
