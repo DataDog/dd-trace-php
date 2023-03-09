@@ -250,7 +250,7 @@ static void zai_hook_sort_newest(zai_hooks_entry *hooks) {
 move: ;
         // prevPos is now the index where the new entry will be spliced in
         if (pos != prevPos) {
-            for (int32_t i = -1; i > -(int32_t)hooks->hooks.nTableSize; --i) {
+            for (int32_t i = -1; i >= (int32_t)hooks->hooks.nTableMask; --i) {
                 uint32_t *hash = &HT_HASH(&hooks->hooks, HT_IDX_TO_HASH(i));
                 if (*(int32_t*)hash >= (int32_t)prevPos) {
                     if (*hash == pos) {
