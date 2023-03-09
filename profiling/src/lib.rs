@@ -439,6 +439,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         profiling_experimental_cpu_time_enabled,
         profiling_experimental_allocation_enabled,
         log_level,
+        output_pprof,
     ) = unsafe {
         (
             config::profiling_enabled(),
@@ -446,6 +447,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             config::profiling_experimental_cpu_time_enabled(),
             config::profiling_experimental_allocation_enabled(),
             config::profiling_log_level(),
+            config::profiling_output_pprof(),
         )
     };
 
@@ -543,7 +545,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
          */
         let mut profiler = PROFILER.lock().unwrap();
         if profiler.is_none() {
-            *profiler = Some(Profiler::new())
+            *profiler = Some(Profiler::new(output_pprof))
         }
     };
 
