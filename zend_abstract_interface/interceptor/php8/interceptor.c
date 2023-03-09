@@ -21,8 +21,8 @@ typedef struct {
     bool implicit;
 } zai_frame_memory;
 
-__thread HashTable zai_interceptor_implicit_generators;
-__thread HashTable zai_hook_memory;
+ZEND_TLS HashTable zai_interceptor_implicit_generators;
+ZEND_TLS HashTable zai_hook_memory;
 // execute_data is 16 byte aligned (except when it isn't, but it doesn't matter as zend_execute_data is big enough
 // our goal is to reduce conflicts
 static inline bool zai_hook_memory_table_insert(zend_execute_data *index, zai_frame_memory *inserting) {

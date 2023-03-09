@@ -42,8 +42,8 @@ typedef struct {
     size_t dynamic_offset;
 } zai_hook_info;
 
-__thread zend_ulong zai_hook_invocation = 0;
-__thread zend_ulong zai_hook_id;
+ZEND_TLS zend_ulong zai_hook_invocation = 0;
+ZEND_TLS zend_ulong zai_hook_id;
 
 /* {{{ private tables */
 // zai_hook_static is a simple array of persistently allocated zai_hook_t
@@ -51,26 +51,24 @@ __thread zend_ulong zai_hook_id;
 static HashTable zai_hook_static;
 
 // zai_hook_request_functions is a map name -> array<zai_hook_t>
-__thread HashTable zai_hook_request_functions;
+ZEND_TLS HashTable zai_hook_request_functions;
 // zai_hook_request_classes is a map class name -> map function name -> array<zai_hook_t>
-__thread HashTable zai_hook_request_classes;
+ZEND_TLS HashTable zai_hook_request_classes;
 
 // zai_hook_resolved is a map op_array/internal_function -> array<zai_hook_t>
 // if indirect, then it's pointing to some hashtable in zai_hook_request_functions/classes
-__thread HashTable zai_hook_resolved;
+TSRM_TLS HashTable zai_hook_resolved;
 
 // zai_hook_inheritors is a map of persistent class entries (interfaces and abstract classes) to a list of persistent class entries
 static HashTable zai_hook_static_inheritors;
 
 // zai_hook_inheritors is a map of class entries (interfaces and abstract classes) to a list of class entries
-__thread HashTable zai_hook_inheritors;
+ZEND_TLS HashTable zai_hook_inheritors;
 
 typedef struct {
     size_t size;
     zend_class_entry *inheritor[];
 } zai_hook_inheritor_list;
-
-__thread HashTable zai_hook_resolved;
 
 typedef struct {
     uint32_t ordered;
@@ -79,7 +77,7 @@ typedef struct {
 } zai_function_location_entry;
 
 // zai_function_location_map maps from a filename to a possibly ordered array of values
-__thread HashTable zai_function_location_map; /* }}} */
+ZEND_TLS HashTable zai_function_location_map; /* }}} */
 
 #define ZAI_IS_SHARED_HOOK_PTR (IS_PTR+1)
 
@@ -252,7 +250,7 @@ static void zai_hook_sort_newest(zai_hooks_entry *hooks) {
 move: ;
         // prevPos is now the index where the new entry will be spliced in
         if (pos != prevPos) {
-            for (int32_t i = -1; i > -(int32_t)hooks->hooks.nTableSize; --i) {
+            for (int32_t i = -1; i >= (int32_t)hooks->hooks.nTableMask; --i) {
                 uint32_t *hash = &HT_HASH(&hooks->hooks, HT_IDX_TO_HASH(i));
                 if (*(int32_t*)hash >= (int32_t)prevPos) {
                     if (*hash == pos) {

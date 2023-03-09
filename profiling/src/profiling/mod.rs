@@ -391,7 +391,7 @@ pub struct UploadMessage {
 }
 
 impl Profiler {
-    pub fn new() -> Self {
+    pub fn new(output_pprof: Option<Cow<'static, str>>) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
         let interrupt_manager = Arc::new(InterruptManager::new(Mutex::new(Vec::with_capacity(1))));
@@ -408,7 +408,13 @@ impl Profiler {
             upload_period: UPLOAD_PERIOD,
         };
 
-        let uploader = Uploader::new(fork_barrier.clone(), fork_receiver1, upload_receiver);
+        let uploader = Uploader::new(
+            fork_barrier.clone(),
+            fork_receiver1,
+            upload_receiver,
+            output_pprof,
+        );
+
         Profiler {
             fork_barrier,
             fork_senders: [fork_sender0, fork_sender1],

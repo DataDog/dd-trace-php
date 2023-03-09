@@ -89,7 +89,7 @@ void zai_hook_resolve_function(zend_function *function, zend_string *lcname);
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname);
 
 /* {{{ private but externed for performance reasons */
-extern __thread HashTable zai_hook_resolved;
+extern TSRM_TLS HashTable zai_hook_resolved;
 /* }}} */
 
 #if PHP_VERSION_ID >= 80000
