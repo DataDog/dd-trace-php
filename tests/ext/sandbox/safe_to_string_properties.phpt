@@ -1,5 +1,10 @@
 --TEST--
 Span properties are safely converted to strings without errors or exceptions
+--SKIPIF--
+<?php
+if (version_compare(PHP_VERSION, '7.4.0', '>='))
+    die('skip: test only works before 7.4');
+?>
 --FILE--
 <?php
 use DDTrace\SpanData;

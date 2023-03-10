@@ -43,13 +43,15 @@ static void dd_check_exception_in_header(int old_response_code) {
 
     ddtrace_save_active_error_to_metadata();
 
-    if (Z_TYPE_P(ddtrace_spandata_property_exception(root_span)) > IS_FALSE) {
+    zval *root_exception = ddtrace_spandata_property_exception(root_span);
+    if (Z_TYPE_P(root_exception) > IS_FALSE) {
         return;
     }
 
     zend_object *ex = ddtrace_find_active_exception();
     if (ex) {
-        ZVAL_OBJ_COPY(ddtrace_spandata_property_exception(root_span), ex);
+        ZVAL_OBJ_COPY(root_exception, ex);
+        Z_PROP_FLAG_P(root_exception) = 2; // Re-assigning property values resets the property flag, which is very nice
     }
 }
 

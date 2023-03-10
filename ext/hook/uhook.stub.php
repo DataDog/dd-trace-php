@@ -5,12 +5,81 @@
 namespace DDTrace;
 
 class HookData {
-    public int $id;
-    public array $args;
-    public mixed $returned;
-    public ?\Throwable $exception;
+    /**
+     * Arbitrary data to be passed from a begin-hook to an end-hook
+     */
     public mixed $data;
+
+    /**
+     * The hook id, which triggered that particular hook
+     */
+    public int $id;
+
+    /**
+     * A zero-indexed array of all arguments.
+     */
+    public array $args;
+
+    /**
+     * The returned value.
+     * Uninitialized in a begin hook.
+     */
+    public mixed $returned;
+
+    /**
+     * The a possible thrown exception within that function.
+     * Uninitialized in a begin hook.
+     */
+    public ?\Throwable $exception;
+
+    /**
+     * Creates a span if none exists yet, otherwise returns the span attached to the current function call.
+     * If called outside the pre-hook and no span is attached yet, it will return an empty span object.
+     *
+     * @param SpanStack|SpanData|null $parent May be specified to start a span on a specific stack.
+     *                                        As an example, when instrumenting closures, it might conceptually make
+     *                                        sense to attach the Closure to the current executing function instead of
+     *                                        where it ends up called. In that case the initial call to span() needs to
+     *                                        provide the proper stack.
+     * @return SpanData The new or existing span.
+     */
+    public function span(SpanStack|SpanData|null $parent = null): SpanData;
+
+    /**
+     * Works similarly to self::spqn(), but always pushes the span onto the active span stack, even if running in
+     * limited mode.
+     *
+     * @param SpanStack|SpanData|null $parent See self::span().
+     * @return SpanData The new or existing span.
+     */
+    public function unlimitedSpan(SpanStack|SpanData|null $parent = null): SpanData;
+
+    /**
+     * Replaces the arguments of a function call. Must be called within a pre-hook.
+     * It is not allowed to pass more arguments to a function that currently on the stack or total number or arguments,
+     * whichever is greater.
+     *
+     * @param array $arguments An array of arguments, which will replace the hooked functions arguments.
+     * @return bool 'true' on success, otherwise 'false'
+     */
+    public function overrideArguments(array $arguments): bool;
 }
 
-function install_hook(string|\Closure|\Generator $target, ?\Closure $begin, ?\Closure $end): int {}
+/**
+ * @param string|\Closure|\Generator $target The function to hook.
+ *                                           If a string is passed, it must be either a function name or referencing
+ *                                           a method in "Classname::methodname" format.
+ *                                           If a Closure is passed, the hook only applies to the current instance
+ *                                           of that Closure.
+ *                                           If a Generator is passed, the active function name or Closure is extracted
+ *                                           and the hook applied to that.
+ * @return int An integer which can be used to remove a hook via DDTrace\remove_hook.
+ */
+function install_hook(string|\Closure|\Generator $target, ?\Closure $begin = null, ?\Closure $end = null): int {}
+
+/**
+ * Removes an installed hook by its id, as returned by install_hook or HookData->id.
+ *
+ * @param int $id The id to remove.
+ */
 function remove_hook(int $id): void {}

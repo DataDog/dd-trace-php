@@ -61,6 +61,9 @@ final class CurlIntegration extends Integration
                 if (isset($retval) && $retval === false) {
                     $span->meta[Tag::ERROR_MSG] = \curl_error($ch);
                     $span->meta[Tag::ERROR_TYPE] = 'curl error';
+                    if (PHP_VERSION_ID >= 70000) {
+                        $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception());
+                    }
                 }
 
                 $info = \curl_getinfo($ch);

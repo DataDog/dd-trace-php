@@ -2,7 +2,6 @@
 #include <zend_closures.h>
 #include <hook/hook.h>
 #include "uhook.h"
-#include <exceptions/exceptions.h>
 #include <sandbox/sandbox.h>
 
 #include "../logging.h"
@@ -56,7 +55,10 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
                         &rv, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv, &args_zv, retval, &exception_zv);
     } else {
         if (EX(func)->common.scope) {
-            zval *This = getThis() ? &EX(This) : &EG(uninitialized_zval);
+            zval *This = getThis();
+            if (!This) {
+                This = &EG(uninitialized_zval);
+            }
             zval scope;
             ZVAL_NULL(&scope);
             zend_class_entry *scope_ce = zend_get_called_scope(execute_data);
@@ -73,53 +75,8 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
         }
     }
 
-    if (get_DD_TRACE_DEBUG() && (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message)))) {
-        char *scope = "";
-        char *colon = "";
-        char *name = "(unknown function)";
-        if (execute_data->func && execute_data->func->common.function_name) {
-            zend_function *fbc = execute_data->func;
-            name = ZSTR_VAL(fbc->common.function_name);
-            if (fbc->common.scope) {
-                scope = ZSTR_VAL(fbc->common.scope->name);
-                colon = "::";
-            }
-        }
-
-        char *deffile;
-        int defline = 0;
-#if PHP_VERSION_ID < 80000
-        const zend_function *func = zend_get_closure_method_def(&closure_zv);
-#else
-        const zend_function *func = zend_get_closure_method_def(closure);
-#endif
-        if (func->type == ZEND_USER_FUNCTION) {
-            deffile = ZSTR_VAL(func->op_array.filename);
-            defline = (int) func->op_array.opcodes[0].lineno;
-        } else {
-            deffile = ZSTR_VAL(func->op_array.function_name);
-        }
-
-        zend_object *ex = EG(exception);
-        if (ex) {
-            const char *type = ZSTR_VAL(ex->ce->name);
-            zend_string *msg = zai_exception_message(ex);
-            ddtrace_log_errf("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
-                             type, deffile, defline, scope, colon, name, ZSTR_VAL(msg));
-        } else if (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message)) {
-#if PHP_VERSION_ID < 80000
-            char *error = PG(last_error_message);
-#else
-            char *error = ZSTR_VAL(PG(last_error_message));
-#endif
-#if PHP_VERSION_ID < 80100
-            char *filename = PG(last_error_file);
-#else
-            char *filename = ZSTR_VAL(PG(last_error_file));
-#endif
-            ddtrace_log_errf("Error raised in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
-                             deffile, defline, scope, colon, name, error, filename, PG(last_error_lineno));
-        }
+    if (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message))) {
+        dd_uhook_report_sandbox_error(execute_data, closure, &sandbox);
     }
     zai_sandbox_close(&sandbox);
 
@@ -355,7 +312,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
         // clang-format on
     ZEND_PARSE_PARAMETERS_END_EX({
-        ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 2 + method, 2 + method)
+        ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 2 + method, 2 + method)
             // clang-format off
             if (method) {
                 Z_PARAM_STR(class_name)
@@ -363,11 +320,13 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
             Z_PARAM_STR(method_name)
             Z_PARAM_ARRAY(config_array)
         ZEND_PARSE_PARAMETERS_END_EX({
-            ddtrace_log_debugf(
-                "Unable to parse parameters for DDTrace\\%s_%s; expected "
-                "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)",
-                tracing ? "trace" : "hook", method ? "method" : "function");
-             RETURN_FALSE;
+            if (ddtrace_quiet_zpp()) {
+                ddtrace_log_onceerrf(
+                        "Unable to parse parameters for DDTrace\\%s_%s; expected "
+                        "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)",
+                        tracing ? "trace" : "hook", method ? "method" : "function");
+                RETURN_FALSE;
+            }
         });
     });
 
@@ -408,20 +367,20 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
             ZAI_HOOK_AUX(def, dd_uhook_dtor),sizeof(dd_uhook_dynamic)) != -1);
 }
 
-PHP_FUNCTION(hook_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, false); }
-PHP_FUNCTION(trace_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, true, false); }
-PHP_FUNCTION(hook_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, true); }
-PHP_FUNCTION(trace_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, true, true); }
+PHP_FUNCTION(DDTrace_hook_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, false); }
+PHP_FUNCTION(DDTrace_trace_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, true, false); }
+PHP_FUNCTION(DDTrace_hook_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, true); }
+PHP_FUNCTION(DDTrace_trace_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, true, true); }
 
 PHP_FUNCTION(dd_untrace) {
     zend_string *class_name = NULL, *method_name = NULL;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 2)
+    ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 1, 2)
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(class_name)
     ZEND_PARSE_PARAMETERS_END_EX({
-         ddtrace_log_debug("unexpected parameter for dd_untrace. the function name must be provided");
+         ddtrace_log_onceerrf("unexpected parameter for dd_untrace. the function name must be provided");
          RETURN_FALSE;
     });
 

@@ -1,0 +1,44 @@
+version: '3.6'
+
+services:
+  app:
+    image: datadog/dd-trace-ci:php-8.2_buster
+    depends_on:
+      - mysql_integration
+      - agent
+    environment:
+      - DD_TRACE_AGENT_HOST=agent
+    working_dir: /var/www/html
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./:/var/www/html
+      - ./scripts/xdebug.ini:/opt/php/debug/conf.d/xdebug.ini
+    command:
+      - php
+      - -S
+      - 0.0.0.0:9999
+      - -t
+      - .
+
+  mysql_integration:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./scripts/wp_initdb.sql:/docker-entrypoint-initdb.d/wp_initdb.sql
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_USER=test
+      - MYSQL_DATABASE=test
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true

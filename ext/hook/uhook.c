@@ -5,31 +5,29 @@
 
 #include "../compatibility.h"
 #include "../configuration.h"
+#include "../logging.h"
 
 #include "uhook_arginfo.h"
 
 #include <hook/hook.h>
 
 #include "uhook.h"
+#include "../ddtrace.h"
+#include <exceptions/exceptions.h>
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
-static inline zval *ddtrace_hookdata_property_id(zend_object *hookdata) {
-    return OBJ_PROP_NUM(hookdata, 0);
-}
-static inline zval *ddtrace_hookdata_property_args(zend_object *hookdata) {
-    return OBJ_PROP_NUM(hookdata, 1);
-}
-static inline zval *ddtrace_hookdata_property_returned(zend_object *hookdata) {
-    return OBJ_PROP_NUM(hookdata, 2);
-}
-static inline zval *ddtrace_hookdata_property_exception(zend_object *hookdata) {
-    return OBJ_PROP_NUM(hookdata, 3);
-}
-
 zend_class_entry *ddtrace_hook_data_ce;
 
-static __thread HashTable dd_active_hooks;
+ZEND_TLS HashTable dd_closure_hooks;
+ZEND_TLS HashTable dd_active_hooks;
+
+typedef struct {
+    size_t size;
+    zend_long id[];
+} dd_closure_list;
 
 typedef struct {
     zend_object *begin;
@@ -40,11 +38,33 @@ typedef struct {
     zend_function *resolved;
     zend_string *scope;
     zend_string *function;
+    zend_object *closure;
 } dd_uhook_def;
 
 typedef struct {
-    zend_object *hook_data;
+    zend_object std;
+    // first property is $data
+    zval property_id;
+    zval property_args;
+    zval property_returned;
+    zval property_exception;
+    zend_ulong invocation;
+    zend_execute_data *execute_data;
+    ddtrace_span_data *span;
+    ddtrace_span_stack *prior_stack;
+} dd_hook_data;
+
+typedef struct {
+    dd_hook_data *hook_data;
 } dd_uhook_dynamic;
+
+static zend_object *dd_hook_data_create(zend_class_entry *class_type) {
+    dd_hook_data *hook_data = ecalloc(1, sizeof(*hook_data));
+    zend_object_std_init(&hook_data->std, class_type);
+    object_properties_init(&hook_data->std, class_type);
+    hook_data->std.handlers = zend_get_std_object_handlers();
+    return &hook_data->std;
+}
 
 HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
     uint32_t num_args = EX_NUM_ARGS();
@@ -89,45 +109,115 @@ HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
     return ht;
 }
 
-static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *closure, zend_object *hook_data) {
+void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure, zai_sandbox *sandbox) {
+    if (get_DD_TRACE_DEBUG()) {
+        char *scope = "";
+        char *colon = "";
+        char *name = "(unknown function)";
+        if (execute_data->func && execute_data->func->common.function_name) {
+            zend_function *fbc = execute_data->func;
+            name = ZSTR_VAL(fbc->common.function_name);
+            if (fbc->common.scope) {
+                scope = ZSTR_VAL(fbc->common.scope->name);
+                colon = "::";
+            }
+        }
+
+        char *deffile;
+        int defline = 0;
+        const zend_function *func = zend_get_closure_method_def(closure);
+        if (func->type == ZEND_USER_FUNCTION) {
+            deffile = ZSTR_VAL(func->op_array.filename);
+            defline = (int) func->op_array.opcodes[0].lineno;
+        } else {
+            deffile = ZSTR_VAL(func->op_array.function_name);
+        }
+
+        zend_object *ex = EG(exception);
+        if (ex) {
+            const char *type = ZSTR_VAL(ex->ce->name);
+            zend_string *msg = zai_exception_message(ex);
+            ddtrace_log_errf("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
+                             type, deffile, defline, scope, colon, name, ZSTR_VAL(msg));
+        } else if (PG(last_error_message) && sandbox->error_state.message != PG(last_error_message)) {
+#if PHP_VERSION_ID < 80000
+            char *error = PG(last_error_message);
+#else
+            char *error = ZSTR_VAL(PG(last_error_message));
+#endif
+#if PHP_VERSION_ID < 80100
+            char *filename = PG(last_error_file);
+#else
+            char *filename = ZSTR_VAL(PG(last_error_file));
+#endif
+            ddtrace_log_errf("Error raised in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
+                             deffile, defline, scope, colon, name, error, filename, PG(last_error_lineno));
+        }
+    }
+}
+
+static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *closure, dd_hook_data *hook_data) {
     zval closure_zv, hook_data_zv;
     ZVAL_OBJ(&closure_zv, closure);
-    ZVAL_OBJ(&hook_data_zv, hook_data);
+    ZVAL_OBJ(&hook_data_zv, &hook_data->std);
 
     bool has_this = getThis() != NULL;
     zval rv;
-    zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
-                    ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
-                    &rv, 1, &hook_data_zv);
+    zai_sandbox sandbox;
+    bool success = zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
+                                   ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
+                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &hook_data_zv);
+    if (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message))) {
+        dd_uhook_report_sandbox_error(execute_data, closure, &sandbox);
+    }
+    zai_sandbox_close(&sandbox);
     zval_ptr_dtor(&rv);
 }
 
 static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
-    (void) invocation;
-
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
-    dyn->hook_data = zend_objects_new(ddtrace_hook_data_ce);
-    object_properties_init(dyn->hook_data, ddtrace_hook_data_ce);
+    if (def->closure && def->closure != ZEND_CLOSURE_OBJECT(EX(func))) {
+        dyn->hook_data = NULL;
+        return true;
+    }
 
-    ZVAL_LONG(ddtrace_hookdata_property_id(dyn->hook_data), def->id);
-    ZVAL_ARR(ddtrace_hookdata_property_args(dyn->hook_data), dd_uhook_collect_args(execute_data));
+    dyn->hook_data = (dd_hook_data *)dd_hook_data_create(ddtrace_hook_data_ce);
+
+    dyn->hook_data->invocation = invocation;
+    ZVAL_LONG(&dyn->hook_data->property_id, def->id);
+    ZVAL_ARR(&dyn->hook_data->property_args, dd_uhook_collect_args(execute_data));
 
     if (def->begin && !def->running) {
+        dyn->hook_data->execute_data = execute_data;
+
         def->running = true;
         dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
         def->running = false;
     }
+    dyn->hook_data->execute_data = NULL;
 
     return true;
 }
 
 static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
-    (void) invocation;
-
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
+
+    if (!dyn->hook_data) {
+        return;
+    }
+
+    ddtrace_span_data *span = dyn->hook_data->span;
+    if (span && span->duration != DDTRACE_DROPPED_SPAN && span->duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
+        zval *exception_zv = ddtrace_spandata_property_exception(span);
+        if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
+            ZVAL_OBJ_COPY(exception_zv, EG(exception));
+        }
+
+        dd_trace_stop_span_time(span);
+    }
 
     if (def->end && !def->running) {
         zval tmp;
@@ -143,12 +233,12 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             profiling_interrupt_function(execute_data);
         }
 
-        zval *returned = ddtrace_hookdata_property_returned(dyn->hook_data);
+        zval *returned = &dyn->hook_data->property_returned;
         ZVAL_COPY_VALUE(&tmp, returned);
         ZVAL_COPY(returned, retval);
         zval_ptr_dtor(&tmp);
 
-        zval *exception = ddtrace_hookdata_property_exception(dyn->hook_data);
+        zval *exception = &dyn->hook_data->property_exception;
         ZVAL_COPY_VALUE(&tmp, exception);
         if (EG(exception)) {
             ZVAL_OBJ_COPY(exception, EG(exception));
@@ -162,7 +252,21 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         def->running = false;
     }
 
-    OBJ_RELEASE(dyn->hook_data);
+    if (span) {
+        dyn->hook_data->span = NULL;
+        // e.g. spans started in limited mode are never properly started
+        if (span->start) {
+            ddtrace_clear_execute_data_span(invocation, true);
+            if (dyn->hook_data->prior_stack) {
+                ddtrace_switch_span_stack(dyn->hook_data->prior_stack);
+                OBJ_RELEASE(&dyn->hook_data->prior_stack->std);
+            }
+        } else {
+            OBJ_RELEASE(&span->std);
+        }
+    }
+
+    OBJ_RELEASE(&dyn->hook_data->std);
 }
 
 static void dd_uhook_dtor(void *data) {
@@ -188,44 +292,36 @@ static void dd_uhook_dtor(void *data) {
 #endif
 
 /* {{{ proto int DDTrace\install_hook(string|Closure|Generator target, ?Closure begin = null, ?Closure end = null) */
-PHP_FUNCTION(install_hook) {
+PHP_FUNCTION(DDTrace_install_hook) {
     zend_string *name = NULL;
     zend_function *resolved = NULL;
     zval *begin = NULL;
     zval *end = NULL;
+    zend_object *closure = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
-#if PHP_VERSION_ID < 70200
-        Z_PARAM_PROLOGUE(0);
-#else
-        Z_PARAM_PROLOGUE(0, 0);
-#endif
+        DD_PARAM_PROLOGUE(0, 0);
         if (Z_TYPE_P(_arg) == IS_STRING) {
             name = Z_STR_P(_arg);
-// We disable hooking closures for *now*. The zend_function * of the closure may have a smaller lifetime than any hook. (leading to use after free)
-// Also disabling generators as these may reference closures...
-// A possibility would be that hooking closures only affects the specific closure (override closure dtor / weakref it)? To be evaluated...
-#if 0
         } else if (Z_TYPE_P(_arg) == IS_OBJECT && (Z_OBJCE_P(_arg) == zend_ce_closure || Z_OBJCE_P(_arg) == zend_ce_generator)) {
             if (Z_OBJCE_P(_arg) == zend_ce_closure) {
-#if PHP_VERSION_ID >= 80000
+                closure = Z_OBJ_P(_arg);
                 resolved = (zend_function *)zend_get_closure_method_def(Z_OBJ_P(_arg));
-#else
-                resolved = (zend_function *)zend_get_closure_method_def(_arg);
-#endif
             } else {
                 zend_generator *generator = (zend_generator *)Z_OBJ_P(_arg);
                 if (generator->execute_data) {
                     resolved = generator->execute_data->func;
+                    if (ZEND_CALL_INFO(generator->execute_data) & ZEND_CALL_CLOSURE) {
+                        closure = ZEND_CLOSURE_OBJECT(resolved);
+                    }
                 } else {
-                    // we're silent here, right?
+                    // let's be silent about a consumed generator?
                     _error_code = ZPP_ERROR_FAILURE;
                     break;
                 }
             }
-#endif
         } else {
-            // we're silent here, right?
+            zend_argument_type_error(1, "must be of type string|Generator|Closure, %s given", zend_zval_value_name(_arg));
             _error_code = ZPP_ERROR_FAILURE;
             break;
         }
@@ -258,22 +354,38 @@ PHP_FUNCTION(install_hook) {
     if (resolved) {
         def->resolved = resolved;
         def->function = NULL;
-
+        def->closure = closure;
         id = zai_hook_install_resolved(resolved,
             dd_uhook_begin, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
+
+        if (id >= 0 && closure) {
+            zval *hooks_zv;
+            dd_closure_list *hooks;
+            if ((hooks_zv = zend_hash_index_find(&dd_closure_hooks, (zend_ulong)(uintptr_t)closure))) {
+                hooks = Z_PTR_P(hooks_zv);
+                Z_PTR_P(hooks_zv) = hooks = erealloc(hooks, sizeof(dd_closure_list) + sizeof(zend_long) * ++hooks->size);
+            } else {
+                hooks = emalloc(sizeof(dd_closure_list) + sizeof(zend_long));
+                hooks->size = 1;
+                zend_hash_index_add_new_ptr(&dd_closure_hooks, (zend_ulong)(uintptr_t)closure, hooks);
+            }
+            hooks->id[hooks->size - 1] = id;
+        }
     } else {
         const char *colon = strchr(ZSTR_VAL(name), ':');
         zai_string_view scope = ZAI_STRING_EMPTY, function = {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
         if (colon) {
-            function.len = ZSTR_VAL(name) - colon;
+            def->scope = zend_string_init(function.ptr, colon - ZSTR_VAL(name), 0);
             do ++colon; while (*colon == ':');
-            def->scope = zend_string_init(colon, ZSTR_VAL(name) + ZSTR_LEN(name) - colon, 0);
+            def->function = zend_string_init(colon, ZSTR_VAL(name) + ZSTR_LEN(name) - colon, 0);
             scope = (zai_string_view) {.ptr = ZSTR_VAL(def->scope), .len = ZSTR_LEN(def->scope)};
+            function = (zai_string_view) {.ptr = ZSTR_VAL(def->function), .len = ZSTR_LEN(def->function)};
         } else {
             def->scope = NULL;
+            def->function = zend_string_init(function.ptr, function.len, 0);
         }
-        def->function = zend_string_init(function.ptr, function.len, 0);
+        def->closure = NULL;
 
         id = zai_hook_install(
                 scope, function,
@@ -293,7 +405,7 @@ PHP_FUNCTION(install_hook) {
 } /* }}} */
 
 /* {{{ proto void DDTrace\remove_hook(int $id) */
-PHP_FUNCTION(remove_hook) {
+PHP_FUNCTION(DDTrace_remove_hook) {
     (void)return_value;
 
     zend_long id;
@@ -315,19 +427,202 @@ PHP_FUNCTION(remove_hook) {
     }
 }
 
+void dd_uhook_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
+    ddtrace_span_stack *stack = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        DD_PARAM_PROLOGUE(0, 0);
+        if (Z_TYPE_P(_arg) == IS_OBJECT && (Z_OBJCE_P(_arg) == ddtrace_ce_span_data || Z_OBJCE_P(_arg) == ddtrace_ce_span_stack)) {
+            stack = (ddtrace_span_stack *) Z_OBJ_P(_arg);
+            if (Z_OBJCE_P(_arg) == ddtrace_ce_span_data) {
+                stack = ((ddtrace_span_data *)stack)->stack;
+            }
+        } else {
+            zend_argument_type_error(1, "must be of type DDTrace\\SpanData|DDTrace\\SpanStack, %s given", zend_zval_value_name(_arg));
+            _error_code = ZPP_ERROR_FAILURE;
+            break;
+        }
+    ZEND_PARSE_PARAMETERS_END();
+
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+
+    if (hookData->span) {
+        RETURN_OBJ_COPY(&hookData->span->std);
+    }
+
+    // pre-hook check
+    if (!hookData->execute_data || (!unlimited && ddtrace_tracer_is_limited())) {
+        // dummy span, which never gets pushed
+        hookData->span = ddtrace_init_dummy_span();
+        RETURN_OBJ_COPY(&hookData->span->std);
+    }
+
+    // By this functionality we provide the ability to also switch the stack automatically back when the span attached to the function is closed
+    if (stack) {
+        ddtrace_span_data *span = zend_hash_index_find_ptr(&DDTRACE_G(traced_spans), hookData->invocation);
+        if (span) {
+            if (span->stack != stack) {
+                ddtrace_log_errf("Could not switch stack for hook in %s:%d", zend_get_executed_filename(), zend_get_executed_lineno());
+            }
+        } else {
+            hookData->prior_stack = DDTRACE_G(active_stack);
+            GC_ADDREF(&DDTRACE_G(active_stack)->std);
+            ddtrace_switch_span_stack(stack);
+        }
+    } else if ((hookData->execute_data->func->common.fn_flags & ZEND_ACC_GENERATOR)) {
+        if (!zend_hash_index_exists(&DDTRACE_G(traced_spans), hookData->invocation)) {
+            hookData->prior_stack = DDTRACE_G(active_stack);
+            GC_ADDREF(&DDTRACE_G(active_stack)->std);
+            ddtrace_switch_span_stack(ddtrace_init_span_stack());
+            GC_DELREF(&DDTRACE_G(active_stack)->std);
+        }
+    }
+
+    hookData->span = ddtrace_alloc_execute_data_span(hookData->invocation, hookData->execute_data);
+
+    RETURN_OBJ_COPY(&hookData->span->std);
+}
+
+ZEND_METHOD(DDTrace_HookData, span) {
+    dd_uhook_span(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+ZEND_METHOD(DDTrace_HookData, unlimitedSpan) {
+    dd_uhook_span(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+}
+
+ZEND_METHOD(DDTrace_HookData, overrideArguments) {
+    (void)return_value;
+
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+
+    zend_array *args;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY_HT(args)
+    ZEND_PARSE_PARAMETERS_END();
+
+    // pre-hook check
+    if (!hookData->execute_data) {
+        RETURN_FALSE;
+    }
+
+    int passed_args = ZEND_CALL_NUM_ARGS(hookData->execute_data);
+    zend_function *func = hookData->execute_data->func;
+    if (MAX(func->common.num_args, passed_args) < zend_hash_num_elements(args)) {
+        // Adding args would mean that we would have to possibly transfer execute_data to a new stack, but changing that pointer may break all sorts of extensions
+        ddtrace_log_errf("Cannot set more args than provided: got too many arguments for hook in %s:%d", zend_get_executed_filename(), zend_get_executed_lineno());
+        RETURN_FALSE;
+    }
+
+    if (func->common.required_num_args > zend_hash_num_elements(args)) {
+        ddtrace_log_errf("Not enough args provided for hook in %s:%d", zend_get_executed_filename(), zend_get_executed_lineno());
+        RETURN_FALSE;
+    }
+
+    if (ZEND_USER_CODE(func->type) && hookData->execute_data->opline > func->op_array.opcodes + zend_hash_num_elements(args)) {
+        ddtrace_log_errf("Can't pass less args to an untyped function than originally passed (minus extra args) in %s:%d",
+                         zend_get_executed_filename(), zend_get_executed_lineno());
+        RETURN_FALSE;
+    }
+
+    // When observers are executed, moving extra args behind the last temporary already happened
+    zval *arg = ZEND_CALL_VAR_NUM(hookData->execute_data, 0), *last_arg = ZEND_USER_CODE(func->type) ? arg + func->common.num_args : ((void *)~0);
+    zval *val;
+    int i = 0;
+    ZEND_HASH_FOREACH_VAL(args, val) {
+        if (arg >= last_arg) {
+            // extra-arg handling
+            arg = ZEND_CALL_VAR_NUM(hookData->execute_data, func->op_array.last_var + func->op_array.T);
+            last_arg = (void *)~0;
+        }
+        if (i++ >= passed_args) {
+            ZVAL_COPY(arg, val);
+        } else {
+            zval garbage;
+            ZVAL_COPY_VALUE(&garbage, arg);
+            ZVAL_COPY(arg, val);
+            zval_ptr_dtor(&garbage);
+        }
+
+        ++arg;
+    } ZEND_HASH_FOREACH_END();
+
+    ZEND_CALL_NUM_ARGS(hookData->execute_data) = i;
+
+    while (i++ < passed_args) {
+        if (arg >= last_arg) {
+            // extra-arg handling
+            arg = ZEND_CALL_VAR(hookData->execute_data, func->op_array.last_var + func->op_array.T);
+            last_arg = (void *)~0;
+        }
+        zval_ptr_dtor(++arg);
+    }
+
+    RETURN_TRUE;
+}
+
 void zai_uhook_rinit() {
     zend_hash_init(&dd_active_hooks, 8, NULL, NULL, 0);
+    zend_hash_init(&dd_closure_hooks, 8, NULL, NULL, 0);
 }
 
 void zai_uhook_rshutdown() {
+    zend_hash_destroy(&dd_closure_hooks);
     zend_hash_destroy(&dd_active_hooks);
 }
 
-void zai_uhook_minit() {
-    ddtrace_hook_data_ce = register_class_DDTrace_HookData();
-    zend_register_functions(NULL, ext_functions, NULL, MODULE_PERSISTENT);
+static zend_object_free_obj_t dd_uhook_closure_free_obj;
+static void dd_uhook_closure_free_wrapper(zend_object *object) {
+    dd_closure_list *hooks;
+    zai_install_address address = zai_hook_install_address(zend_get_closure_method_def(object));
+    if ((hooks = zend_hash_index_find_ptr(&dd_closure_hooks, (zend_ulong)(uintptr_t)object))) {
+        for (size_t i = 0; i < hooks->size; ++i) {
+            zai_hook_remove_resolved(address, hooks->id[i]);
+        }
+        efree(hooks);
+        zend_hash_index_del(&dd_closure_hooks, (zend_ulong) (uintptr_t) object);
+    }
+    dd_uhook_closure_free_obj(object);
 }
 
+#if PHP_VERSION_ID >= 80000
+void zai_uhook_attributes_minit(void);
+#endif
+void zai_uhook_minit() {
+    ddtrace_hook_data_ce = register_class_DDTrace_HookData();
+    ddtrace_hook_data_ce->create_object = dd_hook_data_create;
+
+    zend_register_functions(NULL, ext_functions, NULL, MODULE_PERSISTENT);
+
+#if PHP_VERSION_ID >= 80000
+    zai_uhook_attributes_minit();
+#endif
+
+    // get hold of a Closure object to access handlers
+    zend_objects_store objects_store = EG(objects_store);
+    zend_object *closure;
+    EG(objects_store) = (zend_objects_store){
+        .object_buckets = &closure,
+        .free_list_head = 0,
+        .size = 1,
+        .top = 0
+    };
+    zend_ce_closure->create_object(zend_ce_closure);
+
+    dd_uhook_closure_free_obj = closure->handlers->free_obj;
+    ((zend_object_handlers *)closure->handlers)->free_obj = dd_uhook_closure_free_wrapper;
+
+    efree(closure);
+    EG(objects_store) = objects_store;
+}
+
+#if PHP_VERSION_ID >= 80000
+void zai_uhook_attributes_mshutdown(void);
+#endif
 void zai_uhook_mshutdown() {
-    zend_unregister_functions(ext_functions,sizeof(ext_functions) / sizeof(zend_function_entry) - 1,NULL);
+    zend_unregister_functions(ext_functions, sizeof(ext_functions) / sizeof(zend_function_entry) - 1, NULL);
+#if PHP_VERSION_ID >= 80000
+    zai_uhook_attributes_mshutdown();
+#endif
 }

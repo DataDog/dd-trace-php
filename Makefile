@@ -637,6 +637,7 @@ TEST_WEB_73 := \
 	test_web_lumen_52 \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
+	test_web_lumen_81 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -684,6 +685,7 @@ TEST_WEB_74 := \
 	test_web_lumen_52 \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
+	test_web_lumen_81 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -724,6 +726,8 @@ TEST_WEB_80 := \
 	test_metrics \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
+	test_web_lumen_81 \
+	test_web_lumen_90 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -733,6 +737,7 @@ TEST_WEB_80 := \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
 	test_web_yii_2 \
+	test_web_zend_1_21 \
 	test_web_custom
 
 TEST_INTEGRATIONS_81 := \
@@ -751,13 +756,16 @@ TEST_WEB_81 := \
 	test_metrics \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
+	test_web_lumen_81 \
+	test_web_lumen_90 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
-	test_web_custom
+	test_web_custom \
+	test_web_zend_1_21
 #	test_web_yii_2 \
 
 TEST_INTEGRATIONS_82 := \
@@ -778,13 +786,18 @@ TEST_WEB_82 := \
 	test_metrics \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
+	test_web_lumen_81 \
+	test_web_lumen_90 \
+	test_web_lumen_100 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
 	test_web_symfony_52 \
+	test_web_symfony_62 \
 	test_web_wordpress_59 \
-	test_web_custom
+	test_web_custom \
+	test_web_zend_1_21
 #	test_web_yii_2 \
 
 FILTER := .
@@ -942,6 +955,15 @@ test_web_lumen_56: global_test_run_dependencies
 test_web_lumen_58: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_8 update
 	$(call run_tests,tests/Integrations/Lumen/V5_8)
+test_web_lumen_81: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_8_1 update
+	$(call run_tests,tests/Integrations/Lumen/V8_1)
+test_web_lumen_90: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_9_0 update
+	$(call run_tests,tests/Integrations/Lumen/V9_0)
+test_web_lumen_100: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_10_0 update
+	$(call run_tests,tests/Integrations/Lumen/V10_0)
 test_web_slim_312: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 update
 	$(call run_tests,--testsuite=slim-312-test)
@@ -992,6 +1014,10 @@ test_web_symfony_52: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,--testsuite=symfony-52-test)
+test_web_symfony_62: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_6_2 update
+	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests,--testsuite=symfony-62-test)
 
 test_web_wordpress_48: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/WordPress/V4_8)
@@ -1010,6 +1036,8 @@ test_web_nette_30: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/Nette/V3_0)
 test_web_zend_1: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/ZendFramework/V1)
+test_web_zend_1_21: global_test_run_dependencies
+	$(call run_tests,tests/Integrations/ZendFramework/V1_21)
 test_web_custom: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
 	$(call run_tests,--testsuite=custom-framework-autoloading-test)

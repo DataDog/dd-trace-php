@@ -8,6 +8,7 @@
         Note: installation of hooks may occur after minit */
 bool zai_hook_minit(void);
 bool zai_hook_rinit(void);
+void zai_hook_post_startup(void);
 void zai_hook_activate(void);
 void zai_hook_clean(void);
 void zai_hook_rshutdown(void);
@@ -44,9 +45,15 @@ typedef zend_ulong zai_install_address;
 /* {{{ zai_hook_install_resolved may only be executed during request
         this API requires no symbol names, or resolution, it may be used
         to associate a hook with anonymous symbols
-        ie. generators, closures, fibers */
+        i.e. generators, closures, fibers */
 zend_long zai_hook_install_resolved(zend_function *function,
         zai_hook_begin begin, zai_hook_end end,
+        zai_hook_aux aux, size_t dynamic); /* }}} */
+
+/* {{{ zai_hook_install_resolved_generator may only be executed during request
+        this API works similarly to zai_hook_install_resolved */
+zend_long zai_hook_install_resolved_generator(zend_function *function,
+        zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic); /* }}} */
 
 /* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
@@ -82,12 +89,15 @@ void zai_hook_resolve_function(zend_function *function, zend_string *lcname);
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname);
 
 /* {{{ private but externed for performance reasons */
-extern __thread HashTable zai_hook_resolved;
+extern TSRM_TLS HashTable zai_hook_resolved;
 /* }}} */
 
 #if PHP_VERSION_ID >= 80000
 extern void (*zai_hook_on_update)(zend_function *func, bool remove);
+extern void (*zai_hook_on_function_resolve)(zend_function *func);
 #endif
+
+zend_function *zai_hook_find_containing_function(zend_function *func);
 
 typedef struct {
     bool active;
@@ -108,13 +118,13 @@ void zai_hook_iterator_advance(zai_hook_iterator *iterator);
 void zai_hook_iterator_free(zai_hook_iterator *iterator);
 
 /* {{{ */
-static inline zai_install_address zai_hook_install_address_user(zend_op_array *op_array) {
+static inline zai_install_address zai_hook_install_address_user(const zend_op_array *op_array) {
     return ((zend_ulong)op_array->opcodes) >> 5;
 }
-static inline zai_install_address zai_hook_install_address_internal(zend_internal_function *function) {
+static inline zai_install_address zai_hook_install_address_internal(const zend_internal_function *function) {
     return ((zend_ulong)function) >> 5;
 }
-static inline zai_install_address zai_hook_install_address(zend_function *function) {
+static inline zai_install_address zai_hook_install_address(const zend_function *function) {
     if (function->type == ZEND_INTERNAL_FUNCTION) {
         return zai_hook_install_address_internal(&function->internal_function);
     }

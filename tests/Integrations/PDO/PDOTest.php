@@ -71,9 +71,8 @@ final class PDOTest extends IntegrationTestCase
                 $query
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => 1,
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
@@ -184,9 +183,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => '1',
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
             SpanAssertion::exists('PDO.commit'),
         ]);
     }
@@ -208,7 +206,7 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
+                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error data: You have an error in your SQL syntax')
                 ->withExactTags($this->baseTags()),
             SpanAssertion::exists('PDO.commit'),
         ]);
@@ -250,9 +248,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => '1',
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
@@ -271,7 +268,7 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
+                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error data: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\'')
                 ->withExactTags($this->baseTags()),
         ]);
     }
@@ -343,9 +340,8 @@ final class PDOTest extends IntegrationTestCase
                 "SELECT * FROM tests WHERE id = ?"
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => 1,
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
@@ -377,9 +373,8 @@ final class PDOTest extends IntegrationTestCase
                 "SELECT * FROM tests WHERE id = ?"
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => 1,
-                ])),
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
@@ -572,7 +567,8 @@ final class PDOTest extends IntegrationTestCase
             'db.name' => self::MYSQL_DATABASE,
             'db.user' => self::MYSQL_USER,
             'span.kind' => 'client',
-            Tag::COMPONENT => 'pdo'
+            Tag::COMPONENT => 'pdo',
+            Tag::DB_SYSTEM => 'mysql',
         ];
     }
 }

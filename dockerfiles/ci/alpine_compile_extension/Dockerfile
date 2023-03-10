@@ -1,4 +1,4 @@
-FROM alpine:3.16 as base
+FROM alpine:3.17 as base
 
 RUN mkdir -p /app
 WORKDIR /app
@@ -18,7 +18,7 @@ RUN set -eux; \
         oniguruma-dev
 
 # Profiling deps
-RUN apk add --no-cache llvm13-libs
+RUN apk add --no-cache llvm15-libs clang15-dev
 RUN apk add --no-cache rust-stdlib
 RUN apk add --no-cache cargo
 RUN apk add --no-cache clang git protoc unzip

@@ -4,6 +4,7 @@ ENV LANG=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
 
 ENV DEVLIBS \
+    libclang-13-dev \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
@@ -23,6 +24,7 @@ ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
+    clang \
     clang-format \
     curl \
     debian-goodies \
@@ -116,7 +118,8 @@ RUN set -eux; \
     mkdir -p /opt/cmake/${CMAKE_VERSION}; \
     tar --strip-components 1 -C /opt/cmake/${CMAKE_VERSION} -xf /tmp/cmake.tar.gz; \
 # Currently there's only one version of cmake, make it default
-    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake;
+    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake; \
+    rm -rfv /tmp/*
 
 # Install Catch2
 RUN set -eux; \
@@ -127,7 +130,8 @@ RUN set -eux; \
     mkdir catch2 && cd catch2; \
     tar -xf ../v${CATCH2_VERSION}.tar.gz --strip 1; \
     /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
-    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install;
+    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install; \
+    rm -rfv /tmp/*
 
 # Install lcov
 RUN set -eux; \
@@ -138,7 +142,8 @@ RUN set -eux; \
     mkdir lcov && cd lcov; \
     tar -xf ../lcov-${LCOV_VERSION}.tar.gz --strip 1; \
     make install; \
-    lcov --version;
+    lcov --version; \
+    rm -rfv /tmp/*
 
 # Apache config
 ENV APACHE_CONFDIR /etc/apache2
@@ -239,6 +244,29 @@ RUN set -eux; \
     make -j 4 all install; \
     cd -; \
     rm -fr "libuv-${LIBUV_VERSION}";
+
+# rust sha256sum generated locally after verifying it with sha256
+ARG RUST_VERSION="1.64.0"
+ARG RUST_SHA256_ARM="7d8860572431bd4ee1b9cd0cd77cf7ff29fdd5b91ed7c92a820f872de6ced558"
+ARG RUST_SHA256_X86="a893977f238291370ab96726a74b6b9ae854dc75fbf5730954d901a93843bf9b"
+# Mount a cache into /rust/cargo if you want to pre-fetch packages or something
+ENV CARGO_HOME=/rust/cargo
+ENV RUSTUP_HOME=/rust/rustup
+RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
+    && chmod -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
+    && MARCH=$(uname -m) \
+    && RUST_SHA256=$(if [ "$MARCH" = "x86_64" ]; then echo ${RUST_SHA256_X86}; elif [ "$MARCH" = "aarch64" ]; then echo ${RUST_SHA256_ARM}; fi) \
+    && FILENAME=rust-${RUST_VERSION}-${MARCH}-unknown-linux-gnu.tar.gz \
+    && curl -L --write-out '%{http_code}' -O https://static.rust-lang.org/dist/${FILENAME} \
+    && printf '%s  %s' "$RUST_SHA256" "$FILENAME" | sha256sum --check --status \
+    && tar -xf "$FILENAME" \
+    && cd ${FILENAME%.tar.gz} \
+    && ./install.sh --components="rustc,cargo,clippy-preview,rustfmt-preview,rust-std-${MARCH}-unknown-linux-gnu" \
+    && cd - \
+    && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" \
+    && rm -rfv /tmp/*
+
+ENV PATH="/rust/cargo/bin:${PATH}"
 
 # Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
 # be changed without an appropriate code review.

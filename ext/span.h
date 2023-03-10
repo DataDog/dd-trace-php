@@ -39,7 +39,7 @@ struct ddtrace_span_data {
         struct ddtrace_span_stack *stack;
         zval property_stack;
     };
-    uint64_t trace_id;
+    ddtrace_trace_id trace_id;
     uint64_t parent_id;
     uint64_t span_id;
     uint64_t start;
@@ -83,6 +83,7 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
 
 void ddtrace_open_span(ddtrace_span_data *span);
 ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type);
+ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);
 void ddtrace_push_root_span(void);
@@ -97,7 +98,8 @@ DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value);
 
 void dd_trace_stop_span_time(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);
-void ddtrace_close_userland_spans_until(ddtrace_span_data *until);
+void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until);
+int ddtrace_close_userland_spans_until(ddtrace_span_data *until);
 void ddtrace_close_span(ddtrace_span_data *span);
 void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span);
 void ddtrace_close_all_open_spans(bool force_close_root_span);
@@ -105,6 +107,7 @@ void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
 void ddtrace_serialize_closed_spans(zval *serialized);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
+zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
 

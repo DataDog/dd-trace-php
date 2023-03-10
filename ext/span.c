@@ -12,6 +12,8 @@
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
+#include "ext/standard/php_string.h"
+#include <hook/hook.h>
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -25,8 +27,6 @@ static void dd_reset_span_counters(void) {
 }
 
 void ddtrace_init_span_stacks(void) {
-    DDTRACE_G(active_stack) = NULL;
-    DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
     DDTRACE_G(top_closed_stack) = NULL;
     dd_reset_span_counters();
 }
@@ -56,11 +56,14 @@ static void dd_free_span_ring(ddtrace_span_data *span) {
 }
 
 void ddtrace_free_span_stacks(bool silent) {
+    // ensure automatic stacks of trace root spans are popped
+    while (DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack) == DDTRACE_G(active_stack)->root_span->stack) {
+        ddtrace_switch_span_stack(DDTRACE_G(active_stack)->parent_stack);
+    }
+
     zend_objects_store *objects = &EG(objects_store);
     zend_object **end = objects->object_buckets + 1;
     zend_object **obj_ptr = objects->object_buckets + objects->top;
-
-    OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
 
     do {
         obj_ptr--;
@@ -81,15 +84,17 @@ void ddtrace_free_span_stacks(bool silent) {
                     span = span->parent;
                 }
 
-                stack->active = span;
-                if (span) {
-                    GC_ADDREF(&span->std);
-                } else {
-                    ZVAL_NULL(&stack->property_active);
-                }
+                stack->active = NULL;
+                ZVAL_NULL(&stack->property_active);
 
                 // drop the active span last, it holds the start of the span "chain" of parents which each hold a ref to the next
                 dd_drop_span(active_span, silent);
+            } else if (stack->active) {
+                ddtrace_span_data *parent_span = stack->active;
+                stack->active = NULL;
+                stack->root_span = NULL;
+                ZVAL_NULL(&stack->property_active);
+                OBJ_RELEASE(&parent_span->std);
             }
 
             dd_free_span_ring(stack->closed_ring);
@@ -111,14 +116,13 @@ void ddtrace_free_span_stacks(bool silent) {
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
-    DDTRACE_G(active_stack) = NULL;
     DDTRACE_G(top_closed_stack) = NULL;
 }
 
 static uint64_t _get_nanoseconds(bool monotonic_clock) {
     struct timespec time;
     if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
-        return time.tv_sec * 1000000000L + time.tv_nsec;
+        return time.tv_sec * UINT64_C(1000000000) + time.tv_nsec;
     }
     return 0;
 }
@@ -140,6 +144,11 @@ void ddtrace_open_span(ddtrace_span_data *span) {
     // All open spans hold a ref to their stack
     ZVAL_OBJ_COPY(&span->property_stack, &stack->std);
 
+    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
+    // Start time is nanoseconds from unix epoch
+    // @see https://docs.datadoghq.com/api/?lang=python#send-traces
+    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+
     span->span_id = ddtrace_generate_span_id();
     // if not a root span or the true root span (distributed tracing)
     bool root_span = DDTRACE_G(active_stack)->root_span == NULL;
@@ -147,18 +156,18 @@ void ddtrace_open_span(ddtrace_span_data *span) {
         // Inherit from our current parent
         span->parent_id = ddtrace_peek_span_id();
         span->trace_id = ddtrace_peek_trace_id();
-        if (span->trace_id == 0) {
-            span->trace_id = span->span_id;
+        if (span->trace_id.high == 0 && span->trace_id.low == 0) {
+            goto set_trace_id_from_span_id;
         }
     } else {
         // custom new traces
         span->parent_id = 0;
-        span->trace_id = span->span_id;
+set_trace_id_from_span_id:
+        span->trace_id = (ddtrace_trace_id){
+            .low = span->span_id,
+            .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
+        };
     }
-    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
-    // Start time is nanoseconds from unix epoch
-    // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
     ddtrace_span_data *parent_span = DDTRACE_G(active_stack)->active;
     ZVAL_OBJ(&DDTRACE_G(active_stack)->property_active, &span->std);
@@ -177,8 +186,12 @@ void ddtrace_open_span(ddtrace_span_data *span) {
     } else {
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
-        ZVAL_COPY(ddtrace_spandata_property_service(span), ddtrace_spandata_property_service(parent_span));
-        ZVAL_COPY(ddtrace_spandata_property_type(span), ddtrace_spandata_property_type(parent_span));
+        zval *prop_service = ddtrace_spandata_property_service(span);
+        zval_ptr_dtor(prop_service);
+        ZVAL_COPY(prop_service, ddtrace_spandata_property_service(parent_span));
+        zval *prop_type = ddtrace_spandata_property_type(span);
+        zval_ptr_dtor(prop_type);
+        ZVAL_COPY(prop_type, ddtrace_spandata_property_type(parent_span));
     }
 
     span->root = DDTRACE_G(active_stack)->root_span;
@@ -200,7 +213,35 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
         // SpanData::$name defaults to fully qualified called name
         zval *prop_name = ddtrace_spandata_property_name(span);
 
-        if (EX(func) && EX(func)->common.function_name) {
+        if (EX(func) && (EX(func)->common.fn_flags & (ZEND_ACC_CLOSURE | ZEND_ACC_FAKE_CLOSURE)) == ZEND_ACC_CLOSURE) {
+            zend_function *containing_function = zai_hook_find_containing_function(EX(func));
+            if (containing_function) {
+                // possible class name followed by function name
+                zval_ptr_dtor(prop_name);
+                if (EX(func)->common.scope) {
+                    ZVAL_STR(prop_name, strpprintf(0, "%s.%s.{closure}",
+                                                   ZSTR_VAL(containing_function->common.scope->name),
+                                                   ZSTR_VAL(containing_function->common.function_name)));
+                } else {
+                    ZVAL_STR(prop_name, strpprintf(0, "%s.{closure}", ZSTR_VAL(containing_function->common.function_name)));
+                }
+            } else if (EX(func)->common.function_name && ZSTR_LEN(EX(func)->common.function_name) >= strlen("{closure}")) {
+                // namespace followed by filename and lineno
+                zval_ptr_dtor(prop_name);
+                zend_string *basename = php_basename(ZSTR_VAL(EX(func)->op_array.filename), ZSTR_LEN(EX(func)->op_array.filename), NULL, 0);
+                ZVAL_STR(prop_name, strpprintf(0, "%.*s%s:%d\\{closure}",
+                                               (int)ZSTR_LEN(EX(func)->common.function_name) - (int)strlen("{closure}"),
+                                               ZSTR_VAL(EX(func)->common.function_name),
+                                               ZSTR_VAL(basename),
+                                               EX(func)->op_array.opcodes->lineno));
+                zend_string_release(basename);
+            }
+
+            zend_array *meta = ddtrace_spandata_property_meta(span);
+            zval location;
+            ZVAL_STR(&location, zend_strpprintf(0, "%s:%d", ZSTR_VAL(EX(func)->op_array.filename), EX(func)->op_array.opcodes->lineno));
+            zend_hash_str_add_new(meta, ZEND_STRL("closure.declaration"), &location);
+        } else if (EX(func) && EX(func)->common.function_name) {
             zval_ptr_dtor(prop_name);
 
             zend_class_entry *called_scope = EX(func)->common.scope ? zend_get_called_scope(execute_data) : NULL;
@@ -250,6 +291,13 @@ ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type) {
     object_init_ex(&fci_zv, ddtrace_ce_span_data);
     ddtrace_span_data *span = (ddtrace_span_data *)Z_OBJ(fci_zv);
     span->type = type;
+    return span;
+}
+
+ddtrace_span_data *ddtrace_init_dummy_span(void) {
+    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN);
+    span->std.handlers->get_constructor(&span->std);
+    span->duration = DDTRACE_SILENTLY_DROPPED_SPAN;
     return span;
 }
 
@@ -304,12 +352,12 @@ DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
-    if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value) || DDTRACE_G(disable)) {
+    if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value) || !DDTRACE_G(active_stack)) {
         return true;
     }
 
     if (Z_TYPE_P(old_value) == IS_FALSE) {
-        if (DDTRACE_G(active_stack) == NULL) {
+        if (DDTRACE_G(active_stack)->root_span == NULL) {
             ddtrace_push_root_span();
             return true;
         }
@@ -320,8 +368,10 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
         }
         if (DDTRACE_G(active_stack)->active == DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack)->closed_ring == NULL) {
             ddtrace_span_data *span = DDTRACE_G(active_stack)->root_span;
+            ddtrace_span_stack *root_stack = span->stack->parent_stack;
             DDTRACE_G(active_stack)->root_span = NULL; // As a special case, always hard-drop a root span dropped due to a config change
             ddtrace_drop_span(span);
+            ddtrace_switch_span_stack(root_stack);
             return true;
         } else {
             return false;
@@ -347,7 +397,7 @@ bool ddtrace_has_top_internal_span(ddtrace_span_data *end) {
     return false;
 }
 
-void ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
+void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until) {
     ddtrace_span_data *span;
     while ((span = until->stack->active) && span->stack == until->stack && span != until && span->type != DDTRACE_AUTOROOT_SPAN) {
         if (span->type == DDTRACE_INTERNAL_SPAN) {
@@ -365,6 +415,29 @@ void ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
             ddtrace_drop_span(span);
         }
     }
+}
+
+// may be called with NULL
+int ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
+    if (until) {
+        ddtrace_span_data *span = ddtrace_active_span();
+        while (span && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
+            span = span->parent;
+        }
+        if (span != until) {
+            return -1;
+        }
+    }
+
+    int closed_spans = 0;
+    ddtrace_span_data *span;
+    while ((span = ddtrace_active_span()) && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
+        dd_trace_stop_span_time(span);
+        ddtrace_close_span(span);
+        ++closed_spans;
+    }
+
+    return closed_spans;
 }
 
 static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
@@ -414,7 +487,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
             ddtrace_switch_span_stack(stack->parent_stack);
         }
 
-        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer() == FAILURE) {
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false) == FAILURE) {
             // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
@@ -431,7 +504,7 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         ddtrace_switch_span_stack(span->stack);
     }
 
-    ddtrace_close_userland_spans_until(span);
+    ddtrace_close_stack_userland_spans_until(span);
 
     ddtrace_close_top_span_without_stack_swap(span);
 }
@@ -617,3 +690,13 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
 }
 
 zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }
+
+zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id) {
+    uint8_t reverse[DD_TRACE_MAX_ID_LEN];
+    int len = ddtrace_conv10_trace_id(id, reverse);
+    zend_string *str = zend_string_alloc(len, 0);
+    for (int i = 0; i <= len; ++i) {
+        ZSTR_VAL(str)[i] = reverse[len - i];
+    }
+    return str;
+}

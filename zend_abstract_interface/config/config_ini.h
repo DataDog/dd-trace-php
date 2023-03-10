@@ -34,3 +34,5 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
 typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value);
 
 bool zai_config_system_ini_change(zval *old_value, zval *new_value);
+
+bool zai_config_is_modified(zai_config_id entry_id);

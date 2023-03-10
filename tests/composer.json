@@ -8,14 +8,15 @@
     },
     "require-dev": {
         "mockery/mockery": "*",
-        "phpunit/phpunit": "*",
+        "phpunit/phpunit": "<10",
         "phpspec/prophecy": "*",
         "symfony/process": "<5",
         "g1a/composer-test-scenarios": "~3.0"
     },
     "config": {
         "allow-plugins": {
-            "g1a/composer-test-scenarios": true
+            "g1a/composer-test-scenarios": true,
+            "php-http/discovery": true
         }
     },
     "extra": {

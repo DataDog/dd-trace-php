@@ -1,6 +1,6 @@
 <?php
 
-function dd_dump_spans()
+function dd_dump_spans($skipMeta = false)
 {
     $spans = dd_trace_serialize_closed_spans();
     $roots = $children = [];
@@ -12,15 +12,15 @@ function dd_dump_spans()
         }
     }
 
-    $printSpan = function($span, $indent = 2) {
+    $printSpan = function($span, $indent = 2) use ($skipMeta) {
         $values = [];
-        if (isset($span['service'])) {
+        if (($span['service'] ?? "") != "") {
             $values[] = $span['service'];
         }
-        if (isset($span['resource'])) {
+        if (($span['resource'] ?? "") != "") {
             $values[] = $span['resource'];
         }
-        if (isset($span['type'])) {
+        if (($span['type'] ?? "") != "") {
             $values[] = $span['type'];
         }
 
@@ -35,6 +35,9 @@ function dd_dump_spans()
             echo ' (error: ' . $span['meta']['error.message'] . ')';
         }
         if (isset($span['meta'])) {
+            if ($skipMeta) {
+                unset($span['meta']['_dd.p.dm']);
+            }
             echo PHP_EOL;
             foreach ($span['meta'] as $k => $v) {
                 echo str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . PHP_EOL;

@@ -47,4 +47,10 @@ int ddtrace_bgs_logf(const char *fmt, ...);
 #define ddtrace_bgs_logf(fmt, ...) (get_global_DD_TRACE_DEBUG_CURL_OUTPUT() ? ddtrace_bgs_logf(fmt, __VA_ARGS__) : 0)
 /* }}} */
 
+static inline int ddtrace_quiet_zpp(void) {
+    return PHP_DEBUG ? 0 : ZEND_PARSE_PARAMS_QUIET;
+}
+
+void ddtrace_log_onceerrf(const char *format, ...);
+
 #endif  // DD_LOGGING_H

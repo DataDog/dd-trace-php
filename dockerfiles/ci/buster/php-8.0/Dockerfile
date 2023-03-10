@@ -17,6 +17,8 @@ ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
+ARG sharedBuild=0
+ENV SHARED_BUILD=${sharedBuild}
 # install cross-compiling packages
 RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
         sudo dpkg --add-architecture ${TARGETPLATFORM#linux/}; \
@@ -28,25 +30,25 @@ COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 
 FROM build as php-debug
 ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug $PHP_VERSION
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug $PHP_VERSION $SHARED_BUILD
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
 FROM build as php-nts
 ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSION
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSION $SHARED_BUILD
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
 FROM build as php-zts
 ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION $SHARED_BUILD
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
 FROM build as php-debug-zts-asan
 ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug-zts-asan $PHP_VERSION \
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug-zts-asan $PHP_VERSION $SHARED_BUILD \
     && mv /tmp/build-php/sapi/cli/php /tmp/build-php/sapi/cli/php-asan
 # for reasons the asan build just ... crashes in qemu (or executed via bytecode interpreter). The binary itself however perfectly works on the target platform
 # just put a working php binary there to continue installation and be happy, then copy back later.

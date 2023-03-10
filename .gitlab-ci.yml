@@ -4,8 +4,8 @@ stages:
 
 variables:
   LATEST_LIBRARY_x86_64_LINUX_GNU:
-    value: "https://github.com/DataDog/dd-trace-php/releases/download/0.81.0/dd-library-php-0.81.0-x86_64-linux-gnu.tar.gz"
-    description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive"
+    value: ""
+    description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
   DOWNSTREAM_REL_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -13,12 +13,22 @@ variables:
     value: "false"
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
+include:
+  remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+
 build:
   stage: build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
   tags: [ "runner:main", "size:large" ]
   script:
-    - echo $LATEST_LIBRARY_x86_64_LINUX_GNU | sed -E 's/.*dd-library-php-(.+)-x86_64-linux-gnu.tar.gz.*/UPSTREAM_TRACER_VERSION=\1/' >> upstream.env
+    - |
+      if [ -z "$LATEST_LIBRARY_x86_64_LINUX_GNU" ]; then
+        UPSTREAM_TRACER_VERSION=$(curl -L https://api.github.com/repos/DataDog/dd-trace-php/releases | grep -E '"tag_name"|"prerelease"' | paste -sd" \n" - | grep -v '"prerelease": true' | grep -Pom1 '"tag_name": "\K[^"]+')
+        LATEST_LIBRARY_x86_64_LINUX_GNU="https://github.com/DataDog/dd-trace-php/releases/download/${UPSTREAM_TRACER_VERSION}/dd-library-php-${UPSTREAM_TRACER_VERSION}-x86_64-linux-gnu.tar.gz"
+      else
+        UPSTREAM_TRACER_VERSION=$(echo "$LATEST_LIBRARY_x86_64_LINUX_GNU" | grep -Po '(?<=dd-library-php-).+(?=-x86_64-linux-gnu.tar.gz)')
+      fi
+    - echo "UPSTREAM_TRACER_VERSION=$(UPSTREAM_TRACER_VERSION)" >> upstream.env
     - curl --fail --location --output 'dd-library-php-x86_64-linux-gnu.tar.gz' "$LATEST_LIBRARY_x86_64_LINUX_GNU"
     - curl --fail --location -O "$(dirname $LATEST_LIBRARY_x86_64_LINUX_GNU)/datadog-setup.php"
     - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
@@ -29,6 +39,9 @@ build:
 
 deploy_to_reliability_env:
   stage: deploy
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_REL_BRANCH
@@ -41,3 +54,19 @@ deploy_to_reliability_env:
 #    COMMIT_SHA would be wrong because the artifact is not built here
 #    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     FORCE_TRIGGER: $FORCE_TRIGGER
+
+tracer-base-image:
+  extends: .ci_authenticated_job
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+  stage: deploy
+  script:
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
+    - ./tooling/ci/download-binary-php.sh dev
+    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot
+    - rm -rf ./tooling/ci/binaries
+    - ./tooling/ci/download-binary-php.sh prod
+    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest

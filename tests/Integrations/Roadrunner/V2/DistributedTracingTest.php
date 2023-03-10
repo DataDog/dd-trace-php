@@ -31,6 +31,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
             $spec = GetSpec::create('request', '/', [
                 "User-Agent: Test",
                 "x-header: somevalue",
+                'x_forwarded_for', '127.12.34.1',
             ]);
             $this->call($spec);
         });
@@ -40,5 +41,6 @@ class DistributedTracingTest extends WebFrameworkTestCase
         $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
         $this->assertSame("Test", $trace["meta"]["http.useragent"]);
         $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);
+        $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
     }
 }

@@ -7,10 +7,11 @@ ddtrace.disable=true
 function test(){
     return "FUNCTION";
 }
-
-dd_trace("test", function(){
+error_reporting(E_ALL & ~E_DEPRECATED);
+DDTrace\trace_function("test", function(){
     return test() . ' HOOK' . PHP_EOL;
 });
+error_reporting(E_ALL);
 
 echo test();
 

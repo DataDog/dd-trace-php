@@ -658,7 +658,8 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
 }
 
 #define TRACE_PATH_STR "/v0.4/traces"
-#define HOST_FORMAT_STR "http://%s:%u"
+#define HOST_V6_FORMAT_STR "http://[%s]:%u"
+#define HOST_V4_FORMAT_STR "http://%s:%u"
 #define DEFAULT_UDS_PATH "/var/run/datadog/apm.socket"
 
 static struct curl_slist *dd_agent_curl_headers = NULL;
@@ -729,12 +730,14 @@ char *ddtrace_agent_url(void) {
     }
 
     if (ZSTR_LEN(hostname) > 0) {
+        bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
+
         int64_t port = get_global_DD_TRACE_AGENT_PORT();
         if (port <= 0 || port > 65535) {
             port = 8126;
         }
         char *formatted_url;
-        asprintf(&formatted_url, HOST_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port);
+        asprintf(&formatted_url, isIPv6 ? HOST_V6_FORMAT_STR : HOST_V4_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port);
         return formatted_url;
     }
 
@@ -747,7 +750,7 @@ char *ddtrace_agent_url(void) {
         port = 8126;
     }
     char *formatted_url;
-    asprintf(&formatted_url, HOST_FORMAT_STR, "localhost", (uint32_t)port);
+    asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port);
     return formatted_url;
 }
 
@@ -838,7 +841,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         ddtrace_curl_set_connect_timeout(writer->curl);
 
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
+        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long)get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
 
         res = curl_easy_perform(writer->curl);
 
@@ -846,7 +849,11 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
             ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
         } else if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
             double uploaded;
+// only deprecated on relatively new libcurl versions
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
             curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+#pragma GCC diagnostic pop
             ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
         }
 

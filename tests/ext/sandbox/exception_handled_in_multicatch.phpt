@@ -45,4 +45,4 @@ array_map(function($span) {
 --EXPECTF--
 FooException caught
 multiCatch, FooException caught
-throwException, throwException, Uncaught FooException: Oops! in %s:%d
+throwException, throwException, Thrown FooException: Oops! in %s:%d

@@ -83,6 +83,7 @@ bool zai_symbol_call_impl(
     fci.size = sizeof(zend_fcall_info);
     ZVAL_NULL(rv);
     fci.retval = rv;
+    bool success = false;
 
 #if PHP_VERSION_ID < 70300
     fcc.initialized = 1;
@@ -141,17 +142,25 @@ bool zai_symbol_call_impl(
     }
     // clang-format on
 
+    // Always open the sandbox, because the caller will always try to close it
+    zai_sandbox sandbox, *sandbox_ptr = NULL;
+    zai_sandbox_open(&sandbox);
+    if (argc & ZAI_SYMBOL_SANDBOX) {
+        sandbox_ptr = va_arg(*args, zai_sandbox *);
+    }
+    argc &= ~ZAI_SYMBOL_SANDBOX;
+
     if (!fcc.function_handler) {
-        return false;
+        goto leave;
     }
 
     if (fcc.function_handler->common.fn_flags & ZEND_ACC_ABSTRACT) {
-        return false;
+        goto leave;
     }
 
     if (scope_type == ZAI_SYMBOL_SCOPE_CLASS) {
         if (!(fcc.function_handler->common.fn_flags & (ZEND_ACC_STATIC | ZEND_ACC_CLOSURE))) {
-            return false;
+            goto leave;
         }
     }
 
@@ -161,13 +170,6 @@ bool zai_symbol_call_impl(
     volatile bool rebound_closure = false;
     volatile zval new_closure;
     zend_op_array *volatile op_array;
-
-    zai_sandbox sandbox, *sandbox_ptr = NULL;
-    zai_sandbox_open(&sandbox);
-    if (argc & ZAI_SYMBOL_SANDBOX) {
-        sandbox_ptr = va_arg(*args, zai_sandbox *);
-    }
-    argc &= ~ZAI_SYMBOL_SANDBOX;
 
     if (function_type == ZAI_SYMBOL_FUNCTION_CLOSURE && fcc.called_scope) {
         zend_class_entry *closure_called_scope;
@@ -291,8 +293,9 @@ bool zai_symbol_call_impl(
         efree(fci.params);
     }
 
-    bool success = zai_symbol_call_result == SUCCESS && EG(exception) == NULL;
+    success = zai_symbol_call_result == SUCCESS && EG(exception) == NULL;
 
+leave:
     if (sandbox_ptr) {
         *sandbox_ptr = sandbox;
     } else {

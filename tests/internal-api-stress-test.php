@@ -47,7 +47,7 @@ function ensure_bounded_nesting_depth()
         }
     }
 
-    if ($depth >= 8) {
+    if ($depth >= 5) {
         ini_set("datadog.trace.enabled", "0");
         ini_set("datadog.trace.enabled", "1");
     }
@@ -159,14 +159,16 @@ function runOneIteration()
 
     shuffle($functions);
     foreach ($functions as $function) {
+        ini_set("datadog.autofinish_spans", rand(0, 1));
+
         $garbages = generate_garbage();
         $ex = new Exception("");
         $exceptionClass = new ReflectionClass($ex);
         foreach ($exceptionClass->getProperties() as $prop) {
             $prop->setAccessible(true);
             try {
-                $stringProp = PHP_VERSION_ID >= 80000 && $prop->getType() && $prop->getType()->getName() == "string";
-                $prop->setValue($ex, !$stringProp && rand(1, 5) == 1 ? $ex : $garbages[array_rand($garbages)]);
+                $selfAssign = $prop->getName() == "previous" && rand(1, 5) == 1;
+                $prop->setValue($ex, $selfAssign ? $ex : $garbages[array_rand($garbages)]);
             } catch (TypeError $e) {
             }
         }
@@ -179,7 +181,7 @@ function runOneIteration()
                 foreach ($props as $prop) {
                     try {
                         $prop->setValue($span, $garbages[array_rand($garbages)]);
-                    } catch (TypeError $e) {
+                    } catch (Error $e) {
                     }
                 }
             }

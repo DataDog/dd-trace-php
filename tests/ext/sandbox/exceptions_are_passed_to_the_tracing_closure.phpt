@@ -45,5 +45,5 @@ testExceptionIsNull()
 bool(true)
 testExceptionIsPassed()
 bool(true)
-TestEx with exception: Uncaught Exception: Oops! in %s:%d
+TestEx with exception: Thrown Exception: Oops! in %s:%d
 TestNull
