@@ -314,7 +314,7 @@ static void _emit_error(const char *format, ...)
         if (!get_global_DD_APPSEC_TESTING()) {
             mlog_g(
                 dd_log_debug, "Running our RSHUTDOWN before aborting request");
-            dd_appsec_rshutdown();
+            dd_appsec_rshutdown(true);
             DDAPPSEC_G(skip_rshutdown) = true;
         }
 

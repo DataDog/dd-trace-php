@@ -591,3 +591,19 @@
    fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
    fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
 }
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   ...
+}
