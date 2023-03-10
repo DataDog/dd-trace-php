@@ -58,6 +58,47 @@ Options:
 EOD;
 }
 
+/**
+ * This function will print out all Datadog specific PHP INI settings. The list
+ * of Datadog specific settings is retrieved by calling `get_ini_settings()`. It
+ * will also show the default and INI file this setting was found.
+ * The output will be grouped by PHP binary, example:
+ *
+ *   $ php datadog-setup.php --php-bin all
+ *   Searching for available php binaries, this operation might take a while.
+ *   Datadog configuration for binary: php (/opt/php/8.2/bin/php)
+ *   datadog.profiling.enabled => On // default: 1, INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
+ *   datadog.profiling.experimental_allocation_enabled => On // default: 1, INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
+ *
+ * @see get_ini_settings
+ */
+function config_list($options): void
+{
+    $selectedBinaries = require_binaries_or_exit($options);
+    $iniSettings = get_ini_settings('','','');
+    foreach ($selectedBinaries as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
+
+        $iniFilePaths = find_ini_files(
+            ini_values($fullPath)
+        );
+
+        foreach($iniFilePaths as $iniFilePath) {
+
+            $iniFileSettings = parse_ini_file($iniFilePath);
+            foreach ($iniFileSettings as $iniFileSetting => $currentValue) {
+                foreach ($iniSettings as $iniSetting) {
+                    if ($iniSetting['name'] !== $iniFileSetting) {
+                        continue;
+                    }
+                    echo $iniSetting['name'], ' => ', $currentValue, ' // default: ', $iniSetting['default'], ', INI file: ', $iniFilePath, PHP_EOL;
+                }
+            }
+        }
+    }
+}
+
 function install($options)
 {
     $architecture = get_architecture();
