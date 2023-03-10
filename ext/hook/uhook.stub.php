@@ -5,11 +5,33 @@
 namespace DDTrace;
 
 class HookData {
+    /**
+     * Arbitrary data to be passed from a begin-hook to an end-hook
+     */
     public mixed $data;
+
+    /**
+     * The hook id, which triggered that particular hook
+     */
     public int $id;
+
+    /**
+     * A zero-indexed array of all arguments.
+     */
     public array $args;
+
+    /**
+     * The returned value.
+     * Uninitialized in a begin hook.
+     */
     public mixed $returned;
+
+    /**
+     * The a possible thrown exception within that function.
+     * Uninitialized in a begin hook.
+     */
     public ?\Throwable $exception;
+
     /**
      * Creates a span if none exists yet, otherwise returns the span attached to the current function call.
      * If called outside the pre-hook and no span is attached yet, it will return an empty span object.
@@ -43,5 +65,21 @@ class HookData {
     public function overrideArguments(array $arguments): bool;
 }
 
+/**
+ * @param string|\Closure|\Generator $target The function to hook.
+ *                                           If a string is passed, it must be either a function name or referencing
+ *                                           a method in "Classname::methodname" format.
+ *                                           If a Closure is passed, the hook only applies to the current instance
+ *                                           of that Closure.
+ *                                           If a Generator is passed, the active function name or Closure is extracted
+ *                                           and the hook applied to that.
+ * @return int An integer which can be used to remove a hook via DDTrace\remove_hook.
+ */
 function install_hook(string|\Closure|\Generator $target, ?\Closure $begin = null, ?\Closure $end = null): int {}
+
+/**
+ * Removes an installed hook by its id, as returned by install_hook or HookData->id.
+ *
+ * @param int $id The id to remove.
+ */
 function remove_hook(int $id): void {}

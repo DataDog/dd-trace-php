@@ -445,7 +445,9 @@ void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     }
     ZEND_HASH_FOREACH_END();
 
-    ZVAL_STR(ddtrace_spandata_property_id(span), ddtrace_span_id_as_string(span->span_id));
+    zval *prop_id = ddtrace_spandata_property_id(span);
+    zval_ptr_dtor(prop_id);
+    ZVAL_STR(prop_id, ddtrace_span_id_as_string(span->span_id));
 }
 
 static const char *dd_get_req_uri() {
@@ -567,6 +569,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
             const char *uri = dd_get_req_uri();
             zval *prop_resource = ddtrace_spandata_property_resource(span);
+            zval_ptr_dtor(prop_resource);
             if (uri) {
                 zend_string *path = zend_string_init(uri, strlen(uri), 0);
                 zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
@@ -607,17 +610,22 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     zval *prop_type = ddtrace_spandata_property_type(span);
     zval *prop_name = ddtrace_spandata_property_name(span);
     if (strcmp(sapi_module.name, "cli") == 0) {
+        zval_ptr_dtor(prop_type);
         ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
         const char *script_name;
+        zval_ptr_dtor(prop_name);
         ZVAL_STR(prop_name,
             (SG(request_info).argc > 0 && (script_name = SG(request_info).argv[0]) && script_name[0] != '\0')
                 ? php_basename(script_name, strlen(script_name), NULL, 0)
                 : zend_string_init(ZEND_STRL("cli.command"), 0));
     } else {
+        zval_ptr_dtor(prop_type);
         ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("web"), 0));
+        zval_ptr_dtor(prop_name);
         ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("web.request"), 0));
     }
     zval *prop_service = ddtrace_spandata_property_service(span);
+    zval_ptr_dtor(prop_service);
     ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
 
     if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {

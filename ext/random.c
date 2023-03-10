@@ -49,13 +49,10 @@ uint64_t ddtrace_parse_userland_span_id(zval *zid) {
     return (uid && errno == 0) ? uid : 0U;
 }
 
-ddtrace_trace_id ddtrace_parse_userland_trace_id(zval *zid) {
-    if (!zid || Z_TYPE_P(zid) != IS_STRING) {
-        return (ddtrace_trace_id){ 0 };
-    }
+ddtrace_trace_id ddtrace_parse_userland_trace_id(zend_string *tid) {
     ddtrace_trace_id num = {0};
-    const char *id = Z_STRVAL_P(zid);
-    for (size_t i = 0; i < Z_STRLEN_P(zid); i++) {
+    const char *id = ZSTR_VAL(tid);
+    for (size_t i = 0; i < ZSTR_LEN(tid); i++) {
         if (id[i] < '0' || id[i] > '9') {
             return (ddtrace_trace_id){ 0 };
         }
