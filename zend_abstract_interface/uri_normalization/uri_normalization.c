@@ -198,17 +198,9 @@ zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *wh
 }
 
 bool zai_match_regex(zend_string *pattern, zend_string *subject) {
-    // If the subject matches the pattern, return true.
-    // If the subject does not match the pattern, return false.
-
     if (ZSTR_LEN(pattern) == 0) {
         return false;
     }
-
-    // Use php_pcre_match_impl() to match the subject against the pattern.
-    // If the subject matches the pattern, return true.
-    // If the subject does not match the pattern, return false.
-    // If an error occurs, return false.
 
     zend_string *regex = zend_strpprintf(0, "(%s)", ZSTR_VAL(pattern));
     pcre_cache_entry *pce = pcre_get_compiled_regex_cache(regex);

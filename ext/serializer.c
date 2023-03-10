@@ -395,18 +395,78 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
     }
 }
 
-static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_string *postkey, zend_string *postval) {
-    for (char *ptr = ZSTR_VAL(postkey); *ptr; ++ptr) {
-        if ((*ptr < 'a' || *ptr > 'z') && *ptr != '-' && (*ptr < '0' || *ptr > '9')) {
+static void replace_non_alpha_with_underscores(zend_string *str) {
+    for (char *ptr = ZSTR_VAL(str); *ptr; ++ptr) {
+        if ((*ptr < 'a' || *ptr > 'z') && (*ptr < 'A' || *ptr > 'Z')) {
             *ptr = '_';
         }
     }
+}
 
+static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_string *postkey, zend_string *postval) {
     zend_string *posttag = zend_strpprintf(0, "http.%s.post.%s", type, ZSTR_VAL(postkey));
     zval postzv;
     ZVAL_STR_COPY(&postzv, postval);
     zend_hash_update(meta, posttag, &postzv);
     zend_string_release(posttag);
+}
+
+static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *type, zend_string *postkey,
+                                                 zval *postval, zend_array* post_whitelist) {
+    if (Z_TYPE_P(postval) == IS_ARRAY) {
+        zend_string *key;
+        zval *val;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(postval), key, val) {
+            replace_non_alpha_with_underscores(key);
+            // If the current postkey is the empty string, we don't want to add a '.' to the beginning of the key
+            if (ZSTR_LEN(postkey) == 0) {
+                dd_add_post_fields_to_meta_recursive(meta, type, key, val, post_whitelist);
+            } else {
+                // If the current postkey is not the empty string, we want to add a '.' to the beginning of the key
+                zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(key));
+                dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist);
+                zend_string_release(newkey);
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    } else {
+
+        if (post_whitelist && zend_hash_exists(post_whitelist, postkey)) { // The postkey is in the whitelist
+            // we want to add it to the meta as is
+            zend_string *ztr_postval = zval_get_string(postval);
+            dd_add_post_fields_to_meta(meta, type, postkey, ztr_postval);
+            zend_string_release(ztr_postval);
+        } else if (post_whitelist) {
+            zend_string *str;
+            zend_ulong numkey;
+            zend_hash_get_current_key(post_whitelist, &str, &numkey);
+            if (zend_string_equals_literal(str, "*")) { // '*' is a wildcard for the whitelist
+                // Here, both the postkey and postval are strings, so we can concatenate them into "<postkey>=<postval>"
+                zend_string *postvalstr = zval_get_string(postval);
+                zend_string *postvalconcat = zend_strpprintf(0, "%s=%s", ZSTR_VAL(postkey), ZSTR_VAL(postvalstr));
+                zend_string_release(postvalstr);
+
+                // Match it with the regex to redact if needed
+                if (zai_match_regex(get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP(), postvalconcat)) {
+                    zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+                    dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+                    zend_string_release(replacement);
+                } else {
+                    dd_add_post_fields_to_meta(meta, type, postkey, postvalstr);
+                }
+                zend_string_release(postvalconcat);
+            } else { // No wildcard and the postkey isn't in the whitelist
+                // Always use "<redacted>" as the value
+                zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+                dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+                zend_string_release(replacement);
+            }
+        } else { // No whitelist, so we always use "<redacted>" as the value
+            zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+            dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+            zend_string_release(replacement);
+        }
+    }
 }
 
 void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
@@ -648,21 +708,10 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     }
 
     if (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST"))) {
-        zend_string *postkey;
-        zval *postval;
-        ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR(PG(http_globals)[TRACK_VARS_POST]), postkey, postval) {
-            ZVAL_DEREF(postval);
-            if (Z_TYPE_P(postval) == IS_STRING) {
-                if (zai_match_regex(get_DD_TRACE_OBFUSCATION_PARAMETER_STRING_REGEXP(), postkey)) {
-                    zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
-                    dd_add_post_fields_to_meta(meta, "request", postkey, replacement);
-                    zend_string_release(replacement);
-                } else {
-                    dd_add_post_fields_to_meta(meta, "request", postkey, Z_STR_P(postval));
-                }
-            }
-        }
-        ZEND_HASH_FOREACH_END();
+        zend_string *empty = ZSTR_EMPTY_ALLOC();
+        dd_add_post_fields_to_meta_recursive(meta, "request", empty, &PG(http_globals)[TRACK_VARS_POST],
+                                             get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED());
+        zend_string_release(empty);
     }
 
     if (get_DD_TRACE_REPORT_HOSTNAME()) {

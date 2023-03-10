@@ -20,7 +20,8 @@ class DistributedTracingTest extends WebFrameworkTestCase
 
     protected static function getEnvs()
     {
-        return \array_merge(parent::getEnvs(), ['DD_TRACE_HEADER_TAGS' => "x-header"]);
+        return \array_merge(parent::getEnvs(), ['DD_TRACE_HEADER_TAGS' => "x-header",
+            'DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED' => '*']);
     }
 
     public function testDistributedTracing()
@@ -59,11 +60,13 @@ class DistributedTracingTest extends WebFrameworkTestCase
             ], [
                 'password' => 'should_redact',
                 'username' => 'should_not_redact',
+                'foo' => array('bar' => 'val')
             ]);
             $this->call($spec);
         });
 
         $trace = $traces[0][0];
+        //fwrite(STDERR, json_encode($trace, JSON_PRETTY_PRINT));
         $this->assertSame($current_context["trace_id"], $trace["trace_id"]);
         $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
         $this->assertSame("Test", $trace["meta"]["http.useragent"]);
