@@ -99,6 +99,51 @@ function config_list($options): void
     }
 }
 
+/**
+ * This function will print the specified PHP INI settings.
+ * The output will be grouped by PHP binary, example:
+ *
+ *   $ php datadog-setup.php config get --php-bin all \
+ *     -ddatadog.profiling.experimental_allocation_enabled \
+ *     -ddatadog.profiling.experimental_cpu_enabled \
+ *     -dnonexisting
+ *   Datadog configuration for binary: php (/opt/php/8.2/bin/php)
+ *   datadog.profiling.experimental_allocation_enabled => On // INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
+ *   datadog.profiling.experimental_cpu_enabled => On // INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
+ *   nonexisting => undefined // is missing in INI files
+ */
+function config_get($options): void
+{
+    $selectedBinaries = require_binaries_or_exit($options);
+    foreach ($selectedBinaries as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
+
+        $iniFilePaths = find_ini_files(
+            ini_values($fullPath)
+        );
+
+        if (count($iniFilePaths) === 0) {
+            echo 'No INI files for this binary found', PHP_EOL;
+            continue;
+        }
+
+        foreach ($options['d'] as $iniSetting) {
+            $found = false;
+            foreach ($iniFilePaths as $iniFilePath) {
+                $iniFileSettings = parse_ini_file($iniFilePath);
+                if (array_key_exists($iniSetting, $iniFileSettings)) {
+                    echo $iniSetting, ' => ', $iniFileSettings[$iniSetting], ' // INI file: ', $iniFilePath, PHP_EOL;
+                    $found = true;
+                }
+            }
+            if (!$found) {
+                echo $iniSetting, ' => undefined // is missing in INI files', PHP_EOL;
+            }
+        }
+    }
+}
+
 function install($options)
 {
     $architecture = get_architecture();
