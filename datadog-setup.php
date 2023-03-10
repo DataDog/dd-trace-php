@@ -1421,16 +1421,6 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             ],
         ],
         [
-            'name' => 'datadog.appsec.block',
-            'default' => 'Off',
-            'commented' => true,
-            'description' => [
-                'Allows dd-appsec to block attacks by committing an error page response (if no',
-                'response has already been committed), and issuing an error that cannot be',
-                'handled, thereby aborting the request',
-            ],
-        ],
-        [
             'name' => 'datadog.appsec.log_level',
             'default' => 'warn',
             'commented' => true,
