@@ -73,6 +73,8 @@ class HookData {
  *                                           of that Closure.
  *                                           If a Generator is passed, the active function name or Closure is extracted
  *                                           and the hook applied to that.
+ * @param null|\Closure(\DDTrace\HookData) $begin Called before the hooked function is invoked.
+ * @param null|\Closure(\DDTrace\HookData) $end Called after the hooked function is invoked.
  * @return int An integer which can be used to remove a hook via DDTrace\remove_hook.
  */
 function install_hook(string|\Closure|\Generator $target, ?\Closure $begin = null, ?\Closure $end = null): int {}
