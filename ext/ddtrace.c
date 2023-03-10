@@ -61,25 +61,24 @@
 #include "handlers_exception.h"
 #include "exceptions/exceptions.h"
 
-// On PHP 7.0 - 7.2 we cannot declare arrays as internal values. Assign null and handle in create_object where necessary.
+// On PHP 7 we cannot declare arrays as internal values. Assign null and handle in create_object where necessary.
 #if PHP_VERSION_ID < 80000
 #undef ZVAL_EMPTY_ARRAY
 #define ZVAL_EMPTY_ARRAY ZVAL_NULL
 #endif
-
-//
+// CG(empty_string) is not accessible during MINIT (in ZTS at least)
 #if PHP_VERSION_ID < 70200
 #undef ZVAL_EMPTY_STRING
 #define ZVAL_EMPTY_STRING(z) ZVAL_NEW_STR(z, zend_string_init("", 0, 1))
 #endif
-
 #include "ddtrace_arginfo.h"
-
 #if PHP_VERSION_ID < 70200
 #undef ZVAL_EMPTY_STRING
-#define ZVAL_EMPTY_STRING(z) do { \
-        ZVAL_INTERNED_STR(z, ZSTR_EMPTY_ALLOC()); \
-    } while (0)
+#define ZVAL_EMPTY_STRING(z) ZVAL_INTERNED_STR(z, ZSTR_EMPTY_ALLOC())
+#endif
+#if PHP_VERSION_ID < 80000
+#undef ZVAL_EMPTY_ARRAY
+#define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
 #endif
 
 bool ddtrace_has_excluded_module;

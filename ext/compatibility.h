@@ -91,9 +91,6 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
 #define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(name, return_reference, required_num_args, class_name, type) ZEND_BEGIN_ARG_INFO_EX(name, 0, return_reference, required_num_args)
 
 #define IS_MIXED 0
-#define MAY_BE_NULL 0
-#define MAY_BE_STRING 0
-#define MAY_BE_ARRAY 0
 
 static inline zend_string *get_function_or_method_name(const zend_function *func) {
     if (func->common.scope && func->common.function_name) {
@@ -190,12 +187,12 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     return ht;
 }
 
-#define ZVAL_EMPTY_ARRAY(z) do {                                 \
-        zval *__z = (z);                                         \
-        Z_ARR_P(__z) = malloc(sizeof(HashTable));                \
-        zend_hash_init(Z_ARR_P(__z), 0, NULL, ZVAL_PTR_DTOR, 1); \
-        Z_TYPE_INFO_P(__z) = IS_ARRAY;                           \
+#define DD_ZVAL_EMPTY_ARRAY(z) do {       \
+        zval *__z = (z);                  \
+        Z_ARR_P(__z) = zend_new_array(0); \
+        Z_TYPE_INFO_P(__z) = IS_ARRAY;    \
     } while (0)
+#define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
 
 #define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
 #define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
@@ -253,6 +250,9 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
 
 #if PHP_VERSION_ID < 70100
 #define IS_VOID 0
+#define MAY_BE_NULL 0
+#define MAY_BE_STRING 0
+#define MAY_BE_ARRAY 0
 
 #define Z_EXTRA_P(z) Z_NEXT_P(z)
 #endif
