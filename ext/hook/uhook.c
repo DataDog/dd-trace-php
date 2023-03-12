@@ -350,11 +350,23 @@ PHP_FUNCTION(DDTrace_install_hook) {
     }
     def->id = -1;
 
+    uint32_t hook_limit = get_DD_TRACE_HOOK_LIMIT();
+
     zend_long id;
     if (resolved) {
         def->resolved = resolved;
         def->function = NULL;
         def->closure = closure;
+
+        if (hook_limit > 0 && zai_hook_count_resolved(resolved) >= hook_limit) {
+            ddtrace_log_onceerrf(
+                    "Could not add hook to Closure with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
+                    hook_limit,
+                    zend_get_executed_filename(),
+                    zend_get_executed_lineno());
+            goto error;
+        }
+
         id = zai_hook_install_resolved(resolved,
             dd_uhook_begin, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
@@ -387,6 +399,18 @@ PHP_FUNCTION(DDTrace_install_hook) {
         }
         def->closure = NULL;
 
+        if (hook_limit > 0 && zai_hook_count_installed(scope, function) >= hook_limit) {
+            ddtrace_log_onceerrf(
+                    "Could not add hook to %s%s%s with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
+                    def->scope ? ZSTR_VAL(def->scope) : "",
+                    def->scope ? "::" : "",
+                    ZSTR_VAL(def->function),
+                    hook_limit,
+                    zend_get_executed_filename(),
+                    zend_get_executed_lineno());
+            goto error;
+        }
+
         id = zai_hook_install(
                 scope, function,
                 dd_uhook_begin,
@@ -396,6 +420,10 @@ PHP_FUNCTION(DDTrace_install_hook) {
     }
 
     if (id < 0) {
+error:
+        def->id = 0;
+        dd_uhook_dtor(def);
+
         RETURN_LONG(0);
     }
 

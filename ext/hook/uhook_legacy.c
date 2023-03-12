@@ -362,8 +362,23 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     zai_string_view class_str = method ? ZAI_STRING_FROM_ZSTR(class_name) : ZAI_STRING_EMPTY;
     zai_string_view func_str = ZAI_STRING_FROM_ZSTR(method_name);
 
-    RETURN_BOOL(zai_hook_install_generator(class_str,func_str,
-            dd_uhook_begin,dd_uhook_generator_resumption,dd_uhook_generator_yield,dd_uhook_end,
+    uint32_t hook_limit = get_DD_TRACE_HOOK_LIMIT();
+    if (hook_limit > 0 && zai_hook_count_installed(class_str, func_str) >= hook_limit) {
+        ddtrace_log_onceerrf(
+                "Could not add hook to %s%s%s with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
+                method ? ZSTR_VAL(class_name) : "",
+                method ? "::" : "",
+                ZSTR_VAL(method_name),
+                hook_limit,
+                zend_get_executed_filename(),
+                zend_get_executed_lineno());
+
+        dd_uhook_dtor(def);
+        RETURN_FALSE;
+    }
+
+    RETURN_BOOL(zai_hook_install_generator(class_str, func_str,
+            dd_uhook_begin, dd_uhook_generator_resumption, dd_uhook_generator_yield, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor),sizeof(dd_uhook_dynamic)) != -1);
 }
 
