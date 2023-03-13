@@ -1509,6 +1509,30 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
                 'relevant if ddappsec.helper_launch is enabled',
             ],
         ],
+        [
+            'name' => 'datadog.remote_config_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enables or disables remote config. On by default',
+        ],
+        [
+            'name' => 'datadog.remote_config_poll_interval',
+            'default' => '1000',
+            'commented' => true,
+            'description' => 'Defines in milliseconds how often remote configurations are pulled',
+        ],
+        [
+            'name' => 'datadog.appsec.http_blocked_template_html',
+            'default' => '',
+            'commented' => true,
+            'description' => 'This define the html which will be output when a html request is blocked',
+        ],
+        [
+            'name' => 'datadog.appsec.http_blocked_template_json',
+            'default' => '',
+            'commented' => true,
+            'description' => 'This define the json which will be output when a json request is blocked',
+        ],
     ];
     // phpcs:enable Generic.Files.LineLength.TooLong
 }
