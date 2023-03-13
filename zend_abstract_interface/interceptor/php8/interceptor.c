@@ -56,7 +56,7 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     const size_t stack_size = 1 << 17;
     void *volatile stack = malloc(stack_size);
     if (SETJMP(target) == 0) {
-        void *stacktop = stack + stack_size, *stacktarget = stacktop - 0x400;
+        void *stacktop = stack + stack_size, *stacktarget = stacktop - 0x800;
 
 #ifdef __SANITIZE_ADDRESS__
         void *volatile fake_stack;
