@@ -228,7 +228,7 @@ class Normalizer
             if (in_array($postKey, $whitelist)) {
                 // The postkey is in the whitelist, return the value as is
                 return [$postKey => $postVal];
-            } else if (in_array('*', $whitelist)) { // '*' is wildcard
+            } elseif (in_array('*', $whitelist)) { // '*' is wildcard
                 // Concatenate the postkey and postval into '<postkey>=<postval>'
                 $postField = "$postKey=$postVal";
 
@@ -256,8 +256,8 @@ class Normalizer
     public static function sanitizePostFields(array $postFields): array
     {
         return self::cleanRequestBody(
-            $postFields
-            , "datadog.trace.http_post_data_param_allowed"
+            $postFields,
+            "datadog.trace.http_post_data_param_allowed"
         );
     }
 

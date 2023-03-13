@@ -56,4 +56,3 @@ EOT);
         $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.foo.bar"]);
     }
 }
-

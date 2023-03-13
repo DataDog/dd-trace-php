@@ -74,4 +74,3 @@ class DistributedTracingTest extends WebFrameworkTestCase
         $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
     }
 }
-
