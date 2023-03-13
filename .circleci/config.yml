@@ -678,6 +678,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
+            if [[ << parameters.switch_php_version >> == *asan* ]]; then export TEST_PHP_JUNIT=$(pwd)/asan-extension-test.xml; fi
             make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - when:
           # codecov uploader only on amd64
@@ -1804,7 +1805,7 @@ jobs:
           command: |
             set -eo pipefail
             switch-php debug-zts-asan
-            make asan
+            make
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
       - persist_to_workspace:
           root: '.'
@@ -3213,15 +3214,15 @@ workflows:
                 - medium
                 - arm.medium
               make_target:
-                - test_c_asan
-                - test_with_init_hook_asan
+                - test_c
+                - test_with_init_hook
                 - test_internal_api_randomized
-                - test_opcache_asan
+                - test_opcache
             exclude:
                 # apparently for no discernible reason, on x86 asan builds PHP 7.4. fails to allocate opcache shared memory
               - php_major_minor: '7.4'
                 resource_class: medium
-                make_target: test_opcache_asan
+                make_target: test_opcache
                 switch_php_version: debug-zts-asan
 
       - integration:

@@ -39,6 +39,9 @@ static inline bool zai_hook_memory_table_del(zend_execute_data *index) {
 }
 
 #if defined(__x86_64__) || defined(__aarch64__)
+# if defined(__GNUC__) && !defined(__clang__)
+__attribute__((no_sanitize_address))
+# endif
 static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, zai_frame_memory *frame_memory) {
     if (!CG(unclean_shutdown)) {
         zai_hook_finish(execute_data, retval, &frame_memory->hook_data);
