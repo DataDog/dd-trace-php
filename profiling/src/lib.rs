@@ -26,7 +26,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 #[cfg(feature = "allocation_profiling")]
@@ -883,9 +883,9 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_mshutdown() };
 
-    let mut profiler = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler.take() {
-        profiler.stop();
+    let profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.as_ref() {
+        profiler.stop(Duration::from_secs(1));
     }
 
     ZendResult::Success
@@ -954,6 +954,11 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
+
+    let mut profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.take() {
+        profiler.shutdown(Duration::from_secs(2));
+    }
 }
 
 /// Notifies the profiler a trace has finished so it can update information
