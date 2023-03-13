@@ -69,14 +69,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "zendframework",
-                    ]),
+                    ])
+                    ->setError('Exception', 'Controller error', true)
             ],
         ];
-        if (\getenv('DD_TRACE_TEST_SAPI') == 'apache2handler') { // i.e. with opcache
-            $specs['A GET request with an exception'][0]->setError('Exception', 'Controller error', true);
-        } else {
-            $specs['A GET request with an exception'][0]->setError();
-        }
+
         return $this->buildDataProvider($specs);
     }
 }

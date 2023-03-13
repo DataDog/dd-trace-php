@@ -312,7 +312,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
         // clang-format on
     ZEND_PARSE_PARAMETERS_END_EX({
-        ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 2 + method, 2 + method)
+        ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 2 + method, 2 + method)
             // clang-format off
             if (method) {
                 Z_PARAM_STR(class_name)
@@ -320,11 +320,13 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
             Z_PARAM_STR(method_name)
             Z_PARAM_ARRAY(config_array)
         ZEND_PARSE_PARAMETERS_END_EX({
-            ddtrace_log_debugf(
-                "Unable to parse parameters for DDTrace\\%s_%s; expected "
-                "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)",
-                tracing ? "trace" : "hook", method ? "method" : "function");
-             RETURN_FALSE;
+            if (ddtrace_quiet_zpp()) {
+                ddtrace_log_onceerrf(
+                        "Unable to parse parameters for DDTrace\\%s_%s; expected "
+                        "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)",
+                        tracing ? "trace" : "hook", method ? "method" : "function");
+                RETURN_FALSE;
+            }
         });
     });
 
@@ -360,25 +362,40 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     zai_string_view class_str = method ? ZAI_STRING_FROM_ZSTR(class_name) : ZAI_STRING_EMPTY;
     zai_string_view func_str = ZAI_STRING_FROM_ZSTR(method_name);
 
-    RETURN_BOOL(zai_hook_install_generator(class_str,func_str,
-            dd_uhook_begin,dd_uhook_generator_resumption,dd_uhook_generator_yield,dd_uhook_end,
+    uint32_t hook_limit = get_DD_TRACE_HOOK_LIMIT();
+    if (hook_limit > 0 && zai_hook_count_installed(class_str, func_str) >= hook_limit) {
+        ddtrace_log_onceerrf(
+                "Could not add hook to %s%s%s with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
+                method ? ZSTR_VAL(class_name) : "",
+                method ? "::" : "",
+                ZSTR_VAL(method_name),
+                hook_limit,
+                zend_get_executed_filename(),
+                zend_get_executed_lineno());
+
+        dd_uhook_dtor(def);
+        RETURN_FALSE;
+    }
+
+    RETURN_BOOL(zai_hook_install_generator(class_str, func_str,
+            dd_uhook_begin, dd_uhook_generator_resumption, dd_uhook_generator_yield, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor),sizeof(dd_uhook_dynamic)) != -1);
 }
 
-PHP_FUNCTION(hook_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, false); }
-PHP_FUNCTION(trace_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, true, false); }
-PHP_FUNCTION(hook_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, true); }
-PHP_FUNCTION(trace_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, true, true); }
+PHP_FUNCTION(DDTrace_hook_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, false); }
+PHP_FUNCTION(DDTrace_trace_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, true, false); }
+PHP_FUNCTION(DDTrace_hook_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, true); }
+PHP_FUNCTION(DDTrace_trace_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, true, true); }
 
 PHP_FUNCTION(dd_untrace) {
     zend_string *class_name = NULL, *method_name = NULL;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 2)
+    ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 1, 2)
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(class_name)
     ZEND_PARSE_PARAMETERS_END_EX({
-         ddtrace_log_debug("unexpected parameter for dd_untrace. the function name must be provided");
+         ddtrace_log_onceerrf("unexpected parameter for dd_untrace. the function name must be provided");
          RETURN_FALSE;
     });
 

@@ -74,9 +74,9 @@ PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
 
 #define ZAI_INTERCEPTOR_POST_DECLARE_OP 224 // random 8 bit number greater than ZEND_VM_LAST_OPCODE
 static zend_op zai_interceptor_post_declare_op;
-static __thread zend_op zai_interceptor_post_declare_ops[4];
+ZEND_TLS zend_op zai_interceptor_post_declare_ops[4];
 struct zai_interceptor_opline { const zend_op *op; struct zai_interceptor_opline *prev; };
-static __thread struct zai_interceptor_opline zai_interceptor_opline_before_binding = {0};
+ZEND_TLS struct zai_interceptor_opline zai_interceptor_opline_before_binding = {0};
 static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_data) {
     // We replace the current opline *before* it is executed. Thus we need to preserve opline data first:
     //  only the second opline can be our own opcode.

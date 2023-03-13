@@ -53,17 +53,15 @@ class ZendFrameworkIntegration extends Integration
         // name 'zendframework', we are instead using the 'zf1' prefix.
         $appName = \ddtrace_config_app_name('zf1');
 
-        \DDTrace\trace_method(
+        \DDTrace\hook_method(
             'Zend_Controller_Plugin_Broker',
             'preDispatch',
-            function (SpanData $spanData, $args) use ($integration, $appName) {
+            function ($broker, $scope, $args) use ($integration, $appName) {
                 $rootSpan = \DDTrace\root_span();
                 if (null === $rootSpan) {
-                    return false;
+                    return;
                 }
 
-                // We are enclosing this into a try-catch because we always have to return false,
-                // even at the cost of not setting specific metadata.
                 try {
                     /** @var Zend_Controller_Request_Abstract $request */
                     list($request) = $args;
@@ -90,25 +88,18 @@ class ZendFrameworkIntegration extends Integration
                     }
                 } catch (\Exception $e) {
                 }
-
-                return false;
             }
         );
 
-        \DDTrace\trace_method('Zend_Controller_Plugin_Broker', 'postDispatch', function () {
+        \DDTrace\hook_method('Zend_Controller_Plugin_Broker', 'postDispatch', null, function ($broker) {
             $rootSpan = \DDTrace\root_span();
             if (null === $rootSpan) {
-                return false;
+                return;
             }
 
-            // We are enclosing this into a try-catch because we always have to return false,
-            // even at the cost of not setting specific metadata.
-            try {
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $this->getResponse()->getHttpResponseCode();
-            } catch (\Exception $e) {
+            if ($exceptions = $broker->getResponse()->getException()) {
+                $rootSpan->exception = reset($exceptions);
             }
-
-            return false;
         });
 
         return Integration::LOADED;

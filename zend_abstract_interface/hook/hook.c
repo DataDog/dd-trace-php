@@ -42,8 +42,8 @@ typedef struct {
     size_t dynamic_offset;
 } zai_hook_info;
 
-__thread zend_ulong zai_hook_invocation = 0;
-__thread zend_ulong zai_hook_id;
+ZEND_TLS zend_ulong zai_hook_invocation = 0;
+ZEND_TLS zend_ulong zai_hook_id;
 
 /* {{{ private tables */
 // zai_hook_static is a simple array of persistently allocated zai_hook_t
@@ -51,26 +51,24 @@ __thread zend_ulong zai_hook_id;
 static HashTable zai_hook_static;
 
 // zai_hook_request_functions is a map name -> array<zai_hook_t>
-__thread HashTable zai_hook_request_functions;
+ZEND_TLS HashTable zai_hook_request_functions;
 // zai_hook_request_classes is a map class name -> map function name -> array<zai_hook_t>
-__thread HashTable zai_hook_request_classes;
+ZEND_TLS HashTable zai_hook_request_classes;
 
 // zai_hook_resolved is a map op_array/internal_function -> array<zai_hook_t>
 // if indirect, then it's pointing to some hashtable in zai_hook_request_functions/classes
-__thread HashTable zai_hook_resolved;
+TSRM_TLS HashTable zai_hook_resolved;
 
 // zai_hook_inheritors is a map of persistent class entries (interfaces and abstract classes) to a list of persistent class entries
 static HashTable zai_hook_static_inheritors;
 
 // zai_hook_inheritors is a map of class entries (interfaces and abstract classes) to a list of class entries
-__thread HashTable zai_hook_inheritors;
+ZEND_TLS HashTable zai_hook_inheritors;
 
 typedef struct {
     size_t size;
     zend_class_entry *inheritor[];
 } zai_hook_inheritor_list;
-
-__thread HashTable zai_hook_resolved;
 
 typedef struct {
     uint32_t ordered;
@@ -79,7 +77,7 @@ typedef struct {
 } zai_function_location_entry;
 
 // zai_function_location_map maps from a filename to a possibly ordered array of values
-__thread HashTable zai_function_location_map; /* }}} */
+ZEND_TLS HashTable zai_function_location_map; /* }}} */
 
 #define ZAI_IS_SHARED_HOOK_PTR (IS_PTR+1)
 
@@ -252,7 +250,7 @@ static void zai_hook_sort_newest(zai_hooks_entry *hooks) {
 move: ;
         // prevPos is now the index where the new entry will be spliced in
         if (pos != prevPos) {
-            for (int32_t i = -1; i > -(int32_t)hooks->hooks.nTableSize; --i) {
+            for (int32_t i = -1; i >= (int32_t)hooks->hooks.nTableMask; --i) {
                 uint32_t *hash = &HT_HASH(&hooks->hooks, HT_IDX_TO_HASH(i));
                 if (*(int32_t*)hash >= (int32_t)prevPos) {
                     if (*hash == pos) {
@@ -975,7 +973,7 @@ zend_long zai_hook_install_resolved_generator(zend_function *function,
         zai_hook_aux aux, size_t dynamic) {
     if (!PG(modules_activated)) {
         /* not allowed: can only do resolved install during request */
-        return false;
+        return -1;
     }
 
     zai_hook_t *hook = emalloc(sizeof(*hook));
@@ -1019,9 +1017,6 @@ zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view func
         zai_hook_aux aux, size_t dynamic) {
     if (!function.len) {
         /* not allowed: target must be known */
-        if (aux.dtor) {
-            aux.dtor(aux.data);
-        }
         return -1;
     }
 
@@ -1154,27 +1149,35 @@ static zai_hook_iterator zai_hook_iterator_init(HashTable *hooks) {
     }
 }
 
-zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function) {
-    zend_class_entry *ce = NULL;
-    zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
-    if (resolved) {
-        // Abstract traits are not supported and shall not return methods from trait useing classes
-        if ((resolved->common.fn_flags & ZEND_ACC_ABSTRACT) && (ce->ce_flags & ZEND_ACC_TRAIT)) {
-            return (zai_hook_iterator){0};
-        }
-        return zai_hook_iterate_resolved(resolved);
-    }
+#define zai_hook_installed_operation(default, callback, resolved_callback) \
+    zend_class_entry *ce = NULL; \
+    zend_function *resolved = zai_hook_lookup_function(scope, function, &ce); \
+    if (resolved) { \
+        /* Abstract traits are not supported and shall not return methods from trait useing classes */ \
+        if ((resolved->common.fn_flags & ZEND_ACC_ABSTRACT) && (ce->ce_flags & ZEND_ACC_TRAIT)) { \
+            return default; \
+        } \
+        return resolved_callback(resolved); \
+    } \
+    \
+    HashTable *base_ht; \
+    if (scope.len) { \
+        base_ht = zend_hash_str_find_ptr(&zai_hook_request_classes, scope.ptr, scope.len); \
+        if (!base_ht) { \
+            return default; \
+        } \
+    } else { \
+        base_ht = &zai_hook_request_functions; \
+    } \
+    HashTable *hooks = zend_hash_str_find_ptr(base_ht, function.ptr, function.len); \
+    if (!hooks) { \
+        return default; \
+    } \
+    return callback(hooks); \
 
-    HashTable *base_ht;
-    if (scope.len) {
-        base_ht = zend_hash_str_find_ptr(&zai_hook_request_classes, scope.ptr, scope.len);
-        if (!base_ht) {
-            return (zai_hook_iterator){0};
-        }
-    } else {
-        base_ht = &zai_hook_request_functions;
-    }
-    return zai_hook_iterator_init(zend_hash_str_find_ptr(base_ht, function.ptr, function.len));
+
+zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function) {
+    zai_hook_installed_operation((zai_hook_iterator){0}, zai_hook_iterator_init, zai_hook_iterate_resolved)
 }
 
 zai_hook_iterator zai_hook_iterate_resolved(zend_function *function) {
@@ -1195,3 +1198,16 @@ void zai_hook_iterator_free(zai_hook_iterator *iterator) {
         zend_hash_iterator_del(iterator->iterator.iter);
     }
 }
+
+uint32_t zai_hook_count_installed(zai_string_view scope, zai_string_view function) {
+    zai_hook_installed_operation(0, zend_hash_num_elements, zai_hook_count_resolved)
+}
+
+uint32_t zai_hook_count_resolved(zend_function *function) {
+    HashTable *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(function));
+    if (!hooks) {
+        return 0;
+    }
+    return zend_hash_num_elements(hooks);
+}
+

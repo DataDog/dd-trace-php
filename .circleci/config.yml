@@ -277,17 +277,30 @@ commands:
           name: Setup docker image << parameters.docker_image >>
           command: |
             set -x
+            max_retries=3
             extra=<< parameters.extra >>
             docker network create net --driver=bridge -o "com.docker.network.bridge.name=br"
             if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
-              docker run --detach --rm --net net \
+              function retry_docker() {
+                retries=$max_retries
+                while
+                  ! docker "${@}"
+                do
+                  if [[ $((--retries)) -eq 0 ]]; then
+                    exit 1
+                  fi
+                  sleep 1
+                done
+                true # Success
+              }
+              retry_docker run --detach --rm --net net \
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
                 ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
-              docker run --detach --rm --net net \
+              retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
-              docker run --detach --rm --net net \
+              retry_docker run --detach --rm --net net \
                 -e DD_REQUEST_DUMPER_FILE=dump.json \
                 --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0
             fi
@@ -296,7 +309,7 @@ commands:
             sudo mkdir /rust
             sudo chmod 777 /rust
             image=<< parameters.docker_image >>
-            retries=3
+            retries=$max_retries
             while
               nohup docker run --rm --net net \
                   -e DDAGENT_HOSTNAME=127.0.0.1 \

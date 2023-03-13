@@ -3,6 +3,7 @@ use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use crossbeam_channel::{select, Receiver};
 use datadog_profiling::exporter::{Endpoint, File};
 use log::{debug, info, trace, warn};
+use std::borrow::Cow;
 use std::str;
 use std::sync::{Arc, Barrier};
 use std::time::Duration;
@@ -11,6 +12,7 @@ pub struct Uploader {
     fork_barrier: Arc<Barrier>,
     fork_receiver: Receiver<()>,
     upload_receiver: Receiver<UploadMessage>,
+    output_pprof: Option<Cow<'static, str>>,
 }
 
 impl Uploader {
@@ -18,11 +20,13 @@ impl Uploader {
         fork_barrier: Arc<Barrier>,
         fork_receiver: Receiver<()>,
         upload_receiver: Receiver<UploadMessage>,
+        output_pprof: Option<Cow<'static, str>>,
     ) -> Self {
         Self {
             fork_barrier,
             fork_receiver,
             upload_receiver,
+            output_pprof,
         }
     }
 
@@ -62,7 +66,7 @@ impl Uploader {
         /* Safety: Called from Profiling::new, which is after config is
          * initialized, and before it's destroyed in mshutdown.
          */
-        let pprof_filename = unsafe { crate::config::profiling_output_pprof() };
+        let pprof_filename = &self.output_pprof;
         let mut i = 0;
 
         loop {
@@ -87,7 +91,7 @@ impl Uploader {
 
                 recv(self.upload_receiver) -> message => match message {
                     Ok(upload_message) => {
-                        match pprof_filename.as_ref() {
+                        match pprof_filename {
                             Some(filename) => {
                                 let r = upload_message.profile.serialize(None, None).unwrap();
                                 i += 1;
