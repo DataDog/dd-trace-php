@@ -131,7 +131,12 @@ function analyze_cli($tmpScenariosFolder)
         }
 
         // Skip the first runs to avoid false positives with runs where a path initializing something is entered late
-        $values = array_slice($values, 20);
+        $values = array_slice($values, 5);
+
+        if (count(array_count_values($values)) <= 3) {
+            // It's actually stable, just some things have been JITed
+            continue;
+        }
 
         list($slope, $intercept) = calculate_trend_line($values);
 
