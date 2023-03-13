@@ -1,47 +1,39 @@
 Q := @
-PROJECT_ROOT := $(shell pwd)
+PROJECT_ROOT := ${PWD}
 REQUEST_INIT_HOOK_PATH := $(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
-ASAN := $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
-SHELL := /bin/bash
-BUILD_SUFFIX := extension
-BUILD_DIR := $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
-ZAI_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
-TEA_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
-TEA_INSTALL_DIR := $(TEA_BUILD_DIR)/opt
-TEA_BUILD_TESTS := ON
-COMPONENTS_BUILD_DIR := $(PROJECT_ROOT)/tmp/build_components
-SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
-WALL_FLAGS := -Wall -Wextra
-CFLAGS := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
-LDFLAGS := ""
-ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-PHP_EXTENSION_DIR=$(shell php -r 'print ini_get("extension_dir");')
-PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
-PHP_MAJOR_DOT_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
-ARCHITECTURE=$(shell uname -m)
+ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
+SHELL = /bin/bash
+BUILD_SUFFIX = extension
+BUILD_DIR = $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
+ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
+TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
+TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
+TEA_BUILD_TESTS = ON
+COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
+SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
+WALL_FLAGS = -Wall -Wextra
+CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
+LDFLAGS ?= ""
+PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'print ini_get("extension_dir");')
+PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
+ARCHITECTURE = $(shell uname -m)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
 APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.6.0/dd-appsec-php-0.6.0-amd64.tar.gz
 
-INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
+INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
-RUN_TESTS_IS_PARALLEL := $(shell test $(shell php-config --vernum) -gt 70399 && echo 1 || echo 0)
+RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
-ifeq ($(RUN_TESTS_IS_PARALLEL), 1)
-RUN_TESTS_EXTRA_ARGS := -j$(shell nproc)
-else
-RUN_TESTS_EXTRA_ARGS :=
-endif
+RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), -j$(shell nproc))
 
-RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(RUN_TESTS_EXTRA_ARGS)
-
-C_FILES := $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-TEST_OPCACHE_FILES := $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+C_FILES = $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
 # The following differentiation exists so we can build only (but always) the relevant files while executing tests
 #  - when a `.phpt` changes, we only copy the file to the build dir and we DO NOT rebuild
@@ -404,11 +396,11 @@ ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO
 TEST_EXTRA_INI ?=
 
 ### DDTrace tests ###
-TESTS_ROOT := ./tests
-COMPOSER := COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
-COMPOSER_TESTS := $(COMPOSER) --working-dir=$(TESTS_ROOT)
-PHPUNIT_OPTS := $(PHPUNIT_OPTS)
-PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
+TESTS_ROOT = ./tests
+COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
+COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
+PHPUNIT_OPTS = $(PHPUNIT_OPTS)
+PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -756,7 +748,7 @@ clean_test_scenarios:
 $(TESTS_ROOT)/composer.lock: composer_tests_update
 
 composer_tests_update:
-	$(COMPOSER_TESTS) update
+	$(COMPOSER_TESTS) update --no-plugins
 
 global_test_run_dependencies: install_all $(TESTS_ROOT)/composer.lock
 
@@ -987,7 +979,7 @@ test_internal_api_randomized: $(SO_FILE)
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) php -n -ddatadog.trace.cli_enabled=1 -d extension=$(SO_FILE) tests/internal-api-stress-test.php 2> >(grep -A 1000 ==============)
 
 composer.lock: composer.json
-	$(Q) composer update
+	$(Q) $(COMPOSER) update
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
