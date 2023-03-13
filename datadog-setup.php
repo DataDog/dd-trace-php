@@ -1412,7 +1412,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
         [
             'name' => 'datadog.appsec.enabled',
-            'default' => 'On',
+            'default' => 'Off',
             'commented' => true,
             'description' => [
                 'Enables or disables the loaded dd-appsec extension.',
@@ -1511,27 +1511,27 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
         [
             'name' => 'datadog.remote_config_enabled',
-            'default' => '1',
+            'default' => 'On',
             'commented' => true,
-            'description' => 'Enables or disables remote config. On by default',
+            'description' => 'Enables or disables remote configuration. On by default',
         ],
         [
             'name' => 'datadog.remote_config_poll_interval',
             'default' => '1000',
             'commented' => true,
-            'description' => 'Defines in milliseconds how often remote configurations are pulled',
+            'description' => 'In milliseconds, the period at which the agent is polled for new configurations',
         ],
         [
             'name' => 'datadog.appsec.http_blocked_template_html',
             'default' => '',
             'commented' => true,
-            'description' => 'This define the html which will be output when a html request is blocked',
+            'description' => 'Customises the HTML output provided on a blocked request',
         ],
         [
             'name' => 'datadog.appsec.http_blocked_template_json',
             'default' => '',
             'commented' => true,
-            'description' => 'This define the json which will be output when a json request is blocked',
+            'description' => 'Customises the JSON output provided on a blocked request',
         ],
     ];
     // phpcs:enable Generic.Files.LineLength.TooLong
