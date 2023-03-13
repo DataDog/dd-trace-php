@@ -377,9 +377,14 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         RETURN_FALSE;
     }
 
-    RETURN_BOOL(zai_hook_install_generator(class_str, func_str,
+    bool success = zai_hook_install_generator(class_str, func_str,
             dd_uhook_begin, dd_uhook_generator_resumption, dd_uhook_generator_yield, dd_uhook_end,
-            ZAI_HOOK_AUX(def, dd_uhook_dtor),sizeof(dd_uhook_dynamic)) != -1);
+            ZAI_HOOK_AUX(def, dd_uhook_dtor),sizeof(dd_uhook_dynamic)) != -1;
+
+    if (!success) {
+        dd_uhook_dtor(def);
+    }
+    RETURN_BOOL(success);
 }
 
 PHP_FUNCTION(DDTrace_hook_function) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, false, false); }
