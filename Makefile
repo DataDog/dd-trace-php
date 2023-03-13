@@ -13,7 +13,7 @@ COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS = -Wall -Wextra
 CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
-LDFLAGS ?= ""
+LDFLAGS ?=
 PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 ARCHITECTURE = $(shell uname -m)
@@ -33,7 +33,7 @@ TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
 
 # The following differentiation exists so we can build only (but always) the relevant files while executing tests
 #  - when a `.phpt` changes, we only copy the file to the build dir and we DO NOT rebuild
@@ -64,9 +64,7 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
-$(BUILD_DIR)/config.m4: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym
-
-$(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
+$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym
 	$(Q) (cd $(BUILD_DIR); phpize && sed -i 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
@@ -399,7 +397,7 @@ TEST_EXTRA_INI ?=
 TESTS_ROOT = ./tests
 COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
-PHPUNIT_OPTS = $(PHPUNIT_OPTS)
+PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 
 TEST_INTEGRATIONS_70 := \
@@ -745,10 +743,16 @@ clean_test: clean_test_scenarios
 clean_test_scenarios:
 	$(TESTS_ROOT)/clean-composer-scenario-locks.sh
 
-$(TESTS_ROOT)/composer.lock: composer_tests_update
+COMPOSER_PHP_LOCK = $(TESTS_ROOT)/composer.lock.php$(PHP_MAJOR_MINOR)
+$(COMPOSER_PHP_LOCK):
+	$(Q) touch $(COMPOSER_PHP_LOCK)
+
+$(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json $(COMPOSER_PHP_LOCK)
+	$(Q) find "$(TESTS_ROOT)" -maxdepth 1 -name 'composer.lock*' -not -wholename "$(COMPOSER_PHP_LOCK)" -delete
+	$(COMPOSER_TESTS) update
 
 composer_tests_update:
-	$(COMPOSER_TESTS) update --no-plugins
+	$(COMPOSER_TESTS) update
 
 global_test_run_dependencies: install_all $(TESTS_ROOT)/composer.lock
 
