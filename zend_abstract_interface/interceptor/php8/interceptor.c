@@ -678,7 +678,7 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
 
 #if PHP_VERSION_ID < 80200
 static void (*prev_execute_internal)(zend_execute_data *execute_data, zval *return_value);
-static inline void zai_interceptor_execute_internal_impl(zend_execute_data *execute_data, zval *return_value, bool prev) {
+static inline void zai_interceptor_execute_internal_impl(zend_execute_data *execute_data, zval *return_value, bool prev, zif_handler handler) {
     zend_function *func = execute_data->func;
     if (UNEXPECTED(zai_hook_installed_internal(&func->internal_function))) {
         zai_frame_memory frame_memory;
@@ -692,7 +692,7 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
             if (prev) {
                 prev_execute_internal(execute_data, return_value);
             } else {
-                func->internal_function.handler(execute_data, return_value);
+                handler(execute_data, return_value);
             }
         } zend_catch {
             zend_execute_data *active_execute_data = EG(current_execute_data);
@@ -726,17 +726,26 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
         if (prev) {
             prev_execute_internal(execute_data, return_value);
         } else {
-            func->internal_function.handler(execute_data, return_value);
+            handler(execute_data, return_value);
         }
     }
 }
 
 static void zai_interceptor_execute_internal_no_prev(zend_execute_data *execute_data, zval *return_value) {
-    zai_interceptor_execute_internal_impl(execute_data, return_value, false);
+    zai_interceptor_execute_internal_impl(execute_data, return_value, false, execute_data->func->internal_function.handler);
 }
 
 static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zval *return_value) {
-    zai_interceptor_execute_internal_impl(execute_data, return_value, true);
+    zai_interceptor_execute_internal_impl(execute_data, return_value, true, NULL);
+}
+
+void zai_interceptor_execute_internal_with_handler(INTERNAL_FUNCTION_PARAMETERS, zif_handler handler) {
+    zai_frame_memory *frame_memory;
+    if (zai_hook_memory_table_find(execute_data, &frame_memory)) {
+        handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    } else {
+        zai_interceptor_execute_internal_impl(execute_data, return_value, false, handler);
+    }
 }
 #endif
 
