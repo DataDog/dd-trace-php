@@ -973,7 +973,7 @@ zend_long zai_hook_install_resolved_generator(zend_function *function,
         zai_hook_aux aux, size_t dynamic) {
     if (!PG(modules_activated)) {
         /* not allowed: can only do resolved install during request */
-        return false;
+        return -1;
     }
 
     zai_hook_t *hook = emalloc(sizeof(*hook));
@@ -1017,9 +1017,6 @@ zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view func
         zai_hook_aux aux, size_t dynamic) {
     if (!function.len) {
         /* not allowed: target must be known */
-        if (aux.dtor) {
-            aux.dtor(aux.data);
-        }
         return -1;
     }
 
@@ -1152,27 +1149,35 @@ static zai_hook_iterator zai_hook_iterator_init(HashTable *hooks) {
     }
 }
 
-zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function) {
-    zend_class_entry *ce = NULL;
-    zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
-    if (resolved) {
-        // Abstract traits are not supported and shall not return methods from trait useing classes
-        if ((resolved->common.fn_flags & ZEND_ACC_ABSTRACT) && (ce->ce_flags & ZEND_ACC_TRAIT)) {
-            return (zai_hook_iterator){0};
-        }
-        return zai_hook_iterate_resolved(resolved);
-    }
+#define zai_hook_installed_operation(default, callback, resolved_callback) \
+    zend_class_entry *ce = NULL; \
+    zend_function *resolved = zai_hook_lookup_function(scope, function, &ce); \
+    if (resolved) { \
+        /* Abstract traits are not supported and shall not return methods from trait useing classes */ \
+        if ((resolved->common.fn_flags & ZEND_ACC_ABSTRACT) && (ce->ce_flags & ZEND_ACC_TRAIT)) { \
+            return default; \
+        } \
+        return resolved_callback(resolved); \
+    } \
+    \
+    HashTable *base_ht; \
+    if (scope.len) { \
+        base_ht = zend_hash_str_find_ptr(&zai_hook_request_classes, scope.ptr, scope.len); \
+        if (!base_ht) { \
+            return default; \
+        } \
+    } else { \
+        base_ht = &zai_hook_request_functions; \
+    } \
+    HashTable *hooks = zend_hash_str_find_ptr(base_ht, function.ptr, function.len); \
+    if (!hooks) { \
+        return default; \
+    } \
+    return callback(hooks); \
 
-    HashTable *base_ht;
-    if (scope.len) {
-        base_ht = zend_hash_str_find_ptr(&zai_hook_request_classes, scope.ptr, scope.len);
-        if (!base_ht) {
-            return (zai_hook_iterator){0};
-        }
-    } else {
-        base_ht = &zai_hook_request_functions;
-    }
-    return zai_hook_iterator_init(zend_hash_str_find_ptr(base_ht, function.ptr, function.len));
+
+zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function) {
+    zai_hook_installed_operation((zai_hook_iterator){0}, zai_hook_iterator_init, zai_hook_iterate_resolved)
 }
 
 zai_hook_iterator zai_hook_iterate_resolved(zend_function *function) {
@@ -1193,3 +1198,16 @@ void zai_hook_iterator_free(zai_hook_iterator *iterator) {
         zend_hash_iterator_del(iterator->iterator.iter);
     }
 }
+
+uint32_t zai_hook_count_installed(zai_string_view scope, zai_string_view function) {
+    zai_hook_installed_operation(0, zend_hash_num_elements, zai_hook_count_resolved)
+}
+
+uint32_t zai_hook_count_resolved(zend_function *function) {
+    HashTable *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(function));
+    if (!hooks) {
+        return 0;
+    }
+    return zend_hash_num_elements(hooks);
+}
+
