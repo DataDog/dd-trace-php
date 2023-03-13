@@ -200,51 +200,65 @@ class Normalizer
         );
     }
 
-    private static function cleanRequestBody(array $requestBody, $allowedSetting)
+    private static function normalizeString(string $str)
     {
-        $allowedSet = self::decodeConfigSet($allowedSetting);
-
-        if (empty($allowedSet)) {
-            return [];
-        }
-
-        if ($allowedSet == ["*"]) {
-            $obfuscationRegex = \ini_get('datadog.trace.obfuscation_parameter_string_regexp');
-            if ($obfuscationRegex !== "") {
-                $obfuscationRegex = '(' . $obfuscationRegex . ')';
-                // Replace by <redacted> the value of the parameters when its key matches the obfuscation regex
-                foreach ($requestBody as $key => $value) {
-                    if (preg_match($obfuscationRegex, $key)) {
-                        $requestBody[$key] = '<redacted>';
-                    }
-                }
-            }
-            return $requestBody;
-        }
-
-        $allowedSet = array_flip($allowedSet);
-        $preserve = array_intersect_key($requestBody, $allowedSet);
-        $obfuscationRegex = \ini_get('datadog.trace.obfuscation_parameter_string_regexp');
-        if ($obfuscationRegex !== "") {
-            $obfuscationRegex = '(' . $obfuscationRegex . ')';
-            // Replace by <redacted> the value of the parameters when its key matches the obfuscation regex
-            foreach ($preserve as $key => $value) {
-                if (preg_match($obfuscationRegex, $key)) {
-                    $preserve[$key] = '<redacted>';
-                }
-            }
-        }
-        return $preserve;
+        $noSpaces = str_replace(' ', '', $str);
+        return trim(preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces), '- ');
     }
 
-    public static function requestBodySanitize($requestBody)
+    private static function generateFilteredPostFields(string $postKey, mixed $postVal, array $whitelist): array
     {
-        $requestBody = self::cleanRequestBody($requestBody, "datadog.trace.http_post_data_param_allowed");
-        if (empty($requestBody)) {
-            return "";
-        }
+        if (is_array($postVal)) {
+            $filteredPostFields = [];
+            foreach ($postVal as $key => $val) {
+                $key = self::normalizeString($key);
+                // If the current postkey is the empty string, we don't want ot add a '.' to the beginning of the key
+                $filteredPostFields = array_merge(
+                    $filteredPostFields,
+                    self::generateFilteredPostFields(
+                        (strlen($postKey) == 0 ? '' : $postKey . '.') . $key,
+                        $val,
+                        $whitelist
+                    )
+                );
+            }
+            return $filteredPostFields;
+        } else {
+            // Check if the current postKey is in the whitelist
+            if (in_array($postKey, $whitelist)) {
+                // The postkey is in the whitelist, return the value as is
+                return [$postKey => $postVal];
+            } else if (in_array('*', $whitelist)) { // '*' is wildcard
+                // Concatenate the postkey and postval into '<postkey>=<postval>'
+                $postField = "$postKey=$postVal";
 
-        return $requestBody;
+                // Match it with the regex to redact if needed
+                $obfuscationRegex = \ini_get('datadog.trace.obfuscation_query_string_regexp');
+                $obfuscationRegex = '(' . $obfuscationRegex . ')';
+                if (preg_match($obfuscationRegex, $postField)) {
+                    return [$postKey => '<redacted>'];
+                } else {
+                    return [$postKey => $postVal];
+                }
+            } else {
+                // The postkey is not in the whitelist, and no wildcard set, then always use <redacted>
+                return [$postKey => '<redacted>'];
+            }
+        }
+    }
+
+    private static function cleanRequestBody(array $requestBody, string $allowedParams)
+    {
+        $whitelist = self::decodeConfigSet($allowedParams);
+        return self::generateFilteredPostFields('', $requestBody, $whitelist);
+    }
+
+    public static function sanitizePostFields(array $postFields)
+    {
+        return self::cleanRequestBody(
+            $postFields
+            , "datadog.trace.http_post_data_param_allowed"
+        );
     }
 
     private static function cleanQueryString($queryString, $allowedSetting)

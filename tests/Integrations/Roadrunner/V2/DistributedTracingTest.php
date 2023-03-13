@@ -21,7 +21,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return \array_merge(parent::getEnvs(), ['DD_TRACE_HEADER_TAGS' => "x-header",
-            'DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED' => '*']);
+            'DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED' => 'foo.password']);
     }
 
     public function testDistributedTracing()
@@ -46,33 +46,32 @@ class DistributedTracingTest extends WebFrameworkTestCase
         $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
     }
 
-    public function testDistributedTracingPOST()
+    public function testDistributedTracingPOSTWithAllowedParams()
     {
         $traces = $this->tracesFromWebRequest(function () use (&$current_context) {
             \DDTrace\add_distributed_tag("user_id", 42);
             \DDTrace\start_span();
             $current_context = \DDTrace\current_context();
             $spec = PostSpec::create('request', '/', [
-                "User-Agent: Test",
-                "x-header: somevalue",
+                'User-Agent: Test',
+                'x-header: somevalue',
                 'x_forwarded_for', '127.12.34.1',
                 'Content-Type: application/json'
             ], [
                 'password' => 'should_redact',
-                'username' => 'should_not_redact',
-                'foo' => array('bar' => 'val')
+                'foo' => array('password' => 'should_not_redact')
             ]);
             $this->call($spec);
         });
 
         $trace = $traces[0][0];
-        //fwrite(STDERR, json_encode($trace, JSON_PRETTY_PRINT));
         $this->assertSame($current_context["trace_id"], $trace["trace_id"]);
         $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
         $this->assertSame("Test", $trace["meta"]["http.useragent"]);
         $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);
         $this->assertSame("<redacted>", $trace["meta"]["http.request.post.password"]);
-        $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.username"]);
+        $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.foo.password"]);
         $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
     }
 }
+

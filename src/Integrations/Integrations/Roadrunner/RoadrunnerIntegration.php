@@ -98,11 +98,9 @@ class RoadrunnerIntegration extends Integration
                     }
 
                     if ($retval->method === "POST") {
-                        $requestBody = Normalizer::requestBodySanitize(json_decode($retval->body, true));
+                        $requestBody = Normalizer::sanitizePostFields(json_decode($retval->body, true));
                         foreach ($requestBody as $key => $value) {
-                            $noSpaces = str_replace(' ', '', $key);
-                            $normalizedKey = trim(preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces), '- ');
-                            $activeSpan->meta["http.request.post.$normalizedKey"] = $value;
+                            $activeSpan->meta["http.request.post.$key"] = $value;
                         }
                     }
 

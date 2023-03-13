@@ -430,7 +430,6 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
         }
         ZEND_HASH_FOREACH_END();
     } else {
-
         if (post_whitelist && zend_hash_exists(post_whitelist, postkey)) { // The postkey is in the whitelist
             // we want to add it to the meta as is
             zend_string *ztr_postval = zval_get_string(postval);
