@@ -247,13 +247,13 @@ class Normalizer
         }
     }
 
-    private static function cleanRequestBody(array $requestBody, string $allowedParams)
+    private static function cleanRequestBody(array $requestBody, string $allowedParams): array
     {
         $whitelist = self::decodeConfigSet($allowedParams);
         return self::generateFilteredPostFields('', $requestBody, $whitelist);
     }
 
-    public static function sanitizePostFields(array $postFields)
+    public static function sanitizePostFields(array $postFields): array
     {
         return self::cleanRequestBody(
             $postFields

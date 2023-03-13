@@ -152,7 +152,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * @param string $method
      * @param string $url
      * @param string[] $headers
-     * @param array $body
+     * @param array|string $body
      * @return mixed|null
      */
     protected function sendRequest($method, $url, $headers = [], $body = [])
@@ -164,7 +164,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             if ($method === 'POST') {
                 curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+                curl_setopt($ch, CURLOPT_POSTFIELDS, is_array($body) ? json_encode($body) : $body);
             }
             if ($headers) {
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);

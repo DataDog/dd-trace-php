@@ -98,9 +98,14 @@ class RoadrunnerIntegration extends Integration
                     }
 
                     if ($retval->method === "POST") {
-                        $requestBody = Normalizer::sanitizePostFields(json_decode($retval->body, true));
-                        foreach ($requestBody as $key => $value) {
-                            $activeSpan->meta["http.request.post.$key"] = $value;
+                        // Try to json decode the body, if it fails, then don't do anything
+                        // If it succeeds, then we can add the post fields to the span
+                        $postFields = json_decode($retval->body, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $requestBody = Normalizer::sanitizePostFields($postFields);
+                            foreach ($requestBody as $key => $value) {
+                                $activeSpan->meta["http.request.post.$key"] = $value;
+                            }
                         }
                     }
 

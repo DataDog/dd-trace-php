@@ -46,7 +46,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
         $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
     }
 
-    public function testDistributedTracingPOSTWithAllowedParams()
+    public function testDistributedTracingPostWithAllowedParams()
     {
         $traces = $this->tracesFromWebRequest(function () use (&$current_context) {
             \DDTrace\add_distributed_tag("user_id", 42);
