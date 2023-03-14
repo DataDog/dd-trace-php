@@ -92,7 +92,7 @@ function config_list(array $options): void
                         continue;
                     }
                     echo $iniSetting['name'], ' => ', $currentValue, ' // default: ',
-                         $iniSetting['default'], ', INI file: ', $iniFilePath, PHP_EOL;
+                        $iniSetting['default'], ', INI file: ', $iniFilePath, PHP_EOL;
                 }
             }
         }
@@ -180,7 +180,7 @@ function config_set(array $options): void
             $newSetting = $iniSetting[0] . ' = ' . $iniSetting[1];
             if (parse_ini_string($newSetting, false, INI_SCANNER_RAW) === false) {
                 echo "The given INI setting '", $cliIniSetting,
-                     "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
+                    "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
             }
 
             $found = false;
@@ -226,7 +226,7 @@ function config_set(array $options): void
             }
             if (file_put_contents($iniFile, $iniFileContent) === false) {
                 echo "Could not set '", $iniSetting[0], "' to '", $iniSetting[1],
-                     "' in INI file: ", $iniFile , PHP_EOL;
+                    "' in INI file: ", $iniFile , PHP_EOL;
             } else {
                 echo "Set '", $iniSetting[0], "' to '", $iniSetting[1], "' in INI file: ", $iniFile, PHP_EOL;
             }
@@ -530,7 +530,7 @@ function install($options)
 }
 
 /**
- * Finds the INI files for the given php properties. Those properties can be 
+ * Finds the INI files for the given php properties. Those properties can be
  * retrieved by calling `ini_values($pathToPHPBinary)`.
  *
  * @see ini_values
