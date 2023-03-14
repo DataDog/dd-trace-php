@@ -64,18 +64,18 @@ EOD;
  * will also show the default and INI file this setting was found.
  * The output will be grouped by PHP binary, example:
  *
- *   $ php datadog-setup.php --php-bin all
- *   Searching for available php binaries, this operation might take a while.
- *   Datadog configuration for binary: php (/opt/php/8.2/bin/php)
- *   datadog.profiling.enabled => On // default: 1, INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
- *   datadog.profiling.experimental_allocation_enabled => On // default: 1, INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
+ * $ php datadog-setup.php config list --php-bin all
+ * Searching for available php binaries, this operation might take a while.
+ * Datadog configuration for binary: php (/opt/php/8.2/bin/php)
+ * datadog.profiling.enabled => On // default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_allocation_enabled => On // default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  *
  * @see get_ini_settings
  */
-function config_list($options): void
+function config_list(array $options): void
 {
     $selectedBinaries = require_binaries_or_exit($options);
-    $iniSettings = get_ini_settings('','','');
+    $iniSettings = get_ini_settings('', '', '');
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
@@ -84,15 +84,15 @@ function config_list($options): void
             ini_values($fullPath)
         );
 
-        foreach($iniFilePaths as $iniFilePath) {
-
+        foreach ($iniFilePaths as $iniFilePath) {
             $iniFileSettings = parse_ini_file($iniFilePath);
             foreach ($iniFileSettings as $iniFileSetting => $currentValue) {
                 foreach ($iniSettings as $iniSetting) {
                     if ($iniSetting['name'] !== $iniFileSetting) {
                         continue;
                     }
-                    echo $iniSetting['name'], ' => ', $currentValue, ' // default: ', $iniSetting['default'], ', INI file: ', $iniFilePath, PHP_EOL;
+                    echo $iniSetting['name'], ' => ', $currentValue, ' // default: ',
+                         $iniSetting['default'], ', INI file: ', $iniFilePath, PHP_EOL;
                 }
             }
         }
@@ -103,16 +103,16 @@ function config_list($options): void
  * This function will print the specified PHP INI settings.
  * The output will be grouped by PHP binary, example:
  *
- *   $ php datadog-setup.php config get --php-bin all \
- *     -ddatadog.profiling.experimental_allocation_enabled \
- *     -ddatadog.profiling.experimental_cpu_enabled \
- *     -dnonexisting
- *   Datadog configuration for binary: php (/opt/php/8.2/bin/php)
- *   datadog.profiling.experimental_allocation_enabled => On // INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
- *   datadog.profiling.experimental_cpu_enabled => On // INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
- *   nonexisting => undefined // is missing in INI files
+ * $ php datadog-setup.php config get --php-bin all \
+ *   -ddatadog.profiling.experimental_allocation_enabled \
+ *   -ddatadog.profiling.experimental_cpu_enabled \
+ *   -dnonexisting
+ * Datadog configuration for binary: php (/opt/php/8.2/bin/php)
+ * datadog.profiling.experimental_allocation_enabled => On // INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_cpu_enabled => On // INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * nonexisting => undefined // is missing in INI files
  */
-function config_get($options): void
+function config_get(array $options): void
 {
     $selectedBinaries = require_binaries_or_exit($options);
     foreach ($selectedBinaries as $command => $fullPath) {
@@ -145,14 +145,14 @@ function config_get($options): void
 }
 
 /**
- * This function will set the given ini settings for any give PHP binaray
+ * This function will set the given INI settings for any given PHP binary
  *
- *   $ php datadog-setup.php config set --php-bin all \
- *     -ddatadog.profiling.experimental_allocation_enabled=On \
- *     -ddatadog.profiling.experimental_cpu_enabled=On \
- *   Setting configuration for binary: php (/opt/php/8.2/bin/php)
- *   datadog.profiling.experimental_allocation_enabled => On // INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
- *   datadog.profiling.experimental_cpu_enabled => On // INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
+ * $ php datadog-setup.php config set --php-bin all \
+ *   -ddatadog.profiling.experimental_allocation_enabled=On \
+ *   -ddatadog.profiling.experimental_cpu_enabled=On \
+ * Setting configuration for binary: php (/opt/php/8.2/bin/php)
+ * Set 'datadog.profiling.experimental_allocation_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * Set 'datadog.profiling.experimental_cpu_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  */
 function config_set(array $options): void
 {
@@ -171,15 +171,16 @@ function config_set(array $options): void
                 explode('=', $cliIniSetting, 2)
             );
             if (count($iniSetting) !== 2) {
-                echo "The given INI setting '" , $cliIniSetting , "' can't be parsed, skipping." , PHP_EOL;
+                echo "The given INI setting '", $cliIniSetting, "' can't be parsed, skipping.", PHP_EOL;
                 continue;
             }
 
             // safety: try out if parsing the generated ini setting is actually
             // possible
-            $newSetting = $iniSetting[0].' = '.$iniSetting[1];
+            $newSetting = $iniSetting[0] . ' = ' . $iniSetting[1];
             if (parse_ini_string($newSetting, false, INI_SCANNER_RAW) === false) {
-                echo "The given INI setting '" , $cliIniSetting , "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
+                echo "The given INI setting '", $cliIniSetting,
+                     "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
             }
 
             $found = false;
@@ -191,8 +192,7 @@ function config_set(array $options): void
                     continue;
                 }
                 $iniFileContent = file_get_contents($iniFile);
-                if (preg_match("/^\s*" . preg_quote($iniSetting[0]) . "\s*=\s*/mi", $iniFileContent))
-                {
+                if (preg_match("/^\s*" . preg_quote($iniSetting[0]) . "\s*=\s*/mi", $iniFileContent)) {
                     // in case we found the ini setting, we break the loop and
                     // leaf $iniFile and $iniFileContent to be used later
                     $found = true;
@@ -205,10 +205,10 @@ function config_set(array $options): void
                 // has it's contents as a left over of the `foreach` above
                 $regex = '/^\s*' . preg_quote($iniSetting[0]) . '\s*=.*$/mi';
                 $iniFileContent = preg_replace($regex, $newSetting, $iniFileContent);
-                if ($iniFileContent === NULL) {
+                if ($iniFileContent === null) {
                     // something wrong with the regex, the user should see a warning
                     // in the form of "Warning: preg_replace(): Compilation failed ..."
-                    echo "Could not update the given INI setting in file '" , $iniFile , "', skipping", PHP_EOL;
+                    echo "Could not update the given INI setting in file '", $iniFile, "', skipping", PHP_EOL;
                 }
             } else {
                 // set filename
@@ -222,12 +222,13 @@ function config_set(array $options): void
                 if (strlen($iniFileContent) > 0 && substr($iniFileContent, -1, 1) !== PHP_EOL) {
                     $iniFileContent .= PHP_EOL;
                 }
-                $iniFileContent .= $newSetting.PHP_EOL;
+                $iniFileContent .= $newSetting . PHP_EOL;
             }
             if (file_put_contents($iniFile, $iniFileContent) === false) {
-                echo "Could not set '" , $iniSetting[0] , "' to '" , $iniSetting[1] , "' in INI file: ", $iniFile , PHP_EOL;
+                echo "Could not set '", $iniSetting[0], "' to '", $iniSetting[1],
+                     "' in INI file: ", $iniFile , PHP_EOL;
             } else {
-                echo "Set '" , $iniSetting[0] , "' to '" , $iniSetting[1] , "' in INI file: ", $iniFile , PHP_EOL;
+                echo "Set '", $iniSetting[0], "' to '", $iniSetting[1], "' in INI file: ", $iniFile, PHP_EOL;
             }
         }
     }
