@@ -828,7 +828,7 @@ function get_architecture()
     );
 }
 
-function parse_cli_arguments(array $argv = NULL): array
+function parse_cli_arguments(array $argv = null): array
 {
     if (is_null($argv)) {
         $argv = $_SERVER['argv'];
@@ -838,11 +838,11 @@ function parse_cli_arguments(array $argv = NULL): array
     array_shift($argv);
 
     $arguments = [
-        'cmd' => NULL,
+        'cmd' => null,
         'opts' => [],
     ];
 
-    while (NULL !== $token = array_shift($argv)) {
+    while (null !== $token = array_shift($argv)) {
         if (substr($token, 0, 2) === '--') {
             // parse long option
             $key = substr($token, 2);
@@ -856,7 +856,7 @@ function parse_cli_arguments(array $argv = NULL): array
             }
             if (!isset($arguments['opts'][$key])) {
                 $arguments['opts'][$key] = $value;
-            } elseif(is_string($arguments['opts'][$key])) {
+            } elseif (is_string($arguments['opts'][$key])) {
                 $arguments['opts'][$key] = [
                     $arguments['opts'][$key],
                     $value,
@@ -884,7 +884,7 @@ function parse_cli_arguments(array $argv = NULL): array
             }
             if (!isset($arguments['opts'][$key])) {
                 $arguments['opts'][$key] = $value;
-            } elseif(is_string($arguments['opts'][$key])) {
+            } elseif (is_string($arguments['opts'][$key])) {
                 $arguments['opts'][$key] = [
                     $arguments['opts'][$key],
                     $value,
@@ -894,15 +894,15 @@ function parse_cli_arguments(array $argv = NULL): array
             }
         } else {
             // parse command
-            if ($arguments['cmd'] === NULL) {
+            if ($arguments['cmd'] === null) {
                 $arguments['cmd'] = $token;
             } else {
-                $arguments['cmd'] .= ' '.$token;
+                $arguments['cmd'] .= ' ' . $token;
             }
         }
     }
 
-    if ($arguments['cmd'] === NULL) {
+    if ($arguments['cmd'] === null) {
         $arguments['cmd'] = 'install';
     }
 
