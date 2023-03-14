@@ -530,8 +530,10 @@ function install($options)
 }
 
 /**
- * Finds the INI files for the
+ * Finds the INI files for the given php properties. Those properties can be 
+ * retrieved by calling `ini_values($pathToPHPBinary)`.
  *
+ * @see ini_values
  * @return string[]
  */
 function find_ini_files(array $phpProperties): array
