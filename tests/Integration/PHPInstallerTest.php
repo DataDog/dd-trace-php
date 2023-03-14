@@ -143,6 +143,63 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertNotEmpty($values[IS_DEBUG]);
     }
 
+    public function testCliArgumentParsing()
+    {
+        $command = explode(' ', 'datadog-setup.php config get -d datadog.profiling.enabled -dfoobar');
+        $opts = parse_cli_arguments($command);
+        $this->assertSame(
+            [
+                'cmd' => 'config get',
+                'opts' => [
+                    'd' => [
+                        'datadog.profiling.enabled',
+                        'foobar',
+                    ]
+                ]
+            ],
+            $opts
+        );
+
+        $command = explode(' ', 'datadog-setup.php --php-bin all --install-dir /opt/ --enable-profiling');
+        $opts = parse_cli_arguments($command);
+        $this->assertSame(
+            [
+                'cmd' => 'install',
+                'opts' => [
+                    'php-bin' => 'all',
+                    'install-dir' => '/opt/',
+                    'enable-profiling' => false,
+                ]
+            ],
+            $opts
+        );
+
+        $command = explode(' ', 'datadog-setup.php --help');
+        $opts = parse_cli_arguments($command);
+        $this->assertSame(
+            [
+                'cmd' => 'install',
+                'opts' => [
+                    'help' => false
+                ]
+            ],
+            $opts
+        );
+
+        $command = explode(' ', 'datadog-setup.php -h --enable-profiling');
+        $opts = parse_cli_arguments($command);
+        $this->assertSame(
+            [
+                'cmd' => 'install',
+                'opts' => [
+                    'h' => false,
+                    'enable-profiling' => false,
+                ]
+            ],
+            $opts
+        );
+    }
+
     private static function getTmpRootPath()
     {
         return sys_get_temp_dir() . '/dd-php-setup-tests';

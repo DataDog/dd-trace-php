@@ -828,12 +828,94 @@ function get_architecture()
     );
 }
 
+function parse_cli_arguments(array $argv = NULL): array
+{
+    if (is_null($argv)) {
+        $argv = $_SERVER['argv'];
+    }
+
+    // strip the application name
+    array_shift($argv);
+
+    $arguments = [
+        'cmd' => NULL,
+        'opts' => [],
+    ];
+
+    while (NULL !== $token = array_shift($argv)) {
+        if (substr($token, 0, 2) === '--') {
+            // parse long option
+            $key = substr($token, 2);
+            $value = array_shift($argv);
+            if ($value === null) {
+                $value = false;
+            } elseif (substr($value, 0, 1) === '-') {
+                // another option, but it back onto $argv
+                array_unshift($argv, $value);
+                $value = false;
+            }
+            if (!isset($arguments['opts'][$key])) {
+                $arguments['opts'][$key] = $value;
+            } elseif(is_string($arguments['opts'][$key])) {
+                $arguments['opts'][$key] = [
+                    $arguments['opts'][$key],
+                    $value,
+                ];
+            } else {
+                $arguments['opts'][$key][] = $value;
+            }
+        } elseif (substr($token, 0, 1) === '-') {
+            // parse short option
+            $key = $token[1];
+            if (strlen($token) === 2) {
+                // -d datadog.profiling.enabled or
+                // -h
+                $value = array_shift($argv);
+                if ($value === null) {
+                    $value = false;
+                } elseif (substr($value, 0, 1) === '-') {
+                    // another option, but it back onto $argv
+                    array_unshift($argv, $value);
+                    $value = false;
+                }
+            } else {
+                // -ddatadog.profiling.enabled
+                $value = substr($token, 2);
+            }
+            if (!isset($arguments['opts'][$key])) {
+                $arguments['opts'][$key] = $value;
+            } elseif(is_string($arguments['opts'][$key])) {
+                $arguments['opts'][$key] = [
+                    $arguments['opts'][$key],
+                    $value,
+                ];
+            } else {
+                $arguments['opts'][$key][] = $value;
+            }
+        } else {
+            // parse command
+            if ($arguments['cmd'] === NULL) {
+                $arguments['cmd'] = $token;
+            } else {
+                $arguments['cmd'] .= ' '.$token;
+            }
+        }
+    }
+
+    if ($arguments['cmd'] === NULL) {
+        $arguments['cmd'] = 'install';
+    }
+
+    return $arguments;
+}
+
 /**
  * Parses command line options provided by the user and generate a normalized $options array.
  * @return array
  */
 function parse_validate_user_options()
 {
+    /*
     $shortOptions = "h";
     $longOptions = [
         OPT_HELP,
@@ -845,6 +927,10 @@ function parse_validate_user_options()
         OPT_ENABLE_PROFILING,
     ];
     $options = getopt($shortOptions, $longOptions);
+    */
+
+    $args = parse_cli_arguments();
+    $options = $args['opts'];
 
     global $argc;
     if ($options === false || (empty($options) && $argc > 1)) {
