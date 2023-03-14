@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::str;
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
@@ -170,6 +170,7 @@ pub struct Profiler {
     message_sender: Sender<ProfilerMessage>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
+    should_join: AtomicBool,
 }
 
 struct TimeCollector {
@@ -422,6 +423,7 @@ impl Profiler {
             message_sender,
             time_collector_handle: thread_utils::spawn("ddprof_time", move || time_collector.run()),
             uploader_handle: thread_utils::spawn("ddprof_upload", move || uploader.run()),
+            should_join: AtomicBool::new(true),
         }
     }
 
@@ -460,28 +462,48 @@ impl Profiler {
             .try_send(ProfilerMessage::LocalRootSpanResource(message))
     }
 
-    pub fn stop(self) {
+    /// Begins the shutdown process. To complete it, call [Profiler::shutdown].
+    /// Note that you must call [Profiler::shutdown] afterwards; it's two
+    /// parts of the same operation. It's split so you (or other extensions)
+    /// can do something while the other threads finish up.
+    pub fn stop(&self, timeout: Duration) {
         debug!("Stopping profiler.");
-        match self.message_sender.send(ProfilerMessage::Cancel) {
-            Err(err) => warn!("Failed to notify other threads of cancellation: {err}."),
-            Ok(_) => debug!("Notified other threads of cancellation."),
+        let sent = match self
+            .message_sender
+            .send_timeout(ProfilerMessage::Cancel, timeout)
+        {
+            Err(err) => {
+                warn!("Recent samples are most likely lost: Failed to notify other threads of cancellation: {err}.");
+                false
+            }
+            Ok(_) => {
+                debug!("Notified other threads of cancellation.");
+                true
+            }
+        };
+        self.should_join.store(sent, Ordering::SeqCst);
+    }
+
+    /// Completes the shutdown process; to start it, call [Profiler::stop]
+    /// before calling [Profiler::shutdown].
+    /// Note the timeout is per thread, and there may be multiple threads.
+    pub fn shutdown(self, timeout: Duration) {
+        if self.should_join.load(Ordering::SeqCst) {
+            thread_utils::join_timeout(
+                self.time_collector_handle,
+                timeout,
+                "Recent samples may be lost.",
+            );
+
+            // Wait for the time_collector to join, since that will drop
+            // the sender half of the channel that the uploader is
+            // holding, allowing it to finish.
+            thread_utils::join_timeout(
+                self.uploader_handle,
+                timeout,
+                "Recent samples are most likely lost.",
+            );
         }
-
-        let timeout = Duration::from_secs(2);
-        thread_utils::join_timeout(
-            self.time_collector_handle,
-            timeout,
-            "Recent samples may be lost.",
-        );
-
-        // Wait for the time_collector to join, since that will drop
-        // the sender half of the channel that the uploader is
-        // holding, allowing it to finish.
-        thread_utils::join_timeout(
-            self.uploader_handle,
-            timeout,
-            "Recent samples are most likely lost.",
-        );
     }
 
     fn cpu_sub(now: cpu_time::ThreadTime, prev: cpu_time::ThreadTime) -> i64 {
