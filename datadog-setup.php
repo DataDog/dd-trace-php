@@ -9,6 +9,11 @@ const THREAD_SAFETY = 'Thread Safety';
 const PHP_API = 'PHP API';
 const IS_DEBUG = 'Debug Build';
 
+// Commands
+const CMD_CONFIG_GET = 'config get';
+const CMD_CONFIG_SET = 'config set';
+const CMD_CONFIG_LIST = 'config list';
+
 // Options
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
@@ -30,13 +35,13 @@ function main()
     $arguments = parse_validate_user_options();
     $options = $arguments['opts'];
     switch ($arguments['cmd']) {
-        case 'config get':
+        case CMD_CONFIG_GET:
             config_get($options);
             break;
-        case 'config set':
+        case CMD_CONFIG_SET:
             config_set($options);
             break;
-        case 'config list':
+        case CMD_CONFIG_LIST:
             config_list($options);
             break;
         default:
