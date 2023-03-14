@@ -131,7 +131,7 @@ function config_get($options): void
         foreach ($options['d'] as $iniSetting) {
             $found = false;
             foreach ($iniFilePaths as $iniFilePath) {
-                $iniFileSettings = parse_ini_file($iniFilePath);
+                $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
                 if (array_key_exists($iniSetting, $iniFileSettings)) {
                     echo $iniSetting, ' => ', $iniFileSettings[$iniSetting], ' // INI file: ', $iniFilePath, PHP_EOL;
                     $found = true;
