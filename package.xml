@@ -56,7 +56,61 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-${notes}
+### Added
+- Add hooking for Closures #1904
+- Add hooking for abstract methods #1914
+- User tracking through DDTrace\set_user #1910
+- Add a DDTrace\generate_distributed_tracing_headers() function #1905
+- Add HookData->overrideArguments() method to replace arguments in a pre-hook #1937
+- Add Database Monitoring Integration #1941
+- Add Custom Instrumentation Documentation #1942, #1963
+- Add DD_TRACE_HOOK_LIMIT #1965, #1968
+
+### Changed
+- Add IPv6 support to DD_AGENT_HOST #1707
+- Add an error.stack to curl_exec() on failure #1934
+- Add db.system tag to all relevant integrations #1912
+- Slightly reword the exception message to use Caught and Uncaught only at top-level #1954
+- Inherit version, env and _dd.origin from parent span #1960
+
+### Fixed
+- Fix automatic injection of w3c headers #1917
+- Fix observing the attribute constructor on old PHP 8.0 and 8.1 versions #1953
+- Use ZEND_TLS/TSRM_TLS macros instead of __thread to only use thread local storage in ZTS builds #1959
+- Ensure that internal functions we trace in our integrations are always traced under JIT #1966
+
+### Internal changes
+- Build alpine using 3.17 #1922
+- Enable shared JSON in PHP 7.4 image #1929
+- Cleanup _asan usages in Makefile #1964
+- Reduce flakiness from docker containers not starting properly #1962
+- Add Zend Framework v1.21 integration test #1944, #1961
+- Set coredump_filter to include private file mapped areas in dumps #1935
+
+## Profiling (0.14.0)
+
+### Fixed
+- Use checked_sub duration ops for handling cpu time #1926, #1928
+- Mask Zend Signals in profiling threads #1927
+- Do not block indefinitely in mshutdown #1932, #1967
+
+### Changed
+- perf: increased allocation sampling distance to 512KiB #1913
+- perf: optimize prepare_sample_message #1952
+- Add IPv6 support to DD_AGENT_HOST #1707
+
+### Internal changes
+- build: move to Rust v1.64, Alpine 3.17 #1922, #1930
+- perf: use numbers instead of numeric strings in pprof labels #1831
+- chore: upgrade libdatadog to v2.0.0 #1831
+- update Cargo.lock #1907
+- refactor: cleanup add/remove interrupts #1906
+- refactor: cleanup stalk walking #1908
+- refactor: cleanup after Rust 1.64 upgrade #1931
+- refactor: extract thread_utils module #1943
+- refactor: extract uploader, promote profiling.rs to directory #1946
+- refactor: extract stalk walking code #1947
+- refactor: extract interrupt manager #1948
 ]]></notes>
     <contents>
         <dir name="/">
