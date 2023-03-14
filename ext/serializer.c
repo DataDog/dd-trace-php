@@ -429,15 +429,17 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
 
         ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(postval), key, val) {
             if (key) {
-                replace_non_alpha_with_underscores(key);
+                zend_string *copy_key = zend_string_dup(key, 0);
+                replace_non_alpha_with_underscores(copy_key);
                 if (ZSTR_LEN(postkey) == 0) {
-                    dd_add_post_fields_to_meta_recursive(meta, type, key, val, post_whitelist);
+                    dd_add_post_fields_to_meta_recursive(meta, type, copy_key, val, post_whitelist);
                 } else {
                     // If the current postkey is not the empty string, we want to add a '.' to the beginning of the key
-                    zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(key));
+                    zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(copy_key));
                     dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist);
                     zend_string_release(newkey);
                 }
+                zend_string_release(copy_key);
             } else {
                 // The key stays the same
                 dd_add_post_fields_to_meta_recursive(meta, type, postkey, val, post_whitelist);
