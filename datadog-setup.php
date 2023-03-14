@@ -27,11 +27,24 @@ function main()
         return;
     }
 
-    $options = parse_validate_user_options();
-    if ($options[OPT_UNINSTALL]) {
-        uninstall($options);
-    } else {
-        install($options);
+    $arguments = parse_validate_user_options();
+    $options = $arguments['opts'];
+    switch ($arguments['cmd']) {
+        case 'config get':
+            config_get($options);
+            break;
+        case 'config set':
+            config_set($options);
+            break;
+        case 'config list':
+            config_list($options);
+            break;
+        default:
+            if ($options[OPT_UNINSTALL]) {
+                uninstall($options);
+            } else {
+                install($options);
+            }
     }
 }
 
@@ -85,7 +98,7 @@ function config_list(array $options): void
         );
 
         foreach ($iniFilePaths as $iniFilePath) {
-            $iniFileSettings = parse_ini_file($iniFilePath);
+            $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
             foreach ($iniFileSettings as $iniFileSetting => $currentValue) {
                 foreach ($iniSettings as $iniSetting) {
                     if ($iniSetting['name'] !== $iniFileSetting) {
@@ -105,11 +118,11 @@ function config_list(array $options): void
  *
  * $ php datadog-setup.php config get --php-bin all \
  *   -ddatadog.profiling.experimental_allocation_enabled \
- *   -ddatadog.profiling.experimental_cpu_enabled \
+ *   -ddatadog.profiling.experimental_cpu_time_enabled \
  *   -dnonexisting
  * Datadog configuration for binary: php (/opt/php/8.2/bin/php)
  * datadog.profiling.experimental_allocation_enabled => On // INI file: /opt/php/etc/conf.d/98-ddtrace.ini
- * datadog.profiling.experimental_cpu_enabled => On // INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_cpu_time_enabled => On // INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  * nonexisting => undefined // is missing in INI files
  */
 function config_get(array $options): void
@@ -149,10 +162,10 @@ function config_get(array $options): void
  *
  * $ php datadog-setup.php config set --php-bin all \
  *   -ddatadog.profiling.experimental_allocation_enabled=On \
- *   -ddatadog.profiling.experimental_cpu_enabled=On \
+ *   -ddatadog.profiling.experimental_cpu_time_enabled=On \
  * Setting configuration for binary: php (/opt/php/8.2/bin/php)
  * Set 'datadog.profiling.experimental_allocation_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
- * Set 'datadog.profiling.experimental_cpu_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * Set 'datadog.profiling.experimental_cpu_time_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  */
 function config_set(array $options): void
 {
@@ -978,7 +991,10 @@ function parse_validate_user_options()
     $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
     $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
 
-    return $normalizedOptions;
+    return [
+        'cmd' => $args['cmd'],
+        'opts' => $normalizedOptions,
+    ];
 }
 
 function print_error_and_exit($message, $printHelp = false)
