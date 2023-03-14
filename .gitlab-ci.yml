@@ -4,7 +4,7 @@ stages:
 
 variables:
   LATEST_LIBRARY_x86_64_LINUX_GNU:
-    value: ""
+    value: "https://output.circle-artifacts.com/output/job/e6e380d9-a95e-4b77-9ddf-6d974a87de9a/artifacts/0/dd-library-php-0.85.0-x86_64-linux-gnu.tar.gz"
     description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
   DOWNSTREAM_REL_BRANCH:
     value: "master"
