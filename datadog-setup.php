@@ -396,7 +396,7 @@ function install($options)
         }
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
-        $iniFilePahts = find_ini_files($phpProperties);
+        $iniFilePaths = find_ini_files($phpProperties);
 
         foreach ($iniFilePaths as $iniFilePath) {
             if (!file_exists($iniFilePath)) {
