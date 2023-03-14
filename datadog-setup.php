@@ -144,6 +144,95 @@ function config_get($options): void
     }
 }
 
+/**
+ * This function will set the given ini settings for any give PHP binaray
+ *
+ *   $ php datadog-setup.php config set --php-bin all \
+ *     -ddatadog.profiling.experimental_allocation_enabled=On \
+ *     -ddatadog.profiling.experimental_cpu_enabled=On \
+ *   Setting configuration for binary: php (/opt/php/8.2/bin/php)
+ *   datadog.profiling.experimental_allocation_enabled => On // INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
+ *   datadog.profiling.experimental_cpu_enabled => On // INI file: /opt/php/8.2/etc/conf.d/98-ddtrace.ini
+ */
+function config_set(array $options): void
+{
+    $selectedBinaries = require_binaries_or_exit($options);
+    foreach ($selectedBinaries as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Setting configuration for binary: $binaryForLog", PHP_EOL;
+
+        $phpProps = ini_values($fullPath);
+        $iniFilePaths = find_ini_files($phpProps);
+
+        foreach ($options['d'] as $cliIniSetting) {
+            // `trim()` should not be needed, but better safe than sorry
+            $iniSetting = array_map(
+                'trim',
+                explode('=', $cliIniSetting, 2)
+            );
+            if (count($iniSetting) !== 2) {
+                echo "The given INI setting '" , $cliIniSetting , "' can't be parsed, skipping." , PHP_EOL;
+                continue;
+            }
+
+            // safety: try out if parsing the generated ini setting is actually
+            // possible
+            $newSetting = $iniSetting[0].' = '.$iniSetting[1];
+            if (parse_ini_string($newSetting, false, INI_SCANNER_RAW) === false) {
+                echo "The given INI setting '" , $cliIniSetting , "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
+            }
+
+            $found = false;
+
+            // search INI file with $iniSetting as it might already exists
+            // in some INI file
+            foreach ($iniFilePaths as $iniFile) {
+                if (!is_file($iniFile)) {
+                    continue;
+                }
+                $iniFileContent = file_get_contents($iniFile);
+                if (preg_match("/^\s*" . preg_quote($iniSetting[0]) . "\s*=\s*/mi", $iniFileContent))
+                {
+                    // in case we found the ini setting, we break the loop and
+                    // leaf $iniFile and $iniFileContent to be used later
+                    $found = true;
+                    break;
+                }
+            }
+
+            if ($found) {
+                // $iniFile has the filename of the INI file and $iniFileContent
+                // has it's contents as a left over of the `foreach` above
+                $regex = '/^\s*' . preg_quote($iniSetting[0]) . '\s*=.*$/mi';
+                $iniFileContent = preg_replace($regex, $newSetting, $iniFileContent);
+                if ($iniFileContent === NULL) {
+                    // something wrong with the regex, the user should see a warning
+                    // in the form of "Warning: preg_replace(): Compilation failed ..."
+                    echo "Could not update the given INI setting in file '" , $iniFile , "', skipping", PHP_EOL;
+                }
+            } else {
+                // set filename
+                $iniFilePath = $phpProps[INI_SCANDIR] . '/98-ddtrace.ini';
+                $iniFileContent = '';
+                if (is_file($iniFilePath)) {
+                    $iniFileContent = file_get_contents($iniFilePath);
+                }
+                // check for "End of Line" symbol at the end of the file and
+                // add in case it is missing
+                if (strlen($iniFileContent) > 0 && substr($iniFileContent, -1, 1) !== PHP_EOL) {
+                    $iniFileContent .= PHP_EOL;
+                }
+                $iniFileContent .= $newSetting.PHP_EOL;
+            }
+            if (file_put_contents($iniFile, $iniFileContent) === false) {
+                echo "Could not set '" , $iniSetting[0] , "' to '" , $iniSetting[1] , "' in INI file: ", $iniFile , PHP_EOL;
+            } else {
+                echo "Set '" , $iniSetting[0] , "' to '" , $iniSetting[1] , "' in INI file: ", $iniFile , PHP_EOL;
+            }
+        }
+    }
+}
+
 function install($options)
 {
     $architecture = get_architecture();
