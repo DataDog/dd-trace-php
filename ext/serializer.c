@@ -426,16 +426,21 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
     if (Z_TYPE_P(postval) == IS_ARRAY) {
         zend_string *key;
         zval *val;
-        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(postval), key, val) {
-            replace_non_alpha_with_underscores(key);
-            // If the current postkey is the empty string, we don't want to add a '.' to the beginning of the key
-            if (ZSTR_LEN(postkey) == 0) {
-                dd_add_post_fields_to_meta_recursive(meta, type, key, val, post_whitelist);
+
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(postval), key, val) {
+            if (key) {
+                replace_non_alpha_with_underscores(key);
+                if (ZSTR_LEN(postkey) == 0) {
+                    dd_add_post_fields_to_meta_recursive(meta, type, key, val, post_whitelist);
+                } else {
+                    // If the current postkey is not the empty string, we want to add a '.' to the beginning of the key
+                    zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(key));
+                    dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist);
+                    zend_string_release(newkey);
+                }
             } else {
-                // If the current postkey is not the empty string, we want to add a '.' to the beginning of the key
-                zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(key));
-                dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist);
-                zend_string_release(newkey);
+                // The key stays the same
+                dd_add_post_fields_to_meta_recursive(meta, type, postkey, val, post_whitelist);
             }
         }
         ZEND_HASH_FOREACH_END();
@@ -449,7 +454,7 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
             zend_string *str;
             zend_ulong numkey;
             zend_hash_get_current_key(post_whitelist, &str, &numkey);
-            if (zend_string_equals_literal(str, "*")) { // '*' is a wildcard for the whitelist
+            if (str && zend_string_equals_literal(str, "*")) { // '*' is a wildcard for the whitelist
                 // Here, both the postkey and postval are strings, so we can concatenate them into "<postkey>=<postval>"
                 zend_string *postvalstr = zval_get_string(postval);
                 zend_string *postvalconcat = zend_strpprintf(0, "%s=%s", ZSTR_VAL(postkey), ZSTR_VAL(postvalstr));
@@ -724,9 +729,11 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         ZEND_HASH_FOREACH_END();
     }
 
-    if (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST"))) {
+    if (method && strcmp(method, "POST") == 0
+        && (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST")))) {
+        zval *post = &PG(http_globals)[TRACK_VARS_POST];
         zend_string *empty = ZSTR_EMPTY_ALLOC();
-        dd_add_post_fields_to_meta_recursive(meta, "request", empty, &PG(http_globals)[TRACK_VARS_POST],
+        dd_add_post_fields_to_meta_recursive(meta, "request", empty, post,
                                              get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED());
         zend_string_release(empty);
     }
