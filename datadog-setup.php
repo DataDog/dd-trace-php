@@ -85,8 +85,8 @@ EOD;
  * $ php datadog-setup.php config list --php-bin all
  * Searching for available php binaries, this operation might take a while.
  * Datadog configuration for binary: php (/opt/php/8.2/bin/php)
- * datadog.profiling.enabled => On // default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
- * datadog.profiling.experimental_allocation_enabled => On // default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.enabled = On ; default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_allocation_enabled = On ; default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  *
  * @see get_ini_settings
  */
@@ -109,7 +109,7 @@ function config_list(array $options): void
                     if ($iniSetting['name'] !== $iniFileSetting) {
                         continue;
                     }
-                    echo $iniSetting['name'], ' => ', $currentValue, ' // default: ',
+                    echo $iniSetting['name'], ' = ', $currentValue, ' ; default: ',
                         $iniSetting['default'], ', INI file: ', $iniFilePath, PHP_EOL;
                 }
             }
@@ -126,8 +126,8 @@ function config_list(array $options): void
  *   -ddatadog.profiling.experimental_cpu_time_enabled \
  *   -dnonexisting
  * Datadog configuration for binary: php (/opt/php/8.2/bin/php)
- * datadog.profiling.experimental_allocation_enabled => On // INI file: /opt/php/etc/conf.d/98-ddtrace.ini
- * datadog.profiling.experimental_cpu_time_enabled => On // INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_allocation_enabled = On ; INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_cpu_time_enabled = On ; INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  * nonexisting => undefined // is missing in INI files
  */
 function config_get(array $options): void
@@ -151,12 +151,12 @@ function config_get(array $options): void
             foreach ($iniFilePaths as $iniFilePath) {
                 $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
                 if (array_key_exists($iniSetting, $iniFileSettings)) {
-                    echo $iniSetting, ' => ', $iniFileSettings[$iniSetting], ' // INI file: ', $iniFilePath, PHP_EOL;
+                    echo $iniSetting, ' = ', $iniFileSettings[$iniSetting], ' ; INI file: ', $iniFilePath, PHP_EOL;
                     $found = true;
                 }
             }
             if (!$found) {
-                echo $iniSetting, ' => undefined // is missing in INI files', PHP_EOL;
+                echo '; ', $iniSetting, ' = undefined ; is missing in INI files', PHP_EOL;
             }
         }
     }
