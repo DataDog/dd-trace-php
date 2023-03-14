@@ -39,11 +39,10 @@ class RequestSpec
      * @param string $method
      * @param string $path
      * @param string[] $headers An indexed array as expected by `curl_setopt`.
-     * @param array|string $body An associative array or stringas expected by 'curl_setopt' with the CURLOPT_POSTFIELDS
-     * option. Contains the data that is being sent as part of the request.
-     *
+     * @param array|string $body An associative array or a string, as expected by 'curl_setopt' with the C
+     * URLOPT_POSTFIELDS option. Contains the data that is being sent as part of the request.
      */
-    public function __construct($name, $method, $path, array $headers = [], array|string $body = [])
+    public function __construct($name, $method, $path, array $headers = [], $body = [])
     {
         $this->name = $name;
         $this->method = $method;

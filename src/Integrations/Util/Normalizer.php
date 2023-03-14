@@ -206,7 +206,7 @@ class Normalizer
         return trim(preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces), '- ');
     }
 
-    private static function generateFilteredPostFields(string $postKey, mixed $postVal, array $whitelist): array
+    private static function generateFilteredPostFields(string $postKey, $postVal, array $whitelist): array
     {
         if (is_array($postVal)) {
             $filteredPostFields = [];
