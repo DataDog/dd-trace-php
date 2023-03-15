@@ -22,7 +22,7 @@ const OPT_FILE = 'file';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_APPSEC = 'enable-appsec';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
-const OPT_INI_SETTING= 'd';
+const OPT_INI_SETTING = 'd';
 
 // Release version is set while generating the final release files
 const RELEASE_VERSION = '@release_version@';
@@ -998,9 +998,9 @@ function parse_validate_user_options()
     $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
 
     if (isset($options[OPT_INI_SETTING])) {
-    $normalizedOptions[OPT_INI_SETTING] = is_array($options[OPT_INI_SETTING])
-        ? $options[OPT_INI_SETTING]
-        : [$options[OPT_INI_SETTING]];
+        $normalizedOptions[OPT_INI_SETTING] = is_array($options[OPT_INI_SETTING])
+            ? $options[OPT_INI_SETTING]
+            : [$options[OPT_INI_SETTING]];
     }
 
     return [
