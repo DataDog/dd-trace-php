@@ -738,7 +738,12 @@ jobs:
       - run:
           name: Upgrading composer to version 2
           command: sudo composer self-update --2 --no-interaction
-          when: <<# parameters.php_major_minor >> << parameters.php_major_minor >> >= 8.0 <</ parameters.php_major_minor >>
+          when: # Only do this command for PHP 8.0 and above
+            condition:
+              or:
+                - equal: [ "8.0", << parameters.php_major_minor >> ]
+                - equal: [ "8.1", << parameters.php_major_minor >> ]
+                - equal: [ "8.2", << parameters.php_major_minor >> ]
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
