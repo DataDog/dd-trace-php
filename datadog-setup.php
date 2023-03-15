@@ -338,7 +338,7 @@ function install($options)
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
+                        "sed -i 's@;\? \?datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
                         . escapeshellarg($iniFilePath)
                     );
                 } else {
@@ -1413,31 +1413,11 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         [
             'name' => 'datadog.appsec.enabled',
             'default' => 'Off',
-            'commented' => false,
+            'commented' => true,
             'description' => [
                 'Enables or disables the loaded dd-appsec extension.',
                 'If disabled, the extension will do no work during the requests.',
-                'This value is ignored on the CLI SAPI, see datadog.appsec.enabled_on_cli',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.enabled_on_cli',
-            'default' => 'Off',
-            'commented' => true,
-            'description' => [
-                'Enables or disables the loaded appsec extension for the CLI SAPI.',
-                'This value is only used for the CLI SAPI, see ddappsec.enabled for the',
-                'corresponding setting on other SAPIs',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.block',
-            'default' => 'Off',
-            'commented' => true,
-            'description' => [
-                'Allows dd-appsec to block attacks by committing an error page response (if no',
-                'response has already been committed), and issuing an error that cannot be',
-                'handled, thereby aborting the request',
+                'If not present/commented out, appsec will be enabled/disabled by remote config',
             ],
         ],
         [
@@ -1500,7 +1480,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         [
             'name' => 'datadog.appsec.rules',
             'default' => $appsecRulesPath,
-            'commented' => false,
+            'commented' => true,
             'description' => [
                 'The path to the rules json file. The helper process must be able to read the',
                 'file. This ini setting is configured by the installer',
@@ -1528,6 +1508,30 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
                 'stderr, to which it will write its messages; this setting is therefore only',
                 'relevant if ddappsec.helper_launch is enabled',
             ],
+        ],
+        [
+            'name' => 'datadog.remote_config_enabled',
+            'default' => 'On',
+            'commented' => true,
+            'description' => 'Enables or disables remote configuration. On by default',
+        ],
+        [
+            'name' => 'datadog.remote_config_poll_interval',
+            'default' => '1000',
+            'commented' => true,
+            'description' => 'In milliseconds, the period at which the agent is polled for new configurations',
+        ],
+        [
+            'name' => 'datadog.appsec.http_blocked_template_html',
+            'default' => '',
+            'commented' => true,
+            'description' => 'Customises the HTML output provided on a blocked request',
+        ],
+        [
+            'name' => 'datadog.appsec.http_blocked_template_json',
+            'default' => '',
+            'commented' => true,
+            'description' => 'Customises the JSON output provided on a blocked request',
         ],
     ];
     // phpcs:enable Generic.Files.LineLength.TooLong
