@@ -864,7 +864,7 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
       - run:
-          name: Upgrading composer
+          name: Self Upgrading composer
           command: sudo composer self-update --no-interaction
       - restore_cache:
           keys:
