@@ -143,7 +143,7 @@ services:
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
       - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
     ports:
-      - "8126:8126"
+      - "127.0.0.1:8126:8126"
 
   packager:
     image: datadog/docker-library:ddtrace_php_fpm_packaging
@@ -152,11 +152,9 @@ services:
       - .:/app
   
   test-agent:
-    # image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
-    build: 
-      context: https://github.com/DataDog/dd-apm-test-agent.git#add-span-tag-validation
+    image: williamconti549/dd-apm-test-agent:span_tag_validation
     ports:
-        - "127.0.0.1:9126:8126"
+        - "127.0.0.1:9126:9126"
     # volumes:
     #     - ./specifications:/specifications
     environment:

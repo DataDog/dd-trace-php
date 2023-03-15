@@ -139,8 +139,8 @@ aliases:
 
   - &STEP_WAIT_TEST_AGENT
     run:
-      name: Outputting Docker Logs for APM Test Agent
-      command: wait-for test-agent:8126
+      name: Waiting for Dockerized APM Test Agent
+      command: wait-for 127.0.0.1:9126 --timeout=60
 
   - &STEP_DOCKER_LOGS
     run:

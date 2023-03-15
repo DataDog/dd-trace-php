@@ -29,7 +29,7 @@ abstract class CLITestCase extends IntegrationTestCase
         $envs = [
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_AGENT_HOST' => 'test-agent',
-            'DD_TRACE_AGENT_PORT' => '8126',
+            'DD_TRACE_AGENT_PORT' => '9126',
             // Uncomment to see debug-level messages
             //'DD_TRACE_DEBUG' => 'true',
             'DD_TEST_INTEGRATION' => 'true',

@@ -26,7 +26,7 @@ class FakeSpan extends Span
 trait TracerTestTrait
 {
     protected static $agentRequestDumperUrl = 'http://request-replayer';
-    protected static $testAgentUrl = 'http://test-agent:8126';
+    protected static $testAgentUrl = 'http://test-agent:9126';
 
     public function resetTracer($tracer = null, $config = [])
     {
@@ -79,7 +79,7 @@ trait TracerTestTrait
         $curl = curl_init();
 
         // Set the cURL options
-        curl_setopt($curl, CURLOPT_URL, 'http://test-agent:8126/v0.4/traces'); // The URL to send the request to
+        curl_setopt($curl, CURLOPT_URL, 'http://test-agent:9126/v0.4/traces'); // The URL to send the request to
         curl_setopt($curl, CURLOPT_POST, true); // Use POST method
         curl_setopt($curl, CURLOPT_POSTFIELDS, $data_json); // Set the POST data
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); // Return the response instead of outputting it
@@ -241,7 +241,7 @@ trait TracerTestTrait
                 'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_AGENT_HOST' => 'test-agent',
-                'DD_TRACE_AGENT_PORT' => '8126',
+                'DD_TRACE_AGENT_PORT' => '9126',
                 // Uncomment to see debug-level messages
                 //'DD_TRACE_DEBUG' => 'true',
             ],
