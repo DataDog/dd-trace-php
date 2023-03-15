@@ -731,8 +731,11 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         ZEND_HASH_FOREACH_END();
     }
 
-    if (method && strcmp(method, "POST") == 0
-        && (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST")))) {
+    if (getenv("DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED")
+        && method
+        && strcmp(method, "POST") == 0
+        && (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST")))
+        ) {
         zval *post = &PG(http_globals)[TRACK_VARS_POST];
         zend_string *empty = ZSTR_EMPTY_ALLOC();
         dd_add_post_fields_to_meta_recursive(meta, "request", empty, post,
