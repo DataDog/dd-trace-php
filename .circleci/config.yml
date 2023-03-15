@@ -80,6 +80,18 @@ aliases:
       name: Upgrading composer
       command: sudo composer self-update --no-interaction
 
+  - &STEP_COMPOSER_SELF_UPDATE_V2_PHP_8
+    when:
+        condition:
+          or:
+            - equal: [ "8.0", << parameters.php_major_minor >> ]
+            - equal: [ "8.1", << parameters.php_major_minor >> ]
+            - equal: [ "8.2", << parameters.php_major_minor >> ]
+        steps:
+            - run:
+                name: Updating composer to v2
+                command: sudo composer self-update --2 --no-interaction
+
   - &STEP_COMPOSER_UPDATE
     run:
       name: Installing dependencies with composer
@@ -735,16 +747,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - when: # Update composer to version 2 for PHP 8.0+
-            condition:
-                or:
-                - equal: [ "8.0", << parameters.php_major_minor >> ]
-                - equal: [ "8.1", << parameters.php_major_minor >> ]
-                - equal: [ "8.2", << parameters.php_major_minor >> ]
-            steps:
-              - run:
-                  name: Upgrading composer to version 2
-                  command: sudo composer self-update --2 --no-interaction
+      - <<: *STEP_COMPOSER_SELF_UPDATE_V2_PHP_8
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
@@ -876,9 +879,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - run:
-          name: Updating composer to version 2
-          command: sudo composer self-update --2
+      - <<: *STEP_COMPOSER_SELF_UPDATE_V2_PHP_8
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
