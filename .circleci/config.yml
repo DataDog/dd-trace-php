@@ -54,7 +54,7 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_TEST_AGENT
-    image: williamconti549/dd-apm-test-agent:add-span-tag-validation
+    image: williamconti549/dd-apm-test-agent:span_tag_validation
     name: test-agent
     # volumes:
     #     - ./specifications:/specifications
