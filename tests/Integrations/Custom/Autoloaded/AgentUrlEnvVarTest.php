@@ -15,7 +15,7 @@ final class AgentUrlEnvVarTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_AGENT_URL' => 'http://request-replayer:80',
+            'DD_TRACE_AGENT_URL' => 'http://test-agent:8126',
             'DD_AGENT_HOST' => 'invalid_hostname',
             'DD_TRACE_AGENT_PORT' => 1337,
         ]);

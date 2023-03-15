@@ -55,8 +55,8 @@ final class WebServer
     private $envs = [];
 
     private $defaultEnvs = [
-        'DD_TRACE_AGENT_PORT' => 80,
-        'DD_AGENT_HOST' => 'request-replayer',
+        'DD_TRACE_AGENT_PORT' => 8126,
+        'DD_AGENT_HOST' => 'test-agent',
         'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
         // Short flush interval by default or our tests will take all day
         'DD_TRACE_AGENT_FLUSH_INTERVAL' => 333,

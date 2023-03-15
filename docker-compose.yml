@@ -17,6 +17,7 @@ x-aliases:
         - agent
         - ddagent_integration
         - request-replayer
+        - test-agent
         #- elasticsearch2_integration
         - elasticsearch7_integration
         - httpbin_integration
@@ -150,18 +151,19 @@ services:
     volumes:
       - .:/app
   
-  testagent:
+  test-agent:
     # image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
     build: 
       context: https://github.com/DataDog/dd-apm-test-agent.git#add-span-tag-validation
     ports:
-      - "127.0.0.1:8126:8126"
+        - "127.0.0.1:9126:8126"
     # volumes:
-    #   - ./tests/snapshots:/snapshots
+    #     - ./specifications:/specifications
     environment:
-      - LOG_LEVEL=INFO
-      # - SNAPSHOT_DIR=/snapshots
-      # - SNAPSHOT_CI
+        - LOG_LEVEL=INFO
+        - TRACE_LANGUAGE=php
+        - DD_TRACE_AGENT_URL=http://request-replayer:80
+        - DISABLED_CHECKS=trace_content_length
 
 volumes:
   agent-socket:

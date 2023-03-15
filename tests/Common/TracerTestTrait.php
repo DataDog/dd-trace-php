@@ -26,6 +26,7 @@ class FakeSpan extends Span
 trait TracerTestTrait
 {
     protected static $agentRequestDumperUrl = 'http://request-replayer';
+    protected static $testAgentUrl = 'http://test-agent:8126';
 
     public function resetTracer($tracer = null, $config = [])
     {
@@ -51,7 +52,47 @@ trait TracerTestTrait
         }
         $fn($tracer);
 
-        return $this->flushAndGetTraces();
+        $traces = $this->flushAndGetTraces();
+        if (!empty($traces)) {
+            $this->sendTracesToTestAgent($traces);
+        }
+        return $traces;
+    }
+
+    public function sendTracesToTestAgent($traces)
+    {
+        // The data to be sent in the POST request
+        $data_json = json_encode($traces);
+
+        // The headers to be included in the request
+        $headers = array(
+            'Content-Type: application/json',
+            'Datadog-Meta-Lang: php',
+            'Datadog-Meta-Lang-Interpreter: cli-server',
+            'Datadog-Meta-Lang-Version: 8.2.0',
+            'Datadog-Meta-Tracer-Version: 1.0.0-nightly',
+            'do_not_proxy_to_agent: true',
+            'X-Datadog-Trace-Count: ' . count($traces)
+        );
+
+        // Initialize a cURL session
+        $curl = curl_init();
+
+        // Set the cURL options
+        curl_setopt($curl, CURLOPT_URL, 'http://test-agent:8126/v0.4/traces'); // The URL to send the request to
+        curl_setopt($curl, CURLOPT_POST, true); // Use POST method
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $data_json); // Set the POST data
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); // Return the response instead of outputting it
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers); // Set the headers
+
+        // Execute the cURL session
+        $response = curl_exec($curl);
+
+        // Close the cURL session
+        curl_close($curl);
+
+        // Output the response for debugging purposes
+        // echo $response;
     }
 
     /**
@@ -119,7 +160,7 @@ trait TracerTestTrait
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
 
-        $transport = new Http(new MessagePack(), ['endpoint' => self::$agentRequestDumperUrl]);
+        $transport = new Http(new MessagePack(), ['endpoint' => self::$testAgentUrl]);
 
         /* Disable Expect: 100-Continue that automatically gets added by curl,
          * as it adds a 1s delay, causing tests to sometimes fail.
@@ -199,8 +240,8 @@ trait TracerTestTrait
             [
                 'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_AGENT_HOST' => 'request-replayer',
-                'DD_TRACE_AGENT_PORT' => '80',
+                'DD_AGENT_HOST' => 'test-agent',
+                'DD_TRACE_AGENT_PORT' => '8126',
                 // Uncomment to see debug-level messages
                 //'DD_TRACE_DEBUG' => 'true',
             ],
