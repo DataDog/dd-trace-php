@@ -202,8 +202,7 @@ class Normalizer
 
     private static function normalizeString(string $str)
     {
-        $noSpaces = str_replace(' ', '', $str);
-        return preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces);
+        return preg_replace('/[^a-zA-Z0-9\-\_)]+/', '_', $str);
     }
 
     private static function generateFilteredPostFields(string $postKey, $postVal, array $whitelist): array

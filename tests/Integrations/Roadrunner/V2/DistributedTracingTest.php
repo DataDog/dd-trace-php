@@ -58,7 +58,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
                 'x_forwarded_for', '127.12.34.1',
                 'Content-Type: application/json'
             ], [
-                'password' => 'should_redact',
+                'pass word' => 'should_redact',
                 'foo' => array('password' => 'should_not_redact')
             ]);
             $this->call($spec);
@@ -69,7 +69,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
         $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
         $this->assertSame("Test", $trace["meta"]["http.useragent"]);
         $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);
-        $this->assertSame("<redacted>", $trace["meta"]["http.request.post.password"]);
+        $this->assertSame("<redacted>", $trace["meta"]["http.request.post.pass_word"]);
         $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.foo.password"]);
         $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
     }
