@@ -863,7 +863,9 @@ jobs:
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
-      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - run:
+          name: Upgrading composer
+          command: sudo composer self-update --no-interaction
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
