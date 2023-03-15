@@ -428,10 +428,11 @@ static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_
 static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *type, zend_string *postkey,
                                                  zval *postval, zend_array* post_whitelist) {
     if (Z_TYPE_P(postval) == IS_ARRAY) {
+        zend_ulong index;
         zend_string *key;
         zval *val;
 
-        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(postval), key, val) {
+        ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(postval), index, key, val) {
             if (key) {
                 zend_string *copy_key = zend_string_dup(key, 0);
                 normalize_with_underscores(copy_key);
@@ -445,8 +446,10 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
                 }
                 zend_string_release(copy_key);
             } else {
-                // The key stays the same
-                dd_add_post_fields_to_meta_recursive(meta, type, postkey, val, post_whitelist);
+                // Use numeric index if there isn't a string key
+                zend_string *newkey = zend_strpprintf(0, "%s." ZEND_LONG_FMT, ZSTR_VAL(postkey), index);
+                dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist);
+                zend_string_release(newkey);
             }
         }
         ZEND_HASH_FOREACH_END();
