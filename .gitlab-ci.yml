@@ -28,7 +28,7 @@ build:
       else
         UPSTREAM_TRACER_VERSION=$(echo "$LATEST_LIBRARY_x86_64_LINUX_GNU" | grep -Po '(?<=dd-library-php-).+(?=-x86_64-linux-gnu.tar.gz)')
       fi
-    - echo "UPSTREAM_TRACER_VERSION=$(UPSTREAM_TRACER_VERSION)" >> upstream.env
+    - echo "UPSTREAM_TRACER_VERSION=${UPSTREAM_TRACER_VERSION}" >> upstream.env
     - curl --fail --location --output 'dd-library-php-x86_64-linux-gnu.tar.gz' "$LATEST_LIBRARY_x86_64_LINUX_GNU"
     - curl --fail --location -O "$(dirname $LATEST_LIBRARY_x86_64_LINUX_GNU)/datadog-setup.php"
     - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
@@ -40,8 +40,8 @@ build:
 deploy_to_reliability_env:
   stage: deploy
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
+    - if: '$CI_PIPELINE_SOURCE != "schedule"'
+      when: always
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_REL_BRANCH
