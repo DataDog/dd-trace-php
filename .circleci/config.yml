@@ -54,11 +54,8 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_TEST_AGENT
-    build: 
-      context: https://github.com/DataDog/dd-apm-test-agent.git#add-span-tag-validation
+    image: https://github.com/DataDog/dd-apm-test-agent.git#add-span-tag-validation
     name: test-agent
-    ports:
-        - "127.0.0.1:9126:8126"
     # volumes:
     #     - ./specifications:/specifications
     environment:
@@ -1395,8 +1392,6 @@ jobs:
             php --ri=ddtrace
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
-      - <<: *STEP_START_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run phpt tests with PECL
           command: |
