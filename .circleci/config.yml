@@ -863,9 +863,6 @@ jobs:
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
-      - run:
-          name: Upgrading composer to v2
-          command: sudo composer self-update --2 --no-interaction
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
@@ -890,6 +887,7 @@ jobs:
           command: |
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
+            sudo composer self-update --2 --no-interaction
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
