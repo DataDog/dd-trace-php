@@ -735,15 +735,16 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - run:
-          name: Upgrading composer to version 2
-          command: sudo composer self-update --2 --no-interaction
-          when: # Only do this command for PHP 8.0 and above
+      - when: # Update composer to version 2 for PHP 8.0+
             condition:
-              or:
+                or:
                 - equal: [ "8.0", << parameters.php_major_minor >> ]
                 - equal: [ "8.1", << parameters.php_major_minor >> ]
                 - equal: [ "8.2", << parameters.php_major_minor >> ]
+            steps:
+              - run:
+                  name: Upgrading composer to version 2
+                  command: sudo composer self-update --2 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
