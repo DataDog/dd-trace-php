@@ -845,6 +845,9 @@ jobs:
   integration_tests:
     working_directory: ~/datadog
     parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
       docker_image:
         type: string
       integration_testsuite:
