@@ -97,7 +97,7 @@ class RoadrunnerIntegration extends Integration
                         $normalizedPath = "/";
                     }
 
-                    if ($retval->method === "POST") {
+                    if ($retval->body != "") {
                         // Try to json decode the body, if it fails, then don't do anything
                         // If it succeeds, then we can add the post fields to the span
                         $postFields = json_decode($retval->body, true);

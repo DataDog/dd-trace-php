@@ -405,9 +405,13 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
     }
 }
 
-static void replace_non_alpha_with_underscores(zend_string *str) {
+static void normalize_with_underscores(zend_string *str) {
     for (char *ptr = ZSTR_VAL(str); *ptr; ++ptr) {
-        if ((*ptr < 'a' || *ptr > 'z') && (*ptr < 'A' || *ptr > 'Z')) {
+        // Replace non-alphanumeric/dashes by underscores
+        if ((*ptr < 'a' || *ptr > 'z')
+            && (*ptr < 'A' || *ptr > 'Z')
+            && (*ptr < '0' || *ptr > '9')
+            && *ptr != '-') {
             *ptr = '_';
         }
     }
@@ -430,7 +434,7 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
         ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(postval), key, val) {
             if (key) {
                 zend_string *copy_key = zend_string_dup(key, 0);
-                replace_non_alpha_with_underscores(copy_key);
+                normalize_with_underscores(copy_key);
                 if (ZSTR_LEN(postkey) == 0) {
                     dd_add_post_fields_to_meta_recursive(meta, type, copy_key, val, post_whitelist);
                 } else {
@@ -731,11 +735,8 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         ZEND_HASH_FOREACH_END();
     }
 
-    if (getenv("DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED")
-        && method
-        && strcmp(method, "POST") == 0
-        && (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST")))
-        ) {
+    if (zend_hash_num_elements(get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED())
+        && (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST")))) {
         zval *post = &PG(http_globals)[TRACK_VARS_POST];
         zend_string *empty = ZSTR_EMPTY_ALLOC();
         dd_add_post_fields_to_meta_recursive(meta, "request", empty, post,

@@ -203,7 +203,7 @@ class Normalizer
     private static function normalizeString(string $str)
     {
         $noSpaces = str_replace(' ', '', $str);
-        return trim(preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces), '- ');
+        return preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces);
     }
 
     private static function generateFilteredPostFields(string $postKey, $postVal, array $whitelist): array
@@ -212,7 +212,7 @@ class Normalizer
             $filteredPostFields = [];
             foreach ($postVal as $key => $val) {
                 $key = self::normalizeString($key);
-                // If the current postkey is the empty string, we don't want ot add a '.' to the beginning of the key
+                // If the current postkey is the empty string, we don't want to add a '.' to the beginning of the key
                 $filteredPostFields = array_merge(
                     $filteredPostFields,
                     self::generateFilteredPostFields(
