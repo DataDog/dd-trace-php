@@ -491,6 +491,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
@@ -540,6 +541,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
@@ -587,6 +589,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_elasticsearch8 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
@@ -639,6 +642,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
+	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_predis1 \
 	test_opentracing_10
@@ -667,6 +671,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
+	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -695,6 +700,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
+	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -823,6 +829,9 @@ test_integrations_guzzle5: global_test_run_dependencies
 test_integrations_guzzle6: global_test_run_dependencies
 	$(MAKE) test_scenario_guzzle6
 	$(call run_tests,tests/Integrations/Guzzle/V6)
+test_integrations_guzzle7: global_test_run_dependencies
+	$(MAKE) test_scenario_guzzle7
+	$(call run_tests,tests/Integrations/Guzzle/V7)
 test_integrations_memcached: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Memcached)

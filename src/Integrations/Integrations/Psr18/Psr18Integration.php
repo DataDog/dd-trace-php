@@ -8,9 +8,10 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
+// Note: we test this as part of the GuzzleIntegration, which uses the Psr18Integration as well
 class Psr18Integration extends Integration
 {
-    const NAME = 'psr';
+    const NAME = 'psr18';
 
     public function getName()
     {
@@ -34,11 +35,11 @@ class Psr18Integration extends Integration
             'sendRequest',
             function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'sendRequest';
-                $span->name = 'Psr\Http\Client\ClientInterface';
-                $span->service = 'psr';
+                $span->name = 'Psr\Http\Client\ClientInterface.sendRequest';
+                $span->service = 'psr18';
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
-                $span->meta[Tag::COMPONENT] = PsrIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = Psr18Integration::NAME;
 
                 if (isset($args[0])) {
                     $integration->addRequestInfo($span, $args[0]);
