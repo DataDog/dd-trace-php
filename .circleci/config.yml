@@ -84,9 +84,9 @@ aliases:
     when:
         condition:
           or:
-            - equal: [ "8.0", << parameters.php_major_minor >> ]
-            - equal: [ "8.1", << parameters.php_major_minor >> ]
-            - equal: [ "8.2", << parameters.php_major_minor >> ]
+            - equal: [ "8.0", << pipeline.parameters.php_major_minor >> ]
+            - equal: [ "8.1", << pipeline.parameters.php_major_minor >> ]
+            - equal: [ "8.2", << pipeline.parameters.php_major_minor >> ]
         steps:
             - run:
                 name: Updating composer to v2
