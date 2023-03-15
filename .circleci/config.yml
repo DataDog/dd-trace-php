@@ -872,6 +872,7 @@ jobs:
           php_version: << parameters.switch_php_version >>
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
