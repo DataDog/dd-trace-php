@@ -863,6 +863,7 @@ jobs:
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
