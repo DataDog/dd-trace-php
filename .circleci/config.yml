@@ -883,8 +883,6 @@ jobs:
           condition:
             and:
               - equal: [ "8.0", << parameters.php_major_minor >> ]
-              - not:
-                equal: [ "test_composer", << parameters.make_target >> ]
           steps:
             - run:
                 name: Updating composer to v2
