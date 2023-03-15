@@ -735,7 +735,9 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - run:
+          name: Upgrading composer to version 2
+          command: sudo composer self-update --2 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
