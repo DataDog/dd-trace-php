@@ -359,6 +359,13 @@ commands:
             echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/datadog -i '"${container_name}"' "${args[@]}"; fi' | tee -a $BASH_ENV
             cp $BASH_ENV /tmp/bashenv/bash.sh
             chmod 777 /tmp/bashenv/bash.sh
+      - run:
+          name: Setup docker logs
+          command: |
+            extra=<< parameters.extra >>
+            if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
+              docker logs -f test-agent
+            fi
 
 executors:
   with_agent:
@@ -582,7 +589,6 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run tests
           command: |
@@ -697,7 +703,6 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run tests
           command: |
@@ -773,7 +778,6 @@ jobs:
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
@@ -812,7 +816,6 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run tests
           command: |
@@ -907,7 +910,6 @@ jobs:
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Run << parameters.integration_testsuite >> integration test
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >>
@@ -951,7 +953,6 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Ensure ext/<< parameters.ext_name >> is missing
           command: |
@@ -1012,7 +1013,6 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run:
           name: Install .deb from artifacts
           command: |
@@ -1055,7 +1055,6 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_DOCKER_LOGS
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_alpine:
