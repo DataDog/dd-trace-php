@@ -3,10 +3,12 @@ use crate::bindings::{
     InternalFunctionHandler,
 };
 use crate::{Profiler, PROFILER, REQUEST_LOCALS};
+use libc::pthread_atfork;
 use log::{error, warn};
 use std::ffi::CStr;
 use std::mem::{forget, swap};
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 static mut PCNTL_FORK_HANDLER: InternalFunctionHandler = None;
 static mut PCNTL_RFORK_HANDLER: InternalFunctionHandler = None;
@@ -136,6 +138,7 @@ pub(crate) unsafe fn startup() {
      * don't have to worry about creating Rust configurations for them.
      * Safety: we can modify our own globals in the startup context.
      */
+
     let handlers = [
         datadog_php_zif_handler::new(PCNTL_FORK, &mut PCNTL_FORK_HANDLER, Some(pcntl_fork)),
         datadog_php_zif_handler::new(PCNTL_RFORK, &mut PCNTL_RFORK_HANDLER, Some(pcntl_rfork)),
@@ -146,4 +149,56 @@ pub(crate) unsafe fn startup() {
         // Safety: we've set all the parameters correctly for this C call.
         datadog_php_install_handler(handler);
     }
+
+    pthread_atfork(Some(native_fork_child), None, None);
+}
+
+unsafe extern "C" fn native_fork_child() {
+    let process_name = get_current_process_name();
+    println!("current process name: {process_name}");
+    if !process_name.starts_with("php-fpm: master") {
+        return;
+    }
+
+    let mut maybe_profiler = PROFILER.lock().unwrap();
+    let mut old_profiler = None;
+
+    if let Some(profiler) = maybe_profiler.take() {
+        profiler.stop(Duration::from_secs(1));
+        profiler.shutdown(Duration::from_secs(1));
+        swap(&mut *maybe_profiler, &mut old_profiler);
+        forget(old_profiler);
+        REQUEST_LOCALS.with(|cell| {
+            let locals = cell.borrow_mut();
+            locals.interrupt_count.store(0, Ordering::SeqCst);
+        });
+    }
+}
+
+#[cfg(target_os = "macos")]
+extern "C" {
+    pub fn getprogname() -> *const libc::c_char;
+}
+
+fn get_current_process_name() -> String {
+    #[cfg(target_os = "macos")]
+    unsafe {
+        let cstr = CStr::from_ptr(getprogname());
+        return cstr.to_string_lossy().into_owned();
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut cmdline = String::new();
+        if let Ok(mut file) = File::open("/proc/self/cmdline") {
+            if file.read_to_string(&mut cmdline).is_ok() {
+                return cmdline.split('\0').next().unwrap().to_owned();
+            }
+        }
+    }
+
+    "?".to_string()
 }
