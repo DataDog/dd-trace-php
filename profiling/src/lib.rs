@@ -536,6 +536,22 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         }
     });
 
+    // Preloading happens before zend_post_startup_cb is called for the first
+    // time. When preloading is enabled and a non-root user is used for
+    // php-fpm, there is fork that happens. In the past, having the profiler
+    // enabled at this time would cause php-fpm eventually hang once the
+    // Profiler's channels were full; this has been fixed. See:
+    // https://github.com/DataDog/dd-trace-php/issues/1919
+    //
+    // There are a few ways to handle this preloading scenario with the fork,
+    // but the  simplest is to not enable the profiler until the engine's
+    // startup is complete. This means the preloading will not be profiled,
+    // but this should be okay.
+    if !unsafe { bindings::ddog_php_prof_is_post_startup() } {
+        debug!("zend_post_startup_cb hasn't happened yet; not enabling profiler.");
+        return ZendResult::Success;
+    }
+
     // reminder: this cannot be done in minit because of Apache forking model
     {
         /* It would be nice if this could be cheaper. OnceCell would be cheaper

@@ -1,6 +1,7 @@
 #include "php_ffi.h"
 
 #include <assert.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -23,6 +24,29 @@ static ddtrace_profiling_context noop_get_profiling_context(void) {
     return (ddtrace_profiling_context){0, 0};
 }
 
+static atomic_bool _is_post_startup = false;
+
+bool ddog_php_prof_is_post_startup(void) {
+    return atomic_load(&_is_post_startup);
+}
+
+static zend_result (*orig_post_startup_cb)(void) = NULL;
+
+static zend_result ddog_php_prof_post_startup_cb(void) {
+    if (orig_post_startup_cb) {
+        zend_result (*cb)(void) = orig_post_startup_cb;
+
+        orig_post_startup_cb = NULL;
+        if (cb() != SUCCESS) {
+            return FAILURE;
+        }
+    }
+
+    atomic_store(&_is_post_startup, true);
+
+    return SUCCESS;
+}
+
 void datadog_php_profiling_startup(zend_extension *extension) {
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
 
@@ -38,6 +62,10 @@ void datadog_php_profiling_startup(zend_extension *extension) {
             break;
         }
     }
+
+    orig_post_startup_cb = zend_post_startup_cb;
+    zend_post_startup_cb = ddog_php_prof_post_startup_cb;
+
 }
 
 void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }

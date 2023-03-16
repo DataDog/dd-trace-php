@@ -70,6 +70,12 @@ extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(
 void datadog_php_profiling_startup(zend_extension *extension);
 
 /**
+ * Returns true after zend_post_startup_cb has been called for the first time.
+ * This is useful to know. For example, preloading occurs while this is false.
+ */
+_Bool ddog_php_prof_is_post_startup(void);
+
+/**
  * Used to hold information for overwriting the internal function handler
  * pointer in the Zend Engine.
  */
