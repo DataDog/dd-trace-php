@@ -312,9 +312,10 @@ commands:
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
                 -e LOG_LEVEL=INFO \
                 -e TRACE_LANGUAGE=php \
-                -e DD_TRACE_AGENT_URL=http://request-replayer:80
-                -e DISABLED_CHECKS=trace_content_length
-                williamconti549/dd-apm-test-agent:span_tag_validation
+                -e DD_TRACE_AGENT_URL=http://request-replayer:80 \
+                -e DISABLED_CHECKS=trace_content_length \
+                -p "127.0.0.1:9126:9126" \
+                --name test-agent williamconti549/dd-apm-test-agent:span_tag_validation
               docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               docker run --detach --rm --net net \
