@@ -1,9 +1,12 @@
 #include "php_ffi.h"
 
 #include <assert.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <string.h>
+
+#if CFG_PRELOAD // defined by build.rs
+#include <stdatomic.h>
+#endif
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
@@ -72,6 +75,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     }
 
 #if CFG_PRELOAD // defined by build.rs
+    atomic_store(&_is_post_startup, false);
     orig_post_startup_cb = zend_post_startup_cb;
     zend_post_startup_cb = ddog_php_prof_post_startup_cb;
 #endif
