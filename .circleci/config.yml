@@ -359,13 +359,13 @@ commands:
             echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/datadog -i '"${container_name}"' "${args[@]}"; fi' | tee -a $BASH_ENV
             cp $BASH_ENV /tmp/bashenv/bash.sh
             chmod 777 /tmp/bashenv/bash.sh
-      - run:
-          name: Setup docker logs
-          command: |
-            extra=<< parameters.extra >>
-            if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
-              docker logs -f test-agent
-            fi
+      # - run:
+      #     name: Setup docker logs
+      #     command: |
+      #       extra=<< parameters.extra >>
+      #       if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
+      #         docker logs -f test-agent
+      #       fi
 
 executors:
   with_agent:
