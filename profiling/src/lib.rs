@@ -547,6 +547,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     // but the  simplest is to not enable the profiler until the engine's
     // startup is complete. This means the preloading will not be profiled,
     // but this should be okay.
+    #[cfg(php_preload)]
     if !unsafe { bindings::ddog_php_prof_is_post_startup() } {
         debug!("zend_post_startup_cb hasn't happened yet; not enabling profiler.");
         return ZendResult::Success;

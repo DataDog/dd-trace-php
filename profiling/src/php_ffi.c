@@ -24,17 +24,24 @@ static ddtrace_profiling_context noop_get_profiling_context(void) {
     return (ddtrace_profiling_context){0, 0};
 }
 
+#if CFG_PRELOAD // defined by build.rs
 static atomic_bool _is_post_startup = false;
 
 bool ddog_php_prof_is_post_startup(void) {
     return atomic_load(&_is_post_startup);
 }
 
-static zend_result (*orig_post_startup_cb)(void) = NULL;
+#if PHP_VERSION_ID < 80000
+#define post_startup_cb_result int
+#else
+#define post_startup_cb_result zend_result
+#endif
 
-static zend_result ddog_php_prof_post_startup_cb(void) {
+static post_startup_cb_result (*orig_post_startup_cb)(void) = NULL;
+
+static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
     if (orig_post_startup_cb) {
-        zend_result (*cb)(void) = orig_post_startup_cb;
+        post_startup_cb_result (*cb)(void) = orig_post_startup_cb;
 
         orig_post_startup_cb = NULL;
         if (cb() != SUCCESS) {
@@ -46,6 +53,7 @@ static zend_result ddog_php_prof_post_startup_cb(void) {
 
     return SUCCESS;
 }
+#endif
 
 void datadog_php_profiling_startup(zend_extension *extension) {
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
@@ -63,9 +71,10 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         }
     }
 
+#if CFG_PRELOAD // defined by build.rs
     orig_post_startup_cb = zend_post_startup_cb;
     zend_post_startup_cb = ddog_php_prof_post_startup_cb;
-
+#endif
 }
 
 void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }

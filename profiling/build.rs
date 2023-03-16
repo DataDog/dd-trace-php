@@ -23,8 +23,10 @@ fn main() {
     let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
         .expect("`php-config`'s stdout to be valid utf8");
 
+    let preload = cfg_preload();
+
     generate_bindings(php_config_includes);
-    build_zend_php_ffis(php_config_includes);
+    build_zend_php_ffis(php_config_includes, preload);
 
     cfg_php_major_version();
     cfg_zts();
@@ -39,7 +41,7 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/json/json.h",
 ];
 
-fn build_zend_php_ffis(php_config_includes: &str) {
+fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.c");
@@ -68,9 +70,11 @@ fn build_zend_php_ffis(php_config_includes: &str) {
     println!("cargo:rustc-link-search=native={}/lib", prefix.trim());
 
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
+    let preload = if preload { "1" } else { "0" };
 
     cc::Build::new()
         .files(files.into_iter().chain(zai_c_files.into_iter()))
+        .define("CFG_PRELOAD", preload)
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
@@ -83,6 +87,7 @@ fn build_zend_php_ffis(php_config_includes: &str) {
         .flag_if_supported("-std=c17")
         .compile("php_ffi");
 }
+
 #[derive(Debug)]
 struct IgnoreMacros(HashSet<String>);
 
@@ -159,6 +164,43 @@ fn generate_bindings(php_config_includes: &str) {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("bindings to be written successfully");
+}
+
+fn cfg_preload() -> bool {
+    let output = Command::new("php")
+        .arg("-r")
+        .arg("echo (PHP_VERSION_ID >= 70400) ? 1 : 0, PHP_EOL;")
+        .output()
+        .expect("Unable to run `php`. Is it in your PATH?");
+
+    if !output.status.success() {
+        match String::from_utf8(output.stderr) {
+            Ok(stderr) => panic!("`php failed: {}", stderr),
+            Err(err) => panic!(
+                "`php` failed, not utf8: {}",
+                String::from_utf8_lossy(err.as_bytes())
+            ),
+        }
+    }
+
+    let supported_str =
+        std::str::from_utf8(output.stdout.as_slice()).expect("`php`'s stdout to be valid utf8");
+
+    // Clean up surrounding whitespace for both printing and parsing.
+    let supported_str = supported_str.trim();
+
+    let parsed: u8 = supported_str
+        .parse()
+        .expect("output to be a number and fit in u8");
+
+    if parsed == 1 {
+        println!("cargo:rustc-cfg=php_preload");
+        true
+    } else if parsed == 0 {
+        false
+    } else {
+        panic!("Unexpected preload status: {}", parsed);
+    }
 }
 
 fn cfg_php_major_version() {
