@@ -353,7 +353,7 @@ function install($options)
                 // Comment rules to allow remote config updates
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@^[ ]*\(datadog.appsec.rules \?= \?". $appSecRulesPath . "\)@;\\1@g' "
+                    "sed -i 's@^[ ]*\(datadog.appsec.rules \?= \?" . $appSecRulesPath . "\)@;\\1@g' "
                     . escapeshellarg($iniFilePath)
                 );
 
