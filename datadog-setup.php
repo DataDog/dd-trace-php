@@ -335,6 +335,27 @@ function install($options)
                     . escapeshellarg($iniFilePath)
                 );
 
+                // Update helper path
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@datadog.appsec.helper_path \?= \?.*@datadog.appsec.helper_path = " . $appSecHelperPath . "@g' "
+                    . escapeshellarg($iniFilePath)
+                );
+
+                // Update rules path
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@datadog.appsec.rules \?= \?.*@datadog.appsec.rules = " . $appSecRulesPath . "@g' "
+                    . escapeshellarg($iniFilePath)
+                );
+
+                // Comment rules to allow remote config updates
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@^[ ]*datadog.appsec.rules \?= \?.*@;datadog.appsec.rules = @g' "
+                    . escapeshellarg($iniFilePath)
+                );
+
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
