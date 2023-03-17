@@ -150,7 +150,7 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-  
+
   test-agent:
     image: williamconti549/dd-apm-test-agent:span_tag_validation
     ports:
