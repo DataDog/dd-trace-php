@@ -425,27 +425,9 @@ static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_
     zend_string_release(posttag);
 }
 
-static bool dd_is_prefixed(zend_array *post_whitelist, zend_string *key) {
-    return zend_hash_exists(post_whitelist, key);
-}
-
-static bool dd_can_be_prefixed(zend_array *post_whitelist, zend_string *key) {
-    // Check if the key is a prefix of any element in the whitelist
-    zend_string *whitelist_key;
-    ZEND_HASH_FOREACH_STR_KEY(post_whitelist, whitelist_key) {
-        if (whitelist_key
-            && ZSTR_LEN(key) <= ZSTR_LEN(whitelist_key)
-            && !memcmp(ZSTR_VAL(key), ZSTR_VAL(whitelist_key), ZSTR_LEN(key))) {
-            return true;
-        }
-    } ZEND_HASH_FOREACH_END();
-
-    return false;
-}
-
 static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *type, zend_string *postkey,
                                                  zval *postval, zend_array* post_whitelist,
-                                                 bool is_prefixed, bool can_be_prefixed) {
+                                                 bool is_prefixed) {
     if (Z_TYPE_P(postval) == IS_ARRAY) {
         zend_ulong index;
         zend_string *key;
@@ -457,14 +439,12 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
                 normalize_with_underscores(copy_key);
                 if (ZSTR_LEN(postkey) == 0) {
                     dd_add_post_fields_to_meta_recursive(meta, type, copy_key, val, post_whitelist,
-                                                         is_prefixed || (can_be_prefixed && dd_is_prefixed(post_whitelist, copy_key)),
-                                                         can_be_prefixed && dd_can_be_prefixed(post_whitelist, copy_key));
+                                                         is_prefixed || zend_hash_exists(post_whitelist, copy_key));
                 } else {
                     // If the current postkey is not the empty string, we want to add a '.' to the beginning of the key
                     zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(copy_key));
                     dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist,
-                                                         is_prefixed || (can_be_prefixed && dd_is_prefixed(post_whitelist, newkey)),
-                                                         can_be_prefixed && dd_can_be_prefixed(post_whitelist, newkey));
+                                                         is_prefixed || zend_hash_exists(post_whitelist, newkey));
                     zend_string_release(newkey);
                 }
                 zend_string_release(copy_key);
@@ -472,8 +452,7 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
                 // Use numeric index if there isn't a string key
                 zend_string *newkey = zend_strpprintf(0, "%s." ZEND_LONG_FMT, ZSTR_VAL(postkey), index);
                 dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist,
-                                                     is_prefixed || (can_be_prefixed && dd_is_prefixed(post_whitelist, newkey)),
-                                                     can_be_prefixed && dd_can_be_prefixed(post_whitelist, newkey));
+                                                     is_prefixed || zend_hash_exists(post_whitelist, newkey));
                 zend_string_release(newkey);
             }
         }
@@ -768,8 +747,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         zval *post = &PG(http_globals)[TRACK_VARS_POST];
         zend_string *empty = ZSTR_EMPTY_ALLOC();
         dd_add_post_fields_to_meta_recursive(meta, "request", empty, post,
-                                             get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(),
-                                             false, true);
+                                             get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(),false);
         zend_string_release(empty);
     }
 

@@ -205,26 +205,28 @@ class Normalizer
         return preg_replace('/[^a-zA-Z0-9\-\_)]+/', '_', $str);
     }
 
-    private static function generateFilteredPostFields(string $postKey, $postVal, array $whitelist): array
+    private static function generateFilteredPostFields(string $postKey, $postVal, array $whitelist, bool $isPrefixed): array
     {
         if (is_array($postVal)) {
             $filteredPostFields = [];
             foreach ($postVal as $key => $val) {
                 $key = self::normalizeString($key);
                 // If the current postkey is the empty string, we don't want to add a '.' to the beginning of the key
+                $newkey = (strlen($postKey) == 0 ? '' : $postKey . '.') . $key;
                 $filteredPostFields = array_merge(
                     $filteredPostFields,
                     self::generateFilteredPostFields(
-                        (strlen($postKey) == 0 ? '' : $postKey . '.') . $key,
+                        $newkey,
                         $val,
-                        $whitelist
+                        $whitelist,
+                        $isPrefixed || in_array($newkey, $whitelist)
                     )
                 );
             }
             return $filteredPostFields;
         } else {
-            // Check if the current postKey is in the whitelist
-            if (in_array($postKey, $whitelist)) {
+            // Check if the current postKey is in the whitelist/prefixed
+            if ($isPrefixed) {
                 // The postkey is in the whitelist, return the value as is
                 return [$postKey => $postVal];
             } elseif (in_array('*', $whitelist)) { // '*' is wildcard
@@ -249,7 +251,7 @@ class Normalizer
     private static function cleanRequestBody(array $requestBody, string $allowedParams): array
     {
         $whitelist = self::decodeConfigSet($allowedParams);
-        return self::generateFilteredPostFields('', $requestBody, $whitelist);
+        return self::generateFilteredPostFields('', $requestBody, $whitelist, false);
     }
 
     public static function sanitizePostFields(array $postFields): array

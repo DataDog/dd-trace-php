@@ -21,7 +21,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return \array_merge(parent::getEnvs(), ['DD_TRACE_HEADER_TAGS' => "x-header",
-            'DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED' => 'foo.password']);
+            'DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED' => 'foo.password, bar']);
     }
 
     public function testDistributedTracing()
@@ -59,7 +59,8 @@ class DistributedTracingTest extends WebFrameworkTestCase
                 'Content-Type: application/json'
             ], [
                 'pass word' => 'should_redact',
-                'foo' => array('password' => 'should_not_redact')
+                'foo' => array('password' => 'should_not_redact'),
+                'bar' => array('key1' => 'value1', 'key2' => array('baz' => 'value2', 'password' => 'should_not_redact')),
             ]);
             $this->call($spec);
         });
@@ -71,6 +72,9 @@ class DistributedTracingTest extends WebFrameworkTestCase
         $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);
         $this->assertSame("<redacted>", $trace["meta"]["http.request.post.pass_word"]);
         $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.foo.password"]);
+        $this->assertSame("value1", $trace["meta"]["http.request.post.bar.key1"]);
+        $this->assertSame("value2", $trace["meta"]["http.request.post.bar.key2.baz"]);
+        $this->assertSame("should_not_redact", $trace["meta"]["http.request.post.bar.key2.password"]);
         $this->assertArrayNotHasKey('http.client_ip', $trace["meta"]);
     }
 }
