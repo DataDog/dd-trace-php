@@ -748,7 +748,8 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
 static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong hook_id, zai_hooks_entry *base_hooks) {
     zai_install_address addr = zai_hook_install_address(func);
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, addr);
-    // some inheritor may directly inherit the parent opcodes without override, in that case hooks is identical. Skip it then.
+    // In case of inheritance of a userland method, the parent and child function will point to the same opcodes and thus hooks.
+    // Ensure hooks are only removed once.
     if (hooks && hooks != base_hooks) {
         zend_hash_index_del(&hooks->hooks, hook_id);
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
