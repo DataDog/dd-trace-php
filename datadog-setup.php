@@ -873,6 +873,10 @@ function parse_cli_arguments(array $argv = null): array
                     $value = false;
                 }
             }
+            // --php-bin=php
+            if ($value === false && strpos($key, '=') !== false) {
+                list($key, $value) = explode('=', $key, 2);
+            }
         } elseif (substr($token, 0, 1) === '-') {
             // parse short option
             $key = $token[1];
@@ -925,6 +929,7 @@ function parse_cli_arguments(array $argv = null): array
  */
 function parse_validate_user_options()
 {
+    /*
     $shortOptions = "h";
     $longOptions = [
         OPT_HELP,
@@ -936,10 +941,9 @@ function parse_validate_user_options()
         OPT_ENABLE_PROFILING,
     ];
     $options = getopt($shortOptions, $longOptions);
-    var_dump($options);
+    */
 
     $args = parse_cli_arguments();
-    var_dump($args);
     $options = $args['opts'];
 
     global $argc;
