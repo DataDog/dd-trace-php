@@ -454,7 +454,20 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
         }
         ZEND_HASH_FOREACH_END();
     } else {
-        if (post_whitelist && zend_hash_exists(post_whitelist, postkey)) { // The postkey is in the whitelist
+        // Check if there is an element in post_whitelist that is a prefix to postkey
+        bool found = false;
+        zend_string *whitelistkey;
+        zend_ulong whitelistnumkey;
+        ZEND_HASH_FOREACH_KEY(post_whitelist, whitelistnumkey, whitelistkey) {
+            if (whitelistkey && zend_string_starts_with(postkey, whitelistkey)) {
+                found = true;
+                break;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+        (void)whitelistnumkey;
+
+        if (found) { // The postkey is in the whitelist or is prefixed by a key in the whitelist
             // we want to add it to the meta as is
             zend_string *ztr_postval = zval_get_string(postval);
             dd_add_post_fields_to_meta(meta, type, postkey, ztr_postval);

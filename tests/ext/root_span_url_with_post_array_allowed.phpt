@@ -20,6 +20,6 @@ var_dump($spans[0]['meta']['http.request.post.foo.bar.key']);
 var_dump($spans[0]['meta']['http.request.post.foo.bar.baz']);
 ?>
 --EXPECT--
-string(10) "<redacted>"
-string(10) "<redacted>"
-string(10) "<redacted>"
+string(3) "bar"
+string(3) "baz"
+string(3) "quz"
