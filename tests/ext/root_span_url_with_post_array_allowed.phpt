@@ -1,6 +1,5 @@
 --TEST--
-Values of a an array are redacted when the array key is in the DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED env var
---SKIPIF--
+Values of an array are not redacted when the array base is in the DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED env var
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED=foo

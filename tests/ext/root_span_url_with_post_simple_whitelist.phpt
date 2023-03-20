@@ -1,6 +1,5 @@
 --TEST--
-post fields parameters should be retrieved and redacted if needed v2
---SKIPIF--
+Post fields parameters should be retrieved and redacted if needed v2
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED=foo,password

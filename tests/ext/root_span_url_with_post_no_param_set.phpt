@@ -1,6 +1,5 @@
 --TEST--
 Empty post request without whitelisting
---SKIPIF--
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 HTTPS=off

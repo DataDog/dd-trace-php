@@ -1,5 +1,5 @@
 --TEST--
-post fields with a deprecated way of posting an array
+Post fields with a implicit array keys
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED=foo.0,foo.1

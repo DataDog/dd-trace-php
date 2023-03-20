@@ -1,6 +1,5 @@
 --TEST--
 Only param whose name is in DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED shouldn't be redacted
---SKIPIF--
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED=foo.bar
