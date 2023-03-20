@@ -425,8 +425,43 @@ static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_
     zend_string_release(posttag);
 }
 
+static bool dd_is_prefixed(zend_array *post_whitelist, zend_string *key) {
+    // If the key is in the whitelist, it can be prefixed
+    if (zend_hash_exists(post_whitelist, key)) {
+        return true;
+    }
+
+    // If the key is not in the whitelist, check if any element in the whitelist
+    // is a prefix of the key
+    zend_string *whitelist_key;
+    ZEND_HASH_FOREACH_STR_KEY(post_whitelist, whitelist_key) {
+        if (whitelist_key
+            && ZSTR_LEN(key) >= ZSTR_LEN(whitelist_key)
+            && !memcmp(ZSTR_VAL(key), ZSTR_VAL(whitelist_key), ZSTR_LEN(whitelist_key))) {
+            return true;
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    return false;
+}
+
+static bool dd_can_be_prefixed(zend_array *post_whitelist, zend_string *key) {
+    // Check if the key is a prefix of any element in the whitelist
+    zend_string *whitelist_key;
+    ZEND_HASH_FOREACH_STR_KEY(post_whitelist, whitelist_key) {
+        if (whitelist_key
+            && ZSTR_LEN(key) <= ZSTR_LEN(whitelist_key)
+            && !memcmp(ZSTR_VAL(key), ZSTR_VAL(whitelist_key), ZSTR_LEN(key))) {
+            return true;
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    return false;
+}
+
 static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *type, zend_string *postkey,
-                                                 zval *postval, zend_array* post_whitelist) {
+                                                 zval *postval, zend_array* post_whitelist,
+                                                 bool is_prefixed, bool can_be_prefixed) {
     if (Z_TYPE_P(postval) == IS_ARRAY) {
         zend_ulong index;
         zend_string *key;
@@ -437,39 +472,30 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
                 zend_string *copy_key = zend_string_dup(key, 0);
                 normalize_with_underscores(copy_key);
                 if (ZSTR_LEN(postkey) == 0) {
-                    dd_add_post_fields_to_meta_recursive(meta, type, copy_key, val, post_whitelist);
+                    dd_add_post_fields_to_meta_recursive(meta, type, copy_key, val, post_whitelist,
+                                                         is_prefixed || (can_be_prefixed && dd_is_prefixed(post_whitelist, copy_key)),
+                                                         can_be_prefixed && dd_can_be_prefixed(post_whitelist, copy_key));
                 } else {
                     // If the current postkey is not the empty string, we want to add a '.' to the beginning of the key
                     zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(copy_key));
-                    dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist);
+                    dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist,
+                                                         is_prefixed || (can_be_prefixed && dd_is_prefixed(post_whitelist, newkey)),
+                                                         can_be_prefixed && dd_can_be_prefixed(post_whitelist, newkey));
                     zend_string_release(newkey);
                 }
                 zend_string_release(copy_key);
             } else {
                 // Use numeric index if there isn't a string key
                 zend_string *newkey = zend_strpprintf(0, "%s." ZEND_LONG_FMT, ZSTR_VAL(postkey), index);
-                dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist);
+                dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist,
+                                                     is_prefixed || (can_be_prefixed && dd_is_prefixed(post_whitelist, newkey)),
+                                                     can_be_prefixed && dd_can_be_prefixed(post_whitelist, newkey));
                 zend_string_release(newkey);
             }
         }
         ZEND_HASH_FOREACH_END();
     } else {
-        // Check if there is an element in post_whitelist that is a prefix to postkey
-        bool found = false;
-        zend_string *whitelistkey;
-        zend_ulong whitelistnumkey;
-        ZEND_HASH_FOREACH_KEY(post_whitelist, whitelistnumkey, whitelistkey) {
-            if (whitelistkey
-                && ZSTR_LEN(postkey) >= ZSTR_LEN(whitelistkey)
-                && !memcmp(ZSTR_VAL(postkey), ZSTR_VAL(whitelistkey), ZSTR_LEN(whitelistkey))) {
-                found = true;
-                break;
-            }
-        }
-        ZEND_HASH_FOREACH_END();
-        (void)whitelistnumkey;
-
-        if (found) { // The postkey is in the whitelist or is prefixed by a key in the whitelist
+        if (is_prefixed) { // The postkey is in the whitelist or is prefixed by a key in the whitelist
             // we want to add it to the meta as is
             zend_string *ztr_postval = zval_get_string(postval);
             dd_add_post_fields_to_meta(meta, type, postkey, ztr_postval);
@@ -758,7 +784,8 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         zval *post = &PG(http_globals)[TRACK_VARS_POST];
         zend_string *empty = ZSTR_EMPTY_ALLOC();
         dd_add_post_fields_to_meta_recursive(meta, "request", empty, post,
-                                             get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED());
+                                             get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(),
+                                             false, true);
         zend_string_release(empty);
     }
 
