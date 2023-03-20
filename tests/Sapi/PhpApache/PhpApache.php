@@ -64,10 +64,17 @@ final class PhpApache implements Sapi
     public function loadConfig($rootPath, $host, $port, array $envs = [], array $inis = [])
     {
         $defaultInis = [
-            "opcache.enable" => "1",
             "opcache.jit_buffer_size" => "100M",
             "opcache.jit" => "1255",
         ];
+        // opcache.enable is system ini and cannot be set in apache ini
+        ob_start(); phpinfo(); $i = ob_get_clean();
+        if (preg_match("(Configuration File.*=>\s\K.*)", $i, $m)) {
+            $apacheIni = $m[0] . "/php-apache2handler.ini";
+            if (!file_exists($apacheIni) || \strpos(file_get_contents($apacheIni), "opcache.enable") === false) {
+                file_put_contents($apacheIni, "\nopcache.enable = 1\nzend_extension = opcache.so\n", FILE_APPEND);
+            }
+        }
 
         $this->envs = $envs;
         $this->inis = $defaultInis + $inis;
