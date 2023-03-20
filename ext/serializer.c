@@ -427,11 +427,7 @@ static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_
 
 static bool dd_is_prefixed(zend_array *post_whitelist, zend_string *key) {
     // If the key is in the whitelist, it can be prefixed
-    if (zend_hash_exists(post_whitelist, key)) {
-        return true;
-    }
-
-    return false;
+    return zend_hash_exists(post_whitelist, key);
 }
 
 static bool dd_can_be_prefixed(zend_array *post_whitelist, zend_string *key) {
