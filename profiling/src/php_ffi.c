@@ -4,10 +4,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#if CFG_PRELOAD // defined by build.rs
-#include <stdatomic.h>
-#endif
-
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
@@ -28,10 +24,10 @@ static ddtrace_profiling_context noop_get_profiling_context(void) {
 }
 
 #if CFG_PRELOAD // defined by build.rs
-static atomic_bool _is_post_startup = false;
+static bool _is_post_startup = false;
 
 bool ddog_php_prof_is_post_startup(void) {
-    return atomic_load(&_is_post_startup);
+    return _is_post_startup;
 }
 
 #if PHP_VERSION_ID < 80000
@@ -52,7 +48,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
         }
     }
 
-    atomic_store(&_is_post_startup, true);
+    _is_post_startup = true;
 
     return SUCCESS;
 }
@@ -75,7 +71,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     }
 
 #if CFG_PRELOAD // defined by build.rs
-    atomic_store(&_is_post_startup, false);
+    _is_post_startup = false;
     orig_post_startup_cb = zend_post_startup_cb;
     zend_post_startup_cb = ddog_php_prof_post_startup_cb;
 #endif

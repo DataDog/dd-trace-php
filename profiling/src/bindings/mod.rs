@@ -272,9 +272,9 @@ extern "C" {
 
 #[cfg(php_preload)]
 extern "C" {
-    /// Returns true after zend_post_startup_cb has been called for the first
-    /// time. This is useful to know. For example, preloading occurs while
-    /// this is false.
+    /// Returns true after zend_post_startup_cb has been called for the current
+    /// startup/shutdown cycle. This is useful to know. For example,
+    /// preloading occurs while this is false.
     pub fn ddog_php_prof_is_post_startup() -> bool;
 }
 
