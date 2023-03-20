@@ -459,7 +459,9 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
         zend_string *whitelistkey;
         zend_ulong whitelistnumkey;
         ZEND_HASH_FOREACH_KEY(post_whitelist, whitelistnumkey, whitelistkey) {
-            if (whitelistkey && zend_string_starts_with(postkey, whitelistkey)) {
+            if (whitelistkey
+                && ZSTR_LEN(postkey) >= ZSTR_LEN(whitelistkey)
+                && !memcmp(ZSTR_VAL(postkey), ZSTR_VAL(whitelistkey), ZSTR_LEN(whitelistkey))) {
                 found = true;
                 break;
             }
