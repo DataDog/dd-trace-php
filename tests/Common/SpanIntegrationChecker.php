@@ -27,6 +27,7 @@ final class SpanIntegrationChecker
             '/GuzzleHttp.*/' => 'DDTrace\Integrations\Guzzle\GuzzleIntegration',
             '/laravel.*/' => 'DDTrace\Integrations\Laravel\LaravelIntegration',
             '/Memcached.*/' => 'DDTrace\Integrations\Memcached\MemcachedIntegration',
+            '/Memcache.*/' => 'DDTrace\Integrations\Memcache\MemcacheIntegration',
             '/Mongo(Client)|(DB)|(Collection).*/' => 'DDTrace\Integrations\Mongo\MongoIntegration',
             '/mysqli.*/' => 'DDTrace\Integrations\Mysqli\MysqliIntegration',
             '/PDO(.)|(Statement).*/' => $pdoIntegration,

@@ -403,6 +403,7 @@ PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
@@ -439,6 +440,7 @@ TEST_WEB_70 := \
 TEST_INTEGRATIONS_71 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
@@ -484,6 +486,7 @@ TEST_WEB_71 := \
 TEST_INTEGRATIONS_72 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
@@ -533,6 +536,7 @@ TEST_WEB_72 := \
 TEST_INTEGRATIONS_73 :=\
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
@@ -579,6 +583,7 @@ TEST_WEB_73 := \
 TEST_INTEGRATIONS_74 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
@@ -632,6 +637,7 @@ TEST_WEB_74 := \
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
@@ -664,6 +670,7 @@ TEST_WEB_80 := \
 TEST_INTEGRATIONS_81 := \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
@@ -692,6 +699,7 @@ TEST_WEB_81 := \
 TEST_INTEGRATIONS_82 := \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
@@ -826,6 +834,9 @@ test_integrations_guzzle6: global_test_run_dependencies
 test_integrations_memcached: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Memcached)
+test_integrations_memcache: global_test_run_dependencies
+	$(MAKE) test_scenario_default
+	$(call run_tests,tests/Integrations/Memcache)
 test_integrations_mysqli: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Mysqli)
