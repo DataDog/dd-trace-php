@@ -160,7 +160,10 @@ final class PHPInstallerTest extends BaseTestCase
             $opts
         );
 
-        $command = explode(' ', 'datadog-setup.php --php-bin php --php-bin php-cli --install-dir /opt/ --enable-profiling');
+        $command = explode(
+            ' ',
+            'datadog-setup.php --php-bin php --php-bin php-cli --install-dir /opt/ --enable-profiling'
+        );
         $opts = parse_cli_arguments($command);
         $this->assertSame(
             [
