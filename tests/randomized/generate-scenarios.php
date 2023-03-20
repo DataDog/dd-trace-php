@@ -107,7 +107,7 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restric
 
     // Environment variables modifications
     $numberOfEnvModifications = rand(0, MAX_ENV_MODIFICATIONS);
-    $envModifications = array_merge($selectedOs == "buster" ? ["USE_ZEND_ALLOC" => 0] : [], DEFAULT_ENVS);
+    $envModifications = DEFAULT_ENVS;
     for ($envModification = 0; $envModification < $numberOfEnvModifications; $envModification++) {
         $currentEnv = array_rand(ENVS);
         $availableValues = ENVS[$currentEnv];
@@ -160,6 +160,9 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restric
             'php_version' => $selectedPhpVersion,
             'installation_method' => $selectedInstallationMethod,
             'project_root' => '../../../../',
+            // buster builds are ASAN builds
+            'USE_ZEND_ALLOC' => $selectedOs == "buster" ? 0 : 1,
+            'USE_TRACKED_ALLOC' => $selectedOs == "buster" ? 1 : 0,
         ]
     );
 
