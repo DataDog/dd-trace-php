@@ -39,11 +39,13 @@ class LaminasIntegration extends Integration
 
 
         $MVCEvents = [];
-        // Retrieve all MVC events
-        $reflection = new \ReflectionClass('Laminas\Mvc\MvcEvent');
-        foreach ($reflection->getConstants() as $key => $value) {
-            if (strpos($key, 'EVENT_') === 0) {
-                $MVCEvents[] = $value;
+        if (class_exists('Laminas\Mvc\MvcEvent')) {
+            // Retrieve all MVC events
+            $reflection = new \ReflectionClass('Laminas\Mvc\MvcEvent');
+            foreach ($reflection->getConstants() as $key => $value) {
+                if (strpos($key, 'EVENT_') === 0) {
+                    $MVCEvents[] = $value;
+                }
             }
         }
 

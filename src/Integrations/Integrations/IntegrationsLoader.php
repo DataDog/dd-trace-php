@@ -71,8 +71,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Curl\CurlIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
             '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
-        $this->integrations[LaminasIntegration::NAME] =
-            '\DDTrace\Integrations\Laminas\LaminasIntegration';
         $this->integrations[LaravelIntegration::NAME] =
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
@@ -80,6 +78,8 @@ class IntegrationsLoader
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
+            $this->integrations[LaminasIntegration::NAME] =
+                '\DDTrace\Integrations\Laminas\LaminasIntegration';
             return;
         }
 
