@@ -8,6 +8,7 @@ use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
+use DDTrace\Integrations\Laminas\LaminasIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
@@ -70,6 +71,8 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Curl\CurlIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
             '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
+        $this->integrations[LaminasIntegration::NAME] =
+            '\DDTrace\Integrations\Laminas\LaminasIntegration';
         $this->integrations[LaravelIntegration::NAME] =
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =

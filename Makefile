@@ -860,6 +860,9 @@ test_web_cakephp_28: global_test_run_dependencies
 	$(call run_tests,--testsuite=cakephp-28-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests,--testsuite=codeigniter-22-test)
+test_web_laminas_20: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_2_0 update
+	$(call run_tests,tests/Integrations/Laminas/V2_0)
 test_web_laravel_42: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_4_2 update
 	php tests/Frameworks/Laravel/Version_4_2/artisan optimize
