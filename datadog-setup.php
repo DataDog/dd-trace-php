@@ -865,51 +865,30 @@ function parse_cli_arguments(array $argv = null): array
         if (substr($token, 0, 2) === '--') {
             // parse long option
             $key = substr($token, 2);
-            $value = array_shift($argv);
-            if ($value === null) {
-                $value = false;
-            } elseif (substr($value, 0, 1) === '-') {
-                // another option, but it back onto $argv
-                array_unshift($argv, $value);
-                $value = false;
-            }
-            if (!isset($arguments['opts'][$key])) {
-                $arguments['opts'][$key] = $value;
-            } elseif (is_string($arguments['opts'][$key])) {
-                $arguments['opts'][$key] = [
-                    $arguments['opts'][$key],
-                    $value,
-                ];
-            } else {
-                $arguments['opts'][$key][] = $value;
+            $value = false;
+            // look ahead to next $token
+            if (isset($argv[0]) && substr($argv[0], 0, 1) !== '-') {
+                $value = array_shift($argv);
+                if ($value === null) {
+                    $value = false;
+                }
             }
         } elseif (substr($token, 0, 1) === '-') {
             // parse short option
             $key = $token[1];
+            $value = false;
             if (strlen($token) === 2) {
-                // -d datadog.profiling.enabled or
-                // -h
-                $value = array_shift($argv);
-                if ($value === null) {
-                    $value = false;
-                } elseif (substr($value, 0, 1) === '-') {
-                    // another option, but it back onto $argv
-                    array_unshift($argv, $value);
-                    $value = false;
+                // -d datadog.profiling.enabled or -h
+                // look ahead to next $token
+                if (isset($argv[0]) && substr($argv[0], 0, 1) !== '-') {
+                    $value = array_shift($argv);
+                    if ($value === null) {
+                        $value = false;
+                    }
                 }
             } else {
                 // -ddatadog.profiling.enabled
                 $value = substr($token, 2);
-            }
-            if (!isset($arguments['opts'][$key])) {
-                $arguments['opts'][$key] = $value;
-            } elseif (is_string($arguments['opts'][$key])) {
-                $arguments['opts'][$key] = [
-                    $arguments['opts'][$key],
-                    $value,
-                ];
-            } else {
-                $arguments['opts'][$key][] = $value;
             }
         } else {
             // parse command
@@ -918,6 +897,18 @@ function parse_cli_arguments(array $argv = null): array
             } else {
                 $arguments['cmd'] .= ' ' . $token;
             }
+            continue;
+        }
+
+        if (!isset($arguments['opts'][$key])) {
+            $arguments['opts'][$key] = $value;
+        } elseif (is_string($arguments['opts'][$key])) {
+            $arguments['opts'][$key] = [
+                $arguments['opts'][$key],
+                $value,
+            ];
+        } else {
+            $arguments['opts'][$key][] = $value;
         }
     }
 
