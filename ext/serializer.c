@@ -431,17 +431,6 @@ static bool dd_is_prefixed(zend_array *post_whitelist, zend_string *key) {
         return true;
     }
 
-    // If the key is not in the whitelist, check if any element in the whitelist
-    // is a prefix of the key
-    zend_string *whitelist_key;
-    ZEND_HASH_FOREACH_STR_KEY(post_whitelist, whitelist_key) {
-        if (whitelist_key
-            && ZSTR_LEN(key) >= ZSTR_LEN(whitelist_key)
-            && !memcmp(ZSTR_VAL(key), ZSTR_VAL(whitelist_key), ZSTR_LEN(whitelist_key))) {
-            return true;
-        }
-    } ZEND_HASH_FOREACH_END();
-
     return false;
 }
 
