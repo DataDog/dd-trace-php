@@ -5,7 +5,7 @@ This is a special case for when PHP-FPM running as non-root user and preloading
 is enabled. In this case, PHP will do preloading in the php-fpm: master process
 and not in one of it's childs. This will start profiling (including the threads)
 in the master process already before the fork happens to create workers. In the
-worker processes the global state indicates that profiling is running, but all 
+worker processes the global state indicates that profiling is running, but all
 handles to the threads and channels are invalid leading to those channels
 filling up and PHP-FPM blocking ultimately.
 See: https://github.com/DataDog/dd-trace-php/issues/1919
