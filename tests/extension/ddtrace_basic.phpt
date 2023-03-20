@@ -45,13 +45,12 @@ DDTrace\start_span();
 
 // Compatibility with pre 0.81.0 
 $root_span = \DDTrace\root_span();
-if (property_exists($root_span, 'parent')) {
-    unset($root_span->parent);
-}
-if (property_exists($root_span, 'stack')) {
-    unset($root_span->stack);
-}
-var_dump($root_span);
+var_dump($root_span->name);
+var_dump($root_span->service);
+var_dump($root_span->type);
+var_dump($root_span->id);
+var_dump($root_span->meta);
+var_dump($root_span->metrics);
 
 $trace_id = \DDTrace\trace_id();
 echo 'trace id: ', $trace_id, "\n";
@@ -80,25 +79,17 @@ $helper->finished_with_commands();
 rinit
 bool(true)
 number of commands: 2
-object(DDTrace\SpanData)#%d (%d) {
-  ["name"]=>
-  string(17) "ddtrace_basic.php"
-  ["service"]=>
-  string(12) "appsec_tests"
-  ["type"]=>
-  string(3) "cli"
-  ["meta"]=>
-  array(1) {
-    ["ddappsec"]=>
-    string(4) "true"
-  }
-  ["metrics"]=>
-  array(1) {
-    [%s]=>
-    float(%d)
-  }
-  ["id"]=>
-  string(%d) "%d"
+string(17) "ddtrace_basic.php"
+string(12) "appsec_tests"
+string(3) "cli"
+string(%d) "%d"
+array(1) {
+  ["ddappsec"]=>
+  string(4) "true"
+}
+array(1) {
+  [%s]=>
+  float(%d)
 }
 trace id: %s
 ddtrace_rshutdown

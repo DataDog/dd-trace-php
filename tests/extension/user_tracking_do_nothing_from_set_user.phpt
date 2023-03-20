@@ -11,7 +11,7 @@ use function datadog\appsec\testing\rinit;
 include __DIR__ . '/inc/mock_helper.php';
 include __DIR__ . '/inc/ddtrace_version.php';
 
-ddtrace_version_at_least('0.84.0');
+ddtrace_version_at_least('0.85.0');
 
 $helper = Helper::createInitedRun([
     response_list(response_request_init(['ok', []])),

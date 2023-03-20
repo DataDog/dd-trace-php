@@ -7,13 +7,9 @@ FROM php:$PHP_VERSION-fpm-alpine$ALPINE_VERSION
 
 RUN apk add --no-cache apache2 apache2-proxy libexecinfo bash
 
-RUN curl -Lf -o datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz https://output.circle-artifacts.com/output/job/2ba15bc1-b235-4ab8-a83e-c03ab630ca03/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz
+ARG TRACER_VERSION
 RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
-    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-file datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz --php-bin all
-
-#ARG TRACER_VERSION
-#RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
-#    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
+    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
 
 RUN rm -rf /var/www/localhost/htdocs
 ADD --chown=www-data:www-data examples/webroot/ /var/www/localhost/htdocs/
