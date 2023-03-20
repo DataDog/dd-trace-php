@@ -4,22 +4,26 @@ set -e
 
 OS_VERSION=$(source /etc/os-release; echo $VERSION_ID)
 
+function do_retry() {
+  RETRIES=3
+  while
+    ! "$@"
+  do
+    if ! ((--RETRIES)); then
+      return 1
+    fi
+  done
+}
+
 # Enable epel repo
-RETRIES=3
-while
-  ! rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-${OS_VERSION}.noarch.rpm
-do
-  if ! ((--RETRIES)); then
-    exit 1
-  fi
-done
+do_retry rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-${OS_VERSION}.noarch.rpm
 
 # Installing pre-requisites
-yum install -y wget nginx httpd
+do_retry yum install -y wget nginx httpd
 
 # Installing php
-rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-${OS_VERSION}.rpm
-yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
+do_retry rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-${OS_VERSION}.rpm
+do_retry yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
     php-cli \
     php-fpm \
     php-opcache \
