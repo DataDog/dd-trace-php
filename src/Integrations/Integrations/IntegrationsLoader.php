@@ -10,7 +10,7 @@ use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
-use DDTrace\Integrations\Memcached\MemcacheIntegration;
+use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Nette\NetteIntegration;
@@ -95,8 +95,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Eloquent\EloquentIntegration';
             $this->integrations[LumenIntegration::NAME] =
                 '\DDTrace\Integrations\Lumen\LumenIntegration';
-            $this->integrations[MemcacheIntegration::NAME] =
-                '\DDTrace\Integrations\Memcached\MemcacheIntegration';
+            $this->integrations[MemcachedIntegration::NAME] =
+                '\DDTrace\Integrations\Memcached\MemcachedIntegration';
             $this->integrations[PDOIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOIntegration';
             $this->integrations[PredisIntegration::NAME] =
