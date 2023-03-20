@@ -55,6 +55,7 @@ const ENVS = [
     'DD_TRACE_PDO_ENABLED' => ['false'],
     'DD_TRACE_PHPREDIS_ENABLED' => ['false'],
     'DD_TRACE_PREDIS_ENABLED' => ['false'],
+    'DD_TRACE_PSR18_ENABLED' => ['false'],
     'DD_TRACE_SLIM_ENABLED' => ['false'],
     'DD_TRACE_SYMFONY_ENABLED' => ['false'],
     'DD_TRACE_WEB_ENABLED' => ['false'],
