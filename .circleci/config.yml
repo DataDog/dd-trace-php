@@ -277,17 +277,30 @@ commands:
           name: Setup docker image << parameters.docker_image >>
           command: |
             set -x
+            max_retries=3
             extra=<< parameters.extra >>
             docker network create net --driver=bridge -o "com.docker.network.bridge.name=br"
             if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
-              docker run --detach --rm --net net \
+              function retry_docker() {
+                retries=$max_retries
+                while
+                  ! docker "${@}"
+                do
+                  if [[ $((--retries)) -eq 0 ]]; then
+                    exit 1
+                  fi
+                  sleep 1
+                done
+                true # Success
+              }
+              retry_docker run --detach --rm --net net \
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
                 ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
-              docker run --detach --rm --net net \
+              retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
-              docker run --detach --rm --net net \
+              retry_docker run --detach --rm --net net \
                 -e DD_REQUEST_DUMPER_FILE=dump.json \
                 --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0
             fi
@@ -296,7 +309,7 @@ commands:
             sudo mkdir /rust
             sudo chmod 777 /rust
             image=<< parameters.docker_image >>
-            retries=3
+            retries=$max_retries
             while
               nohup docker run --rm --net net \
                   -e DDAGENT_HOSTNAME=127.0.0.1 \
@@ -665,6 +678,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
+            if [[ << parameters.switch_php_version >> == *asan* ]]; then export TEST_PHP_JUNIT=$(pwd)/asan-extension-test.xml; fi
             make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - when:
           # codecov uploader only on amd64
@@ -1791,7 +1805,7 @@ jobs:
           command: |
             set -eo pipefail
             switch-php debug-zts-asan
-            make asan
+            make
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
       - persist_to_workspace:
           root: '.'
@@ -3200,15 +3214,15 @@ workflows:
                 - medium
                 - arm.medium
               make_target:
-                - test_c_asan
-                - test_with_init_hook_asan
+                - test_c
+                - test_with_init_hook
                 - test_internal_api_randomized
-                - test_opcache_asan
+                - test_opcache
             exclude:
                 # apparently for no discernible reason, on x86 asan builds PHP 7.4. fails to allocate opcache shared memory
               - php_major_minor: '7.4'
                 resource_class: medium
-                make_target: test_opcache_asan
+                make_target: test_opcache
                 switch_php_version: debug-zts-asan
 
       - integration:
