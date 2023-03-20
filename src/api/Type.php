@@ -15,7 +15,6 @@ class Type
 
     const CASSANDRA = 'cassandra';
     const ELASTICSEARCH = 'elasticsearch';
-    const MEMCACHE = 'memcache';
     const MEMCACHED = 'memcached';
     const MONGO = 'mongodb';
     const REDIS = 'redis';

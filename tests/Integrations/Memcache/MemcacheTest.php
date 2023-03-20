@@ -36,7 +36,7 @@ final class MemcacheTest extends IntegrationTestCase
             $this->client->add('key', 'value');
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('Memcache.add', 'memcache', 'memcache', 'add')
+            SpanAssertion::build('Memcache.add', 'memcache', 'memcached', 'add')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
@@ -52,7 +52,7 @@ final class MemcacheTest extends IntegrationTestCase
             $this->client->append('key', 'value');
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('Memcache.append', 'memcache', 'memcache', 'append')
+            SpanAssertion::build('Memcache.append', 'memcache', 'memcached', 'append')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'append ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'append',
@@ -75,7 +75,7 @@ final class MemcacheTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcache.add'),
             SpanAssertion::exists('Memcache.get'),
-            SpanAssertion::build('Memcache.delete', 'memcache', 'memcache', 'delete')
+            SpanAssertion::build('Memcache.delete', 'memcache', 'memcached', 'delete')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'delete ' . Obfuscation::toObfuscatedString('key'),
@@ -99,7 +99,7 @@ final class MemcacheTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcache.add'),
-            SpanAssertion::build('Memcache.decrement', 'memcache', 'memcache', 'decrement')
+            SpanAssertion::build('Memcache.decrement', 'memcache', 'memcached', 'decrement')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'decrement',
@@ -121,7 +121,7 @@ final class MemcacheTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcache.add'),
-            SpanAssertion::build('Memcache.increment', 'memcache', 'memcache', 'increment')
+            SpanAssertion::build('Memcache.increment', 'memcache', 'memcached', 'increment')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'increment',
@@ -145,7 +145,7 @@ final class MemcacheTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcache.add'),
             SpanAssertion::exists('Memcache.get'),
-            SpanAssertion::build('Memcache.flush', 'memcache', 'memcache', 'flush')
+            SpanAssertion::build('Memcache.flush', 'memcache', 'memcached', 'flush')
                 ->withExactTags([
                     'memcache.command' => 'flush',
                     Tag::SPAN_KIND => 'client',
@@ -165,7 +165,7 @@ final class MemcacheTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcache.add'),
-            SpanAssertion::build('Memcache.get', 'memcache', 'memcache', 'get')
+            SpanAssertion::build('Memcache.get', 'memcache', 'memcached', 'get')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'get ' . Obfuscation::toObfuscatedString('key'),
@@ -186,7 +186,7 @@ final class MemcacheTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcache.add'),
-            SpanAssertion::build('Memcache.get', 'memcache', 'memcache', 'get')
+            SpanAssertion::build('Memcache.get', 'memcache', 'memcached', 'get')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'get ' . Obfuscation::toObfuscatedString('missing_key'),
@@ -208,7 +208,7 @@ final class MemcacheTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcache.add'),
-            SpanAssertion::build('Memcache.replace', 'memcache', 'memcache', 'replace')
+            SpanAssertion::build('Memcache.replace', 'memcache', 'memcached', 'replace')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'replace ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'replace',
@@ -224,7 +224,7 @@ final class MemcacheTest extends IntegrationTestCase
             $this->client->set('key', 'value');
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('Memcache.set', 'memcache', 'memcache', 'set')
+            SpanAssertion::build('Memcache.set', 'memcache', 'memcached', 'set')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'set ' . Obfuscation::toObfuscatedString('key'),
@@ -243,7 +243,7 @@ final class MemcacheTest extends IntegrationTestCase
             $this->client->cas('ip_block', 'value', 0, 0, $cas);
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('Memcache.cas', 'memcache', 'memcache', 'cas')
+            SpanAssertion::build('Memcache.cas', 'memcache', 'memcached', 'cas')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'cas ' . Obfuscation::toObfuscatedString('key'),

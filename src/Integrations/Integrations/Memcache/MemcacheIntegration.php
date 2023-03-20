@@ -137,7 +137,7 @@ class MemcacheIntegration extends Integration
     public function setCommonData(SpanData $span, $command)
     {
         $span->name = "Memcache.$command";
-        $span->type = Type::MEMCACHE;
+        $span->type = Type::MEMCACHED;
         $span->service = 'memcache';
         $span->resource = $command;
         $span->meta['memcache.command'] = $command;
