@@ -8,11 +8,11 @@ use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
-use crate::{AgentEndpoint, RequestLocals};
+use crate::{AgentEndpoint, RequestLocals, ALLOCATION_PROFILING_INTERVAL};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
-use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
+use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample, UpscalingInfo};
 use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
@@ -220,7 +220,7 @@ impl TimeCollector {
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
     fn create_profile(message: &SampleMessage, started_at: SystemTime) -> profile::Profile {
-        let sample_types = message
+        let sample_types: Vec<profile::api::ValueType> = message
             .key
             .sample_types
             .iter()
@@ -230,8 +230,22 @@ impl TimeCollector {
             })
             .collect();
 
+        // check if we have the `alloc-size` and `alloc-samples` sample types
+        let mut alloc_samples_offset: Option<usize> = None;
+        let mut alloc_size_offset: Option<usize> = None;
+        let mut offset = 0;
+        sample_types.iter().for_each(|sample_type| {
+            if sample_type.r#type == "alloc-samples" {
+                alloc_samples_offset = Some(offset);
+            }
+            if sample_type.r#type == "alloc-size" {
+                alloc_size_offset = Some(offset);
+            }
+            offset = offset + 1;
+        });
+
         let period = WALL_TIME_PERIOD.as_nanos();
-        profile::ProfileBuilder::new()
+        let mut profile = profile::ProfileBuilder::new()
             .period(Some(Period {
                 r#type: profile::api::ValueType {
                     r#type: WALL_TIME_PERIOD_TYPE.r#type.borrow(),
@@ -241,7 +255,21 @@ impl TimeCollector {
             }))
             .start_time(Some(started_at))
             .sample_types(sample_types)
-            .build()
+            .build();
+
+        if alloc_samples_offset.is_some() && alloc_size_offset.is_some() {
+            let upscaling_info = UpscalingInfo::Poisson {
+                x: alloc_size_offset.unwrap(),
+                y: alloc_samples_offset.unwrap(),
+                threshold: ALLOCATION_PROFILING_INTERVAL as i64
+            };
+            let values_offset: Vec<usize> = vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
+            profile
+                .add_upscaling_rules(values_offset.as_slice(), "", "", upscaling_info)
+                .expect("Rule added");
+        }
+
+        profile
     }
 
     fn handle_resource_message(
