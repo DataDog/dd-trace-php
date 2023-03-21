@@ -1,5 +1,7 @@
 <?php
 
+// TODO: Tag::COMPONENT
+
 namespace DDTrace\Integrations\Laminas;
 
 use DDTrace\Integrations\Integration;
@@ -12,6 +14,7 @@ use Laminas\Mvc\MvcEvent;
 use Laminas\Router\RouteMatch;
 use Laminas\Stdlib\RequestInterface;
 use Laminas\View\Model\ModelInterface;
+
 use function DDTrace\trace_method;
 
 class LaminasIntegration extends Integration
@@ -22,8 +25,6 @@ class LaminasIntegration extends Integration
     {
         return self::NAME;
     }
-
-    public $listeners;
 
     public function init()
     {
@@ -50,6 +51,17 @@ class LaminasIntegration extends Integration
         }
 
         $integration = $this;
+
+        trace_method(
+            'Laminas\Mvc\Application',
+            'bootstrap',
+            function (SpanData $span) {
+                $span->name = 'laminas.application.bootstrap';
+                $span->resource = 'laminas.application.bootstrap';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('laminas');
+            }
+        );
 
         trace_method(
             'Laminas\EventManager\EventManager',
@@ -108,6 +120,17 @@ class LaminasIntegration extends Integration
                 $action = $routeMatch->getParam('action');
                 $controller = $routeMatch->getParam('controller');
 
+                if (method_exists($controller, $action . 'Action')) {
+                    trace_method(
+                        $controller,
+                        $action . "Action",
+                        function (SpanData $span) use ($controller, $action) {
+                            $span->name = 'laminas.controller.action';
+                            $span->resource = "$controller@{$action}Action";
+                        }
+                    );
+                }
+
                 $rootSpan->resource = "$controller@$action $routeName";
 
                 $rootSpan->meta[Tag::HTTP_METHOD] = $method;
@@ -117,22 +140,11 @@ class LaminasIntegration extends Integration
             }
         );
 
-
         trace_method(
-            'Laminas\Mvc\RouteListener',
-            'onRoute',
-            function (SpanData $span, $args) use ($rootSpan, $integration) {
-                $span->name = 'laminas.route.listener';
-                $span->resource = \get_class($this);
-            }
-        );
-
-        trace_method(
-            'Laminas\EventManager\AbstractListenerAggregate',
-            'onRoute',
-            function (SpanData $span) {
-                $span->name = 'laminas.route.listener';
-                $span->resource = \get_class($this);
+            'Laminas\Router\RouterInterface',
+            'assemble',
+            function (SpanData $span, $args) {
+                $span->name = 'laminas.route.assemble';
             }
         );
 
@@ -150,8 +162,7 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\Controller\AbstractController',
             'onDispatch',
             function (SpanData $span, $args) use ($rootSpan, $integration) {
-                $span->name = 'laminas.controller.action';
-                $span->meta[Tag::COMPONENT] = LaminasIntegration::NAME;
+                $span->name = 'laminas.controller.execute';
                 $span->resource = \get_class($this);
 
                 /** @var MvcEvent $event */
@@ -195,7 +206,7 @@ class LaminasIntegration extends Integration
             'Laminas\View\Renderer\RendererInterface',
             'render',
             function (SpanData $span, $args) use ($rootSpan, $integration) {
-                $span->name = 'laminas.view.renderer';
+                $span->name = 'laminas.templating.render';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
                 $span->resource = \get_class($this);
@@ -208,7 +219,34 @@ class LaminasIntegration extends Integration
                     $span->resource = $nameOrModel->getTemplate();
                 }
 
-                $span->meta[Tag::COMPONENT] = LaminasIntegration::NAME;
+            }
+        );
+
+        trace_method(
+            'Laminas\View\Model\ModelInterface',
+            'setTemplate',
+            function (SpanData $span, $args) use ($rootSpan, $integration) {
+                $span->name = 'laminas.view.model.setTemplate';
+                $span->resource = \get_class($this);
+            }
+        );
+
+        trace_method(
+            'Laminas\View\View',
+            'render',
+            function (SpanData $span) use ($rootSpan, $integration) {
+                $span->name = 'laminas.view.render';
+                $span->service = \ddtrace_config_app_name('laminas');
+                $span->type = Type::WEB_SERVLET;
+            }
+        );
+
+        trace_method(
+            'Laminas\View\Model\JsonModel',
+            'serialize',
+            function (SpanData $span) use ($rootSpan, $integration) {
+                $span->name = 'laminas.view.model.serialize';
+                $span->resource = \get_class($this);
             }
         );
 
@@ -250,18 +288,17 @@ class LaminasIntegration extends Integration
             }
         );
 
-        // MvcEvent::EVENT_FINISH
+        // Generic Error Handling
         trace_method(
-            'Laminas\Mvc\SendResponseListener',
-            'sendResponse',
-            function (SpanData $span, $args) use ($rootSpan, $integration) {
-                $span->name = 'laminas.send_response';
+            'Laminas\Mvc\MvcEvent',
+            'setError',
+            function (SpanData $span, $args, $retval) use ($rootSpan, $integration) {
+                $span->name = 'laminas.mvcEvent.setError';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
-                $span->resource = 'laminas.send_response';
 
                 /** @var MvcEvent $event */
-                $event = $args[0];
+                $event = $retval[0];
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
@@ -270,21 +307,37 @@ class LaminasIntegration extends Integration
             }
         );
 
+        // Misc.
         trace_method(
-            'Laminas\Mvc\MvcEvent',
-            'setError',
-            function (SpanData $span, $args, $retval) use ($rootSpan, $integration) {
-                $span->name = 'laminas.mvc_event.set_error';
-                $span->service = \ddtrace_config_app_name('laminas');
-                $span->type = Type::WEB_SERVLET;
-                $span->resource = 'laminas.mvc_event.set_error';
+            'Laminas\Mvc\Controller\PluginManager',
+            'get',
+            function (SpanData $span, $args) {
+                $span->name = 'laminas.controller.pluginManager.get';
+                $span->resource = $args[0];
+            }
+        );
 
-                /** @var MvcEvent $event */
-                $event = $retval[0];
+        trace_method(
+            'Laminas\ModuleManager\ModuleManagerInterface',
+            'loadModule',
+            function (SpanData $span, $args) {
+                $span->name = 'laminas.moduleManager.loadModule';
+                $span->resource = $args[0];
+            }
+        );
 
-                $exception = $event->getParam('exception');
-                if ($exception) {
-                    $integration->setError($rootSpan, $exception);
+        trace_method(
+            'Laminas\Mvc\Controller\AbstractController',
+            'forward',
+            function (SpanData $span, $args) {
+                $span->name = 'laminas.controller.forward';
+
+                $controllerName = $args[0];
+                if (isset($args[1]) && isset($args[1]['action'])) {
+                    $actionName = $args[1]['action'];
+                    $span->resource = $controllerName . '@' . $actionName;
+                } else {
+                    $span->resource = $controllerName;
                 }
             }
         );
