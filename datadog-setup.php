@@ -33,6 +33,11 @@ const RELEASE_VERSION = '@release_version@';
 define('RELEASE_URL_PREFIX', (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php") . "/releases/download/" . RELEASE_VERSION . "/");
 // phpcs:enable Generic.Files.LineLength.TooLong
 
+/**
+ * The number of items to shift off `get_ini_settings` for config commands.
+ */
+const CMD_CONFIG_NUM_SHIFT = 3;
+
 function main()
 {
     if (is_truthy(getenv('DD_TEST_EXECUTION'))) {
@@ -43,13 +48,13 @@ function main()
     $options = $arguments['opts'];
     switch ($arguments['cmd']) {
         case CMD_CONFIG_GET:
-            config_get($options);
+            cmd_config_get($options);
             break;
         case CMD_CONFIG_SET:
-            config_set($options);
+            cmd_config_set($options);
             break;
         case CMD_CONFIG_LIST:
-            config_list($options);
+            cmd_config_list($options);
             break;
         default:
             if ($options[OPT_UNINSTALL]) {
@@ -83,6 +88,54 @@ Options:
 EOD;
 }
 
+class IniRecord {
+    /** @var string */
+    public $setting;
+    /** @var string */
+    public $currentValue;
+    /** @var string */
+    public $defaultValue;
+    /** @var string */
+    public $iniFile;
+}
+
+/**
+ * @param array $options
+ * @return Iterator<string, IniRecord>
+ */
+function config_list(array $options)
+{
+    $iniSettings = get_ini_settings('', '', '');
+
+    // The first 3 are 'extension' type of settings.
+    $iniSettings = array_slice($iniSettings, 3);
+
+    // Build an index by unique names for filtering.
+    $indexByName = array_column($iniSettings, null, 'name');
+
+    foreach (require_binaries_or_exit($options) as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
+
+        $iniFilePaths = find_ini_files(ini_values($fullPath));
+
+        foreach ($iniFilePaths as $iniFilePath) {
+            $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
+            $settings = array_intersect_key($iniFileSettings, $indexByName);
+
+            foreach ($settings as $iniFileSetting => $currentValue) {
+                $iniSetting = $indexByName[$iniFileSetting];
+                $record = new IniRecord();
+                $record->setting = $iniFileSetting;
+                $record->currentValue = $currentValue;
+                $record->defaultValue = $iniSetting['default'];
+                $record->iniFile = $iniFilePath;
+                yield $record->setting => $record;
+            }
+        }
+    }
+}
+
 /**
  * This function will print out all Datadog specific PHP INI settings. The list
  * of Datadog specific settings is retrieved by calling `get_ini_settings()`. It
@@ -96,74 +149,52 @@ EOD;
  * datadog.profiling.experimental_allocation_enabled = On ; default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  *
  * @see get_ini_settings
+ * @return void
  */
-function config_list(array $options): void
+function cmd_config_list(array $options)
 {
-    $selectedBinaries = require_binaries_or_exit($options);
-    $iniSettings = get_ini_settings('', '', '');
-    foreach ($selectedBinaries as $command => $fullPath) {
-        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
-        echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
-
-        $iniFilePaths = find_ini_files(
-            ini_values($fullPath)
-        );
-
-        foreach ($iniFilePaths as $iniFilePath) {
-            $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
-            foreach ($iniFileSettings as $iniFileSetting => $currentValue) {
-                foreach ($iniSettings as $iniSetting) {
-                    if ($iniSetting['name'] !== $iniFileSetting) {
-                        continue;
-                    }
-                    echo $iniSetting['name'], ' = ', $currentValue, ' ; default: ',
-                        $iniSetting['default'], ', INI file: ', $iniFilePath, PHP_EOL;
-                }
-            }
-        }
+    foreach (config_list($options) as $record) {
+        echo "$record->setting = $record->currentValue ; default: $record->defaultValue, INI file: $record->iniFile\n";
     }
 }
 
 /**
- * This function will print the specified PHP INI settings.
+ * This function will print the specified PHP INI settings. It only prints
+ * information for Datadog's own settings; it can't be used to parse opache,
+ * xdebug, etc.
  * The output will be grouped by PHP binary, example:
  *
  * $ php datadog-setup.php config get --php-bin all \
  *   -ddatadog.profiling.experimental_allocation_enabled \
  *   -ddatadog.profiling.experimental_cpu_time_enabled \
- *   -dnonexisting
+ *   -dnonexisting \
+ *   -dopcache.preload
  * Datadog configuration for binary: php (/opt/php/8.2/bin/php)
  * datadog.profiling.experimental_allocation_enabled = On ; INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  * datadog.profiling.experimental_cpu_time_enabled = On ; INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  * nonexisting => undefined // is missing in INI files
+ * opcache.preload => undefined // is missing in INI files
+ * @return void
  */
-function config_get(array $options): void
+function cmd_config_get(array $options)
 {
-    $selectedBinaries = require_binaries_or_exit($options);
-    foreach ($selectedBinaries as $command => $fullPath) {
-        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
-        echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
+    /* A value could be set in multiple places:
+     * - /opt/php/8.1/etc/conf.d/98-ddtrace.ini
+     * - /opt/php/8.1/etc/conf.d/90-ddtrace-custom.ini
+     * So, a given setting like 'datadog.trace.enabled' is not necessarily
+     * unique in the iterator's keys.
+     */
+    $records = [];
+    foreach (config_list($options) as $setting => $record) {
+        $records[$setting][] = $record;
+    }
 
-        $iniFilePaths = find_ini_files(
-            ini_values($fullPath)
-        );
-
-        if (count($iniFilePaths) === 0) {
-            echo 'No INI files for this binary found', PHP_EOL;
-            continue;
-        }
-
-        foreach ($options['d'] as $iniSetting) {
-            $found = false;
-            foreach ($iniFilePaths as $iniFilePath) {
-                $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
-                if (array_key_exists($iniSetting, $iniFileSettings)) {
-                    echo $iniSetting, ' = ', $iniFileSettings[$iniSetting], ' ; INI file: ', $iniFilePath, PHP_EOL;
-                    $found = true;
-                }
-            }
-            if (!$found) {
-                echo '; ', $iniSetting, ' = undefined ; is missing in INI files', PHP_EOL;
+    foreach ($options['d'] as $iniSetting) {
+        if (!isset($records[$iniSetting])) {
+            echo '; ', $iniSetting, ' = undefined ; is missing in INI files', PHP_EOL;
+        } else {
+            foreach ($records[$iniSetting] as $record) {
+                echo "$record->setting = $record->currentValue ; default: $record->defaultValue, INI file: $record->iniFile\n";
             }
         }
     }
@@ -179,7 +210,7 @@ function config_get(array $options): void
  * Set 'datadog.profiling.experimental_allocation_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  * Set 'datadog.profiling.experimental_cpu_time_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  */
-function config_set(array $options): void
+function cmd_config_set(array $options): void
 {
     $selectedBinaries = require_binaries_or_exit($options);
     foreach ($selectedBinaries as $command => $fullPath) {
@@ -206,6 +237,7 @@ function config_set(array $options): void
             if (parse_ini_string($newSetting, false, INI_SCANNER_RAW) === false) {
                 echo "The given INI setting '", $cliIniSetting,
                     "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
+                continue;
             }
 
             $found = false;
@@ -1433,6 +1465,11 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'commented' => false,
             'description' => 'Enables the appsec module',
         ],
+
+        /* IMPORTANT! These extension ones are shifted off for config commands.
+         * If the number of extension= things changes, change the constant
+         * CMD_CONFIG_NUM_SHIFT accordingly.
+         */
 
         [
             'name' => 'datadog.profiling.enabled',
