@@ -1947,7 +1947,7 @@ jobs:
             run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
             cp -v "${run_tests_php}" .
             export TEST_PHP_EXECUTABLE=$(which php)
-            php run-tests.php -d "extension=${libdir}/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
+            php run-tests.php -d "extension=${libdir}/datadog-profiling.so" -d zend_extension=opcache --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
 
   compile_extension_centos:
     working_directory: ~/datadog
