@@ -15,10 +15,9 @@ preloading is done.
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70400)
-    echo "skip: need preloading";
-foreach (['datadog-profiling', 'Zend OPcache'] as $extension)
-    if (!extension_loaded($extension))
-        echo "skip: test requires {$extension}\n";
+    echo "skip: need preloading and therefore PHP ";
+if (!extension_loaded('datadog-profiling'))
+    echo "skip: test requires datadog-profiling\n";
 ?>
 --ENV--
 DD_PROFILING_ENABLED=yes
@@ -26,10 +25,9 @@ DD_PROFILING_LOG_LEVEL=debug
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
 DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=no
 --INI--
-opcache.enable=1
+zend_extension=opcache
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
-opcache.preload_user=circleci
 --FILE--
 <?php
 echo "Done.", PHP_EOL;
