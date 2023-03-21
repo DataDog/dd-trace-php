@@ -29,6 +29,7 @@ DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=no
 opcache.enable=1
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
+opcache.preload_user=circleci
 --FILE--
 <?php
 echo "Done.", PHP_EOL;
