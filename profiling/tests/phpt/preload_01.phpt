@@ -16,13 +16,15 @@ preloading is done.
 <?php
 if (PHP_VERSION_ID < 70400)
     echo "skip: need preloading";
+foreach (['datadog-profiling', 'Zend OPcache'] as $extension)
+    if (!extension_loaded($extension))
+        echo "skip: test requires {$extension}\n";
 ?>
 --INI--
 datadog.profiling.enabled=yes
 datadog.profiling.log_level=debug
 datadog.profiling.experimental_allocation_enabled=no
 datadog.profiling.experimental_cpu_time_enabled=no
-zend_extension=opcache
 opcache.enable=1
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
