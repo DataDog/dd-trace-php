@@ -91,7 +91,7 @@ class MysqliIntegration extends Integration
                 $integration->setDefaultAttributes($span, 'mysqli_query', $query);
                 $integration->addTraceAnalyticsIfEnabled($span);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 1);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             }, function (HookData $hook) use ($integration) {
                 list($mysqli, $query) = $hook->args;
                 $span = $hook->span();
@@ -112,7 +112,7 @@ class MysqliIntegration extends Integration
                 $span = $hook->span();
                 $integration->setDefaultAttributes($span, 'mysqli_prepare', $query);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 1);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             }, function (HookData $hook) use ($integration) {
                 list($mysqli, $query) = $hook->args;
                 $span = $hook->span();
@@ -134,7 +134,7 @@ class MysqliIntegration extends Integration
                 $integration->setDefaultAttributes($span, 'mysqli.query', $query);
                 $integration->addTraceAnalyticsIfEnabled($span);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
             }, function (HookData $hook) use ($integration) {
                 list($query) = $hook->args;
                 $span = $hook->span();
@@ -156,7 +156,7 @@ class MysqliIntegration extends Integration
                 $span = $hook->span();
                 $integration->setDefaultAttributes($span, 'mysqli.prepare', $query);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
             }, function (HookData $hook) use ($integration) {
                 list($query) = $hook->args;
                 $span = $hook->span();
@@ -179,7 +179,7 @@ class MysqliIntegration extends Integration
                     $integration->setDefaultAttributes($span, 'mysqli_execute_query', $query);
                     $integration->addTraceAnalyticsIfEnabled($span);
 
-                    DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 1);
+                    DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
                 }, function (HookData $hook) use ($integration) {
                     list($mysqli, $query) = $hook->args;
                     $span = $hook->span();
@@ -202,7 +202,7 @@ class MysqliIntegration extends Integration
                     $integration->setDefaultAttributes($span, 'mysqli.execute_query', $query);
                     $integration->addTraceAnalyticsIfEnabled($span);
 
-                    DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook);
+                    DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
                 }, function (HookData $hook) use ($integration) {
                     list($query) = $hook->args;
                     $span = $hook->span();

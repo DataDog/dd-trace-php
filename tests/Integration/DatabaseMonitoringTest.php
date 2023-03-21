@@ -31,7 +31,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
             $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
                 $hook->span()->service = "testdb";
                 $hook->span()->name = "instrumented";
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 1);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             });
             self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
             self::putEnv("DD_DBM_PROPAGATION_MODE=full");

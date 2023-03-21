@@ -6,10 +6,27 @@ use DDTrace\HookData;
 
 class DatabaseIntegrationHelper
 {
-    public static function injectDatabaseIntegrationData(HookData $hook, $argNum = 0)
+    public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0)
     {
+        $allowedBackends = [
+            "sqlsrv" => true,
+            "mysql" => true,
+            "pgsql" => true,
+            "dblib" => true,
+            "odbc" => true,
+        ];
+
         $propagationMode = dd_trace_env_config("DD_DBM_PROPAGATION_MODE");
-        if ($propagationMode != \DDTrace\DBM_PROPAGATION_DISABLED) {
+        if ($propagationMode != \DDTrace\DBM_PROPAGATION_DISABLED && isset($allowedBackends[$backend])) {
+            $fullPropagationBackends = [
+                "mysql" => true,
+                "pgsql" => true,
+            ];
+
+            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL && !is($fullPropagationBackends[$backend])) {
+                $propagationMode = \DDTrace\DBM_PROPAGATION_SERVICE;
+            }
+
             $query = self::propagateViaSqlComments($hook->args[$argNum], $hook->span()->service, $propagationMode);
             $hook->args[$argNum] = $query;
             $hook->overrideArguments($hook->args);
