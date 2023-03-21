@@ -81,3 +81,21 @@ void ddtrace_log_errf(const char *format, ...) {
     efree(buffer);
     va_end(args);
 }
+
+static atomic_int dd_force_log_once_flag = 1;
+void ddtrace_log_onceerrf(const char *format, ...) {
+    va_list args;
+    char *buffer;
+    int expected = 1;
+
+    va_start(args, format);
+    vspprintf(&buffer, 0, format, args);
+    if (get_DD_TRACE_DEBUG()) {
+        ddtrace_log_err(buffer);
+    } else if (atomic_compare_exchange_strong(&dd_force_log_once_flag, &expected, 0)) {
+        ddtrace_log_errf("%s This message is only displayed once. Use DD_TRACE_DEBUG=1 to show all messages.", buffer);
+    }
+
+    efree(buffer);
+    va_end(args);
+}

@@ -17,6 +17,12 @@ void ddtrace_config_first_rinit();
 
 extern bool runtime_config_first_init;
 
+enum ddtrace_dbm_propagation_mode {
+    DD_TRACE_DBM_PROPAGATION_DISABLED,
+    DD_TRACE_DBM_PROPAGATION_SERVICE,
+    DD_TRACE_DBM_PROPAGATION_FULL,
+};
+
 /* From the curl docs on CONNECT_TIMEOUT_MS:
  *     If libcurl is built to use the standard system name resolver, that
  *     portion of the transfer will still use full-second resolution for
@@ -91,6 +97,7 @@ extern bool runtime_config_first_init;
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                    \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED, "")                                                 \
     CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "*")                                                    \
+    CONFIG(SET, DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED, "")                                                    \
     CONFIG(INT, DD_TRACE_RATE_LIMIT, "0", .ini_change = zai_config_system_ini_change)                          \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                    \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
@@ -109,7 +116,7 @@ extern bool runtime_config_first_init;
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL),             \
            .ini_change = zai_config_system_ini_change)                                                         \
-    CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1")                                                                \
+    CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1", .ini_change = ddtrace_reseed_seed_change)                      \
     CONFIG(BOOL, DD_LOG_BACKTRACE, "false")                                                                    \
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
@@ -136,10 +143,12 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_TRACE_CLIENT_IP_ENABLED, "false")                                                          \
     CONFIG(STRING, DD_TRACE_CLIENT_IP_HEADER, "")                                                              \
     CONFIG(BOOL, DD_TRACE_FORKED_PROCESS, "true")                                                              \
+    CONFIG(INT, DD_TRACE_HOOK_LIMIT, "100")                                                                    \
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_INITIAL_SIZE, "131072", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
+    CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
     DD_INTEGRATIONS
 
 #define CALIAS CONFIG
@@ -176,6 +185,7 @@ typedef enum { DD_CONFIGURATION } ddtrace_config_id;
     static inline zend_array *get_global_##id(void) {                                                       \
         return Z_ARR(zai_config_memoized_entries[DDTRACE_CONFIG_##id].decoded_value);                       \
     }
+#define CUSTOM(type) type
 
 #define CONFIG(type, name, ...) type(name)
 DD_CONFIGURATION
@@ -190,6 +200,7 @@ DD_CONFIGURATION
 #undef INT
 #undef DOUBLE
 
+#undef CUSTOM
 #undef CALIAS
 
 #endif  // DD_CONFIGURATION_H

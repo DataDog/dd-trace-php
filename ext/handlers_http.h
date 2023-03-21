@@ -7,7 +7,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static inline void ddtrace_inject_distributed_headers(zend_array *array, bool key_value_pairs) {
+static inline void ddtrace_inject_distributed_headers_config(zend_array *array, bool key_value_pairs, zend_array *inject) {
     zval headers;
     ZVAL_ARR(&headers, array);
 
@@ -17,10 +17,6 @@ static inline void ddtrace_inject_distributed_headers(zend_array *array, bool ke
     } else { \
         add_next_index_str(&headers, zend_strpprintf(0, header ": " __VA_ARGS__)); \
     }
-
-    zend_array *inject = zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_PROPAGATION_STYLE)
-                         && !zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_PROPAGATION_STYLE_INJECT)
-                         ? get_DD_TRACE_PROPAGATION_STYLE() : get_DD_TRACE_PROPAGATION_STYLE_INJECT();
 
     bool send_datadog = zend_hash_str_exists(inject, ZEND_STRL("datadog"));
     bool send_tracestate = zend_hash_str_exists(inject, ZEND_STRL("tracecontext"));
@@ -183,6 +179,13 @@ static inline void ddtrace_inject_distributed_headers(zend_array *array, bool ke
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }
-}
 
 #undef ADD_HEADER
+}
+
+static inline void ddtrace_inject_distributed_headers(zend_array *array, bool key_value_pairs) {
+    zend_array *inject = zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_PROPAGATION_STYLE)
+                         && !zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_PROPAGATION_STYLE_INJECT)
+                         ? get_DD_TRACE_PROPAGATION_STYLE() : get_DD_TRACE_PROPAGATION_STYLE_INJECT();
+    ddtrace_inject_distributed_headers_config(array, key_value_pairs, inject);
+}

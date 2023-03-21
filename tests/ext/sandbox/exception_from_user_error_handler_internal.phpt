@@ -31,5 +31,5 @@ try {
 Spans count: 1
 error: 1
 error.type: Exception
-error.message: Uncaught Exception: chmod(): %snot call chmod() for a non-standard stream in %s:%d
+error.message: Thrown Exception: chmod(): %snot call chmod() for a non-standard stream in %s:%d
 Has error.stack: 1

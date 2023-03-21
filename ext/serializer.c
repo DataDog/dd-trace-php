@@ -189,15 +189,20 @@ typedef zend_result (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_s
 #define ZEND_STR_PREVIOUS "previous"
 #endif
 
-static zend_result dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag) {
+enum dd_exception {
+    DD_EXCEPTION_THROWN,
+    DD_EXCEPTION_CAUGHT,
+    DD_EXCEPTION_UNCAUGHT,
+};
+
+static zend_result dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag, enum dd_exception exception_state) {
     zend_string *msg = zai_exception_message(exception);
     zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
     zend_string *file = ddtrace_convert_to_str(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
 
-    char *error_text, *status_line;
-    zend_bool caught = SG(sapi_headers).http_response_code >= 500;
+    char *error_text, *status_line = NULL;
 
-    if (caught) {
+    if (SG(sapi_headers).http_response_code >= 500) {
         if (SG(sapi_headers).http_status_line) {
             asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line);
         } else {
@@ -205,13 +210,18 @@ static zend_result dd_exception_to_error_msg(zend_object *exception, void *conte
         }
     }
 
-    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:" ZEND_LONG_FMT, caught ? "Caught" : "Uncaught",
-                             ZSTR_VAL(exception->ce->name), caught ? status_line : "", ZSTR_LEN(msg) > 0 ? ": " : "",
+    const char *exception_type;
+    switch (exception_state) {
+        case DD_EXCEPTION_CAUGHT: exception_type = "Caught"; break;
+        case DD_EXCEPTION_UNCAUGHT: exception_type = "Uncaught"; break;
+        default: exception_type = "Thrown"; break;
+    }
+
+    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:" ZEND_LONG_FMT, exception_type,
+                             ZSTR_VAL(exception->ce->name), status_line ? status_line : "", ZSTR_LEN(msg) > 0 ? ": " : "",
                              (int)ZSTR_LEN(msg), ZSTR_VAL(msg), ZSTR_VAL(file), line);
 
-    if (caught) {
-        free(status_line);
-    }
+    free(status_line);
 
     ddtrace_string key = DDTRACE_STRING_LITERAL("error.message");
     ddtrace_string value = {error_text, error_len};
@@ -271,7 +281,7 @@ static zend_result dd_exception_trace_to_error_stack(zend_string *trace, void *c
 }
 
 // Guarantees that add_tag will only be called once per tag, will stop trying to add tags if one fails.
-static zend_result ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta) {
+static zend_result ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta, enum dd_exception exception_state) {
     zend_object *exception_root = exception;
     zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
 
@@ -305,7 +315,7 @@ static zend_result ddtrace_exception_to_meta(zend_object *exception, void *conte
         previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
     }
 
-    bool success = dd_exception_to_error_msg(exception, context, add_meta) == SUCCESS &&
+    bool success = dd_exception_to_error_msg(exception, context, add_meta, exception_state) == SUCCESS &&
                    dd_exception_to_error_type(exception, context, add_meta) == SUCCESS &&
                    dd_exception_trace_to_error_stack(full_trace, context, add_meta) == SUCCESS;
     return success ? SUCCESS : FAILURE;
@@ -395,26 +405,99 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
     }
 }
 
+static void normalize_with_underscores(zend_string *str) {
+    for (char *ptr = ZSTR_VAL(str); *ptr; ++ptr) {
+        // Replace non-alphanumeric/dashes by underscores
+        if ((*ptr < 'a' || *ptr > 'z')
+            && (*ptr < 'A' || *ptr > 'Z')
+            && (*ptr < '0' || *ptr > '9')
+            && *ptr != '-') {
+            *ptr = '_';
+        }
+    }
+}
+
+static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_string *postkey, zend_string *postval) {
+    zend_string *posttag = zend_strpprintf(0, "http.%s.post.%s", type, ZSTR_VAL(postkey));
+    zval postzv;
+    ZVAL_STR_COPY(&postzv, postval);
+    zend_hash_update(meta, posttag, &postzv);
+    zend_string_release(posttag);
+}
+
+static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *type, zend_string *postkey,
+                                                 zval *postval, zend_array* post_whitelist,
+                                                 bool is_prefixed) {
+    if (Z_TYPE_P(postval) == IS_ARRAY) {
+        zend_ulong index;
+        zend_string *key;
+        zval *val;
+
+        ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(postval), index, key, val) {
+            if (key) {
+                zend_string *copy_key = zend_string_dup(key, 0);
+                normalize_with_underscores(copy_key);
+                if (ZSTR_LEN(postkey) == 0) {
+                    dd_add_post_fields_to_meta_recursive(meta, type, copy_key, val, post_whitelist,
+                                                         is_prefixed || zend_hash_exists(post_whitelist, copy_key));
+                } else {
+                    // If the current postkey is not the empty string, we want to add a '.' to the beginning of the key
+                    zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(copy_key));
+                    dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist,
+                                                         is_prefixed || zend_hash_exists(post_whitelist, newkey));
+                    zend_string_release(newkey);
+                }
+                zend_string_release(copy_key);
+            } else {
+                // Use numeric index if there isn't a string key
+                zend_string *newkey = zend_strpprintf(0, "%s." ZEND_LONG_FMT, ZSTR_VAL(postkey), index);
+                dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist,
+                                                     is_prefixed || zend_hash_exists(post_whitelist, newkey));
+                zend_string_release(newkey);
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    } else {
+        if (is_prefixed) { // The postkey is in the whitelist or is prefixed by a key in the whitelist
+            // we want to add it to the meta as is
+            zend_string *ztr_postval = zval_get_string(postval);
+            dd_add_post_fields_to_meta(meta, type, postkey, ztr_postval);
+            zend_string_release(ztr_postval);
+        } else if (post_whitelist) {
+            zend_string *str;
+            zend_ulong numkey;
+            zend_hash_get_current_key(post_whitelist, &str, &numkey);
+            if (str && zend_string_equals_literal(str, "*")) { // '*' is a wildcard for the whitelist
+                // Here, both the postkey and postval are strings, so we can concatenate them into "<postkey>=<postval>"
+                zend_string *postvalstr = zval_get_string(postval);
+                zend_string *postvalconcat = zend_strpprintf(0, "%s=%s", ZSTR_VAL(postkey), ZSTR_VAL(postvalstr));
+                zend_string_release(postvalstr);
+
+                // Match it with the regex to redact if needed
+                if (zai_match_regex(get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP(), postvalconcat)) {
+                    zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+                    dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+                    zend_string_release(replacement);
+                } else {
+                    dd_add_post_fields_to_meta(meta, type, postkey, postvalstr);
+                }
+                zend_string_release(postvalconcat);
+            } else { // No wildcard and the postkey isn't in the whitelist
+                // Always use "<redacted>" as the value
+                zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+                dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+                zend_string_release(replacement);
+            }
+        } else { // No whitelist, so we always use "<redacted>" as the value
+            zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+            dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+            zend_string_release(replacement);
+        }
+    }
+}
+
 void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
-    zval value;
-
-    zend_string *version = get_DD_VERSION();
-    if (ZSTR_LEN(version) > 0) {  // non-empty
-        ZVAL_STR_COPY(&value, version);
-        zend_hash_str_add_new(meta, ZEND_STRL("version"), &value);
-    }
-
-    zend_string *env = get_DD_ENV();
-    if (ZSTR_LEN(env) > 0) {  // non-empty
-        ZVAL_STR_COPY(&value, env);
-        zend_hash_str_add_new(meta, ZEND_STRL("env"), &value);
-    }
-
-    if (DDTRACE_G(dd_origin)) {
-        ZVAL_STR_COPY(&value, DDTRACE_G(dd_origin));
-        zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), &value);
-    }
 
     zend_array *global_tags = get_DD_TAGS();
     zend_string *global_key;
@@ -435,7 +518,9 @@ void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     }
     ZEND_HASH_FOREACH_END();
 
-    ZVAL_STR(ddtrace_spandata_property_id(span), ddtrace_span_id_as_string(span->span_id));
+    zval *prop_id = ddtrace_spandata_property_id(span);
+    zval_ptr_dtor(prop_id);
+    ZVAL_STR(prop_id, ddtrace_span_id_as_string(span->span_id));
 }
 
 static const char *dd_get_req_uri() {
@@ -557,6 +642,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
             const char *uri = dd_get_req_uri();
             zval *prop_resource = ddtrace_spandata_property_resource(span);
+            zval_ptr_dtor(prop_resource);
             if (uri) {
                 zend_string *path = zend_string_init(uri, strlen(uri), 0);
                 zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
@@ -597,17 +683,22 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     zval *prop_type = ddtrace_spandata_property_type(span);
     zval *prop_name = ddtrace_spandata_property_name(span);
     if (strcmp(sapi_module.name, "cli") == 0) {
+        zval_ptr_dtor(prop_type);
         ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
         const char *script_name;
+        zval_ptr_dtor(prop_name);
         ZVAL_STR(prop_name,
             (SG(request_info).argc > 0 && (script_name = SG(request_info).argv[0]) && script_name[0] != '\0')
                 ? php_basename(script_name, strlen(script_name), NULL, 0)
                 : zend_string_init(ZEND_STRL("cli.command"), 0));
     } else {
+        zval_ptr_dtor(prop_type);
         ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("web"), 0));
+        zval_ptr_dtor(prop_name);
         ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("web.request"), 0));
     }
     zval *prop_service = ddtrace_spandata_property_service(span);
+    zval_ptr_dtor(prop_service);
     ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
 
     if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
@@ -633,6 +724,15 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         ZEND_HASH_FOREACH_END();
     }
 
+    if (zend_hash_num_elements(get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED())
+        && (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST")))) {
+        zval *post = &PG(http_globals)[TRACK_VARS_POST];
+        zend_string *empty = ZSTR_EMPTY_ALLOC();
+        dd_add_post_fields_to_meta_recursive(meta, "request", empty, post,
+                                             get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(),false);
+        zend_string_release(empty);
+    }
+
     if (get_DD_TRACE_REPORT_HOSTNAME()) {
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 255
@@ -649,6 +749,25 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
         }
     }
 
+    zval value;
+
+    zend_string *version = get_DD_VERSION();
+    if (ZSTR_LEN(version) > 0) {  // non-empty
+        ZVAL_STR_COPY(&value, version);
+        zend_hash_str_add_new(meta, ZEND_STRL("version"), &value);
+    }
+
+    zend_string *env = get_DD_ENV();
+    if (ZSTR_LEN(env) > 0) {  // non-empty
+        ZVAL_STR_COPY(&value, env);
+        zend_hash_str_add_new(meta, ZEND_STRL("env"), &value);
+    }
+
+    if (DDTRACE_G(dd_origin)) {
+        ZVAL_STR_COPY(&value, DDTRACE_G(dd_origin));
+        zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), &value);
+    }
+
     ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
     zend_array *metrics = ddtrace_spandata_property_metrics(span);
     if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
@@ -663,7 +782,8 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
-    bool top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
+    bool is_top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
+    bool is_local_root_span = span->parent_id == 0 || is_top_level_span;
     zval meta_zv, *meta = ddtrace_spandata_property_meta_zval(span);
 
     array_init(&meta_zv);
@@ -683,10 +803,14 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     zval *exception_zv = ddtrace_spandata_property_exception(span);
     if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
-        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array);
+        enum dd_exception exception_type = DD_EXCEPTION_THROWN;
+        if (is_local_root_span) {
+            exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
+        }
+        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array, exception_type);
     }
 
-    if (top_level_span) {
+    if (is_top_level_span) {
         if (SG(sapi_headers).http_response_code) {
             add_assoc_str(meta, "http.status_code", zend_long_to_str(SG(sapi_headers).http_response_code));
             if (SG(sapi_headers).http_response_code >= 500) {

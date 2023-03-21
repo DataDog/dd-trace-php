@@ -6,19 +6,18 @@ mod pcntl;
 mod profiling;
 mod sapi;
 
-use crate::bindings::sapi_globals;
-use crate::profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use bindings as zend;
-use bindings::{ZendExtension, ZendResult};
+use bindings::{sapi_globals, ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use lazy_static::lazy_static;
 use libc::c_char;
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
+use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ops::DerefMut;
@@ -26,8 +25,8 @@ use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Mutex, Once};
-use std::time::Instant;
+use std::sync::{Arc, Mutex, Once};
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 #[cfg(feature = "allocation_profiling")]
@@ -42,13 +41,9 @@ use crate::bindings::{
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
-lazy_static! {
-    /// The global profiler. Profiler gets made during the first rinit after
-    /// an rinit, and is destroyed on mshutdown.
-    /// In Rust 1.63+, Mutex::new is const and this can be made a regular
-    /// global instead of a lazy_static one.
-    static ref PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
-}
+/// The global profiler. Profiler gets made during the first rinit after an
+/// minit, and is destroyed on mshutdown.
+static PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
@@ -314,7 +309,7 @@ pub struct RequestLocals {
     pub profiling_experimental_allocation_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
-    pub tags: Vec<Tag>,
+    pub tags: Arc<Vec<Tag>>,
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt_addr: *const AtomicBool,
@@ -405,7 +400,7 @@ thread_local! {
         profiling_experimental_allocation_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
-        tags: static_tags(),
+        tags: Arc::new(static_tags()),
         uri: Box::new(AgentEndpoint::default()),
         version: None,
         vm_interrupt_addr: std::ptr::null_mut(),
@@ -444,6 +439,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         profiling_experimental_cpu_time_enabled,
         profiling_experimental_allocation_enabled,
         log_level,
+        output_pprof,
     ) = unsafe {
         (
             config::profiling_enabled(),
@@ -451,6 +447,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             config::profiling_experimental_cpu_time_enabled(),
             config::profiling_experimental_allocation_enabled(),
             config::profiling_log_level(),
+            config::profiling_output_pprof(),
         )
     };
 
@@ -548,7 +545,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
          */
         let mut profiler = PROFILER.lock().unwrap();
         if profiler.is_none() {
-            *profiler = Some(Profiler::new())
+            *profiler = Some(Profiler::new(output_pprof))
         }
     };
 
@@ -563,30 +560,28 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 locals.last_cpu_time = Some(now);
             }
 
-            // Bleh, clone for borrow checker.
-            let vars = [
-                ("service", locals.service.clone()),
-                ("env", locals.env.clone()),
-                ("version", locals.version.clone()),
-            ];
+            {
+                // Calling make_mut would be more efficient, but we get into
+                // issues with borrowing part of `locals` mutably and others
+                // immutably. So, we clone the tags and replace locals.tags
+                // later.
+                let mut tags = (*locals.tags).clone();
 
-            for (key, value) in vars {
-                if let Some(value) = value {
-                    assert!(!value.is_empty());
-                    log_add_tag(&mut locals, key, value);
-                }
-            }
+                add_optional_tag(&mut tags, "service", &locals.service);
+                add_optional_tag(&mut tags, "env", &locals.env);
+                add_optional_tag(&mut tags, "version", &locals.version);
 
-            let runtime_id = runtime_id();
-            if !runtime_id.is_nil() {
-                match Tag::new("runtime-id", runtime_id.to_string()) {
-                    Ok(tag) => {
-                        locals.tags.push(tag);
-                    }
-                    Err(err) => {
-                        warn!("invalid tag: {err}");
-                    }
+                let runtime_id = runtime_id();
+                if !runtime_id.is_nil() {
+                    add_tag(&mut tags, "runtime-id", &runtime_id.to_string());
                 }
+
+                /* This should probably be "language_version", but this is
+                 * the tag that was standardized for this purpose. */
+                add_optional_tag(&mut tags, "runtime_version", &PHP_VERSION.get());
+                add_optional_tag(&mut tags, "php.sapi", &SAPI.get());
+
+                locals.tags = Arc::new(tags);
             }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
@@ -641,10 +636,17 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-fn log_add_tag<V: AsRef<str>>(locals: &mut RefMut<RequestLocals>, key: &str, value: V) {
+fn add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Option<T>) {
+    if let Some(value) = value {
+        add_tag(tags, key, value.as_ref());
+    }
+}
+
+fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
+    assert!(!value.is_empty());
     match Tag::new(key, value) {
         Ok(tag) => {
-            locals.tags.push(tag);
+            tags.push(tag);
         }
         Err(err) => {
             warn!("invalid tag: {err}");
@@ -689,8 +691,13 @@ fn detect_uri_from_config(
     if port.is_some() || host.is_some() {
         let host = host.unwrap_or(Cow::Borrowed("localhost"));
         let port = port.unwrap_or(8126u16);
+        let url = if host.contains(':') {
+            format!("http://[{host}]:{port}")
+        } else {
+            format!("http://{host}:{port}")
+        };
 
-        match Uri::from_str(format!("http://{host}:{port}").as_str()) {
+        match Uri::from_str(url.as_str()) {
             Ok(uri) => return AgentEndpoint::Uri(uri),
             Err(err) => {
                 warn!("The combination of DD_AGENT_HOST({host}) and DD_TRACE_AGENT_PORT({port}) was not a valid URL: {err}")
@@ -719,7 +726,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                     warn!("Unable to find interrupt {err}.");
                 }
             }
-            locals.tags = static_tags();
+            locals.tags = Arc::new(static_tags());
         }
 
         #[cfg(feature = "allocation_profiling")]
@@ -876,9 +883,9 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_mshutdown() };
 
-    let mut profiler = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler.take() {
-        profiler.stop();
+    let profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.as_ref() {
+        profiler.stop(Duration::from_secs(1));
     }
 
     ZendResult::Success
@@ -947,6 +954,11 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
+
+    let mut profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.take() {
+        profiler.shutdown(Duration::from_secs(2));
+    }
 }
 
 /// Notifies the profiler a trace has finished so it can update information
@@ -1179,5 +1191,48 @@ fn is_zend_mm() -> bool {
     #[cfg(php8)]
     {
         unsafe { zend::is_zend_mm() }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detect_uri_from_config_works() {
+        // expected
+        let endpoint = detect_uri_from_config(None, None, None);
+        let expected = AgentEndpoint::default();
+        assert_eq!(endpoint, expected);
+
+        // ipv4 host
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("127.0.0.1".to_owned())), None);
+        let expected = AgentEndpoint::Uri(Uri::from_static("http://127.0.0.1:8126"));
+        assert_eq!(endpoint, expected);
+
+        // ipv6 host
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), None);
+        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
+        assert_eq!(endpoint, expected);
+
+        // ipv6 host, custom port
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), Some(9000));
+        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:9000"));
+        assert_eq!(endpoint, expected);
+
+        // agent_url
+        let endpoint =
+            detect_uri_from_config(Some(Cow::Owned("http://[::1]:8126".to_owned())), None, None);
+        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
+        assert_eq!(endpoint, expected);
+
+        // fallback on non existing UDS
+        let endpoint = detect_uri_from_config(
+            Some(Cow::Owned("unix://foo/bar/baz/I/do/not/exist".to_owned())),
+            None,
+            None,
+        );
+        let expected = AgentEndpoint::default();
+        assert_eq!(endpoint, expected);
     }
 }

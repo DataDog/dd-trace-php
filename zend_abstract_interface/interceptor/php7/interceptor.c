@@ -56,7 +56,7 @@ typedef struct {
     uint32_t temporary;
 } zai_interceptor_generator_frame_memory;
 
-__thread HashTable zai_hook_memory;
+ZEND_TLS HashTable zai_hook_memory;
 // execute_data is 16 byte aligned (except when it isn't, but it doesn't matter as zend_execute_data is big enough
 // our goal is to reduce conflicts
 static inline void zai_hook_memory_table_insert(zend_execute_data *index, zai_interceptor_frame_memory *inserting) {
@@ -611,7 +611,7 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
 static zend_op_array zai_interceptor_empty_op_array;
 static zend_op zai_interceptor_generator_create_wrapper[2];
 static user_opcode_handler_t prev_post_generator_create_handler;
-static __thread zend_execute_data zai_interceptor_generator_create_frame;
+ZEND_TLS zend_execute_data zai_interceptor_generator_create_frame;
 static int zai_interceptor_post_generator_create_handler(zend_execute_data *execute_data) {
     if (EX(opline) == &zai_interceptor_generator_create_wrapper[0] || EX(opline) == &zai_interceptor_generator_create_wrapper[1]) {
         // working around the fact that we cannot modify execute_data directly here.
@@ -889,7 +889,7 @@ static zend_object_iterator *zai_interceptor_yield_from_wrapped_iterator(zend_cl
     return &it->it;
 }
 
-static __thread zend_class_entry yield_from_iterator_wrapper_class = {0};
+ZEND_TLS zend_class_entry yield_from_iterator_wrapper_class = {0};
 static user_opcode_handler_t prev_yield_from_handler;
 static int zai_interceptor_yield_from_handler(zend_execute_data *execute_data) {
     zai_interceptor_generator_frame_memory *gen_memory;
@@ -1024,6 +1024,7 @@ static int (*prev_post_startup)(void);
 int zai_interceptor_post_startup(void) {
     int result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
 
+    zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
 
     return result;
@@ -1106,6 +1107,7 @@ void zai_interceptor_startup(zend_module_entry *module_entry) {
     prev_post_startup = zend_post_startup_cb;
     zend_post_startup_cb = zai_interceptor_post_startup;
 #else
+    zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
 #endif
 }

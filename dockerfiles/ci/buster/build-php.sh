@@ -32,6 +32,7 @@ ${PHP_SRC_DIR}/configure \
         --enable-pcntl=shared \
         --enable-mbstring=shared \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-ffi=shared; fi) \
+        $(if [[ ${PHP_VERSION_ID} -le 74 ]]; then echo --enable-json=shared; fi) \
         --without-pear \
     ; else echo \
         --disable-phpdbg \

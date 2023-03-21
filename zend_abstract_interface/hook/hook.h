@@ -8,6 +8,7 @@
         Note: installation of hooks may occur after minit */
 bool zai_hook_minit(void);
 bool zai_hook_rinit(void);
+void zai_hook_post_startup(void);
 void zai_hook_activate(void);
 void zai_hook_clean(void);
 void zai_hook_rshutdown(void);
@@ -88,7 +89,7 @@ void zai_hook_resolve_function(zend_function *function, zend_string *lcname);
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname);
 
 /* {{{ private but externed for performance reasons */
-extern __thread HashTable zai_hook_resolved;
+extern TSRM_TLS HashTable zai_hook_resolved;
 /* }}} */
 
 #if PHP_VERSION_ID >= 80000
@@ -115,6 +116,9 @@ zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_v
 zai_hook_iterator zai_hook_iterate_resolved(zend_function *function);
 void zai_hook_iterator_advance(zai_hook_iterator *iterator);
 void zai_hook_iterator_free(zai_hook_iterator *iterator);
+
+uint32_t zai_hook_count_installed(zai_string_view scope, zai_string_view function);
+uint32_t zai_hook_count_resolved(zend_function *function);
 
 /* {{{ */
 static inline zai_install_address zai_hook_install_address_user(const zend_op_array *op_array) {

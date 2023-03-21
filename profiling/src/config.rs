@@ -316,13 +316,22 @@ unsafe extern "C" fn parse_level_filter(
 
     let decoded_value = &mut *decoded_value;
     match value.into_utf8() {
-        Ok(level) => match LevelFilter::from_str(level) {
-            Ok(filter) => {
-                decoded_value.value.lval = filter as zend_long;
-                decoded_value.u1.type_info = IS_LONG;
-                true
+        Ok(level) => {
+            // We need to accept the empty string here as datadog.profiling.log_level = off will be
+            // trivially interpreted as the empty string by the PHP ini parser.
+            let parsed_level = if level.is_empty() {
+                Ok(LevelFilter::Off)
+            } else {
+                LevelFilter::from_str(level)
+            };
+            match parsed_level {
+                Ok(filter) => {
+                    decoded_value.value.lval = filter as zend_long;
+                    decoded_value.u1.type_info = IS_LONG;
+                    true
+                }
+                _ => false,
             }
-            _ => false,
         },
         _ => false,
     }

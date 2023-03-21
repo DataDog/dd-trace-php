@@ -1,5 +1,7 @@
 --TEST--
 The tracer should not crash when many hooks are installed
+--ENV--
+DD_TRACE_HOOK_LIMIT=0
 --FILE--
 <?php
 

@@ -46,14 +46,14 @@ try {
 Stack size: 2
 error: 1
 Exception type: Exception
-Exception msg: Uncaught Exception: datadog in %s:%d
+Exception msg: Thrown Exception: datadog in %s:%d
 Exception stack:
 #0 %s: inner()
 #1 %s: outer()
 #2 {main}
 error: 1
 Exception type: Exception
-Exception msg: Uncaught Exception: datadog in %s:%d
+Exception msg: Thrown Exception: datadog in %s:%d
 Exception stack:
 #0 %s: inner()
 #1 %s: outer()
