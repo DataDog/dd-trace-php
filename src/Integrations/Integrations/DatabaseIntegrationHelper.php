@@ -12,6 +12,7 @@ class DatabaseIntegrationHelper
             "sqlsrv" => true,
             "mysql" => true,
             "pgsql" => true,
+            "mssql" => true, // part of dblib
             "dblib" => true,
             "odbc" => true,
         ];
@@ -23,7 +24,7 @@ class DatabaseIntegrationHelper
                 "pgsql" => true,
             ];
 
-            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL && !is($fullPropagationBackends[$backend])) {
+            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL && !isset($fullPropagationBackends[$backend])) {
                 $propagationMode = \DDTrace\DBM_PROPAGATION_SERVICE;
             }
 

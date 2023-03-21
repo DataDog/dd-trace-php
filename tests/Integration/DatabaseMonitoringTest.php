@@ -77,4 +77,17 @@ class DatabaseMonitoringTest extends IntegrationTestCase
 
         $this->resetTracer();
     }
+
+    public function noInjectionWithUnsupportedDriver()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlite');
+            });
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            $this->assertSame("SELECT 1", $this->instrumented(0, "SELECT 1"));
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+    }
 }
