@@ -20,11 +20,12 @@ foreach (['datadog-profiling', 'Zend OPcache'] as $extension)
     if (!extension_loaded($extension))
         echo "skip: test requires {$extension}\n";
 ?>
+--ENV--
+DD_PROFILING_ENABLED=yes
+DD_PROFILING_LOG_LEVEL=debug
+DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
+DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=no
 --INI--
-datadog.profiling.enabled=yes
-datadog.profiling.log_level=debug
-datadog.profiling.experimental_allocation_enabled=no
-datadog.profiling.experimental_cpu_time_enabled=no
 opcache.enable=1
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
@@ -33,7 +34,6 @@ opcache.preload={PWD}/preload_01_preload.php
 echo "Done.", PHP_EOL;
 ?>
 --EXPECTREGEX--
-.*
 .* zend_post_startup_cb hasn't happened yet; not enabling profiler.
 preloading
 .* Started with an upload period of 67 seconds and approximate wall-time period of 10 milliseconds.
