@@ -200,6 +200,72 @@ class Normalizer
         );
     }
 
+    private static function normalizeString(string $str)
+    {
+        return preg_replace('/[^a-zA-Z0-9\-\_)]+/', '_', $str);
+    }
+
+    private static function generateFilteredPostFields(
+        string $postKey,
+        $postVal,
+        array $whitelist,
+        bool $isPrefixed
+    ): array {
+        if (is_array($postVal)) {
+            $filteredPostFields = [];
+            foreach ($postVal as $key => $val) {
+                $key = self::normalizeString($key);
+                // If the current postkey is the empty string, we don't want to add a '.' to the beginning of the key
+                $newkey = (strlen($postKey) == 0 ? '' : $postKey . '.') . $key;
+                $filteredPostFields = array_merge(
+                    $filteredPostFields,
+                    self::generateFilteredPostFields(
+                        $newkey,
+                        $val,
+                        $whitelist,
+                        $isPrefixed || in_array($newkey, $whitelist)
+                    )
+                );
+            }
+            return $filteredPostFields;
+        } else {
+            // Check if the current postKey is in the whitelist/prefixed
+            if ($isPrefixed) {
+                // The postkey is in the whitelist, return the value as is
+                return [$postKey => $postVal];
+            } elseif (in_array('*', $whitelist)) { // '*' is wildcard
+                // Concatenate the postkey and postval into '<postkey>=<postval>'
+                $postField = "$postKey=$postVal";
+
+                // Match it with the regex to redact if needed
+                $obfuscationRegex = \ini_get('datadog.trace.obfuscation_query_string_regexp');
+                $obfuscationRegex = '(' . $obfuscationRegex . ')';
+                if (preg_match($obfuscationRegex, $postField)) {
+                    return [$postKey => '<redacted>'];
+                } else {
+                    return [$postKey => $postVal];
+                }
+            } else {
+                // The postkey is not in the whitelist, and no wildcard set, then always use <redacted>
+                return [$postKey => '<redacted>'];
+            }
+        }
+    }
+
+    private static function cleanRequestBody(array $requestBody, string $allowedParams): array
+    {
+        $whitelist = self::decodeConfigSet($allowedParams);
+        return self::generateFilteredPostFields('', $requestBody, $whitelist, false);
+    }
+
+    public static function sanitizePostFields(array $postFields): array
+    {
+        return self::cleanRequestBody(
+            $postFields,
+            "datadog.trace.http_post_data_param_allowed"
+        );
+    }
+
     private static function cleanQueryString($queryString, $allowedSetting)
     {
         if (!preg_match('(\?\K[^:?@#][^#]*)', $queryString, $m)) {

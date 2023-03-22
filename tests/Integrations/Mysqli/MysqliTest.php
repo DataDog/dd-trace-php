@@ -110,6 +110,29 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
+        ]);
+    }
+
+    public function testProceduralExecuteQuery()
+    {
+        if (PHP_VERSION_ID < 80200) {
+            $this->markTestSkipped("mysqli_execute_query is a new function introduced in PHP 8.2");
+        }
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            \mysqli_execute_query($mysqli, 'SELECT * from tests WHERE 1 = ?', [1]);
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
         ]);
     }
@@ -129,7 +152,10 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
         ]);
     }
 
@@ -145,7 +171,10 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
         ]);
     }
 
@@ -165,7 +194,10 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
         ]);
     }
 
@@ -206,7 +238,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli'])
+                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli', Tag::DB_SYSTEM => 'mysql',])
                 ->setTraceAnalyticsCandidate(),
         ]);
     }
@@ -270,7 +302,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli']),
+                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli', Tag::DB_SYSTEM => 'mysql',]),
         ]);
     }
 
@@ -293,6 +325,7 @@ class MysqliTest extends IntegrationTestCase
                     'error.stack',
                     Tag::SPAN_KIND,
                     Tag::COMPONENT,
+                    Tag::DB_SYSTEM,
                 ]),
         ]);
     }
@@ -304,7 +337,8 @@ class MysqliTest extends IntegrationTestCase
             'out.port' => self::$port,
             'db.type' => 'mysql',
             Tag::SPAN_KIND => 'client',
-            Tag::COMPONENT => 'mysqli'
+            Tag::COMPONENT => 'mysqli',
+            Tag::DB_SYSTEM => 'mysql',
         ];
     }
 

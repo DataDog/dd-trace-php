@@ -19,6 +19,7 @@ const CMD_MAX_LEN = 1000;
 class PredisIntegration extends Integration
 {
     const NAME = 'predis';
+    const SYSTEM = 'redis';
 
     const DEFAULT_SERVICE_NAME = 'redis';
 
@@ -187,6 +188,7 @@ class PredisIntegration extends Integration
         $span->service = ObjectKVStore::get($predis, 'service', PredisIntegration::DEFAULT_SERVICE_NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PredisIntegration::NAME;
+        $span->meta[Tag::DB_SYSTEM] = PredisIntegration::SYSTEM;
 
         foreach (ObjectKVStore::get($predis, 'connection_meta', []) as $tag => $value) {
             $span->meta[$tag] = $value;

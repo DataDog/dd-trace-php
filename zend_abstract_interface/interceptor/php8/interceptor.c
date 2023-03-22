@@ -1,6 +1,7 @@
 #include <Zend/zend_observer.h>
 #include <hook/hook.h>
 #include <hook/table.h>
+#include <Zend/zend_attributes.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_generators.h>
 #include "interceptor.h"
@@ -22,8 +23,8 @@ typedef struct {
     bool implicit;
 } zai_frame_memory;
 
-__thread HashTable zai_interceptor_implicit_generators;
-__thread HashTable zai_hook_memory;
+ZEND_TLS HashTable zai_interceptor_implicit_generators;
+ZEND_TLS HashTable zai_hook_memory;
 // execute_data is 16 byte aligned (except when it isn't, but it doesn't matter as zend_execute_data is big enough
 // our goal is to reduce conflicts
 static inline bool zai_hook_memory_table_insert(zend_execute_data *index, zai_frame_memory *inserting) {
@@ -40,6 +41,9 @@ static inline bool zai_hook_memory_table_del(zend_execute_data *index) {
 }
 
 #if defined(__x86_64__) || defined(__aarch64__)
+# if defined(__GNUC__) && !defined(__clang__)
+__attribute__((no_sanitize_address))
+# endif
 static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, zai_frame_memory *frame_memory) {
     if (!CG(unclean_shutdown)) {
         zai_hook_finish(execute_data, retval, &frame_memory->hook_data);
@@ -410,6 +414,22 @@ static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(ze
 }
 
 #if PHP_VERSION_ID < 80200
+static inline bool zai_interceptor_is_attribute_ctor(zend_function *func) {
+    zend_class_entry *ce = func->common.scope;
+    return ce && UNEXPECTED(ce->attributes) && UNEXPECTED(zend_get_attribute_str(ce->attributes, ZEND_STRL("attribute")) != NULL)
+        && zend_string_equals_literal_ci(func->common.function_name, "__construct");
+}
+
+static void zai_interceptor_observer_begin_handler_attribute_ctor(zend_execute_data *execute_data) {
+    // On PHP 8.1.2 and prior, there exists a bug (see https://github.com/php/php-src/pull/7885).
+    // It causes the dummy frame of observers to not be skipped, which has no run_time_cache and thereby crashes, if unwound across.
+    // Adding the ZEND_ACC_CALL_VIA_TRAMPOLINE flag causes the frame to be always skipped on observer_end unwind
+    if (execute_data->prev_execute_data && !ZEND_MAP_PTR(execute_data->prev_execute_data->func->op_array.run_time_cache)) {
+        execute_data->prev_execute_data->func->common.fn_flags |= ZEND_ACC_CALL_VIA_TRAMPOLINE;
+    }
+    zai_interceptor_observer_begin_handler(execute_data);
+}
+
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
 #define ZEND_OBSERVER_DATA(op_array) \
@@ -434,6 +454,11 @@ void zai_interceptor_replace_observer_legacy(zend_function *func, bool remove) {
 
     zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(op_array);
     if (!data) {
+        return;
+    }
+
+    // Always observe these for their special handling, to add trampoline flag on parent call
+    if (zai_interceptor_is_attribute_ctor(func)) {
         return;
     }
 
@@ -593,12 +618,20 @@ static zend_always_inline bool zai_interceptor_shall_install_handlers(zend_funct
 
 static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_execute_data *execute_data) {
     zend_function *func = execute_data->func;
+#if PHP_VERSION_ID < 80200
+    #undef zai_interceptor_replace_observer
+
+    // short-circuit this, it only happens on old versions, avoid checking overhead if unnecessary
+    if (zai_interceptor_replace_observer != zai_interceptor_replace_observer_current && zai_interceptor_is_attribute_ctor(func)) {
+        return (zend_observer_fcall_handlers){zai_interceptor_observer_begin_handler_attribute_ctor, zai_interceptor_observer_end_handler};
+    }
+#endif
+
     if (UNEXPECTED(zai_interceptor_shall_install_handlers(func))) {
         return zai_interceptor_determine_handlers(func);
     }
 
 #if PHP_VERSION_ID < 80200
-#undef zai_interceptor_replace_observer
     // Use one-time begin handler which will remove itself
     return (zend_observer_fcall_handlers){zai_interceptor_replace_observer == zai_interceptor_replace_observer_current ? NULL : zai_interceptor_observer_placeholder_handler, NULL};
 #else
@@ -647,7 +680,7 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
 
 #if PHP_VERSION_ID < 80200
 static void (*prev_execute_internal)(zend_execute_data *execute_data, zval *return_value);
-static inline void zai_interceptor_execute_internal_impl(zend_execute_data *execute_data, zval *return_value, bool prev) {
+static inline void zai_interceptor_execute_internal_impl(zend_execute_data *execute_data, zval *return_value, bool prev, zif_handler handler) {
     zend_function *func = execute_data->func;
     if (UNEXPECTED(zai_hook_installed_internal(&func->internal_function))) {
         zai_frame_memory frame_memory;
@@ -661,7 +694,7 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
             if (prev) {
                 prev_execute_internal(execute_data, return_value);
             } else {
-                func->internal_function.handler(execute_data, return_value);
+                handler(execute_data, return_value);
             }
         } zend_catch {
             zend_execute_data *active_execute_data = EG(current_execute_data);
@@ -695,17 +728,26 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
         if (prev) {
             prev_execute_internal(execute_data, return_value);
         } else {
-            func->internal_function.handler(execute_data, return_value);
+            handler(execute_data, return_value);
         }
     }
 }
 
 static void zai_interceptor_execute_internal_no_prev(zend_execute_data *execute_data, zval *return_value) {
-    zai_interceptor_execute_internal_impl(execute_data, return_value, false);
+    zai_interceptor_execute_internal_impl(execute_data, return_value, false, execute_data->func->internal_function.handler);
 }
 
 static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zval *return_value) {
-    zai_interceptor_execute_internal_impl(execute_data, return_value, true);
+    zai_interceptor_execute_internal_impl(execute_data, return_value, true, NULL);
+}
+
+void zai_interceptor_execute_internal_with_handler(INTERNAL_FUNCTION_PARAMETERS, zif_handler handler) {
+    zai_frame_memory *frame_memory;
+    if (zai_hook_memory_table_find(execute_data, &frame_memory)) {
+        handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    } else {
+        zai_interceptor_execute_internal_impl(execute_data, return_value, false, handler);
+    }
 }
 #endif
 
@@ -717,6 +759,7 @@ static zend_result (*prev_post_startup)(void);
 zend_result zai_interceptor_post_startup(void) {
     zend_result result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
 
+    zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
 #if PHP_VERSION_ID < 80200
     zai_registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;

@@ -65,7 +65,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
-                    Tag::COMPONENT => 'mongodb'
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
@@ -108,7 +109,8 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
-                Tag::COMPONENT => 'mongodb'
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
             ])->withChildren([
                 SpanAssertion::exists('mongodb.driver.cmd')
             ]),
@@ -165,7 +167,8 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
-                Tag::COMPONENT => 'mongodb'
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
             ])->withChildren([
                 SpanAssertion::exists('mongodb.driver.cmd')
             ]),
@@ -190,7 +193,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
-                    Tag::COMPONENT => 'mongodb'
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
                 ])->setError('MongoDB\Exception\InvalidArgumentException')
                 ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
@@ -210,7 +214,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
-                    Tag::COMPONENT => 'mongodb'
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
@@ -290,7 +295,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
-                    Tag::COMPONENT => 'mongodb'
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
@@ -381,7 +387,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
-                    Tag::COMPONENT => 'mongodb'
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
@@ -486,7 +493,8 @@ class MongoDBTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
-                    Tag::COMPONENT => 'mongodb'
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ];
 
@@ -528,7 +536,8 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
-                Tag::COMPONENT => 'mongodb'
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
             ]),
         ];
 
@@ -571,7 +580,8 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
-                Tag::COMPONENT => 'mongodb'
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
             ]),
         ];
 
@@ -626,7 +636,8 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
-                Tag::COMPONENT => 'mongodb'
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
             ]),
         ];
 
@@ -681,7 +692,8 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
-                Tag::COMPONENT => 'mongodb'
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
             ])
         ];
 
@@ -751,7 +763,8 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.deletes.1.filter' => '{"brand":"?"}',
                 'mongodb.updates.0.filter' => '{"brand":"?"}',
                 'mongodb.insertsCount' => 2,
-                Tag::COMPONENT => 'mongodb'
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
             ]),
         ]);
     }
@@ -781,7 +794,8 @@ class MongoDBTest extends IntegrationTestCase
                 'span.kind' => 'client',
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
-                Tag::COMPONENT => 'mongodb'
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
             ])->setError()
                 ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
         ]);

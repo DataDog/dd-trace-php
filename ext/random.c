@@ -12,14 +12,26 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-void ddtrace_seed_prng(void) {
+static void ddtrace_seed_prng_with_optional_seed(zend_long seedconfig) {
     unsigned long long seed;
-    if (get_DD_TRACE_DEBUG_PRNG_SEED() > 0) {
-        seed = get_DD_TRACE_DEBUG_PRNG_SEED();
+    if (seedconfig > 0) {
+        seed = seedconfig;
     } else if (php_random_int_silent(ZEND_LONG_MIN, ZEND_LONG_MAX, (zend_long *)&seed) == FAILURE) {
         seed = GENERATE_SEED();
     }
     init_genrand64(seed);
+
+}
+
+void ddtrace_seed_prng(void) {
+    ddtrace_seed_prng_with_optional_seed(get_DD_TRACE_DEBUG_PRNG_SEED());
+}
+
+// Allow for usage in phpunit testsuite
+bool ddtrace_reseed_seed_change(zval *old_value, zval *new_value) {
+    UNUSED(old_value, new_value);
+    ddtrace_seed_prng_with_optional_seed(Z_LVAL_P(new_value));
+    return true;
 }
 
 uint64_t ddtrace_parse_userland_span_id(zval *zid) {
@@ -37,13 +49,10 @@ uint64_t ddtrace_parse_userland_span_id(zval *zid) {
     return (uid && errno == 0) ? uid : 0U;
 }
 
-ddtrace_trace_id ddtrace_parse_userland_trace_id(zval *zid) {
-    if (!zid || Z_TYPE_P(zid) != IS_STRING) {
-        return (ddtrace_trace_id){ 0 };
-    }
+ddtrace_trace_id ddtrace_parse_userland_trace_id(zend_string *tid) {
     ddtrace_trace_id num = {0};
-    const char *id = Z_STRVAL_P(zid);
-    for (size_t i = 0; i < Z_STRLEN_P(zid); i++) {
+    const char *id = ZSTR_VAL(tid);
+    for (size_t i = 0; i < ZSTR_LEN(tid); i++) {
         if (id[i] < '0' || id[i] > '9') {
             return (ddtrace_trace_id){ 0 };
         }

@@ -118,7 +118,8 @@ RUN set -eux; \
     mkdir -p /opt/cmake/${CMAKE_VERSION}; \
     tar --strip-components 1 -C /opt/cmake/${CMAKE_VERSION} -xf /tmp/cmake.tar.gz; \
 # Currently there's only one version of cmake, make it default
-    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake;
+    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake; \
+    rm -rfv /tmp/*
 
 # Install Catch2
 RUN set -eux; \
@@ -129,7 +130,8 @@ RUN set -eux; \
     mkdir catch2 && cd catch2; \
     tar -xf ../v${CATCH2_VERSION}.tar.gz --strip 1; \
     /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
-    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install;
+    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install; \
+    rm -rfv /tmp/*
 
 # Install lcov
 RUN set -eux; \
@@ -140,7 +142,8 @@ RUN set -eux; \
     mkdir lcov && cd lcov; \
     tar -xf ../lcov-${LCOV_VERSION}.tar.gz --strip 1; \
     make install; \
-    lcov --version;
+    lcov --version; \
+    rm -rfv /tmp/*
 
 # Apache config
 ENV APACHE_CONFDIR /etc/apache2
@@ -243,9 +246,9 @@ RUN set -eux; \
     rm -fr "libuv-${LIBUV_VERSION}";
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.60.0"
-ARG RUST_SHA256_ARM="99c419c2f35d4324446481c39402c7baecd7a8baed7edca9f8d6bbd33c05550c"
-ARG RUST_SHA256_X86="b8a4c3959367d053825e31f90a5eb86418eb0d80cacda52bfa80b078e18150d5"
+ARG RUST_VERSION="1.64.0"
+ARG RUST_SHA256_ARM="7d8860572431bd4ee1b9cd0cd77cf7ff29fdd5b91ed7c92a820f872de6ced558"
+ARG RUST_SHA256_X86="a893977f238291370ab96726a74b6b9ae854dc75fbf5730954d901a93843bf9b"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
@@ -260,12 +263,10 @@ RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && cd ${FILENAME%.tar.gz} \
     && ./install.sh --components="rustc,cargo,clippy-preview,rustfmt-preview,rust-std-${MARCH}-unknown-linux-gnu" \
     && cd - \
-    && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
+    && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" \
+    && rm -rfv /tmp/*
 
 ENV PATH="/rust/cargo/bin:${PATH}"
-
-# clean /tmp
-RUN rm -rf /tmp/*
 
 # Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
 # be changed without an appropriate code review.

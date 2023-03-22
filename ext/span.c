@@ -186,8 +186,31 @@ set_trace_id_from_span_id:
     } else {
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
-        ZVAL_COPY(ddtrace_spandata_property_service(span), ddtrace_spandata_property_service(parent_span));
-        ZVAL_COPY(ddtrace_spandata_property_type(span), ddtrace_spandata_property_type(parent_span));
+        zval *prop_service = ddtrace_spandata_property_service(span);
+        zval_ptr_dtor(prop_service);
+        ZVAL_COPY(prop_service, ddtrace_spandata_property_service(parent_span));
+        zval *prop_type = ddtrace_spandata_property_type(span);
+        zval_ptr_dtor(prop_type);
+        ZVAL_COPY(prop_type, ddtrace_spandata_property_type(parent_span));
+
+        zend_array *meta = ddtrace_spandata_property_meta(span), *parent_meta = ddtrace_spandata_property_meta(parent_span);
+        zval *version;
+        if ((version = zend_hash_str_find(parent_meta, ZEND_STRL("version")))) {
+            Z_TRY_ADDREF_P(version);
+            zend_hash_str_add_new(meta, ZEND_STRL("version"), version);
+        }
+
+        zval *env;
+        if ((env = zend_hash_str_find(parent_meta, ZEND_STRL("env")))) {
+            Z_TRY_ADDREF_P(env);
+            zend_hash_str_add_new(meta, ZEND_STRL("env"), env);
+        }
+
+        zval *origin;
+        if ((origin = zend_hash_str_find(parent_meta, ZEND_STRL("_dd.origin")))) {
+            Z_TRY_ADDREF_P(origin);
+            zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), origin);
+        }
     }
 
     span->root = DDTRACE_G(active_stack)->root_span;
@@ -287,6 +310,13 @@ ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type) {
     object_init_ex(&fci_zv, ddtrace_ce_span_data);
     ddtrace_span_data *span = (ddtrace_span_data *)Z_OBJ(fci_zv);
     span->type = type;
+    return span;
+}
+
+ddtrace_span_data *ddtrace_init_dummy_span(void) {
+    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN);
+    span->std.handlers->get_constructor(&span->std);
+    span->duration = DDTRACE_SILENTLY_DROPPED_SPAN;
     return span;
 }
 

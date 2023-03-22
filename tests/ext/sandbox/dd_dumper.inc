@@ -14,13 +14,13 @@ function dd_dump_spans($skipMeta = false)
 
     $printSpan = function($span, $indent = 2) use ($skipMeta) {
         $values = [];
-        if (isset($span['service'])) {
+        if (($span['service'] ?? "") != "") {
             $values[] = $span['service'];
         }
-        if (isset($span['resource'])) {
+        if (($span['resource'] ?? "") != "") {
             $values[] = $span['resource'];
         }
-        if (isset($span['type'])) {
+        if (($span['type'] ?? "") != "") {
             $values[] = $span['type'];
         }
 

@@ -165,22 +165,24 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'elasticsearch';
             $excluded[] = 'eloquent';
             $excluded[] = 'lumen';
+            $excluded[] = 'memcache';
             $excluded[] = 'memcached';
             $excluded[] = 'mongodb';
             $excluded[] = 'nette';
             $excluded[] = 'pdo';
             $excluded[] = 'phpredis';
             $excluded[] = 'predis';
+            $excluded[] = 'psr18';
             $excluded[] = 'roadrunner';
             $excluded[] = 'slim';
             $excluded[] = 'symfony';
             $excluded[] = 'wordpress';
             $excluded[] = 'yii';
+            $excluded[] = 'zendframework';
         }
         if (\PHP_MAJOR_VERSION >= 8) {
             // Integrations that do not support PHP 8
             $excluded[] = 'mongo';
-            $excluded[] = 'zendframework';
         }
         foreach ($excluded as $integrationToExclude) {
             $index = array_search($integrationToExclude, $expected, true);

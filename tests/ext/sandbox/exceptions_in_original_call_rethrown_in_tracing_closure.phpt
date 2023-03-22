@@ -29,4 +29,4 @@ array_map(function($span) {
 ?>
 --EXPECTF--
 a()
-a with exception: Uncaught Exception: Oops! in %s:%d
+a with exception: Thrown Exception: Oops! in %s:%d

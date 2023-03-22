@@ -1,7 +1,10 @@
 #!/bin/bash
 set -eux
 
-SHARED_BUILD=$(if php -i | grep -q shared; then echo 1; else echo 0; fi)
+# The '=' is to avoid cases like:
+#     $_ENV['sharedBuild'] => 0
+# Which is an env-var we set ourselves.
+SHARED_BUILD=$(if php -i | grep -q =shared; then echo 1; else echo 0; fi)
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 XDEBUG_VERSIONS=(-3.1.2)
@@ -27,6 +30,11 @@ fi
 AST_VERSION=
 if [[ $PHP_VERSION_ID -le 71 ]]; then
   AST_VERSION=-1.0.16
+fi
+
+MEMCACHE_VERSION=
+if [[ $PHP_VERSION_ID -le 74 ]]; then
+  MEMCACHE_VERSION=-4.0.5.2
 fi
 
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
@@ -89,6 +97,7 @@ else
     yes '' | pecl install mcrypt$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -1.0.0; fi); echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini;
   fi
   yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
+  yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
   pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini;
   # Xdebug is disabled by default

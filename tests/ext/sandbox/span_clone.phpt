@@ -22,7 +22,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (9) {
+object(DDTrace\SpanData)#%d (10) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -41,6 +41,8 @@ object(DDTrace\SpanData)#%d (9) {
     ["process_id"]=>
     float(%f)
   }
+  ["exception"]=>
+  NULL
   ["id"]=>
   string(%d) "%d"
   ["parent"]=>
@@ -58,7 +60,7 @@ object(DDTrace\SpanData)#%d (9) {
     *RECURSION*
   }
 }
-object(DDTrace\SpanData)#%d (9) {
+object(DDTrace\SpanData)#%d (10) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -77,6 +79,8 @@ object(DDTrace\SpanData)#%d (9) {
     ["process_id"]=>
     float(%f)
   }
+  ["exception"]=>
+  NULL
   ["id"]=>
   string(%d) "%d"
   ["parent"]=>
@@ -91,7 +95,7 @@ object(DDTrace\SpanData)#%d (9) {
       NULL
     }
     ["active"]=>
-    object(DDTrace\SpanData)#%d (9) {
+    object(DDTrace\SpanData)#%d (10) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -110,6 +114,8 @@ object(DDTrace\SpanData)#%d (9) {
         ["process_id"]=>
         float(%f)
       }
+      ["exception"]=>
+      NULL
       ["id"]=>
       string(%d) "%d"
       ["parent"]=>

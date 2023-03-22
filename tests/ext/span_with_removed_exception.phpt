@@ -2,6 +2,13 @@
 Unset, nulled and generally invalid data in exception property is ignored
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--SKIPIF--
+<?php
+if (version_compare(PHP_VERSION, '7.4.0', '>='))
+    die('skip: test only works before 7.4');
+# In 7.4+, an error would be caught by trying to assign an stdClass object to the exception property, since it
+# expects a ?Throwable
+?>
 --FILE--
 <?php
 
