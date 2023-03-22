@@ -15,16 +15,15 @@ preloading is done.
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70400)
-    echo "skip: need preloading and therefore PHP ";
+    echo "skip: need preloading and therefore PHP", PHP_EOL;
 if (!extension_loaded('datadog-profiling'))
-    echo "skip: test requires datadog-profiling\n";
+    echo "skip: test requires datadog-profiling", PHP_EOL;
 ?>
---ENV--
-DD_PROFILING_ENABLED=yes
-DD_PROFILING_LOG_LEVEL=debug
-DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
-DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=no
 --INI--
+datadog.profiling.enabled=yes
+datadog.profiling.log_level=debug
+datadog.profiling.experimental_allocation_enabled=no
+datadog.profiling.experimental_cpu_time_enabled=no
 zend_extension=opcache
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
