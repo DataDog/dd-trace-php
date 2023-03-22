@@ -56,8 +56,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
-                        SpanAssertion::exists('laminas.moduleManager.loadModule')
-                            ->onlyIf(PHP_MAJOR_VERSION < 8), // ZendFramework Bridge
                         SpanAssertion::exists('laminas.application.bootstrap')->withChildren([
                             SpanAssertion::exists('laminas.event.bootstrap')->withChildren([
                                 SpanAssertion::build(
@@ -121,8 +119,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
-                        SpanAssertion::exists('laminas.moduleManager.loadModule')
-                            ->onlyIf(PHP_MAJOR_VERSION < 8), // ZendFramework Bridge
                         SpanAssertion::exists('laminas.application.bootstrap')->withChildren([
                             SpanAssertion::exists('laminas.event.bootstrap')->withChildren([
                                 SpanAssertion::build(
@@ -217,8 +213,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
-                        SpanAssertion::exists('laminas.moduleManager.loadModule')
-                            ->onlyIf(PHP_MAJOR_VERSION < 8), // ZendFramework Bridge
                         SpanAssertion::exists('laminas.application.bootstrap')->withChildren([
                             SpanAssertion::exists('laminas.event.bootstrap')->withChildren([
                                 SpanAssertion::build(
@@ -327,8 +321,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
                         SpanAssertion::exists('laminas.moduleManager.loadModule'),
-                        SpanAssertion::exists('laminas.moduleManager.loadModule')
-                            ->onlyIf(PHP_MAJOR_VERSION < 8), // ZendFramework Bridge
                         SpanAssertion::exists('laminas.application.bootstrap')->withChildren([
                             SpanAssertion::exists('laminas.event.bootstrap')->withChildren([
                                 SpanAssertion::build(
