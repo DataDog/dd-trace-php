@@ -79,8 +79,8 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 
 void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }
 
-zend_module_entry *datadog_get_module_entry(const uint8_t *str, uintptr_t len) {
-    return zend_hash_str_find_ptr(&module_registry, (const char *)str, len);
+zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
+    return zend_hash_str_find_ptr(&module_registry, str, len);
 }
 
 ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =
@@ -132,8 +132,7 @@ zai_string_view ddog_php_prof_zend_string_view(zend_string *zstr) {
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                void* (*_malloc)(size_t),
                                                void  (*_free)(void*),
-                                               void* (*_realloc)(void*, size_t))
-{
+                                               void* (*_realloc)(void*, size_t)) {
     zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #if PHP_VERSION_ID < 70300
     if (!_malloc && !_free && !_realloc) {
@@ -142,7 +141,60 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
 #endif
 }
 
-zend_execute_data* ddog_php_prof_get_current_execute_data()
-{
+zend_execute_data* ddog_php_prof_get_current_execute_data() {
     return EG(current_execute_data);
+}
+
+#if PHP_VERSION_ID >= 80000
+static int ddog_php_prof_run_time_cache_handle = -1;
+#endif
+
+void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
+#if PHP_VERSION_ID >= 80000
+    // Grab 2, one for function name and one for filename.
+#if PHP_VERSION_ID < 80200
+    ddog_php_prof_run_time_cache_handle =
+        zend_get_op_array_extension_handle(module_name);
+    int second = zend_get_op_array_extension_handle(module_name);
+    ZEND_ASSERT(ddog_php_prof_run_time_cache_handle + 1 == second);
+#else
+    ddog_php_prof_run_time_cache_handle =
+        zend_get_op_array_extension_handles(module_name, 2);
+#endif
+#endif
+
+    /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
+     * that weren't truly fixed until PHP 8:
+     * https://github.com/php/php-src/pull/5871
+     * I would rather avoid these bugs for now.
+     */
+}
+
+uintptr_t *ddog_php_prof_function_run_time_cache(zend_function *func) {
+#if PHP_VERSION_ID < 80000
+    /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
+     * that weren't truly fixed until PHP 8:
+     * https://github.com/php/php-src/pull/5871
+     * I would rather avoid these bugs for now.
+     */
+    return NULL;
+#else
+
+    // It should be initialized by this point, or we failed.
+    if (ddog_php_prof_run_time_cache_handle < 0) return NULL;
+
+#if PHP_VERSION_ID < 80200
+    // internal functions don't have a runtime cache until PHP 8.2
+    if (func->type == ZEND_INTERNAL_FUNCTION) return NULL;
+
+    uintptr_t *cache_addr = RUN_TIME_CACHE(&func->op_array);
+#else
+    uintptr_t *cache_addr = RUN_TIME_CACHE(&func->common);
+#endif
+
+    // To my knowledge, this is always a bug, but it has happened.
+    if (!cache_addr) return 0;
+
+    return cache_addr + ddog_php_prof_run_time_cache_handle;
+#endif
 }

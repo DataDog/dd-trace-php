@@ -5,6 +5,7 @@ mod logging;
 mod pcntl;
 mod profiling;
 mod sapi;
+mod string_table;
 
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
@@ -49,16 +50,18 @@ static PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
 /// interior null bytes and must be null terminated.
 static PROFILER_NAME: &[u8] = b"datadog-profiling\0";
 
+/// Name of the profiling module and zend_extension, but as a &CStr.
+// Safety: null terminated, contains no interior null bytes.
+static PROFILER_NAME_CSTR: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(PROFILER_NAME) };
+
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
 lazy_static! {
     // Safety: PROFILER_NAME is a byte slice that satisfies the safety requirements.
-    static ref PROFILER_NAME_STR: &'static str = unsafe { CStr::from_ptr(PROFILER_NAME.as_ptr() as *const c_char) }
-        .to_str()
-        // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
-        .unwrap();
+    // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
+    static ref PROFILER_NAME_STR: &'static str = PROFILER_NAME_CSTR.to_str().unwrap();
 
     // Safety: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
     static ref PROFILER_VERSION_STR: &'static str = unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char) }
@@ -106,7 +109,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     ];
 
     let module = zend::ModuleEntry {
-        name: PROFILER_NAME.as_ptr() as *const u8,
+        name: PROFILER_NAME.as_ptr(),
         module_startup_func: Some(minit),
         module_shutdown_func: Some(mshutdown),
         request_startup_func: Some(rinit),
@@ -225,7 +228,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
          * At the time of this writing, PHP 8.2 isn't out yet so it's possible
          * it may get reverted if issues are found.
          */
-        let str = PROFILER_NAME.as_ptr();
+        let str = PROFILER_NAME_CSTR.as_ptr();
         let len = PROFILER_NAME.len() - 1; // ignore trailing null byte
 
         // Safety: str is valid for at least len values.
@@ -730,6 +733,15 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RSHUTDOWN({}, {})", r#type, module_number);
 
+    #[cfg(php8)]
+    {
+        profiling::FUNCTION_CACHE_STATS.with(|cell| {
+            let stats = cell.borrow();
+            let hit_rate = stats.hit_rate();
+            debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
+        });
+    }
+
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
 
@@ -931,6 +943,12 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 
     // Safety: called during startup hook with correct params.
     unsafe { zend::datadog_php_profiling_startup(extension) };
+
+    #[cfg(php8)]
+    // Safety: calling this in startup/minit as required.
+    unsafe {
+        bindings::ddog_php_prof_function_run_time_cache_init(PROFILER_NAME_CSTR.as_ptr())
+    };
 
     // Ignore a failure as ZEND_VERSION.get() will return an Option if it's not set.
     let _ = ZEND_VERSION.get_or_try_init(|| {
