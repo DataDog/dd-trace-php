@@ -140,7 +140,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         $response = $this->sendRequest(
             $spec->getMethod(),
             self::HOST . ':' . self::PORT . $spec->getPath(),
-            $spec->getHeaders()
+            $spec->getHeaders(),
+            $spec->getBody()
         );
         return $response;
     }
@@ -151,15 +152,20 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * @param string $method
      * @param string $url
      * @param string[] $headers
+     * @param array|string $body
      * @return mixed|null
      */
-    protected function sendRequest($method, $url, $headers = [])
+    protected function sendRequest($method, $url, $headers = [], $body = [])
     {
         for ($i = 0; $i < 10; ++$i) {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            if ($method === 'POST') {
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, is_array($body) ? json_encode($body) : $body);
+            }
             if ($headers) {
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             }

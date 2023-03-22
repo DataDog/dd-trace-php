@@ -1,6 +1,5 @@
 --TEST--
-root span without query string in http.url
---SKIPIF--
+Root span without query string in http.url
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED=''

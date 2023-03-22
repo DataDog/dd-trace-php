@@ -736,6 +736,16 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
+      - when:
+          condition:
+            and:
+              - equal: [ "8.0", << parameters.php_major_minor >> ]
+              - not:
+                equal: [ "test_composer", << parameters.make_target >> ]
+          steps:
+            - run:
+                name: Updating composer to v2
+                command: sudo composer self-update --2 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
@@ -838,6 +848,9 @@ jobs:
   integration_tests:
     working_directory: ~/datadog
     parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
       docker_image:
         type: string
       integration_testsuite:
@@ -867,6 +880,14 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
+      - when:
+          condition:
+            and:
+              - equal: [ "8.0", << parameters.php_major_minor >> ]
+          steps:
+            - run:
+                name: Updating composer to v2
+                command: sudo composer self-update --2 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
@@ -1879,11 +1900,15 @@ jobs:
       - run:
           name: Build Profiler
           command: |
+            if [ -d '/opt/rh/devtoolset-7' ] ; then
+                set +eo pipefail
+                source scl_source enable devtoolset-7
+                set -eo pipefail
+            fi
             set -u
             libdir=$PWD/datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
             mkdir -vp "${libdir}"
             command -v switch-php && switch-php "${PHP_VERSION}"
-            set -e
             cd profiling
             cargo build --release
             cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${libdir}/datadog-profiling.so"
@@ -1922,9 +1947,13 @@ jobs:
       - run:
           name: cargo tests
           command: |
+            if [ -d '/opt/rh/devtoolset-7' ] ; then
+                set +eo pipefail
+                source scl_source enable devtoolset-7
+                set -eo pipefail
+            fi
             set -u
             command -v switch-php && switch-php "${PHP_VERSION}"
-            set -e
             cd profiling
             cargo test --release
       - run:
@@ -3067,6 +3096,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
+          php_major_minor: "7.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
@@ -3074,6 +3104,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
+          php_major_minor: "7.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 web tests with nginx + FastCGI"
@@ -3081,6 +3112,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
+          php_major_minor: "7.3"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with apache (+ opcache)"
@@ -3088,6 +3120,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with nginx + FastCGI"
@@ -3095,6 +3128,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 web tests with apache (+ opcache)"
@@ -3102,6 +3136,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          php_major_minor: "8.0"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 web tests with nginx + FastCGI"
@@ -3109,6 +3144,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          php_major_minor: "8.0"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 81 web tests with apache (+ opcache)"
@@ -3116,6 +3152,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          php_major_minor: "8.1"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 81 web tests with nginx + FastCGI"
@@ -3123,6 +3160,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          php_major_minor: "8.1"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 82 web tests with apache (+ opcache)"
@@ -3130,6 +3168,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          php_major_minor: "8.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 82 web tests with nginx + FastCGI"
@@ -3137,6 +3176,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          php_major_minor: "8.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
@@ -3144,6 +3184,7 @@ workflows:
           sapi: fpm-fcgi
           integration_testsuite: "test_web_custom"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
 
       - min_install_tests:
           requires: [ 'package extension' ]

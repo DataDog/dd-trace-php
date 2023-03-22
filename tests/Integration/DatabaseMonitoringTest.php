@@ -31,7 +31,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
             $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
                 $hook->span()->service = "testdb";
                 $hook->span()->name = "instrumented";
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 1);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             });
             self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
             self::putEnv("DD_DBM_PROPAGATION_MODE=full");
@@ -76,5 +76,18 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $this->assertSame("/*dde='0',ddpv='0'*/ q", $commented);
 
         $this->resetTracer();
+    }
+
+    public function noInjectionWithUnsupportedDriver()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlite');
+            });
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            $this->assertSame("SELECT 1", $this->instrumented(0, "SELECT 1"));
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
     }
 }
