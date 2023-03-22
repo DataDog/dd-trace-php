@@ -2153,7 +2153,9 @@ jobs:
 
       - run:
           name: Install python 3.9
-          command: sudo apt-get install python3.9-venv
+          command: |
+            sudo apt-get update
+            sudo apt-get install python3.9-venv
 
       - run:
           name: versions
