@@ -36,6 +36,8 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
                                         zai_string_view default_value, zai_config_id entry_id) {
     if (!env_to_ini_name) return -1;
 
+    zai_config_memoized_entry *memoized = &zai_config_memoized_entries[entry_id];
+
 #if ZTS
     pthread_rwlock_wrlock(&lock_ini_init_rw);
 #endif
@@ -50,6 +52,14 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
             // Try working around ...
             zend_string *ini_str = entries[i]->modified ? entries[i]->orig_value : entries[i]->value;
             if (ZSTR_LEN(ini_str) != default_value.len || strcmp(ZSTR_VAL(ini_str), default_value.ptr) != 0) {
+                // validate
+                zval new_zv;
+                ZVAL_UNDEF(&new_zv);
+                if (!zai_config_decode_value(ZAI_STRING_FROM_ZSTR(ini_str), memoized->type, memoized->parser, &new_zv, true)) {
+                    continue;
+                }
+                zai_config_dtor_pzval(&new_zv);
+
                 parsed_ini_value = zend_string_copy(ini_str);
                 name_index = i;
                 break;
@@ -66,12 +76,21 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
         }
         zval *inizv = cfg_get_entry(ZSTR_VAL(entries[i]->name), ZSTR_LEN(entries[i]->name));
         if (inizv != NULL && !parsed_ini_value) {
+            // validate
+            zval new_zv;
+            ZVAL_UNDEF(&new_zv);
+            if (!zai_config_decode_value(ZAI_STRING_FROM_ZSTR(Z_STR_P(inizv)), memoized->type, memoized->parser, &new_zv, true)) {
+                continue;
+            }
+            zai_config_dtor_pzval(&new_zv);
+
             parsed_ini_value = zend_string_copy(Z_STR_P(inizv));
             name_index = i;
+            break;
         }
     }
 
-    if (!zai_config_memoized_entries[entry_id].original_on_modify) {
+    if (!memoized->original_on_modify) {
         for (int16_t i = 0; i < ini_count; ++i) {
             bool duplicate = false;
             for (int j = i + 1; j < ini_count; ++j) {

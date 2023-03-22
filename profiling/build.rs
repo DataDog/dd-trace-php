@@ -23,11 +23,39 @@ fn main() {
     let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
         .expect("`php-config`'s stdout to be valid utf8");
 
-    generate_bindings(php_config_includes);
-    build_zend_php_ffis(php_config_includes);
+    let vernum = php_config_vernum();
+    let preload = cfg_preload(vernum);
 
-    cfg_php_major_version();
+    generate_bindings(php_config_includes);
+    build_zend_php_ffis(php_config_includes, preload);
+
+    cfg_php_major_version(vernum);
     cfg_zts();
+}
+
+fn php_config_vernum() -> u64 {
+    let output = Command::new("php-config")
+        .arg("--vernum")
+        .output()
+        .expect("Unable to run `php-config`. Is it in your PATH?");
+
+    if !output.status.success() {
+        match String::from_utf8(output.stderr) {
+            Ok(stderr) => panic!("`php-config --vernum` failed: {}", stderr),
+            Err(err) => panic!(
+                "`php-config --vernum` failed, not utf8: {}",
+                String::from_utf8_lossy(err.as_bytes())
+            ),
+        }
+    }
+
+    let vernum = std::str::from_utf8(output.stdout.as_slice())
+        .expect("`php-config`'s stdout to be valid utf8");
+
+    vernum
+        .trim()
+        .parse::<u64>()
+        .expect("output to be a number and fit in u64")
 }
 
 const ZAI_H_FILES: &[&str] = &[
@@ -39,7 +67,7 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/json/json.h",
 ];
 
-fn build_zend_php_ffis(php_config_includes: &str) {
+fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.c");
@@ -68,9 +96,11 @@ fn build_zend_php_ffis(php_config_includes: &str) {
     println!("cargo:rustc-link-search=native={}/lib", prefix.trim());
 
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
+    let preload = if preload { "1" } else { "0" };
 
     cc::Build::new()
         .files(files.into_iter().chain(zai_c_files.into_iter()))
+        .define("CFG_PRELOAD", preload)
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
@@ -83,6 +113,7 @@ fn build_zend_php_ffis(php_config_includes: &str) {
         .flag_if_supported("-std=c17")
         .compile("php_ffi");
 }
+
 #[derive(Debug)]
 struct IgnoreMacros(HashSet<String>);
 
@@ -161,36 +192,27 @@ fn generate_bindings(php_config_includes: &str) {
         .expect("bindings to be written successfully");
 }
 
-fn cfg_php_major_version() {
-    let output = Command::new("php")
-        .arg("-r")
-        .arg("echo PHP_MAJOR_VERSION, PHP_EOL;")
-        .output()
-        .expect("Unable to run `php`. Is it in your PATH?");
-
-    if !output.status.success() {
-        match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php failed: {}", stderr),
-            Err(err) => panic!(
-                "`php` failed, not utf8: {}",
-                String::from_utf8_lossy(err.as_bytes())
-            ),
-        }
-    }
-
-    let version =
-        std::str::from_utf8(output.stdout.as_slice()).expect("`php`'s stdout to be valid utf8");
-
-    // Clean up surrounding whitespace for both printing and parsing.
-    let version = version.trim();
-
-    let parsed_version: u8 = version.parse().expect("version string to fit in u8");
-
-    if parsed_version == 7 || parsed_version == 8 {
-        println!("cargo:rustc-cfg=php{}", parsed_version);
+fn cfg_preload(vernum: u64) -> bool {
+    if vernum >= 70400 {
+        println!("cargo:rustc-cfg=php_preload");
+        true
     } else {
-        panic!("Unidentified major PHP version: {}", version);
+        false
     }
+}
+
+fn cfg_php_major_version(vernum: u64) {
+    let major_version = match vernum {
+        70000..=79999 => 7,
+        80000..=89999 => 8,
+        _ => panic!("Unsupported or unrecognized major PHP version number: {vernum}"),
+    };
+
+    // Note that this is a "bad use" of cfg in Rust. Configurations are meant
+    // to be additive, but these are exclusive. At the time of writing, this
+    // was best way I could think of to address php 7 vs php 8 code paths
+    // despite this misuse of the feature.
+    println!("cargo:rustc-cfg=php{major_version}");
 }
 
 fn cfg_zts() {

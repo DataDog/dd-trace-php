@@ -27,7 +27,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 #[cfg(feature = "allocation_profiling")]
@@ -442,6 +442,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         profiling_experimental_cpu_time_enabled,
         profiling_experimental_allocation_enabled,
         log_level,
+        output_pprof,
     ) = unsafe {
         (
             config::profiling_enabled(),
@@ -449,6 +450,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             config::profiling_experimental_cpu_time_enabled(),
             config::profiling_experimental_allocation_enabled(),
             config::profiling_log_level(),
+            config::profiling_output_pprof(),
         )
     };
 
@@ -537,6 +539,23 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         }
     });
 
+    // Preloading happens before zend_post_startup_cb is called for the first
+    // time. When preloading is enabled and a non-root user is used for
+    // php-fpm, there is fork that happens. In the past, having the profiler
+    // enabled at this time would cause php-fpm eventually hang once the
+    // Profiler's channels were full; this has been fixed. See:
+    // https://github.com/DataDog/dd-trace-php/issues/1919
+    //
+    // There are a few ways to handle this preloading scenario with the fork,
+    // but the  simplest is to not enable the profiler until the engine's
+    // startup is complete. This means the preloading will not be profiled,
+    // but this should be okay.
+    #[cfg(php_preload)]
+    if !unsafe { bindings::ddog_php_prof_is_post_startup() } {
+        debug!("zend_post_startup_cb hasn't happened yet; not enabling profiler.");
+        return ZendResult::Success;
+    }
+
     // reminder: this cannot be done in minit because of Apache forking model
     {
         /* It would be nice if this could be cheaper. OnceCell would be cheaper
@@ -546,7 +565,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
          */
         let mut profiler = PROFILER.lock().unwrap();
         if profiler.is_none() {
-            *profiler = Some(Profiler::new())
+            *profiler = Some(Profiler::new(output_pprof))
         }
     };
 
@@ -893,9 +912,9 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_mshutdown() };
 
-    let mut profiler = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler.take() {
-        profiler.stop();
+    let profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.as_ref() {
+        profiler.stop(Duration::from_secs(1));
     }
 
     ZendResult::Success
@@ -970,6 +989,11 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
+
+    let mut profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.take() {
+        profiler.shutdown(Duration::from_secs(2));
+    }
 }
 
 /// Notifies the profiler a trace has finished so it can update information

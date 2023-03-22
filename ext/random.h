@@ -16,7 +16,7 @@ uint64_t ddtrace_generate_span_id(void);
 uint64_t ddtrace_peek_span_id(void);
 ddtrace_trace_id ddtrace_peek_trace_id(void);
 uint64_t ddtrace_parse_userland_span_id(zval *zid);
-ddtrace_trace_id ddtrace_parse_userland_trace_id(zval *zid);
+ddtrace_trace_id ddtrace_parse_userland_trace_id(zend_string *tid);
 uint64_t ddtrace_parse_hex_span_id_str(const char *id, size_t len);
 uint64_t ddtrace_parse_hex_span_id(zval *zid);
 int ddtrace_conv10_trace_id(ddtrace_trace_id id, uint8_t reverse[DD_TRACE_MAX_ID_LEN]);

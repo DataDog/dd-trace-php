@@ -8,21 +8,11 @@ array_map(function ($data) {
     var_dump($data, dd_trace_serialize_msgpack($data));
     echo "\n";
 }, [
-    true,
-    'foo',
     [new stdClass()],
     ['bar', stream_context_create()],
 ]);
 ?>
 --EXPECTF--
-Expected argument to dd_trace_serialize_msgpack() to be an array
-bool(true)
-bool(false)
-
-Expected argument to dd_trace_serialize_msgpack() to be an array
-string(3) "foo"
-bool(false)
-
 Serialize values must be of type array, string, int, float, bool or null
 array(1) {
   [0]=>

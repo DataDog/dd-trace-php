@@ -16,6 +16,7 @@
     INTEGRATION(GUZZLE, "guzzle")               \
     INTEGRATION(LARAVEL, "laravel")             \
     INTEGRATION(LUMEN, "lumen")                 \
+    INTEGRATION(MEMCACHE, "memcache")           \
     INTEGRATION(MEMCACHED, "memcached")         \
     INTEGRATION(MONGO, "mongo")                 \
     INTEGRATION(MONGODB, "mongodb")             \
@@ -25,6 +26,7 @@
     INTEGRATION(PDO, "pdo")                     \
     INTEGRATION(PHPREDIS, "phpredis")           \
     INTEGRATION(PREDIS, "predis")               \
+    INTEGRATION(PSR18, "psr18")                 \
     INTEGRATION(ROADRUNNER, "roadrunner")       \
     INTEGRATION(SLIM, "slim")                   \
     INTEGRATION(SYMFONY, "symfony")             \
@@ -45,7 +47,7 @@ struct ddtrace_integration {
     bool (*is_enabled)(void);
     bool (*is_analytics_enabled)(void);
     double (*get_sample_rate)(void);
-    void *aux[5];
+    void *aux[7]; // Needs to be the max number of deferred loading hooks for any integration plus one NULL sentinel
 };
 typedef struct ddtrace_integration ddtrace_integration;
 

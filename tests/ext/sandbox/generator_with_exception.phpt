@@ -52,7 +52,7 @@ array_map(function($span) {
 2
 FooException caught
 doSomething, FooException caught
-maybeThrowException, NULL, Uncaught FooException: Oops! in %s:%d
+maybeThrowException, NULL, Thrown FooException: Oops! in %s:%d
 maybeThrowException, 2
 maybeThrowException, 1
 maybeThrowException, 0

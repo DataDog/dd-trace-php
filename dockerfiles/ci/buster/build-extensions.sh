@@ -32,6 +32,11 @@ if [[ $PHP_VERSION_ID -le 71 ]]; then
   AST_VERSION=-1.0.16
 fi
 
+MEMCACHE_VERSION=
+if [[ $PHP_VERSION_ID -le 74 ]]; then
+  MEMCACHE_VERSION=-4.0.5.2
+fi
+
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
 
 export PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config
@@ -92,6 +97,7 @@ else
     yes '' | pecl install mcrypt$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -1.0.0; fi); echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini;
   fi
   yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
+  yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
   pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini;
   # Xdebug is disabled by default
