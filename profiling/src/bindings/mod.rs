@@ -270,6 +270,14 @@ extern "C" {
     pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_string_view;
 }
 
+#[cfg(php_preload)]
+extern "C" {
+    /// Returns true after zend_post_startup_cb has been called for the current
+    /// startup/shutdown cycle. This is useful to know. For example,
+    /// preloading occurs while this is false.
+    pub fn ddog_php_prof_is_post_startup() -> bool;
+}
+
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {
