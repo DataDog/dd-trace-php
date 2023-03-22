@@ -28,6 +28,7 @@ DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=no
 zend_extension=opcache
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
+opcache.preload_user=root
 --FILE--
 <?php
 echo "Done.", PHP_EOL;
