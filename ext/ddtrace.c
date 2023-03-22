@@ -2005,7 +2005,7 @@ PHP_FUNCTION(DDTrace_set_priority_sampling) {
     if (global || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
         DDTRACE_G(default_priority_sampling) = priority;
     } else {
-        ddtrace_set_prioritySampling_on_root(priority);
+        ddtrace_set_prioritySampling_on_root(priority, DD_MECHANISM_MANUAL);
     }
 }
 
@@ -2116,6 +2116,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
     bool parse_datadog_meta_headers = parse_datadog || parse_b3 || parse_b3_single;
 
     int priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+    bool reset_decision_maker = false;
 
     if (parse_b3_single && read_header(ZAI_STRL_VIEW("B3"), "b3", &b3_header_str, data)) {
         char *b3_ptr = ZSTR_VAL(b3_header_str), *b3_end = b3_ptr + ZSTR_LEN(b3_header_str);
@@ -2309,6 +2310,8 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
                             int extraced_priority = strtol(valuestart, NULL, 10);
                             if ((priority_sampling > 0) == (extraced_priority > 0)) {
                                 priority_sampling = extraced_priority;
+                            } else {
+                                reset_decision_maker = true;
                             }
                         } else if (keylen == 1 && keystart[0] == 'o') {
                             if (DDTRACE_G(dd_origin)) {
@@ -2366,10 +2369,22 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
     }
 
     if (priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        if (!reset_decision_maker) {
+            reset_decision_maker = !zend_hash_str_exists(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.dm"));
+        }
+        zval zv;
+        if (reset_decision_maker) {
+            ZVAL_STRINGL(&zv, "-0", 2);
+            zend_hash_str_update(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.dm"), &zv);
+        }
         if (!DDTRACE_G(active_stack)->root_span) {
             DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = priority_sampling;
         } else {
-            ddtrace_set_prioritySampling_on_root(priority_sampling);
+            if (reset_decision_maker) {
+                Z_ADDREF_P(&zv);
+                zend_hash_str_update(ddtrace_spandata_property_meta(DDTRACE_G(active_stack)->root_span), ZEND_STRL("_dd.p.dm"), &zv);
+            }
+            ddtrace_set_prioritySampling_on_root(priority_sampling, DD_MECHANISM_DEFAULT);
         }
     }
 }
