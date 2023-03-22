@@ -167,7 +167,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     ])
                                 ])
                             ]),
-                            SpanAssertion::exists('laminas.application.complete_request')->withChildren([
+                            SpanAssertion::exists('laminas.application.completeRequest')->withChildren([
                                 SpanAssertion::exists('laminas.event.render')->withChildren([
                                     SpanAssertion::build(
                                         'laminas.view.http.renderer',
@@ -276,7 +276,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'Laminas\View\Model\ViewModel'
                                 )
                             ]),
-                            SpanAssertion::exists('laminas.application.complete_request')->withChildren([
+                            SpanAssertion::exists('laminas.application.completeRequest')->withChildren([
                                 SpanAssertion::exists('laminas.event.render')->withChildren([
                                     SpanAssertion::build(
                                         'laminas.view.http.renderer',
@@ -347,7 +347,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'Laminas\View\Model\ViewModel'
                                 )
                             ]),
-                            SpanAssertion::exists('laminas.application.complete_request')->withChildren([
+                            SpanAssertion::exists('laminas.application.completeRequest')->withChildren([
                                 SpanAssertion::exists('laminas.event.render')->withChildren([
                                     SpanAssertion::build(
                                         'laminas.view.http.renderer',

@@ -1,9 +1,9 @@
 <?php
 
-// TODO: Tag::COMPONENT
 
 namespace DDTrace\Integrations\Laminas;
 
+// TODO: Tag::COMPONENT
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -52,6 +52,7 @@ class LaminasIntegration extends Integration
 
         $integration = $this;
 
+        // Overall application flow
         trace_method(
             'Laminas\Mvc\Application',
             'bootstrap',
@@ -82,7 +83,6 @@ class LaminasIntegration extends Integration
             ]
         );
 
-        // MvcEvent::EVENT_ROUTE
         trace_method(
             'Laminas\Mvc\Application',
             'run',
@@ -102,6 +102,7 @@ class LaminasIntegration extends Integration
             ]
         );
 
+        // MvcEvent::EVENT_ROUTE
         trace_method(
             'Laminas\Router\RouteInterface',
             'match',
@@ -143,7 +144,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Router\RouterInterface',
             'assemble',
-            function (SpanData $span, $args) {
+            function (SpanData $span) {
                 $span->name = 'laminas.route.assemble';
             }
         );
@@ -152,7 +153,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Stdlib\DispatchableInterface',
             'dispatch',
-            function (SpanData $span, $args) use ($rootSpan) {
+            function (SpanData $span) use ($rootSpan) {
                 $span->name = 'laminas.controller.dispatch';
                 $span->resource = \get_class($this);
             }
@@ -187,7 +188,7 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\Application',
             'completeRequest',
             function (SpanData $span, $args) use ($rootSpan, $integration) {
-                $span->name = 'laminas.application.complete_request';
+                $span->name = 'laminas.application.completeRequest';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
 
@@ -218,14 +219,13 @@ class LaminasIntegration extends Integration
                     /** @var ModelInterface $nameOrModel */
                     $span->resource = $nameOrModel->getTemplate();
                 }
-
             }
         );
 
         trace_method(
             'Laminas\View\Model\ModelInterface',
             'setTemplate',
-            function (SpanData $span, $args) use ($rootSpan, $integration) {
+            function (SpanData $span) use ($rootSpan, $integration) {
                 $span->name = 'laminas.view.model.setTemplate';
                 $span->resource = \get_class($this);
             }
