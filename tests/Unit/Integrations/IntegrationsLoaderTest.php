@@ -181,6 +181,8 @@ final class IntegrationsLoaderTest extends BaseTestCase
         if (\PHP_MAJOR_VERSION >= 8) {
             // Integrations that do not support PHP 8
             $excluded[] = 'mongo';
+        } else {
+            $excluded[] = 'laminas';
         }
         foreach ($excluded as $integrationToExclude) {
             $index = array_search($integrationToExclude, $expected, true);
