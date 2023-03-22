@@ -72,7 +72,8 @@ class PDOIntegration extends Integration
                 PDOIntegration::setCommonSpanInfo($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook);
+                $driver = $this->getAttribute(\PDO::ATTR_DRIVER_NAME);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver);
             }, function (HookData $hook) use ($integration) {
                 $span = $hook->span();
                 if (is_numeric($hook->returned)) {
@@ -95,7 +96,8 @@ class PDOIntegration extends Integration
                 PDOIntegration::setCommonSpanInfo($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook);
+                $driver = $this->getAttribute(\PDO::ATTR_DRIVER_NAME);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver);
             }, function (HookData $hook) use ($integration) {
                 $span = $hook->span();
                 if ($hook->returned instanceof \PDOStatement) {
@@ -114,7 +116,8 @@ class PDOIntegration extends Integration
                 $span->resource = Integration::toString($query);
                 PDOIntegration::setCommonSpanInfo($this, $span);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook);
+                $driver = $this->getAttribute(\PDO::ATTR_DRIVER_NAME);
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver);
             }, function (HookData $hook) use ($integration) {
                 ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
             });

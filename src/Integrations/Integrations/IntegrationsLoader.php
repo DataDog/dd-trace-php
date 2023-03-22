@@ -18,6 +18,7 @@ use DDTrace\Integrations\Nette\NetteIntegration;
 use DDTrace\Integrations\Pcntl\PcntlIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\Psr18\Psr18Integration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;

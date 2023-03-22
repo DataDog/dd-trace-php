@@ -1,5 +1,5 @@
 --TEST--
-root span with http.url and obfuscated query string
+Root span with http.url and obfuscated query string
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED=*

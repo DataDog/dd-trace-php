@@ -1,6 +1,5 @@
 --TEST--
-root span with query params whitelist
---SKIPIF--
+Root span with query params whitelist
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED=password

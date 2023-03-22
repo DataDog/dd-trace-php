@@ -21,6 +21,12 @@ const OPT_ENABLE_PROFILING = 'enable-profiling';
 // Release version is set while generating the final release files
 const RELEASE_VERSION = '@release_version@';
 
+// phpcs:disable Generic.Files.LineLength.TooLong
+// For testing purposes, we need an alternate repo where we can push bundles that includes changes that we are
+// trying to test, as the previously released versions would not have those changes.
+define('RELEASE_URL_PREFIX', (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php") . "/releases/download/" . RELEASE_VERSION . "/");
+// phpcs:enable Generic.Files.LineLength.TooLong
+
 function main()
 {
     if (is_truthy(getenv('DD_TEST_EXECUTION'))) {
@@ -106,15 +112,8 @@ function install($options)
         print_warning('--' . OPT_FILE . ' option is intended for internal usage and can be removed without notice');
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
-        $version = RELEASE_VERSION;
-        // phpcs:disable Generic.Files.LineLength.TooLong
-        // For testing purposes, we need an alternate repo where we can push bundles that includes changes that we are
-        // trying to test, as the previously released versions would not have those changes.
-        $url = (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php")
-            . "/releases/download/{$version}/dd-library-php-{$version}-{$platform}.tar.gz";
-        // phpcs:enable Generic.Files.LineLength.TooLong
+        $url = RELEASE_URL_PREFIX . "dd-library-php-" . RELEASE_VERSION . "-{$platform}.tar.gz";
         download($url, $tmpDirTarGz);
-        unset($version);
     }
     execute_or_exit(
         "Cannot extract the archive",
@@ -332,6 +331,21 @@ function install($options)
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
                     "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
+                    . escapeshellarg($iniFilePath)
+                );
+
+                // Update helper path
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@datadog.appsec.helper_path \?= \?.*@datadog.appsec.helper_path = " . $appSecHelperPath . "@g' "
+                    . escapeshellarg($iniFilePath)
+                );
+
+                // Update and comment rules path
+                $rulesPathRegex = $options[OPT_INSTALL_DIR] . "/[0-9\.]*/etc/recommended.json";
+                execute_or_exit(
+                    'Impossible to update the INI settings file.',
+                    "sed -i 's@^[ ;]*datadog.appsec.rules \?= \?" . $rulesPathRegex . "@;datadog.appsec.rules = " . $appSecRulesPath . "@g' "
                     . escapeshellarg($iniFilePath)
                 );
 
