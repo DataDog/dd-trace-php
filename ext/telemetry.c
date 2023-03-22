@@ -53,7 +53,7 @@ void ddtrace_telemetry_finalize(void) {
         ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
 #endif
         if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
-            ddog_sidecar_telemetry_enqueueConfig(&dd_sidecar, &dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id),
+            ddog_sidecar_telemetry_enqueueConfig(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id),
                                                  dd_zend_string_to_CharSlice(ini->name), dd_zend_string_to_CharSlice(ini->value));
         }
     }
@@ -66,14 +66,14 @@ void ddtrace_telemetry_finalize(void) {
     ddog_CharSlice php_version = dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION"))));
     struct ddog_RuntimeMeta *meta = ddog_sidecar_runtimeMeta_build(DDOG_CHARSLICE_C("php"), php_version, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
 
-    ddog_sidecar_telemetry_flushServiceData(&dd_sidecar, &dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name);
+    ddog_sidecar_telemetry_flushServiceData(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name);
 
     ddog_sidecar_runtimeMeta_drop(meta);
 
-    ddog_sidecar_telemetry_end(&dd_sidecar, &dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id));
+    ddog_sidecar_telemetry_end(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id));
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
     ddog_CharSlice integration = (ddog_CharSlice){ .len = name_len, .ptr = name };
-    ddog_sidecar_telemetry_addIntegration(&dd_sidecar, &dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration, DDOG_CHARSLICE_C("0"));
+    ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration, DDOG_CHARSLICE_C("0"));
 }

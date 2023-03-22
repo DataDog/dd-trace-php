@@ -4,7 +4,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "common.h"
+#include <telemetry.h>
+#include <common.h>
+
 
 typedef uint64_t ddog_QueueId;
 
