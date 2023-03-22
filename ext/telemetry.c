@@ -77,3 +77,7 @@ void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
     ddog_CharSlice integration = (ddog_CharSlice){ .len = name_len, .ptr = name };
     ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration, DDOG_CHARSLICE_C("0"));
 }
+
+DDTRACE_PUBLIC void daemon_entry_point(void){
+    daemon_entry_point_inner();
+}

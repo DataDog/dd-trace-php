@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "telemetry.h"
 #include "common.h"
+#include "ddtrace_export.h"
 
 
 typedef uint64_t ddog_QueueId;
@@ -19,6 +20,8 @@ void ddtrace_format_runtime_id(uint8_t *buf);
 ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
+
+DDTRACE_PUBLIC void daemon_entry_point(void);
 
 bool ddtrace_detect_composer_installed_json(ddog_TelemetryTransport **transport,
                                             const struct ddog_InstanceId *instance_id,

@@ -35,3 +35,10 @@ pub extern "C" fn ddtrace_get_container_id() -> CharSlice<'static> {
 pub unsafe extern "C" fn ddtrace_set_container_cgroup_path(path: CharSlice) {
     set_cgroup_file(String::from(path.try_to_utf8().unwrap()))
 }
+
+
+#[no_mangle]
+pub extern "C" fn daemon_entry_point_inner() {
+    // pub use ddtelemetry::ipc::sidecar::daemon_entry_point;
+    ddtelemetry::ipc::sidecar::daemon_entry_point()
+}

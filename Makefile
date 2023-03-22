@@ -94,12 +94,12 @@ $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure)
 
 $(SO_FILE): $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
-	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)"
+	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)" LDFLAGS="-fuse-ld=gold -Wl,--weak-unresolved-symbols"
 
 asan: $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 	$(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS) -fsanitize=address" LDFLAGS="-fsanitize=address"
 
-$(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
+$(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE) 
 	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
 
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
@@ -415,32 +415,32 @@ cbindgen: components/rust/ddtrace.h components/rust/telemetry.h components/rust/
 		cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/ddtrace.h $(PROJECT_ROOT)/components/rust/telemetry.h \
 	)
 
-components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs libdatadog/ddcommon-ffi/src/**/*.rs) libdatadog/ddcommon-ffi/cbindgen.toml
-	( \
-		if command -v cbindgen &> /dev/null; then \
-			cd libdatadog; \
-			$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
-				--config ddcommon-ffi/cbindgen.toml \
-				--output $(PROJECT_ROOT)/$@; \
-		fi \
-	)
+# components/rust/common.h: $(wildcard libdatadog/ddcommon-ffi/src/*.rs libdatadog/ddcommon-ffi/src/**/*.rs) libdatadog/ddcommon-ffi/cbindgen.toml
+# 	( \
+# 		if command -v cbindgen &> /dev/null; then \
+# 			cd libdatadog; \
+# 			$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
+# 				--config ddcommon-ffi/cbindgen.toml \
+# 				--output $(PROJECT_ROOT)/$@; \
+# 		fi \
+# 	)
 
-components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs libdatadog/ddtelemetry-ffi/src/**/*.rs) libdatadog/ddtelemetry-ffi/cbindgen.toml components/rust/common.h
-	( \
-		if command -v cbindgen &> /dev/null; then \
-			cd libdatadog; \
-			$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
-				--config ddtelemetry-ffi/cbindgen.toml \
-				--output $(PROJECT_ROOT)/$@; \
-		fi \
-	)
+# components/rust/telemetry.h: $(wildcard libdatadog/ddtelemetry-ffi/src/*.rs libdatadog/ddtelemetry-ffi/src/**/*.rs) libdatadog/ddtelemetry-ffi/cbindgen.toml components/rust/common.h
+# 	( \
+# 		if command -v cbindgen &> /dev/null; then \
+# 			cd libdatadog; \
+# 			$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
+# 				--config ddtelemetry-ffi/cbindgen.toml \
+# 				--output $(PROJECT_ROOT)/$@; \
+# 		fi \
+# 	)
 
-components/rust/ddtrace.h: $(wildcard components/rust/*.rs) cbindgen.toml components/rust/common.h
-	if command -v cbindgen &> /dev/null; then \
-		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
-			--config cbindgen.toml \
-			--output $(PROJECT_ROOT)/$@; \
-	fi
+# components/rust/ddtrace.h: $(wildcard components/rust/*.rs) cbindgen.toml components/rust/common.h
+# 	if command -v cbindgen &> /dev/null; then \
+# 		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
+# 			--config cbindgen.toml \
+# 			--output $(PROJECT_ROOT)/$@; \
+# 	fi
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
