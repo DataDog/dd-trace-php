@@ -558,6 +558,7 @@ TEST_INTEGRATIONS_73 :=\
 TEST_WEB_73 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
 	test_web_laravel_8x \
@@ -608,6 +609,7 @@ TEST_INTEGRATIONS_74 := \
 TEST_WEB_74 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
 	test_web_laravel_8x \
@@ -656,6 +658,8 @@ TEST_INTEGRATIONS_80 := \
 TEST_WEB_80 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_14 \
+	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -688,6 +692,7 @@ TEST_INTEGRATIONS_81 := \
 TEST_WEB_81 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -720,6 +725,7 @@ TEST_INTEGRATIONS_82 := \
 TEST_WEB_82 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
