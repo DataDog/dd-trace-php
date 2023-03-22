@@ -40,4 +40,4 @@
 #  define DDOG_CHECK_RETURN
 #endif
 
-#endif DDOG_COMMON_H
+#endif
