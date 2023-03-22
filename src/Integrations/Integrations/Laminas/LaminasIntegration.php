@@ -322,7 +322,12 @@ class LaminasIntegration extends Integration
             'loadModule',
             function (SpanData $span, $args) {
                 $span->name = 'laminas.moduleManager.loadModule';
-                $span->resource = $args[0];
+                $module = $args[0];
+                if (is_array($module)) {
+                    $span->resource = key($module); // Laminas 1.4
+                } else {
+                    $span->resource = $module;
+                }
             }
         );
 

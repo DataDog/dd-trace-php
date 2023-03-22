@@ -75,11 +75,11 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
+        $this->integrations[LaminasIntegration::NAME] =
+            '\DDTrace\Integrations\Laminas\LaminasIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
-            $this->integrations[LaminasIntegration::NAME] =
-                '\DDTrace\Integrations\Laminas\LaminasIntegration';
             return;
         }
 
