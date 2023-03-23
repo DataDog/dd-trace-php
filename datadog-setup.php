@@ -249,7 +249,7 @@ function cmd_config_set(array $options): void
                     continue;
                 }
                 $iniFileContent = file_get_contents($iniFile);
-                if (preg_match("/^\s*" . preg_quote($iniSetting[0]) . "\s*=\s*/mi", $iniFileContent)) {
+                if (preg_match("/^;?\s*" . preg_quote($iniSetting[0]) . "\s*=\s*/mi", $iniFileContent)) {
                     // in case we found the ini setting, we break the loop and
                     // leaf $iniFile and $iniFileContent to be used later
                     $found = true;
@@ -260,12 +260,14 @@ function cmd_config_set(array $options): void
             if ($found) {
                 // $iniFile has the filename of the INI file and $iniFileContent
                 // has it's contents as a left over of the `foreach` above
-                $regex = '/^\s*' . preg_quote($iniSetting[0]) . '\s*=.*$/mi';
-                $iniFileContent = preg_replace($regex, $newSetting, $iniFileContent);
-                if ($iniFileContent === null) {
+                $regex = '/^;?\s*' . preg_quote($iniSetting[0]) . '\s*=.*$/mi';
+                $count = 0;
+                $iniFileContent = preg_replace($regex, $newSetting, $iniFileContent, -1, $count);
+                if ($iniFileContent === null || $count === 0) {
                     // something wrong with the regex, the user should see a warning
                     // in the form of "Warning: preg_replace(): Compilation failed ..."
                     echo "Could not update the given INI setting in file '", $iniFile, "', skipping", PHP_EOL;
+                    continue;
                 }
             } else {
                 // set filename
