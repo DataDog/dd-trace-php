@@ -739,8 +739,9 @@ jobs:
       - when:
           condition:
             and:
-              - equal: [ "8.0", << parameters.php_major_minor >> ]
-              - equal: [ "8.1", << parameters.php_major_minor >> ]
+              - or:
+                - equal: [ "8.0", << parameters.php_major_minor >> ]
+                - equal: [ "8.1", << parameters.php_major_minor >> ]
               - not:
                 equal: [ "test_composer", << parameters.make_target >> ]
           steps:
@@ -883,7 +884,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - when:
           condition:
-            and:
+            or:
               - equal: [ "8.0", << parameters.php_major_minor >> ]
               - equal: [ "8.1", << parameters.php_major_minor >> ]
           steps:
