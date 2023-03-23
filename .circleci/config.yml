@@ -2153,7 +2153,7 @@ jobs:
             docker-compose --version
       - run:
           name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git; (cd system-tests; git checkout kyle/php-http-server-parametric;)
+          command: git clone https://github.com/DataDog/system-tests.git
       - run:
           name: Copy .tar.gz file to system test binaries folder
           command: |
