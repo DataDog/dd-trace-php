@@ -117,7 +117,7 @@ function config_list(array $options)
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
 
-        $iniFilePaths = find_ini_files(ini_values($fullPath));
+        $iniFilePaths = get_ini_files(ini_values($fullPath));
 
         foreach ($iniFilePaths as $iniFilePath) {
             $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
@@ -203,6 +203,16 @@ function cmd_config_get(array $options)
 /**
  * This function will set the given INI settings for any given PHP binary
  *
+ * 1. Scan all INI files for for this INI setting and update if found (updates
+ *    in all INI files in case it finds in multiple places and warns about the
+ *    mess it found).
+ * 2. In case it could not find, it searches for commented out versions of this
+ *    INI setting, uncomments it and updates the value. It first checks this in
+ *    the "default" INI file (the one that holds the `extension = ddtrace` line,
+ *    then others and only promotes the first commented version found.
+ * 3. In case this INI setting is not there yet it creates a new entry in the 
+ *    "default" INI file (see above).
+ *
  * $ php datadog-setup.php config set --php-bin all \
  *   -ddatadog.profiling.experimental_allocation_enabled=On \
  *   -ddatadog.profiling.experimental_cpu_time_enabled=On \
@@ -218,79 +228,156 @@ function cmd_config_set(array $options): void
         echo "Setting configuration for binary: $binaryForLog", PHP_EOL;
 
         $phpProps = ini_values($fullPath);
-        $iniFilePaths = find_ini_files($phpProps);
 
         foreach ($options['d'] as $cliIniSetting) {
             // `trim()` should not be needed, but better safe than sorry
-            $iniSetting = array_map(
-                'trim',
-                explode('=', $cliIniSetting, 2)
-            );
-            if (count($iniSetting) !== 2) {
-                echo "The given INI setting '", $cliIniSetting, "' can't be parsed, skipping.", PHP_EOL;
-                continue;
-            }
-
-            // safety: try out if parsing the generated ini setting is actually
-            // possible
-            $newSetting = $iniSetting[0] . ' = ' . $iniSetting[1];
-            if (parse_ini_string($newSetting, false, INI_SCANNER_RAW) === false) {
+            if (($setting = parse_ini_setting($cliIniSetting)) === false) {
                 echo "The given INI setting '", $cliIniSetting,
                     "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
                 continue;
             }
 
-            $found = false;
+            $iniFilePaths = get_ini_files($phpProps);
 
-            // search INI file with $iniSetting as it might already exists
-            // in some INI file
+            $matchCount = [];
+            // look for INI setting in INI files
             foreach ($iniFilePaths as $iniFile) {
-                if (!is_file($iniFile)) {
+                $count = update_ini_setting($setting, $iniFile, false);
+                if ($count === 0) {
                     continue;
                 }
-                $iniFileContent = file_get_contents($iniFile);
-                if (preg_match("/^;?\s*" . preg_quote($iniSetting[0]) . "\s*=\s*/mi", $iniFileContent)) {
-                    // in case we found the ini setting, we break the loop and
-                    // leaf $iniFile and $iniFileContent to be used later
-                    $found = true;
-                    break;
+                if ($count === false) {
+                    echo "Could not set '", $setting[0], "' to '", $setting[1],
+                        "' in INI file: ", $iniFile , PHP_EOL;
+                    continue;
                 }
+                echo "Set '", $setting[0], "' to '", $setting[1], "' in INI file: ", $iniFile, PHP_EOL;
+                $matchCount[$iniFile] = $count;
             }
 
-            if ($found) {
-                // $iniFile has the filename of the INI file and $iniFileContent
-                // has it's contents as a left over of the `foreach` above
-                $regex = '/^;?\s*' . preg_quote($iniSetting[0]) . '\s*=.*$/mi';
-                $count = 0;
-                $iniFileContent = preg_replace($regex, $newSetting, $iniFileContent, -1, $count);
-                if ($iniFileContent === null || $count === 0) {
-                    // something wrong with the regex, the user should see a warning
-                    // in the form of "Warning: preg_replace(): Compilation failed ..."
-                    echo "Could not update the given INI setting in file '", $iniFile, "', skipping", PHP_EOL;
+            if (count($matchCount) >= 1) {
+                // found and updated
+                if (count($matchCount) >= 2 || array_sum($matchCount) >= 2) {
+                    echo "Warning: '$setting[0]' was found in multiple places, ",
+                        "you might want to remove duplicates.", PHP_EOL;
+                }
+                continue;
+            }
+
+            // If we are here, we could not find the INI setting in any files, so
+            // we try and look for commented versions
+
+            $iniFilePaths = find_ini_files($phpProps);
+
+            $matchCount = [];
+            // look for INI setting in INI files
+            foreach ($iniFilePaths as $iniFile) {
+                $count = update_ini_setting($setting, $iniFile, true);
+                if ($count === 0) {
                     continue;
                 }
-            } else {
-                // set filename
-                $iniFilePath = $phpProps[INI_SCANDIR] . '/98-ddtrace.ini';
-                $iniFileContent = '';
-                if (is_file($iniFilePath)) {
-                    $iniFileContent = file_get_contents($iniFilePath);
+                if ($count === false) {
+                    echo "Could not set '", $setting[0], "' to '", $setting[1],
+                        "' in INI file: ", $iniFile , PHP_EOL;
+                    continue;
                 }
+                echo "Set '", $setting[0], "' to '", $setting[1], "' in INI file: ", $iniFile, PHP_EOL;
+                $matchCount[$iniFile] = $count;
+                break;
+            }
+
+            if (count($matchCount) >= 1) {
+                // found, promoted from comment and updated
+                continue;
+            }
+
+            // Now we are here, meaning we could not find it, not in active nor in
+            // commented version, so we just add it to the default INI file
+
+            $iniFilePaths = find_ini_files($phpProps);
+
+            $matchCount = [];
+            // look for INI setting in INI files
+            foreach ($iniFilePaths as $iniFile) {
+                $iniFileContent = file_get_contents($iniFile);
                 // check for "End of Line" symbol at the end of the file and
                 // add in case it is missing
                 if (strlen($iniFileContent) > 0 && substr($iniFileContent, -1, 1) !== PHP_EOL) {
                     $iniFileContent .= PHP_EOL;
                 }
-                $iniFileContent .= $newSetting . PHP_EOL;
-            }
-            if (file_put_contents($iniFile, $iniFileContent) === false) {
-                echo "Could not set '", $iniSetting[0], "' to '", $iniSetting[1],
+                $iniFileContent .= implode(' = ', $setting) . PHP_EOL;
+                if (file_put_contents($iniFile, $iniFileContent) === false) {
+                    echo "Could not set '", $setting[0], "' to '", $setting[1],
                     "' in INI file: ", $iniFile , PHP_EOL;
-            } else {
-                echo "Set '", $iniSetting[0], "' to '", $iniSetting[1], "' in INI file: ", $iniFile, PHP_EOL;
+                    continue;
+                }
+                echo "Set '", $setting[0], "' to '", $setting[1], "' in INI file: ", $iniFile, PHP_EOL;
             }
         }
     }
+}
+
+/**
+ * Parse a given INI setting (from CLI) into an array and return it. It also tries
+ * to parse the new setting with `parse_ini_string()` to validate it is actually
+ * working
+ *
+ * @return false|array{0:string, 1:string}
+ */
+function parse_ini_setting(string $setting)
+{
+    // `trim()` should not be needed, but better safe than sorry
+    $setting = array_map(
+        'trim',
+        explode(
+            '=',
+            $setting,
+            2
+        )
+    );
+    if (count($setting) !== 2) {
+        return false;
+    }
+    // safety: try out if parsing the generated ini setting is actually possible
+    if (parse_ini_string($setting[0] . '=' . $setting[1], false, INI_SCANNER_RAW) === false) {
+        return false;
+    }
+    return $setting;
+}
+
+/**
+ * This function will try and update a given $setting to $value in the INI file
+ * given in $ini. First it tries to find an uncommented version of the setting
+ * in the file and replace this with the new value. In case no uncommented version
+ * was found it tries to find commented versions of this INI setting.
+ *
+ * In case `$promoteComment` is set to `true`, this function will replace an therefore
+ * promote only the first occurrence it finds from a comment to an INI setting
+ *
+ * @param array{0: string, 1: string} $setting
+ * @return false|int
+ */
+function update_ini_setting(array $setting, string $iniFile, bool $promoteComment)
+{
+    $iniFileContent = file_get_contents($iniFile);
+    if ($promoteComment) {
+        $regex = '/^[\s;]*' . preg_quote($setting[0]) . '\s*=\s*?[^;\n\r]*/mi';
+    } else {
+        $regex = '/^\s*' . preg_quote($setting[0]) . '\s*=\s*?[^;\n\r]*/mi';
+    }
+    $count = 0;
+    $iniFileContent = preg_replace($regex, implode(' = ', $setting), $iniFileContent, $promoteComment ? 1 : -1, $count);
+    if ($iniFileContent === null) {
+        // something wrong with the regex, the user should see a warning
+        // in the form of "Warning: preg_replace(): Compilation failed ..."
+        return false;
+    }
+    if ($count > 0) {
+        if (file_put_contents($iniFile, $iniFileContent) === false) {
+            return false;
+        }
+    }
+    return $count;
 }
 
 function install($options)
@@ -594,6 +681,36 @@ function install($options)
         );
         echo "  php " . implode(" ", array_map("escapeshellarg", $args)) . "\n";
     }
+}
+
+function get_ini_files(array $phpProperties): array
+{
+    $iniFilePaths = [];
+    if ($phpProperties[INI_SCANDIR]) {
+        foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
+            if (!is_file($phpProperties[INI_SCANDIR] . '/' . $ini)) {
+                continue;
+            }
+            $iniFilePaths[] = $phpProperties[INI_SCANDIR] . '/' . $ini;
+        }
+
+        /* not sure about this
+        if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
+            /* debian based distros have INI folders split by SAPI, in a predefined way:
+             *   - <...>/cli/conf.d       <-- we know this from php -i
+             *   - <...>/apache2/conf.d   <-- we derive this from relative path
+             *   - <...>/fpm/conf.d       <-- we derive this from relative path
+            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
+            if (is_dir($apacheConfd)) {
+                $iniFilePaths[] = "$apacheConfd/$iniFileName";
+            }
+        }
+        */
+    } else {
+        $iniFileName = $phpProperties[INI_MAIN];
+        $iniFilePaths = [$iniFileName];
+    }
+    return $iniFilePaths;
 }
 
 /**
