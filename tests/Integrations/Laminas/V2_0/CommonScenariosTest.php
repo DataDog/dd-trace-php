@@ -57,34 +57,61 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laminas.event.loadModules.post'),
                             SpanAssertion::exists('laminas.event.loadModules'),
                             SpanAssertion::exists('laminas.application.bootstrap')->withChildren([
-                                SpanAssertion::exists('laminas.event.bootstrap')
+                                SpanAssertion::exists('laminas.event.bootstrap')->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\ViewManager@onBootstrap'
+                                    )
+                                ])
                             ])
                         ]),
                         SpanAssertion::exists('laminas.application.run')->withChildren([
                             SpanAssertion::exists('laminas.event.route')->withChildren([
-                                SpanAssertion::build(
-                                    'laminas.route.match',
-                                    'test_laminas_20',
-                                    'web',
-                                    'Laminas\Router\Http\TreeRouteStack@match'
-                                )
-                            ]),
-                            SpanAssertion::exists('laminas.event.dispatch')->withChildren([
-                                SpanAssertion::build(
-                                    'laminas.controller.dispatch',
-                                    'test_laminas_20',
-                                    'web',
-                                    'Application\Controller\CommonSpecsController'
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\HttpMethodListener@onRoute',
+                                ),
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\RouteListener@onRoute'
                                 )->withChildren([
-                                    SpanAssertion::build(
-                                        'laminas.controller.action',
-                                        'test_laminas_20',
-                                        'web',
-                                        'Application\Controller\CommonSpecsController@simpleAction'
+                                    SpanAssertion::exists(
+                                        'laminas.route.match',
+                                        'Laminas\Router\Http\TreeRouteStack@match'
                                     )
                                 ])
                             ]),
-                            SpanAssertion::exists('laminas.event.finish')
+                            SpanAssertion::exists('laminas.event.dispatch')->withChildren([
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\MiddlewareListener@onDispatch'
+                                ),
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\DispatchListener@onDispatch'
+                                )->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.controller.dispatch',
+                                        'Application\Controller\CommonSpecsController'
+                                    )->withChildren([
+                                        SpanAssertion::exists(
+                                            'laminas.mvcEventListener',
+                                            'Application\Controller\CommonSpecsController@onDispatch'
+                                        )->withChildren([
+                                            SpanAssertion::exists(
+                                                'laminas.controller.action',
+                                                'Application\Controller\CommonSpecsController@simpleAction'
+                                            )
+                                        ])
+                                    ])
+                                ])
+                            ]),
+                            SpanAssertion::exists('laminas.event.finish')->withChildren([
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\SendResponseListener@sendResponse'
+                                )
+                            ])
                         ])
                     ])
                 ],
@@ -107,52 +134,87 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laminas.event.loadModules.post'),
                             SpanAssertion::exists('laminas.event.loadModules'),
                             SpanAssertion::exists('laminas.application.bootstrap')->withChildren([
-                                SpanAssertion::exists('laminas.event.bootstrap')
+                                SpanAssertion::exists('laminas.event.bootstrap')->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\ViewManager@onBootstrap'
+                                    )
+                                ])
                             ])
                         ]),
                         SpanAssertion::exists('laminas.application.run')->withChildren([
                             SpanAssertion::exists('laminas.event.route')->withChildren([
-                                SpanAssertion::build(
-                                    'laminas.route.match',
-                                    'test_laminas_20',
-                                    'web',
-                                    'Laminas\Router\Http\TreeRouteStack@match'
-                                )
-                            ]),
-                            SpanAssertion::exists('laminas.event.dispatch')->withChildren([
-                                SpanAssertion::build(
-                                    'laminas.controller.dispatch',
-                                    'test_laminas_20',
-                                    'web',
-                                    'Application\Controller\CommonSpecsController'
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\HttpMethodListener@onRoute',
+                                ),
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\RouteListener@onRoute'
                                 )->withChildren([
-                                    SpanAssertion::build(
-                                        'laminas.controller.action',
-                                        'test_laminas_20',
-                                        'web',
-                                        'Application\Controller\CommonSpecsController@viewAction'
+                                    SpanAssertion::exists(
+                                        'laminas.route.match',
+                                        'Laminas\Router\Http\TreeRouteStack@match'
                                     )
                                 ])
                             ]),
+                            SpanAssertion::exists('laminas.event.dispatch')->withChildren([
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\MiddlewareListener@onDispatch'
+                                ),
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\DispatchListener@onDispatch'
+                                )->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.controller.dispatch',
+                                        'Application\Controller\CommonSpecsController'
+                                    )->withChildren([
+                                        SpanAssertion::exists(
+                                            'laminas.mvcEventListener',
+                                            'Application\Controller\CommonSpecsController@onDispatch'
+                                        )->withChildren([
+                                            SpanAssertion::exists(
+                                                'laminas.controller.action',
+                                                'Application\Controller\CommonSpecsController@viewAction'
+                                            )
+                                        ]),
+                                        SpanAssertion::exists(
+                                            'laminas.mvcEventListener',
+                                            'Laminas\Mvc\View\Http\RouteNotFoundStrategy@prepareNotFoundViewModel'
+                                        ),
+                                        SpanAssertion::exists(
+                                            'laminas.mvcEventListener',
+                                            'Laminas\Mvc\View\Http\InjectViewModelListener@injectViewModel'
+                                        )
+                                    ]),
+                                ]),
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\View\Http\RouteNotFoundStrategy@prepareNotFoundViewModel'
+                                ),
+                            ]),
                             SpanAssertion::exists('laminas.application.completeRequest')->withChildren([
                                 SpanAssertion::exists('laminas.event.render')->withChildren([
-                                    SpanAssertion::build(
+                                    SpanAssertion::exists(
                                         'laminas.view.http.renderer',
-                                        'test_laminas_20',
-                                        'web',
                                         'Laminas\Mvc\View\Http\DefaultRenderingStrategy@render'
                                     )->withChildren([
                                         SpanAssertion::exists('laminas.view.render')->withChildren([
-                                            SpanAssertion::build(
+                                            SpanAssertion::exists(
                                                 'laminas.templating.render',
-                                                'test_laminas_20',
-                                                'web',
                                                 'application/common-specs/view'
                                             )
                                         ])
                                     ])
                                 ]),
-                                SpanAssertion::exists('laminas.event.finish')
+                                SpanAssertion::exists('laminas.event.finish')->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\SendResponseListener@sendResponse'
+                                    )
+                                ])
                             ])
                         ])
                     ])
@@ -181,69 +243,114 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laminas.event.loadModules.post'),
                             SpanAssertion::exists('laminas.event.loadModules'),
                             SpanAssertion::exists('laminas.application.bootstrap')->withChildren([
-                                SpanAssertion::exists('laminas.event.bootstrap')
+                                SpanAssertion::exists('laminas.event.bootstrap')->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\ViewManager@onBootstrap'
+                                    )
+                                ])
                             ])
                         ]),
                         SpanAssertion::exists('laminas.application.run')->withChildren([
                             SpanAssertion::exists('laminas.event.route')->withChildren([
-                                SpanAssertion::build(
-                                    'laminas.route.match',
-                                    'test_laminas_20',
-                                    'web',
-                                    'Laminas\Router\Http\TreeRouteStack@match'
-                                )
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\HttpMethodListener@onRoute',
+                                ),
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\RouteListener@onRoute'
+                                )->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.route.match',
+                                        'Laminas\Router\Http\TreeRouteStack@match'
+                                    )
+                                ])
                             ]),
                             SpanAssertion::exists('laminas.event.dispatch')->withChildren([
-                                SpanAssertion::build(
-                                    'laminas.controller.dispatch',
-                                    'test_laminas_20',
-                                    'web',
-                                    'Application\Controller\CommonSpecsController'
-                                )->setError(
-                                    'Exception',
-                                    'Controller error'
-                                )->withExistingTagsNames([
-                                    'error.stack'
-                                ])->withChildren([
-                                    SpanAssertion::build(
-                                        'laminas.controller.action',
-                                        'test_laminas_20',
-                                        'web',
-                                        'Application\Controller\CommonSpecsController@errorAction'
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\MiddlewareListener@onDispatch'
+                                ),
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\DispatchListener@onDispatch'
+                                )->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.controller.dispatch',
+                                        'Application\Controller\CommonSpecsController'
                                     )->setError(
                                         'Exception',
                                         'Controller error'
                                     )->withExistingTagsNames([
-                                        'error.stack'
-                                    ])
-                                ]),
-                                SpanAssertion::exists('laminas.mvcEvent.setError')
+                                        'error.stack',
+                                        Tag::COMPONENT
+                                    ])->withChildren([
+                                        SpanAssertion::exists(
+                                            'laminas.mvcEventListener',
+                                            'Application\Controller\CommonSpecsController@onDispatch'
+                                        )->setError(
+                                            'Exception',
+                                            'Controller error'
+                                        )->withExistingTagsNames([
+                                            'error.stack',
+                                            Tag::COMPONENT
+                                        ])->withChildren([
+                                            SpanAssertion::exists(
+                                                'laminas.controller.action',
+                                                'Application\Controller\CommonSpecsController@errorAction'
+                                            )->setError(
+                                                'Exception',
+                                                'Controller error'
+                                            )->withExistingTagsNames([
+                                                'error.stack',
+                                                Tag::COMPONENT
+                                            ])
+                                        ])
+                                    ]),
+                                    SpanAssertion::exists('laminas.mvcEvent.setError'),
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\InjectViewModelListener@injectViewModel'
+                                    ),
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\ExceptionStrategy@prepareExceptionViewModel'
+                                    ),
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\RouteNotFoundStrategy@prepareNotFoundViewModel'
+                                    ),
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\RouteNotFoundStrategy@detectNotFoundError'
+                                    )
+                                ])
                             ]),
                             SpanAssertion::exists('laminas.application.completeRequest')->withChildren([
                                 SpanAssertion::exists('laminas.event.render')->withChildren([
-                                    SpanAssertion::build(
+                                    SpanAssertion::exists(
                                         'laminas.view.http.renderer',
-                                        'test_laminas_20',
-                                        'web',
                                         'Laminas\Mvc\View\Http\DefaultRenderingStrategy@render'
                                     )->withChildren([
                                         SpanAssertion::exists('laminas.view.render')->withChildren([
-                                            SpanAssertion::build(
+                                            SpanAssertion::exists(
                                                 'laminas.templating.render',
-                                                'test_laminas_20',
-                                                'web',
                                                 'error/index'
                                             ),
-                                            SpanAssertion::build(
+                                            SpanAssertion::exists(
                                                 'laminas.templating.render',
-                                                'test_laminas_20',
-                                                'web',
                                                 'layout/layout'
                                             )
                                         ])
                                     ])
                                 ]),
-                                SpanAssertion::exists('laminas.event.finish')
+                                SpanAssertion::exists('laminas.event.finish')->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\SendResponseListener@sendResponse'
+                                    )
+                                ])
                             ])
                         ])
                     ])
@@ -265,44 +372,71 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laminas.event.loadModules.post'),
                             SpanAssertion::exists('laminas.event.loadModules'),
                             SpanAssertion::exists('laminas.application.bootstrap')->withChildren([
-                                SpanAssertion::exists('laminas.event.bootstrap')
+                                SpanAssertion::exists('laminas.event.bootstrap')->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\ViewManager@onBootstrap'
+                                    )
+                                ])
                             ])
                         ]),
                         SpanAssertion::exists('laminas.application.run')->withChildren([
                             SpanAssertion::exists('laminas.event.route')->withChildren([
-                                SpanAssertion::build(
-                                    'laminas.route.match',
-                                    'test_laminas_20',
-                                    'web',
-                                    'Laminas\Router\Http\TreeRouteStack@match'
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\HttpMethodListener@onRoute',
                                 ),
-                                SpanAssertion::exists('laminas.mvcEvent.setError')
+                                SpanAssertion::exists(
+                                    'laminas.mvcEventListener',
+                                    'Laminas\Mvc\RouteListener@onRoute'
+                                )->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.route.match',
+                                        'Laminas\Router\Http\TreeRouteStack@match'
+                                    ),
+                                    SpanAssertion::exists('laminas.mvcEvent.setError'),
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\InjectViewModelListener@injectViewModel'
+                                    ),
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\ExceptionStrategy@prepareExceptionViewModel'
+                                    ),
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\RouteNotFoundStrategy@prepareNotFoundViewModel'
+                                    ),
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\View\Http\RouteNotFoundStrategy@detectNotFoundError'
+                                    )
+                                ])
                             ]),
                             SpanAssertion::exists('laminas.application.completeRequest')->withChildren([
                                 SpanAssertion::exists('laminas.event.render')->withChildren([
-                                    SpanAssertion::build(
+                                    SpanAssertion::exists(
                                         'laminas.view.http.renderer',
-                                        'test_laminas_20',
-                                        'web',
                                         'Laminas\Mvc\View\Http\DefaultRenderingStrategy@render'
                                     )->withChildren([
                                         SpanAssertion::exists('laminas.view.render')->withChildren([
-                                            SpanAssertion::build(
+                                            SpanAssertion::exists(
                                                 'laminas.templating.render',
-                                                'test_laminas_20',
-                                                'web',
                                                 'layout/layout'
                                             ),
-                                            SpanAssertion::build(
+                                            SpanAssertion::exists(
                                                 'laminas.templating.render',
-                                                'test_laminas_20',
-                                                'web',
                                                 'error/404'
                                             )
                                         ])
                                     ])
                                 ]),
-                                SpanAssertion::exists('laminas.event.finish')
+                                SpanAssertion::exists('laminas.event.finish')->withChildren([
+                                    SpanAssertion::exists(
+                                        'laminas.mvcEventListener',
+                                        'Laminas\Mvc\SendResponseListener@sendResponse'
+                                    )
+                                ])
                             ])
                         ])
                     ])
