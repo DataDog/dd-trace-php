@@ -2136,6 +2136,11 @@ jobs:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
+    parameters:
+      build:
+        type: string
+      run:
+        type: string
     resource_class: large
     working_directory: ~/datadog
     steps:
@@ -2161,19 +2166,15 @@ jobs:
           name: Copy .tar.gz file to system test binaries folder
           command: |
             ls -la build/packages
-            installable_bundle=$(find build/packages -maxdepth 1 -name 'datadog-php-tracer-*.x86_64.tar.gz')
+            installable_bundle=$(find build/packages -maxdepth 1 -name 'datadog-php-tracer-*.x86_64.tar.gz' -o -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz' | xargs)
             echo using $installable_bundle
-            cp $installable_bundle system-tests/binaries/
+            cp $installable_bundle build/packages/datadog-setup.php system-tests/binaries/
       - run:
           name: Build
-          command: |
-            cd system-tests
-            ./build.sh php
+          command: << parameters.build >>
       - run:
           name: Run
-          command: |
-            cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+          command: << parameters.run >>
       - store_artifacts:
           path: system-tests/logs
           destination: system-tests.tar.gz
@@ -3197,6 +3198,25 @@ workflows:
       - system_tests:
           requires: [ 'package extension' ]
           name: "System tests"
+          build: |
+            cd system-tests
+            ./build.sh php
+          run: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+
+      - system_tests:
+          requires: [ 'package extension' ]
+          name: "Parametric tests"
+          build: |
+            cd system-tests/parametric
+            export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+            sudo apt-get install -y python-is-python3
+            pip install wheel && pip install -r requirements.txt
+          run: |
+            cd system-tests/parametric
+            export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+            CLIENTS_ENABLED=php ./run.sh
 
   build:
     jobs:

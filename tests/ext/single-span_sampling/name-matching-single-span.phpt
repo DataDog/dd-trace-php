@@ -11,13 +11,13 @@ $tests = [
     ["a**", "a"],
     ["**a", "a"],
     ["*", "a"],
-    [".", "a"],
-    ["..", "a"],
-    ["*.", "a"],
-    [".*", "a"],
+    ["?", "a"],
+    ["??", "a"],
+    ["*?", "a"],
+    ["?*", "a"],
     ["a*a*b", "aaaacaab"],
     ["a*a*b", "aaabbb"],
-    ["a*a*b.", "aaaacaab"],
+    ["a*a*b?", "aaaacaab"],
 ];
 
 foreach ($tests as list($pattern, $service)) {
@@ -46,17 +46,17 @@ a** matches a (name): bool(true)
 **a matches a (name): bool(true)
 * matches a (service): bool(true)
 * matches a (name): bool(true)
-. matches a (service): bool(true)
-. matches a (name): bool(true)
-.. matches a (service): bool(false)
-.. matches a (name): bool(false)
-*. matches a (service): bool(true)
-*. matches a (name): bool(true)
-.* matches a (service): bool(true)
-.* matches a (name): bool(true)
+? matches a (service): bool(true)
+? matches a (name): bool(true)
+?? matches a (service): bool(false)
+?? matches a (name): bool(false)
+*? matches a (service): bool(true)
+*? matches a (name): bool(true)
+?* matches a (service): bool(true)
+?* matches a (name): bool(true)
 a*a*b matches aaaacaab (service): bool(true)
 a*a*b matches aaaacaab (name): bool(true)
 a*a*b matches aaabbb (service): bool(true)
 a*a*b matches aaabbb (name): bool(true)
-a*a*b. matches aaaacaab (service): bool(false)
-a*a*b. matches aaaacaab (name): bool(false)
+a*a*b? matches aaaacaab (service): bool(false)
+a*a*b? matches aaaacaab (name): bool(false)

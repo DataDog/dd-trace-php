@@ -11,13 +11,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-enum dd_sampling_mechanism {
-    DD_MECHANISM_AGENT_RATE = 1,
-    DD_MECHANISM_REMOTE_RATE = 2,
-    DD_MECHANISM_RULE = 3,
-    DD_MECHANISM_MANUAL = 4,
-};
-
 static void dd_update_decision_maker_tag(ddtrace_span_data *span, enum dd_sampling_mechanism mechanism) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
 
@@ -148,7 +141,7 @@ zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_span_data *root_span)
     return zval_get_long(priority_zv);
 }
 
-void ddtrace_set_prioritySampling_on_root(zend_long priority) {
+void ddtrace_set_prioritySampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism) {
     ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
 
     if (!root_span) {
@@ -163,6 +156,6 @@ void ddtrace_set_prioritySampling_on_root(zend_long priority) {
         ZVAL_LONG(&zv, priority);
         zend_hash_str_update(root_metrics, ZEND_STRL("_sampling_priority_v1"), &zv);
 
-        dd_update_decision_maker_tag(root_span, DD_MECHANISM_MANUAL);
+        dd_update_decision_maker_tag(root_span, mechanism);
     }
 }

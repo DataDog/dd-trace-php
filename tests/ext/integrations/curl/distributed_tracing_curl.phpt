@@ -9,6 +9,7 @@ ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 DD_TRACE_DEBUG=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH=25
+HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_ORIGIN=phpt-test
 HTTP_X_DATADOG_TAGS=_dd.p.very=looooooooooooooooong
 DD_PROPAGATION_STYLE_INJECT=B3,B3 single header,Datadog,tracecontext

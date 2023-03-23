@@ -17,9 +17,11 @@ var_dump(DDTrace\generate_distributed_tracing_headers());
 
 ?>
 --EXPECT--
-array(6) {
+array(7) {
   ["x-datadog-sampling-priority"]=>
   string(1) "3"
+  ["x-datadog-tags"]=>
+  string(11) "_dd.p.dm=-0"
   ["x-datadog-origin"]=>
   string(7) "datadog"
   ["x-datadog-trace-id"]=>
@@ -29,5 +31,5 @@ array(6) {
   ["traceparent"]=>
   string(55) "00-0000000000000000000000000000002a-000000000000000a-01"
   ["tracestate"]=>
-  string(16) "dd=o:datadog;s:3"
+  string(24) "dd=o:datadog;s:3;t.dm:-0"
 }
