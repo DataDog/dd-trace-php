@@ -740,6 +740,7 @@ jobs:
           condition:
             and:
               - equal: [ "8.0", << parameters.php_major_minor >> ]
+              - equal: [ "8.1", << parameters.php_major_minor >> ]
               - not:
                 equal: [ "test_composer", << parameters.make_target >> ]
           steps:
