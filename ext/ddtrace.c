@@ -272,7 +272,7 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
 #else
                                                   NULL,
 #endif
-                                                  NULL,
+                                                  zai_hook_unresolve_file,
 
                                                   STANDARD_ZEND_EXTENSION_PROPERTIES};
 
@@ -525,7 +525,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
     zai_hook_minit();
-    zai_uhook_minit();
+    zai_uhook_minit(module_number);
 #if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
 #endif

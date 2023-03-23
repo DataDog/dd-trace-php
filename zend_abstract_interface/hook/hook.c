@@ -55,6 +55,8 @@ static HashTable zai_hook_static;
 ZEND_TLS HashTable zai_hook_request_functions;
 // zai_hook_request_classes is a map class name -> map function name -> array<zai_hook_t>
 ZEND_TLS HashTable zai_hook_request_classes;
+// zai_hook_request_files is an array<zai_hook_t>
+ZEND_TLS zai_hooks_entry zai_hook_request_files;
 
 // zai_hook_resolved is a map op_array/internal_function -> array<zai_hook_t>
 // if indirect, then it's pointing to some hashtable in zai_hook_request_functions/classes
@@ -157,6 +159,10 @@ static void zai_hook_inheritors_destroy(zval *zv) {
 }
 
 static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_address) {
+    if (hooks == &zai_hook_request_files) {
+        return;
+    }
+
 #if PHP_VERSION_ID >= 80000
     if (hooks->resolved
 #if PHP_VERSION_ID < 80200
@@ -469,6 +475,10 @@ static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *reso
 }
 
 static zend_long zai_hook_request_install(zai_hook_t *hook) {
+    if (!hook->function) {
+        return zai_hook_add_entry(&zai_hook_request_files, hook);
+    }
+
     zend_class_entry *ce = NULL;
     zai_string_view scope = hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STRING_EMPTY;
     zend_function *function = zai_hook_lookup_function(scope, ZAI_STRING_FROM_ZSTR(hook->function), &ce);
@@ -745,6 +755,21 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
     }
 }
 
+void zai_hook_resolve_file(zend_op_array *op_array) {
+    zai_install_address addr = zai_hook_install_address_user(op_array);
+    zend_hash_index_add_ptr(&zai_hook_resolved, addr, &zai_hook_request_files);
+}
+
+void zai_hook_unresolve_file(zend_op_array *op_array) {
+    // May be called in shutdown_executor, which is after extension rshutdown
+    if ((zend_long)zai_hook_id == -1) {
+        return;
+    }
+
+    zai_install_address addr = zai_hook_install_address_user(op_array);
+    zend_hash_index_del(&zai_hook_resolved, addr);
+}
+
 static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong hook_id, zai_hooks_entry *base_hooks) {
     zai_install_address addr = zai_hook_install_address(func);
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, addr);
@@ -824,6 +849,10 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     }
 
     uint32_t allocated_hook_count = zend_hash_num_elements(&hooks->hooks);
+    if (allocated_hook_count == 0) {
+        return ZAI_HOOK_SKIP;
+    }
+
     size_t hook_info_size = allocated_hook_count * sizeof(zai_hook_info);
     size_t dynamic_size = hooks->dynamic + hook_info_size;
     // a vector of first N hook_info entries, then N entries of variable size (as much memory as the individual hooks require)
@@ -986,6 +1015,7 @@ bool zai_hook_minit(void) {
 
 bool zai_hook_rinit(void) {
     zend_hash_init(&zai_hook_inheritors, 8, NULL, zai_hook_inheritors_destroy, 0);
+    zend_hash_init(&zai_hook_request_files.hooks, 8, NULL, zai_hook_destroy, 0);
     zend_hash_init(&zai_hook_request_functions, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_request_classes, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_resolved, 8, NULL, NULL, 0);
@@ -1052,6 +1082,8 @@ static int zai_hook_clean_graceful_del(zval *zv) {
 }
 
 void zai_hook_rshutdown(void) {
+    zai_hook_id = -1;
+
     // freeing this after a bailout is a bad idea: at least resolved hooks will contain objects, which are invalid when destroyed here.
     if (!CG(unclean_shutdown)) {
         zend_hash_apply(&zai_hook_resolved, zai_hook_clean_graceful_del);
@@ -1060,6 +1092,7 @@ void zai_hook_rshutdown(void) {
         zend_hash_destroy(&zai_hook_inheritors);
         zend_hash_destroy(&zai_hook_request_functions);
         zend_hash_destroy(&zai_hook_request_classes);
+        zend_hash_destroy(&zai_hook_request_files.hooks);
         zend_hash_destroy(&zai_function_location_map);
     }
 }
@@ -1114,17 +1147,12 @@ static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool
 zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view function,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
-    if (!function.len) {
-        /* not allowed: target must be known */
-        return -1;
-    }
-
     bool persistent = !PG(modules_activated);
 
     zai_hook_t *hook = pemalloc(sizeof(*hook), persistent);
     *hook = (zai_hook_t){
         .scope = scope.len ? zai_zend_string_init_lower(scope.ptr, scope.len, persistent) : NULL,
-        .function = zai_zend_string_init_lower(function.ptr, function.len, persistent),
+        .function = function.len ? zai_zend_string_init_lower(function.ptr, function.len, persistent) : NULL,
         .resolved_scope = NULL,
         .begin = begin,
         .generator_resume = resumption,
@@ -1169,6 +1197,10 @@ bool zai_hook_remove_resolved(zai_install_address function_address, zend_long in
 }
 
 bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index) {
+    if (!function.len) {
+        return zai_hook_remove_from_entry(&zai_hook_request_files, (zend_ulong)index);
+    }
+
     zend_class_entry *ce;
     zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
     if (resolved) {
@@ -1208,6 +1240,11 @@ void zai_hook_clean(void) {
     zend_hash_apply(&zai_hook_resolved, zai_hook_clean_graceful_del);
     zend_hash_clean(&zai_hook_request_functions);
     zend_hash_clean(&zai_hook_request_classes);
+
+    zend_hash_iterators_remove(&zai_hook_request_files.hooks);
+    zend_hash_clean(&zai_hook_request_files.hooks);
+    zai_hook_request_files.dynamic = 0;
+
     zend_hash_clean(&zai_function_location_map);
 }
 
