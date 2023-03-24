@@ -88,7 +88,9 @@ Options:
 EOD;
 }
 
-class IniRecord {
+// phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
+class IniRecord
+{
     /** @var string */
     public $setting;
     /** @var string */
@@ -194,6 +196,7 @@ function cmd_config_get(array $options)
             echo '; ', $iniSetting, ' = undefined ; is missing in INI files', PHP_EOL;
         } else {
             foreach ($records[$iniSetting] as $record) {
+                // phpcs:disable Generic.Files.LineLength.TooLong
                 echo "$record->setting = $record->currentValue ; default: $record->defaultValue, INI file: $record->iniFile\n";
             }
         }
@@ -210,7 +213,7 @@ function cmd_config_get(array $options)
  *    INI setting, uncomments it and updates the value. It first checks this in
  *    the "default" INI file (the one that holds the `extension = ddtrace` line,
  *    then others and only promotes the first commented version found.
- * 3. In case this INI setting is not there yet it creates a new entry in the 
+ * 3. In case this INI setting is not there yet it creates a new entry in the
  *    "default" INI file (see above).
  *
  * $ php datadog-setup.php config set --php-bin all \
