@@ -865,7 +865,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
     uint32_t hook_num = 0;
     size_t dynamic_offset = hook_info_size;
-    bool check_scope = ex->func->common.scope != NULL;
+    bool check_scope = ex->func->common.scope != NULL && ex->func->common.function_name != NULL;
 
     for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
         zend_hash_move_forward_ex(&hooks->hooks, &pos);
