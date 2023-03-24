@@ -89,7 +89,7 @@ Options:
     --enable-profiling          Enable the BETA profiling module.
     -d setting[=value]          Used in conjunction with `config <set|get>`
                                 command to specify the INI setting to get or set.
- 
+
 Available commands:
     config list                 List Datadog's INI setting for the specified binaries.
     config get                  Get INI setting for the specified binaries.
