@@ -110,7 +110,6 @@ class LaminasIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->meta[Tag::COMPONENT] = 'laminas';
-                $span->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -123,7 +122,6 @@ class LaminasIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->meta[Tag::COMPONENT] = 'laminas';
-                $span->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -143,7 +141,6 @@ class LaminasIntegration extends Integration
                     $span->name = "laminas.event.$eventName";
                     $span->service = \ddtrace_config_app_name('laminas');
                     $span->meta[Tag::COMPONENT] = 'laminas';
-                    $span->meta[Tag::SPAN_KIND] = 'server';
                 }
             ]
         );
@@ -164,7 +161,6 @@ class LaminasIntegration extends Integration
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     $span->meta[Tag::COMPONENT] = 'laminas';
-                    $span->meta[Tag::SPAN_KIND] = 'server';
                 }
             ]
         );
@@ -245,7 +241,6 @@ class LaminasIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = 'laminas';
-                $span->meta[Tag::SPAN_KIND] = 'server';
 
                 /** @var MvcEvent $event */
                 $event = $args[0];
