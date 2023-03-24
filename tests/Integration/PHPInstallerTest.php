@@ -206,7 +206,7 @@ final class PHPInstallerTest extends BaseTestCase
 
     /**
      * @dataProvider cliArguments
-     */ 
+     */
     public function testCliArgumentParsing(string $cli, array $expect)
     {
         $command = explode(' ', $cli);
