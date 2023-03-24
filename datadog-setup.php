@@ -71,19 +71,27 @@ function print_help()
 
 Usage:
     Interactive
-        php datadog-setup.php ...
+        php datadog-setup.php [command] ...
     Non-Interactive
         php datadog-setup.php --php-bin php ...
         php datadog-setup.php --php-bin php --php-bin /usr/local/sbin/php-fpm ...
+        php datadog-setup.php config get --php-bin php -d datadog.profiling.enabled
+        php datadog-setup.php config set --php-bin php -d datadog.profiling.enabled=On
 
 Options:
-    -h, --help                  Print this help text and exit
-    --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search
+    -h, --help                  Print this help text and exit.
+    --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search.
                                 paths. The option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
-    --uninstall                 Uninstall the library from the specified binaries
+    --uninstall                 Uninstall the library from the specified binaries.
     --enable-appsec             Enable the application security monitoring module.
     --enable-profiling          Enable the BETA profiling module.
+    -d setting[=value]          Used in conjunction with `config <set|get>` command to specify the INI setting to get or set.
+ 
+Available commands:
+    config list                 List Datadog's INI setting for the specified binaries.
+    config get                  Get INI setting for the specified binaries.
+    config set                  Set INI setting for the specified binaries.
 
 EOD;
 }
@@ -180,6 +188,10 @@ function cmd_config_list(array $options)
  */
 function cmd_config_get(array $options)
 {
+    if (!isset($options['d'])) {
+        print_help();
+        return;
+    }
     /* A value could be set in multiple places:
      * - /opt/php/8.1/etc/conf.d/98-ddtrace.ini
      * - /opt/php/8.1/etc/conf.d/90-ddtrace-custom.ini
@@ -225,6 +237,10 @@ function cmd_config_get(array $options)
  */
 function cmd_config_set(array $options): void
 {
+    if (!isset($options['d'])) {
+        print_help();
+        return;
+    }
     $selectedBinaries = require_binaries_or_exit($options);
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
