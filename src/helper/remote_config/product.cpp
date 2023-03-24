@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "product.hpp"
+#include "exception.hpp"
 
 void dds::remote_config::product::update_configs(
     std::unordered_map<std::string, dds::remote_config::config> &to_update)

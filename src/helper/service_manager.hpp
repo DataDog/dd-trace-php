@@ -27,8 +27,7 @@ public:
         const service_identifier &id, const engine_settings &settings,
         const remote_config::settings &rc_settings,
         std::map<std::string_view, std::string> &meta,
-        std::map<std::string_view, double> &metrics,
-        std::vector<remote_config::protocol::capabilities_e> &&capabilities);
+        std::map<std::string_view, double> &metrics, bool dynamic_enablement);
 
 protected:
     using cache_t = std::unordered_map<service_identifier,

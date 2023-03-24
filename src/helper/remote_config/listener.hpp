@@ -5,9 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "config.hpp"
-#include "service_config.hpp"
+#include "protocol/client.hpp"
 #include <memory>
+#include <vector>
 
 namespace dds::remote_config {
 
@@ -22,6 +22,8 @@ public:
 
     virtual void on_update(const config &config) = 0;
     virtual void on_unapply(const config &config) = 0;
+    [[nodiscard]] virtual const protocol::capabilities_e get_capabilities() = 0;
+    [[nodiscard]] virtual const std::string_view get_name() = 0;
 
     // Stateful listeners need to override these methods
     virtual void init() = 0;

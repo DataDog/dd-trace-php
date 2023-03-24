@@ -6,7 +6,6 @@
 #pragma once
 
 #include "config.hpp"
-#include "exception.hpp"
 #include "listener.hpp"
 #include <algorithm>
 #include <iostream>
@@ -19,12 +18,13 @@ namespace dds::remote_config {
 
 class product {
 public:
-    product(std::string &&name, std::shared_ptr<product_listener_base> listener)
-        : name_(std::move(name)), listener_(std::move(listener))
+    product(std::shared_ptr<dds::remote_config::product_listener_base> listener)
+        : listener_(std::move(listener))
     {
         if (listener_ == nullptr) {
-            throw std::runtime_error("invalid listener " + name);
+            throw std::runtime_error("invalid listener");
         }
+        name_ = listener_->get_name();
     }
 
     void assign_configs(const std::unordered_map<std::string, config> &configs);
@@ -38,6 +38,10 @@ public:
         return name_ == b.name_ && configs_ == b.configs_;
     }
     [[nodiscard]] const std::string &get_name() const { return name_; }
+    [[nodiscard]] const protocol::capabilities_e get_capabilities() const
+    {
+        return listener_->get_capabilities();
+    }
 
 protected:
     void update_configs(

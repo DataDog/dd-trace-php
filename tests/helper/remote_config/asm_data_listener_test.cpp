@@ -9,6 +9,7 @@
 #include "json_helper.hpp"
 #include "mocks.hpp"
 #include "remote_config/asm_data_listener.hpp"
+#include "remote_config/exception.hpp"
 #include "remote_config/product.hpp"
 #include <engine.hpp>
 #include <rapidjson/document.h>

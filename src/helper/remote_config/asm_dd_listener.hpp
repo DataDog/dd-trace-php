@@ -23,6 +23,12 @@ public:
           fallback_rules_file_(std::move(fallback_rules_file)){};
     void on_update(const config &config) override;
     void on_unapply(const config & /*config*/) override;
+    const protocol::capabilities_e get_capabilities() override
+    {
+        return protocol::capabilities_e::ASM_DD_RULES;
+    }
+
+    const std::string_view get_name() override { return "ASM_DD"; }
 
     void init() override {}
     void commit() override {}

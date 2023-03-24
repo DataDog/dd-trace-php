@@ -124,38 +124,10 @@ bool client::handle_command(const network::client_init::request &command)
 
     client_enabled_conf = command.enabled_configuration;
 
-    std::vector<remote_config::protocol::capabilities_e> capabilities = {};
-
-    if (!client_enabled_conf.has_value()) {
-        capabilities.push_back(
-            remote_config::protocol::capabilities_e::ASM_ACTIVATION);
-    }
-
-    if (eng_settings.rules_file.empty()) {
-        // ASM_DATA
-        capabilities.push_back(
-            remote_config::protocol::capabilities_e::ASM_IP_BLOCKING);
-        capabilities.push_back(
-            remote_config::protocol::capabilities_e::ASM_USER_BLOCKING);
-
-        // ASM_DD
-        capabilities.push_back(
-            remote_config::protocol::capabilities_e::ASM_DD_RULES);
-
-        // ASM
-        capabilities.push_back(
-            remote_config::protocol::capabilities_e::ASM_EXCLUSIONS);
-        capabilities.push_back(remote_config::protocol::capabilities_e::
-                ASM_CUSTOM_BLOCKING_RESPONSE);
-        capabilities.push_back(
-            remote_config::protocol::capabilities_e::ASM_REQUEST_BLOCKING);
-        capabilities.push_back(
-            remote_config::protocol::capabilities_e::ASM_RESPONSE_BLOCKING);
-    }
-
     try {
         service_ = service_manager_->create_service(service_id, eng_settings,
-            command.rc_settings, meta, metrics, std::move(capabilities));
+            command.rc_settings, meta, metrics,
+            !client_enabled_conf.has_value());
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND,

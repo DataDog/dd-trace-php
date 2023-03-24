@@ -4,9 +4,14 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "client.hpp"
+#include "exception.hpp"
 #include "product.hpp"
 #include "protocol/tuf/parser.hpp"
 #include "protocol/tuf/serializer.hpp"
+#include "remote_config/asm_data_listener.hpp"
+#include "remote_config/asm_dd_listener.hpp"
+#include "remote_config/asm_features_listener.hpp"
+#include "remote_config/asm_listener.hpp"
 #include <algorithm>
 #include <regex>
 #include <spdlog/spdlog.h>
@@ -28,25 +33,47 @@ config_path config_path::from_path(const std::string &path)
 }
 
 client::client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
-    remote_config::settings settings, const std::vector<product> &products,
-    std::vector<protocol::capabilities_e> capabilities)
+    remote_config::settings settings, const std::vector<product> &products)
     : api_(std::move(arg_api)), id_(dds::generate_random_uuid()),
-      sid_(std::move(sid)), settings_(std::move(settings)),
-      capabilities_(std::move(capabilities))
+      sid_(std::move(sid)), settings_(std::move(settings))
 {
     for (auto const &product : products) {
         products_.insert(std::pair<std::string, remote_config::product>(
             product.get_name(), product));
+        capabilities_ |= product.get_capabilities();
     }
 }
 
 client::ptr client::from_settings(const service_identifier &sid,
     const remote_config::settings &settings,
-    std::vector<remote_config::product> &&products,
-    std::vector<protocol::capabilities_e> capabilities)
+    const std::shared_ptr<dds::service_config> &service_config,
+    const std::shared_ptr<dds::engine> &engine_ptr)
 {
-    // If there are no capabilities, there is no point on calling RC
-    if (!settings.enabled || capabilities.empty()) {
+    if (!settings.enabled) {
+        return {};
+    }
+
+    std::vector<remote_config::product> products = {};
+    if (service_config->dynamic_enablement) {
+        auto asm_features_listener =
+            std::make_shared<remote_config::asm_features_listener>(
+                service_config);
+        products.emplace_back(asm_features_listener);
+    }
+    if (service_config->dynamic_engine) {
+        auto asm_data_listener =
+            std::make_shared<remote_config::asm_data_listener>(engine_ptr);
+        auto asm_dd_listener = std::make_shared<remote_config::asm_dd_listener>(
+            engine_ptr, dds::engine_settings::default_rules_file());
+        auto asm_listener =
+            std::make_shared<remote_config::asm_listener>(engine_ptr);
+
+        products.emplace_back(asm_data_listener);
+        products.emplace_back(asm_dd_listener);
+        products.emplace_back(asm_listener);
+    }
+
+    if (products.empty()) {
         return {};
     }
 
@@ -59,8 +86,7 @@ client::ptr client::from_settings(const service_identifier &sid,
 
     return std::make_unique<client>(std::make_unique<http_api>(settings.host,
                                         std::to_string(settings.port)),
-        std::move(sid_copy), settings, std::move(products),
-        std::move(capabilities));
+        std::move(sid_copy), settings, std::move(products));
 }
 
 [[nodiscard]] protocol::get_configs_request client::generate_request() const
@@ -94,8 +120,8 @@ client::ptr client::from_settings(const service_identifier &sid,
     for (const auto &[product_name, product] : products_) {
         products_str.push_back(product_name);
     }
-    protocol::client protocol_client = {id_, products_str, ct, cs};
-    protocol_client.set_capabilities(capabilities_);
+    protocol::client protocol_client = {
+        id_, products_str, ct, cs, capabilities_};
 
     return {std::move(protocol_client), std::move(files)};
 };

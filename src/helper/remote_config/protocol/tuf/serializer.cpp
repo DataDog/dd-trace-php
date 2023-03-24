@@ -80,8 +80,11 @@ void serialize_client(rapidjson::Document::AllocatorType &alloc,
     client_object.AddMember("is_tracer", true, alloc);
 
     // NOLINTBEGIN
-    char bytes[2] = {static_cast<char>(client.capabilities >> 8),
-        static_cast<char>(client.capabilities & 0x00FF)};
+    auto capabilities_int =
+        static_cast<std::underlying_type<capabilities_e>::type>(
+            client.capabilities);
+    char bytes[2] = {static_cast<char>(capabilities_int >> 8),
+        static_cast<char>(capabilities_int & 0x00FF)};
 
     client_object.AddMember("capabilities",
         base64_encode(std::string_view(bytes, 2), false), alloc);

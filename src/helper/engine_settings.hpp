@@ -30,7 +30,7 @@ struct engine_settings {
 
     static const std::string &default_rules_file();
 
-    [[nodiscard]] const std::string &rules_file_or_default() const
+    [[nodiscard]] virtual const std::string &rules_file_or_default() const
     {
         if (rules_file.empty()) {
             return default_rules_file();

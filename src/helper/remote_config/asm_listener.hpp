@@ -21,6 +21,14 @@ public:
         : engine_(std::move(engine)){};
     void on_update(const config &config) override;
     void on_unapply(const config & /*config*/) override{};
+    const protocol::capabilities_e get_capabilities() override
+    {
+        return protocol::capabilities_e::ASM_EXCLUSIONS |
+               protocol::capabilities_e::ASM_CUSTOM_BLOCKING_RESPONSE |
+               protocol::capabilities_e::ASM_REQUEST_BLOCKING |
+               protocol::capabilities_e::ASM_RESPONSE_BLOCKING;
+    }
+    const std::string_view get_name() override { return "ASM"; }
 
     void init() override;
     void commit() override;

@@ -8,6 +8,7 @@
 #include "json_helper.hpp"
 #include "mocks.hpp"
 #include "remote_config/asm_dd_listener.hpp"
+#include "remote_config/exception.hpp"
 #include "remote_config/product.hpp"
 #include <rapidjson/document.h>
 #include <subscriber/waf.hpp>

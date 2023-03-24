@@ -311,10 +311,11 @@ TEST(RemoteConfigSerializer, RequestCanBeSerializedWithCachedTargetFields)
 TEST(RemoteConfigSerializer, CapabilitiesCanBeSet)
 {
     auto client = get_client();
-    client.set_capabilities({remote_config::protocol::capabilities_e::RESERVED,
-        remote_config::protocol::capabilities_e::ASM_ACTIVATION,
-        remote_config::protocol::capabilities_e::ASM_IP_BLOCKING,
-        remote_config::protocol::capabilities_e::ASM_DD_RULES});
+    client.capabilities =
+        remote_config::protocol::capabilities_e::RESERVED |
+        remote_config::protocol::capabilities_e::ASM_ACTIVATION |
+        remote_config::protocol::capabilities_e::ASM_IP_BLOCKING |
+        remote_config::protocol::capabilities_e::ASM_DD_RULES;
 
     remote_config::protocol::get_configs_request request = {
         client, get_cached_target_files()};

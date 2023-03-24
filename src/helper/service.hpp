@@ -42,8 +42,7 @@ public:
         const dds::engine_settings &eng_settings,
         const remote_config::settings &rc_settings,
         std::map<std::string_view, std::string> &meta,
-        std::map<std::string_view, double> &metrics,
-        std::vector<remote_config::protocol::capabilities_e> &&capabilities);
+        std::map<std::string_view, double> &metrics, bool dynamic_enablement);
 
     [[nodiscard]] std::shared_ptr<engine> get_engine() const
     {

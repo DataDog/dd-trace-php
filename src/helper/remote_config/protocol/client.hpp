@@ -8,13 +8,13 @@
 #include <string>
 #include <vector>
 
-#include "../product.hpp"
 #include "client_state.hpp"
 #include "client_tracer.hpp"
 
 namespace dds::remote_config::protocol {
 
 enum class capabilities_e : uint16_t {
+    NONE = 0,
     RESERVED = 1,
     ASM_ACTIVATION = 1 << 1,
     ASM_IP_BLOCKING = 1 << 2,
@@ -27,21 +27,34 @@ enum class capabilities_e : uint16_t {
     ASM_CUSTOM_BLOCKING_RESPONSE = 1 << 9,
 };
 
+constexpr capabilities_e operator|(
+    const capabilities_e &lhs, capabilities_e rhs)
+{
+    return static_cast<capabilities_e>(
+        static_cast<std::underlying_type<capabilities_e>::type>(lhs) |
+        static_cast<std::underlying_type<capabilities_e>::type>(rhs));
+}
+
+constexpr capabilities_e &operator|=(
+    capabilities_e &lhs, const capabilities_e rhs)
+{
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+constexpr capabilities_e operator&(capabilities_e lhs, capabilities_e rhs)
+{
+    return static_cast<capabilities_e>(
+        static_cast<std::underlying_type<capabilities_e>::type>(lhs) &
+        static_cast<std::underlying_type<capabilities_e>::type>(rhs));
+}
+
 struct client {
     std::string id;
     std::vector<std::string> products;
     protocol::client_tracer client_tracer;
     protocol::client_state client_state;
-    std::uint16_t capabilities{0};
-
-    void set_capabilities(const std::vector<capabilities_e> &cs)
-    {
-        for (const auto &capability : cs) {
-            capabilities |=
-                static_cast<std::underlying_type<capabilities_e>::type>(
-                    capability);
-        }
-    }
+    capabilities_e capabilities;
 };
 
 inline bool operator==(const client &rhs, const client &lhs)

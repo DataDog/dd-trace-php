@@ -32,6 +32,12 @@ public:
         : engine_(std::move(engine)){};
     void on_update(const config &config) override;
     void on_unapply(const config & /*config*/) override{};
+    const protocol::capabilities_e get_capabilities() override
+    {
+        return protocol::capabilities_e::ASM_IP_BLOCKING |
+               protocol::capabilities_e::ASM_USER_BLOCKING;
+    }
+    const std::string_view get_name() override { return "ASM_DATA"; }
 
     void init() override { rules_data_.clear(); }
     void commit() override;

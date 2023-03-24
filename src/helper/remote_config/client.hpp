@@ -11,11 +11,14 @@
 #include <vector>
 
 #include "../service_identifier.hpp"
+#include "engine.hpp"
+#include "engine_settings.hpp"
 #include "http_api.hpp"
 #include "product.hpp"
 #include "protocol/client.hpp"
 #include "protocol/tuf/get_configs_request.hpp"
 #include "protocol/tuf/get_configs_response.hpp"
+#include "service_config.hpp"
 #include "settings.hpp"
 #include "utils.hpp"
 
@@ -34,8 +37,7 @@ public:
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
         remote_config::settings settings,
-        const std::vector<product> &products = {},
-        std::vector<protocol::capabilities_e> capabilities = {});
+        const std::vector<product> &products = {});
     virtual ~client() = default;
 
     client(const client &) = delete;
@@ -45,11 +47,16 @@ public:
 
     static client::ptr from_settings(const service_identifier &sid,
         const remote_config::settings &settings,
-        std::vector<remote_config::product> &&products,
-        std::vector<protocol::capabilities_e> capabilities);
+        const std::shared_ptr<dds::service_config> &service_config,
+        const std::shared_ptr<dds::engine> &engine_ptr);
 
     virtual bool poll();
     virtual bool is_remote_config_available();
+    [[nodiscard]] virtual const std::unordered_map<std::string, product> &
+    get_products()
+    {
+        return products_;
+    }
 
     [[nodiscard]] const service_identifier &get_service_identifier()
     {
@@ -74,7 +81,7 @@ protected:
     // supported products
     std::unordered_map<std::string, product> products_;
 
-    std::vector<protocol::capabilities_e> capabilities_;
+    protocol::capabilities_e capabilities_ = {protocol::capabilities_e::NONE};
 };
 
 } // namespace dds::remote_config

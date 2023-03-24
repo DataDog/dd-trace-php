@@ -20,6 +20,14 @@ public:
     MOCK_METHOD0(poll, bool());
     MOCK_METHOD0(is_remote_config_available, bool());
 };
+
+struct engine_settings : public dds::engine_settings {
+    std::string mock_default_rules;
+    [[nodiscard]] const std::string &rules_file_or_default() const override
+    {
+        return mock_default_rules;
+    }
+};
 } // namespace mock
 
 ACTION_P(SignalCall, promise) { promise->set_value(true); }
@@ -194,6 +202,68 @@ TEST(ServiceTest, ItKeepsPollingWhileNoError)
     first_call_future.wait_for(600ms);
     second_call_future.wait_for(1.2s);
     third_call_future.wait_for(1.8s);
+}
+
+TEST(ServiceTest, DynamicEngineDependsOnRuleFileBeingSet)
+{
+    service_identifier sid{
+        "service", "env", "tracer_version", "app_version", "runtime_id"};
+    std::shared_ptr<engine> engine{engine::create()};
+
+    remote_config::settings rc_settings;
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+    bool dynamic_enablement = false;
+
+    { // Dynamic engine enabled
+        mock::engine_settings eng_settings;
+        eng_settings.mock_default_rules = create_sample_rules_ok();
+        eng_settings.rules_file = "";
+        auto svc = service::from_settings(
+            sid, eng_settings, rc_settings, meta, metrics, dynamic_enablement);
+
+        EXPECT_TRUE(svc->get_service_config()->dynamic_engine);
+    }
+
+    { // Dynamic engine disabled
+        dds::engine_settings eng_settings;
+        eng_settings.rules_file = create_sample_rules_ok();
+        ;
+        auto svc = service::from_settings(
+            sid, eng_settings, rc_settings, meta, metrics, dynamic_enablement);
+
+        EXPECT_FALSE(svc->get_service_config()->dynamic_engine);
+    }
+}
+
+TEST(ServiceTest, DynamicEnablementIsSetFromParameter)
+{
+    service_identifier sid{
+        "service", "env", "tracer_version", "app_version", "runtime_id"};
+    std::shared_ptr<engine> engine{engine::create()};
+    dds::engine_settings eng_settings;
+
+    remote_config::settings rc_settings;
+    eng_settings.rules_file = create_sample_rules_ok();
+    ;
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    { // Dynamic enablement enabled
+        auto dynamic_enablement = true;
+        auto svc = service::from_settings(
+            sid, eng_settings, rc_settings, meta, metrics, dynamic_enablement);
+
+        EXPECT_TRUE(svc->get_service_config()->dynamic_enablement);
+    }
+
+    {
+        auto dynamic_enablement = false;
+        auto svc = service::from_settings(
+            sid, eng_settings, rc_settings, meta, metrics, dynamic_enablement);
+
+        EXPECT_FALSE(svc->get_service_config()->dynamic_enablement);
+    }
 }
 
 } // namespace dds

@@ -15,6 +15,8 @@ namespace dds {
 enum class enable_asm_status : unsigned { NOT_SET = 0, ENABLED, DISABLED };
 
 struct service_config {
+    bool dynamic_enablement = {false};
+    bool dynamic_engine = {false};
     void enable_asm() { asm_enabled = enable_asm_status::ENABLED; }
     void disable_asm() { asm_enabled = enable_asm_status::DISABLED; }
     void unset_asm() { asm_enabled = enable_asm_status::NOT_SET; }
