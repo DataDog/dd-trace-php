@@ -259,13 +259,13 @@ impl TimeCollector {
 
         if alloc_samples_offset.is_some() && alloc_size_offset.is_some() {
             let upscaling_info = UpscalingInfo::Poisson {
-                x: alloc_size_offset.unwrap(),
-                y: alloc_samples_offset.unwrap(),
-                threshold: ALLOCATION_PROFILING_INTERVAL as i64
+                sum_value_offset: alloc_size_offset.unwrap(),
+                count_value_offset: alloc_samples_offset.unwrap(),
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64
             };
             let values_offset: Vec<usize> = vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
             profile
-                .add_upscaling_rules(values_offset.as_slice(), "", "", upscaling_info)
+                .add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info)
                 .expect("Rule added");
         }
 
