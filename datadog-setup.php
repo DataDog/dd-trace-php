@@ -348,14 +348,16 @@ function parse_ini_setting(string $setting)
     return $setting;
 }
 
+
 /**
- * This function will try and update a given $setting to $value in the INI file
- * given in $ini. First it tries to find an uncommented version of the setting
- * in the file and replace this with the new value. In case no uncommented version
+ * This function will try and update a given `$setting` in the INI file given in
+ * `$iniFile`. First it tries to find an uncommented version of the setting in
+ * the file and replace this with the new value. In case no uncommented version
  * was found it tries to find commented versions of this INI setting.
  *
- * In case `$promoteComment` is set to `true`, this function will replace an therefore
- * promote only the first occurrence it finds from a comment to an INI setting
+ * In case `$promoteComment` is set to `true`, this function will replace and
+ * therefore promote only the first occurrence it finds from a comment to an INI
+ * setting in the given `$iniFile`.
  *
  * @param array{0: string, 1: string} $setting
  * @return false|int
@@ -364,9 +366,9 @@ function update_ini_setting(array $setting, string $iniFile, bool $promoteCommen
 {
     $iniFileContent = file_get_contents($iniFile);
     if ($promoteComment) {
-        $regex = '/^[\s;]*' . preg_quote($setting[0]) . '\s*=\s*?[^;\n\r]*/mi';
+        $regex = '/^[\h;]*' . preg_quote($setting[0]) . '\h*=\h*?[^;\n\r]*/mi';
     } else {
-        $regex = '/^\s*' . preg_quote($setting[0]) . '\s*=\s*?[^;\n\r]*/mi';
+        $regex = '/^\h*' . preg_quote($setting[0]) . '\h*=\h*?[^;\n\r]*/mi';
     }
     $count = 0;
     $iniFileContent = preg_replace($regex, implode(' = ', $setting), $iniFileContent, $promoteComment ? 1 : -1, $count);

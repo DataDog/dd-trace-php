@@ -143,87 +143,122 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertNotEmpty($values[IS_DEBUG]);
     }
 
-    public function testCliArgumentParsing()
+    public function cliArguments()
     {
-        $command = explode(' ', 'datadog-setup.php config get -d datadog.profiling.enabled -dfoobar');
-        $opts = parse_cli_arguments($command);
-        $this->assertSame(
+        return [
             [
-                'cmd' => 'config get',
-                'opts' => [
-                    'd' => [
-                        'datadog.profiling.enabled',
-                        'foobar',
+                'datadog-setup.php config get -d datadog.profiling.enabled -dfoobar',
+                [
+                    'cmd' => 'config get',
+                    'opts' => [
+                        'd' => [
+                            'datadog.profiling.enabled',
+                            'foobar',
+                        ]
                     ]
                 ]
-            ],
-            $opts
-        );
+            ], [
+                'datadog-setup.php --php-bin php --php-bin php-cli --install-dir /opt/ --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'php-bin' => [
+                            'php',
+                            'php-cli',
+                        ],
+                        'install-dir' => '/opt/',
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ], [
+                'datadog-setup.php --php-bin=php --php-bin=php-cli --install-dir /opt/ --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'php-bin' => [
+                            'php',
+                            'php-cli',
+                        ],
+                        'install-dir' => '/opt/',
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ], [
+                'datadog-setup.php --help',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'help' => false
+                    ]
+                ]
+            ], [
+                'datadog-setup.php -h --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'h' => false,
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ]
+        ];
+    }
 
-        $command = explode(
-            ' ',
-            'datadog-setup.php --php-bin php --php-bin php-cli --install-dir /opt/ --enable-profiling'
-        );
+    /**
+     * @dataProvider cliArguments
+     */ 
+    public function testCliArgumentParsing(string $cli, array $expect)
+    {
+        $command = explode(' ', $cli);
         $opts = parse_cli_arguments($command);
         $this->assertSame(
-            [
-                'cmd' => 'install',
-                'opts' => [
-                    'php-bin' => [
-                        'php',
-                        'php-cli',
-                    ],
-                    'install-dir' => '/opt/',
-                    'enable-profiling' => false,
-                ]
-            ],
+            $expect,
             $opts
         );
+    }
 
-        $command = explode(
-            ' ',
-            'datadog-setup.php --php-bin=php --php-bin=php-cli --install-dir /opt/ --enable-profiling'
-        );
-        $opts = parse_cli_arguments($command);
-        $this->assertSame(
+    public function iniFileContents()
+    {
+        return [
             [
-                'cmd' => 'install',
-                'opts' => [
-                    'php-bin' => [
-                        'php',
-                        'php-cli',
-                    ],
-                    'install-dir' => '/opt/',
-                    'enable-profiling' => false,
-                ]
-            ],
-            $opts
-        );
+                ';foo.bar=On;comment',
+                ';foo.bar=On;comment',
+                false,
+                0
+            ], [
+                ';foo.bar=On;comment',
+                'foo.bar = Off;comment',
+                true,
+                1
+            ], [
+                'foo.bar=On;comment
 
-        $command = explode(' ', 'datadog-setup.php --help');
-        $opts = parse_cli_arguments($command);
-        $this->assertSame(
-            [
-                'cmd' => 'install',
-                'opts' => [
-                    'help' => false
-                ]
-            ],
-            $opts
-        );
+foo.bar=baz',
+                'foo.bar = Off;comment
 
-        $command = explode(' ', 'datadog-setup.php -h --enable-profiling');
-        $opts = parse_cli_arguments($command);
-        $this->assertSame(
-            [
-                'cmd' => 'install',
-                'opts' => [
-                    'h' => false,
-                    'enable-profiling' => false,
-                ]
-            ],
-            $opts
-        );
+foo.bar = Off',
+                false,
+                2
+            ]
+        ];
+    }
+
+    /**
+     * @dataProvider iniFileContents
+     */
+    public function testUpdateIniSetting(string $before, string $after, bool $promoteComment, int $expCount)
+    {
+        // Create a temporary file
+        $tempFile = tempnam(sys_get_temp_dir(), 'test');
+        file_put_contents($tempFile, $before);
+
+        $count = update_ini_setting(['foo.bar', 'Off'], $tempFile, $promoteComment);
+
+        $output = file_get_contents($tempFile);
+        $this->assertSame($after, $output);
+        $this->assertSame($count, $expCount);
+
+        unlink($tempFile);
     }
 
     private static function getTmpRootPath()
