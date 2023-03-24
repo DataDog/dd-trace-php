@@ -82,6 +82,9 @@ class LaminasIntegration extends Integration
                 }
 
                 $listener = $args[1];
+                if (!is_array($listener) || !is_object($listener[0]) || !is_string($listener[1])) {
+                    return;
+                }
                 $className = get_class($listener[0]);
                 $methodName = $listener[1];
                 trace_method(
