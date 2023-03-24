@@ -80,13 +80,15 @@ Usage:
 
 Options:
     -h, --help                  Print this help text and exit.
-    --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search.
-                                paths. The option can be provided multiple times.
+    --php-bin all|<path to php> Install the library to the specified binary or
+                                all php binaries in standard search paths. The
+                                option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries.
     --enable-appsec             Enable the application security monitoring module.
     --enable-profiling          Enable the BETA profiling module.
-    -d setting[=value]          Used in conjunction with `config <set|get>` command to specify the INI setting to get or set.
+    -d setting[=value]          Used in conjunction with `config <set|get>`
+                                command to specify the INI setting to get or set.
  
 Available commands:
     config list                 List Datadog's INI setting for the specified binaries.
