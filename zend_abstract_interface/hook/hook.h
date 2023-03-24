@@ -90,7 +90,7 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname);
 void zai_hook_resolve_file(zend_op_array *op_array);
 
 /* cleanup function to avoid memory leaking */
-void zai_hook_unresolve_file(zend_op_array *op_array);
+void zai_hook_unresolve_op_array(zend_op_array *op_array);
 
 /* {{{ private but externed for performance reasons */
 extern TSRM_TLS HashTable zai_hook_resolved;

@@ -277,7 +277,7 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
 #else
                                                   NULL,
 #endif
-                                                  zai_hook_unresolve_file,
+                                                  zai_hook_unresolve_op_array,
 
                                                   STANDARD_ZEND_EXTENSION_PROPERTIES};
 

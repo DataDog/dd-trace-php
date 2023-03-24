@@ -214,6 +214,10 @@ static void zai_hook_entries_remove_resolved(zend_ulong install_address) {
 }
 
 static void zai_hook_hash_destroy(zval *zv) {
+    if (Z_TYPE_P(zv) == ZAI_IS_SHARED_HOOK_PTR) {
+        return;
+    }
+
     HashTable *hooks = Z_PTR_P(zv);
 
     zend_hash_iterators_remove(hooks);
@@ -358,8 +362,8 @@ static void zai_hook_resolve_hooks_entry(zai_hooks_entry *hooks, zend_function *
 #endif
     }
     hooks->is_generator = (resolved->common.fn_flags & ZEND_ACC_GENERATOR) != 0;
-    if ((resolved->common.fn_flags & ZEND_ACC_CLOSURE) == 0)
 #endif
+    if ((resolved->common.fn_flags & ZEND_ACC_CLOSURE) == 0)
     {
          hooks->resolved = resolved;
     }
@@ -760,14 +764,19 @@ void zai_hook_resolve_file(zend_op_array *op_array) {
     zend_hash_index_add_ptr(&zai_hook_resolved, addr, &zai_hook_request_files);
 }
 
-void zai_hook_unresolve_file(zend_op_array *op_array) {
+void zai_hook_unresolve_op_array(zend_op_array *op_array) {
     // May be called in shutdown_executor, which is after extension rshutdown
     if ((zend_long)zai_hook_id == -1) {
         return;
     }
 
     zai_install_address addr = zai_hook_install_address_user(op_array);
-    zend_hash_index_del(&zai_hook_resolved, addr);
+    if (op_array->function_name) {
+        zai_hook_entries_remove_resolved(addr);
+    } else {
+        // skip freeing for file op_arrays, these are handled via zai_hook_request_files
+        zend_hash_index_del(&zai_hook_resolved, addr);
+    }
 }
 
 static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong hook_id, zai_hooks_entry *base_hooks) {
