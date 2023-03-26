@@ -251,7 +251,6 @@ function cmd_config_set(array $options): void
         $phpProps = ini_values($fullPath);
 
         foreach ($options['d'] as $cliIniSetting) {
-            // `trim()` should not be needed, but better safe than sorry
             if (($setting = parse_ini_setting($cliIniSetting)) === false) {
                 echo "The given INI setting '", $cliIniSetting,
                     "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
@@ -288,7 +287,7 @@ function cmd_config_set(array $options): void
             // If we are here, we could not find the INI setting in any files, so
             // we try and look for commented versions
 
-            $iniFilePaths = find_ini_files($phpProps);
+            $iniFilePaths = find_ini_files($phpProps) + get_ini_files($phpProps);
 
             $matchCount = [];
             // look for INI setting in INI files
@@ -706,6 +705,12 @@ function install($options)
     }
 }
 
+/**
+ * Returns a list of all INI files found for the `$phpProperties` given.
+ *
+ * @see ini_values
+ * @return string[]
+ */
 function get_ini_files(array $phpProperties): array
 {
     $iniFilePaths = [];
@@ -717,7 +722,7 @@ function get_ini_files(array $phpProperties): array
             $iniFilePaths[] = $phpProperties[INI_SCANDIR] . '/' . $ini;
         }
 
-        /* not sure about this
+        /* not sure about this for this case
         if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
             /* debian based distros have INI folders split by SAPI, in a predefined way:
              *   - <...>/cli/conf.d       <-- we know this from php -i
