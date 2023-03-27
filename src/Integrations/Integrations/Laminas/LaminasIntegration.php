@@ -72,12 +72,19 @@ class LaminasIntegration extends Integration
 
         $integration = $this;
 
+        // @see https://github.com/laminas/laminas-eventmanager/blob/3.11.x/src/EventManagerInterface.php#L94
         hook_method(
             'Laminas\EventManager\EventManagerInterface',
             'attach',
             null,
             function ($This, $score, $args) use ($MVCEvents) {
-                if (!in_array($args[0], $MVCEvents)) {
+                $eventName = $args[0];
+                if (!is_string($eventName)) {
+                    return; // If such a case happen, an exception will be thrown by the framework
+                }
+
+                // Only instrument Mvc events triggered by eventmanager, as the other events would add too much noise
+                if (!in_array($eventName, $MVCEvents)) {
                     return;
                 }
 
@@ -180,10 +187,18 @@ class LaminasIntegration extends Integration
                 /** @var RequestInterface $request */
                 $request = $args[0];
 
-                $method = $request->getMethod();
+
+                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->meta[Tag::HTTP_VERSION] = $request->getVersion();
+                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
+
+                $routeMatch = $retval;
+                if (is_null($routeMatch)) {
+                    return;
+                }
 
                 /** @var RouteMatch $routeMatch */
-                $routeMatch = $retval;
+
                 $routeName = $routeMatch->getMatchedRouteName();
                 $action = $routeMatch->getParam('action');
                 $controller = $routeMatch->getParam('controller');
@@ -199,13 +214,18 @@ class LaminasIntegration extends Integration
                         }
                     );
                 }
-
                 $rootSpan->resource = "$controller@$action $routeName";
-
-                $rootSpan->meta[Tag::HTTP_METHOD] = $method;
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
-                $rootSpan->meta['laminas.route.name'] = $routeName;
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
+            }
+        );
+
+        hook_method(
+            'Laminas\Http\Response',
+            'setStatusCode',
+            function ($This, $scope, $args) use ($rootSpan) {
+                $statusCode = $args[0];
+                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = "$statusCode";
             }
         );
 

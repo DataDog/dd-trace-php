@@ -45,11 +45,12 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'Application\Controller\CommonSpecsController@simple simple'
                     )->withExactTags([
-                        'laminas.route.name'    => 'simple',
                         'laminas.route.action'  => 'Application\Controller\CommonSpecsController@simple',
+                        Tag::HTTP_ROUTE         => 'simple',
                         Tag::HTTP_METHOD        => 'GET',
                         Tag::HTTP_URL           => 'http://localhost:9999/simple?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE   => '200',
+                        Tag::HTTP_VERSION       => '1.1',
                         Tag::SPAN_KIND          => 'server',
                         Tag::COMPONENT          => 'laminas'
                     ])->withChildren([
@@ -122,11 +123,12 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'Application\Controller\CommonSpecsController@view simpleView'
                     )->withExactTags([
-                        'laminas.route.name'    => 'simpleView',
                         'laminas.route.action'  => 'Application\Controller\CommonSpecsController@view',
+                        Tag::HTTP_ROUTE         => 'simpleView',
                         Tag::HTTP_METHOD        => 'GET',
                         Tag::HTTP_URL           => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE   => '200',
+                        TAG::HTTP_VERSION       => '1.1',
                         Tag::SPAN_KIND          => 'server',
                         Tag::COMPONENT          => 'laminas'
                     ])->withChildren([
@@ -226,11 +228,12 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'Application\Controller\CommonSpecsController@error error'
                     )->withExactTags([
-                        'laminas.route.name'    => 'error',
                         'laminas.route.action'  => 'Application\Controller\CommonSpecsController@error',
+                        Tag::HTTP_ROUTE         => 'error',
                         Tag::HTTP_METHOD        => 'GET',
                         Tag::HTTP_URL           => 'http://localhost:9999/error?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE   => '500',
+                        Tag::HTTP_VERSION       => '1.1',
                         Tag::SPAN_KIND          => 'server',
                         Tag::COMPONENT          => 'laminas'
                     ])->setError(
@@ -365,6 +368,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_METHOD        => 'GET',
                         Tag::HTTP_URL           => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE   => '404',
+                        Tag::HTTP_VERSION       => '1.1',
                         Tag::SPAN_KIND          => 'server',
                         Tag::COMPONENT          => 'laminas'
                     ])->withChildren([
