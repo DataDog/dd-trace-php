@@ -54,7 +54,7 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_TEST_AGENT
-    image: williamconti549/dd-apm-test-agent:span_tag_validation
+    image: williamconti549/dd-apm-test-agent:latest
     name: test-agent
     # volumes:
     #     - ./specifications:/specifications
@@ -317,7 +317,7 @@ commands:
                 -e DISABLED_CHECKS=trace_content_length \
                 -e PORT=9126 \
                 -p "127.0.0.1:9126:9126" \
-                --name test-agent williamconti549/dd-apm-test-agent:span_tag_validation
+                --name test-agent williamconti549/dd-apm-test-agent:latest
               docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               docker run --detach --rm --net net \
