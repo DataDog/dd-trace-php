@@ -1,6 +1,6 @@
 [package]
 name = "datadog-php-profiling"
-version = "0.14.0"
+version = "0.15.0"
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.60"
@@ -11,21 +11,24 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ahash = { version = "0.8" }
 anyhow = { version = "1.0" }
+bumpalo = { version = "3.12", features = ["collections"] }
 cfg-if = { version = "1.0" }
-crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 cpu-time = { version = "1.0" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", branch = "gleocadie/upscaling-values" }
-env_logger = { version = "0.9.3" }
+crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v2.1.0" }
+env_logger = { version = "0.10" }
 indexmap = { version = "1.8" }
 lazy_static = { version = "1.4" }
 libc = "0.2"
 # TRACE set to max to support runtime configuration.
 log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"]}
 once_cell = { version = "1.12" }
-uuid = { version = "1.0", features = ["v4"] }
 rand = { version = "0.8.5" }
 rand_distr = { version = "0.4.3" }
+self_cell = { version = "0.10" }
+uuid = { version = "1.0", features = ["v4"] }
 
 [features]
 default = ["allocation_profiling"]

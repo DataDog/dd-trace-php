@@ -40,6 +40,7 @@ build:
 deploy_to_reliability_env:
   stage: deploy
   rules:
+    - if: '$FORCE_TRIGGER == "true"'
     - if: '$CI_PIPELINE_SOURCE != "schedule"'
       when: always
   trigger:
