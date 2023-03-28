@@ -147,6 +147,17 @@ final class PHPInstallerTest extends BaseTestCase
     {
         return [
             [
+                'datadog-setup.php config set -d datadog.profiling.enabled=1 -ddatadog.profiling.log_level=trace',
+                [
+                    'cmd' => 'config set',
+                    'opts' => [
+                        'd' => [
+                            'datadog.profiling.enabled=1',
+                            'datadog.profiling.log_level=trace'
+                        ]
+                    ]
+                ]
+            ], [
                 'datadog-setup.php config get -d datadog.profiling.enabled -dfoobar',
                 [
                     'cmd' => 'config get',
@@ -213,6 +224,16 @@ final class PHPInstallerTest extends BaseTestCase
         $opts = parse_cli_arguments($command);
         $this->assertSame(
             $expect,
+            $opts
+        );
+    }
+
+    public function testFailingCliArgumentParsing()
+    {
+        $this->expectOutputString("Parse error at token 'php6'" . PHP_EOL);
+        $command = explode(' ', 'datadog-setup.php config get --php-bin=all php6 -ddatadog.profiling.enabled');
+        $opts = parse_cli_arguments($command);
+        $this->assertFalse(
             $opts
         );
     }

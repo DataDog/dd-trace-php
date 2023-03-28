@@ -287,7 +287,7 @@ function cmd_config_set(array $options): void
             // If we are here, we could not find the INI setting in any files, so
             // we try and look for commented versions
 
-            $iniFilePaths = find_ini_files($phpProps) + get_ini_files($phpProps);
+            $iniFilePaths = array_merge(find_ini_files($phpProps), get_ini_files($phpProps));
 
             $matchCount = [];
             // look for INI setting in INI files
@@ -1040,7 +1040,10 @@ function get_architecture()
     );
 }
 
-function parse_cli_arguments(array $argv = null): array
+/**
+ * @return array|false
+ */
+function parse_cli_arguments(array $argv = null)
 {
     if (is_null($argv)) {
         $argv = $_SERVER['argv'];
@@ -1059,16 +1062,17 @@ function parse_cli_arguments(array $argv = null): array
             // parse long option
             $key = substr($token, 2);
             $value = false;
-            // look ahead to next $token
-            if (isset($argv[0]) && substr($argv[0], 0, 1) !== '-') {
-                $value = array_shift($argv);
-                if ($value === null) {
-                    $value = false;
-                }
-            }
             // --php-bin=php
-            if ($value === false && strpos($key, '=') !== false) {
+            if (strpos($key, '=') !== false) {
                 list($key, $value) = explode('=', $key, 2);
+            } else {
+                // look ahead to next $token
+                if (isset($argv[0]) && substr($argv[0], 0, 1) !== '-') {
+                    $value = array_shift($argv);
+                    if ($value === null) {
+                        $value = false;
+                    }
+                }
             }
         } elseif (substr($token, 0, 1) === '-') {
             // parse short option
@@ -1088,6 +1092,12 @@ function parse_cli_arguments(array $argv = null): array
                 $value = substr($token, 2);
             }
         } else {
+            if (count($arguments['opts'])) {
+                // php datadog-setup.php --php-bin=all php6
+                // The "php6" is a problem
+                echo "Parse error at token '$token'", PHP_EOL;
+                return false;
+            }
             // parse command
             if ($arguments['cmd'] === null) {
                 $arguments['cmd'] = $token;
@@ -1122,29 +1132,15 @@ function parse_cli_arguments(array $argv = null): array
  */
 function parse_validate_user_options()
 {
-    /*
-    $shortOptions = "h";
-    $longOptions = [
-        OPT_HELP,
-        OPT_PHP_BIN . ':',
-        OPT_FILE . ':',
-        OPT_INSTALL_DIR . ':',
-        OPT_UNINSTALL,
-        OPT_ENABLE_APPSEC,
-        OPT_ENABLE_PROFILING,
-    ];
-    $options = getopt($shortOptions, $longOptions);
-    */
-
     $args = parse_cli_arguments();
-    $options = $args['opts'];
 
     // Help and exit
-    if (key_exists('h', $options) || key_exists(OPT_HELP, $options)) {
+    if ($args === false || key_exists('h', $args['opts']) || key_exists(OPT_HELP, $args['opts'])) {
         print_help();
         exit(0);
     }
-
+    
+    $options = $args['opts'];
     $normalizedOptions = [];
 
     $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]);
