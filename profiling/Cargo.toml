@@ -1,9 +1,9 @@
 [package]
 name = "datadog-php-profiling"
-version = "0.15.1"
+version = "0.87.0-alpha.1"
 edition = "2021"
 license = "Apache-2.0"
-rust-version = "1.60"
+rust-version = "1.64"
 
 [lib]
 crate-type = ["cdylib"]
