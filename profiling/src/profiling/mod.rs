@@ -231,18 +231,8 @@ impl TimeCollector {
             .collect();
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
-        let mut alloc_samples_offset: Option<usize> = None;
-        let mut alloc_size_offset: Option<usize> = None;
-        let mut offset = 0;
-        sample_types.iter().for_each(|sample_type| {
-            if sample_type.r#type == "alloc-samples" {
-                alloc_samples_offset = Some(offset);
-            }
-            if sample_type.r#type == "alloc-size" {
-                alloc_size_offset = Some(offset);
-            }
-            offset = offset + 1;
-        });
+        let alloc_samples_offset = sample_types.iter().position(|&x| x.r#type == "alloc-samples");
+        let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
 
         let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = profile::ProfileBuilder::new()
