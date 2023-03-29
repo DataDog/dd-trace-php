@@ -1,7 +1,7 @@
 **/vendor
 !/ext/vendor
 tmp/build_extension/
-composer.lock
+composer.lock*
 **/core*
 .DS_Store
 .scenarios.lock/

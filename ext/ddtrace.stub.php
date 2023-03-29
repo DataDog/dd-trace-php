@@ -123,7 +123,7 @@ namespace DDTrace {
      *
      * @param string $className The name of the class that contains the method.
      * @param string $methodName The name of the method to instrument.
-     * @param null|\Closure(SpanData, array, mixed, \Exception|null):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Exception|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
      * The tracing closure is a function that adds extra tags to the span after the
      * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData', an array of
      * arguments from the instrumented call, the return value of the instrumented call, and an instance of the exception
@@ -152,7 +152,7 @@ namespace DDTrace {
      * Additional tags are set on the span from the closure (called a tracing closure).
      *
      * @param string $functionName The name of the function to trace.
-     * @param null|\Closure(SpanData, array, mixed, \Exception|null):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Exception|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
      * The tracing closure is a function that adds extra tags to the span after the
      * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData' that writes
      * to the span properties, an array of arguments from the instrumented call, the return value of the instrumented
@@ -173,7 +173,7 @@ namespace DDTrace {
      * This function allows to define pre- and post-hooks that will be executed before and after the function is called.
      *
      * @param string $functionName The name of the function to be instrumented.
-     * @param \Closure(mixed $args):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
+     * @param \Closure(object ):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
      * A pre-hook function that will be called before the instrumented function is
      * executed. This can be useful for things like asserting the function is passed the  correct arguments.
      *
@@ -183,7 +183,7 @@ namespace DDTrace {
      * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
      * exceeded)
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
-     * @param \Closure(mixed $args, mixed $retval):void|null $posthook A post-hook function that will be called after
+     * @param \Closure(array $args, mixed $retval, \Exception|null $exception):void|null $posthook A post-hook function that will be called after
      * the instrumented function is executed. This can be useful for things like formatting output data or logging the
      * results of the function call.
      *
@@ -212,7 +212,7 @@ namespace DDTrace {
      * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
      * exceeded)
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
-     * @param \Closure(mixed $args, mixed $retval):void|null $posthook A post-hook function that will be called after
+     * @param \Closure(object $object, string $scope, array $args, mixed $retval, \Exception|null $exception):void|null $posthook A post-hook function that will be called after
      * the instrumented method is executed. This can be useful for things like formatting output data or logging the
      * results of the method call.
      *

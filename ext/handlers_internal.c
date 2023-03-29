@@ -1,10 +1,7 @@
 #include "handlers_internal.h"
 
 #include "arrays.h"
-#include "configuration.h"
 #include "ddtrace.h"
-#include "engine_hooks.h"
-#include "logging.h"
 
 void ddtrace_free_unregistered_class(zend_class_entry *ce) {
 #if PHP_VERSION_ID >= 80100
@@ -33,6 +30,87 @@ void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_pcntl_handlers_startup(void);
 
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
+#include <hook/hook.h>
+#include <interceptor/php8/interceptor.h>
+
+static HashTable dd_orig_internal_funcs;
+
+static inline zend_ulong dd_identify_internal_func(zend_function *func) {
+    return ((zend_ulong)(uintptr_t)func->common.scope) ^ zend_string_hash_val(func->common.function_name);
+}
+
+static void dd_wrap_internal_func(INTERNAL_FUNCTION_PARAMETERS) {
+    zif_handler handler;
+    if ((handler = zend_hash_index_find_ptr(&dd_orig_internal_funcs, dd_identify_internal_func(EX(func))))) {
+        zai_interceptor_execute_internal_with_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU, handler);
+    }
+}
+
+static inline void dd_install_internal_func(zend_function *func) {
+    zend_hash_index_add_ptr(&dd_orig_internal_funcs, dd_identify_internal_func(func), func->internal_function.handler);
+    func->internal_function.handler = dd_wrap_internal_func;
+}
+
+static inline void dd_install_internal_func_name(HashTable *baseTable, const char *name) {
+    zend_function *func;
+    if ((func = zend_hash_str_find_ptr(baseTable, name, strlen(name)))) {
+        dd_install_internal_func(func);
+    }
+}
+
+static inline void dd_install_internal_function(const char *function) {
+    dd_install_internal_func_name(CG(function_table), function);
+}
+
+static inline void dd_install_internal_method(const char *class, const char *method) {
+    zend_class_entry *ce;
+    if ((ce = zend_hash_str_find_ptr(CG(class_table), class, strlen(class)))) {
+        dd_install_internal_func_name(&ce->function_table, method);
+    }
+}
+
+static inline void dd_install_internal_class(const char *class) {
+    zend_class_entry *ce;
+    if ((ce = zend_hash_str_find_ptr(CG(class_table), class, strlen(class)))) {
+        zend_function *func;
+        ZEND_HASH_FOREACH_PTR(&ce->function_table, func) {
+            dd_install_internal_func(func);
+        } ZEND_HASH_FOREACH_END();
+    }
+}
+
+static void dd_install_internal_handlers(void) {
+    zend_hash_init(&dd_orig_internal_funcs, 32, NULL, NULL, true);
+    dd_install_internal_class("memcached");
+    dd_install_internal_class("redis");
+    dd_install_internal_class("rediscluster");
+    dd_install_internal_method("mysqli", "__construct");
+    dd_install_internal_method("mysqli", "real_connect");
+    dd_install_internal_method("mysqli", "query");
+    dd_install_internal_method("mysqli", "prepare");
+    dd_install_internal_method("mysqli", "commit");
+    dd_install_internal_method("mysqli_stmt", "execute");
+    dd_install_internal_method("mysqli_stmt", "get_result");
+    dd_install_internal_method("PDO", "__construct");
+    dd_install_internal_method("PDO", "exec");
+    dd_install_internal_method("PDO", "query");
+    dd_install_internal_method("PDO", "prepare");
+    dd_install_internal_method("PDO", "commit");
+    dd_install_internal_method("PDOStatement", "execute");
+    dd_install_internal_function("mysqli_connect");
+    dd_install_internal_function("mysqli_real_connect");
+    dd_install_internal_function("mysqli_query");
+    dd_install_internal_function("mysqli_prepare");
+    dd_install_internal_function("mysqli_commit");
+    dd_install_internal_function("mysqli_stmt_execute");
+    dd_install_internal_function("mysqli_stmt_get_result");
+    dd_install_internal_function("curl_exec");
+    dd_install_internal_function("pcntl_fork");
+    dd_install_internal_function("pcntl_rfork");
+}
+#endif
+
 #if PHP_VERSION_ID < 80000
 void ddtrace_curl_handlers_shutdown(void);
 #endif
@@ -44,6 +122,17 @@ void ddtrace_exception_handlers_rinit(void);
 void ddtrace_curl_handlers_rshutdown(void);
 
 void ddtrace_internal_handlers_startup(void) {
+    // On PHP 8.0 zend_execute_internal is not executed in JIT. Manually ensure internal hooks are executed.
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID >= 80100
+    zend_long patch_version = Z_LVAL_P(zend_get_constant_str(ZEND_STRL("PHP_RELEASE_VERSION")));
+    if (patch_version < 18)
+#endif
+    {
+        dd_install_internal_handlers();
+    }
+#endif
+
     // curl is different; it has pieces that always run.
     ddtrace_curl_handlers_startup();
     // pcntl handlers have to run even if tracing of pcntl extension is not enabled.
@@ -53,6 +142,10 @@ void ddtrace_internal_handlers_startup(void) {
 }
 
 void ddtrace_internal_handlers_shutdown(void) {
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
+    zend_hash_destroy(&dd_orig_internal_funcs);
+#endif
+
     ddtrace_exception_handlers_shutdown();
 #if PHP_VERSION_ID < 80000
     ddtrace_curl_handlers_shutdown();

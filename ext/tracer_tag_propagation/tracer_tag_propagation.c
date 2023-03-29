@@ -56,9 +56,10 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
                 zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), tag_name);
             }
             zend_string_release(tag_name);
-        }
-        // we skip invalid tags without = within
-        if (*header == ',') {
+
+            tagstart = ++header;
+        } else if (*header == ',') {
+            // we skip invalid tags without = within
             ddtrace_log_debugf("Found x-datadog-tags header without key-separating equals character; raw input: %.*s",
                                ZSTR_LEN(headerstr), ZSTR_VAL(headerstr));
             tagstart = ++header;

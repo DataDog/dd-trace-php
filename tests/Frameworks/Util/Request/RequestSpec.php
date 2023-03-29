@@ -30,17 +30,25 @@ class RequestSpec
     private $headers = [];
 
     /**
+     * @var array|string
+     */
+    private $body = [];
+
+    /**
      * @param $name
      * @param string $method
      * @param string $path
      * @param string[] $headers An indexed array as expected by `curl_setopt`.
+     * @param array|string $body An associative array or a string, as expected by 'curl_setopt' with the C
+     * URLOPT_POSTFIELDS option. Contains the data that is being sent as part of the request.
      */
-    public function __construct($name, $method, $path, array $headers = [])
+    public function __construct($name, $method, $path, array $headers = [], $body = [])
     {
         $this->name = $name;
         $this->method = $method;
         $this->path = $path;
         $this->headers = $headers;
+        $this->body = $body;
     }
 
     /**
@@ -91,5 +99,10 @@ class RequestSpec
     public function getHeaders()
     {
         return $this->headers;
+    }
+
+    public function getBody()
+    {
+        return $this->body;
     }
 }

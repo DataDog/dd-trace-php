@@ -63,6 +63,14 @@
                     "create-lockfile": false
                 }
             },
+            "guzzle7": {
+                "require": {
+                    "guzzlehttp/guzzle": "~7.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "mongodb1": {
                 "require": {
                     "mongodb/mongodb": "1.*"

@@ -304,10 +304,23 @@ commands:
           name: Setup docker image << parameters.docker_image >>
           command: |
             set -x
+            max_retries=3
             extra=<< parameters.extra >>
             docker network create net --driver=bridge -o "com.docker.network.bridge.name=br"
             if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
-              docker run --detach --rm --net net \
+              function retry_docker() {
+                retries=$max_retries
+                while
+                  ! docker "${@}"
+                do
+                  if [[ $((--retries)) -eq 0 ]]; then
+                    exit 1
+                  fi
+                  sleep 1
+                done
+                true # Success
+              }
+              retry_docker run --detach --rm --net net \
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
@@ -318,9 +331,9 @@ commands:
                 -e PORT=9126 \
                 -p "127.0.0.1:9126:9126" \
                 --name test-agent williamconti549/dd-apm-test-agent:latest
-              docker run --detach --rm --net net \
+              retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
-              docker run --detach --rm --net net \
+              retry_docker run --detach --rm --net net \
                 -e DD_REQUEST_DUMPER_FILE=dump.json \
                 --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0
             fi
@@ -329,7 +342,7 @@ commands:
             sudo mkdir /rust
             sudo chmod 777 /rust
             image=<< parameters.docker_image >>
-            retries=3
+            retries=$max_retries
             while
               nohup docker run --rm --net net \
                   -e DDAGENT_HOSTNAME=127.0.0.1 \
@@ -707,6 +720,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
+            if [[ << parameters.switch_php_version >> == *asan* ]]; then export TEST_PHP_JUNIT=$(pwd)/asan-extension-test.xml; fi
             make << parameters.make_target >> 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - when:
           # codecov uploader only on amd64
@@ -764,6 +778,16 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
+      - when:
+          condition:
+            and:
+              - equal: [ "8.0", << parameters.php_major_minor >> ]
+              - not:
+                equal: [ "test_composer", << parameters.make_target >> ]
+          steps:
+            - run:
+                name: Updating composer to v2
+                command: sudo composer self-update --2 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
@@ -867,6 +891,9 @@ jobs:
   integration_tests:
     working_directory: ~/datadog
     parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
       docker_image:
         type: string
       integration_testsuite:
@@ -896,6 +923,14 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
+      - when:
+          condition:
+            and:
+              - equal: [ "8.0", << parameters.php_major_minor >> ]
+          steps:
+            - run:
+                name: Updating composer to v2
+                command: sudo composer self-update --2 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
@@ -1837,7 +1872,7 @@ jobs:
           command: |
             set -eo pipefail
             switch-php debug-zts-asan
-            make asan
+            make
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
       - persist_to_workspace:
           root: '.'
@@ -1911,11 +1946,15 @@ jobs:
       - run:
           name: Build Profiler
           command: |
+            if [ -d '/opt/rh/devtoolset-7' ] ; then
+                set +eo pipefail
+                source scl_source enable devtoolset-7
+                set -eo pipefail
+            fi
             set -u
             libdir=$PWD/datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
             mkdir -vp "${libdir}"
             command -v switch-php && switch-php "${PHP_VERSION}"
-            set -e
             cd profiling
             cargo build --release
             cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${libdir}/datadog-profiling.so"
@@ -1954,9 +1993,13 @@ jobs:
       - run:
           name: cargo tests
           command: |
+            if [ -d '/opt/rh/devtoolset-7' ] ; then
+                set +eo pipefail
+                source scl_source enable devtoolset-7
+                set -eo pipefail
+            fi
             set -u
             command -v switch-php && switch-php "${PHP_VERSION}"
-            set -e
             cd profiling
             cargo test --release
       - run:
@@ -2139,6 +2182,11 @@ jobs:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
+    parameters:
+      build:
+        type: string
+      run:
+        type: string
     resource_class: large
     working_directory: ~/datadog
     steps:
@@ -2148,10 +2196,18 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
+          # TODO: removes this step once host-in-runner is merged on system tests
           name: Install good version of docker-compose
           command: |
             sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
+
+      - run:
+          name: Install python 3.9
+          command: |
+            sudo apt-get update
+            sudo apt-get install python3.9-venv
+
       - run:
           name: versions
           command: |
@@ -2164,19 +2220,15 @@ jobs:
           name: Copy .tar.gz file to system test binaries folder
           command: |
             ls -la build/packages
-            installable_bundle=$(find build/packages -maxdepth 1 -name 'datadog-php-tracer-*.x86_64.tar.gz')
+            installable_bundle=$(find build/packages -maxdepth 1 -name 'datadog-php-tracer-*.x86_64.tar.gz' -o -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz' | xargs)
             echo using $installable_bundle
-            cp $installable_bundle system-tests/binaries/
+            cp $installable_bundle build/packages/datadog-setup.php system-tests/binaries/
       - run:
           name: Build
-          command: |
-            cd system-tests
-            ./build.sh php
+          command: << parameters.build >>
       - run:
           name: Run
-          command: |
-            cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+          command: << parameters.run >>
       - store_artifacts:
           path: system-tests/logs
           destination: system-tests.tar.gz
@@ -3099,6 +3151,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
+          php_major_minor: "7.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
@@ -3106,6 +3159,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
+          php_major_minor: "7.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 web tests with nginx + FastCGI"
@@ -3113,6 +3167,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
+          php_major_minor: "7.3"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with apache (+ opcache)"
@@ -3120,6 +3175,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with nginx + FastCGI"
@@ -3127,6 +3183,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 web tests with apache (+ opcache)"
@@ -3134,6 +3191,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          php_major_minor: "8.0"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 web tests with nginx + FastCGI"
@@ -3141,6 +3199,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          php_major_minor: "8.0"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 81 web tests with apache (+ opcache)"
@@ -3148,6 +3207,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          php_major_minor: "8.1"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 81 web tests with nginx + FastCGI"
@@ -3155,6 +3215,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          php_major_minor: "8.1"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 82 web tests with apache (+ opcache)"
@@ -3162,6 +3223,7 @@ workflows:
           sapi: apache2handler
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          php_major_minor: "8.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 82 web tests with nginx + FastCGI"
@@ -3169,6 +3231,7 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          php_major_minor: "8.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
@@ -3176,6 +3239,7 @@ workflows:
           sapi: fpm-fcgi
           integration_testsuite: "test_web_custom"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
 
       - min_install_tests:
           requires: [ 'package extension' ]
@@ -3188,6 +3252,25 @@ workflows:
       - system_tests:
           requires: [ 'package extension' ]
           name: "System tests"
+          build: |
+            cd system-tests
+            ./build.sh php
+          run: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+
+      - system_tests:
+          requires: [ 'package extension' ]
+          name: "Parametric tests"
+          build: |
+            cd system-tests/parametric
+            export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+            sudo apt-get install -y python-is-python3
+            pip install wheel && pip install -r requirements.txt
+          run: |
+            cd system-tests/parametric
+            export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+            CLIENTS_ENABLED=php ./run.sh
 
   build:
     jobs:
@@ -3246,15 +3329,15 @@ workflows:
                 - medium
                 - arm.medium
               make_target:
-                - test_c_asan
-                - test_with_init_hook_asan
+                - test_c
+                - test_with_init_hook
                 - test_internal_api_randomized
-                - test_opcache_asan
+                - test_opcache
             exclude:
                 # apparently for no discernible reason, on x86 asan builds PHP 7.4. fails to allocate opcache shared memory
               - php_major_minor: '7.4'
                 resource_class: medium
-                make_target: test_opcache_asan
+                make_target: test_opcache
                 switch_php_version: debug-zts-asan
 
       - integration:

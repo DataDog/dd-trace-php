@@ -11,6 +11,10 @@ use Exception;
 // Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
 \error_reporting(E_ALL ^ \E_DEPRECATED);
 
+class CustomRedisClass extends \Redis
+{
+}
+
 class PHPRedisTest extends IntegrationTestCase
 {
     const A_STRING = 'A_STRING';
@@ -42,6 +46,29 @@ class PHPRedisTest extends IntegrationTestCase
         $this->redisSecondInstance->flushAll();
     }
 
+    public function testRedisInExtendedClass()
+    {
+        $redis = new CustomRedisClass();
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->connect($this->host);
+        });
+        $redis->close();
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'DDTrace\Tests\Integrations\PHPRedis\V5\CustomRedisClass.connect',
+                'phpredis',
+                'redis',
+                'DDTrace\Tests\Integrations\PHPRedis\V5\CustomRedisClass.connect'
+            )->withExactTags([
+                'out.host' => $this->host,
+                'out.port' => $this->port,
+                Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis',
+                Tag::DB_SYSTEM => 'redis',
+            ]),
+        ]);
+    }
     public function ddTearDown()
     {
         $this->redis->close();

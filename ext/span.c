@@ -192,6 +192,25 @@ set_trace_id_from_span_id:
         zval *prop_type = ddtrace_spandata_property_type(span);
         zval_ptr_dtor(prop_type);
         ZVAL_COPY(prop_type, ddtrace_spandata_property_type(parent_span));
+
+        zend_array *meta = ddtrace_spandata_property_meta(span), *parent_meta = ddtrace_spandata_property_meta(parent_span);
+        zval *version;
+        if ((version = zend_hash_str_find(parent_meta, ZEND_STRL("version")))) {
+            Z_TRY_ADDREF_P(version);
+            zend_hash_str_add_new(meta, ZEND_STRL("version"), version);
+        }
+
+        zval *env;
+        if ((env = zend_hash_str_find(parent_meta, ZEND_STRL("env")))) {
+            Z_TRY_ADDREF_P(env);
+            zend_hash_str_add_new(meta, ZEND_STRL("env"), env);
+        }
+
+        zval *origin;
+        if ((origin = zend_hash_str_find(parent_meta, ZEND_STRL("_dd.origin")))) {
+            Z_TRY_ADDREF_P(origin);
+            zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), origin);
+        }
     }
 
     span->root = DDTRACE_G(active_stack)->root_span;
@@ -617,7 +636,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     // As a special case dropping a root span rejects it to avoid traces without root span
     // It's safe to just drop RC=2 root spans, they're referenced nowhere else
     if (stack->root_span == span && GC_REFCOUNT(&span->std) > 2) {
-        ddtrace_set_prioritySampling_on_root(PRIORITY_SAMPLING_USER_REJECT);
+        ddtrace_set_prioritySampling_on_root(PRIORITY_SAMPLING_USER_REJECT, DD_MECHANISM_MANUAL);
         dd_trace_stop_span_time(span);
         ddtrace_close_span(span);
         return;

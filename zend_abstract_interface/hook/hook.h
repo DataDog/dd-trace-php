@@ -117,6 +117,9 @@ zai_hook_iterator zai_hook_iterate_resolved(zend_function *function);
 void zai_hook_iterator_advance(zai_hook_iterator *iterator);
 void zai_hook_iterator_free(zai_hook_iterator *iterator);
 
+uint32_t zai_hook_count_installed(zai_string_view scope, zai_string_view function);
+uint32_t zai_hook_count_resolved(zend_function *function);
+
 /* {{{ */
 static inline zai_install_address zai_hook_install_address_user(const zend_op_array *op_array) {
     return ((zend_ulong)op_array->opcodes) >> 5;
