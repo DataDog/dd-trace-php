@@ -1155,6 +1155,9 @@ function parse_validate_user_options()
     }
 
     if (isset($options[OPT_PHP_BIN])) {
+        if ($options[OPT_PHP_BIN] === false) {
+            print_error_and_exit('PHP binary needs to be provided when using --php-bin', true);
+        }
         $normalizedOptions[OPT_PHP_BIN] = is_array($options[OPT_PHP_BIN])
             ? $options[OPT_PHP_BIN]
             : [$options[OPT_PHP_BIN]];
