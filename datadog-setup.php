@@ -1139,7 +1139,7 @@ function parse_validate_user_options()
         print_help();
         exit(0);
     }
-    
+
     $options = $args['opts'];
     $normalizedOptions = [];
 
