@@ -257,9 +257,9 @@ function cmd_config_set(array $options): void
                 continue;
             }
 
-            $iniFilePaths = get_ini_files($phpProps);
+            $iniFilePaths = get_all_ini_files($phpProps);
 
-            $matchCount = [];
+            $matchCount = 0;
             // look for INI setting in INI files
             foreach ($iniFilePaths as $iniFile) {
                 $count = update_ini_setting($setting, $iniFile, false);
@@ -272,12 +272,12 @@ function cmd_config_set(array $options): void
                     continue;
                 }
                 echo "Set '", $setting[0], "' to '", $setting[1], "' in INI file: ", $iniFile, PHP_EOL;
-                $matchCount[$iniFile] = $count;
+                $matchCount += $count;
             }
 
-            if (count($matchCount) >= 1) {
+            if ($matchCount >= 1) {
                 // found and updated
-                if (count($matchCount) >= 2 || array_sum($matchCount) >= 2) {
+                if ($matchCount >= 2) {
                     echo "Warning: '$setting[0]' was found in multiple places, ",
                         "you might want to remove duplicates.", PHP_EOL;
                 }
@@ -287,9 +287,9 @@ function cmd_config_set(array $options): void
             // If we are here, we could not find the INI setting in any files, so
             // we try and look for commented versions
 
-            $iniFilePaths = array_merge(find_ini_files($phpProps), get_ini_files($phpProps));
+            $iniFilePaths = array_merge(find_ini_files($phpProps), get_all_ini_files($phpProps));
 
-            $matchCount = [];
+            $matchCount = 0;
             // look for INI setting in INI files
             foreach ($iniFilePaths as $iniFile) {
                 $count = update_ini_setting($setting, $iniFile, true);
@@ -302,11 +302,11 @@ function cmd_config_set(array $options): void
                     continue;
                 }
                 echo "Set '", $setting[0], "' to '", $setting[1], "' in INI file: ", $iniFile, PHP_EOL;
-                $matchCount[$iniFile] = $count;
+                $matchCount += $count;
                 break;
             }
 
-            if (count($matchCount) >= 1) {
+            if ($matchCount >= 1) {
                 // found, promoted from comment and updated
                 continue;
             }
@@ -316,7 +316,6 @@ function cmd_config_set(array $options): void
 
             $iniFilePaths = find_ini_files($phpProps);
 
-            $matchCount = [];
             // look for INI setting in INI files
             foreach ($iniFilePaths as $iniFile) {
                 $iniFileContent = file_get_contents($iniFile);
@@ -708,35 +707,51 @@ function install($options)
 /**
  * Returns a list of all INI files found for the `$phpProperties` given.
  *
+ * Does so by scanning the INI scan directory for `.ini` files. Additionally we
+ * check if we are running on a Debian based distribution so we assume the INI
+ * files are split by SAPI, so we try and add the Apache SAPI INI files as
+ * well. In case it exists, we also add the default `php.ini` file to the list.
+ *
  * @see ini_values
  * @return string[]
  */
-function get_ini_files(array $phpProperties): array
+function get_all_ini_files(array $phpProperties): array
 {
     $iniFilePaths = [];
     if ($phpProperties[INI_SCANDIR]) {
         foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
-            if (!is_file($phpProperties[INI_SCANDIR] . '/' . $ini)) {
+            if (!is_file($phpProperties[INI_SCANDIR] . '/' . $ini) || substr($ini, -4) !== '.ini') {
                 continue;
             }
-            $iniFilePaths[] = $phpProperties[INI_SCANDIR] . '/' . $ini;
+            if (strpos($ini, '98-ddtrace.ini') !== false) {
+                array_unshift($iniFilePaths, $phpProperties[INI_SCANDIR] . '/' . $ini);
+            } else {
+                $iniFilePaths[] = $phpProperties[INI_SCANDIR] . '/' . $ini;
+            }
         }
-
-        /* not sure about this for this case
         if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
             /* debian based distros have INI folders split by SAPI, in a predefined way:
              *   - <...>/cli/conf.d       <-- we know this from php -i
              *   - <...>/apache2/conf.d   <-- we derive this from relative path
              *   - <...>/fpm/conf.d       <-- we derive this from relative path
+             */   
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
             if (is_dir($apacheConfd)) {
-                $iniFilePaths[] = "$apacheConfd/$iniFileName";
+                foreach (scandir($apacheConfd) as $ini) {
+                    if (!is_file($apacheConfd . '/' . $ini) || substr($ini, -4) !== '.ini') {
+                        continue;
+                    }
+                    if (strpos($ini, '98-ddtrace.ini') !== false) {
+                        array_unshift($iniFilePaths, $apacheConfd . '/' . $ini);
+                    } else {
+                        $iniFilePaths[] = $apacheConfd . '/' . $ini;
+                    }
+                }
             }
         }
-        */
-    } else {
-        $iniFileName = $phpProperties[INI_MAIN];
-        $iniFilePaths = [$iniFileName];
+    }
+    if ($phpProperties[INI_MAIN] && is_file($phpProperties[INI_MAIN])) {
+        $iniFilePaths = [$phpProperties[INI_MAIN]];
     }
     return $iniFilePaths;
 }
