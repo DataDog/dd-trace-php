@@ -370,7 +370,7 @@ namespace DDTrace {
     /**
      * Get information on the key-value pairs of the datadog headers for distributed tracing
      *
-     * @param array|null $inject dfdsq
+     * @param array|null $inject
      *
      * @return array{x-datadog-sampling-priority: string,
      *               x-datadog-origin: string,
