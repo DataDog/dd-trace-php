@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <SAPI.h>
+#include <ext/standard/url.h>
 #include <php.h>
 
 #include "../commands_helpers.h"
@@ -19,9 +20,14 @@
 #include "mpack-node.h"
 #include "mpack-writer.h"
 
+static const unsigned int DEFAULT_AGENT_PORT = 8126;
+static const char *DEFAULT_AGENT_HOST = "127.0.0.1";
+static const unsigned int MAX_TCP_PORT_ALLOWED = UINT16_MAX;
+
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nullable ctx);
 static dd_result _process_response(mpack_node_t root, void *nullable ctx);
 static void _process_meta_and_metrics(mpack_node_t root);
+static void _pack_agent_details(mpack_writer_t *nonnull w);
 
 static const dd_command_spec _spec = {
     .name = "client_init",
@@ -31,6 +37,49 @@ static const dd_command_spec _spec = {
     .incoming_cb = _process_response,
     .config_features_cb = dd_command_process_config_features_unexpected,
 };
+
+static void _pack_agent_details(mpack_writer_t *nonnull w)
+{
+    zend_string *agent_host = get_global_DD_AGENT_HOST();
+    zend_string *agent_url = get_global_DD_TRACE_AGENT_URL();
+    unsigned int port = get_global_DD_TRACE_AGENT_PORT();
+    char *host = NULL;
+    php_url *parsed_url = NULL;
+
+    if (agent_host && ZSTR_LEN(agent_host) > 0) {
+        host = ZSTR_VAL(agent_host);
+    } else if (agent_url && ZSTR_LEN(agent_url) > 0) {
+        parsed_url = php_url_parse(ZSTR_VAL(agent_url));
+        if (parsed_url) {
+#if PHP_VERSION_ID < 70300
+            if (parsed_url->host && strlen(parsed_url->host) > 0) {
+                host = parsed_url->host;
+            }
+#else
+            if (parsed_url->host && ZSTR_LEN(parsed_url->host) > 0) {
+                host = ZSTR_VAL(parsed_url->host);
+            }
+#endif
+            port = parsed_url->port;
+        }
+    }
+
+    if (!host) {
+        host = (char *)DEFAULT_AGENT_HOST;
+    }
+    if (port <= 0 || port > MAX_TCP_PORT_ALLOWED) {
+        port = DEFAULT_AGENT_PORT;
+    }
+
+    dd_mpack_write_lstr(w, "host");
+    dd_mpack_write_nullable_cstr(w, host);
+    dd_mpack_write_lstr(w, "port");
+    mpack_write_uint(w, port);
+
+    if (parsed_url) {
+        php_url_free(parsed_url);
+    }
+}
 
 dd_result dd_client_init(dd_conn *nonnull conn)
 {
@@ -113,11 +162,7 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, "enabled");
     mpack_write_bool(w, get_DD_REMOTE_CONFIG_ENABLED());
 
-    dd_mpack_write_lstr(w, "host");
-    dd_mpack_write_nullable_cstr(w, ZSTR_VAL(get_DD_AGENT_HOST()));
-
-    dd_mpack_write_lstr(w, "port");
-    mpack_write_uint(w, get_DD_TRACE_AGENT_PORT());
+    _pack_agent_details(w);
 
     dd_mpack_write_lstr(w, "poll_interval");
     mpack_write_u32(w, get_DD_REMOTE_CONFIG_POLL_INTERVAL());
