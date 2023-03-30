@@ -53,18 +53,15 @@ aliases:
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
 
-  - &IMAGE_DOCKER_TEST_AGENT
-    image: williamconti549/dd-apm-test-agent:latest
+  - &IMAGE_DOCKER_DD_TEST_AGENT
+    image: williamconti549/dd-apm-test-agent:php-dev
     name: test-agent
-    # volumes:
-    #     - ./specifications:/specifications
     environment:
       LOG_LEVEL: INFO
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
       DISABLED_CHECKS: trace_content_length
       PORT: 9126
-
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
@@ -123,11 +120,6 @@ aliases:
       name: Disable Xdebug for built-in web tests
       command: test -e /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && sudo rm -f $_ || true
 
-  # - &STEP_WAIT_AGENT
-  #   run:
-  #     name: Waiting for Dockerized agent
-  #     command: wait-for 127.0.0.1:8126 --timeout=60
-
   - &STEP_WAIT_MYSQL
     run:
       name: Waiting for Dockerized MySQL
@@ -141,19 +133,13 @@ aliases:
   - &STEP_WAIT_TEST_AGENT
     run:
       name: Waiting for Dockerized APM Test Agent
-      command: wait-for test-agent:9126 --timeout=120
+      command: wait-for test-agent:9126 --timeout=30
 
   - &STEP_DOCKER_LOGS
     run:
       name: Outputting Docker Logs for APM Test Agent
       command: docker logs -f test-agent
       background: true
-
-  - &STEP_RUN_TEST_AGENT_SPAN_VALIDATION
-    run:
-      name: Getting APM Test Agent Span Validation Results
-      command: docker-compose exec -it test-agent python ./tests/test_span_validations/test_span_validation_run.py
-
 
   # Fix intermittent error: "Could not resolve host: httpbin_integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
@@ -389,7 +375,7 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_TEST_AGENT
+      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
   with_httpbin_and_request_replayer:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -400,7 +386,7 @@ executors:
       - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
-      - <<: *IMAGE_DOCKER_TEST_AGENT
+      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
   with_integrations:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -418,7 +404,7 @@ executors:
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
-      - <<: *IMAGE_DOCKER_TEST_AGENT
+      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
 
 jobs:
   "Lint files":
