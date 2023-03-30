@@ -1,4 +1,4 @@
 #ifndef PHP_DDTRACE_VERSION
 // Must begin with a number for Debian packaging requirements
-#define PHP_DDTRACE_VERSION "0.86.0"
+#define PHP_DDTRACE_VERSION "0.86.1"
 #endif
