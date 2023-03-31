@@ -53,9 +53,6 @@ aliases:
   - &IMAGE_DOCKER_RABBITMQ
     image: rabbitmq:3.8.9-management
     name: rabbitmq_integration
-    ports:
-      - "5672:5672"
-      - "15672:15672"
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: datadog/dd-trace-ci:php-request-replayer-2.0
