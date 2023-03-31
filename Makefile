@@ -826,7 +826,7 @@ test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))
 
 test_integrations_amqp35: global_test_run_dependencies
 	$(MAKE) test_scenario_amqp35
-	$(call run_tests,tests/Integrations/Amqp/V3_5)
+	$(call run_tests,tests/Integrations/AMQP/V3_5)
 test_integrations_deferred_loading: global_test_run_dependencies
 	$(MAKE) test_scenario_predis1
 	$(call run_tests,tests/Integrations/DeferredLoading)
