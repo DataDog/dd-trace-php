@@ -24,6 +24,9 @@ use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
+#[cfg(feature = "timeline")]
+use std::time::UNIX_EPOCH;
+
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
 // Guide: upload period / upload timeout should give about the order of
@@ -280,12 +283,22 @@ impl TimeCollector {
         let mut locations = vec![];
 
         let values = message.value.sample_values;
-        let labels = message
+        let mut labels: Vec<profile::api::Label> = message
             .value
             .labels
             .iter()
             .map(profile::api::Label::from)
             .collect();
+
+        #[cfg(feature = "timeline")]
+        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+            labels.push(profile::api::Label {
+                key: "end_timestamp_ns",
+                str: None,
+                num: now.as_nanos() as i64,
+                num_unit: Some("nanoseconds"),
+            });
+        }
 
         for frame in &message.value.frames {
             let location = Location {
