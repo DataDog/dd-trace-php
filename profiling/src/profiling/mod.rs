@@ -44,6 +44,7 @@ struct SampleValues {
     cpu_time: i64,
     alloc_samples: i64,
     alloc_size: i64,
+    timeline: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -296,7 +297,7 @@ impl TimeCollector {
                 key: "end_timestamp_ns",
                 str: None,
                 num: now.as_nanos() as i64,
-                num_unit: Some("nanoseconds"),
+                num_unit: Some("nanoseconds") 
             });
         }
 
@@ -639,6 +640,55 @@ impl Profiler {
         }
     }
 
+    #[cfg(feature = "timeline")]
+    pub unsafe fn collect_timeline_event(
+        &self,
+        event: &'static str,
+        duration: i64,
+        locals: &RequestLocals,
+    ) {
+        let frames: Vec<ZendFrame> = vec![
+            ZendFrame {
+                function: "timeline fake".to_string(),
+                file: None,
+                line: 0,
+            }
+        ];
+        let depth = frames.len();
+        let mut labels = Profiler::message_labels();
+        labels.push(
+            Label {
+                key: "event",
+                value: LabelValue::Str(event.into())
+            }
+        );
+
+        labels.push(
+            Label {
+                key: "thread id",
+                value: LabelValue::Str("GC".into())
+            }
+        );
+        let n_labels = labels.len();
+
+        match self.send_sample(Profiler::prepare_sample_message(
+            frames,
+            SampleValues {
+                timeline: duration,
+                ..Default::default()
+            },
+            labels,
+            locals
+        )) {
+            Ok(_) => trace!(
+                "Sent event of {depth} frames, {n_labels} labels to profiler."
+            ),
+            Err(err) => warn!(
+                "Failed to send event of {depth} frames, {n_labels} labels to profiler: {err}"
+            ),
+        }
+    }
+
     fn message_labels() -> Vec<Label> {
         let gpc = unsafe { datadog_php_profiling_get_profiling_context };
         if let Some(get_profiling_context) = gpc {
@@ -673,21 +723,23 @@ impl Profiler {
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
-        static SAMPLE_TYPES: &[ValueType; 5] = &[
+        static SAMPLE_TYPES: &[ValueType; 6] = &[
             ValueType::new("sample", "count"),
             ValueType::new("wall-time", "nanoseconds"),
             ValueType::new("cpu-time", "nanoseconds"),
             ValueType::new("alloc-samples", "count"),
             ValueType::new("alloc-size", "bytes"),
+            ValueType::new("timeline", "nanoseconds"),
         ];
 
         // Allows us to slice the SampleValues as if they were an array.
-        let values: [i64; 5] = [
+        let values: [i64; 6] = [
             samples.interrupt_count,
             samples.wall_time,
             samples.cpu_time,
             samples.alloc_samples,
             samples.alloc_size,
+            samples.timeline,
         ];
 
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
@@ -703,6 +755,9 @@ impl Profiler {
                 sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
                 sample_values.extend_from_slice(&values[3..5]);
             }
+
+            sample_types.push(SAMPLE_TYPES[5]);
+            sample_values.push(values[5]);
         }
 
         let tags = Arc::clone(&locals.tags);

@@ -1,5 +1,6 @@
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
+#include <Zend/zend_exceptions.h>
 #include <Zend/zend_types.h>
 #include <Zend/zend_globals_macros.h>
 #include <Zend/zend_modules.h>

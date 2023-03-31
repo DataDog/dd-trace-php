@@ -137,6 +137,10 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
 #[cfg(feature = "allocation_profiling")]
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
+/// The engine's original (or previous) `gc_collect_cycles()` function
+#[cfg(feature = "timeline")]
+static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
+
 /// The engine's previous custom allocation function, if there is one.
 #[cfg(feature = "allocation_profiling")]
 static mut PREV_CUSTOM_MM_ALLOC: Option<zend::VmMmCustomAllocFn> = None;
@@ -277,6 +281,17 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
         zend::zend_execute_internal = Some(execute_internal);
     };
+
+
+    #[cfg(feature = "timeline")]
+    {
+        unsafe {
+            // TODO: be nice to neighbors
+            zend::zend_throw_exception_hook = Some(datadog_throw_exception_hook);
+            PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
+            zend::gc_collect_cycles = Some(datadog_gc_collect_cycles);
+        }
+    }
 
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
@@ -1069,6 +1084,53 @@ extern "C" fn execute_internal(
         prev_execute_internal(execute_data, return_value);
     }
     interrupt_function(execute_data);
+}
+
+#[cfg(feature = "timeline")]
+unsafe extern "C" fn datadog_throw_exception_hook(_exception: *mut zend::zend_object) {
+    REQUEST_LOCALS.with(|cell| {
+        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+        let locals = cell.try_borrow();
+        if locals.is_err() {
+            return;
+        }
+        let locals = locals.unwrap();
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            profiler.collect_timeline_event(
+                "exception",
+                1,
+                &locals,
+            );
+        }
+    });
+}
+
+#[cfg(feature = "timeline")]
+unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
+    let start = Instant::now();
+    let prev = PREV_GC_COLLECT_CYCLES.unwrap();
+    let bytes = prev();
+    let duration = start.elapsed();
+    REQUEST_LOCALS.with(|cell| {
+        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+        let locals = cell.try_borrow();
+        if locals.is_err() {
+            return;
+        }
+        let locals = locals.unwrap();
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            profiler.collect_timeline_event(
+                "gc",
+                duration.as_nanos() as i64,
+                &locals,
+            );
+        }
+    });
+    bytes
 }
 
 /// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`
