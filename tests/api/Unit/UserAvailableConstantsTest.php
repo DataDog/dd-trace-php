@@ -132,6 +132,21 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::MONGODB_TIMEOUT, 'mongodb.timeout'],
             [Tag::MONGODB_QUERY, 'mongodb.query'],
             [Tag::REDIS_RAW_COMMAND, 'redis.raw_command'],
+            [Tag::MQ_SYSTEM, 'messaging.system'],
+            [Tag::MQ_DESTINATION, 'messaging.destination'],
+            [Tag::MQ_DESTINATION_KIND, 'messaging.destination_kind'],
+            [Tag::MQ_TEMP_DESTINATION, 'messaging.temp_destination'],
+            [Tag::MQ_PROTOCOL, 'messaging.protocol'],
+            [Tag::MQ_PROTOCOL_VERSION, 'messaging.protocol_version'],
+            [Tag::MQ_URL, 'messaging.url'],
+            [Tag::MQ_MESSAGE_ID, 'messaging.message_id'],
+            [Tag::MQ_CONVERSATION_ID, 'messaging.conversation_id'],
+            [Tag::MQ_MESSAGE_PAYLOAD_SIZE, 'messaging.message_payload_size_bytes'],
+            [Tag::MQ_OPERATION, 'messaging.operation'],
+            [Tag::MQ_CONSUMER_ID, 'messaging.consumer_id'],
+            [Tag::RABBITMQ_DELIVERY_MODE, 'messaging.rabbitmq.delivery_mode'],
+            [Tag::RABBITMQ_EXCHANGE, 'messaging.rabbitmq.exchange'],
+            [Tag::RABBITMQ_ROUTING_KEY, 'messaging.rabbitmq.routing_key'],
         ];
     }
 

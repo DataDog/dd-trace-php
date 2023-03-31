@@ -1,4 +1,5 @@
 <?php
+
 namespace DDTrace\Tests\Integrations\AMQP\V3_5;
 
 require_once __DIR__ . '/../../../../vendor/autoload.php';
