@@ -71,7 +71,7 @@ services:
   '8.2-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.2_centos-7' }
 
   rabbitmq_integration:
-    image: rabbitmq:3.8.9-management # 3.8.9 is the latest version that supports Erlang 20
+    image: rabbitmq:3.8.9-alpine # 3.8.9 is the latest version that supports Erlang 20
     ports:
       - "5672:5672"
       - "15672:15672"
