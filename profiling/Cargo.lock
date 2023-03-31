@@ -3,6 +3,18 @@
 version = 3
 
 [[package]]
+name = "ahash"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c99f64d1e06488f620f932677e24bc6e2897582980441ae90a671415bd7ec2f"
+dependencies = [
+ "cfg-if",
+ "getrandom",
+ "once_cell",
+ "version_check",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -283,8 +295,10 @@ dependencies = [
 name = "datadog-php-profiling"
 version = "0.86.3"
 dependencies = [
+ "ahash",
  "anyhow",
  "bindgen",
+ "bumpalo",
  "cc",
  "cfg-if",
  "cpu-time",
@@ -298,6 +312,7 @@ dependencies = [
  "once_cell",
  "rand",
  "rand_distr",
+ "self_cell",
  "uuid",
 ]
 
@@ -1148,6 +1163,12 @@ dependencies = [
  "core-foundation-sys",
  "libc",
 ]
+
+[[package]]
+name = "self_cell"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ef965a420fe14fdac7dd018862966a4c14094f900e1650bbc71ddd7d580c8af"
 
 [[package]]
 name = "serde"

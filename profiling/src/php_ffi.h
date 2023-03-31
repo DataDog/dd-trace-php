@@ -35,11 +35,10 @@ const char *datadog_module_build_id(void);
 
 /**
  * Lookup module by name in the module registry. Returns NULL if not found.
- * This is meant to be called from Rust, so it uses types that are easy to use
- * in Rust. In Rust, strings are validated byte-slices instead of `char` slices
- * and array lengths use uintptr_t, not size_t.
+ * This is meant to be called from Rust, so it uses uintptr_t, not size_t, for
+ * the length for convenience.
  */
-zend_module_entry *datadog_get_module_entry(const uint8_t *str, uintptr_t len);
+zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
 
 /**
  * Fetches the VM interrupt address of the calling PHP thread.
