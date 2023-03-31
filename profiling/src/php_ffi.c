@@ -170,6 +170,26 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
      */
 }
 
+static bool has_invalid_run_time_cache(zend_function *func) {
+    // It should be initialized by this point, or we failed.
+    bool is_not_initialized = ddog_php_prof_run_time_cache_handle < 0;
+
+    // Trampolines use the extension slot for internal things.
+    bool is_trampoline = func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE;
+
+#if PHP_VERSION_ID < 80200
+    // Internal functions don't have a runtime cache until PHP 8.2.
+    bool is_internal = func->type == ZEND_INTERNAL_FUNCTION;
+
+    // In some cases, using the logical-or instead of bitwise-or will end up
+    // having conditional jumps. Since we overwhelmingly expect all conditions
+    // to be false, reducing the branching helps a tiny bit for performance.
+    return is_not_initialized | is_trampoline | is_internal;
+#else
+    return is_not_initialized | is_trampoline;
+#endif
+}
+
 uintptr_t *ddog_php_prof_function_run_time_cache(zend_function *func) {
 #if PHP_VERSION_ID < 80000
     /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
@@ -180,20 +200,17 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function *func) {
     return NULL;
 #else
 
-    // It should be initialized by this point, or we failed.
-    if (ddog_php_prof_run_time_cache_handle < 0) return NULL;
+    if (UNEXPECTED(has_invalid_run_time_cache(func))) return NULL;
 
 #if PHP_VERSION_ID < 80200
-    // internal functions don't have a runtime cache until PHP 8.2
-    if (func->type == ZEND_INTERNAL_FUNCTION) return NULL;
-
+    // Internal functions don't have a runtime cache until PHP 8.2.
     uintptr_t *cache_addr = RUN_TIME_CACHE(&func->op_array);
 #else
     uintptr_t *cache_addr = RUN_TIME_CACHE(&func->common);
 #endif
 
-    // To my knowledge, this is always a bug, but it has happened.
-    if (!cache_addr) return 0;
+    // todo: how sure can I be, here? Can I be so confident as to omit it?
+    ZEND_ASSERT(cache_addr);
 
     return cache_addr + ddog_php_prof_run_time_cache_handle;
 #endif
