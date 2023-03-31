@@ -9,6 +9,9 @@ use DDTrace\Tests\Common\SpanAssertion;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPTable;
+use Symfony\Component\Process\Process;
+use Thread;
 
 final class AMQPTest extends IntegrationTestCase
 {
@@ -28,7 +31,7 @@ final class AMQPTest extends IntegrationTestCase
             $consumerConnection = $this->connectionToServer();
             $consumerChannel = $consumerConnection->channel();
             $consumerChannel->queue_declare('hello', false, false, false, false);
-            $callback = function ($msg) use (&$receivedMessage) {
+            $callback = function () use (&$receivedMessage) {
                 $receivedMessage = true;
             };
             $consumerChannel->basic_consume('hello', '', false, true, false, false, $callback);
@@ -61,9 +64,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ]),
             SpanAssertion::build(
                 'amqp.queue.declare',
@@ -75,10 +77,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'hello',
+                Tag::MQ_DESTINATION             => 'hello',
             ]),
             SpanAssertion::build(
                 'amqp.basic.consume',
@@ -86,15 +87,14 @@ final class AMQPTest extends IntegrationTestCase
                 'queue',
                 'basic.consume hello'
             )->withExactTags([
-                Tag::SPAN_KIND                  => 'consumer',
+                Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
                 Tag::MQ_OPERATION               => 'receive',
-                'amqp.queue'                    => 'hello',
+                Tag::MQ_DESTINATION             => 'hello',
             ])->withExistingTagsNames([
                 Tag::MQ_CONSUMER_ID
             ])->withChildren([
@@ -104,13 +104,12 @@ final class AMQPTest extends IntegrationTestCase
                     'queue',
                     'basic.consume_ok'
                 )->withExactTags([
-                    Tag::SPAN_KIND                  => 'producer',
+                    Tag::SPAN_KIND                  => 'server',
                     Tag::COMPONENT                  => 'amqp',
                     Tag::MQ_SYSTEM                  => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND        => 'queue',
-                    Tag::MQ_PROTOCOL                => 'amqp',
+                    Tag::MQ_PROTOCOL                => 'AMQP',
                     Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                    Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
                     Tag::MQ_OPERATION               => 'process',
                 ]),
             ]),
@@ -124,9 +123,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ]),
             SpanAssertion::build(
                 'amqp.queue.declare',
@@ -138,10 +136,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'hello',
+                Tag::MQ_DESTINATION             => 'hello',
             ]),
             SpanAssertion::build(
                 'amqp.basic.publish',
@@ -154,12 +151,11 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::RABBITMQ_ROUTING_KEY       => 'hello',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
                 Tag::MQ_OPERATION               => 'send',
-                'amqp.exchange'                 => '<default>',
+                Tag::RABBITMQ_EXCHANGE          => '<default>',
             ]),
             SpanAssertion::build(
                 'amqp.basic.deliver',
@@ -172,13 +168,11 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::RABBITMQ_ROUTING_KEY       => 'hello',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                Tag::MQ_DESTINATION             => '<default>',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
                 Tag::MQ_OPERATION               => 'receive',
-                'amqp.exchange'                 => '<default>',
+                Tag::RABBITMQ_EXCHANGE          => '<default>',
             ])->withExistingTagsNames([
                 Tag::MQ_CONSUMER_ID
             ])
@@ -204,7 +198,7 @@ final class AMQPTest extends IntegrationTestCase
                 $receiveLogsChannel->queue_bind($receiveLogsQueueName, 'direct_logs', $severity);
             }
 
-            $callback = function ($msg) use (&$receivedMessage) {
+            $callback = function () use (&$receivedMessage) {
                 $receivedMessage = true;
             };
 
@@ -242,9 +236,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ]),
             SpanAssertion::build(
                 'amqp.exchange.declare',
@@ -256,10 +249,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.exchange'                 => 'direct_logs',
+                Tag::RABBITMQ_EXCHANGE          => 'direct_logs',
             ]),
             SpanAssertion::build(
                 'amqp.queue.declare',
@@ -271,10 +263,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => '<generated>',
+                Tag::MQ_DESTINATION             => '<generated>',
             ]),
             SpanAssertion::build(
                 'amqp.queue.bind',
@@ -286,11 +277,10 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => '<generated>',
-                'amqp.exchange'                 => 'direct_logs',
+                Tag::MQ_DESTINATION             => '<generated>',
+                Tag::RABBITMQ_EXCHANGE          => 'direct_logs',
                 Tag::RABBITMQ_ROUTING_KEY       => 'info',
             ]),
             SpanAssertion::build(
@@ -303,11 +293,10 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => '<generated>',
-                'amqp.exchange'                 => 'direct_logs',
+                Tag::MQ_DESTINATION             => '<generated>',
+                Tag::RABBITMQ_EXCHANGE          => 'direct_logs',
                 Tag::RABBITMQ_ROUTING_KEY       => 'warning',
             ]),
             SpanAssertion::build(
@@ -320,11 +309,10 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => '<generated>',
-                'amqp.exchange'                 => 'direct_logs',
+                Tag::MQ_DESTINATION             => '<generated>',
+                Tag::RABBITMQ_EXCHANGE          => 'direct_logs',
                 Tag::RABBITMQ_ROUTING_KEY       => 'error',
             ]),
             SpanAssertion::build(
@@ -333,14 +321,13 @@ final class AMQPTest extends IntegrationTestCase
                 'queue',
                 'basic.consume <generated>'
             )->withExactTags([
-                Tag::SPAN_KIND                  => 'consumer',
+                Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => '<generated>',
+                Tag::MQ_DESTINATION             => '<generated>',
                 Tag::MQ_OPERATION               => 'receive',
             ])->withExistingTagsNames([
                 Tag::MQ_CONSUMER_ID
@@ -351,13 +338,12 @@ final class AMQPTest extends IntegrationTestCase
                     'queue',
                     'basic.consume_ok'
                 )->withExactTags([
-                    Tag::SPAN_KIND              => 'producer',
+                    Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
                     Tag::MQ_SYSTEM              => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND    => 'queue',
-                    Tag::MQ_PROTOCOL            => 'amqp',
+                    Tag::MQ_PROTOCOL            => 'AMQP',
                     Tag::MQ_PROTOCOL_VERSION    => AMQPChannel::getProtocolVersion(),
-                    Tag::MQ_URL                 => 'amqp://rabbitmq_integration:5672',
                     Tag::MQ_OPERATION           => 'process',
                 ])
             ]),
@@ -371,9 +357,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ]),
             SpanAssertion::build(
                 'amqp.exchange.declare',
@@ -385,10 +370,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.exchange'                 => 'direct_logs',
+                Tag::RABBITMQ_EXCHANGE          => 'direct_logs',
             ]),
             SpanAssertion::build(
                 'amqp.basic.publish',
@@ -400,10 +384,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.exchange'                 => 'direct_logs',
+                Tag::RABBITMQ_EXCHANGE          => 'direct_logs',
                 Tag::RABBITMQ_ROUTING_KEY       => 'error',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 29,
                 Tag::MQ_OPERATION               => 'send',
@@ -417,12 +400,10 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::SPAN_KIND                  => 'consumer',
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
-                Tag::MQ_DESTINATION             => 'direct_logs',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.exchange'                 => 'direct_logs',
+                Tag::RABBITMQ_EXCHANGE          => 'direct_logs',
                 Tag::RABBITMQ_ROUTING_KEY       => 'error',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 29,
                 Tag::MQ_OPERATION               => 'receive',
@@ -464,9 +445,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ]),
             SpanAssertion::build(
                 'amqp.queue.declare',
@@ -478,10 +458,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'hello',
+                Tag::MQ_DESTINATION             => 'hello',
             ]),
             SpanAssertion::build(
                 'amqp.basic.consume',
@@ -489,14 +468,13 @@ final class AMQPTest extends IntegrationTestCase
                 'queue',
                 'basic.consume hello'
             )->withExactTags([
-                Tag::SPAN_KIND                  => 'consumer',
+                Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'hello',
+                Tag::MQ_DESTINATION             => 'hello',
                 Tag::MQ_OPERATION               => 'receive',
             ])->withExistingTagsNames([
                 Tag::MQ_CONSUMER_ID
@@ -507,13 +485,12 @@ final class AMQPTest extends IntegrationTestCase
                     'queue',
                     'basic.consume_ok'
                 )->withExactTags([
-                    Tag::SPAN_KIND              => 'producer',
+                    Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
                     Tag::MQ_SYSTEM              => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND    => 'queue',
-                    Tag::MQ_PROTOCOL            => 'amqp',
+                    Tag::MQ_PROTOCOL            => 'AMQP',
                     Tag::MQ_PROTOCOL_VERSION    => AMQPChannel::getProtocolVersion(),
-                    Tag::MQ_URL                 => 'amqp://rabbitmq_integration:5672',
                     Tag::MQ_OPERATION           => 'process',
                 ])
             ]),
@@ -522,10 +499,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'hello',
+                Tag::MQ_DESTINATION             => 'hello',
             ])->withChildren([
                 SpanAssertion::build(
                     'amqp.basic.cancel_ok',
@@ -533,13 +509,12 @@ final class AMQPTest extends IntegrationTestCase
                     'queue',
                     'basic.cancel_ok'
                 )->withExactTags([
-                    Tag::SPAN_KIND              => 'producer',
+                    Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
                     Tag::MQ_SYSTEM              => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND    => 'queue',
-                    Tag::MQ_PROTOCOL            => 'amqp',
+                    Tag::MQ_PROTOCOL            => 'AMQP',
                     Tag::MQ_PROTOCOL_VERSION    => AMQPChannel::getProtocolVersion(),
-                    Tag::MQ_URL                 => 'amqp://rabbitmq_integration:5672',
                 ])
             ]),
         ]);
@@ -575,9 +550,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ]),
             SpanAssertion::build(
                 'amqp.queue.declare',
@@ -589,10 +563,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'hello',
+                Tag::MQ_DESTINATION             => 'hello',
             ]),
             SpanAssertion::build(
                 'amqp.basic.publish',
@@ -605,12 +578,11 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::RABBITMQ_ROUTING_KEY       => 'hello',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
                 Tag::MQ_OPERATION               => 'send',
-                'amqp.exchange'                 => '<default>',
+                Tag::RABBITMQ_EXCHANGE          => '<default>',
             ])->setError(
                 'PhpAmqpLib\Exception\AMQPChannelClosedException',
                 'Channel connection is closed',
@@ -644,9 +616,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ]),
             SpanAssertion::build(
                 'amqp.queue.declare',
@@ -658,10 +629,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'hello',
+                Tag::MQ_DESTINATION             => 'hello',
             ]),
             SpanAssertion::build(
                 'amqp.reconnect',
@@ -673,9 +643,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ])->withChildren([
                 SpanAssertion::build(
                     'amqp.connect',
@@ -687,9 +656,8 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::COMPONENT                  => 'amqp',
                     Tag::MQ_SYSTEM                  => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND        => 'queue',
-                    Tag::MQ_PROTOCOL                => 'amqp',
+                    Tag::MQ_PROTOCOL                => 'AMQP',
                     Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                    Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
                 ])
             ])
         ]);
@@ -728,9 +696,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
             ]),
             SpanAssertion::build(
                 'amqp.queue.declare',
@@ -742,10 +709,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'basic_get_queue',
+                Tag::MQ_DESTINATION             => 'basic_get_queue',
             ]),
             SpanAssertion::build(
                 'amqp.exchange.declare',
@@ -757,10 +723,9 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.exchange'                 => 'basic_get_test',
+                Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
             ]),
             SpanAssertion::build(
                 'amqp.queue.bind',
@@ -772,11 +737,10 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'basic_get_queue',
-                'amqp.exchange'                 => 'basic_get_test',
+                Tag::MQ_DESTINATION             => 'basic_get_queue',
+                Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
                 Tag::RABBITMQ_ROUTING_KEY       => '<all>',
             ]),
             SpanAssertion::build(
@@ -788,14 +752,14 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
-                Tag::RABBITMQ_ROUTING_KEY       => '<all>',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
                 Tag::MQ_OPERATION               => 'send',
-                'amqp.exchange'                 => 'basic_get_test',
+                Tag::RABBITMQ_ROUTING_KEY       => '<all>',
+                Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
+                Tag::RABBITMQ_DELIVERY_MODE     => '2',
             ]),
             SpanAssertion::build(
                 'amqp.basic.get',
@@ -803,19 +767,18 @@ final class AMQPTest extends IntegrationTestCase
                 'queue',
                 'basic.get basic_get_queue'
             )->withExactTags([
-                Tag::SPAN_KIND                  => 'client',
+                Tag::SPAN_KIND                  => 'consumer',
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.queue'                    => 'basic_get_queue',
-                'amqp.exchange'                 => 'basic_get_test',
-                'amqp.delivery_tag'             => '1',
+                Tag::MQ_DESTINATION             => 'basic_get_queue',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
                 Tag::MQ_OPERATION               => 'receive',
                 Tag::RABBITMQ_ROUTING_KEY       => '<all>',
+                Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
+                Tag::RABBITMQ_DELIVERY_MODE     => '2',
             ]),
             SpanAssertion::build(
                 'amqp.basic.ack',
@@ -827,37 +790,74 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::COMPONENT                  => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
-                Tag::MQ_PROTOCOL                => 'amqp',
+                Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_URL                     => 'amqp://rabbitmq_integration:5672',
-                'amqp.delivery_tag'             => 1
             ]),
         ]);
     }
 
-
-
-    function testDistributedTracing()
+    function testHelloWorldThread()
     {
-        $this->markTestSkipped('This test is not working yet');
+        $this->markTestSkipped('This test is not working');
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
 
-        $traces = $this->isolateTracer(function () use (&$current_context) {
-            \DDTrace\add_distributed_tag('user_id', 42);
-            \DDTrace\start_span();
-            $current_context = \DDTrace\current_context();
-
-            // Do a simple publish
+        // First send to the queue
+        /*
+        $sendTraces = $this->isolateLimitedTracer(function () {
             $connection = $this->connectionToServer();
             $channel = $connection->channel();
-            $channel->queue_declare('hello', false, false, false, false);
-            $channel->basic_publish(new AMQPMessage('Hello World!'), '', 'hello');
+            $channel->queue_declare('queue_scripts', false, false, false, false);
+            $channel->basic_publish(
+                new AMQPMessage(
+                    'Hello World!',
+                    ['application_headers' => new AMQPTable(['Honored' => 'preserved_value'])]
+                ),
+                '',
+                'hello'
+            );
             $channel->close();
             $connection->close();
         });
+        /*
 
-        //fwrite(STDERR, print_r($traces, true));
-        //fwrite(STDERR, print_r($current_context, true));
+        // Then receive from the queue
+        $receiveTraces = $this->isolateLimitedTracer(function () {
+            $connection = $this->connectionToServer();
+            $channel = $connection->channel();
+            // Use basic_consume
+            $channel->basic_consume('hello', '', false, true, false, false, function ($message) {
+                fwrite(STDERR, 'Received message: ' . $message->body . PHP_EOL);
+                fwrite(STDERR, 'Properties : ' . json_encode($message->get('application_headers')->getNativeData(), JSON_PRETTY_PRINT) . PHP_EOL);
+            });
+            $channel->wait(null, false, 5);
+            $channel->close();
+            $connection->close();
+        });
+        */
 
 
+        $sendTraces = $this->inCli(
+            __DIR__ . '/scripts/send.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
+            ]
+        );
+
+        $receiveTraces = $this->inCli(
+            __DIR__ . '/scripts/receive.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
+            ]
+        );
+
+        fwrite(STDERR, print_r($sendTraces, true));
+        fwrite(STDERR, print_r($receiveTraces, true));
     }
+
 }

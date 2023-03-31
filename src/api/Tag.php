@@ -74,5 +74,7 @@ class Tag
     const MQ_CONSUMER_ID = 'messaging.consumer_id';
 
     // RabbitMQ
+    const RABBITMQ_DELIVERY_MODE = 'messaging.rabbitmq.delivery_mode';
+    const RABBITMQ_EXCHANGE = 'messaging.rabbitmq.exchange';
     const RABBITMQ_ROUTING_KEY = 'messaging.rabbitmq.routing_key';
 }

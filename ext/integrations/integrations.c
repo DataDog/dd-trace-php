@@ -145,6 +145,8 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_AMQP, "PhpAmqpLib\\Connection\\AMQPStreamConnection", "__construct",
                                         "DDTrace\\Integrations\\AMQP\\AMQPIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_AMQP, "PhpAmqpLib\\Connection\\AbstractConnection", "__construct",
+                                        "DDTrace\\Integrations\\AMQP\\AMQPIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "App", "init",
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");

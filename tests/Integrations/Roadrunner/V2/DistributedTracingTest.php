@@ -30,6 +30,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
             \DDTrace\add_distributed_tag("user_id", 42);
             \DDTrace\start_span();
             $current_context = \DDTrace\current_context();
+            fwrite(STDERR, 'context: ' . json_encode($current_context, JSON_PRETTY_PRINT) . PHP_EOL);
             $spec = GetSpec::create('request', '/', [
                 "User-Agent: Test",
                 "x-header: somevalue",
@@ -39,6 +40,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
         });
 
         $trace = $traces[0][0];
+        fwrite(STDERR, print_r($trace, TRUE));
         $this->assertSame($current_context["trace_id"], $trace["trace_id"]);
         $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
         $this->assertSame("Test", $trace["meta"]["http.useragent"]);
