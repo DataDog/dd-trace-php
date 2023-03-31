@@ -396,11 +396,7 @@ class AMQPIntegration extends Integration
             // If present, set the origin of the current span to x-datadog-origin
             $origin = $headers['x-datadog-origin'] ?? null;
 
-            \DDTrace\set_distributed_tracing_context(
-                $traceId,
-                $parentId,
-                $origin,
-            );
+            \DDTrace\set_distributed_tracing_context($traceId, $parentId, $origin);
         }
     }
 
