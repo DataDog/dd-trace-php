@@ -50,6 +50,13 @@ aliases:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
 
+  - &IMAGE_DOCKER_RABBITMQ
+    image: rabbitmq:3.8.9-management
+    name: rabbitmq_integration
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: datadog/dd-trace-ci:php-request-replayer-2.0
     name: request-replayer
@@ -377,6 +384,7 @@ executors:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_RABBITMQ
       - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
