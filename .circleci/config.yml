@@ -51,7 +51,7 @@ aliases:
       - MONGO_INITDB_ROOT_PASSWORD=test
 
   - &IMAGE_DOCKER_RABBITMQ
-    image: rabbitmq:3.8.9-management
+    image: rabbitmq:3.8.9-alpine
     name: rabbitmq_integration
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
