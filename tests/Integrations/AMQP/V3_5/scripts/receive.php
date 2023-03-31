@@ -12,23 +12,11 @@ $channel = $connection->channel();
 $channel->queue_declare('queue_scripts', false, false, false, false);
 
 $callback = function ($msg) {
-    file_put_contents('/tmp/amqp.log', ' [x] Received ' . $msg->body . "\n", FILE_APPEND);
-    fwrite(STDERR, ' [x] Received ' . $msg->body . "\n");
-    echo ' [x] Received ', $msg->body, "\n";
-
     if ($msg->has('application_headers')) {
         $headers = $msg->get('application_headers')->getNativeData();
-        if (isset($headers['x-datadog-trace-id'])) {
-            fwrite(STDERR, ' [x] Received trace id ' . $headers['x-datadog-trace-id'] . "\n");
-            echo ' [x] Received trace id ', $headers['x-datadog-trace-id'], "\n";
+        if (!isset($headers['Honored'])) {
+            echo 'fail'; // User headers should not be lost
         }
-        if (isset($headers['x-datadog-parent-id'])) {
-            fwrite(STDERR, ' [x] Received parent id ' . $headers['x-datadog-parent-id'] . "\n");
-            echo ' [x] Received parent id ', $headers['x-datadog-parent-id'], "\n";
-        }
-    } else {
-        fwrite(STDERR, ' [x] Received no headers' . "\n");
-        echo ' [x] Received no headers', "\n";
     }
 };
 

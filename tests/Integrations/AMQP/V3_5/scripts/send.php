@@ -19,8 +19,6 @@ $msg = new AMQPMessage(
 $channel->basic_publish($msg, '', 'queue_scripts');
 
 echo " [x] Sent 'Hello World!'\n";
-fwrite(STDERR, " [x] Sent 'Hello World!'\n");
-file_put_contents('/tmp/amqp.log', " [x] Sent 'Hello World!'\n", FILE_APPEND);
 
 $channel->close();
 $connection->close();

@@ -796,68 +796,54 @@ final class AMQPTest extends IntegrationTestCase
         ]);
     }
 
-    function testHelloWorldThread()
+    function testDistributedTracing()
     {
-        $this->markTestSkipped('This test is not working');
-        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+        $this->markTestSkipped('This test is too flaky');
+        // Note: This test is extremely flaky, locally at least. It eventually passes, but it takes some tries...
+        // Reason: We may parse the traces from dumped data BEFORE the traces are flushed.
 
-        // First send to the queue
-        /*
-        $sendTraces = $this->isolateLimitedTracer(function () {
-            $connection = $this->connectionToServer();
-            $channel = $connection->channel();
-            $channel->queue_declare('queue_scripts', false, false, false, false);
-            $channel->basic_publish(
-                new AMQPMessage(
-                    'Hello World!',
-                    ['application_headers' => new AMQPTable(['Honored' => 'preserved_value'])]
-                ),
-                '',
-                'hello'
-            );
-            $channel->close();
-            $connection->close();
-        });
-        /*
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
 
-        // Then receive from the queue
-        $receiveTraces = $this->isolateLimitedTracer(function () {
-            $connection = $this->connectionToServer();
-            $channel = $connection->channel();
-            // Use basic_consume
-            $channel->basic_consume('hello', '', false, true, false, false, function ($message) {
-                fwrite(STDERR, 'Received message: ' . $message->body . PHP_EOL);
-                fwrite(STDERR, 'Properties : ' . json_encode($message->get('application_headers')->getNativeData(), JSON_PRETTY_PRINT) . PHP_EOL);
-            });
-            $channel->wait(null, false, 5);
-            $channel->close();
-            $connection->close();
-        });
-        */
-
-
+            /*
         $sendTraces = $this->inCli(
             __DIR__ . '/scripts/send.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
             ]
         );
+            */
 
-        $receiveTraces = $this->inCli(
+        list($receiveTraces, $output) = $this->inCli(
             __DIR__ . '/scripts/receive.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ]
+            ],
+            [],
+            '',
+            true
         );
 
-        fwrite(STDERR, print_r($sendTraces, true));
-        fwrite(STDERR, print_r($receiveTraces, true));
+        // Assess that user headers weren't lost
+        $this->assertSame("", $output);
+
+        fwrite(STDERR, json_encode($sendTraces, JSON_PRETTY_PRINT) . PHP_EOL);
+        fwrite(STDERR, json_encode($receiveTraces, JSON_PRETTY_PRINT) . PHP_EOL);
+
+
+        $sendTraces = $sendTraces[0][0]; // There is a root span
+        // Spans: send.php -> basic_publish -> queue_declare -> connect
+        $basicPublishSpan = $sendTraces[1];
+
+        $receiveTraces = $receiveTraces[0]; // There isn't a root span
+        // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
+        $basicDeliverSpan = $receiveTraces[3];
+
+        $this->assertSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
+        $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
     }
 
 }
