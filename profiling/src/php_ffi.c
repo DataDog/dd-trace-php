@@ -170,6 +170,7 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
      */
 }
 
+#if PHP_VERSION_ID >= 80000
 static bool has_invalid_run_time_cache(zend_function *func) {
     // It should be initialized by this point, or we failed.
     bool is_not_initialized = ddog_php_prof_run_time_cache_handle < 0;
@@ -189,6 +190,7 @@ static bool has_invalid_run_time_cache(zend_function *func) {
     return is_not_initialized | is_trampoline;
 #endif
 }
+#endif
 
 uintptr_t *ddog_php_prof_function_run_time_cache(zend_function *func) {
 #if PHP_VERSION_ID < 80000
