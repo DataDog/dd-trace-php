@@ -633,7 +633,7 @@ final class AMQPTest extends IntegrationTestCase
                 'amqp.reconnect',
                 'amqp',
                 'queue',
-                'reconnect',
+                'reconnect'
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
@@ -693,7 +693,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
-                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion()
             ]),
             SpanAssertion::build(
                 'amqp.queue.declare',
@@ -707,7 +707,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::MQ_DESTINATION             => 'basic_get_queue',
+                Tag::MQ_DESTINATION             => 'basic_get_queue'
             ]),
             SpanAssertion::build(
                 'amqp.exchange.declare',
@@ -721,7 +721,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
-                Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
+                Tag::RABBITMQ_EXCHANGE          => 'basic_get_test'
             ]),
             SpanAssertion::build(
                 'amqp.queue.bind',
@@ -737,7 +737,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
                 Tag::MQ_DESTINATION             => 'basic_get_queue',
                 Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
-                Tag::RABBITMQ_ROUTING_KEY       => '<all>',
+                Tag::RABBITMQ_ROUTING_KEY       => '<all>'
             ]),
             SpanAssertion::build(
                 'amqp.basic.publish',
@@ -755,7 +755,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_OPERATION               => 'send',
                 Tag::RABBITMQ_ROUTING_KEY       => '<all>',
                 Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
-                Tag::RABBITMQ_DELIVERY_MODE     => '2',
+                Tag::RABBITMQ_DELIVERY_MODE     => '2'
             ]),
             SpanAssertion::build(
                 'amqp.basic.get',
@@ -774,7 +774,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_OPERATION               => 'receive',
                 Tag::RABBITMQ_ROUTING_KEY       => '<all>',
                 Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
-                Tag::RABBITMQ_DELIVERY_MODE     => '2',
+                Tag::RABBITMQ_DELIVERY_MODE     => '2'
             ]),
             SpanAssertion::build(
                 'amqp.basic.ack',
@@ -787,20 +787,20 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
-                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion()
             ]),
         ]);
     }
 
     public function testDistributedTracing()
     {
-        //$this->markTestSkipped('This test is too flaky');
-        // Note: This test is extremely flaky, locally at least. It eventually passes, but it takes some tries...
+        $this->markTestSkipped('This test is too flaky locally/doesn\'t work yet on CI.');
+        // Note: This test is extremely flaky, locally at least. It should eventually pass with some tries...
         // Reason: We may parse the traces from dumped data BEFORE the traces are flushed.
 
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
 
-            /*
+
         $sendTraces = $this->inCli(
             __DIR__ . '/scripts/send.php',
             [
@@ -809,7 +809,6 @@ final class AMQPTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
             ]
         );
-            */
 
         list($receiveTraces, $output) = $this->inCli(
             __DIR__ . '/scripts/receive.php',
