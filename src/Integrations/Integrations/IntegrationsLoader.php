@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Integrations\AMQP\AMQPIntegration;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
 use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration;
 use DDTrace\Integrations\Curl\CurlIntegration;
@@ -68,8 +67,6 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Pcntl\PcntlIntegration';
         }
 
-        $this->integrations[AMQPIntegration::NAME] =
-            '\DDTrace\Integrations\AMQP\AMQPIntegration';
         $this->integrations[CurlIntegration::NAME] =
             '\DDTrace\Integrations\Curl\CurlIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
