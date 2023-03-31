@@ -4,14 +4,10 @@ namespace DDTrace\Tests\Integrations\AMQP\V3_5;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
-
 use DDTrace\Tests\Common\SpanAssertion;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
-use PhpAmqpLib\Wire\AMQPTable;
-use Symfony\Component\Process\Process;
-use Thread;
 
 final class AMQPTest extends IntegrationTestCase
 {
@@ -23,7 +19,7 @@ final class AMQPTest extends IntegrationTestCase
         return new AMQPStreamConnection('rabbitmq_integration', 5672, 'guest', 'guest');
     }
 
-    function testHelloWorld()
+    public function testHelloWorld()
     {
         $receivedMessage = false;
         // The simplest thing that does something
@@ -181,7 +177,7 @@ final class AMQPTest extends IntegrationTestCase
         $this->assertTrue($receivedMessage);
     }
 
-    function testRouting()
+    public function testRouting()
     {
         // Receiving messages selectively
         // @see https://www.rabbitmq.com/tutorials/tutorial-four-php.html
@@ -415,7 +411,7 @@ final class AMQPTest extends IntegrationTestCase
         $this->assertTrue($receivedMessage);
     }
 
-    function testCancel()
+    public function testCancel()
     {
         $traces = $this->isolateTracer(function () {
             $connection = $this->connectionToServer();
@@ -520,7 +516,7 @@ final class AMQPTest extends IntegrationTestCase
         ]);
     }
 
-    function testPublishOnClosedChannel()
+    public function testPublishOnClosedChannel()
     {
         $traces = $this->isolateTracer(function () {
             $connection = $this->connectionToServer();
@@ -592,7 +588,7 @@ final class AMQPTest extends IntegrationTestCase
         ]);
     }
 
-    function testReconnect()
+    public function testReconnect()
     {
         $traces = $this->isolateTracer(function () {
             $connection = $this->connectionToServer();
@@ -663,7 +659,7 @@ final class AMQPTest extends IntegrationTestCase
         ]);
     }
 
-    function testBasicGet()
+    public function testBasicGet()
     {
         $traces = $this->isolateTracer(function () {
             $exchange = 'basic_get_test';
@@ -796,7 +792,7 @@ final class AMQPTest extends IntegrationTestCase
         ]);
     }
 
-    function testDistributedTracing()
+    public function testDistributedTracing()
     {
         $this->markTestSkipped('This test is too flaky');
         // Note: This test is extremely flaky, locally at least. It eventually passes, but it takes some tries...
@@ -845,5 +841,4 @@ final class AMQPTest extends IntegrationTestCase
         $this->assertSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
         $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
     }
-
 }

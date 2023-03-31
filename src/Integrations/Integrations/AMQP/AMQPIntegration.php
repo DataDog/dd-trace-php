@@ -201,7 +201,6 @@ class AMQPIntegration extends Integration
             }
         );
 
-        // TODO: Double-check the span kind & operation for this one
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_consume_ok',
@@ -324,7 +323,8 @@ class AMQPIntegration extends Integration
         return Integration::LOADED;
     }
 
-    public function setGenericTags(SpanData $span, string $name, string $spanKind, $exception = null) {
+    public function setGenericTags(SpanData $span, string $name, string $spanKind, $exception = null)
+    {
         $span->name = $name;
         $span->meta[Tag::SPAN_KIND] = $spanKind;
         $span->type = 'queue';
@@ -341,7 +341,8 @@ class AMQPIntegration extends Integration
         }
     }
 
-    public function setOptionalMessageTags(SpanData $span, AMQPMessage $message) {
+    public function setOptionalMessageTags(SpanData $span, AMQPMessage $message)
+    {
         if ($message->has('delivery_mode')) {
             $span->meta[Tag::RABBITMQ_DELIVERY_MODE] = $message->get('delivery_mode');
         }
@@ -399,5 +400,4 @@ class AMQPIntegration extends Integration
             \DDTrace\set_distributed_tracing_context($traceId, $parentId, $origin);
         }
     }
-
 }
