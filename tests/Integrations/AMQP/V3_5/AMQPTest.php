@@ -581,7 +581,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::RABBITMQ_EXCHANGE          => '<default>',
             ])->setError(
                 'PhpAmqpLib\Exception\AMQPChannelClosedException',
-                'Channel connection is closed',
+                'Channel connection is closed'
             )->withExistingTagsNames([
                 Tag::ERROR_STACK
             ])
@@ -640,7 +640,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
-                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion()
             ])->withChildren([
                 SpanAssertion::build(
                     'amqp.connect',
@@ -794,7 +794,7 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testDistributedTracing()
     {
-        $this->markTestSkipped('This test is too flaky');
+        //$this->markTestSkipped('This test is too flaky');
         // Note: This test is extremely flaky, locally at least. It eventually passes, but it takes some tries...
         // Reason: We may parse the traces from dumped data BEFORE the traces are flushed.
 
