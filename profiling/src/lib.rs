@@ -137,6 +137,10 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
 #[cfg(feature = "allocation_profiling")]
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
+/// The engine's original (or previous) `zend_throw_exception_hook`
+#[cfg(feature = "timeline")]
+static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionFn> = None;
+
 /// The engine's original (or previous) `gc_collect_cycles()` function
 #[cfg(feature = "timeline")]
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
@@ -286,8 +290,10 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "timeline")]
     {
         unsafe {
-            // TODO: be nice to neighbors
+            // register our function in `zend_throw_exception_hook`
+            PREV_ZEND_THROW_EXCEPTION_HOOK = zend::zend_throw_exception_hook;
             zend::zend_throw_exception_hook = Some(datadog_throw_exception_hook);
+            // register our function in `gc_collect_cycles`
             PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
             zend::gc_collect_cycles = Some(datadog_gc_collect_cycles);
         }
@@ -1108,7 +1114,12 @@ unsafe extern "C" fn datadog_throw_exception_hook(_exception: *mut zend::zend_ob
 }
 
 #[cfg(feature = "timeline")]
+/// This function hooks into the PHP garbage collection cycle, takes the time it
+/// needs to collect garbage and reports a timeline event to the profiler.
 unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
+    if PREV_GC_COLLECT_CYCLES.is_none() {
+        return 0;
+    }
     let start = Instant::now();
     let prev = PREV_GC_COLLECT_CYCLES.unwrap();
     let bytes = prev();

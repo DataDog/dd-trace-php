@@ -11,6 +11,8 @@ use std::sync::atomic::AtomicBool;
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
 #[cfg(feature = "timeline")]
+pub type VmZendThrowExceptionFn = unsafe extern "C" fn(*mut zend_object);
+#[cfg(feature = "timeline")]
 pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
 
 #[cfg(feature = "allocation_profiling")]
