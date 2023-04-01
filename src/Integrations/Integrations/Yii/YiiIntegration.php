@@ -113,15 +113,43 @@ class YiiIntegration extends Integration
                 }
 
                 if (empty($rootSpan->meta['app.route.path'])) {
-                    $route = $this->module->requestedRoute;
-                    $namedParams = [$route];
-                    $placeholders = [$route];
                     $placeholder = '__dd_route_param';
-                    if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
-                        foreach ($args[1] as $param => $unused) {
-                            $namedParams[$param] = ":{$param}";
-                            $placeholders[$param] = $placeholder;
+
+                    // When controllers are directly set in the app,
+                    // the controller falls back to the app and module is set
+                    // But when the controller is in a module, the module property doesn't exist
+                    // and we need to fallback on actionParams
+
+                    if (
+                        !empty($this->module)
+                        && \property_exists($this->module, 'requestedRoute')
+                        && !empty($this->module->requestedRoute)
+                    ) {
+                        $route = $this->module->requestedRoute;
+                        $namedParams = [$route];
+                        $placeholders = [$route];
+                        if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
+                            foreach ($args[1] as $param => $unused) {
+                                $namedParams[$param] = ":{$param}";
+                                $placeholders[$param] = $placeholder;
+                            }
                         }
+                    } elseif (\property_exists($this, 'actionParams')) {
+                        $actionParams = $this->actionParams;
+                        $placeholders = $this->actionParams;
+                        if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
+                            foreach ($args[1] as $param => $unused) {
+                                if (!empty($actionParams[$param])) {
+                                    $actionParams[$param] = ":{$param}";
+                                    $placeholders[$param] = $placeholder;
+                                }
+                            }
+                        }
+
+                        $namedParams = [implode('/', $actionParams)];
+                        $placeholders = [implode('/', $placeholders)];
+                    } else {
+                        return;
                     }
 
                     $routePath = \DDTrace\Util\Normalizer::urlSanitize(
@@ -129,6 +157,7 @@ class YiiIntegration extends Integration
                         false,
                         true
                     );
+
                     $rootSpan->meta['app.route.path'] = $routePath;
 
                     $resourceName = \str_replace(

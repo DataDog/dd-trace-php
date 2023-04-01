@@ -36,11 +36,12 @@ class ModuleTest extends WebFrameworkTestCase
                     'web.request',
                     'yii2_test_app',
                     Type::WEB_SERVLET,
-                    'GET /forum/new-york/new-york/manhattan'
+                    'GET /forum/?/?/?'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
                     Tag::HTTP_URL => 'http://localhost:9999/forum/new-york/new-york/manhattan?key=value&<redacted>',
                     Tag::HTTP_STATUS_CODE => '200',
+                    'app.route.path' => '/forum/:state/:city/:neighborhood',
                     'app.endpoint' => 'app\modules\forum\controllers\ModuleController::actionView',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",
