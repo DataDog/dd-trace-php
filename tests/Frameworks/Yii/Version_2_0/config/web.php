@@ -11,6 +11,14 @@ $config = [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',
     ],
+    'modules' => [
+        'forum' => [
+            'class' => app\modules\forum\Module::class,
+        ],
+        'v2' => [
+            'class' => \app\modules\api\Module::class,
+        ],
+    ],
     'components' => [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
@@ -52,6 +60,7 @@ $config = [
                 'simple_view' => 'simple/view',
                 'error' => 'simple/error',
                 'homes/<state>/<city>/<neighborhood>' => 'homes/view',
+                'forum/<state>/<city>/<neighborhood>' => 'forum/module/view',
             ],
         ],
 
