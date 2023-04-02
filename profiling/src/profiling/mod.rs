@@ -291,6 +291,8 @@ impl TimeCollector {
             .map(profile::api::Label::from)
             .collect();
 
+        // TODO we only need this for `cpu-time` and `timeline` samples
+        // Check if we need this also for `wall-time`
         #[cfg(feature = "timeline")]
         if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
             labels.push(profile::api::Label {
@@ -647,6 +649,7 @@ impl Profiler {
         duration: i64,
         locals: &RequestLocals,
     ) {
+        // TODO: how does the fake frame in .NET lock?
         let frames: Vec<ZendFrame> = vec![
             ZendFrame {
                 function: "timeline fake".to_string(),
@@ -663,6 +666,12 @@ impl Profiler {
             }
         );
 
+        // TODO we may be able to find out if the GC cycle was user or engine triggered, if we can,
+        // we can add a "gc reason" (or similar, check with the .NET doc or profiling-backend
+        // source)
+
+        // TODO this is only true for GC events, exceptions should likely go on the main thread as
+        // it is nothing the engine does.
         labels.push(
             Label {
                 key: "thread id",
@@ -681,10 +690,10 @@ impl Profiler {
             locals
         )) {
             Ok(_) => trace!(
-                "Sent event of {depth} frames, {n_labels} labels to profiler."
+                "Sent event {event} of {depth} frames, {n_labels} labels to profiler."
             ),
             Err(err) => warn!(
-                "Failed to send event of {depth} frames, {n_labels} labels to profiler: {err}"
+                "Failed to send event {event} of {depth} frames, {n_labels} labels to profiler: {err}"
             ),
         }
     }
@@ -756,8 +765,10 @@ impl Profiler {
                 sample_values.extend_from_slice(&values[3..5]);
             }
 
-            sample_types.push(SAMPLE_TYPES[5]);
-            sample_values.push(values[5]);
+            #[cfg(feature = "timeline")]
+            sample_types.extend_from_slice(&SAMPLE_TYPES[5..6]);
+            #[cfg(feature = "timeline")]
+            sample_values.extend_from_slice(&values[5..6]);
         }
 
         let tags = Arc::clone(&locals.tags);
