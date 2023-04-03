@@ -364,7 +364,7 @@ commands:
       #       extra=<< parameters.extra >>
       #       if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
       #         docker logs -f test-agent
-      
+
       #       fi
 
 executors:
@@ -1076,7 +1076,6 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
-      - <<: *STEP_WAIT_TEST_AGENT
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_alpine:
