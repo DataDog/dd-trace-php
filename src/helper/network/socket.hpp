@@ -27,6 +27,7 @@ public:
 
     virtual std::size_t recv(char *buffer, std::size_t len) = 0;
     virtual std::size_t send(const char *buffer, std::size_t len) = 0;
+    virtual std::size_t discard(std::size_t len) = 0;
 
     virtual void set_send_timeout(std::chrono::milliseconds timeout) = 0;
     virtual void set_recv_timeout(std::chrono::milliseconds timeout) = 0;
@@ -58,6 +59,7 @@ public:
 
     std::size_t recv(char *buffer, std::size_t len) override;
     std::size_t send(const char *buffer, std::size_t len) override;
+    std::size_t discard(std::size_t len) override;
 
     void set_send_timeout(std::chrono::milliseconds timeout) override;
     void set_recv_timeout(std::chrono::milliseconds timeout) override;

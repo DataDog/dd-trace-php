@@ -11,6 +11,7 @@
 #include <msgpack.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
+#include <stdexcept>
 
 namespace {
 
@@ -39,22 +40,29 @@ request broker::recv(std::chrono::milliseconds initial_timeout) const
             "Not enough data for header:" + std::to_string(res) + " bytes");
     }
 
-    // TODO: remove or increase this dramatically with WAF 1.5.0
     static msgpack::unpack_limit const limits(max_array_size, max_map_size,
         max_string_length, max_binary_size, max_extension_size, max_depth);
 
     msgpack::unpacker u(&default_reference_func, MSGPACK_NULLPTR,
         MSGPACK_UNPACKER_INIT_BUFFER_SIZE, limits); // NOLINT
 
+    static constexpr auto timeout_msg_body{std::chrono::milliseconds{300}};
+    socket_->set_recv_timeout(timeout_msg_body);
+
     if (h.size >= max_msg_body_size) {
-        throw std::length_error(
+        auto res = socket_->discard(h.size);
+        if (res < h.size) {
+            throw std::length_error(
+                "Message body too large: " + std::to_string(h.size) +
+                " but failed to flush");
+        }
+
+        throw std::out_of_range(
             "Message body too large: " + std::to_string(h.size));
     }
     // Allocate a buffer of the message size
     u.reserve_buffer(h.size);
 
-    static constexpr auto timeout_msg_body{std::chrono::milliseconds{300}};
-    socket_->set_recv_timeout(timeout_msg_body);
     res = socket_->recv(u.buffer(), h.size);
     if (res != h.size) {
         throw std::length_error(

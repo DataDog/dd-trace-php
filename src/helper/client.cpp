@@ -14,6 +14,7 @@
 #include <chrono>
 #include <mutex>
 #include <spdlog/spdlog.h>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -52,11 +53,19 @@ bool maybe_exec_cmd_M(client &client, network::request &msg)
     return false;
 }
 
-void send_error_response(const network::base_broker &broker)
+bool send_error_response(const network::base_broker &broker)
 {
-    if (!broker.send(std::make_shared<network::error::response>())) {
-        SPDLOG_WARN("Failed to send error response");
+    try {
+        if (!broker.send(std::make_shared<network::error::response>())) {
+            SPDLOG_WARN("Failed to send error response");
+            return false;
+        }
+    } catch (const std::exception &e) {
+        SPDLOG_WARN("Failed to send error response: {}", e.what());
+        return false;
     }
+
+    return true;
 }
 
 template <typename... Ms>
@@ -73,33 +82,53 @@ bool handle_message(client &client, const network::base_broker &broker,
     }
 
     bool send_error = false;
+    bool result = true;
     try {
         auto msg = broker.recv(initial_timeout);
         return maybe_exec_cmd_M<Ms...>(client, msg);
     } catch (const client_disconnect &) {
         SPDLOG_INFO("Client has disconnected");
-    } catch (const std::length_error &e) {
+        // When this exception has been received, we should stop hadling this
+        // particular client.
+        result = false;
+    } catch (const std::out_of_range &e) {
+        // The message received was too large, in theory this should've been
+        // flushed and we can continue handling messages from this client,
+        // however we need to report an error to ensure the client is in a good
+        // state.
         SPDLOG_WARN("Failed to handle message: {}", e.what());
         send_error = true;
+    } catch (const std::length_error &e) {
+        // The message was partially received, the state of the socket is
+        // undefined so we need to respond with an error and stop handling
+        // this client.
+        SPDLOG_WARN("Failed to handle message: {}", e.what());
+        send_error = true;
+        result = false;
     } catch (const bad_cast &e) {
+        // The data received was somehow incomprehensible but we might still be
+        // able to continue, so we only send an error.
         SPDLOG_WARN("Failed to handle message: {}", e.what());
         send_error = true;
     } catch (const msgpack::unpack_error &e) {
+        // The data received was somehow incomprehensible or perhaps beyond
+        // limits, but we might still be able to continue, so we only send an
+        // error.
         SPDLOG_WARN("Failed to unpack message: {}", e.what());
         send_error = true;
     } catch (const std::exception &e) {
         SPDLOG_WARN("Failed to handle message: {}", e.what());
+        result = false;
     }
 
     if (send_error) {
-        // This can happen due to a valid error, let's continue handling
-        // the client as this might just happen spuriously.
-        send_error_response(broker);
-        return true;
+        if (!send_error_response(broker)) {
+            return false;
+        }
     }
 
     // If we reach this point, there was a problem handling the message
-    return false;
+    return result;
 }
 
 } // namespace

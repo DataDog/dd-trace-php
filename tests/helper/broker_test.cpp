@@ -10,6 +10,7 @@
 #include <network/broker.hpp>
 #include <network/socket.hpp>
 #include <parameter_view.hpp>
+#include <stdexcept>
 
 namespace dds {
 
@@ -20,6 +21,7 @@ public:
     ~socket() override = default;
     MOCK_METHOD2(recv, std::size_t(char *, std::size_t));
     MOCK_METHOD2(send, std::size_t(const char *, std::size_t));
+    MOCK_METHOD1(discard, std::size_t(std::size_t));
 
     void set_send_timeout(std::chrono::milliseconds timeout) override {}
     void set_recv_timeout(std::chrono::milliseconds timeout) override {}
@@ -616,6 +618,35 @@ TEST(BrokerTest, ParsingBodyLimit)
     network::header_t h{"dds", (uint32_t)expected_data.size()};
     EXPECT_CALL(*socket, recv(_, _))
         .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))));
+    EXPECT_CALL(*socket, discard(h.size)).WillOnce(Return(h.size));
+
+    network::request request;
+    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
+        std::out_of_range);
+}
+
+TEST(BrokerTest, ParsingBodyLimitFailFlush)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    std::stringstream ss;
+    msgpack::packer<std::stringstream> packer(ss);
+    packer.pack_array(1);
+    pack_str(packer, "request_shutdown");
+    packer.pack_array(1);
+    packer.pack_map(16);
+    for (char c = 'a'; c < 'q'; c++) {
+        pack_str(packer, std::string(4, c));
+        pack_str(packer, std::string(4096, c));
+    }
+
+    const std::string &expected_data = ss.str();
+
+    network::header_t h{"dds", (uint32_t)expected_data.size()};
+    EXPECT_CALL(*socket, recv(_, _))
+        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))));
+    EXPECT_CALL(*socket, discard(_)).WillOnce(Return(h.size - 1));
 
     network::request request;
     EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),

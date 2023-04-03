@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "socket.hpp"
+#include <array>
 #include <cerrno>
 #include <chrono>
 #include <spdlog/spdlog.h>
@@ -43,6 +44,23 @@ std::size_t socket::send(const char *buffer, std::size_t len)
     }
 
     return res;
+}
+
+std::size_t socket::discard(std::size_t len)
+{
+    constexpr auto max_size = std::numeric_limits<uint16_t>::max();
+    std::array<char, max_size> buffer{};
+
+    std::size_t total_size = 0;
+    while (total_size < len) {
+        auto read_size = std::min<std::size_t>(len - total_size, max_size);
+        ssize_t const res = ::recv(sock_, buffer.data(), read_size, 0);
+        if (res <= 0) {
+            break;
+        }
+        total_size += res;
+    }
+    return total_size;
 }
 
 namespace {
