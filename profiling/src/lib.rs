@@ -137,10 +137,6 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
 #[cfg(feature = "allocation_profiling")]
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
-/// The engine's original (or previous) `zend_throw_exception_hook`
-#[cfg(feature = "timeline")]
-static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionFn> = None;
-
 /// The engine's original (or previous) `gc_collect_cycles()` function
 #[cfg(feature = "timeline")]
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
@@ -286,13 +282,9 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_execute_internal = Some(execute_internal);
     };
 
-
     #[cfg(feature = "timeline")]
     {
         unsafe {
-            // register our function in `zend_throw_exception_hook`
-            PREV_ZEND_THROW_EXCEPTION_HOOK = zend::zend_throw_exception_hook;
-            zend::zend_throw_exception_hook = Some(datadog_throw_exception_hook);
             // register our function in `gc_collect_cycles`
             PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
             zend::gc_collect_cycles = Some(datadog_gc_collect_cycles);
@@ -1093,37 +1085,32 @@ extern "C" fn execute_internal(
 }
 
 #[cfg(feature = "timeline")]
-unsafe extern "C" fn datadog_throw_exception_hook(_exception: *mut zend::zend_object) {
-    REQUEST_LOCALS.with(|cell| {
-        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-        let locals = cell.try_borrow();
-        if locals.is_err() {
-            return;
-        }
-        let locals = locals.unwrap();
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_timeline_event(
-                "exception",
-                1,
-                &locals,
-            );
-        }
-    });
-}
-
-#[cfg(feature = "timeline")]
-/// This function hooks into the PHP garbage collection cycle, takes the time it
-/// needs to collect garbage and reports a timeline event to the profiler.
+/// This function gets called whenever PHP does a garbage collection cycle instead of the original
+/// handler. This is done by letting the `zend::gc_collect_cycles` pointer point to this function
+/// and store the previous pointer in `PREV_GC_COLLECT_CYCLES` for later use.
+/// When called, we do collect the time the call to the `PREV_GC_COLLECT_CYCLES` took and report
+/// this to the profiler.
 unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
     if PREV_GC_COLLECT_CYCLES.is_none() {
         return 0;
     }
+    // TODO: Time or WallTime or CPUTime ? Ask Greg/Chris maybe
     let start = Instant::now();
     let prev = PREV_GC_COLLECT_CYCLES.unwrap();
     let bytes = prev();
     let duration = start.elapsed();
+
+    // find out the reason for the current garbage collection cycle. In case there is a
+    // `gc_collect_cycles` function at the top of the call stack, it is because of a userland call
+    // to `gc_collect_cycles()`, otherwise the engine decided to run it.
+    let execute_data = zend::ddog_php_prof_get_current_execute_data();
+    let mut reason = String::from("engine");
+    if !execute_data.is_null()
+        && (*(*execute_data).func).name().unwrap_or(b"") == b"gc_collect_cycles"
+    {
+        reason = String::from("userland");
+    }
+
     REQUEST_LOCALS.with(|cell| {
         // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
         let locals = cell.try_borrow();
@@ -1134,11 +1121,7 @@ unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_timeline_event(
-                "gc",
-                duration.as_nanos() as i64,
-                &locals,
-            );
+            profiler.collect_timeline_gc_event(duration.as_nanos() as i64, reason, &locals);
         }
     });
     bytes

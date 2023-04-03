@@ -27,6 +27,9 @@ use std::time::{Duration, Instant, SystemTime};
 #[cfg(feature = "timeline")]
 use std::time::UNIX_EPOCH;
 
+#[cfg(feature = "timeline")]
+use lazy_static::lazy_static;
+
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
 // Guide: upload period / upload timeout should give about the order of
@@ -299,7 +302,7 @@ impl TimeCollector {
                 key: "end_timestamp_ns",
                 str: None,
                 num: now.as_nanos() as i64,
-                num_unit: Some("nanoseconds") 
+                num_unit: Some("nanoseconds"),
             });
         }
 
@@ -643,58 +646,54 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
-    pub unsafe fn collect_timeline_event(
+    pub unsafe fn collect_timeline_gc_event(
         &self,
-        event: &'static str,
         duration: i64,
+        reason: String,
         locals: &RequestLocals,
     ) {
-        // TODO: how does the fake frame in .NET lock?
-        let frames: Vec<ZendFrame> = vec![
-            ZendFrame {
-                function: "timeline fake".to_string(),
-                file: None,
-                line: 0,
-            }
-        ];
-        let depth = frames.len();
+        lazy_static! {
+            static ref TIMELINE_GC_LABELS: Vec<Label> = vec![
+                Label {
+                    key: "event",
+                    value: LabelValue::Str("gc".into()),
+                },
+                Label {
+                    key: "thread id",
+                    value: LabelValue::Str("GC".into()),
+                },
+            ];
+        }
+
         let mut labels = Profiler::message_labels();
-        labels.push(
-            Label {
-                key: "event",
-                value: LabelValue::Str(event.into())
-            }
-        );
+        labels.extend_from_slice(&TIMELINE_GC_LABELS);
+        labels.push(Label {
+            key: "gc reason",
+            value: LabelValue::Str(reason.into()),
+        });
+        let n_labels = labels.len();
 
         // TODO we may be able to find out if the GC cycle was user or engine triggered, if we can,
         // we can add a "gc reason" (or similar, check with the .NET doc or profiling-backend
         // source)
 
-        // TODO this is only true for GC events, exceptions should likely go on the main thread as
-        // it is nothing the engine does.
-        labels.push(
-            Label {
-                key: "thread id",
-                value: LabelValue::Str("GC".into())
-            }
-        );
-        let n_labels = labels.len();
-
         match self.send_sample(Profiler::prepare_sample_message(
-            frames,
+            vec![ZendFrame {
+                function: "internal|gc_collect_cycles".to_string(),
+                file: None,
+                line: 0,
+            }],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
             },
             labels,
-            locals
+            locals,
         )) {
-            Ok(_) => trace!(
-                "Sent event {event} of {depth} frames, {n_labels} labels to profiler."
-            ),
-            Err(err) => warn!(
-                "Failed to send event {event} of {depth} frames, {n_labels} labels to profiler: {err}"
-            ),
+            Ok(_) => trace!("Sent event 'gc' with {n_labels} labels to profiler."),
+            Err(err) => {
+                warn!("Failed to send event 'gc' with {n_labels} labels to profiler: {err}")
+            }
         }
     }
 
