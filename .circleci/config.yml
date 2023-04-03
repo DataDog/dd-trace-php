@@ -364,6 +364,7 @@ commands:
       #       extra=<< parameters.extra >>
       #       if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
       #         docker logs -f test-agent
+      
       #       fi
 
 executors:
