@@ -51,15 +51,8 @@ class AMQPIntegration extends Integration
                 /** @var AMQPMessage $message */
                 $message = $args[1];
 
-                $exchange = $message->getExchange();
-                $routingKey = $message->getRoutingKey();
-
-                $exchangeDisplayName = empty($exchange) ? '<default>' : $exchange;
-                $routingKeyDisplayName = empty($routingKey)
-                    ? '<all>'
-                    : (str_starts_with($routingKey, 'amq.gen-')
-                        ? '<generated>'
-                        : $routingKey);
+                $exchangeDisplayName = $integration->formatExchangeName($message->getExchange());
+                $routingKeyDisplayName = $integration->formatRoutingKey($message->getRoutingKey());
 
                 $span->resource = "basic.deliver {$exchangeDisplayName} -> {$routingKeyDisplayName}";
                 $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
@@ -72,7 +65,7 @@ class AMQPIntegration extends Integration
                 $integration->setOptionalMessageTags($span, $message);
 
                 // Try to extract propagated context values from headers
-                $integration->extract($message);
+                $integration->extractContext($message);
             }
         );
 
@@ -83,7 +76,9 @@ class AMQPIntegration extends Integration
                 'prehook' => function (SpanData $span, $args) use ($integration) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
-                    $integration->inject($message);
+                    if (!is_null($message)) {
+                        $integration->injectContext($message);
+                    }
                 },
                 'posthook' => function (SpanData $span, $args, $exception) use ($integration) {
                     $integration->setGenericTags($span, 'amqp.basic.publish', 'producer', $exception);
@@ -95,21 +90,19 @@ class AMQPIntegration extends Integration
                     /** @var string $routing_key */
                     $routingKey = $args[2] ?? '';
 
-                    $exchangeDisplayName = empty($exchange) ? '<default>' : $exchange;
-                    $routingKeyDisplayName = empty($routingKey)
-                        ? '<all>'
-                        : (str_starts_with($routingKey, 'amq.gen-')
-                            ? '<generated>'
-                            : $routingKey);
+                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
+                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
 
                     $span->resource = "basic.publish {$exchangeDisplayName} -> {$routingKeyDisplayName}";
-                    $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
                     $span->meta[Tag::MQ_OPERATION] = 'send';
 
                     $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
                     $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
 
-                    $integration->setOptionalMessageTags($span, $message);
+                    if (!is_null($message)) {
+                        $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
+                        $integration->setOptionalMessageTags($span, $message);
+                    }
                 }
             ]
         );
@@ -125,8 +118,7 @@ class AMQPIntegration extends Integration
                 /** @var string $consumer_tag */
                 $consumerTag = $args[1];
 
-                $queueDisplayName = empty($queue) || !str_starts_with($queue, 'amq.gen-')
-                    ? $queue : '<generated>';
+                $queueDisplayName = $integration->formatQueueName($queue);
 
                 $span->resource = "basic.consume {$queueDisplayName}";
                 $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
@@ -144,7 +136,7 @@ class AMQPIntegration extends Integration
                 /** @var string $exchange */
                 $exchange = $args[0];
 
-                $exchangeDisplayName = empty($exchange) ? '<default>' : $exchange;
+                $exchangeDisplayName = $integration->formatExchangeName($exchange);
 
                 $span->resource = "exchange.declare {$exchangeDisplayName}";
                 $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
@@ -163,8 +155,7 @@ class AMQPIntegration extends Integration
                     list($queue, ,) = $retval;
                 }
 
-                $queueDisplayName = empty($queue) || !str_starts_with($queue, 'amq.gen-')
-                    ? $queue : '<generated>';
+                $queueDisplayName = $integration->formatQueueName($queue);
 
                 $span->resource = "queue.declare {$queueDisplayName}";
                 $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
@@ -184,14 +175,9 @@ class AMQPIntegration extends Integration
                 /** @var string $routingKey */
                 $routingKey = $args[2] ?? '';
 
-                $queueDisplayName = empty($queue) || !str_starts_with($queue, 'amq.gen-')
-                    ? $queue : '<generated>';
-                $exchangeDisplayName = empty($exchange) ? '<default>' : $exchange;
-                $routingKeyDisplayName = empty($routingKey)
-                    ? '<all>'
-                    : (str_starts_with($routingKey, 'amq.gen-')
-                        ? '<generated>'
-                        : $routingKey);
+                $queueDisplayName = $integration->formatQueueName($queue);
+                $exchangeDisplayName = $integration->formatExchangeName($exchange);
+                $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
 
                 $span->resource = "queue.bind {$queueDisplayName} {$exchangeDisplayName} -> {$routingKeyDisplayName}";
                 $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
@@ -288,8 +274,7 @@ class AMQPIntegration extends Integration
                 /** @var string $queue */
                 $queue = $args[0];
 
-                $queueDisplayName = empty($queue) || !str_starts_with($queue, 'amq.gen-')
-                    ? $queue : '<generated>';
+                $queueDisplayName = $integration->formatQueueName($queue);
 
                 $span->resource = "basic.get $queueDisplayName";
                 $span->meta[Tag::MQ_OPERATION] = 'receive';
@@ -315,12 +300,33 @@ class AMQPIntegration extends Integration
                     $integration->setOptionalMessageTags($span, $message);
 
                     // Try to extract propagated context values from headers
-                    $integration->extract($message);
+                    $integration->extractContext($message);
                 }
             }
         );
 
         return Integration::LOADED;
+    }
+
+    public function formatQueueName($queue)
+    {
+        return empty($queue) || !str_starts_with($queue, 'amq.gen-')
+            ? $queue
+            : '<generated>';
+    }
+
+    public function formatExchangeName($exchange)
+    {
+        return empty($exchange) ? '<default>' : $exchange;
+    }
+
+    public function formatRoutingKey($routingKey)
+    {
+        return empty($routingKey)
+            ? '<all>'
+            : (str_starts_with($routingKey, 'amq.gen-')
+                ? '<generated>'
+                : $routingKey);
     }
 
     public function setGenericTags(SpanData $span, string $name, string $spanKind, $exception = null)
@@ -354,7 +360,7 @@ class AMQPIntegration extends Integration
         }
     }
 
-    public function inject(AMQPMessage $message)
+    public function injectContext(AMQPMessage $message)
     {
         $distributedHeaders = \DDTrace\generate_distributed_tracing_headers();
         if ($message->has('application_headers')) {
@@ -370,7 +376,7 @@ class AMQPIntegration extends Integration
         $message->set('application_headers', $newHeaders);
     }
 
-    public function extract(AMQPMessage $message)
+    public function extractContext(AMQPMessage $message)
     {
         if ($message->has('application_headers')) {
             $headers = $message->get('application_headers');
