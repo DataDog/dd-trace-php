@@ -794,8 +794,7 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testDistributedTracing()
     {
-        //$this->markTestSkipped('This test is too flaky locally/doesn\'t work yet on CI.');
-        // Note: This test is extremely flaky, locally at least. It should eventually pass with some tries...
+        // Note: This test is extremely flaky, locally at least. It will eventually pass with some tries...
         // Reason: We may parse the traces from dumped data BEFORE the traces are flushed.
 
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
@@ -824,10 +823,6 @@ final class AMQPTest extends IntegrationTestCase
 
         // Assess that user headers weren't lost
         $this->assertSame("", $output);
-
-        //fwrite(STDERR, json_encode($sendTraces, JSON_PRETTY_PRINT) . PHP_EOL);
-        //fwrite(STDERR, json_encode($receiveTraces, JSON_PRETTY_PRINT) . PHP_EOL);
-
 
         $sendTraces = $sendTraces[0][0]; // There is a root span
         // Spans: send.php -> basic_publish -> queue_declare -> connect
