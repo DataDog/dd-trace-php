@@ -143,7 +143,7 @@ services:
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
       - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
     ports:
-      - "127.0.0.1:8126:8126"
+      - "8126:8126"
 
   packager:
     image: datadog/docker-library:ddtrace_php_fpm_packaging

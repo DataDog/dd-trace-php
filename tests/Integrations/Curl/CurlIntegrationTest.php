@@ -94,27 +94,27 @@ final class CurlIntegrationTest extends IntegrationTestCase
         ]);
     }
 
-    // public function testSampleExternalAgent()
-    // {
-    //     $traces = $this->simulateAgent(function () {
-    //         $ch = curl_init(self::URL . '/status/200');
-    //         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    //         $response = curl_exec($ch);
-    //         $this->assertSame('', $response);
-    //         curl_close($ch);
-    //     });
+    public function testSampleExternalAgent()
+    {
+        $traces = $this->simulateAgent(function () {
+            $ch = curl_init(self::URL . '/status/200');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertSame('', $response);
+            curl_close($ch);
+        });
 
-    //     $this->assertSpans($traces, [
-    //         SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
-    //             ->withExactTags([
-    //                 'http.url' => self::URL . '/status/200',
-    //                 'http.status_code' => '200',
-    //                 Tag::COMPONENT => 'curl',
-    //             ])
-    //             ->withExistingTagsNames(self::commonCurlInfoTags())
-    //             ->skipTagsLike('/^curl\..*/'),
-    //     ]);
-    // }
+        $this->assertSpans($traces, [
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
+                ->withExactTags([
+                    'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                    Tag::COMPONENT => 'curl',
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
+        ]);
+    }
 
     public function testLoad200UrlAsOpt()
     {
