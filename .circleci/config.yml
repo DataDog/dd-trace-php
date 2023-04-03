@@ -115,11 +115,6 @@ aliases:
       command: |
         echo "export $(cat .env.circleci | xargs)" >> $HOME/.profile
 
-  - &STEP_WAIT_AGENT
-    run:
-      name: Waiting for Dockerized agent
-      command: wait-for 127.0.0.1:8126 --timeout=60
-
   - &STEP_DISABLE_XDEBUG
     run:
       name: Disable Xdebug for built-in web tests
@@ -363,13 +358,13 @@ commands:
             echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/datadog -i '"${container_name}"' "${args[@]}"; fi' | tee -a $BASH_ENV
             cp $BASH_ENV /tmp/bashenv/bash.sh
             chmod 777 /tmp/bashenv/bash.sh
-      - run:
-          name: Get Test-Agent logs
-          command: |
-            extra=<< parameters.extra >>
-            if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
-              docker logs -f test-agent
-            fi
+      # - run:
+      #     name: Get Test-Agent logs
+      #     command: |
+      #       extra=<< parameters.extra >>
+      #       if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
+      #         docker logs -f test-agent
+      #       fi
 
 executors:
   with_agent:
@@ -790,7 +785,6 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
@@ -934,7 +928,6 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
