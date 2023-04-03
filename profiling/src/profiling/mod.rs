@@ -753,14 +753,16 @@ impl Profiler {
             }
 
             #[cfg(feature = "timeline")]
-            if locals.profiling_experimental_timeline_enabled  {
+            if locals.profiling_experimental_timeline_enabled {
                 sample_types.extend_from_slice(&SAMPLE_TYPES[5..6]);
                 sample_values.extend_from_slice(&values[5..6]);
             }
         }
 
         #[cfg(feature = "timeline")]
-        if locals.profiling_experimental_timeline_enabled && (samples.timeline > 0 || samples.cpu_time > 0) {
+        if locals.profiling_experimental_timeline_enabled
+            && (samples.timeline > 0 || samples.cpu_time > 0)
+        {
             if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                 labels.push(Label {
                     key: "end_timestamp_ns",
@@ -976,7 +978,13 @@ mod tests {
             ]
         );
         // for now, just check that this sample has the `end_timestamp_ns` label
-        let foo: Vec<Label> = message.value.labels.into_iter().filter(|x| x.key == "end_timestamp_ns").clone().collect();
+        let foo: Vec<Label> = message
+            .value
+            .labels
+            .into_iter()
+            .filter(|x| x.key == "end_timestamp_ns")
+            .clone()
+            .collect();
         assert_eq!(foo.len(), 1);
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50, 60]);
     }
@@ -1008,9 +1016,14 @@ mod tests {
                 ValueType::new("timeline", "nanoseconds"),
             ]
         );
-        let foo: Vec<Label> = message.value.labels.into_iter().filter(|x| x.key == "end_timestamp_ns").clone().collect();
+        let foo: Vec<Label> = message
+            .value
+            .labels
+            .into_iter()
+            .filter(|x| x.key == "end_timestamp_ns")
+            .clone()
+            .collect();
         assert_eq!(foo.len(), 0);
         assert_eq!(message.value.sample_values, vec![10, 20, 40, 50, 0]);
     }
-
 }

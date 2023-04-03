@@ -480,8 +480,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_experimental_allocation_enabled =
             profiling_experimental_allocation_enabled;
-        locals.profiling_experimental_timeline_enabled =
-            profiling_experimental_timeline_enabled;
+        locals.profiling_experimental_timeline_enabled = profiling_experimental_timeline_enabled;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.

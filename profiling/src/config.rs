@@ -165,9 +165,7 @@ impl ConfigId {
             ProfilingExperimentalAllocationEnabled => {
                 b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0"
             }
-            ProfilingExperimentalTimelineEnabled => {
-                b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0"
-            }
+            ProfilingExperimentalTimelineEnabled => b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             /* Note: this is meant only for debugging and testing. Please don't
