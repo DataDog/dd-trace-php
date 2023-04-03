@@ -56,11 +56,15 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-## Profiling (0.15.1)
+## Tracer
+    - [Tracer][YII] Do not use module property if it doesn't exist #1999
+
+## Application Security Monitoring (0.7.1)
 
 ### Fixed
 
-- Fix crash by reverting "perf(profiling): speed up stack walking by using function run_time_cache" #1994. Thanks, @zeroxs for reporting.
+Fallback to default agent host and port DataDog/dd-appsec-php#231
+Support `DD_TRACE_AGENT_URL` DataDog/dd-appsec-php#231
 
 ]]></notes>
     <contents>
