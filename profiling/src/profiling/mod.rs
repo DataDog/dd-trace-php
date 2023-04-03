@@ -661,10 +661,6 @@ impl Profiler {
         });
         let n_labels = labels.len();
 
-        // TODO we may be able to find out if the GC cycle was user or engine triggered, if we can,
-        // we can add a "gc reason" (or similar, check with the .NET doc or profiling-backend
-        // source)
-
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
                 function: "internal|gc_collect_cycles".to_string(),
