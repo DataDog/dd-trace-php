@@ -320,6 +320,7 @@ pub struct RequestLocals {
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_experimental_allocation_enabled: bool,
+    pub profiling_experimental_timeline_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub tags: Arc<Vec<Tag>>,
@@ -411,6 +412,7 @@ thread_local! {
         profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
         profiling_experimental_allocation_enabled: true,
+        profiling_experimental_timeline_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
         tags: Arc::new(static_tags()),
@@ -451,6 +453,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         profiling_endpoint_collection_enabled,
         profiling_experimental_cpu_time_enabled,
         profiling_experimental_allocation_enabled,
+        profiling_experimental_timeline_enabled,
         log_level,
         output_pprof,
     ) = unsafe {
@@ -459,6 +462,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             config::profiling_endpoint_collection_enabled(),
             config::profiling_experimental_cpu_time_enabled(),
             config::profiling_experimental_allocation_enabled(),
+            config::profiling_experimental_timeline_enabled(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -476,6 +480,8 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_experimental_allocation_enabled =
             profiling_experimental_allocation_enabled;
+        locals.profiling_experimental_timeline_enabled =
+            profiling_experimental_timeline_enabled;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -860,6 +866,16 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         zend::php_info_print_table_row(
             2,
+            b"Experimental Timeline Enabled\0".as_ptr(),
+            if locals.profiling_experimental_timeline_enabled {
+                yes
+            } else {
+                no
+            },
+        );
+
+        zend::php_info_print_table_row(
+            2,
             b"Endpoint Collection Enabled\0".as_ptr(),
             if locals.profiling_endpoint_collection_enabled {
                 yes
@@ -1092,9 +1108,9 @@ extern "C" fn execute_internal(
 /// this to the profiler.
 unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
     if PREV_GC_COLLECT_CYCLES.is_none() {
+        // nothing to call
         return 0;
     }
-    // TODO: Time or WallTime or CPUTime ? Ask Greg/Chris maybe
     let start = Instant::now();
     let prev = PREV_GC_COLLECT_CYCLES.unwrap();
     let bytes = prev();
@@ -1108,7 +1124,7 @@ unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
     if !execute_data.is_null()
         && (*(*execute_data).func).name().unwrap_or(b"") == b"gc_collect_cycles"
     {
-        reason = String::from("userland");
+        reason = String::from("induced");
     }
 
     REQUEST_LOCALS.with(|cell| {
