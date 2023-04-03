@@ -57,14 +57,14 @@
     <notes>
         <![CDATA[
 ## Tracer
-    - [Tracer][YII] Do not use module property if it doesn't exist #1999
+- [Tracer][YII] Do not use module property if it doesn't exist #1999
 
 ## Application Security Monitoring (0.7.1)
 
 ### Fixed
 
-Fallback to default agent host and port DataDog/dd-appsec-php#231
-Support `DD_TRACE_AGENT_URL` DataDog/dd-appsec-php#231
+- Fallback to default agent host and port DataDog/dd-appsec-php#231
+- Support `DD_TRACE_AGENT_URL` DataDog/dd-appsec-php#231
 
 ]]></notes>
     <contents>
