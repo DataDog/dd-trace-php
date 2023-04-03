@@ -794,7 +794,7 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testDistributedTracing()
     {
-        $this->markTestSkipped('This test is too flaky locally/doesn\'t work yet on CI.');
+        //$this->markTestSkipped('This test is too flaky locally/doesn\'t work yet on CI.');
         // Note: This test is extremely flaky, locally at least. It should eventually pass with some tries...
         // Reason: We may parse the traces from dumped data BEFORE the traces are flushed.
 
@@ -825,17 +825,17 @@ final class AMQPTest extends IntegrationTestCase
         // Assess that user headers weren't lost
         $this->assertSame("", $output);
 
-        fwrite(STDERR, json_encode($sendTraces, JSON_PRETTY_PRINT) . PHP_EOL);
-        fwrite(STDERR, json_encode($receiveTraces, JSON_PRETTY_PRINT) . PHP_EOL);
+        //fwrite(STDERR, json_encode($sendTraces, JSON_PRETTY_PRINT) . PHP_EOL);
+        //fwrite(STDERR, json_encode($receiveTraces, JSON_PRETTY_PRINT) . PHP_EOL);
 
 
         $sendTraces = $sendTraces[0][0]; // There is a root span
         // Spans: send.php -> basic_publish -> queue_declare -> connect
         $basicPublishSpan = $sendTraces[1];
 
-        $receiveTraces = $receiveTraces[0]; // There isn't a root span
+        $receiveTraces = $receiveTraces[3]; // There isn't a root span
         // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
-        $basicDeliverSpan = $receiveTraces[3];
+        $basicDeliverSpan = $receiveTraces[0];
 
         $this->assertSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
         $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
