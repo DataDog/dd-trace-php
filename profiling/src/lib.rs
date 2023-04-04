@@ -1119,11 +1119,11 @@ unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
     // `gc_collect_cycles` function at the top of the call stack, it is because of a userland call
     // to `gc_collect_cycles()`, otherwise the engine decided to run it.
     let execute_data = zend::ddog_php_prof_get_current_execute_data();
-    let mut reason = String::from("engine");
+    let mut reason = "engine";
     if !execute_data.is_null()
         && (*(*execute_data).func).name().unwrap_or(b"") == b"gc_collect_cycles"
     {
-        reason = String::from("induced");
+        reason = "induced";
     }
 
     REQUEST_LOCALS.with(|cell| {
