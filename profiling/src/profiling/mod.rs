@@ -4,7 +4,7 @@ mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
-pub use stalk_walking::*;
+use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
@@ -295,7 +295,7 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = Vec::with_capacity(message.value.frames.len());
+        let mut locations = vec![];
 
         let values = message.value.sample_values;
         let labels = message
@@ -309,7 +309,7 @@ impl TimeCollector {
             let location = Location {
                 lines: vec![Line {
                     function: Function {
-                        name: frame.function.as_ref(),
+                        name: frame.function.as_str(),
                         system_name: "",
                         filename: frame.file.as_deref().unwrap_or(""),
                         start_line: 0,
@@ -735,8 +735,8 @@ mod tests {
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
+            function: "foobar()".to_string(),
+            file: Some("foobar.php".to_string()),
             line: 42,
         }]
     }
