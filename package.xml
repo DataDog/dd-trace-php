@@ -56,16 +56,9 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-## Tracer
-- [Tracer][YII] Do not use module property if it doesn't exist #1999
-
-## Application Security Monitoring (0.7.1)
-
+## Application Security Monitoring (0.7.2)
 ### Fixed
-
-- Fallback to default agent host and port DataDog/dd-appsec-php#231
-- Support `DD_TRACE_AGENT_URL` DataDog/dd-appsec-php#231
-
+- Flush socket on body limit DataDog/dd-appsec-php#233
 ]]></notes>
     <contents>
         <dir name="/">
