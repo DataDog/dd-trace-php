@@ -637,7 +637,7 @@ impl Profiler {
     pub unsafe fn collect_timeline_gc_event(
         &self,
         duration: i64,
-        reason: String,
+        reason: &str,
         locals: &RequestLocals,
     ) {
         lazy_static! {
@@ -657,7 +657,7 @@ impl Profiler {
         labels.extend_from_slice(&TIMELINE_GC_LABELS);
         labels.push(Label {
             key: "gc reason",
-            value: LabelValue::Str(reason.into()),
+            value: LabelValue::Str(String::from(reason).into())
         });
         let n_labels = labels.len();
 
