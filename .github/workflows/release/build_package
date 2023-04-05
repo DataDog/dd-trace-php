@@ -18,7 +18,7 @@ function prepare {
     -DDD_APPSEC_BUILD_EXTENSION=$(if [[ $php_v = 'helper' ]]; then echo OFF; else echo ON; fi) \
     -DPHP_CONFIG="${php_v}"/bin/php-config \
     -DDD_APPSEC_BUILD_TRACER=$(if [[ $php_v =~ alpha|beta|RC ]]; then echo ON; else echo OFF; fi) \
-    -DDD_APPSEC_TRACER_VERSION=0.85.0 \
+    -DDD_APPSEC_TRACER_VERSION=0.86.2 \
     -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \
     -DDD_APPSEC_INSTALL_RULES_FILE=/project/.github/workflows/release/recommended.json \
     -DCMAKE_TOOLCHAIN_FILE=/build/Toolchain.cmake \

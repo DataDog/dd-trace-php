@@ -54,7 +54,7 @@ void asm_listener::init()
 {
     ruleset_ = rapidjson::Document(rapidjson::kObjectType);
     static constexpr std::array<std::string_view, 4> expected_keys{
-        "exclusions", "actions", "rules_override"};
+        "exclusions", "actions", "rules_override", "custom_rules"};
 
     for (const auto &key : expected_keys) {
         rapidjson::Value empty_array(rapidjson::kArrayType);

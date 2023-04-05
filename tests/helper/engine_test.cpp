@@ -891,4 +891,93 @@ TEST(EngineTest, WafSubscriptorExclusions)
     }
 }
 
+TEST(EngineTest, WafSubscriptorCustomRules)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg3", parameter::string("custom rule"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    {
+        // Make sure base rules still work
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::record);
+    }
+    {
+        engine_ruleset update(
+            R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})");
+        e->update(update, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg3", parameter::string("custom rule"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::block);
+    }
+
+    {
+        // Make sure base rules still work
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::record);
+    }
+
+    {
+        engine_ruleset update(R"({"custom_rules": []})");
+        e->update(update, meta, metrics);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg3", parameter::string("custom rule"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+
+    {
+        // Make sure base rules still work
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->type, engine::action_type::record);
+    }
+}
+
 } // namespace dds
