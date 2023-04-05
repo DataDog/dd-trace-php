@@ -156,7 +156,7 @@ services:
     ports:
         - "127.0.0.1:9126:8126"
     volumes:
-        - ./test/snapshots:/snapshots
+        - /test/snapshots:/snapshots
     environment:
         - LOG_LEVEL=INFO
         - TRACE_LANGUAGE=php
