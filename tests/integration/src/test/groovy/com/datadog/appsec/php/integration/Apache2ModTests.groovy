@@ -3,6 +3,7 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.condition.DisabledIf
 import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -15,6 +16,8 @@ import static org.testcontainers.containers.Container.ExecResult
 @Testcontainers
 @Slf4j
 class Apache2ModTests implements CommonTests {
+    static boolean zts = variant.contains('zts')
+
     @Container
     @FailOnUnmatchedTraces
     public static final AppSecContainer CONTAINER =
@@ -26,6 +29,7 @@ class Apache2ModTests implements CommonTests {
             )
 
     @Test
+    @DisabledIf('isZts')
     void 'trace without attack after soft restart'() {
         ExecResult res = CONTAINER.execInContainer('service', 'apache2', 'reload')
         if (res.exitCode != 0) {

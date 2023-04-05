@@ -16,12 +16,20 @@ on:
       - src/extension/**
       - tests/extension/**
       - tests/mock_helper/**
+      - tests/integration/**
       - examples/**
       - valgrind.supp
       - run-tests.php
       - 'LICENSE**'
       - NOTICE
       - '**.md'
+      - .github/workflows/codeql.yml
+      - .github/workflows/extension.yml
+      - .github/workflows/integration.yml
+      - .github/workflows/package.yml
+      - .github/workflows/release.yml
+      - .github/workflows/system-tests.yml
+      - .github/workflows/release/**
   schedule:
     - cron:  30 0 * * *
 concurrency:
