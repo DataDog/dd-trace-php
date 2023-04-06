@@ -231,7 +231,9 @@ impl TimeCollector {
             .collect();
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
+        #[cfg(feature = "allocation_profiling")]
         let alloc_samples_offset = sample_types.iter().position(|&x| x.r#type == "alloc-samples");
+        #[cfg(feature = "allocation_profiling")]
         let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
 
         let period = WALL_TIME_PERIOD.as_nanos();
@@ -247,6 +249,7 @@ impl TimeCollector {
             .sample_types(sample_types)
             .build();
 
+        #[cfg(feature = "allocation_profiling")]
         if alloc_samples_offset.is_some() && alloc_size_offset.is_some() {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset: alloc_size_offset.unwrap(),
@@ -254,9 +257,12 @@ impl TimeCollector {
                 sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64
             };
             let values_offset: Vec<usize> = vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
-            profile
-                .add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info)
-                .expect("Rule added");
+            match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
+                }
+            }
         }
 
         profile
