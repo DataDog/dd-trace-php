@@ -310,11 +310,10 @@ function cmd_config_set(array $options): void
             }
 
             // Now we are here, meaning we could not find it, not in active nor in
-            // commented version, so we just add it to the default INI file
+            // commented version, so we just add it to the default INI file(s)
 
             $mainIniFilePaths = find_main_ini_files($phpProps);
 
-            // look for INI setting in INI files
             foreach ($mainIniFilePaths as $iniFile) {
                 $iniFileContent = file_get_contents($iniFile);
                 // check for "End of Line" symbol at the end of the file and
@@ -719,17 +718,27 @@ function install($options)
 function find_all_ini_files(array $phpProperties): array
 {
     $iniFilePaths = [];
-    if ($phpProperties[INI_SCANDIR]) {
-        foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
-            if (!is_file($phpProperties[INI_SCANDIR] . '/' . $ini) || substr($ini, -4) !== '.ini') {
+
+    $addIniFiles = function (string $path) use (&$iniFilePaths) {
+        if (!is_dir($path)) {
+            return;
+        }
+        foreach (scandir($path) as $ini) {
+            if (!is_file($path . '/' . $ini) || substr($ini, -4) !== '.ini') {
                 continue;
             }
+            $iniFile = $path . '/' . $ini;
             if (strpos($ini, '98-ddtrace.ini') !== false) {
-                array_unshift($iniFilePaths, $phpProperties[INI_SCANDIR] . '/' . $ini);
+                array_unshift($iniFilePaths, $iniFile);
             } else {
-                $iniFilePaths[] = $phpProperties[INI_SCANDIR] . '/' . $ini;
+                $iniFilePaths[] = $iniFile;
             }
         }
+    };
+
+    if ($phpProperties[INI_SCANDIR]) {
+        $addIniFiles($phpProperties[INI_SCANDIR]);
+
         if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
             /* debian based distros have INI folders split by SAPI, in a predefined way:
              *   - <...>/cli/conf.d       <-- we know this from php -i
@@ -737,23 +746,14 @@ function find_all_ini_files(array $phpProperties): array
              *   - <...>/fpm/conf.d       <-- we derive this from relative path
              */
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
-            if (is_dir($apacheConfd)) {
-                foreach (scandir($apacheConfd) as $ini) {
-                    if (!is_file($apacheConfd . '/' . $ini) || substr($ini, -4) !== '.ini') {
-                        continue;
-                    }
-                    if (strpos($ini, '98-ddtrace.ini') !== false) {
-                        array_unshift($iniFilePaths, $apacheConfd . '/' . $ini);
-                    } else {
-                        $iniFilePaths[] = $apacheConfd . '/' . $ini;
-                    }
-                }
-            }
+            $addIniFiles($apacheConfd);
         }
     }
+
     if ($phpProperties[INI_MAIN] && is_file($phpProperties[INI_MAIN])) {
         $iniFilePaths = [$phpProperties[INI_MAIN]];
     }
+
     return $iniFilePaths;
 }
 
