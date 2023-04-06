@@ -120,7 +120,7 @@ function config_list(array $options)
     $iniSettings = get_ini_settings('', '', '');
 
     // The first 3 are 'extension' type of settings.
-    $iniSettings = array_slice($iniSettings, 3);
+    $iniSettings = array_slice($iniSettings, CMD_CONFIG_NUM_SHIFT);
 
     // Build an index by unique names for filtering.
     $indexByName = array_column($iniSettings, null, 'name');
@@ -129,7 +129,7 @@ function config_list(array $options)
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
 
-        $iniFilePaths = get_ini_files(ini_values($fullPath));
+        $iniFilePaths = find_all_ini_files(ini_values($fullPath));
 
         foreach ($iniFilePaths as $iniFilePath) {
             $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
@@ -257,11 +257,11 @@ function cmd_config_set(array $options): void
                 continue;
             }
 
-            $iniFilePaths = get_all_ini_files($phpProps);
+            $allIniFilePaths = find_all_ini_files($phpProps);
 
             $matchCount = 0;
             // look for INI setting in INI files
-            foreach ($iniFilePaths as $iniFile) {
+            foreach ($allIniFilePaths as $iniFile) {
                 $count = update_ini_setting($setting, $iniFile, false);
                 if ($count === 0) {
                     continue;
@@ -287,11 +287,9 @@ function cmd_config_set(array $options): void
             // If we are here, we could not find the INI setting in any files, so
             // we try and look for commented versions
 
-            $iniFilePaths = array_merge(find_ini_files($phpProps), get_all_ini_files($phpProps));
-
             $matchCount = 0;
             // look for INI setting in INI files
-            foreach ($iniFilePaths as $iniFile) {
+            foreach ($allIniFilePaths as $iniFile) {
                 $count = update_ini_setting($setting, $iniFile, true);
                 if ($count === 0) {
                     continue;
@@ -314,10 +312,10 @@ function cmd_config_set(array $options): void
             // Now we are here, meaning we could not find it, not in active nor in
             // commented version, so we just add it to the default INI file
 
-            $iniFilePaths = find_ini_files($phpProps);
+            $mainIniFilePaths = find_main_ini_files($phpProps);
 
             // look for INI setting in INI files
-            foreach ($iniFilePaths as $iniFile) {
+            foreach ($mainIniFilePaths as $iniFile) {
                 $iniFileContent = file_get_contents($iniFile);
                 // check for "End of Line" symbol at the end of the file and
                 // add in case it is missing
@@ -556,7 +554,7 @@ function install($options)
         }
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
-        $iniFilePaths = find_ini_files($phpProperties);
+        $iniFilePaths = find_main_ini_files($phpProperties);
 
         foreach ($iniFilePaths as $iniFilePath) {
             if (!file_exists($iniFilePath)) {
@@ -712,10 +710,13 @@ function install($options)
  * files are split by SAPI, so we try and add the Apache SAPI INI files as
  * well. In case it exists, we also add the default `php.ini` file to the list.
  *
+ * The returned array is somewhat sorted to have the "default" INI file for
+ * Datadog (`98-ddtrace.ini`) in the beginning of the array.
+ *
  * @see ini_values
  * @return string[]
  */
-function get_all_ini_files(array $phpProperties): array
+function find_all_ini_files(array $phpProperties): array
 {
     $iniFilePaths = [];
     if ($phpProperties[INI_SCANDIR]) {
@@ -734,7 +735,7 @@ function get_all_ini_files(array $phpProperties): array
              *   - <...>/cli/conf.d       <-- we know this from php -i
              *   - <...>/apache2/conf.d   <-- we derive this from relative path
              *   - <...>/fpm/conf.d       <-- we derive this from relative path
-             */   
+             */
             $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
             if (is_dir($apacheConfd)) {
                 foreach (scandir($apacheConfd) as $ini) {
@@ -757,13 +758,23 @@ function get_all_ini_files(array $phpProperties): array
 }
 
 /**
- * Finds the INI files for the given php properties. Those properties can be
- * retrieved by calling `ini_values($pathToPHPBinary)`.
+ * This function will find the main INI file(s) for the given `$phpProperties`.
+ *
+ * The "main" or "default" INI file is either a `98-ddtrace.ini` file or
+ * another INI file that loads the extension (or rephrasing this as: the file
+ * the has the `extension = ddtrace` line in it).
+ *
+ * In most cases this function will return an array with exactly one element,
+ * only in case we detect a Debian based distribution, it might contain two
+ * elements, as debian based distributions split the INI folders based on SAPI
+ * and we include those as well.
+ *
+ * The `$phpProperties` can be retrieved by calling `ini_values($pathToPHPBinary)`.
  *
  * @see ini_values
  * @return string[]
  */
-function find_ini_files(array $phpProperties): array
+function find_main_ini_files(array $phpProperties): array
 {
     $iniFilePaths = [];
     if ($phpProperties[INI_SCANDIR]) {
