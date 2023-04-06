@@ -21,18 +21,32 @@ ACTION(ThrowErrorApplyingConfig)
 
 class listener_mock : public remote_config::product_listener_base {
 public:
-    listener_mock() = default;
+    listener_mock(std::string name = "MOCK_PRODUCT",
+        remote_config::protocol::capabilities_e capability =
+            remote_config::protocol::capabilities_e::ASM_DD_RULES)
+        : name_(name), capability_(capability){};
     ~listener_mock() override = default;
 
     MOCK_METHOD(
         void, on_update, ((const remote_config::config &config)), (override));
     MOCK_METHOD(
         void, on_unapply, ((const remote_config::config &config)), (override));
-    MOCK_METHOD((const remote_config::protocol::capabilities_e),
-        get_capabilities, (), (override));
-    MOCK_METHOD((const std::string_view), get_name, (), (override));
     MOCK_METHOD(void, init, (), (override));
     MOCK_METHOD(void, commit, (), (override));
+
+    [[nodiscard]] virtual const remote_config::protocol::capabilities_e
+    get_capabilities() override
+    {
+        return capability_; // For example
+    };
+    [[nodiscard]] virtual const std::string_view get_name() override
+    {
+        return name_;
+    };
+
+protected:
+    std::string name_;
+    remote_config::protocol::capabilities_e capability_;
 };
 } // namespace mock
 
