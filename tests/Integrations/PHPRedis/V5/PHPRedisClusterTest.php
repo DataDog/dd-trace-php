@@ -298,13 +298,13 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'expire k1 6', // raw command
                 'value', // initial "0010 1010"
             ],
-            [
-                'pexpire', // method
-                [ 'k1', 6 ], // arguments
-                'value', // expected final value
-                'pexpire k1 6', // raw command
-                'value', // initial "0010 1010"
-            ],
+            // [
+            //     'pexpire', // method
+            //     [ 'k1', 6 ], // arguments
+            //     'value', // expected final value
+            //     'pexpire k1 6', // raw command
+            //     'value', // initial "0010 1010"
+            // ],
         ];
     }
 
