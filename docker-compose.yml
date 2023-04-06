@@ -155,8 +155,8 @@ services:
     image: williamconti549/dd-apm-test-agent:php-dev
     ports:
         - "127.0.0.1:9126:8126"
-    volumes:
-        - /test/snapshots:/snapshots
+    # volumes:
+    #     - /test/snapshots:/snapshots
     environment:
         - LOG_LEVEL=INFO
         - TRACE_LANGUAGE=php
