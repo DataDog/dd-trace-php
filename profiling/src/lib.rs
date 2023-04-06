@@ -1110,6 +1110,7 @@ unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
         // nothing to call
         return 0;
     }
+
     let start = Instant::now();
     let prev = PREV_GC_COLLECT_CYCLES.unwrap();
     let bytes = prev();
@@ -1133,6 +1134,10 @@ unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
             return;
         }
         let locals = locals.unwrap();
+
+        if !locals.profiling_experimental_timeline_enabled {
+            return;
+        }
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
