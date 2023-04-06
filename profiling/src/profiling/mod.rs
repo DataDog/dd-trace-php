@@ -8,11 +8,11 @@ use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
-use crate::{AgentEndpoint, RequestLocals, ALLOCATION_PROFILING_INTERVAL};
+use crate::{AgentEndpoint, RequestLocals};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
-use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample, UpscalingInfo};
+use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
 use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
@@ -23,6 +23,11 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
+
+#[cfg(feature = "allocation_profiling")]
+use crate::ALLOCATION_PROFILING_INTERVAL;
+#[cfg(feature = "allocation_profiling")]
+use datadog_profiling::profile::api::UpscalingInfo;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
