@@ -8,7 +8,7 @@ SCRIPT_NAME=/my/uri.php
 PATH_INFO=/ur%69/
 REQUEST_METHOD=GET
 URL_SCHEME=http
-HTTP_X_FORWARDED_FOR=7.7.7.7,10.0.0.1
+HTTP_X_FORWARDED_FOR=7.7.7.6,10.0.0.1
 HTTP_X_CLIENT_IP=7.7.7.7
 HTTP_X_REAL_IP=7.7.7.8
 HTTP_X_FORWARDED=for="foo"
@@ -65,7 +65,7 @@ print_r($basic);
 --EXPECTF--
 Array
 (
-    [_dd.multiple-ip-headers] => x-forwarded-for,x-real-ip,x-forwarded,x-cluster-client-ip,forwarded-for,forwarded,via,true-client-ip
+    [http.client_ip] => 7.7.7.6
     [http.method] => GET
     [http.request.headers.accept] => */*
     [http.request.headers.accept-encoding] => gzip
@@ -84,7 +84,7 @@ Array
     [http.request.headers.x-client-ip] => 7.7.7.7
     [http.request.headers.x-cluster-client-ip] => 7.7.7.9
     [http.request.headers.x-forwarded] => for="foo"
-    [http.request.headers.x-forwarded-for] => 7.7.7.7,10.0.0.1
+    [http.request.headers.x-forwarded-for] => 7.7.7.6,10.0.0.1
     [http.request.headers.x-real-ip] => 7.7.7.8
     [http.response.headers.content-encoding] => foobar
     [http.response.headers.content-language] => pt_PT
@@ -97,13 +97,13 @@ Array
 )
 Array
 (
-    [_dd.multiple-ip-headers] => x-forwarded-for,x-real-ip,x-forwarded,x-cluster-client-ip,forwarded-for,forwarded,via,true-client-ip
+    [http.client_ip] => 7.7.7.6
     [http.request.headers.forwarded] => for="foo"
     [http.request.headers.forwarded-for] => 7.7.7.10,10.0.0.1
     [http.request.headers.true-client-ip] => 7.7.7.11
     [http.request.headers.via] => HTTP/1.1 GWA
     [http.request.headers.x-cluster-client-ip] => 7.7.7.9
     [http.request.headers.x-forwarded] => for="foo"
-    [http.request.headers.x-forwarded-for] => 7.7.7.7,10.0.0.1
+    [http.request.headers.x-forwarded-for] => 7.7.7.6,10.0.0.1
     [http.request.headers.x-real-ip] => 7.7.7.8
 )

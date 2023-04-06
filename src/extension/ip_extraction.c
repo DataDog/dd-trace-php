@@ -36,28 +36,23 @@ typedef struct _header_map_node {
     extract_func_t parse_fn;
 } header_map_node;
 
-typedef struct _relevant_ip_header {
-    header_map_node *node;
-    zend_string *header_value;
-} relevant_ip_header;
-
-typedef enum _header_id {
+typedef enum _priority_header_id {
     X_FORWARDED_FOR = 0,
     X_REAL_IP,
-    CLIENT_IP,
-    X_FORWARDED,
-    X_CLUSTER_CLIENT_IP,
-    FORWARDED_FOR,
-    FORWARDED,
-    VIA,
     TRUE_CLIENT_IP,
+    X_CLIENT_IP,
+    X_FORWARDED,
+    FORWARDED_FOR,
+    X_CLUSTER_CLIENT_IP,
+    FASTLY_CLIENT_IP,
+    CF_CONNECTING_IP,
+    CF_CONNECTING_IPV6,
     MAX_HEADER_ID
-} header_id;
+} priority_header_id;
 
-static header_map_node header_map[MAX_HEADER_ID];
+static header_map_node priority_header_map[MAX_HEADER_ID];
 
 static zend_string *nonnull _remote_addr_key;
-static THREAD_LOCAL_ON_ZTS zval duplicated_ip_headers;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable client_ip;
 
 static void _register_testing_objects(void);
@@ -72,42 +67,46 @@ static bool _parse_x_forwarded_for(
 static bool _parse_plain(zend_string *nonnull zvalue, ipaddr *nonnull out);
 static bool _parse_plain_raw(zend_string *nonnull zvalue, ipaddr *nonnull out);
 static bool _parse_forwarded(zend_string *nonnull zvalue, ipaddr *nonnull out);
-static bool _parse_via(zend_string *nonnull zvalue, ipaddr *nonnull out);
 
 static void _init_relevant_ip_headers()
 {
-    header_map[X_FORWARDED_FOR] = (header_map_node){
+    priority_header_map[X_FORWARDED_FOR] = (header_map_node){
         zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED_FOR"), 1),
         zend_string_init_interned(ZEND_STRL("x-forwarded-for"), 1),
         &_parse_x_forwarded_for};
-    header_map[X_REAL_IP] = (header_map_node){
+    priority_header_map[X_REAL_IP] = (header_map_node){
         zend_string_init_interned(ZEND_STRL("HTTP_X_REAL_IP"), 1),
         zend_string_init_interned(ZEND_STRL("x-real-ip"), 1), &_parse_plain};
-    header_map[CLIENT_IP] = (header_map_node){
-        zend_string_init_interned(ZEND_STRL("HTTP_CLIENT_IP"), 1),
-        zend_string_init_interned(ZEND_STRL("client-ip"), 1), &_parse_plain};
-    header_map[X_FORWARDED] = (header_map_node){
+    priority_header_map[TRUE_CLIENT_IP] = (header_map_node){
+        zend_string_init_interned(ZEND_STRL("HTTP_TRUE_CLIENT_IP"), 1),
+        zend_string_init_interned(ZEND_STRL("true-client-ip"), 1),
+        &_parse_plain};
+    priority_header_map[X_CLIENT_IP] = (header_map_node){
+        zend_string_init_interned(ZEND_STRL("HTTP_X_CLIENT_IP"), 1),
+        zend_string_init_interned(ZEND_STRL("x-client-ip"), 1), &_parse_plain};
+    priority_header_map[X_FORWARDED] = (header_map_node){
         zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED"), 1),
         zend_string_init_interned(ZEND_STRL("x-forwarded"), 1),
         &_parse_forwarded};
-    header_map[X_CLUSTER_CLIENT_IP] = (header_map_node){
-        zend_string_init_interned(ZEND_STRL("HTTP_X_CLUSTER_CLIENT_IP"), 1),
-        zend_string_init_interned(ZEND_STRL("x-cluster-client-ip"), 1),
-        &_parse_x_forwarded_for};
-    header_map[FORWARDED_FOR] = (header_map_node){
+    priority_header_map[FORWARDED_FOR] = (header_map_node){
         zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED_FOR"), 1),
         zend_string_init_interned(ZEND_STRL("forwarded-for"), 1),
         &_parse_x_forwarded_for};
-    header_map[FORWARDED] = (header_map_node){
-        zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED"), 1),
-        zend_string_init_interned(ZEND_STRL("forwarded"), 1),
-        &_parse_forwarded};
-    header_map[VIA] =
-        (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_VIA"), 1),
-            zend_string_init_interned(ZEND_STRL("via"), 1), &_parse_via};
-    header_map[TRUE_CLIENT_IP] = (header_map_node){
-        zend_string_init_interned(ZEND_STRL("HTTP_TRUE_CLIENT_IP"), 1),
-        zend_string_init_interned(ZEND_STRL("true-client-ip"), 1),
+    priority_header_map[X_CLUSTER_CLIENT_IP] = (header_map_node){
+        zend_string_init_interned(ZEND_STRL("HTTP_X_CLUSTER_CLIENT_IP"), 1),
+        zend_string_init_interned(ZEND_STRL("x-cluster-client-ip"), 1),
+        &_parse_x_forwarded_for};
+    priority_header_map[FASTLY_CLIENT_IP] = (header_map_node){
+        zend_string_init_interned(ZEND_STRL("HTTP_FASTLY_CLIENT_IP"), 1),
+        zend_string_init_interned(ZEND_STRL("fastly-client-ip"), 1),
+        &_parse_plain};
+    priority_header_map[CF_CONNECTING_IP] = (header_map_node){
+        zend_string_init_interned(ZEND_STRL("HTTP_CF_CONNECTING_IP"), 1),
+        zend_string_init_interned(ZEND_STRL("cf-connecting-ip"), 1),
+        &_parse_plain};
+    priority_header_map[CF_CONNECTING_IPV6] = (header_map_node){
+        zend_string_init_interned(ZEND_STRL("HTTP_CF_CONNECTING_IPV6"), 1),
+        zend_string_init_interned(ZEND_STRL("cf-connecting-ipv6"), 1),
         &_parse_plain};
 }
 
@@ -117,25 +116,6 @@ void dd_ip_extraction_startup()
 
     _init_relevant_ip_headers();
     _register_testing_objects();
-}
-
-int _dd_request_headers(zval *_server, relevant_ip_header *found_ip_headers)
-{
-    int found = 0;
-    if (!found_ip_headers) {
-        return found;
-    }
-
-    for (unsigned i = 0; i < ARRAY_SIZE(header_map); i++) {
-        zval *val = zend_hash_find(Z_ARR_P(_server), header_map[i].key);
-        if (val && Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
-            relevant_ip_header *current = &found_ip_headers[found++];
-            current->node = &header_map[i];
-            current->header_value = Z_STR_P(val);
-        }
-    }
-
-    return found;
 }
 
 bool dd_parse_client_ip_header_config(
@@ -171,10 +151,9 @@ bool dd_parse_client_ip_header_config(
     return true;
 }
 
-zend_string *nullable dd_ip_extraction_find(
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    zval *nonnull server, zval *nullable output_duplicated_headers)
+zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
 {
+    // Extract ip from define customer header
     zend_string *ipheader = get_DD_TRACE_CLIENT_IP_HEADER();
     if (ipheader && ZSTR_LEN(ipheader) > 0) {
         zend_string *value = _fetch_arr_str(server, ipheader);
@@ -197,30 +176,23 @@ zend_string *nullable dd_ip_extraction_find(
         return NULL;
     }
 
-    relevant_ip_header ip_headers[MAX_HEADER_ID] = {};
-    int found_headers = _dd_request_headers(server, ip_headers);
-    if (found_headers == 0) {
-        return _try_extract(server, _remote_addr_key, &_parse_plain_raw);
-    }
-
-    if (found_headers > 1) {
-        if (output_duplicated_headers &&
-            Z_TYPE_P(output_duplicated_headers) == IS_ARRAY) {
-            for (int i = 0; i < found_headers; i++) {
-                add_next_index_str(
-                    output_duplicated_headers, ip_headers[i].node->name);
-            }
-        }
-
+    if (!server || Z_TYPE_P(server) != IS_ARRAY) {
         return NULL;
     }
 
-    ipaddr out;
-    if ((*ip_headers[0].node->parse_fn)(ip_headers[0].header_value, &out)) {
-        return _ipaddr_to_zstr(&out);
+    // Lets get the ip on the first header found
+    for (unsigned i = 0; i < ARRAY_SIZE(priority_header_map); i++) {
+        zval *val = zend_hash_find(Z_ARR_P(server), priority_header_map[i].key);
+        if (val && Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
+            ipaddr out;
+            if ((priority_header_map[i].parse_fn)(Z_STR_P(val), &out)) {
+                return _ipaddr_to_zstr(&out);
+            }
+        }
     }
 
-    return NULL;
+    // No ip header found try remote_addr
+    return _try_extract(server, _remote_addr_key, &_parse_plain_raw);
 }
 
 void dd_ip_extraction_rinit(void)
@@ -231,15 +203,11 @@ void dd_ip_extraction_rinit(void)
         mlog(dd_log_info, "No SERVER autoglobal available");
         return;
     }
-    array_init(&duplicated_ip_headers);
-    client_ip = dd_ip_extraction_find(_server, &duplicated_ip_headers);
+    client_ip = dd_ip_extraction_find(_server);
 }
 
 void dd_ip_extraction_rshutdown(void)
 {
-    if (Z_TYPE(duplicated_ip_headers) == IS_ARRAY) {
-        zend_array_destroy(Z_ARR(duplicated_ip_headers));
-    }
     if (client_ip) {
         zend_string_release(client_ip);
         client_ip = NULL;
@@ -247,11 +215,6 @@ void dd_ip_extraction_rshutdown(void)
 }
 
 zend_string *nullable dd_ip_extraction_get_ip() { return client_ip; }
-
-zval *nullable dd_ip_extraction_get_duplicated_headers()
-{
-    return &duplicated_ip_headers;
-}
 
 static zend_string *_try_extract(const zval *nonnull server,
     zend_string *nonnull key, extract_func_t nonnull extract_func)
@@ -403,60 +366,6 @@ static bool _parse_forwarded(zend_string *nonnull zvalue, ipaddr *nonnull out)
     }
 
     return false;
-}
-
-static const char *nonnull _skip_non_ws(
-    const char *nonnull p, const char *nonnull end)
-{
-    for (; p < end && *p != ' ' && *p != '\t'; p++) {}
-    return p;
-}
-static const char *nonnull _skip_ws(
-    const char *nonnull p, const char *nonnull end)
-{
-    for (; p < end && (*p == ' ' || *p == '\t'); p++) {}
-    return p;
-}
-
-static bool _parse_via(zend_string *nonnull zvalue, ipaddr *nonnull out)
-{
-    const char *p = ZSTR_VAL(zvalue);
-    const char *end = p + ZSTR_LEN(zvalue);
-    bool succ = false;
-    do {
-        const char *comma = memchr(p, ',', end - p);
-        const char *end_cur = comma ? comma : end;
-
-        // skip initial whitespace, after a comma separating several
-        // values for instance
-        p = _skip_ws(p, end_cur);
-        if (p == end_cur) {
-            goto try_next;
-        }
-
-        // https://httpwg.org/specs/rfc7230.html#header.via
-        // skip over protocol/version
-        p = _skip_non_ws(p, end_cur);
-        p = _skip_ws(p, end_cur);
-        if (p == end_cur) {
-            goto try_next;
-        }
-
-        // we can have a trailing comment, so try find next whitespace
-        end_cur = _skip_non_ws(p, end_cur);
-
-        succ = _parse_ip_address_maybe_port_pair(p, end_cur - p, out);
-        if (succ) {
-            succ = !_is_private(out);
-            if (succ) {
-                return out;
-            }
-        }
-    try_next:
-        p = (comma && comma + 1 < end) ? (comma + 1) : NULL;
-    } while (!succ && p);
-
-    return succ;
 }
 
 static bool _parse_plain_raw(zend_string *nonnull zvalue, ipaddr *nonnull out)
@@ -639,7 +548,7 @@ static PHP_FUNCTION(datadog_appsec_testing_extract_ip_addr)
         return;
     }
 
-    zend_string *res = dd_ip_extraction_find(arr, NULL);
+    zend_string *res = dd_ip_extraction_find(arr);
     if (!res) {
         return;
     }

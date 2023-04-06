@@ -574,40 +574,6 @@ static void _dd_http_network_client_ip(zend_array *meta_ht, zval *_server)
         meta_ht, _dd_tag_network_client_ip_zstr, remote_addr_zstr, true);
 }
 
-static void _extract_dd_multiple_ip_headers(
-    zend_array *meta_ht, zval *nullable duplicated_headers)
-{
-    if (!duplicated_headers || Z_TYPE_P(duplicated_headers) != IS_ARRAY) {
-        return;
-    }
-
-    HashTable *relevant_ip_headers_arr = Z_ARRVAL_P(duplicated_headers);
-    uint32_t relevant_ip_headers_arr_size =
-        relevant_ip_headers_arr
-            ? zend_hash_num_elements(relevant_ip_headers_arr)
-            : 0;
-    if (relevant_ip_headers_arr_size < 2) {
-        return;
-    }
-
-    smart_str ip_headers = {0};
-    smart_str_alloc(&ip_headers, 0, 0);
-    zval *val;
-    zend_ulong index;
-    ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARRVAL_P(duplicated_headers), index, val)
-    {
-        smart_str_appendl(&ip_headers, Z_STRVAL_P(val), Z_STRLEN_P(val));
-        if (index < relevant_ip_headers_arr_size - 1) {
-            smart_str_appendc(&ip_headers, ',');
-        }
-    }
-    ZEND_HASH_FOREACH_END();
-    smart_str_0(&ip_headers);
-
-    _add_new_zstr_to_meta(
-        meta_ht, _dd_multiple_ip_headers, ip_headers.s, false);
-}
-
 static void _dd_http_client_ip(zend_array *meta_ht)
 {
     if (zend_hash_exists(meta_ht, _dd_tag_http_client_ip_zstr) ||
@@ -615,14 +581,10 @@ static void _dd_http_client_ip(zend_array *meta_ht)
         return;
     }
     zend_string *client_ip = dd_ip_extraction_get_ip();
-    if (!client_ip) {
-        zval *duplicated_ip_headers = dd_ip_extraction_get_duplicated_headers();
-        _extract_dd_multiple_ip_headers(meta_ht, duplicated_ip_headers);
-        return;
+    if (client_ip) {
+        _add_new_zstr_to_meta(
+            meta_ht, _dd_tag_http_client_ip_zstr, client_ip, true);
     }
-
-    _add_new_zstr_to_meta(
-        meta_ht, _dd_tag_http_client_ip_zstr, client_ip, true);
 }
 
 static void _dd_request_headers(
