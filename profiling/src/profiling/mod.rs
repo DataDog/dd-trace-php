@@ -657,7 +657,7 @@ impl Profiler {
         labels.extend_from_slice(&TIMELINE_GC_LABELS);
         labels.push(Label {
             key: "gc reason",
-            value: LabelValue::Str(String::from(reason).into())
+            value: LabelValue::Str(String::from(reason).into()),
         });
         let n_labels = labels.len();
 
