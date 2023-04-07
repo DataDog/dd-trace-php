@@ -2,6 +2,8 @@
 
 namespace DDTrace\Tests\Integrations\AMQP\V3_5;
 
+error_reporting(E_ALL ^ E_DEPRECATED);  // AMQP2 will trigger deprecation warnings
+
 require_once __DIR__ . '/../../../vendor/autoload.php';
 
 use PhpAmqpLib\Connection\AMQPStreamConnection;
@@ -23,3 +25,5 @@ echo " [x] Sent 'Hello World!'\n";
 
 $channel->close();
 $connection->close();
+
+error_reporting(E_ALL);

@@ -2,6 +2,8 @@
 
 namespace DDTrace\Tests\Integrations\AMQP\V3_5;
 
+error_reporting(E_ALL ^ E_DEPRECATED);  // AMQP2 will trigger deprecation warnings
+
 require_once __DIR__ . '/../../../vendor/autoload.php';
 
 
@@ -28,3 +30,5 @@ $channel->wait(null, false, 6);
 
 $channel->close();
 $connection->close();
+
+error_reporting(E_ALL);

@@ -799,7 +799,6 @@ final class AMQPTest extends IntegrationTestCase
 
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
 
-        error_reporting(E_ALL ^ E_DEPRECATED);  // AMQP2 will trigger deprecation warnings
         $sendTraces = $this->inCli(
             __DIR__ . '/scripts/send.php',
             [
@@ -820,7 +819,6 @@ final class AMQPTest extends IntegrationTestCase
             '',
             true
         );
-        error_reporting(E_ALL);
 
         // Assess that user headers weren't lost
         $this->assertSame("", $output);
