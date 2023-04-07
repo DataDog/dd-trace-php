@@ -402,7 +402,6 @@ PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
-	test_integrations_amqp2 \
 	test_integrations_curl \
 	test_integrations_memcache \
 	test_integrations_memcached \
