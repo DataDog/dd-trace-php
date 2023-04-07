@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\AMQP\V3_5;
+namespace DDTrace\Tests\Integrations\AMQP;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;

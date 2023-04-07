@@ -144,6 +144,14 @@
                     ]
                 }
             },
+            "amqp2": {
+              "require": {
+                "php-amqplib/php-amqplib": "^v2.6.2"
+              },
+              "scenario-options": {
+                "create-lockfile": false
+              }
+            },
             "amqp35": {
                 "require": {
                     "php-amqplib/php-amqplib": "^3.5"
