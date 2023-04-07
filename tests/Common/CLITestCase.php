@@ -31,7 +31,7 @@ abstract class CLITestCase extends IntegrationTestCase
             'DD_AGENT_HOST' => 'test-agent',
             'DD_TRACE_AGENT_PORT' => '9126',
             // Uncomment to see debug-level messages
-            //'DD_TRACE_DEBUG' => 'true',
+            'DD_TRACE_DEBUG' => 'true',
             'DD_TEST_INTEGRATION' => 'true',
         ];
         return $envs;
