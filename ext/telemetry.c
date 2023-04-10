@@ -26,7 +26,7 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
 }
 
 void ddtrace_telemetry_setup(void) {
-    ddog_sidecar_connect(&dd_sidecar);
+    ddog_sidecar_connect_php(&dd_sidecar);
 
     uint8_t formatted_run_time_id[36];
     ddtrace_format_runtime_id(formatted_run_time_id);
@@ -76,8 +76,4 @@ void ddtrace_telemetry_finalize(void) {
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
     ddog_CharSlice integration = (ddog_CharSlice){ .len = name_len, .ptr = name };
     ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration, DDOG_CHARSLICE_C("0"));
-}
-
-DDTRACE_PUBLIC void daemon_entry_point(void){
-    daemon_entry_point_inner();
 }

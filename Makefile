@@ -86,7 +86,7 @@ $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure)
 
 $(SO_FILE): $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
-	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address) -fuse-ld=gold -Wl,--weak-unresolved-symbols"
+	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address)"
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install

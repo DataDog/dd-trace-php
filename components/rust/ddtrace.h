@@ -21,8 +21,6 @@ ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
 
-DDTRACE_PUBLIC void daemon_entry_point(void);
-
 bool ddtrace_detect_composer_installed_json(ddog_TelemetryTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
                                             const ddog_QueueId *queue_id,

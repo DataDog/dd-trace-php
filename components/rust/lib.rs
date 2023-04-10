@@ -37,8 +37,3 @@ pub unsafe extern "C" fn ddtrace_set_container_cgroup_path(path: CharSlice) {
 }
 
 
-#[no_mangle]
-pub extern "C" fn daemon_entry_point_inner() {
-    // pub use ddtelemetry::ipc::sidecar::daemon_entry_point;
-    ddtelemetry::ipc::sidecar::daemon_entry_point()
-}

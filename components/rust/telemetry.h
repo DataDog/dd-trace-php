@@ -150,6 +150,8 @@ ddog_TelemetryTransport *ddog_sidecar_transport_clone(const ddog_TelemetryTransp
  * Caller must ensure the process is safe to fork, at the time when this method is called
  */
 ddog_MaybeError ddog_sidecar_connect(ddog_TelemetryTransport **connection);
+ddog_MaybeError ddog_sidecar_connect_php(ddog_TelemetryTransport **connection);
+
 
 ddog_MaybeError ddog_sidecar_ping(ddog_TelemetryTransport **transport);
 
