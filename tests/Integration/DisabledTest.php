@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integration;
 
 use DDTrace\Tests\Common\CLITestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Log\LogLevel;
 
 final class DisabledTest extends CLITestCase
 {
@@ -20,7 +21,8 @@ final class DisabledTest extends CLITestCase
         $agentRequest = $this->getAgentRequestFromCommand('', [
             'DD_TRACE_CLI_ENABLED' => 'false',
         ]);
-
+        $logger = $this->withDebugLogger();
+        $logger->debug(LogLevel::DEBUG, $agentRequest);
         $this->assertEmpty($agentRequest);
     }
 }
