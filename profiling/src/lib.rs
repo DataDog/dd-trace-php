@@ -287,7 +287,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         unsafe {
             // register our function in `gc_collect_cycles`
             PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
-            zend::gc_collect_cycles = Some(datadog_gc_collect_cycles);
+            zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
         }
     }
 
@@ -1099,13 +1099,28 @@ extern "C" fn execute_internal(
     interrupt_function(execute_data);
 }
 
+/// Find out the reason for the current garbage collection cycle. If there is
+/// a `gc_collect_cycles` function at the top of the call stack, it is because
+/// of a userland call  to `gc_collect_cycles()`, otherwise the engine decided
+/// to run it.
 #[cfg(feature = "timeline")]
+unsafe fn gc_reason() -> &'static str {
+    let execute_data = zend::ddog_php_prof_get_current_execute_data();
+    let fname = || execute_data.as_ref()?.func.as_ref()?.name();
+    match fname() {
+        Some(name) if name == b"gc_collect_cycles" => "induced",
+        _ => "engine",
+    }
+}
+
 /// This function gets called whenever PHP does a garbage collection cycle instead of the original
 /// handler. This is done by letting the `zend::gc_collect_cycles` pointer point to this function
 /// and store the previous pointer in `PREV_GC_COLLECT_CYCLES` for later use.
 /// When called, we do collect the time the call to the `PREV_GC_COLLECT_CYCLES` took and report
 /// this to the profiler.
-unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
+#[cfg(feature = "timeline")]
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if PREV_GC_COLLECT_CYCLES.is_none() {
         // nothing to call
         return 0;
@@ -1116,16 +1131,7 @@ unsafe extern "C" fn datadog_gc_collect_cycles() -> i32 {
     let bytes = prev();
     let duration = start.elapsed();
 
-    // find out the reason for the current garbage collection cycle. In case there is a
-    // `gc_collect_cycles` function at the top of the call stack, it is because of a userland call
-    // to `gc_collect_cycles()`, otherwise the engine decided to run it.
-    let execute_data = zend::ddog_php_prof_get_current_execute_data();
-    let mut reason = "engine";
-    if !execute_data.is_null()
-        && (*(*execute_data).func).name().unwrap_or(b"") == b"gc_collect_cycles"
-    {
-        reason = "induced";
-    }
+    let reason = gc_reason();
 
     REQUEST_LOCALS.with(|cell| {
         // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
