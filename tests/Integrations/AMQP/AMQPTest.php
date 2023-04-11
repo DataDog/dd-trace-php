@@ -834,4 +834,45 @@ final class AMQPTest extends IntegrationTestCase
         $this->assertSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
         $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
     }
+
+    public function testDistributedTracingIsNotPropagatedIfDisabled()
+    {
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
+
+        $sendTraces = $this->inCli(
+            __DIR__ . '/scripts/send.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_DISTRIBUTED_TRACING' => 'false'
+            ]
+        );
+
+        list($receiveTraces, $output) = $this->inCli(
+            __DIR__ . '/scripts/receive.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_CLI_ENABLED' => 'true'
+            ],
+            [],
+            '',
+            true
+        );
+
+        // Assess that user headers weren't lost
+        $this->assertSame("", $output);
+
+        $sendTraces = $sendTraces[0][0]; // There is a root span
+        // Spans: send.php -> basic_publish -> queue_declare -> connect
+        $basicPublishSpan = $sendTraces[1];
+
+        $receiveTraces = $receiveTraces[3]; // There isn't a root span
+        // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
+        $basicDeliverSpan = $receiveTraces[0];
+
+        $this->assertNotSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
+        $this->assertArrayNotHasKey('parent_id', $basicDeliverSpan);
+    }
 }
