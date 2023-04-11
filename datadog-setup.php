@@ -358,7 +358,7 @@ function install($options)
                 } else {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
+                        "sed -i 's@;\? \?datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
                         . escapeshellarg($iniFilePath)
                     );
                 }
