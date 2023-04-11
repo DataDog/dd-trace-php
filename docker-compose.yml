@@ -152,7 +152,7 @@ services:
       - .:/app
 
   test-agent:
-    image: williamconti549/dd-apm-test-agent:php-debug
+    image: williamconti549/dd-apm-test-agent:php-dev
     ports:
         - "127.0.0.1:9126:8126"
     environment:
