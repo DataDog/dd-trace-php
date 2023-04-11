@@ -71,7 +71,7 @@ trait TracerTestTrait
             'Datadog-Meta-Lang-Interpreter: cli-server',
             'Datadog-Meta-Lang-Version: 8.2.0',
             'Datadog-Meta-Tracer-Version: 1.0.0-nightly',
-            'do_not_proxy_to_agent: true',
+            'Do-Not-Proxy-To-Agent: true',
             'X-Datadog-Trace-Count: ' . count($traces)
         );
 
