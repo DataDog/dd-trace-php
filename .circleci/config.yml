@@ -65,7 +65,7 @@ aliases:
       name: Append build id to version number
       command: |
         githash="${CIRCLE_SHA1?}"
-        if [ "$CIRCLE_BRANCH" =~ "ddtrace-" ] ; then
+        if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
           echo "Release branch detected; not adding git sha1 to version number."
         else
           sed -E -i "s/const\s+VERSION\s*=\s*'(.*)'/const VERSION = '\1+$githash'/g" "src/DDTrace/Tracer.php"
