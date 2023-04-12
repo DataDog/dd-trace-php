@@ -1900,14 +1900,14 @@ jobs:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
     steps:
       - <<: *STEP_CHECKOUT
-      - setup_docker:
-          docker_image: << parameters.docker_image >>
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
-      # Append the build id after restoring cache
+      # Append the build id after restoring cache, and before docker
       - <<: *STEP_APPEND_BUILD_ID
+      - setup_docker:
+          docker_image: << parameters.docker_image >>
       - run:
           name: Build Profiler
           command: |
