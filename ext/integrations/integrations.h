@@ -28,6 +28,7 @@
     INTEGRATION(PREDIS, "predis")               \
     INTEGRATION(PSR18, "psr18")                 \
     INTEGRATION(ROADRUNNER, "roadrunner")       \
+    INTEGRATION(SQLSRV, "sqlsrv")               \
     INTEGRATION(SLIM, "slim")                   \
     INTEGRATION(SYMFONY, "symfony")             \
     INTEGRATION(WEB, "web")                     \
