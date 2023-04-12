@@ -308,8 +308,8 @@ class AMQPIntegration extends Integration
                     $exchange = $message->getExchange();
                     $routingKey = $message->getRoutingKey();
 
-                    $exchangeDisplayName = $this->formatExchangeName($exchange);
-                    $routingKeyDisplayName = $this->formatRoutingKey($routingKey);
+                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
+                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
 
                     $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
 
