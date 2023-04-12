@@ -41,10 +41,12 @@ if ($apiLoadedViaComposer) {
             return;
         }
 
-        $base_dir = __DIR__ . '/../src/api/';
+        // All API files are in the same directory as the ComposerBootstrap file
+        $bootstrapClass = new ReflectionClass('DDTrace\ComposerBootstrap');
+        $base_dir = dirname($bootstrapClass->getFileName());
         $relative_class = substr($class, $len);
-        // 'DDTrace\\Some\\Class.php' to '../src/api/'
-        $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+        // 'DDTrace\\Some\\Class.php' to '<api-dir>/Some/Class.php'
+        $file = $base_dir . '/' . str_replace('\\', '/', $relative_class) . '.php';
 
         // if the file exists, require it
         if (file_exists($file)) {
