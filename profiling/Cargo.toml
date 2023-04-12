@@ -1,6 +1,6 @@
 [package]
 name = "datadog-php-profiling"
-version = "0.87.0-alpha.1"
+version = "0.86.3"
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.64"
