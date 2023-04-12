@@ -533,7 +533,7 @@ TEST(ClientConfig, ItGetGeneratedFromString)
     EXPECT_EQ("2.test1.config", cp.id);
 
     cp = remote_config::config_path::from_path(
-        "datadog/55/APM_SAMPLING/dynamic_rates/config");
+        "datadog/55/APM_SAMPLING/dynamic_rates/something");
     EXPECT_EQ(apm_sampling, cp.product);
     EXPECT_EQ("dynamic_rates", cp.id);
 }
