@@ -2076,6 +2076,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_APPEND_BUILD_ID
       - unless:
           condition: << parameters.asan_build >>
           steps:
