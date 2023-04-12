@@ -8,7 +8,7 @@ composer -dtooling/generation generate
 composer -dtooling/generation verify
 
 # PECL doesn't like the "-nightly" part of the nightly version number so we have to change it
-dd_version=$(awk -F\' '/const VERSION/ {sub(/-nightly/, "", $2); print $2}' < src/DDTrace/Tracer.php)
+dd_version=$(awk -F\' '/const VERSION/ {sub(/\+.*$/, "", $2); print $2}' < src/DDTrace/Tracer.php)
 
 configuration_placeholder='
                 <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />

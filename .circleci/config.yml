@@ -60,6 +60,15 @@ aliases:
     attach_workspace:
       at: ~/datadog
 
+  - &STEP_APPEND_BUILD_ID
+    run:
+      name: Append build id to version number
+      command: |
+        githash="$CIRCLE_SHA1"
+        sed -E -i "s/const VERSION = '(.*)'/const VERSION = '\1+$githash'/g" "src/DDTrace/Tracer.php"
+        sed -E -i "s/define PHP_DDTRACE_VERSION \"(.*)\"/define PHP_DDTRACE_VERSION \"\1+$githash\"/g" "ext/version.h"
+        sed -E -i "s/^version = \"(.*)\"/version = \"\1+$githash\"/g" "profiling/Cargo.toml"
+
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
@@ -1897,6 +1906,8 @@ jobs:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+      # Append the build id after restoring cache
+      - <<: *STEP_APPEND_BUILD_ID
       - run:
           name: Build Profiler
           command: |
@@ -2036,6 +2047,7 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_APPEND_BUILD_ID
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_GENERATE
