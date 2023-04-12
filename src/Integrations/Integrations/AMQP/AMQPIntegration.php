@@ -99,7 +99,8 @@ class AMQPIntegration extends Integration
                         'basic.publish',
                         'producer',
                         "$exchangeDisplayName -> $routingKeyDisplayName",
-                        $exception);
+                        $exception
+                    );
                     $span->meta[Tag::MQ_OPERATION] = 'send';
 
                     $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
@@ -280,7 +281,7 @@ class AMQPIntegration extends Integration
                 /** @var int $deliveryTag */
                 $deliveryTag = $args[0];
 
-                $integration->setGenericTags($span, 'basic.nack', 'process',$deliveryTag, $exception);
+                $integration->setGenericTags($span, 'basic.nack', 'process', $deliveryTag, $exception);
             }
         );
 
