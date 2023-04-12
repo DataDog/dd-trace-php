@@ -2061,7 +2061,12 @@ jobs:
           command: ls -al ~/datadog/bridge
       - persist_to_workspace:
           root: '.'
-          paths: ['./bridge/_generated*.php']
+          paths:
+            - './bridge/_generated*.php'
+            # Persist files below because we generate a new version number.
+            - './src/DDTrace/Tracer.php'
+            - './ext/version.h'
+            - './profiling/Cargo.toml'
 
   "package extension":
     working_directory: ~/datadog
@@ -2076,7 +2081,6 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_APPEND_BUILD_ID
       - unless:
           condition: << parameters.asan_build >>
           steps:

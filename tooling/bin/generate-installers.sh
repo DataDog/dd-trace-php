@@ -9,6 +9,6 @@ packages_build_dir=$2
 # Installers
 ########################
 sed "s|@release_version@|${release_version}|g" ./datadog-setup.php > "${packages_build_dir}/datadog-setup.php"
-if [[ ${release_version} =~ ".*\+.*" && -n ${CIRCLE_WORKFLOW_JOB_ID:-} ]]; then
+if echo "${release_version}" | grep -qE '\+' && [ -n ${CIRCLE_WORKFLOW_JOB_ID:-} ]; then
   sed -ri "s|define\('RELEASE_URL_PREFIX'[^;]+|const RELEASE_URL_PREFIX = 'https://output.circle-artifacts.com/output/job/${CIRCLE_WORKFLOW_JOB_ID}/artifacts/0/'|" "${packages_build_dir}/datadog-setup.php"
 fi
