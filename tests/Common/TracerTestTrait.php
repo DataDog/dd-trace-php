@@ -160,7 +160,7 @@ trait TracerTestTrait
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
 
-        $transport = new Http(new MessagePack(), ['endpoint' => self::$testAgentUrl]);
+        $transport = new Http(new MessagePack(), ['endpoint' => self::$testAgentUrl . "/v0.4/traces"]);
 
         /* Disable Expect: 100-Continue that automatically gets added by curl,
          * as it adds a 1s delay, causing tests to sometimes fail.
