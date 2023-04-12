@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "datadog-php-profiling"
-version = "0.87.0-alpha.1"
+version = "0.86.3"
 dependencies = [
  "anyhow",
  "bindgen",
