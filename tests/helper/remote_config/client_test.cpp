@@ -95,9 +95,10 @@ class test_client : public remote_config::client {
 public:
     test_client(std::string id,
         std::unique_ptr<remote_config::http_api> &&arg_api,
-        const service_identifier &sid, const remote_config::settings &settings,
+        service_identifier &&sid, remote_config::settings &&settings,
         const std::vector<remote_config::product> &products = {})
-        : remote_config::client(std::move(arg_api), sid, settings, products)
+        : remote_config::client(
+              std::move(arg_api), std::move(sid), std::move(settings), products)
     {
         id_ = std::move(id);
     }
@@ -361,7 +362,8 @@ TEST_F(RemoteConfigClient, OnNetworkApiErrorTheExceptionsFlows)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     try {
         api_client.poll();
@@ -430,7 +432,8 @@ TEST_F(RemoteConfigClient, ItCallsToApiOnPoll)
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
 
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_EQ(sort_arrays(generate_request_serialized(false, false)),
@@ -441,7 +444,8 @@ TEST_F(RemoteConfigClient, ItReturnErrorWhenApiNotProvided)
 {
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, nullptr, sid, settings, _products);
+    dds::test_client api_client(
+        id, nullptr, std::move(sid), std::move(settings), _products);
 
     EXPECT_FALSE(api_client.poll());
 }
@@ -453,7 +457,8 @@ TEST_F(RemoteConfigClient, ItReturnErrorWhenResponseIsInvalidJson)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_FALSE(api_client.poll());
 }
@@ -471,7 +476,8 @@ TEST_F(RemoteConfigClient,
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     // Validate first request does not contain any error
     EXPECT_FALSE(api_client.poll());
@@ -498,7 +504,8 @@ TEST_F(RemoteConfigClient,
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     // Validate first request does not contain any error
     EXPECT_FALSE(api_client.poll());
@@ -594,7 +601,8 @@ TEST_F(RemoteConfigClient, ItReturnsErrorWhenClientConfigPathCantBeParsed)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     // Validate first request does not contain any error
     EXPECT_FALSE(api_client.poll());
@@ -621,7 +629,8 @@ TEST_F(RemoteConfigClient, ItReturnsErrorIfProductOnPathNotRequested)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings));
 
     // Validate first request does not contain any error
     EXPECT_FALSE(api_client.poll());
@@ -652,7 +661,8 @@ TEST_F(RemoteConfigClient, ItGeneratesClientStateAndCacheFromResponse)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_TRUE(api_client.poll());
@@ -705,8 +715,8 @@ TEST_F(RemoteConfigClient, WhenANewConfigIsAddedItCallsOnUpdateOnPoll)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(
-        id, std::move(api), sid, settings, {product, product_not_in_response});
+    dds::test_client api_client(id, std::move(api), std::move(sid),
+        std::move(settings), {product, product_not_in_response});
 
     EXPECT_TRUE(api_client.poll());
 }
@@ -772,7 +782,8 @@ TEST_F(RemoteConfigClient, WhenAConfigDissapearOnFollowingPollsItCallsToUnApply)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, {product});
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), {product});
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_TRUE(api_client.poll());
@@ -876,7 +887,8 @@ TEST_F(
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, {product});
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), {product});
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_TRUE(api_client.poll());
@@ -902,7 +914,8 @@ TEST_F(RemoteConfigClient, FilesThatAreInCacheAreUsedWhenNotInTargetFiles)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_TRUE(api_client.poll());
@@ -935,7 +948,8 @@ TEST_F(RemoteConfigClient, NotTrackedFilesAreDeletedFromCache)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_TRUE(api_client.poll());
@@ -1024,7 +1038,8 @@ TEST_F(RemoteConfigClient, TestHashIsDifferentFromTheCache)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_FALSE(api_client.poll());
@@ -1107,7 +1122,8 @@ TEST_F(RemoteConfigClient, TestWhenFileGetsFromCacheItsCachedLenUsed)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_TRUE(api_client.poll());
@@ -1156,7 +1172,8 @@ TEST_F(RemoteConfigClient, ProductsWithAListenerAcknowledgeUpdates)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_TRUE(api_client.poll());
@@ -1199,7 +1216,8 @@ TEST_F(RemoteConfigClient, WhenAListerCanProccesAnUpdateTheConfigStateGetsError)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), products);
 
     EXPECT_TRUE(api_client.poll());
     EXPECT_TRUE(api_client.poll());
@@ -1234,7 +1252,8 @@ TEST_F(RemoteConfigClient, OneClickActivationIsSetAsCapability)
 
     service_identifier sid{
         service, env, tracer_version, app_version, runtime_id};
-    dds::test_client api_client(id, std::move(api), sid, settings, _products);
+    dds::test_client api_client(
+        id, std::move(api), std::move(sid), std::move(settings), _products);
 
     EXPECT_TRUE(api_client.poll());
 
@@ -1244,153 +1263,5 @@ TEST_F(RemoteConfigClient, OneClickActivationIsSetAsCapability)
         serialized_doc.FindMember("client")->value.FindMember("capabilities");
 
     EXPECT_STREQ("AAI=", capabilities->value.GetString());
-}
-
-TEST_F(RemoteConfigClient, RuntimeIdIsNotGeneratedIfProvided)
-{
-    const char *runtime_id = "runtime_id";
-    service_identifier sid = {
-        "service", "env", "tracer_version", "app_version", runtime_id};
-
-    settings.enabled = true;
-
-    auto service_config = std::make_shared<dds::service_config>();
-    service_config->dynamic_enablement = true;
-    std::shared_ptr<engine> engine{engine::create()};
-
-    auto client = remote_config::client::from_settings(
-        sid, settings, service_config, engine);
-
-    EXPECT_STREQ(
-        runtime_id, client->get_service_identifier().runtime_id.c_str());
-}
-
-TEST_F(RemoteConfigClient, RuntimeIdIsGeneratedWhenNotProvided)
-{
-    const char *runtime_id = "";
-    service_identifier sid = {
-        "service", "env", "tracer_version", "app_version", runtime_id};
-
-    settings.enabled = true;
-
-    auto service_config = std::make_shared<dds::service_config>();
-    service_config->dynamic_enablement = true;
-    std::shared_ptr<engine> engine{engine::create()};
-
-    auto client = remote_config::client::from_settings(
-        sid, settings, service_config, engine);
-
-    EXPECT_FALSE(client->get_service_identifier().runtime_id.empty());
-    EXPECT_TRUE(sid.runtime_id.empty());
-}
-
-TEST_F(RemoteConfigClient, ItdoesNotGenerateClientIfRCNotEnabled)
-{
-    service_identifier sid = {
-        "service", "env", "tracer_version", "app_version", "runtime_id"};
-
-    settings.enabled = false;
-
-    auto service_config = std::make_shared<dds::service_config>();
-    service_config->dynamic_enablement = true;
-    std::shared_ptr<engine> engine{engine::create()};
-
-    auto client = remote_config::client::from_settings(
-        sid, settings, service_config, engine);
-
-    EXPECT_FALSE(client);
-}
-
-TEST_F(RemoteConfigClient, AsmFeatureProductIsAddeWhenDynamicEnablement)
-{
-    service_identifier sid = {
-        "service", "env", "tracer_version", "app_version", "runtime_id"};
-
-    settings.enabled = true;
-
-    auto service_config = std::make_shared<dds::service_config>();
-    service_config->dynamic_enablement = true;
-    std::shared_ptr<engine> engine{engine::create()};
-
-    auto client = remote_config::client::from_settings(
-        sid, settings, service_config, engine);
-
-    EXPECT_TRUE(client->get_products().find("ASM_FEATURES") !=
-                client->get_products().end());
-}
-
-TEST_F(
-    RemoteConfigClient, AsmFeatureProductIsNotAddeWhenDynamicEnablementDisabled)
-{
-    service_identifier sid = {
-        "service", "env", "tracer_version", "app_version", "runtime_id"};
-
-    settings.enabled = true;
-
-    auto service_config = std::make_shared<dds::service_config>();
-    service_config->dynamic_enablement = false;
-    service_config->dynamic_engine =
-        true; // Setting this to true so at least there is a product
-    std::shared_ptr<engine> engine{engine::create()};
-
-    auto client = remote_config::client::from_settings(
-        sid, settings, service_config, engine);
-    EXPECT_TRUE(client->get_products().find("ASM_FEATURES") ==
-                client->get_products().end());
-}
-
-TEST_F(RemoteConfigClient, SomeProductsDependOnDynamicEngineBeingSet)
-{
-    service_identifier sid = {
-        "service", "env", "tracer_version", "app_version", "runtime_id"};
-
-    settings.enabled = true;
-
-    auto service_config = std::make_shared<dds::service_config>();
-    // Set this to true so at least there is a product
-    service_config->dynamic_enablement = true;
-    std::shared_ptr<engine> engine{engine::create()};
-
-    { // When rules file is not set, products are added
-        service_config->dynamic_engine = true;
-        auto client = remote_config::client::from_settings(
-            sid, settings, service_config, engine);
-        EXPECT_TRUE(client->get_products().find("ASM_DATA") !=
-                    client->get_products().end());
-        EXPECT_TRUE(client->get_products().find("ASM_DD") !=
-                    client->get_products().end());
-        EXPECT_TRUE(
-            client->get_products().find("ASM") != client->get_products().end());
-    }
-
-    { // When rules file is set, products are not added
-        service_config->dynamic_engine = false;
-        auto client = remote_config::client::from_settings(
-            sid, settings, service_config, engine);
-        EXPECT_TRUE(client->get_products().find("ASM_DATA") ==
-                    client->get_products().end());
-        EXPECT_TRUE(client->get_products().find("ASM_DD") ==
-                    client->get_products().end());
-        EXPECT_TRUE(
-            client->get_products().find("ASM") == client->get_products().end());
-    }
-}
-
-TEST_F(RemoteConfigClient, IfNoProductsAreRequiredRemoteClientIsNotGenerated)
-{
-    service_identifier sid = {
-        "service", "env", "tracer_version", "app_version", "runtime_id"};
-
-    settings.enabled = true;
-
-    auto service_config = std::make_shared<dds::service_config>();
-    service_config->dynamic_enablement = false;
-    service_config->dynamic_engine = false;
-    std::shared_ptr<engine> engine{engine::create()};
-
-    auto client = remote_config::client::from_settings(
-        sid, settings, service_config, engine);
-
-    EXPECT_FALSE(client);
 }
 } // namespace dds

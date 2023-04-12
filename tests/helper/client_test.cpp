@@ -26,8 +26,7 @@ public:
 class service_manager : public dds::service_manager {
 public:
     MOCK_METHOD(std::shared_ptr<dds::service>, create_service,
-        (const dds::service_identifier &id,
-            const dds::engine_settings &settings,
+        (dds::service_identifier && id, const dds::engine_settings &settings,
             const dds::remote_config::settings &rc_settings,
             (std::map<std::string_view, std::string> & meta),
             (std::map<std::string_view, double> & metrics),

@@ -7,13 +7,11 @@
 
 #include "engine.hpp"
 #include "exception.hpp"
-#include "remote_config/client.hpp"
-#include "remote_config/settings.hpp"
+#include "remote_config/client_handler.hpp"
 #include "service_config.hpp"
 #include "service_identifier.hpp"
 #include "std_logging.hpp"
 #include "utils.hpp"
-#include <future>
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <unordered_map>
@@ -26,11 +24,9 @@ class service {
 public:
     using ptr = std::shared_ptr<service>;
 
-    service(service_identifier id, std::shared_ptr<engine> engine,
-        remote_config::client::ptr &&rc_client,
+    service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config,
-        const std::chrono::milliseconds &poll_interval = 1s);
-    ~service();
+        dds::remote_config::client_handler::ptr &&client_handler);
 
     service(const service &) = delete;
     service &operator=(const service &) = delete;
@@ -38,7 +34,7 @@ public:
     service(service &&) = delete;
     service &operator=(service &&) = delete;
 
-    static service::ptr from_settings(const service_identifier &id,
+    static service::ptr from_settings(service_identifier &&id,
         const dds::engine_settings &eng_settings,
         const remote_config::settings &rc_settings,
         std::map<std::string_view, std::string> &meta,
@@ -56,28 +52,10 @@ public:
         return service_config_;
     }
 
-    [[nodiscard]] bool running() const { return handler_.joinable(); }
-    [[nodiscard]] service_identifier get_id() const { return id_; }
-
 protected:
-    void run(std::future<bool> &&exit_signal);
-    void handle_error();
-
-    service_identifier id_;
     std::shared_ptr<engine> engine_;
-    remote_config::client::ptr rc_client_;
     std::shared_ptr<service_config> service_config_;
-
-    std::chrono::milliseconds poll_interval_;
-    std::chrono::milliseconds interval_;
-    void poll();
-    void discover();
-    std::function<void()> rc_action_;
-
-    std::uint16_t errors_ = {0};
-
-    std::promise<bool> exit_;
-    std::thread handler_;
+    dds::remote_config::client_handler::ptr client_handler_;
 };
 
 } // namespace dds

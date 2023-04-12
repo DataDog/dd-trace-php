@@ -8,10 +8,6 @@
 #include "product.hpp"
 #include "protocol/tuf/parser.hpp"
 #include "protocol/tuf/serializer.hpp"
-#include "remote_config/asm_data_listener.hpp"
-#include "remote_config/asm_dd_listener.hpp"
-#include "remote_config/asm_features_listener.hpp"
-#include "remote_config/asm_listener.hpp"
 #include <algorithm>
 #include <regex>
 #include <spdlog/spdlog.h>
@@ -32,7 +28,7 @@ config_path config_path::from_path(const std::string &path)
     return config_path{base_match[3].str(), base_match[2].str()};
 }
 
-client::client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
+client::client(std::unique_ptr<http_api> &&arg_api, service_identifier &&sid,
     remote_config::settings settings, const std::vector<product> &products)
     : api_(std::move(arg_api)), id_(dds::generate_random_uuid()),
       sid_(std::move(sid)), settings_(std::move(settings))
@@ -44,49 +40,13 @@ client::client(std::unique_ptr<http_api> &&arg_api, service_identifier sid,
     }
 }
 
-client::ptr client::from_settings(const service_identifier &sid,
+client::ptr client::from_settings(service_identifier &&sid,
     const remote_config::settings &settings,
-    const std::shared_ptr<dds::service_config> &service_config,
-    const std::shared_ptr<dds::engine> &engine_ptr)
+    const std::vector<remote_config::product> &products)
 {
-    if (!settings.enabled) {
-        return {};
-    }
-
-    std::vector<remote_config::product> products = {};
-    if (service_config->dynamic_enablement) {
-        auto asm_features_listener =
-            std::make_shared<remote_config::asm_features_listener>(
-                service_config);
-        products.emplace_back(asm_features_listener);
-    }
-    if (service_config->dynamic_engine) {
-        auto asm_data_listener =
-            std::make_shared<remote_config::asm_data_listener>(engine_ptr);
-        auto asm_dd_listener = std::make_shared<remote_config::asm_dd_listener>(
-            engine_ptr, dds::engine_settings::default_rules_file());
-        auto asm_listener =
-            std::make_shared<remote_config::asm_listener>(engine_ptr);
-
-        products.emplace_back(asm_data_listener);
-        products.emplace_back(asm_dd_listener);
-        products.emplace_back(asm_listener);
-    }
-
-    if (products.empty()) {
-        return {};
-    }
-
-    // TODO runtime_id will be send by the extension when the extension can get
-    // it from the profiler. When that happen, this wont be needed
-    auto sid_copy = sid;
-    if (sid_copy.runtime_id.empty()) {
-        sid_copy.runtime_id = generate_random_uuid();
-    }
-
     return std::make_unique<client>(std::make_unique<http_api>(settings.host,
                                         std::to_string(settings.port)),
-        std::move(sid_copy), settings, std::move(products));
+        std::move(sid), settings, products);
 }
 
 [[nodiscard]] protocol::get_configs_request client::generate_request() const

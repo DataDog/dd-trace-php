@@ -28,20 +28,19 @@ TEST(ServiceManagerTest, LoadRulesOK)
     std::map<std::string_view, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    service_identifier sid{"service", "env", "", "", ""};
     service_manager_exp manager;
     auto fn = create_sample_rules_ok();
     dds::engine_settings engine_settings;
     engine_settings.rules_file = fn;
     engine_settings.waf_timeout_us = 42;
-    auto service =
-        manager.create_service(sid, engine_settings, {}, meta, metrics, {});
+    auto service = manager.create_service(
+        {"service", "env", "", "", ""}, engine_settings, {}, meta, metrics, {});
     EXPECT_EQ(manager.get_cache().size(), 1);
     EXPECT_EQ(metrics[tag::event_rules_loaded], 3);
 
     // loading again should take from the cache
-    auto service2 =
-        manager.create_service(sid, engine_settings, {}, meta, metrics, {});
+    auto service2 = manager.create_service(
+        {"service", "env", "", "", ""}, engine_settings, {}, meta, metrics, {});
     EXPECT_EQ(manager.get_cache().size(), 1);
 
     // destroying the services should expire the cache ptr
@@ -57,15 +56,14 @@ TEST(ServiceManagerTest, LoadRulesOK)
     ASSERT_FALSE(weak_ptr.expired());
 
     // loading another service should cleanup the cache
-    service_identifier sid2{"service2", "env"};
-    auto service3 =
-        manager.create_service(sid2, engine_settings, {}, meta, metrics, {});
+    auto service3 = manager.create_service(
+        {"service2", "env"}, engine_settings, {}, meta, metrics, {});
     ASSERT_TRUE(weak_ptr.expired());
     EXPECT_EQ(manager.get_cache().size(), 1);
 
     // another service identifier should result in another service
-    auto service4 =
-        manager.create_service(sid, engine_settings, {}, meta, metrics, {});
+    auto service4 = manager.create_service(
+        {"service", "env", "", "", ""}, engine_settings, {}, meta, metrics, {});
     EXPECT_EQ(manager.get_cache().size(), 2);
 }
 
@@ -85,6 +83,7 @@ TEST(ServiceManagerTest, LoadRulesFileNotFound)
         },
         std::runtime_error);
 }
+
 TEST(ServiceManagerTest, BadRulesFile)
 {
     std::map<std::string_view, std::string> meta;
