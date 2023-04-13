@@ -143,14 +143,6 @@
                         "printf 'no' | sudo pecl install -f redis-5.3.4"
                     ]
                 }
-            },
-            "sqlsrv": {
-                "require": {
-                    "ext-sqlsrv": "*"
-                },
-                "scenario-options": {
-                    "create-lockfile": false
-                }
             }
         },
         "scenario-options": {

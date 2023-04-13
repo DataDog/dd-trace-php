@@ -68,7 +68,7 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   make
   mv ./modules/*.so $(php-config --extension-dir)
   make clean
-  
+
   for curlVer in ${CURL_VERSIONS}; do
     PKG_CONFIG_PATH=/opt/curl/${curlVer}/lib/pkgconfig/
     ./configure
@@ -100,6 +100,8 @@ else
   yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
   pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini;
+  pecl install sqlsrv; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
+  pecl install swoole; echo "extension=swoole.so" >> ${iniDir}/swoole.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
     pecl install xdebug$VERSION;

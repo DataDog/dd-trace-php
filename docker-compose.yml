@@ -21,6 +21,7 @@ x-aliases:
         - elasticsearch7_integration
         - httpbin_integration
         - redis_integration
+        - sqlsrv_integration
         - mongodb_integration
         - mysql_integration
         - memcached_integration
