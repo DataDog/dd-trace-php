@@ -63,7 +63,7 @@ class SQLSRVIntegration extends Integration
                 $integration->setDefaultAttributes(
                     $this,
                     $span,
-                    'sqlsrv.query',
+                    'sqlsrv_query',
                     $query
                 );
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
@@ -100,7 +100,7 @@ class SQLSRVIntegration extends Integration
         \DDTrace\trace_function('sqlsrv_query', function (SpanData $span, $args, $retval) use ($integration) {
             /** @var string $query */
             $query = $args[1];
-            $integration->setDefaultAttributes($this, $span, 'sqlsrv.query', $query, $retval);
+            $integration->setDefaultAttributes($this, $span, 'sqlsrv_query', $query, $retval);
             ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
             $span->meta[Tag::DB_STMT] = $query;
 
@@ -112,7 +112,7 @@ class SQLSRVIntegration extends Integration
         \DDTrace\trace_function('sqlsrv_prepare', function (SpanData $span, $args, $retval) use ($integration) {
             /** @var string $query */
             $query = $args[1];
-            $integration->setDefaultAttributes($this, $span, 'sqlsrv.prepare', $query, $retval);
+            $integration->setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query, $retval);
             ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
             $span->meta[Tag::DB_STMT] = $query;
 
@@ -122,7 +122,7 @@ class SQLSRVIntegration extends Integration
 
         // sqlsrv_commit ( resource $conn ) : bool
         \DDTrace\trace_function('sqlsrv_commit', function (SpanData $span, $args, $retval) use ($integration) {
-            $integration->setDefaultAttributes($this, $span, 'sqlsrv.commit', 'sqlsrv.commit', $retval);
+            $integration->setDefaultAttributes($this, $span, 'sqlsrv_commit', 'sqlsrv_commit', $retval);
 
             // Detect Error
             $integration->detectError($retval, $span);
@@ -224,7 +224,7 @@ class SQLSRVIntegration extends Integration
         }
 
         // There could be multiple errors occurring on the same sqlsrv operation
-        // If this is the case, concatenate them using implode with ' | ' as the separator
+        // If this is the case, we concatenate them using ' | ' as the separator
         // Format: SQL Error: <code>. Driver error: <sqlstate>. Driver-specific error data: <message>
         $errorMessages = implode(' | ', array_map(function ($error) {
             return sprintf(

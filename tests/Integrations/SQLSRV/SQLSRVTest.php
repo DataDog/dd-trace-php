@@ -83,7 +83,7 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
-                ->withExactTags([Tag::DB_ROW_COUNT => 1.0])
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0])
         ]);
     }
 
@@ -142,7 +142,7 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
-                ->withExactTags([Tag::DB_ROW_COUNT => 1.0])
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0])
         ]);
     }
 
