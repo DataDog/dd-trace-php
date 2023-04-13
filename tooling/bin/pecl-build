@@ -7,7 +7,8 @@ composer -dtooling/generation update
 composer -dtooling/generation generate
 composer -dtooling/generation verify
 
-# PECL doesn't like the "-nightly" part of the nightly version number so we have to change it
+# PECL doesn't like the "+$gitsha1" part of the non-release version number.
+# Currently these aren't published, so truncating it is fine.
 dd_version=$(awk -F\' '/const VERSION/ {sub(/\+.*$/, "", $2); print $2}' < src/DDTrace/Tracer.php)
 
 configuration_placeholder='
