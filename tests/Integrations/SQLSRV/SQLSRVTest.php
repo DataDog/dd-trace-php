@@ -12,6 +12,8 @@ class SQLSRVTest extends IntegrationTestCase
 {
     private static $host = 'sqlsrv_integration';
     private static $port = '1433';
+    private static $database = 'master';
+    private static $user = 'sa';
     private static $password = 'test';
 
     // phpcs:disable
@@ -43,7 +45,7 @@ class SQLSRVTest extends IntegrationTestCase
     public function testConnectOk()
     {
         $traces = $this->isolateTracer(function () {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             sqlsrv_close($conn);
         });
 
@@ -71,7 +73,7 @@ class SQLSRVTest extends IntegrationTestCase
     {
         $query = 'SELECT * FROM tests WHERE id=1';
         $traces = $this->isolateTracer(function () use ($query) {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             sqlsrv_query($conn, $query);
             sqlsrv_close($conn);
         });
@@ -89,7 +91,7 @@ class SQLSRVTest extends IntegrationTestCase
     {
         $query = "SELECT * FROM non_existing_table";
         $traces = $this->isolateTracer(function () use ($query) {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             sqlsrv_query($conn, $query);
             sqlsrv_close($conn);
         });
@@ -107,7 +109,7 @@ class SQLSRVTest extends IntegrationTestCase
     {
         $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
         $traces = $this->isolateTracer(function () use ($query) {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             sqlsrv_begin_transaction($conn);
             sqlsrv_query($conn, $query);
             sqlsrv_commit($conn);
@@ -127,7 +129,7 @@ class SQLSRVTest extends IntegrationTestCase
     {
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             $stmt = sqlsrv_prepare($conn, $query, [1]);
             sqlsrv_execute($stmt);
             sqlsrv_close($conn);
@@ -148,7 +150,7 @@ class SQLSRVTest extends IntegrationTestCase
     {
         $query = "SELECT * FROM non_existing_table WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             $stmt = sqlsrv_prepare($conn, $query, [1]);
             sqlsrv_execute($stmt);
             sqlsrv_close($conn);
@@ -165,7 +167,7 @@ class SQLSRVTest extends IntegrationTestCase
     {
         $query = "SELECT * FROM non_existing_table";
         $traces = $this->isolateTracer(function () use ($query) {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             sqlsrv_begin_transaction($conn);
             sqlsrv_prepare($conn, $query);
             sqlsrv_execute($conn);
@@ -187,7 +189,7 @@ class SQLSRVTest extends IntegrationTestCase
     public function testLimitedTracerConnectQuery()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             $query = 'SELECT * FROM tests WHERE id=1';
             sqlsrv_query($conn, $query);
             sqlsrv_close($conn);
@@ -199,7 +201,7 @@ class SQLSRVTest extends IntegrationTestCase
     public function testLimitedtracerCommit()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             $query = "INSERT INTO tests (id, name) VALUES (100, 'From Test')";
             sqlsrv_begin_transaction($conn);
             sqlsrv_query($conn, $query);
@@ -214,7 +216,7 @@ class SQLSRVTest extends IntegrationTestCase
     public function testLimitedConnectPrepareStatement()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             $query = "INSERT INTO tests (id, name) VALUES (?, ?)";
             $stmt = sqlsrv_prepare($conn, $query, [100, 'From Test']);
             sqlsrv_execute($stmt);
@@ -229,7 +231,7 @@ class SQLSRVTest extends IntegrationTestCase
     {
         $query = "INSERT INTO tests (id, name) VALUES (?, ?)";
         $traces = $this->isolateTracer(function () use ($query) {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             $stmt = sqlsrv_prepare($conn, $query, [100, 'From Test']);
             sqlsrv_execute($stmt);
             sqlsrv_close($conn);
@@ -246,6 +248,18 @@ class SQLSRVTest extends IntegrationTestCase
         ]);
     }
 
+    private function createConnection()
+    {
+        return sqlsrv_connect(
+            self::$host . ', ' . self::$port,
+            [
+                'PWD' => self::$password,
+                'Database' => self::$database,
+                'UID' => self::$user
+            ]
+        );
+    }
+
     private function queryDatabaseAllAssociative($table, $wheres)
     {
         $conditions = [];
@@ -253,7 +267,7 @@ class SQLSRVTest extends IntegrationTestCase
             $conditions[] = "$key = '$value'";
         }
         $inlineWhere = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
-        $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+        $conn = $this->createConnection();
         $sql = "SELECT * FROM $table $inlineWhere";
         $stmt = sqlsrv_query($conn, $sql);
         $results = [];
@@ -276,26 +290,28 @@ class SQLSRVTest extends IntegrationTestCase
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => SQLSRVIntegration::NAME,
             Tag::DB_SYSTEM => SQLSRVIntegration::SYSTEM,
+            Tag::DB_INSTANCE => self::$database,
+            Tag::DB_USER => self::$user,
             Tag::TARGET_HOST => self::$host,
-            Tag::TARGET_PORT => self::$port
+            Tag::TARGET_PORT => self::$port,
         ];
     }
 
     private function clearDatabase()
     {
         $this->isolateTracer(function () {
-           $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
-           $sql = 'DROP TABLE IF EXISTS tests';
-           sqlsrv_query($conn, $sql);
-           sqlsrv_commit($conn);
-           sqlsrv_close($conn);
+            $conn = $this->createConnection();
+            $sql = 'DROP TABLE IF EXISTS tests';
+            sqlsrv_query($conn, $sql);
+            sqlsrv_commit($conn);
+            sqlsrv_close($conn);
         });
     }
 
     private function setUpDatabase()
     {
         $this->isolateTracer(function () {
-            $conn = sqlsrv_connect(self::$host, ['PWD' => self::$password]);
+            $conn = $this->createConnection();
             $sql1 = 'CREATE TABLE tests (id INT PRIMARY KEY, name VARCHAR(100))';
             sqlsrv_query($conn, $sql1);
             $sql2 = "INSERT INTO tests (id, name) VALUES (1, 'Tom')";
