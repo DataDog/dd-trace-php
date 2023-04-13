@@ -25,14 +25,15 @@
 //       3. composer requires `datadog/dd-trace`.
 //   - A class definition is used, instead of a constant, because constants defined in the `opcache.preload` script
 //     are not visible while the autoload script is loaded during `RINIT`.
-$apiLoadedViaComposer = \class_exists('DDTrace\ComposerBootstrap', false);
+$apiLoadedViaComposerClass = 'DDTrace\ComposerBootstrap';
+$apiLoadedViaComposer = \class_exists($apiLoadedViaComposerClass, false);
 
 if ($apiLoadedViaComposer) {
     // Basic 'DDTrace\\' class loader based on https://www.php-fig.org/psr/psr-4/examples/.
     // A `psr4` class loader is used in place of loading the `_generated_api.php` file described below because some
     // classes from `src/api` might have already be loaded during the execution of the `opcache.preload` script and
     // would cause a duplicate class declaration error.
-    spl_autoload_register(function ($class) {
+    spl_autoload_register(function ($class) use ($apiLoadedViaComposerClass) {
         // If $class is not a DDTrace class, move quickly to the next autoloader
         $prefix = 'DDTrace\\';
         $len = strlen($prefix);
@@ -41,10 +42,12 @@ if ($apiLoadedViaComposer) {
             return;
         }
 
-        $base_dir = __DIR__ . '/../src/api/';
+        // All API files are in the same directory as the ComposerBootstrap file
+        $bootstrapClass = new ReflectionClass($apiLoadedViaComposerClass);
+        $base_dir = dirname($bootstrapClass->getFileName());
         $relative_class = substr($class, $len);
-        // 'DDTrace\\Some\\Class.php' to '../src/api/'
-        $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+        // 'DDTrace\\Some\\Class.php' to '<api-dir>/Some/Class.php'
+        $file = $base_dir . '/' . str_replace('\\', '/', $relative_class) . '.php';
 
         // if the file exists, require it
         if (file_exists($file)) {
@@ -90,7 +93,7 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
 // autoloader (if present) did not find the class.
 // In that case, we assume the user wants to load one of our legacy API classes. Then hard load them all.
 // This autoloader exists as to avoid loading the legacy API completely, if it is not used at all by the user.
-spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithComposerLoaded) {
+spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithComposerLoaded, $apiLoadedViaComposerClass) {
     // If $class is not a DDTrace class, move quickly to the next autoloader
     $prefix = 'DDTrace\\';
     $len = strlen($prefix);
@@ -101,7 +104,7 @@ spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithCompo
 
     // The value of `$apiLoadedViaComposer` defined in the root scope cannot be reused because that value only reflects
     // composer's autoloading definitions loaded during `opcache.preload` scripts execution.
-    $apiLoadedViaComposer = \class_exists('DDTrace\ComposerBootstrap', false);
+    $apiLoadedViaComposer = \class_exists($apiLoadedViaComposerClass, false);
     if (!$apiLoadedViaComposer) {
         foreach ($tracerFiles as $file) {
             require_once $file;
