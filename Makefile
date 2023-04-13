@@ -875,6 +875,9 @@ test_integrations_predis1: global_test_run_dependencies
 test_integrations_roadrunner: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Roadrunner/Version_2 update
 	$(call run_tests,tests/Integrations/Roadrunner/V2)
+test_integrations_sqlsrv: global_test_run_dependencies
+	$(MAKE) test_scenario_default
+	$(call run_tests,tests/Integrations/SQLSRV)
 test_web_cakephp_28: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 update
 	$(call run_tests,--testsuite=cakephp-28-test)

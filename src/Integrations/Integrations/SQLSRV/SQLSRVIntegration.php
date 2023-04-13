@@ -39,6 +39,7 @@ class SQLSRVIntegration extends Integration
 
         $integration = $this;
 
+        // sqlsrv_connect ( string $serverName [, array $connectionInfo] ) : resource
         \DDTrace\trace_function('sqlsrv_connect', function (SpanData $span, $args, $retval) use ($integration) {
             $connectionMetadata = $integration->extractConnectionMetadata($args);
             ObjectKVStore::put($this, SQLSRVIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
@@ -53,25 +54,49 @@ class SQLSRVIntegration extends Integration
             $integration->detectError($retval, $span);
         });
 
-        \DDTrace\install_hook('sqlsrv_query', function (HookData $hook) use ($integration) {
-            list(, $query) = $hook->args;
+        if (PHP_MAJOR_VERSION > 5) {
+            // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
+            \DDTrace\install_hook('sqlsrv_query', function (HookData $hook) use ($integration) {
+                list(, $query) = $hook->args;
 
-            $span = $hook->span();
-            $integration->setDefaultAttributes(
-                $this,
-                $span,
-                'sqlsrv.query',
-                $query
-            );
-            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
-        }, function (HookData $hook) use ($integration) {
-            $span = $hook->span();
-            if (is_object($hook->returned)) {
-                ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
-            }
-            $integration->detectError($hook->returned, $span);
-        });
+                $span = $hook->span();
+                $integration->setDefaultAttributes(
+                    $this,
+                    $span,
+                    'sqlsrv.query',
+                    $query
+                );
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
+            }, function (HookData $hook) use ($integration) {
+                $span = $hook->span();
+                if (is_object($hook->returned)) {
+                    ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
+                }
+                $integration->detectError($hook->returned, $span);
+            });
 
+            // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
+            \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) use ($integration) {
+                list(, $query) = $hook->args;
+
+                $span = $hook->span();
+                $integration->setDefaultAttributes(
+                    $this,
+                    $span,
+                    'sqlsrv_prepare',
+                    $query
+                );
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
+            }, function (HookData $hook) use ($integration) {
+                $span = $hook->span();
+                if (is_object($hook->returned)) {
+                    ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
+                }
+                $integration->detectError($hook->returned, $span);
+            });
+        }
+
+        // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
         \DDTrace\trace_function('sqlsrv_query', function (SpanData $span, $args, $retval) use ($integration) {
             /** @var string $query */
             $query = $args[1];
@@ -83,6 +108,7 @@ class SQLSRVIntegration extends Integration
             $integration->detectError($retval, $span);
         });
 
+        // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
         \DDTrace\trace_function('sqlsrv_prepare', function (SpanData $span, $args, $retval) use ($integration) {
             /** @var string $query */
             $query = $args[1];
@@ -94,6 +120,7 @@ class SQLSRVIntegration extends Integration
             $integration->detectError($retval, $span);
         });
 
+        // sqlsrv_commit ( resource $conn ) : bool
         \DDTrace\trace_function('sqlsrv_commit', function (SpanData $span, $args, $retval) use ($integration) {
             $integration->setDefaultAttributes($this, $span, 'sqlsrv.commit', 'sqlsrv.commit', $retval);
 
@@ -101,6 +128,7 @@ class SQLSRVIntegration extends Integration
             $integration->detectError($retval, $span);
         });
 
+        // sqlsrv_execute ( resource $stmt ) : bool
         \DDTrace\trace_function('sqlsrv_execute', function (SpanData $span, $args, $retval) use ($integration) {
             $query = ObjectKVStore::get($this, SQLSRVIntegration::QUERY_TAGS_KEY);
             $integration->setDefaultAttributes($this, $span, 'sqlsrv.execute', $query, $retval);
@@ -176,7 +204,6 @@ class SQLSRVIntegration extends Integration
         $span->meta[Tag::COMPONENT] = SQLSRVIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = SQLSRVIntegration::SYSTEM;
         if (is_object($result)) {
-            // TODO: handle sqlsrv_num_rows returning on connection resource
             $span->metrics[Tag::DB_ROW_COUNT] = sqlsrv_num_rows($result);
         }
 
@@ -191,7 +218,7 @@ class SQLSRVIntegration extends Integration
             return;
         }
 
-        $errors = sqlsrv_errors(SQLSRV_ERR_ALL);
+        $errors = sqlsrv_errors();
         if (empty($errors)) {
             return;
         }
