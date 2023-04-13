@@ -109,7 +109,7 @@ HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
     return ht;
 }
 
-void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure, zai_sandbox *sandbox) {
+void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure) {
     if (get_DD_TRACE_DEBUG()) {
         char *scope = "";
         char *colon = "";
@@ -139,7 +139,7 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
             zend_string *msg = zai_exception_message(ex);
             ddtrace_log_errf("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
                              type, deffile, defline, scope, colon, name, ZSTR_VAL(msg));
-        } else if (PG(last_error_message) && sandbox->error_state.message != PG(last_error_message)) {
+        } else if (PG(last_error_message)) {
 #if PHP_VERSION_ID < 80000
             char *error = PG(last_error_message);
 #else
@@ -167,8 +167,8 @@ static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     bool success = zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
                                    ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
                                    &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &hook_data_zv);
-    if (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message))) {
-        dd_uhook_report_sandbox_error(execute_data, closure, &sandbox);
+    if (!success || PG(last_error_message)) {
+        dd_uhook_report_sandbox_error(execute_data, closure);
     }
     zai_sandbox_close(&sandbox);
     zval_ptr_dtor(&rv);
