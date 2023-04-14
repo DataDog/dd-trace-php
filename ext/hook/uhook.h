@@ -5,7 +5,7 @@
 #include <sandbox/sandbox.h>
 
 HashTable *dd_uhook_collect_args(zend_execute_data *execute_data);
-void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure, zai_sandbox *sandbox);
+void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure);
 
 void zai_uhook_rinit();
 void zai_uhook_rshutdown();

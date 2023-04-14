@@ -1,5 +1,7 @@
 #include "../sandbox.h"
 
+long zai_sandbox_active = 0;
+
 extern inline void zai_sandbox_open(zai_sandbox *sandbox);
 extern inline void zai_sandbox_close(zai_sandbox *sandbox);
 extern inline void zai_sandbox_bailout(zai_sandbox *sandbox);
