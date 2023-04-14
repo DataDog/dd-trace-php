@@ -178,7 +178,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
-    if (def->closure && def->closure != ZEND_CLOSURE_OBJECT(EX(func))) {
+    if ((def->closure && def->closure != ZEND_CLOSURE_OBJECT(EX(func))) || !get_DD_TRACE_ENABLED()) {
         dyn->hook_data = NULL;
         return true;
     }
@@ -219,7 +219,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         dd_trace_stop_span_time(span);
     }
 
-    if (def->end && !def->running) {
+    if (def->end && !def->running && get_DD_TRACE_ENABLED()) {
         zval tmp;
 
         /* If the profiler doesn't handle a potential pending interrupt before
@@ -480,7 +480,7 @@ void dd_uhook_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
     }
 
     // pre-hook check
-    if (!hookData->execute_data || (!unlimited && ddtrace_tracer_is_limited())) {
+    if (!hookData->execute_data || (!unlimited && ddtrace_tracer_is_limited()) || !get_DD_TRACE_ENABLED()) {
         // dummy span, which never gets pushed
         hookData->span = ddtrace_init_dummy_span();
         RETURN_OBJ_COPY(&hookData->span->std);
