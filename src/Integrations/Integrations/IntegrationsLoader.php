@@ -19,6 +19,7 @@ use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Psr18\Psr18Integration;
 use DDTrace\Integrations\Slim\SlimIntegration;
+use DDTrace\Integrations\SQLSRV\SQLSRVIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
@@ -102,6 +103,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\PDO\PDOIntegration';
             $this->integrations[PredisIntegration::NAME] =
                 '\DDTrace\Integrations\Predis\PredisIntegration';
+            $this->integrations[SQLSRVIntegration::NAME] =
+                '\DDTrace\Integrations\SQLSRV\SQLSRVIntegration';
             $this->integrations[SlimIntegration::NAME] =
                 '\DDTrace\Integrations\Slim\SlimIntegration';
             $this->integrations[YiiIntegration::NAME] =
