@@ -2113,7 +2113,30 @@ jobs:
           command: |
             <<# parameters.asan_build >>export DDTRACE_MAKE_PACKAGES_ASAN=1<</ parameters.asan_build >>
             make packages
-      - run: cd build/packages && find . -type f -exec sha256sum {} +
+      - run:
+          name: Display sha256sums
+          command: cd build/packages && find . -type f -exec sha256sum {} + && cd -
+      - run:
+          name: Spot-check shape of library name
+          command: |
+            version=$(awk -F\' '/const VERSION/ { print $2 }' < src/DDTrace/Tracer.php)
+            filename="dd-library-php-${version}-x86_64-linux-gnu.tar.gz"
+            if ! [[ -f "build/packages/$filename" ]] ; then
+              echo "Expected file 'build/packages/$filename' to exist!"
+              exit 1
+            fi
+
+            if ! [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
+              githash="${CIRCLE_SHA1?}"
+              echo "Non-release branch detected. Checking for git sha1: $githash."
+              if echo "$filename" | grep -q "+$githash" ; then
+                echo "Confirmed: '$filename' contains git sha1 hash '$githash'."
+              else
+                echo "'$filename' didn't contain git sha1 hash '$githash'."
+                exit 1
+              fi
+            fi
+
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
       - store_artifacts: { path: 'pecl', destination: '/pecl' }
