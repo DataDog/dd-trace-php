@@ -314,7 +314,22 @@ function cmd_config_set(array $options): void
 
             $mainIniFilePaths = find_main_ini_files($phpProps);
 
+            $set = false;
             foreach ($mainIniFilePaths as $iniFile) {
+                if (!file_exists($iniFile)) {
+                    echo "File '$iniFile' does not exist. Trying to create it... ";
+                    if (file_put_contents($iniFile, '') === false) {
+                        echo "Could not set '{$setting[0]}' to '{$setting[1]}' in INI file: {$iniFile}.\n";
+                        $directory = dirname($iniFile);
+                        if (!is_dir($directory)) {
+                            echo "Directory '$directory' doesn't exist. Create it and try again if you want to use '$iniFile'.\n";
+                        }
+                        continue;
+                    } else {
+                        echo "Success.\n";
+                    }
+                }
+
                 $iniFileContent = file_get_contents($iniFile);
                 // check for "End of Line" symbol at the end of the file and
                 // add in case it is missing
@@ -323,11 +338,16 @@ function cmd_config_set(array $options): void
                 }
                 $iniFileContent .= implode(' = ', $setting) . PHP_EOL;
                 if (file_put_contents($iniFile, $iniFileContent) === false) {
-                    echo "Could not set '", $setting[0], "' to '", $setting[1],
-                    "' in INI file: ", $iniFile , PHP_EOL;
+                    echo "Could not set '{$setting[0]}' to '{$setting[1]}' in INI file: {$iniFile}.\n";
                     continue;
                 }
-                echo "Set '", $setting[0], "' to '", $setting[1], "' in INI file: ", $iniFile, PHP_EOL;
+                echo "Set '{$setting[0]}' to '{$setting[1]}' in INI file: $iniFile.\n";
+                $set = true;
+            }
+
+            if (!$set) {
+                echo "Unable to set '{$setting[0]}' to '{$setting[1]}' in any INI file for $binaryForLog.\n";
+                exit(1);
             }
         }
     }
@@ -750,7 +770,7 @@ function find_all_ini_files(array $phpProperties): array
         }
     }
 
-    if ($phpProperties[INI_MAIN] && is_file($phpProperties[INI_MAIN])) {
+    if (isset($phpProperties[INI_MAIN]) && is_file($phpProperties[INI_MAIN])) {
         $iniFilePaths = [$phpProperties[INI_MAIN]];
     }
 
@@ -777,17 +797,19 @@ function find_all_ini_files(array $phpProperties): array
 function find_main_ini_files(array $phpProperties): array
 {
     $iniFilePaths = [];
-    if ($phpProperties[INI_SCANDIR]) {
+    if (isset($phpProperties[INI_SCANDIR])) {
         $iniFileName = '98-ddtrace.ini';
         // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
         // See issue https://github.com/DataDog/dd-trace-php/issues/1833
-        foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
-            $path = "{$phpProperties[INI_SCANDIR]}/$ini";
-            if (is_file($path)) {
-                // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
-                if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
-                    if (basename($res[1]) == "ddtrace") {
-                        $iniFileName = $ini;
+        if (is_dir($phpProperties[INI_SCANDIR])) {
+            foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
+                $path = "{$phpProperties[INI_SCANDIR]}/$ini";
+                if (is_file($path)) {
+                    // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
+                    if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
+                        if (basename($res[1]) == "ddtrace") {
+                            $iniFileName = $ini;
+                        }
                     }
                 }
             }
