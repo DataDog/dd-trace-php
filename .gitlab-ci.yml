@@ -7,7 +7,7 @@ variables:
     value: ""
     description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
   DOWNSTREAM_REL_BRANCH:
-    value: "levi/sync-version"
+    value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
   FORCE_TRIGGER:
     value: "false"
