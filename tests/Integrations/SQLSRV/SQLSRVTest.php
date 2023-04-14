@@ -21,7 +21,6 @@ class SQLSRVTest extends IntegrationTestCase
     const ERROR_QUERY = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
     const ERROR_PREPARE = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
     const ERROR_EXECUTE = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
-    const ERROR_COMMIT = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
     // phpcs:enable
 
     public static function ddSetUpBeforeClass()
@@ -159,7 +158,7 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_prepare'),
             SpanAssertion::exists('sqlsrv_execute')
-                ->setError('SQLSTATE[42S02] [208] Invalid object name \'non_existing_table\'.')
+                ->setError('SQLSRV error', self::ERROR_PREPARE)
         ]);
     }
 

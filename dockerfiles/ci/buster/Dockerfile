@@ -148,13 +148,13 @@ RUN set -eux; \
     lcov --version; \
     rm -rfv /tmp/*
 
-## Install SqlServer PHP Driver (Using bullseye's list despite being a buster image)
+# Install SqlServer PHP Driver (Using bullseye's list despite being a buster image)
+# https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
 RUN set -eux; \
-    sudo su \
-    && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
-    && curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
-    && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 mssql-tools18
+    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -; \
+    curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list; \
+    apt-get update; \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 mssql-tools18
 
 # Apache config
 ENV APACHE_CONFDIR /etc/apache2
