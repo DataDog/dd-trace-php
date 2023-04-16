@@ -14,7 +14,7 @@ class SQLSRVTest extends IntegrationTestCase
     private static $port = '1433';
     private static $database = 'master';
     private static $user = 'sa';
-    private static $password = 'test';
+    private static $password = 'Password12!';
 
     // phpcs:disable
     const ERROR_CONNECT = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';

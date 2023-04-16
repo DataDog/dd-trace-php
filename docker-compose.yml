@@ -87,7 +87,7 @@ services:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=test
+      - MSSQL_SA_PASSWORD=Password12!
       - MSSQL_PID=Developer
 
   elasticsearch2_integration:
