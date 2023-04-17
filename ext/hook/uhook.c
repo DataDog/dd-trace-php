@@ -20,6 +20,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
 zend_class_entry *ddtrace_hook_data_ce;
+#if PHP_VERSION_ID >= 70400
+zend_property_info *ddtrace_hook_data_returned_prop_info;
+#endif
 
 ZEND_TLS HashTable dd_closure_hooks;
 ZEND_TLS HashTable dd_active_hooks;
@@ -236,6 +239,15 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         zval *returned = &dyn->hook_data->property_returned;
         ZVAL_COPY_VALUE(&tmp, returned);
         ZVAL_COPY(returned, retval);
+#if PHP_VERSION_ID >= 70400
+        zend_property_info *prop_info = ddtrace_hook_data_returned_prop_info;
+        if (Z_ISREF(tmp)) {
+            ZEND_REF_DEL_TYPE_SOURCE(Z_REF(tmp), prop_info);
+        }
+        if (Z_ISREF_P(returned)) {
+            ZEND_REF_ADD_TYPE_SOURCE(Z_REF_P(returned), prop_info);
+        }
+#endif
         zval_ptr_dtor(&tmp);
 
         zval *exception = &dyn->hook_data->property_exception;
@@ -620,6 +632,9 @@ void zai_uhook_attributes_minit(void);
 void zai_uhook_minit() {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
+#if PHP_VERSION_ID >= 70400
+    ddtrace_hook_data_returned_prop_info = zend_hash_str_find_ptr(&ddtrace_hook_data_ce->properties_info, ZEND_STRL("returned"));
+#endif
 
     zend_register_functions(NULL, ext_functions, NULL, MODULE_PERSISTENT);
 
