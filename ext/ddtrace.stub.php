@@ -362,15 +362,16 @@ namespace DDTrace {
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
      * if there is one, as well as the future ones if it isn't overwritten
      *
-     * @param callable(string):mixed $callback Given a header name for distributed tracing, return the value it should
-     * be updated to
+     * @param array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
+     * or a callback, which given a header name for distributed tracing, returns the value it should be updated to.
      */
-    function consume_distributed_tracing_headers(callable $callback): void {}
+    function consume_distributed_tracing_headers(array|callable $headersOrCallback): void {}
 
     /**
      * Get information on the key-value pairs of the datadog headers for distributed tracing
      *
-     * @param array|null $inject dfdsq
+     * @param null|string[] $inject The types of sampling headers which shall be generated, equivalent to what
+     * DD_TRACE_PROPAGATION_STYLE_INJECT supports. Defaults to DD_TRACE_PROPAGATION_STYLE_INJECT if null.
      *
      * @return array{x-datadog-sampling-priority: string,
      *               x-datadog-origin: string,
@@ -380,7 +381,7 @@ namespace DDTrace {
      *               tracestate: string
      *          }
      */
-    function generate_distributed_tracing_headers(array $inject = null): array {}
+    function generate_distributed_tracing_headers(array|null $inject = null): array {}
 
     /**
      * Searches parent frames to see whether it's currently within a catch block and returns that exception.
