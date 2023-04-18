@@ -17,6 +17,7 @@ class HookData {
 
     /**
      * A zero-indexed array of all arguments.
+     * On file inclusions, this will be an array with a single element containing the filename.
      */
     public array $args;
 
@@ -66,9 +67,16 @@ class HookData {
 }
 
 /**
+ * @var string
+ */
+const HOOK_ALL_FILES = "";
+
+/**
  * @param string|\Closure|\Generator $target The function to hook.
  *                                           If a string is passed, it must be either a function name or referencing
- *                                           a method in "Classname::methodname" format.
+ *                                           a method in "Classname::methodname" format. Alternatively it may be a file
+ *                                           name or the DDTrace\HOOK_ALL_FILES constant. Can be a relative path
+ *                                           starting with ./ or ../ too.
  *                                           If a Closure is passed, the hook only applies to the current instance
  *                                           of that Closure.
  *                                           If a Generator is passed, the active function name or Closure is extracted

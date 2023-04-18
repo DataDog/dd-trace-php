@@ -270,6 +270,9 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
             } else {
                 ZVAL_STR_COPY(prop_name, EX(func)->common.function_name);
             }
+        } else if (EX(func) && ZEND_USER_CODE(EX(func)->type) && EX(func)->op_array.filename) {
+            zval_ptr_dtor(prop_name);
+            ZVAL_STR_COPY(prop_name, EX(func)->op_array.filename);
         }
 
         zval zv;

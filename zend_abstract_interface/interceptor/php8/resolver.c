@@ -33,10 +33,11 @@ static void zai_interceptor_class_linked(zend_class_entry *ce, zend_string *name
 static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int type);
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
     zend_op_array *op_array = prev_compile_file(file_handle, type);
-#if 0
-    // TODO: on branch merge with libdatadog
-    zai_hook_resolve_file(op_array);
-#endif
+
+    if (op_array) {
+        zai_hook_resolve_file(op_array);
+    }
+
     return op_array;
 }
 

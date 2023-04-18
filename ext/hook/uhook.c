@@ -38,6 +38,7 @@ typedef struct {
     zend_function *resolved;
     zend_string *scope;
     zend_string *function;
+    zend_string *file;
     zend_object *closure;
 } dd_uhook_def;
 
@@ -174,9 +175,39 @@ static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     zval_ptr_dtor(&rv);
 }
 
+static bool dd_uhook_match_filepath(zend_string *file, zend_string *source) {
+    if (ZSTR_LEN(source) == 0) {
+        return true; // empty path is wildcard
+    }
+
+    if (ZSTR_LEN(source) > ZSTR_LEN(file)) {
+        return false;
+    }
+
+    if (memcmp(ZSTR_VAL(source), ZSTR_VAL(file) + ZSTR_LEN(file) - ZSTR_LEN(source), ZSTR_LEN(source)) != 0) {
+        return false; // suffix doesn't match
+    }
+
+    if (ZSTR_LEN(source) == ZSTR_LEN(file)) {
+        return true; // it's exact match
+    }
+
+    char before_match = ZSTR_VAL(file)[ZSTR_LEN(file) - ZSTR_LEN(source) - 1];
+    if (before_match == '\\' || before_match == '/') {
+        return true;
+    }
+
+    return false;
+}
+
 static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
+
+    if (def->file && (!execute_data->func->op_array.filename || !dd_uhook_match_filepath(execute_data->func->op_array.filename, def->file))) {
+        dyn->hook_data = NULL;
+        return true;
+    }
 
     if ((def->closure && def->closure != ZEND_CLOSURE_OBJECT(EX(func))) || !get_DD_TRACE_ENABLED()) {
         dyn->hook_data = NULL;
@@ -187,7 +218,15 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
 
     dyn->hook_data->invocation = invocation;
     ZVAL_LONG(&dyn->hook_data->property_id, def->id);
-    ZVAL_ARR(&dyn->hook_data->property_args, dd_uhook_collect_args(execute_data));
+    if (def->file) {
+        zend_array *filearg = zend_new_array(1);
+        zval filezv;
+        ZVAL_STR_COPY(&filezv, execute_data->func->op_array.filename);
+        zend_hash_index_add_new(filearg, 0, &filezv);
+        ZVAL_ARR(&dyn->hook_data->property_args, filearg);
+    } else {
+        ZVAL_ARR(&dyn->hook_data->property_args, dd_uhook_collect_args(execute_data));
+    }
 
     if (def->begin && !def->running) {
         dyn->hook_data->execute_data = execute_data;
@@ -282,6 +321,8 @@ static void dd_uhook_dtor(void *data) {
         if (def->scope) {
             zend_string_release(def->scope);
         }
+    } else if (def->file) {
+        zend_string_release(def->file);
     }
     zend_hash_index_del(&dd_active_hooks, (zend_ulong)def->id);
     efree(def);
@@ -353,6 +394,7 @@ PHP_FUNCTION(DDTrace_install_hook) {
     uint32_t hook_limit = get_DD_TRACE_HOOK_LIMIT();
 
     zend_long id;
+    def->file = NULL;
     if (resolved) {
         def->resolved = resolved;
         def->function = NULL;
@@ -387,6 +429,7 @@ PHP_FUNCTION(DDTrace_install_hook) {
     } else {
         const char *colon = strchr(ZSTR_VAL(name), ':');
         zai_string_view scope = ZAI_STRING_EMPTY, function = {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
+        def->closure = NULL;
         if (colon) {
             def->scope = zend_string_init(function.ptr, colon - ZSTR_VAL(name), 0);
             do ++colon; while (*colon == ':');
@@ -395,16 +438,32 @@ PHP_FUNCTION(DDTrace_install_hook) {
             function = (zai_string_view) {.ptr = ZSTR_VAL(def->function), .len = ZSTR_LEN(def->function)};
         } else {
             def->scope = NULL;
-            def->function = zend_string_init(function.ptr, function.len, 0);
+            if (ZSTR_LEN(name) == 0 || strchr(ZSTR_VAL(name), '.')) {
+                def->function = NULL;
+                if (ZSTR_LEN(name) > 2 && ZSTR_VAL(name)[0] == '.' && (ZSTR_VAL(name)[1] == '/' || ZSTR_VAL(name)[1] == '\\'
+                     || (ZSTR_VAL(name)[1] == '.' && (ZSTR_VAL(name)[2] == '/' || ZSTR_VAL(name)[2] == '\\')))) { // relative path handling
+                    char resolved_path_buf[MAXPATHLEN];
+                    if (VCWD_REALPATH(ZSTR_VAL(name), resolved_path_buf)) {
+                        def->file = zend_string_init(resolved_path_buf, strlen(resolved_path_buf), 0);
+                    } else {
+                        ddtrace_log_onceerrf("Could not add hook to file path %s, could not resolve path", ZSTR_VAL(name));
+                        goto error;
+                    }
+                } else {
+                    def->file = zend_string_copy(name);
+                }
+                function = ZAI_STRING_EMPTY;
+            } else {
+                def->function = zend_string_init(function.ptr, function.len, 0);
+            }
         }
-        def->closure = NULL;
 
         if (hook_limit > 0 && zai_hook_count_installed(scope, function) >= hook_limit) {
             ddtrace_log_onceerrf(
                     "Could not add hook to %s%s%s with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
                     def->scope ? ZSTR_VAL(def->scope) : "",
                     def->scope ? "::" : "",
-                    ZSTR_VAL(def->function),
+                    def->scope ? ZSTR_VAL(def->function) : ZSTR_VAL(name),
                     hook_limit,
                     zend_get_executed_filename(),
                     zend_get_executed_lineno());
@@ -617,11 +676,12 @@ static void dd_uhook_closure_free_wrapper(zend_object *object) {
 #if PHP_VERSION_ID >= 80000
 void zai_uhook_attributes_minit(void);
 #endif
-void zai_uhook_minit() {
+void zai_uhook_minit(int module_number) {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
 
     zend_register_functions(NULL, ext_functions, NULL, MODULE_PERSISTENT);
+    register_uhook_symbols(module_number);
 
 #if PHP_VERSION_ID >= 80000
     zai_uhook_attributes_minit();
