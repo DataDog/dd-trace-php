@@ -55,8 +55,10 @@ protected:
 
     std::chrono::milliseconds poll_interval_;
     std::chrono::milliseconds interval_;
+    std::chrono::milliseconds max_interval;
     void poll();
     void discover();
+    void tick();
     std::function<void()> rc_action_;
 
     std::uint16_t errors_ = {0};
