@@ -26,35 +26,23 @@ mod platform {
         // used by the notify handlers.
         #[allow(unused)]
         signal_pointers: Box<SignalPointers>,
-        cpu_time_period_nanoseconds: Option<u64>,
         wall_time_period_nanoseconds: u64,
-        cpu_timer: Option<Timer>,
         wall_timer: Timer,
     }
 
     impl Interrupter {
         pub fn new(
             signal_pointers: SignalPointers,
-            cpu_time_period_nanoseconds: Option<u64>,
             wall_time_period_nanoseconds: u64,
-            should_wall_time_trigger_cpu: bool,
+            cpu_time_enabled: bool,
         ) -> Self {
             let mut signal_pointers = Box::new(signal_pointers);
             let sival_ptr = signal_pointers.as_mut() as *mut SignalPointers as *mut libc::c_void;
-            let cpu_sigval = libc::sigval { sival_ptr };
             let wall_sigval = libc::sigval { sival_ptr };
-            let cpu_timer = match cpu_time_period_nanoseconds {
-                Some(_) => Some(Timer::new(
-                    libc::CLOCK_THREAD_CPUTIME_ID,
-                    cpu_sigval,
-                    Self::notify_cpu,
-                )),
-                None => None,
-            };
             let wall_timer = Timer::new(
                 libc::CLOCK_MONOTONIC,
                 wall_sigval,
-                if should_wall_time_trigger_cpu {
+                if cpu_time_enabled {
                     Self::notify_cpu_and_wall
                 } else {
                     Self::notify_wall
@@ -62,21 +50,9 @@ mod platform {
             );
             Self {
                 signal_pointers,
-                cpu_time_period_nanoseconds,
                 wall_time_period_nanoseconds,
-                cpu_timer,
                 wall_timer,
             }
-        }
-
-        extern "C" fn notify_cpu(sigval: libc::sigval) {
-            let signal_pointers = unsafe { &*(sigval.sival_ptr as *const SignalPointers) };
-
-            let cpu_samples: &AtomicU32 = unsafe { signal_pointers.cpu_samples.as_ref() };
-            let vm_interrupt: &AtomicBool = unsafe { signal_pointers.vm_interrupt.as_ref() };
-
-            cpu_samples.fetch_add(1, Ordering::SeqCst);
-            vm_interrupt.store(true, Ordering::SeqCst);
         }
 
         extern "C" fn notify_wall(sigval: libc::sigval) {
@@ -102,30 +78,15 @@ mod platform {
         }
 
         pub fn start(&self) -> anyhow::Result<()> {
-            let cpu_result = match &self.cpu_timer {
-                Some(cpu_timer) => cpu_timer.start(self.cpu_time_period_nanoseconds.unwrap()),
-                None => Ok(()),
-            };
-            let wall_result = self.wall_timer.start(self.wall_time_period_nanoseconds);
-            cpu_result.and(wall_result)
+            self.wall_timer.start(self.wall_time_period_nanoseconds)
         }
 
         pub fn stop(&self) -> anyhow::Result<()> {
-            let cpu_result = match &self.cpu_timer {
-                Some(cpu_timer) => cpu_timer.stop(),
-                None => Ok(()),
-            };
-            let wall_result = self.wall_timer.stop();
-            cpu_result.and(wall_result)
+            self.wall_timer.stop()
         }
 
         pub fn shutdown(&mut self) -> anyhow::Result<()> {
-            let cpu_result = match &self.cpu_timer {
-                Some(cpu_timer) => cpu_timer.shutdown(),
-                None => Ok(()),
-            };
-            let wall_result = self.wall_timer.shutdown();
-            cpu_result.and(wall_result)
+            self.wall_timer.shutdown()
         }
     }
 
@@ -266,9 +227,8 @@ mod platform {
     impl Interrupter {
         pub fn new(
             signal_pointers: SignalPointers,
-            cpu_time_period_nanoseconds: Option<u64>,
             wall_time_period_nanoseconds: u64,
-            _should_wall_time_trigger_cpu: bool,
+            cpu_time_enabled: bool,
         ) -> Self {
             // > A special case is zero-capacity channel, which cannot hold
             // > any messages. Instead, send and receive operations must
@@ -323,7 +283,7 @@ mod platform {
                             Ok(instant) => {
                                 // should always be true, just being careful.
                                 if active {
-                                    signal_pointers.notify(cpu_time_period_nanoseconds.is_some())
+                                    signal_pointers.notify(cpu_time_enabled)
                                 } else {
                                     warn!("thread {thread_name} timer expired at instant {instant:?} but timer shouldn't have been active");
                                 }

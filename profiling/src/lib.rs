@@ -628,23 +628,8 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             if let Err(err) = locals
                 .time_interrupter
                 .get_or_init(move || {
-                    // todo: stagger the first cpu interval?
-                    // Passing None on purpose for now for CPU. Otherwise, we
-                    // will trigger multiple walks of the stack, one for wall,
-                    // and one for cpu, and since these are done on-thread,
-                    // they bias the results of the other one.
-                    // So, for now we just gather cpu-time when we gather
-                    // wall-time, which is cheaper.
-                    let cpu_nanos = None; //cpu_enabled.then(|| 9970001_u64);
-                    let should_wall_time_trigger_cpu = cpu_enabled;
                     let wall_nanos: u64 = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
-
-                    Interrupter::new(
-                        pointers,
-                        cpu_nanos,
-                        wall_nanos,
-                        should_wall_time_trigger_cpu,
-                    )
+                    Interrupter::new(pointers, wall_nanos, cpu_enabled)
                 })
                 .start()
             {
