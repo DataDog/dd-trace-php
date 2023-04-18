@@ -10,7 +10,6 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-
 typedef struct _ipaddr {
     int af;
     union {
@@ -25,7 +24,6 @@ static bool dd_parse_x_forwarded_for(zend_string *value, ipaddr *out);
 static bool dd_parse_plain(zend_string *zvalue, ipaddr *out);
 static bool dd_parse_plain_raw(zend_string *zvalue, ipaddr *out);
 static bool dd_parse_forwarded(zend_string *zvalue, ipaddr *out);
-static bool dd_parse_via(zend_string *zvalue, ipaddr *out);
 
 typedef struct _header_map_node {
     zend_string *key;
@@ -33,20 +31,21 @@ typedef struct _header_map_node {
     extract_func_t parse_fn;
 } header_map_node;
 
-typedef enum _header_id {
+typedef enum _priority_header_id {
     X_FORWARDED_FOR = 0,
     X_REAL_IP,
-    CLIENT_IP,
-    X_FORWARDED,
-    X_CLUSTER_CLIENT_IP,
-    FORWARDED_FOR,
-    FORWARDED,
-    VIA,
     TRUE_CLIENT_IP,
+    X_CLIENT_IP,
+    X_FORWARDED,
+    FORWARDED_FOR,
+    X_CLUSTER_CLIENT_IP,
+    FASTLY_CLIENT_IP,
+    CF_CONNECTING_IP,
+    CF_CONNECTING_IPV6,
     MAX_HEADER_ID
-} header_id;
+} priority_header_id;
 
-static header_map_node header_map[MAX_HEADER_ID];
+static header_map_node priority_header_map[MAX_HEADER_ID];
 static zend_string *remote_addr_key;
 
 static zend_string *dd_fetch_arr_str(const zval *server, zend_string *key);
@@ -56,30 +55,27 @@ static zend_string *dd_try_extract(const zval *server, zend_string *key, extract
 static zend_string *dd_try_extract_ip_from_custom_header(const zval *server, zend_string *ipheader);
 
 void dd_ip_extraction_startup() {
-    header_map[X_FORWARDED_FOR] =
-        (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED_FOR"), 1),
-                          zend_string_init_interned(ZEND_STRL("x-forwarded-for"), 1), &dd_parse_x_forwarded_for};
-    header_map[X_REAL_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_REAL_IP"), 1),
-                                              zend_string_init_interned(ZEND_STRL("x-real-ip"), 1), &dd_parse_plain};
-    header_map[CLIENT_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_CLIENT_IP"), 1),
-                                              zend_string_init_interned(ZEND_STRL("client-ip"), 1), &dd_parse_plain};
-    header_map[X_FORWARDED] =
-        (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED"), 1),
-                          zend_string_init_interned(ZEND_STRL("x-forwarded"), 1), &dd_parse_forwarded};
-    header_map[X_CLUSTER_CLIENT_IP] =
+    priority_header_map[X_FORWARDED_FOR] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED_FOR"), 1),
+                                                             zend_string_init_interned(ZEND_STRL("x-forwarded-for"), 1), &dd_parse_x_forwarded_for};
+    priority_header_map[X_REAL_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_REAL_IP"), 1),
+                                                       zend_string_init_interned(ZEND_STRL("x-real-ip"), 1), &dd_parse_plain};
+    priority_header_map[TRUE_CLIENT_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_TRUE_CLIENT_IP"), 1),
+                                                            zend_string_init_interned(ZEND_STRL("true-client-ip"), 1), &dd_parse_plain};
+    priority_header_map[X_CLIENT_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_CLIENT_IP"), 1),
+                                                         zend_string_init_interned(ZEND_STRL("x-client-ip"), 1), &dd_parse_plain};
+    priority_header_map[X_FORWARDED] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_FORWARDED"), 1),
+                                                         zend_string_init_interned(ZEND_STRL("x-forwarded"), 1), &dd_parse_forwarded};
+    priority_header_map[FORWARDED_FOR] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED_FOR"), 1),
+                                                           zend_string_init_interned(ZEND_STRL("forwarded-for"), 1), &dd_parse_x_forwarded_for};
+    priority_header_map[X_CLUSTER_CLIENT_IP] =
         (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_CLUSTER_CLIENT_IP"), 1),
                           zend_string_init_interned(ZEND_STRL("x-cluster-client-ip"), 1), &dd_parse_x_forwarded_for};
-    header_map[FORWARDED_FOR] =
-        (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED_FOR"), 1),
-                          zend_string_init_interned(ZEND_STRL("forwarded-for"), 1), &dd_parse_x_forwarded_for};
-    header_map[FORWARDED] =
-        (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED"), 1),
-                          zend_string_init_interned(ZEND_STRL("forwarded"), 1), &dd_parse_forwarded};
-    header_map[VIA] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_VIA"), 1),
-                                        zend_string_init_interned(ZEND_STRL("via"), 1), &dd_parse_via};
-    header_map[TRUE_CLIENT_IP] =
-        (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_TRUE_CLIENT_IP"), 1),
-                          zend_string_init_interned(ZEND_STRL("true-client-ip"), 1), &dd_parse_plain};
+    priority_header_map[FASTLY_CLIENT_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_FASTLY_CLIENT_IP"), 1),
+                                                              zend_string_init_interned(ZEND_STRL("fastly-client-ip"), 1), &dd_parse_plain};
+    priority_header_map[CF_CONNECTING_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_CF_CONNECTING_IP"), 1),
+                                                              zend_string_init_interned(ZEND_STRL("cf-connecting-ip"), 1), &dd_parse_plain};
+    priority_header_map[CF_CONNECTING_IPV6] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_CF_CONNECTING_IPV6"), 1),
+                                                                zend_string_init_interned(ZEND_STRL("cf-connecting-ipv6"), 1), &dd_parse_plain};
 
     remote_addr_key = zend_string_init_interned(ZEND_STRL("REMOTE_ADDR"), 1);
 }
@@ -110,78 +106,44 @@ static zend_string *dd_get_ipheader(zend_string *value) {
 }
 
 void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta) {
-    zend_string *res = NULL;
+    zend_string *client_ip = NULL;
 
     zend_string *ipheader = dd_get_ipheader(get_DD_TRACE_CLIENT_IP_HEADER());
     if (ipheader) {
-        res = dd_try_extract_ip_from_custom_header(server, ipheader);
-        if (!res) {
-            res = dd_try_extract_ip_from_custom_header(server, get_DD_TRACE_CLIENT_IP_HEADER());
+        client_ip = dd_try_extract_ip_from_custom_header(server, ipheader);
+        if (!client_ip) {
+            client_ip = dd_try_extract_ip_from_custom_header(server, get_DD_TRACE_CLIENT_IP_HEADER());
         }
         zend_string_release(ipheader);
     } else {
-        // Check for multiple XFF headers
-        size_t final_len = 0;
-        unsigned count = 0;
-        struct {
-            header_map_node *node;
-            zend_string *value;
-        } headers_found[ARRAY_SIZE(header_map)];
-        for (unsigned i = 0; i < ARRAY_SIZE(header_map); i++) {
-            zval *val = zend_hash_find(Z_ARR_P(server), header_map[i].key);
+        for (unsigned i = 0; i < ARRAY_SIZE(priority_header_map); i++) {
+            zval *val = zend_hash_find(Z_ARR_P(server), priority_header_map[i].key);
             if (!val) {
-                val = zend_hash_find(Z_ARR_P(server), header_map[i].name);
+                val = zend_hash_find(Z_ARR_P(server), priority_header_map[i].name);
             }
             if (val && Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
-                headers_found[count].node = &header_map[i];
-                headers_found[count++].value = Z_STR_P(val);
-                // Header size without HTTP_ and add a comma if necessary
-                final_len += ZSTR_LEN(header_map[i].name) + (count == 1 ? 0 : 1);
-            }
-        }
-
-        if (count == 1) {
-            // Found a valid header, extract IP
-            ipaddr out;
-            res = headers_found[0].node->parse_fn(headers_found[0].value, &out) ? dd_ipaddr_to_zstr(&out) : NULL;
-        } else if (count > 1) {
-            // Add headers to _dd.multiple-ip-headers
-            smart_str ip_headers = {0};
-            smart_str_alloc(&ip_headers, final_len, 0);
-            for (unsigned i = 0; i < count; i++) {
-                header_map_node *node = headers_found[i].node;
-
-                if (i > 0) {
-                    smart_str_appendc(&ip_headers, ',');
-                }
-                smart_str_appendl(&ip_headers, ZSTR_VAL(node->name), ZSTR_LEN(node->name));
-
-                zend_string *headertag = zend_strpprintf(0, "http.request.headers.%s", ZSTR_VAL(node->name));
+                zend_string *headertag = zend_strpprintf(0, "http.request.headers.%s", ZSTR_VAL(priority_header_map[i].name));
                 zval headerzv;
-                ZVAL_STR_COPY(&headerzv, headers_found[i].value);
+                ZVAL_STR_COPY(&headerzv, Z_STR_P(val));
                 zend_hash_update(meta, headertag, &headerzv);
                 zend_string_release(headertag);
+
+                if (!client_ip) {
+                    // We pick the most priority header only
+                    ipaddr out;
+                    client_ip = priority_header_map[i].parse_fn(Z_STR_P(val), &out) ? dd_ipaddr_to_zstr(&out) : NULL;
+                }
             }
-            smart_str_0(&ip_headers);
-
-            zval ip_headers_zv;
-            ZVAL_STR(&ip_headers_zv, ip_headers.s);
-            zend_hash_str_add_new(meta, "_dd.multiple-ip-headers", sizeof("_dd.multiple-ip-headers") - 1,
-                                  &ip_headers_zv);
-
-            // Don't add a client IP
-            return;
         }
-
         // We didn't find any valid IPs, extract from remote_addr
-        if (res == NULL) {
-            res = dd_try_extract(server, remote_addr_key, dd_parse_plain_raw);
+        if (client_ip == NULL) {
+            client_ip = dd_try_extract(server, remote_addr_key, dd_parse_plain_raw);
         }
     }
 
-    if (res != NULL) {
+    if (client_ip != NULL) {
         zval http_client_ip;
-        ZVAL_STR(&http_client_ip, res);
+        ZVAL_STR(&http_client_ip, client_ip);
         zend_hash_str_add_new(meta, "http.client_ip", sizeof("http.client_ip") - 1, &http_client_ip);
     }
 }
@@ -287,8 +249,8 @@ static bool dd_parse_forwarded(zend_string *zvalue, ipaddr *out) {
                 break;
             case key:
                 if (*r == '=') {
-                    consider_value = (r - start == 3) && (start[0] == 'f' || start[0] == 'F') &&
-                                     (start[1] == 'o' || start[1] == 'O') && (start[2] == 'r' || start[2] == 'R');
+                    consider_value = (r - start == 3) && (start[0] == 'f' || start[0] == 'F') && (start[1] == 'o' || start[1] == 'O') &&
+                                     (start[2] == 'r' || start[2] == 'R');
                     state = before_value;
                 }
                 break;
@@ -344,66 +306,11 @@ static bool dd_parse_forwarded(zend_string *zvalue, ipaddr *out) {
     return false;
 }
 
-static const char *_skip_non_ws(const char *p, const char *end) {
-    for (; p < end && *p != ' ' && *p != '\t'; p++) {
-    }
-    return p;
-}
-static const char *_skip_ws(const char *p, const char *end) {
-    for (; p < end && (*p == ' ' || *p == '\t'); p++) {
-    }
-    return p;
-}
-
-static bool dd_parse_via(zend_string *zvalue, ipaddr *out) {
-    const char *p = ZSTR_VAL(zvalue);
-    const char *end = p + ZSTR_LEN(zvalue);
-    bool succ = false;
-    do {
-        const char *comma = memchr(p, ',', end - p);
-        const char *end_cur = comma ? comma : end;
-
-        // skip initial whitespace, after a comma separating several
-        // values for instance
-        p = _skip_ws(p, end_cur);
-        if (p == end_cur) {
-            goto try_next;
-        }
-
-        // https://httpwg.org/specs/rfc7230.html#header.via
-        // skip over protocol/version
-        p = _skip_non_ws(p, end_cur);
-        p = _skip_ws(p, end_cur);
-        if (p == end_cur) {
-            goto try_next;
-        }
-
-        // we can have a trailing comment, so try find next whitespace
-        end_cur = _skip_non_ws(p, end_cur);
-
-        //At this point, p can contain either an IP or a pseudonym according to rfc7230
-        //Try to parse IP but if not, avoid logging errors
-        succ = dd_parse_ip_address_maybe_port_pair(p, end_cur - p, false, out);
-        if (succ) {
-            succ = !dd_is_private(out);
-            if (succ) {
-                return out;
-            }
-        }
-    try_next:
-        p = (comma && comma + 1 < end) ? (comma + 1) : NULL;
-    } while (!succ && p);
-
-    return succ;
-}
-
 static bool dd_parse_plain(zend_string *zvalue, ipaddr *out) {
     return dd_parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), true, out) && !dd_is_private(out);
 }
 
-static bool dd_parse_plain_raw(zend_string *zvalue, ipaddr *out) {
-    return dd_parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), true, out);
-}
+static bool dd_parse_plain_raw(zend_string *zvalue, ipaddr *out) { return dd_parse_ip_address(ZSTR_VAL(zvalue), ZSTR_LEN(zvalue), true, out); }
 
 static bool dd_parse_ip_address(const char *_addr, size_t addr_len, bool ip_or_error, ipaddr *out) {
     if (addr_len == 0) {
@@ -460,16 +367,14 @@ static bool dd_parse_ip_address_maybe_port_pair(const char *addr, size_t addr_le
     }
 
     const char *colon = memchr(addr, ':', addr_len);
-    if (colon && zend_memrchr(addr, ':', addr_len) == colon) { //There is one and only one colon
+    if (colon && zend_memrchr(addr, ':', addr_len) == colon) {  // There is one and only one colon
         return dd_parse_ip_address(addr, colon - addr, ip_or_error, out);
     }
 
     return dd_parse_ip_address(addr, addr_len, ip_or_error, out);
 }
 
-#define CT_HTONL(x)                                                                          \
-    ((((x) >> 24) & 0x000000FFU) | (((x) >> 8) & 0x0000FF00U) | (((x) << 8) & 0x00FF0000U) | \
-     (((x) << 24) & 0xFF000000U))
+#define CT_HTONL(x) ((((x) >> 24) & 0x000000FFU) | (((x) >> 8) & 0x0000FF00U) | (((x) << 8) & 0x00FF0000U) | (((x) << 24) & 0xFF000000U))
 
 static bool dd_is_private_v4(const struct in_addr *addr) {
     static const struct {
