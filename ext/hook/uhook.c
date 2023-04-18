@@ -56,6 +56,7 @@ typedef struct {
     zval property_exception;
     zend_ulong invocation;
     zend_execute_data *execute_data;
+    zval *retval_ptr;
     ddtrace_span_data *span;
     ddtrace_span_stack *prior_stack;
 } dd_hook_data;
@@ -301,7 +302,9 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         zval_ptr_dtor(&tmp);
 
         def->running = true;
+        dyn->hook_data->retval_ptr = retval;
         dd_uhook_call_hook(execute_data, def->end, dyn->hook_data);
+        dyn->hook_data->retval_ptr = NULL;
         def->running = false;
     }
 
@@ -700,6 +703,27 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
         }
         zval_ptr_dtor(++arg);
     }
+
+    RETURN_TRUE;
+}
+
+ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
+    (void)return_value;
+
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+
+    zval *retval;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(retval)
+    ZEND_PARSE_PARAMETERS_END();
+
+    // post-hook check
+    if (!hookData->retval_ptr) {
+        RETURN_FALSE;
+    }
+
+    zval_ptr_dtor(hookData->retval_ptr);
+    ZVAL_COPY(hookData->retval_ptr, retval);
 
     RETURN_TRUE;
 }
