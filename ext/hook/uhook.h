@@ -9,7 +9,7 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
 
 void zai_uhook_rinit();
 void zai_uhook_rshutdown();
-void zai_uhook_minit();
+void zai_uhook_minit(int module_number);
 void zai_uhook_mshutdown();
 
 PHP_FUNCTION(DDTrace_trace_function);
