@@ -12,13 +12,17 @@ DDTrace\install_hook(DDTrace\HOOK_ALL_FILES, function($hook) {
 });
 
 echo include "testinclude.inc", "\n";
+echo include "testinclude.inc", "\n";
 
 dd_dump_spans();
 
 ?>
 --EXPECTF--
 test
-spans(\DDTrace\SpanData) (1) {
+test
+spans(\DDTrace\SpanData) (2) {
+  %s/testinclude.inc (trace_file.php, %s/install_hook/testinclude.inc, cli)
+    _dd.p.dm => -1
   %s/testinclude.inc (trace_file.php, %s/install_hook/testinclude.inc, cli)
     _dd.p.dm => -1
 }

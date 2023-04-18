@@ -1,10 +1,11 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a41178ef641dee18fe54b13fe1505884a691826b */
+ * Stub hash: a0aadd4ea121ed2731f3f530753c4e458c97fad2 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
-	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING, NULL)
+	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING|MAY_BE_CALLABLE, NULL)
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, begin, Closure, 1, "null")
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, end, Closure, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_remove_hook, 0, 1, IS_VOID, 0)
@@ -46,6 +47,7 @@ static const zend_function_entry class_DDTrace_HookData_methods[] = {
 static void register_uhook_symbols(int module_number)
 {
 	REGISTER_STRING_CONSTANT("DDTrace\\HOOK_ALL_FILES", "", CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\HOOK_INSTANCE", HOOK_INSTANCE, CONST_PERSISTENT);
 }
 
 static zend_class_entry *register_class_DDTrace_HookData(void)

@@ -7,6 +7,8 @@
 #include "../configuration.h"
 #include "../logging.h"
 
+#define HOOK_INSTANCE 0x1
+
 #include "uhook_arginfo.h"
 
 #include <hook/hook.h>
@@ -35,7 +37,7 @@ typedef struct {
     bool running;
     zend_long id;
 
-    zend_function *resolved;
+    zend_ulong install_address;
     zend_string *scope;
     zend_string *function;
     zend_string *file;
@@ -339,17 +341,20 @@ PHP_FUNCTION(DDTrace_install_hook) {
     zval *begin = NULL;
     zval *end = NULL;
     zend_object *closure = NULL;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
+    zend_long flags = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 3)
+    ZEND_PARSE_PARAMETERS_START(1, 4)
         DD_PARAM_PROLOGUE(0, 0);
         if (Z_TYPE_P(_arg) == IS_STRING) {
             name = Z_STR_P(_arg);
         } else if (Z_TYPE_P(_arg) == IS_OBJECT && (Z_OBJCE_P(_arg) == zend_ce_closure || Z_OBJCE_P(_arg) == zend_ce_generator)) {
             if (Z_OBJCE_P(_arg) == zend_ce_closure) {
                 closure = Z_OBJ_P(_arg);
-                resolved = (zend_function *)zend_get_closure_method_def(Z_OBJ_P(_arg));
+                resolved = (zend_function *) zend_get_closure_method_def(Z_OBJ_P(_arg));
             } else {
-                zend_generator *generator = (zend_generator *)Z_OBJ_P(_arg);
+                zend_generator *generator = (zend_generator *) Z_OBJ_P(_arg);
                 if (generator->execute_data) {
                     resolved = generator->execute_data->func;
                     if (ZEND_CALL_INFO(generator->execute_data) & ZEND_CALL_CLOSURE) {
@@ -361,14 +366,35 @@ PHP_FUNCTION(DDTrace_install_hook) {
                     break;
                 }
             }
+        } else if (Z_TYPE_P(_arg) == IS_ARRAY || Z_TYPE_P(_arg) == IS_OBJECT) {
+#define INSTALL_HOOK_TYPES "string|callable|Generator|Closure"
+            char *func_error = NULL;
+            if (zend_parse_arg_func(_arg, &fci, &fcc, false, &func_error)) {
+                if (!fcc.function_handler) {
+                    // This is a trampoline function, we cannot hook this, not without hooking other things too
+                    // Technically for e.g. __call one *could* hook the __call handler, then distinguish on the passed method name.
+                    // Currently we do not have support for this, but we probably eventually want to.
+                    RETURN_LONG(0);
+                }
+                resolved = fcc.function_handler;
+            } else if (func_error) {
+                zend_argument_type_error(1, "must be of type " INSTALL_HOOK_TYPES ", got %s, but %s", zend_zval_value_name(_arg), func_error);
+                efree(func_error);
+                _error_code = ZPP_ERROR_FAILURE;
+                break;
+            } else {
+                goto type_error;
+            }
         } else {
-            zend_argument_type_error(1, "must be of type string|Generator|Closure, %s given", zend_zval_value_name(_arg));
+type_error:
+            zend_argument_type_error(1, "must be of type " INSTALL_HOOK_TYPES ", %s given", zend_zval_value_name(_arg));
             _error_code = ZPP_ERROR_FAILURE;
             break;
         }
         Z_PARAM_OPTIONAL
         Z_PARAM_OBJECT_OF_CLASS_EX(begin, zend_ce_closure, 1, 0)
         Z_PARAM_OBJECT_OF_CLASS_EX(end, zend_ce_closure, 1, 0)
+        Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END();
 
     if (!begin && !end) {
@@ -380,6 +406,7 @@ PHP_FUNCTION(DDTrace_install_hook) {
     }
 
     dd_uhook_def *def = emalloc(sizeof(*def));
+    def->closure = NULL;
     def->running = false;
     def->begin = begin ? Z_OBJ_P(begin) : NULL;
     if (def->begin) {
@@ -396,24 +423,41 @@ PHP_FUNCTION(DDTrace_install_hook) {
     zend_long id;
     def->file = NULL;
     if (resolved) {
-        def->resolved = resolved;
         def->function = NULL;
-        def->closure = closure;
+
+        // Fetch the base function for fake closures: we need to do fake closure operations on the proper original function:
+        // - inheritance handling requires having an op_array which stays alive for the whole remainder of the rquest
+        // - internal functions are referenced by their zend_internal_function, not the closure copy
+        if ((resolved->common.fn_flags & ZEND_ACC_FAKE_CLOSURE) && !(flags & HOOK_INSTANCE)) {
+            HashTable *baseTable = resolved->common.scope ? &resolved->common.scope->function_table : EG(function_table);
+            zend_function *original = zend_hash_find_ptr(baseTable, resolved->common.function_name);
+            if (!original) {
+                ddtrace_log_onceerrf(
+                        "Could not find original function for fake closure ",
+                        resolved->common.scope ? ZSTR_VAL(resolved->common.scope->name) : "",
+                        resolved->common.scope ? "::" : "",
+                        ZSTR_VAL(resolved->common.function_name));
+                goto error;
+            }
+            resolved = original;
+        }
+        def->install_address = zai_hook_install_address(resolved);
 
         if (hook_limit > 0 && zai_hook_count_resolved(resolved) >= hook_limit) {
             ddtrace_log_onceerrf(
-                    "Could not add hook to Closure with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
+                    "Could not add hook to callable with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
                     hook_limit,
                     zend_get_executed_filename(),
                     zend_get_executed_lineno());
             goto error;
         }
-
         id = zai_hook_install_resolved(resolved,
             dd_uhook_begin, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
 
-        if (id >= 0 && closure) {
+        if (id >= 0 && closure && (flags & HOOK_INSTANCE)) {
+            def->closure = closure;
+
             zval *hooks_zv;
             dd_closure_list *hooks;
             if ((hooks_zv = zend_hash_index_find(&dd_closure_hooks, (zend_ulong)(uintptr_t)closure))) {
@@ -429,7 +473,6 @@ PHP_FUNCTION(DDTrace_install_hook) {
     } else {
         const char *colon = strchr(ZSTR_VAL(name), ':');
         zai_string_view scope = ZAI_STRING_EMPTY, function = {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
-        def->closure = NULL;
         if (colon) {
             def->scope = zend_string_init(function.ptr, colon - ZSTR_VAL(name), 0);
             do ++colon; while (*colon == ':');
@@ -509,7 +552,7 @@ PHP_FUNCTION(DDTrace_remove_hook) {
             }
             zai_hook_remove(scope, function, id);
         } else {
-            zai_hook_remove_resolved(zai_hook_install_address(def->resolved), id);
+            zai_hook_remove_resolved(def->install_address, id);
         }
     }
 }

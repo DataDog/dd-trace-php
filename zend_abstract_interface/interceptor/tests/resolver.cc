@@ -61,7 +61,7 @@ extern "C" {
         tea_extension_op_array_ctor(zai_interceptor_op_array_ctor);
         tea_extension_op_array_handler(zai_interceptor_op_array_pass_two);
 #endif
-        tea_extension_op_array_dtor(zai_hook_unresolve_file);
+        tea_extension_op_array_dtor(zai_hook_unresolve_op_array);
         tea_extension_startup(ddtrace_testing_startup);
         tea_extension_minit(PHP_MINIT(ddtrace_testing_hook));
         tea_extension_rinit(PHP_RINIT(ddtrace_testing_hook));
