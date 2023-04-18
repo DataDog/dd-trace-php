@@ -37,6 +37,7 @@ mod platform {
             signal_pointers: SignalPointers,
             cpu_time_period_nanoseconds: Option<u64>,
             wall_time_period_nanoseconds: u64,
+            should_wall_time_trigger_cpu: bool,
         ) -> Self {
             let mut signal_pointers = Box::new(signal_pointers);
             let sival_ptr = signal_pointers.as_mut() as *mut SignalPointers as *mut libc::c_void;
@@ -53,13 +54,10 @@ mod platform {
             let wall_timer = Timer::new(
                 libc::CLOCK_MONOTONIC,
                 wall_sigval,
-                if cpu_timer.is_some() {
-                    // If the CPU timer is enabled, then only trigger wall.
-                    Self::notify_wall
-                } else {
-                    // If CPU is disabled, then gather lower-quality but cheap
-                    // CPU info at the same time we get wall info.
+                if should_wall_time_trigger_cpu {
                     Self::notify_cpu_and_wall
+                } else {
+                    Self::notify_wall
                 },
             );
             Self {
@@ -270,6 +268,7 @@ mod platform {
             signal_pointers: SignalPointers,
             cpu_time_period_nanoseconds: Option<u64>,
             wall_time_period_nanoseconds: u64,
+            _should_wall_time_trigger_cpu: bool,
         ) -> Self {
             // > A special case is zero-capacity channel, which cannot hold
             // > any messages. Instead, send and receive operations must

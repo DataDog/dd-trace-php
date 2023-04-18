@@ -710,11 +710,11 @@ impl Profiler {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::AtomicU32;
     use super::*;
     use crate::static_tags;
     use log::LevelFilter;
     use once_cell::sync::OnceCell;
+    use std::sync::atomic::AtomicU32;
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
