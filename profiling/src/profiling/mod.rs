@@ -710,9 +710,11 @@ impl Profiler {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::AtomicU32;
     use super::*;
     use crate::static_tags;
     use log::LevelFilter;
+    use once_cell::sync::OnceCell;
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
@@ -737,7 +739,7 @@ mod tests {
             tags: Arc::new(static_tags()),
             uri: Box::new(AgentEndpoint::default()),
             version: None,
-            vm_interrupt: std::ptr::null_mut(),
+            vm_interrupt: OnceCell::new(),
             cpu_samples: Default::default(),
             time_interrupter: Default::default(),
         }
