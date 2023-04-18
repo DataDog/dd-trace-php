@@ -7,9 +7,9 @@ pub use platform::Interrupter;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct SignalPointers {
-    pub vm_interrupt: NonNull<AtomicBool>,
     pub cpu_samples: NonNull<AtomicU32>,
     pub wall_samples: NonNull<AtomicU32>,
+    pub vm_interrupt: NonNull<AtomicBool>,
 }
 
 #[cfg(target_os = "linux")]
@@ -50,30 +50,56 @@ mod platform {
                 )),
                 None => None,
             };
+            let wall_timer = Timer::new(
+                libc::CLOCK_MONOTONIC,
+                wall_sigval,
+                if cpu_timer.is_some() {
+                    // If the CPU timer is enabled, then only trigger wall.
+                    Self::notify_wall
+                } else {
+                    // If CPU is disabled, then gather lower-quality but cheap
+                    // CPU info at the same time we get wall info.
+                    Self::notify_cpu_and_wall
+                },
+            );
             Self {
                 signal_pointers,
                 cpu_time_period_nanoseconds,
                 wall_time_period_nanoseconds,
                 cpu_timer,
-                wall_timer: Timer::new(libc::CLOCK_MONOTONIC, wall_sigval, Self::notify_wall),
+                wall_timer,
             }
         }
 
         extern "C" fn notify_cpu(sigval: libc::sigval) {
             let signal_pointers = unsafe { &*(sigval.sival_ptr as *const SignalPointers) };
-            let cpu_samples: &AtomicU32 = unsafe { signal_pointers.cpu_samples.as_ref() };
-            cpu_samples.fetch_add(1, Ordering::SeqCst);
 
+            let cpu_samples: &AtomicU32 = unsafe { signal_pointers.cpu_samples.as_ref() };
             let vm_interrupt: &AtomicBool = unsafe { signal_pointers.vm_interrupt.as_ref() };
+
+            cpu_samples.fetch_add(1, Ordering::SeqCst);
             vm_interrupt.store(true, Ordering::SeqCst);
         }
 
         extern "C" fn notify_wall(sigval: libc::sigval) {
             let signal_pointers = unsafe { &*(sigval.sival_ptr as *const SignalPointers) };
-            let wall_samples: &AtomicU32 = unsafe { signal_pointers.wall_samples.as_ref() };
-            wall_samples.fetch_add(1, Ordering::SeqCst);
 
+            let wall_samples: &AtomicU32 = unsafe { signal_pointers.wall_samples.as_ref() };
             let vm_interrupt: &AtomicBool = unsafe { signal_pointers.vm_interrupt.as_ref() };
+
+            wall_samples.fetch_add(1, Ordering::SeqCst);
+            vm_interrupt.store(true, Ordering::SeqCst);
+        }
+
+        extern "C" fn notify_cpu_and_wall(sigval: libc::sigval) {
+            let signal_pointers = unsafe { &*(sigval.sival_ptr as *const SignalPointers) };
+
+            let cpu_samples: &AtomicU32 = unsafe { signal_pointers.cpu_samples.as_ref() };
+            let wall_samples: &AtomicU32 = unsafe { signal_pointers.wall_samples.as_ref() };
+            let vm_interrupt: &AtomicBool = unsafe { signal_pointers.vm_interrupt.as_ref() };
+
+            cpu_samples.fetch_add(1, Ordering::SeqCst);
+            wall_samples.fetch_add(1, Ordering::SeqCst);
             vm_interrupt.store(true, Ordering::SeqCst);
         }
 
