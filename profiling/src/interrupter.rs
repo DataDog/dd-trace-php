@@ -200,7 +200,7 @@ mod platform {
     use super::*;
     use crate::thread_utils::{join_timeout, spawn};
     use crossbeam_channel::{bounded, tick, Select, Sender};
-    use log::warn;
+    use log::{trace, warn};
     use std::thread::JoinHandle;
     use std::time::Duration;
 
@@ -295,12 +295,20 @@ mod platform {
                                 if active {
                                     warn!("thread {thread_name} received start message but the timer was already started");
                                 } else {
+                                    trace!("thread {thread_name} received start message, starting");
                                     active = true;
+                                    // TODO: DO NOT MERGE, I've panic'd here (on mac)
                                     assert_eq!(1, selector.recv(&ticker));
                                 }
                             }
                             Ok(Message::Stop) => {
                                 if active {
+                                    trace!("thread {thread_name} received stop message, stopping");
+                                    // > If new operations are added after
+                                    // > removing some, the indices of removed
+                                    // > operations will not be reused.
+                                    // 🤦
+                                    // todo: fix indices
                                     selector.remove(1);
                                     active = false;
                                 } else {
@@ -313,10 +321,12 @@ mod platform {
                         },
 
                         op if op.index() == 1 => match op.recv(&ticker) {
-                            Ok(_instant) => {
+                            Ok(instant) => {
                                 // should always be true, just being careful.
                                 if active {
                                     signal_pointers.notify(cpu_time_period_nanoseconds.is_some())
+                                } else {
+                                    warn!("thread {thread_name} timer expired at instant {instant:?} but timer shouldn't have been active");
                                 }
                             }
 
@@ -328,7 +338,7 @@ mod platform {
                         },
 
                         _ => {
-                            unreachable!("thread {} encountered unexpected operation", thread_name)
+                            unreachable!("thread {thread_name} encountered unexpected operation")
                         }
                     }
                 }
