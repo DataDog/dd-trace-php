@@ -109,6 +109,13 @@ class IniRecord
     public $defaultValue;
     /** @var string */
     public $iniFile;
+    /** @var string */
+    public $binary;
+
+    public function println() {
+        // phpcs:disable Generic.Files.LineLength.TooLong
+        echo "$this->setting = $this->currentValue; default: $this->defaultValue, binary: $this->binary, INI file: $this->iniFile\n";
+    }
 }
 
 /**
@@ -127,8 +134,6 @@ function config_list(array $options)
 
     foreach (require_binaries_or_exit($options) as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
-        echo "Datadog configuration for binary: $binaryForLog", PHP_EOL;
-
         $iniFilePaths = find_all_ini_files(ini_values($fullPath));
 
         foreach ($iniFilePaths as $iniFilePath) {
@@ -142,6 +147,7 @@ function config_list(array $options)
                 $record->currentValue = $currentValue;
                 $record->defaultValue = $iniSetting['default'];
                 $record->iniFile = $iniFilePath;
+                $record->binary = $binaryForLog;
                 yield $record->setting => $record;
             }
         }
@@ -156,9 +162,8 @@ function config_list(array $options)
  *
  * $ php datadog-setup.php config list --php-bin all
  * Searching for available php binaries, this operation might take a while.
- * Datadog configuration for binary: php (/opt/php/8.2/bin/php)
- * datadog.profiling.enabled = On ; default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
- * datadog.profiling.experimental_allocation_enabled = On ; default: 1, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.enabled = On; default: 1, binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_allocation_enabled = On; default: 1, binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  *
  * @see get_ini_settings
  * @return void
@@ -166,7 +171,7 @@ function config_list(array $options)
 function cmd_config_list(array $options)
 {
     foreach (config_list($options) as $record) {
-        echo "$record->setting = $record->currentValue ; default: $record->defaultValue, INI file: $record->iniFile\n";
+        $record->println();
     }
 }
 
@@ -181,11 +186,10 @@ function cmd_config_list(array $options)
  *   -ddatadog.profiling.experimental_cpu_time_enabled \
  *   -dnonexisting \
  *   -dopcache.preload
- * Datadog configuration for binary: php (/opt/php/8.2/bin/php)
- * datadog.profiling.experimental_allocation_enabled = On ; INI file: /opt/php/etc/conf.d/98-ddtrace.ini
- * datadog.profiling.experimental_cpu_time_enabled = On ; INI file: /opt/php/etc/conf.d/98-ddtrace.ini
- * nonexisting => undefined // is missing in INI files
- * opcache.preload => undefined // is missing in INI files
+ * datadog.profiling.experimental_allocation_enabled = On; binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_cpu_time_enabled = On; binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * nonexisting = undefined; is missing in INI files
+ * opcache.preload = undefined; is missing in INI files
  * @return void
  */
 function cmd_config_get(array $options)
@@ -207,11 +211,10 @@ function cmd_config_get(array $options)
 
     foreach ($options['d'] as $iniSetting) {
         if (!isset($records[$iniSetting])) {
-            echo '; ', $iniSetting, ' = undefined ; is missing in INI files', PHP_EOL;
+            echo '; ', $iniSetting, ' = undefined; is missing in INI files', PHP_EOL;
         } else {
             foreach ($records[$iniSetting] as $record) {
-                // phpcs:disable Generic.Files.LineLength.TooLong
-                echo "$record->setting = $record->currentValue ; default: $record->defaultValue, INI file: $record->iniFile\n";
+                $record->println();
             }
         }
     }
