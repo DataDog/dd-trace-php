@@ -172,7 +172,7 @@ function cmd_config_list(array $options)
 
 /**
  * This function will print the specified PHP INI settings. It only prints
- * information for Datadog's own settings; it can't be used to parse opache,
+ * information for Datadog's own settings; it can't be used to parse opcache,
  * xdebug, etc.
  * The output will be grouped by PHP binary, example:
  *
