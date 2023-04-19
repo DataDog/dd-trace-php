@@ -17,6 +17,7 @@ class HookData {
 
     /**
      * A zero-indexed array of all arguments.
+     * On file inclusions, this will be an array with a single element containing the filename.
      */
     public array $args;
 
@@ -66,18 +67,39 @@ class HookData {
 }
 
 /**
+ * @var string
+ */
+const HOOK_ALL_FILES = "";
+
+/**
+ * Only hooks the specific instance of the Closure, i.e. independent instantiations of the same Closure are not hooked.
+ *
+ * @var int
+ * @cvalue HOOK_INSTANCE
+ */
+const HOOK_INSTANCE = UNKNOWN;
+
+/**
  * @param string|\Closure|\Generator $target The function to hook.
  *                                           If a string is passed, it must be either a function name or referencing
- *                                           a method in "Classname::methodname" format.
+ *                                           a method in "Classname::methodname" format. Alternatively it may be a file
+ *                                           name or the DDTrace\HOOK_ALL_FILES constant. Can be a relative path
+ *                                           starting with ./ or ../ too.
  *                                           If a Closure is passed, the hook only applies to the current instance
  *                                           of that Closure.
  *                                           If a Generator is passed, the active function name or Closure is extracted
  *                                           and the hook applied to that.
  * @param null|\Closure(\DDTrace\HookData) $begin Called before the hooked function is invoked.
  * @param null|\Closure(\DDTrace\HookData) $end Called after the hooked function is invoked.
+ * @param int $flags The only accepted flag currently is DDTrace\HOOK_INSTANCE.
  * @return int An integer which can be used to remove a hook via DDTrace\remove_hook.
  */
-function install_hook(string|\Closure|\Generator $target, ?\Closure $begin = null, ?\Closure $end = null): int {}
+function install_hook(
+    string|callable|\Closure|\Generator $target,
+    ?\Closure $begin = null,
+    ?\Closure $end = null,
+    int $flags = 0
+): int {}
 
 /**
  * Removes an installed hook by its id, as returned by install_hook or HookData->id.

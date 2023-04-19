@@ -81,6 +81,11 @@
 #define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
 #endif
 
+// For manual ZPP
+#if PHP_VERSION_ID < 70400
+#define _error_code error_code
+#endif
+
 bool ddtrace_has_excluded_module;
 static zend_module_entry *ddtrace_module;
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
@@ -272,7 +277,7 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
 #else
                                                   NULL,
 #endif
-                                                  NULL,
+                                                  zai_hook_unresolve_op_array,
 
                                                   STANDARD_ZEND_EXTENSION_PROPERTIES};
 
@@ -525,7 +530,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
     zai_hook_minit();
-    zai_uhook_minit();
+    zai_uhook_minit(module_number);
 #if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
 #endif
@@ -1661,10 +1666,6 @@ PHP_FUNCTION(DDTrace_create_stack) {
     RETURN_OBJ(&stack->std);
 }
 
-#if PHP_VERSION_ID < 70400
-#define _error_code error_code
-#endif
-
 /* {{{ proto string DDTrace\switch_stack(DDTrace\SpanData|DDTrace\SpanStack) */
 PHP_FUNCTION(DDTrace_switch_stack) {
     ddtrace_span_stack *stack = NULL;
@@ -1696,8 +1697,6 @@ PHP_FUNCTION(DDTrace_switch_stack) {
 
     RETURN_OBJ_COPY(&DDTRACE_G(active_stack)->std);
 }
-
-#undef _error_code
 
 PHP_FUNCTION(DDTrace_flush) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
@@ -1896,11 +1895,45 @@ static bool dd_read_userspace_header(zai_string_view zai_header, const char *low
     return true;
 }
 
+static bool dd_read_array_header(zai_string_view zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+    UNUSED(zai_header);
+    zend_array *array = (zend_array *) data;
+    zval *value = zend_hash_str_find(array, lowercase_header, strlen(lowercase_header));
+    if (!value) {
+        return false;
+    }
+
+    *header_value = zval_get_string(value);
+    return true;
+}
+
 PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     dd_fci_fcc_pair func;
+    zend_array *array = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_FUNC(func.fci, func.fcc)
+        DD_PARAM_PROLOGUE(0, 0);
+        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error))) {
+            if (!_error) {
+                zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
+                _error_code = ZPP_ERROR_FAILURE;
+                break;
+            } else if (Z_TYPE_P(_arg) == IS_ARRAY) {
+                array = Z_ARR_P(_arg);
+                efree(_error);
+            } else {
+                _error_code = ZPP_ERROR_WRONG_CALLBACK;
+                break;
+            }
+#if PHP_VERSION_ID < 70300
+        } else if (UNEXPECTED(_error != NULL)) {
+#if PHP_VERSION_ID < 70200
+            zend_wrong_callback_error(E_DEPRECATED, 1, _error);
+#else
+            zend_wrong_callback_error(_flags & ZEND_PARSE_PARAMS_THROW, E_DEPRECATED, 1, _error);
+#endif
+#endif
+        }
     ZEND_PARSE_PARAMETERS_END();
 
     if (!get_DD_TRACE_ENABLED()) {
@@ -1917,7 +1950,11 @@ PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     }
     dd_clear_propagated_tags_from_root_span();
 
-    ddtrace_read_distributed_tracing_ids(dd_read_userspace_header, &func);
+    if (array) {
+        ddtrace_read_distributed_tracing_ids(dd_read_array_header, array);
+    } else {
+        ddtrace_read_distributed_tracing_ids(dd_read_userspace_header, &func);
+    }
 
     if (DDTRACE_G(active_stack)->root_span) {
         ddtrace_get_propagated_tags(ddtrace_spandata_property_meta(DDTRACE_G(active_stack)->root_span));
@@ -1933,7 +1970,7 @@ PHP_FUNCTION(DDTrace_generate_distributed_tracing_headers) {
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
-        Z_PARAM_ARRAY_HT(inject)
+        Z_PARAM_ARRAY_HT_EX(inject, true, false)
     ZEND_PARSE_PARAMETERS_END();
 
     array_init(return_value);

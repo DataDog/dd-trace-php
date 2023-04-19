@@ -50,6 +50,7 @@ void tea_extension_mshutdown(tea_extension_shutdown_function handler);
  */
 void tea_extension_op_array_handler(tea_extension_op_array_function handler);
 void tea_extension_op_array_ctor(tea_extension_op_array_function handler);
+void tea_extension_op_array_dtor(tea_extension_op_array_function handler);
 
 /*
  * Shall install functions

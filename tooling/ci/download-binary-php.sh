@@ -9,7 +9,7 @@ cd tooling/ci/binaries
 source /download-binary-tracer.sh
 
 if [ $VERSION = 'dev' ]; then
-    get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "datadog-php-tracer-.*-nightly.x86_64.tar.gz" "datadog-php-tracer.x86_64.tar.gz"
+    get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "datadog-php-tracer-.*.x86_64.tar.gz" "datadog-php-tracer.x86_64.tar.gz"
     get_github_action_artifact "DataDog/dd-appsec-php" "package.yml" "master" "dd-appsec-php-*-amd64.tar.gz" "dd-appsec-php-amd64.tar.gz"
 elif [ $VERSION = 'prod' ]; then
     get_github_release_asset "DataDog/dd-trace-php" "datadog-php-tracer-.*.x86_64.tar.gz" "datadog-php-tracer.x86_64.tar.gz"

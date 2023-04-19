@@ -333,6 +333,10 @@ static void dd_uhook_dtor(void *data) {
 
 
 void dd_uhook_on_function_resolve(zend_function *func) {
+    if (!get_DD_TRACE_ENABLED()) {
+        return;
+    }
+
     zend_attribute *attr = zend_get_attribute(func->common.attributes, dd_hook_attribute_lcname);
     if (attr) {
         dd_uhook_def *def = ecalloc(1, sizeof(*def));
