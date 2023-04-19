@@ -112,7 +112,8 @@ class IniRecord
     /** @var string */
     public $binary;
 
-    public function println() {
+    public function println()
+    {
         // phpcs:disable Generic.Files.LineLength.TooLong
         echo "$this->setting = $this->currentValue; default: $this->defaultValue, binary: $this->binary, INI file: $this->iniFile\n";
     }
