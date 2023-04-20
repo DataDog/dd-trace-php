@@ -25,9 +25,10 @@ fn main() {
 
     let vernum = php_config_vernum();
     let preload = cfg_preload(vernum);
+    let run_time_cache = cfg_run_time_cache(vernum);
 
     generate_bindings(php_config_includes);
-    build_zend_php_ffis(php_config_includes, preload);
+    build_zend_php_ffis(php_config_includes, preload, run_time_cache);
 
     cfg_php_major_version(vernum);
     cfg_zts();
@@ -67,7 +68,7 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/json/json.h",
 ];
 
-fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
+fn build_zend_php_ffis(php_config_includes: &str, preload: bool, run_time_cache: bool) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.c");
@@ -97,10 +98,12 @@ fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
 
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
     let preload = if preload { "1" } else { "0" };
+    let run_time_cache = if run_time_cache { "1" } else { "0" };
 
     cc::Build::new()
         .files(files.into_iter().chain(zai_c_files.into_iter()))
         .define("CFG_PRELOAD", preload)
+        .define("CFG_RUN_TIME_CACHE", run_time_cache)
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
@@ -195,6 +198,15 @@ fn generate_bindings(php_config_includes: &str) {
 fn cfg_preload(vernum: u64) -> bool {
     if vernum >= 70400 {
         println!("cargo:rustc-cfg=php_preload");
+        true
+    } else {
+        false
+    }
+}
+
+fn cfg_run_time_cache(vernum: u64) -> bool {
+    if vernum >= 80000 {
+        println!("cargo:rustc-cfg=php_run_time_cache");
         true
     } else {
         false

@@ -11,7 +11,7 @@ use std::str::Utf8Error;
 /// Used to help track the function run_time_cache hit rate. It glosses over
 /// the fact that there are two cache slots used, and they don't have to be in
 /// sync. However, they usually are, so we simplify.
-#[cfg(php8)]
+#[cfg(php_run_time_cache)]
 #[derive(Debug, Default)]
 pub struct FunctionRunTimeCacheStats {
     hit: usize,
@@ -19,7 +19,7 @@ pub struct FunctionRunTimeCacheStats {
     not_applicable: usize,
 }
 
-#[cfg(php8)]
+#[cfg(php_run_time_cache)]
 impl FunctionRunTimeCacheStats {
     pub fn hit_rate(&self) -> f64 {
         let denominator = (self.hit + self.missed + self.not_applicable) as f64;
@@ -27,7 +27,7 @@ impl FunctionRunTimeCacheStats {
     }
 }
 
-#[cfg(php8)]
+#[cfg(php_run_time_cache)]
 thread_local! {
     static CACHED_STRINGS: RefCell<OwnedStringTable> = RefCell::new(OwnedStringTable::new());
     pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = RefCell::new(Default::default())
@@ -37,7 +37,7 @@ thread_local! {
 /// Must be called in Zend Extension activate.
 #[inline]
 pub unsafe fn activate_run_time_cache() {
-    #[cfg(php8)]
+    #[cfg(php_run_time_cache)]
     CACHED_STRINGS.with(|cell| cell.replace(OwnedStringTable::new()));
 }
 
@@ -180,7 +180,7 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     }
 }
 
-#[cfg(php8)]
+#[cfg(php_run_time_cache)]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
     use crate::bindings::ddog_php_prof_function_run_time_cache;
     let func = execute_data.func.as_ref()?;
@@ -227,7 +227,7 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
     })
 }
 
-#[cfg(php7)]
+#[cfg(not(php_run_time_cache))]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
     if let Some(func) = execute_data.func.as_ref() {
         let function = extract_function_name(func);

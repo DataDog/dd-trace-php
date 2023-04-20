@@ -55,7 +55,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 #endif
 
 
-#if PHP_VERSION_ID >= 80000
+#if CFG_RUN_TIME_CACHE // defined by build.rs
 /**
  * Currently used to ignore run_time_cache on CLI SAPI as a precaution against
  * unbounded memory growth. Unbounded growth is more likely there since it's
@@ -66,7 +66,7 @@ static bool _ignore_run_time_cache = false;
 
 void datadog_php_profiling_startup(zend_extension *extension) {
 
-#if PHP_VERSION_ID >= 80000
+#if CFG_RUN_TIME_CACHE // defined by build.rs
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
 #endif
 
@@ -160,12 +160,12 @@ zend_execute_data* ddog_php_prof_get_current_execute_data() {
     return EG(current_execute_data);
 }
 
-#if PHP_VERSION_ID >= 80000
+#if CFG_RUN_TIME_CACHE // defined by build.rs
 static int ddog_php_prof_run_time_cache_handle = -1;
 #endif
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
-#if PHP_VERSION_ID >= 80000
+#if CFG_RUN_TIME_CACHE // defined by build.rs
     // Grab 2, one for function name and one for filename.
 #if PHP_VERSION_ID < 80200
     ddog_php_prof_run_time_cache_handle =
@@ -187,7 +187,7 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
      */
 }
 
-#if PHP_VERSION_ID >= 80000
+#if CFG_RUN_TIME_CACHE // defined by build.rs
 static bool has_invalid_run_time_cache(zend_function const *func) {
     if (_ignore_run_time_cache) return true;
 
@@ -212,15 +212,7 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
 #endif
 
 uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
-#if PHP_VERSION_ID < 80000
-    /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
-     * that weren't truly fixed until PHP 8:
-     * https://github.com/php/php-src/pull/5871
-     * I would rather avoid these bugs for now.
-     */
-    return NULL;
-#else
-
+#if CFG_RUN_TIME_CACHE
     if (UNEXPECTED(has_invalid_run_time_cache(func))) return NULL;
 
 #if PHP_VERSION_ID < 80200
@@ -234,5 +226,13 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
     ZEND_ASSERT(cache_addr);
 
     return cache_addr + ddog_php_prof_run_time_cache_handle;
+
+#else
+    /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
+     * that weren't truly fixed until PHP 8:
+     * https://github.com/php/php-src/pull/5871
+     * I would rather avoid these bugs for now.
+     */
+    return NULL;
 #endif
 }
