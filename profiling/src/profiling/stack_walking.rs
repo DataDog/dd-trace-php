@@ -37,6 +37,7 @@ thread_local! {
 /// Must be called in Zend Extension activate.
 #[inline]
 pub unsafe fn activate_run_time_cache() {
+    #[cfg(php8)]
     CACHED_STRINGS.with(|cell| cell.replace(OwnedStringTable::new()));
 }
 

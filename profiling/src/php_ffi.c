@@ -54,15 +54,21 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 }
 #endif
 
+
+#if PHP_VERSION_ID >= 80000
 /**
  * Currently used to ignore run_time_cache on CLI SAPI as a precaution against
  * unbounded memory growth. Unbounded growth is more likely there since it's
  * always one PHP request, and we only reset it on each new request.
  */
 static bool _ignore_run_time_cache = false;
+#endif
 
 void datadog_php_profiling_startup(zend_extension *extension) {
+
+#if PHP_VERSION_ID >= 80000
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
+#endif
 
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
 
@@ -170,6 +176,8 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
     ddog_php_prof_run_time_cache_handle =
         zend_get_op_array_extension_handles(module_name, 2);
 #endif
+#else
+    (void)module_name;
 #endif
 
     /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
