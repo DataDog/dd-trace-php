@@ -33,6 +33,13 @@ thread_local! {
     pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = RefCell::new(Default::default())
 }
 
+/// # Safety
+/// Must be called in Zend Extension activate.
+#[inline]
+pub unsafe fn activate_run_time_cache() {
+    CACHED_STRINGS.with(|cell| cell.replace(OwnedStringTable::new()));
+}
+
 #[derive(Default, Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a

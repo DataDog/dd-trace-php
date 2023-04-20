@@ -171,7 +171,7 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 }
 
 #if PHP_VERSION_ID >= 80000
-static bool has_invalid_run_time_cache(zend_function *func) {
+static bool has_invalid_run_time_cache(zend_function const *func) {
     // It should be initialized by this point, or we failed.
     bool is_not_initialized = ddog_php_prof_run_time_cache_handle < 0;
 
@@ -192,7 +192,7 @@ static bool has_invalid_run_time_cache(zend_function *func) {
 }
 #endif
 
-uintptr_t *ddog_php_prof_function_run_time_cache(zend_function *func) {
+uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 #if PHP_VERSION_ID < 80000
     /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
      * that weren't truly fixed until PHP 8:

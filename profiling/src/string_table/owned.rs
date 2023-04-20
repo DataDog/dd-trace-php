@@ -1,37 +1,19 @@
 use super::bump_owned::BorrowedStringTable;
 use bumpalo::Bump;
-use self_cell::self_cell;
+use ouroboros::self_referencing;
 use std::ops::Range;
 
-// todo: use ouroboros instead?
-self_cell!(
-    struct StringTableCell {
-        owner: Bump,
+#[self_referencing]
+struct StringTableCell {
+    owner: Bump,
 
-        #[covariant]
-        dependent: BorrowedStringTable,
-    }
-);
+    #[borrows(owner)]
+    #[covariant]
+    dependent: BorrowedStringTable<'this>,
+}
 
 pub struct OwnedStringTable {
     inner: StringTableCell,
-}
-
-impl Clone for OwnedStringTable {
-    fn clone(&self) -> Self {
-        let bytes = self
-            .inner
-            .with_dependent(|arena, _table| arena.allocated_bytes());
-
-        use super::StringTable as StringTableTrait;
-        let mut table = OwnedStringTable::with_capacity(bytes);
-        let len = self.len();
-        table.reserve(len);
-        for str in self.get_range(0..len) {
-            table.insert(str);
-        }
-        table
-    }
 }
 
 impl OwnedStringTable {
@@ -42,18 +24,9 @@ impl OwnedStringTable {
 
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
-        let inner = StringTableCell::new(Bump::with_capacity(capacity), |arena| {
-            BorrowedStringTable::new(arena)
-        });
+        let arena = Bump::with_capacity(capacity);
+        let inner = StringTableCell::new(arena, |arena| BorrowedStringTable::new(arena));
         Self { inner }
-    }
-
-    #[inline]
-    fn reserve(&mut self, additional: usize) {
-        self.inner.with_dependent_mut(|_arena, table| {
-            table.set.vec.reserve(additional);
-            table.set.map.reserve(additional);
-        })
     }
 }
 
@@ -66,25 +39,23 @@ impl Default for OwnedStringTable {
 impl super::StringTable for OwnedStringTable {
     #[inline]
     fn len(&self) -> usize {
-        self.inner.with_dependent(|_arena, set| set.len())
+        self.inner.with_dependent(|table| table.len())
     }
 
     #[inline]
     fn insert_full(&mut self, str: &str) -> (usize, bool) {
         self.inner
-            .with_dependent_mut(|_arena, set| set.insert_full(str))
+            .with_dependent_mut(|table| table.insert_full(str))
     }
 
     #[inline]
     fn get_offset(&self, offset: usize) -> &str {
-        self.inner
-            .with_dependent(|_arena, set| set.get_offset(offset))
+        self.inner.with_dependent(|table| table.get_offset(offset))
     }
 
     #[inline]
     fn get_range(&self, range: Range<usize>) -> &[&str] {
-        self.inner
-            .with_dependent(|_arena, set| set.get_range(range))
+        self.inner.with_dependent(|table| table.get_range(range))
     }
 }
 

@@ -264,6 +264,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         copyright: b"Copyright Datadog\0".as_ptr(),
         startup: Some(startup),
         shutdown: Some(shutdown),
+        activate: Some(activate),
         ..Default::default()
     };
 
@@ -411,6 +412,11 @@ thread_local! {
 /// Gets the runtime-id for the process.
 fn runtime_id() -> Uuid {
     *RUNTIME_ID.get_or_init(Uuid::new_v4)
+}
+
+extern "C" fn activate() {
+    // Safety: calling in activate as required.
+    unsafe { profiling::activate_run_time_cache() };
 }
 
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
