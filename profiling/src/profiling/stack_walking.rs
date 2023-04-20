@@ -147,21 +147,16 @@ unsafe fn handle_function_cache_slot(
     string_table: &mut RefMut<OwnedStringTable>,
     cache_slots: &mut [usize; 2],
 ) -> Option<Cow<'static, str>> {
-    let offset = if cache_slots[0] > 0 {
-        cache_slots[0]
+    if cache_slots[0] > 0 {
+        let offset = cache_slots[0];
+        let str = string_table.get_offset(offset);
+        Some(Cow::Owned(str.to_string()))
     } else {
         let name = extract_function_name(func)?;
         let offset = string_table.insert(name.as_ref());
         cache_slots[0] = offset;
-        offset
-    };
-    let str = string_table.get_offset(offset);
-
-    // Safety: changing the lifetime to 'static is safe because
-    // the other threads using it are joined before this thread
-    // ever dies.
-    // todo: this is _not_ ZTS safe.
-    Some(Cow::Borrowed(transmute(str)))
+        Some(Cow::Owned(name))
+    }
 }
 
 unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
