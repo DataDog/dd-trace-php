@@ -54,7 +54,16 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 }
 #endif
 
+/**
+ * Currently used to ignore run_time_cache on CLI SAPI as a precaution against
+ * unbounded memory growth. Unbounded growth is more likely there since it's
+ * always one PHP request, and we only reset it on each new request.
+ */
+static bool _ignore_run_time_cache = false;
+
 void datadog_php_profiling_startup(zend_extension *extension) {
+    _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
+
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
 
     /* Due to the optional dependency on ddtrace, the profiling module will be
@@ -172,6 +181,8 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 
 #if PHP_VERSION_ID >= 80000
 static bool has_invalid_run_time_cache(zend_function const *func) {
+    if (_ignore_run_time_cache) return true;
+
     // It should be initialized by this point, or we failed.
     bool is_not_initialized = ddog_php_prof_run_time_cache_handle < 0;
 
