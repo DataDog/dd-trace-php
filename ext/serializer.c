@@ -14,6 +14,7 @@
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
+#include <json/json.h>
 #include <stdatomic.h>
 #include <zai_string/string.h>
 
@@ -781,6 +782,13 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
+static void _dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
+    zval zv;
+    ZVAL_ARR(&zv, arr);
+    zai_json_encode(buf, &zv, options);
+    smart_str_0(buf);
+}
+
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     bool is_top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     bool is_local_root_span = span->parent_id == 0 || is_top_level_span;
@@ -808,6 +816,18 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
         }
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array, exception_type);
+    }
+
+    zend_array *span_links_zv = ddtrace_spandata_property_links(span);
+    if (zend_hash_num_elements(span_links_zv) > 0) {
+        smart_str buf = {0};
+
+        _dd_serialize_json(span_links_zv, &buf, 0);
+        //zval *links = ddtrace_spandata_property_links_zval(span);
+        //zai_json_encode(&buf, links, (1<<4));
+
+        add_assoc_str(meta, "_dd.span_links", buf.s);
+        //smart_str_0(&buf);
     }
 
     if (is_top_level_span) {

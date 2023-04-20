@@ -23,6 +23,38 @@ namespace DDTrace {
      */
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
+    class SpanLink implements \JsonSerializable {
+        /**
+         * @var string $traceId
+         */
+        public string $traceId;
+
+        /**
+         * @var string $spanId
+         */
+        public string $spanId;
+
+        /**
+         * @var string $traceState
+         */
+        public string $traceState;
+
+        /**
+         * @var string[] $attributes
+         */
+        public array $attributes;
+
+        /**
+         * @var int $droppedAttributesCount
+         */
+        public int $droppedAttributesCount;
+
+        /**
+         * @return mixed
+         */
+        public function jsonSerialize(): mixed {}
+    }
+
     class SpanData {
         /**
          * @var string|null The span name
@@ -67,6 +99,11 @@ namespace DDTrace {
         public readonly string $id = "";
 
         /**
+         * @var SpanLink[] $spanLinks An array of span links
+         */
+        public array $links = [];
+
+        /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
         public readonly SpanData|null $parent = null;
@@ -85,6 +122,11 @@ namespace DDTrace {
          * @return int Get the start time of the span
          */
         public function getStartTime(): int {}
+
+        /**
+         * @return SpanLink Get a pre-populated SpanLink object with the current span's trace and span IDs
+         */
+        public function getLink(): SpanLink {}
     }
 
     /**

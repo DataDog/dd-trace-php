@@ -719,3 +719,15 @@ zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id) {
     }
     return str;
 }
+
+zend_string *ddtrace_span_id_as_hex_string(uint64_t id) {
+    zend_string *str = zend_string_alloc(16, 0);
+    snprintf(ZSTR_VAL(str), 17, "%016" PRIx64, id);
+    return str;
+}
+
+zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id) {
+    zend_string *str = zend_string_alloc(32, 0);
+    snprintf(ZSTR_VAL(str), 33, "%016" PRIx64 "%016" PRIx64, id.high, id.low);
+    return str;
+}

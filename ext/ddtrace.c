@@ -55,6 +55,7 @@
 #include "startup_logging.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "ext/standard/file.h"
+#include <json/json.h>
 
 #include "../hook/uhook.h"
 #include "handlers_fiber.h"
@@ -72,6 +73,8 @@
 #define ZVAL_EMPTY_STRING(z) ZVAL_NEW_STR(z, zend_string_init("", 0, 1))
 #endif
 #include "ddtrace_arginfo.h"
+#include "compat_string.h"
+
 #if PHP_VERSION_ID < 70200
 #undef ZVAL_EMPTY_STRING
 #define ZVAL_EMPTY_STRING(z) ZVAL_INTERNED_STR(z, ZSTR_EMPTY_ALLOC())
@@ -290,6 +293,41 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     php_ddtrace_init_globals(ddtrace_globals);
 }
 
+/* DDTrace\SpanLink */
+zend_class_entry *ddtrace_ce_span_link;
+
+PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
+    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(ZEND_THIS);
+
+    zend_array *array = zend_new_array(5);
+
+    zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
+    zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
+    zend_string *trace_state = zend_string_init("trace_state", sizeof("trace_state") - 1, 0);
+    zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+    zend_string *dropped_attributes_count = zend_string_init("dropped_attributes_count", sizeof("dropped_attributes_count") - 1, 0);
+
+    Z_TRY_ADDREF(link->property_trace_id);
+    zend_hash_add(array, trace_id, &link->property_trace_id);
+    Z_TRY_ADDREF(link->property_span_id);
+    zend_hash_add(array, span_id, &link->property_span_id);
+    Z_TRY_ADDREF(link->property_trace_state);
+    zend_hash_add(array, trace_state, &link->property_trace_state);
+    Z_TRY_ADDREF(link->property_attributes);
+    zend_hash_add(array, attributes, &link->property_attributes);
+    Z_TRY_ADDREF(link->property_dropped_attributes_count);
+    zend_hash_add(array, dropped_attributes_count, &link->property_dropped_attributes_count);
+
+    zend_string_release(trace_id);
+    zend_string_release(span_id);
+    zend_string_release(trace_state);
+    zend_string_release(attributes);
+    zend_string_release(dropped_attributes_count);
+
+    RETURN_ARR(array);
+
+}
+
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
 zend_class_entry *ddtrace_ce_span_stack;
@@ -305,6 +343,7 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     // Not handled in arginfo on these old versions
     array_init(ddtrace_spandata_property_meta_zval(span));
     array_init(ddtrace_spandata_property_metrics_zval(span));
+    array_init(ddtrace_spandata_property_links_zval(span));
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -475,6 +514,19 @@ PHP_METHOD(DDTrace_SpanData, getStartTime) {
     RETURN_LONG(span->start);
 }
 
+PHP_METHOD(DDTrace_SpanData, getLink) {
+    ddtrace_span_data *span = (ddtrace_span_data *)Z_OBJ_P(ZEND_THIS);
+
+    zval fci_zv;
+    object_init_ex(&fci_zv, ddtrace_ce_span_link);
+    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(&fci_zv);
+
+    ZVAL_STR(&link->property_trace_id, ddtrace_trace_id_as_hex_string(span->trace_id));
+    ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(span->span_id));
+
+    RETURN_OBJ(Z_OBJ(fci_zv));
+}
+
 static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_span_data_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
@@ -594,6 +646,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
+    ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
 
     ddtrace_engine_hooks_minit();
 
