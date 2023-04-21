@@ -7,7 +7,7 @@ BENCH_FILES := $(wildcard *-bench.json)
 # Define the corresponding result files
 RESULT_FILES := $(patsubst %-bench.json,%-result.ndjson,$(BENCH_FILES))
 
-all: result.json
+all: result.ndjson
 
 %-result.ndjson:%-bench.json $(EXTENSION)
 	sirun $< 1>$@
