@@ -204,7 +204,19 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static pthread_once_t dd_activate_config_once_control = PTHREAD_ONCE_INIT;
+static void dd_activate_once(void) {
+    ddtrace_config_first_rinit();
+
+    // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
+    if (!DDTRACE_G(disable) && get_global_DD_TRACE_TELEMETRY_ENABLED()) {
+        bool modules_activated = PG(modules_activated);
+        PG(modules_activated) = false;
+        ddtrace_telemetry_setup();
+        PG(modules_activated) = modules_activated;
+    }
+}
+
+static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 
 static void ddtrace_activate(void) {
     zai_hook_rinit();
@@ -218,7 +230,7 @@ static void ddtrace_activate(void) {
     }
 
     // ZAI config is always set up
-    pthread_once(&dd_activate_config_once_control, ddtrace_config_first_rinit);
+    pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
     zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
@@ -600,8 +612,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                        get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                        get_global_DD_TRACE_AGENT_STACK_BACKLOG());
-
-    ddtrace_telemetry_setup();
 
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();

@@ -40,11 +40,17 @@ void ddtrace_telemetry_setup(void) {
 }
 
 void ddtrace_telemetry_shutdown(void) {
-    ddog_sidecar_instanceId_drop(dd_telemetry_instance_id);
-    ddog_sidecar_transport_drop(dd_sidecar);
+    if (dd_telemetry_instance_id) {
+        ddog_sidecar_instanceId_drop(dd_telemetry_instance_id);
+        ddog_sidecar_transport_drop(dd_sidecar);
+    }
 }
 
 void ddtrace_telemetry_finalize(void) {
+    if (!dd_telemetry_instance_id) {
+        return;
+    }
+
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
         zend_ini_entry *ini = cfg->ini_entries[0];
@@ -74,6 +80,9 @@ void ddtrace_telemetry_finalize(void) {
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
-    ddog_CharSlice integration = (ddog_CharSlice){ .len = name_len, .ptr = name };
-    ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration, DDOG_CHARSLICE_C("0"), true);
+    if (dd_telemetry_instance_id) {
+        ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
+        ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration,
+                                              DDOG_CHARSLICE_C("0"), true);
+    }
 }

@@ -85,6 +85,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \
     CONFIG(BOOL, DD_TRACE_DEBUG, "false")                                                                      \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = ddtrace_alter_dd_trace_disabled_config)               \
+    CONFIG(BOOL, DD_TRACE_TELEMETRY_ENABLED, "true", .ini_change = zai_config_system_ini_change)               \
     CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)         \
     CONFIG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001")                                     \
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                                \
@@ -97,7 +98,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                    \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED, "")                                                 \
     CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "*")                                                    \
-    CONFIG(SET, DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED, "")                                                    \
+    CONFIG(SET, DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED, "")                                                     \
     CONFIG(INT, DD_TRACE_RATE_LIMIT, "0", .ini_change = zai_config_system_ini_change)                          \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                    \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
