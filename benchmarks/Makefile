@@ -13,7 +13,7 @@ all: result.ndjson
 	sirun $< 1>$@
 
 result.ndjson: $(RESULT_FILES)
-	cat $(RESULT_FILES) | sirun --summarize > %@
+	cat $^ | sirun --summarize > $@
 
 $(EXTENSION):
 	cd $(PROFILING_DIR) && cargo build --release
