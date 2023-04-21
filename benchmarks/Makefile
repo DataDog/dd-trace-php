@@ -5,15 +5,15 @@ RUST_VERSION := $(shell grep "channel" ${PROFILING_DIR}rust-toolchain.toml | sed
 # Find all benchmarks
 BENCH_FILES := $(wildcard *-bench.json)
 # Define the corresponding result files
-RESULT_FILES := $(patsubst %-bench.json,%-result.json,$(BENCH_FILES))
+RESULT_FILES := $(patsubst %-bench.json,%-result.ndjson,$(BENCH_FILES))
 
 all: result.json
 
-%-result.json:%-bench.json $(EXTENSION)
+%-result.ndjson:%-bench.json $(EXTENSION)
 	sirun $< 1>$@
 
-result.json: $(RESULT_FILES)
-	cat $(RESULT_FILES) | sirun --summarize > result.json
+result.ndjson: $(RESULT_FILES)
+	cat $(RESULT_FILES) | sirun --summarize > %@
 
 $(EXTENSION):
 	cd $(PROFILING_DIR) && cargo build --release
