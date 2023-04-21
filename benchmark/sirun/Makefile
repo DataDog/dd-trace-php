@@ -4,15 +4,15 @@ RUST_VERSION := $(shell grep "channel" ${PROFILING_DIR}rust-toolchain.toml | sed
 
 # Find all benchmarks
 BENCH_FILES := $(wildcard *-bench.json)
-# Define the corresponding result files
-RESULT_FILES := $(patsubst %-bench.json,%-result.ndjson,$(BENCH_FILES))
+# Define the corresponding results files
+RESULT_FILES := $(patsubst %-bench.json,%-results.ndjson,$(BENCH_FILES))
 
-all: result.ndjson
+all: results.ndjson
 
-%-result.ndjson:%-bench.json $(EXTENSION)
+%-results.ndjson:%-bench.json $(EXTENSION)
 	sirun $< 1>$@
 
-result.ndjson: $(RESULT_FILES)
+results.ndjson: $(RESULT_FILES)
 	cat $^ | sirun --summarize > $@
 
 $(EXTENSION):
@@ -22,6 +22,6 @@ docker:
 	docker build --build-arg RUST_VERSION=${RUST_VERSION} -t dd-trace-php-bench .
 
 clean:
-	rm -f $(RESULT_FILES) result.json
+	rm -f $(RESULT_FILES) results.json
 
 .PHONY: docker clean
