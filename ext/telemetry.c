@@ -31,8 +31,7 @@ void ddtrace_telemetry_setup(void) {
     uint8_t formatted_run_time_id[36];
     ddtrace_format_runtime_id(formatted_run_time_id);
     ddog_CharSlice runtime_id = (ddog_CharSlice){ .ptr = (char *)formatted_run_time_id, .len = sizeof(formatted_run_time_id) };
-    // TODO: user proper session_id
-    dd_telemetry_instance_id = ddog_sidecar_instanceId_build(runtime_id, runtime_id);
+    dd_telemetry_instance_id = ddog_sidecar_instanceId_build(runtime_id, DDOG_CHARSLICE_C("00000000-0000-0000-0000-100000000000"));
     char *agent_url = ddtrace_agent_url();
     ddog_sidecar_session_config_setAgentUrl(&dd_sidecar, runtime_id, (ddog_CharSlice){ .ptr = agent_url, .len = strlen(agent_url) });
     free(agent_url);
@@ -54,7 +53,8 @@ void ddtrace_telemetry_finalize(void) {
 #endif
         if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
             ddog_sidecar_telemetry_enqueueConfig(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id),
-                                                 dd_zend_string_to_CharSlice(ini->name), dd_zend_string_to_CharSlice(ini->value));
+                                                 dd_zend_string_to_CharSlice(ini->name), dd_zend_string_to_CharSlice(ini->value),
+                                                 cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE);
         }
     }
 
@@ -75,5 +75,5 @@ void ddtrace_telemetry_finalize(void) {
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
     ddog_CharSlice integration = (ddog_CharSlice){ .len = name_len, .ptr = name };
-    ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration, DDOG_CHARSLICE_C("0"));
+    ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration, DDOG_CHARSLICE_C("0"), true);
 }

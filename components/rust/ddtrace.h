@@ -4,10 +4,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "telemetry.h"
 #include "common.h"
-#include "ddtrace_export.h"
 
+typedef void ddog_TelemetryTransport;
 
 typedef uint64_t ddog_QueueId;
 
@@ -25,5 +24,11 @@ bool ddtrace_detect_composer_installed_json(ddog_TelemetryTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
                                             const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
+
+/**
+ * # Safety
+ * Caller must ensure the process is safe to fork, at the time when this method is called
+ */
+ddog_MaybeError ddog_sidecar_connect_php(ddog_TelemetryTransport **connection);
 
 #endif /* DDTRACE_PHP_H */

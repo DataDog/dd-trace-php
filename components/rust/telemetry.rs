@@ -4,10 +4,10 @@ use std::io::Write;
 use std::path::Path;
 use ddcommon_ffi::CharSlice;
 use ddcommon_ffi::slice::AsBytes;
-use ddtelemetry::data::{Dependency, DependencyType};
+use ddtelemetry::data::Dependency;
 use ddtelemetry::ipc::interface::blocking::TelemetryTransport;
 use ddtelemetry::ipc::interface::{blocking, InstanceId, QueueId};
-use ddtelemetry::ipc::sidecar::{self, config};
+use ddtelemetry::ipc::sidecar::config;
 use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::try_c;
 
@@ -34,14 +34,11 @@ fn parse_composer_installed_json(transport: &mut Box<TelemetryTransport>, instan
             deps.push(TelemetryActions::AddDependecy(Dependency {
                 name: String::from(name),
                 version: dep["version"].as_str().map(String::from),
-                hash: None,
-                type_: DependencyType::PlatformStandard,
             }));
         }
     }
 
     if deps.len() > 0 {
-        deps.push(TelemetryActions::SendDependencies);
         blocking::enqueue_actions(transport, instance_id, queue_id, deps)?;
     }
 

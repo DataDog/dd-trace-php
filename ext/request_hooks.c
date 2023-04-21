@@ -128,7 +128,7 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file) {
     zend_file_handle prepend_file;
     // We could technically do this to synthetically adjust the stack
     // zend_execute_data *ex = EG(current_execute_data);
-    // EG(current_execute_data) = ex->prev_execute_data;
+    // EG(current_execute_data) = ex->prev_execute_data;q
 #if PHP_VERSION_ID < 80100
     memset(&prepend_file, 0, sizeof(zend_file_handle));
     prepend_file.type = ZEND_HANDLE_FILENAME;

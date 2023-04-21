@@ -18,10 +18,9 @@ dd_trace_internal_fn("finalize_telemetry");
 usleep(100000);
 foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
     if ($l) {
-    var_dump($l);
         $json = json_decode($l, true);
-        if ($json["request_type"] == "app-config") {
-            print_r($json["payload"]);
+        if ($json["request_type"] == "app-started") {
+            print_r($json["payload"]["configuration"]);
         }
     }
 }
@@ -31,17 +30,28 @@ foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
 Included
 Array
 (
-    [config] => Array
+    [0] => Array
         (
-            [0] => Array
-                (
-                    // TBD
-                )
-
+            [name] => datadog.trace.agent_url
+            [value] => file:///%s/config-telemetry.out
+            [origin] => EnvVar
         )
 
-)
---CLEAN--
+    [1] => Array
+        (
+            [name] => datadog.trace.cli_enabled
+            [value] => 1
+            [origin] => EnvVar
+        )
+
+    [2] => Array
+        (
+            [name] => datadog.trace.generate_root_span
+            [value] => 0
+            [origin] => EnvVar
+        )
+
+)--CLEAN--
 <?php
 
 @unlink(__DIR__ . '/config-telemetry.out');
