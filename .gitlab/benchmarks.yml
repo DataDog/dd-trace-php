@@ -5,7 +5,9 @@ benchmarks:
   stage: benchmarks
   when: on_success
   tags: ["runner:apm-k8s-tweaked-metal"]
-  image: $BASE_CI_IMAGE
+  image:
+    name: $BASE_CI_IMAGE
+    pull_policy: always
   interruptible: true
   timeout: 1h
   script:
