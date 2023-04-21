@@ -205,7 +205,8 @@ class Normalizer
         return preg_replace('/[^a-zA-Z0-9\-\_)]+/', '_', $str);
     }
 
-    private static function generateFilteredPostFields($postKey, $postVal, array $whitelist, $isPrefixed) {
+    private static function generateFilteredPostFields($postKey, $postVal, array $whitelist, $isPrefixed)
+    {
         if (is_array($postVal)) {
             $filteredPostFields = [];
             foreach ($postVal as $key => $val) {

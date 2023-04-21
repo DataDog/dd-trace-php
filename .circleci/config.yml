@@ -396,6 +396,30 @@ executors:
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
 jobs:
+  "Lint PHP 5":
+    parameters:
+      resource_class:
+        type: string
+        default: small
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          command: |
+            docker run --rm -v "$HOME/datadog:/src" -i php:5.4-cli bash \<<'CMD'
+              set -eu
+              cd /src/bridge
+              for file in *.php; do
+                if [ "$file" != "_generated_integrations.php" ]; then
+                  php -l "$file"
+                fi
+              done
+            CMD
+
   "Lint files":
     working_directory: ~/datadog
     docker:
@@ -3513,6 +3537,8 @@ workflows:
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
       - "Lint files":
+          requires: [ 'Prepare Code' ]
+      - "Lint PHP 5":
           requires: [ 'Prepare Code' ]
       - static_analysis:
           requires: [ 'Prepare Code' ]
