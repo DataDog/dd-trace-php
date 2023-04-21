@@ -7,6 +7,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/DatabaseIntegrationHelper.php',
     __DIR__ . '/../src/Integrations/Integrations/DefaultIntegrationConfiguration.php',
     __DIR__ . '/../src/Integrations/Integrations/Integration.php',
+    __DIR__ . '/../src/Integrations/Integrations/AMQP/AMQPIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/CakePHP/CakePHPIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/CodeIgniter/V2/CodeIgniterIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Web/WebIntegration.php',
