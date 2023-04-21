@@ -200,17 +200,13 @@ class Normalizer
         );
     }
 
-    private static function normalizeString(string $str)
+    private static function normalizeString($str)
     {
         return preg_replace('/[^a-zA-Z0-9\-\_)]+/', '_', $str);
     }
 
-    private static function generateFilteredPostFields(
-        string $postKey,
-        $postVal,
-        array $whitelist,
-        bool $isPrefixed
-    ): array {
+    private static function generateFilteredPostFields($postKey, $postVal, array $whitelist, $isPrefixed)
+    {
         if (is_array($postVal)) {
             $filteredPostFields = [];
             foreach ($postVal as $key => $val) {
@@ -252,13 +248,13 @@ class Normalizer
         }
     }
 
-    private static function cleanRequestBody(array $requestBody, string $allowedParams): array
+    private static function cleanRequestBody(array $requestBody, $allowedParams)
     {
         $whitelist = self::decodeConfigSet($allowedParams);
         return self::generateFilteredPostFields('', $requestBody, $whitelist, false);
     }
 
-    public static function sanitizePostFields(array $postFields): array
+    public static function sanitizePostFields(array $postFields)
     {
         return self::cleanRequestBody(
             $postFields,
