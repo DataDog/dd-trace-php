@@ -1,4 +1,4 @@
-PROFILING_DIR := "../profiling/"
+PROFILING_DIR := "../../profiling/"
 EXTENSION := "$(PROFILING_DIR)target/release/libdatadog_php_profiling.so"
 RUST_VERSION := $(shell grep "channel" ${PROFILING_DIR}rust-toolchain.toml | sed -E 's/.*"([^"]+)".*/\1/')
 
