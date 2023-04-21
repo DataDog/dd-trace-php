@@ -564,6 +564,7 @@ TEST_INTEGRATIONS_73 :=\
 TEST_WEB_73 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
 	test_web_laravel_8x \
@@ -616,6 +617,7 @@ TEST_INTEGRATIONS_74 := \
 TEST_WEB_74 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
 	test_web_laravel_8x \
@@ -666,6 +668,8 @@ TEST_INTEGRATIONS_80 := \
 TEST_WEB_80 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_14 \
+	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -700,6 +704,7 @@ TEST_INTEGRATIONS_81 := \
 TEST_WEB_81 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -734,6 +739,7 @@ TEST_INTEGRATIONS_82 := \
 TEST_WEB_82 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -900,6 +906,12 @@ test_web_cakephp_28: global_test_run_dependencies
 	$(call run_tests,--testsuite=cakephp-28-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests,--testsuite=codeigniter-22-test)
+test_web_laminas_14: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_1_4 update
+	$(call run_tests,tests/Integrations/Laminas/V1_4)
+test_web_laminas_20: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_2_0 update
+	$(call run_tests,tests/Integrations/Laminas/V2_0)
 test_web_laravel_42: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_4_2 update
 	php tests/Frameworks/Laravel/Version_4_2/artisan optimize

@@ -29,6 +29,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/ElasticSearch/V1/ElasticSearchCommon.php',
     __DIR__ . '/../src/Integrations/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/ElasticSearch/V8/ElasticSearchIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/Laminas/LaminasIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Laravel/LaravelIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Lumen/LumenIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Guzzle/GuzzleIntegration.php',

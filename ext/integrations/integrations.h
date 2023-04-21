@@ -15,6 +15,7 @@
     INTEGRATION(ELASTICSEARCH, "elasticsearch") \
     INTEGRATION(ELOQUENT, "eloquent")           \
     INTEGRATION(GUZZLE, "guzzle")               \
+    INTEGRATION(LAMINAS, "laminas")             \
     INTEGRATION(LARAVEL, "laravel")             \
     INTEGRATION(LUMEN, "lumen")                 \
     INTEGRATION(MEMCACHE, "memcache")           \
