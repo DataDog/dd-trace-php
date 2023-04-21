@@ -15,6 +15,7 @@
     INTEGRATION(ELOQUENT, "eloquent")           \
     INTEGRATION(GUZZLE, "guzzle")               \
     INTEGRATION(LARAVEL, "laravel")             \
+    INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
     INTEGRATION(LUMEN, "lumen")                 \
     INTEGRATION(MEMCACHE, "memcache")           \
     INTEGRATION(MEMCACHED, "memcached")         \

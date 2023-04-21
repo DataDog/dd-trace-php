@@ -3,6 +3,8 @@
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 
+file_put_contents('queues.log', 'laravel.log', FILE_APPEND);
+
 define('LARAVEL_START', microtime(true));
 
 /*
