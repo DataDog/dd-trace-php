@@ -1,10 +1,10 @@
 --TEST--
 Signal integration telemetry
 --ENV--
-DD_TRACE_AGENT_URL=file://{PWD}/integration-telemetry.out
 DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 --INI--
+datadog.trace.agent_url=file://{PWD}/integration-telemetry.out
 ddtrace.request_init_hook={PWD}/../sandbox/deferred_loading_helper.php
 --FILE--
 <?php
@@ -43,8 +43,11 @@ namespace
     foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
         if ($l) {
             $json = json_decode($l, true);
-            if ($json["request_type"] == "app-integrations-change") {
-                print_r($json["payload"]);
+            $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
+            foreach ($batch as $json) {
+                if ($json["request_type"] == "app-integrations-change") {
+                    print_r($json["payload"]);
+                }
             }
         }
     }
@@ -61,6 +64,7 @@ Array
             [0] => Array
                 (
                     [name] => ddtrace\test\testsandboxedintegration
+                    [enabled] => 1
                 )
 
         )

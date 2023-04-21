@@ -5,11 +5,11 @@ pub use cc_utils::cc;
 
 fn main() {
     cc_utils::ImprovedBuild::new()
-        .file("mock_php_8.c")
+        .file("mock_php.c")
         .link_dynamically("dl")
         .warnings(true)
         .warnings_into_errors(true)
         .emit_rerun_if_env_changed(true)
-        .try_compile_shared_lib("mock_php_8.shared_lib")
+        .try_compile_shared_lib("mock_php.shared_lib")
         .unwrap();
 }

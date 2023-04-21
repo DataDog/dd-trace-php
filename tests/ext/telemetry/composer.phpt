@@ -1,8 +1,9 @@
 --TEST--
 Read telemetry via composer
 --ENV--
-DD_TRACE_AGENT_URL=file://{PWD}/composer-telemetry.out
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--INI--
+datadog.trace.agent_url=file://{PWD}/composer-telemetry.out
 --FILE--
 <?php
 
@@ -18,8 +19,11 @@ usleep(100000);
 foreach (file(__DIR__ . '/composer-telemetry.out') as $l) {
     if ($l) {
         $json = json_decode($l, true);
-        if ($json["request_type"] == "app-dependencies-loaded") {
-            print_r($json["payload"]);
+        $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
+        foreach ($batch as $json) {
+            if ($json["request_type"] == "app-dependencies-loaded") {
+                print_r($json["payload"]);
+            }
         }
     }
 }
@@ -35,7 +39,6 @@ Array
                 (
                     [name] => datadog/dd-trace
                     [version] => dev-master
-                    [type] => PlatformStandard
                 )
 
         )

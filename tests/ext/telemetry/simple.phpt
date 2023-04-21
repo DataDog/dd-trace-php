@@ -1,8 +1,9 @@
 --TEST--
 Simple telemetry test
 --ENV--
-DD_TRACE_AGENT_URL=file://{PWD}/simple-telemetry.out
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--INI--
+datadog.trace.agent_url=file://{PWD}/simple-telemetry.out
 --FILE--
 <?php
 
@@ -15,8 +16,11 @@ usleep(100000);
 foreach (file(__DIR__ . '/simple-telemetry.out') as $l) {
     if ($l) {
         $json = json_decode($l, true);
-        if ($json["request_type"] == "app-started" || $json["request_type"] == "app-closing") {
-            var_dump($json["request_type"]);
+        $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
+        foreach ($batch as $json) {
+            if ($json["request_type"] == "app-started" || $json["request_type"] == "app-closing") {
+                var_dump($json["request_type"]);
+            }
         }
     }
 }

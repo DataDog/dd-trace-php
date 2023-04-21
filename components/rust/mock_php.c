@@ -21,6 +21,10 @@ void *file_globals;
 
 void *zend_string_init_interned;
 void zval_ptr_dtor(void *a) { (void)a; }
+void _zval_ptr_dtor(void *a) { (void)a; }
+void _zval_ptr_dtor_wrapper(void *a) { (void)a; }
+void _zval_internal_ptr_dtor(void *a) { (void)a; }
+void _zval_internal_ptr_dtor_wrapper(void *a) { (void)a; }
 void zend_ce_generator(void *a) { (void)a; }
 void zend_ce_error(void *a) { (void)a; }
 
@@ -28,12 +32,15 @@ void *zend_one_char_string[256];
 void *std_object_handlers;
 void *compiler_globals;
 void (*zend_error_cb)(int, void *, uint32_t, void *);
-const void * empty_fcall_info;
+const void *empty_fcall_info;
 void *sapi_globals;
 
 void zval_internal_ptr_dtor(void *a) { (void)a; }
 void zend_observer_fcall_op_array_extension(void *a) { (void)a; }
 void *(*zend_compile_file)(void *, int);
+void *(*zend_compile_string)(void *, void *);
+void (*zend_throw_exception_hook)(void *);
+void (*zend_execute_internal)(void *, void *);
 
 double pow(double a, double b) { (void)a,(void)b; return 0.0; }
 void *zend_empty_string;
@@ -41,5 +48,6 @@ float powf(float a, float b) { (void)a,(void)b; return 0.0; }
 void *zend_extensions;
 void *zend_ce_closure;
 void *zend_ce_throwable;
+void *zend_ce_parse_error;
 void *module_registry;
 void *module_registsry;

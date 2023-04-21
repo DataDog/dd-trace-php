@@ -45,9 +45,9 @@ fn parse_composer_installed_json(transport: &mut Box<TelemetryTransport>, instan
     Ok(())
 }
 
-const MOCK_PHP_8: &[u8] = include_bytes!(concat!(
+const MOCK_PHP: &[u8] = include_bytes!(concat!(
     env!("OUT_DIR"),
-    "/mock_php_8.shared_lib"
+    "/mock_php.shared_lib"
 ));
 
 /// # Safety
@@ -57,7 +57,7 @@ pub extern "C" fn ddog_sidecar_connect_php(connection: &mut *mut TelemetryTransp
     let mut cfg = config::FromEnv::config();
 
     let mut file = try_c!(tempfile::NamedTempFile::new());
-    try_c!(file.write_all(MOCK_PHP_8));
+    try_c!(file.write_all(MOCK_PHP));
     cfg.library_dependencies.push(file.path().to_path_buf());
 
     let stream = Box::new(try_c!(ddtelemetry::ipc::sidecar::start_or_connect_to_sidecar(cfg)));

@@ -1,9 +1,10 @@
 --TEST--
 Report user config telemetry
 --ENV--
-DD_TRACE_AGENT_URL=file://{PWD}/config-telemetry.out
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_AUTOFINISH_SPANS=1
+--INI--
+datadog.trace.agent_url=file://{PWD}/config-telemetry.out
 --FILE--
 <?php
 
@@ -26,7 +27,7 @@ foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
 }
 
 ?>
---EXPECT--
+--EXPECTF--
 Included
 Array
 (
@@ -51,7 +52,8 @@ Array
             [origin] => EnvVar
         )
 
-)--CLEAN--
+)
+--CLEAN--
 <?php
 
 @unlink(__DIR__ . '/config-telemetry.out');
