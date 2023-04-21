@@ -41,5 +41,3 @@ if ($work < 1) {
 
 $app = new AllocationHeavyApp($work);
 $app->run();
-
-echo "Allocation-heavy benchmark completed.\n";
