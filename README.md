@@ -35,3 +35,4 @@ Before contributing to this open source project, read our [CONTRIBUTING.md](CONT
 ## Security Vulnerabilities
 
 If you have found a security issue, please contact the security team directly at [security@datadoghq.com](mailto:security@datadoghq.com).
+
