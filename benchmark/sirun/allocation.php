@@ -6,7 +6,7 @@ class HeavyObject
 
     public function __construct()
     {
-        $this->data = substr(md5(rand()), 0, 10);
+        $this->data = str_repeat('datadog', 512*1000);
     }
 }
 
