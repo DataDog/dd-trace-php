@@ -2,6 +2,7 @@
 #include "ddtrace.h"
 #include "configuration.h"
 #include "coms.h"
+#include "logging.h"
 #include <hook/hook.h>
 #include <components/rust/ddtrace.h>
 
@@ -26,7 +27,11 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
 }
 
 void ddtrace_telemetry_setup(void) {
-    ddog_sidecar_connect_php(&dd_sidecar);
+    ddog_Option_VecU8 sidecar_error = ddog_sidecar_connect_php(&dd_sidecar);
+    if (sidecar_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
+        ddtrace_log_errf("%.*s", (int)sidecar_error.some.len, sidecar_error.some.ptr);
+        return;
+    }
 
     uint8_t formatted_run_time_id[36];
     ddtrace_format_runtime_id(formatted_run_time_id);
