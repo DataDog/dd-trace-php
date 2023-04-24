@@ -16,7 +16,7 @@ results.ndjson: $(RESULT_FILES)
 	cat $^ > $@
 
 $(EXTENSION):
-	cd $(CANDIATE_DIR) && cargo build --release && cp target/release/libdatadog_php_profiling.so
+	cd $(CANDIATE_DIR) && cargo build --release
 
 docker:
 	docker build --build-arg RUST_VERSION=${RUST_VERSION} -t dd-trace-php-bench .
