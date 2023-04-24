@@ -1,10 +1,10 @@
 mod interrupts;
-mod stack_walking;
+mod stalk_walking;
 mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
-pub use stack_walking::*;
+pub use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
