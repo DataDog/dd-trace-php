@@ -1,0 +1,34 @@
+{
+    "name": "cpu heavy",
+    "run": "php -d extension=${CANDIDATE_DIR}/profiling/target/release/libdatadog_php_profiling.so cpu.php 10000",
+    "timeout": 4,
+    "iterations": 5,
+    "variants": {
+        "control": {
+            "env": {
+                "DD_PROFILING_ENABLED": "false"
+            }
+        },
+        "with-wall-time": {
+            "env": {
+                "DD_PROFILING_ENABLED": "true",
+                "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": "false",
+                "DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED": "false"
+            }
+        },
+        "with-wall-and-cpu-time": {
+            "env": {
+                "DD_PROFILING_ENABLED": "true",
+                "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": "true",
+                "DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED": "false"
+            }
+        },
+        "with-wall-cpu-time-and-allocations": {
+            "env": {
+                "DD_PROFILING_ENABLED": "true",
+                "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": "true",
+                "DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED": "true"
+            }
+        }
+    }
+}

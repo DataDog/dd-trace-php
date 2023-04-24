@@ -62,7 +62,7 @@
         ],
         "compile-verify": "php ./bridge/autoload.php",
         "fix-lint": "phpcbf",
-        "lint": "phpcs -s --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/,tests/xdebug/",
+        "lint": "phpcs -s --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/,tests/xdebug/,benchmark",
         "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
         "static-analyze": [
             "@static-analyze-clear-cache",
