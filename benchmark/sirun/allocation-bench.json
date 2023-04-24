@@ -1,6 +1,6 @@
 {
     "name": "allocation heavy",
-    "run": "php -d extension=${CANDIDATE_DIR}/profiling/target/release/libdatadog_php_profiling.so allocation.php 10000",
+    "run": "php -d extension=${CANDIDATE_DIR}/profiling/target/release/libdatadog_php_profiling.so allocation.php 1000",
     "timeout": 10,
     "iterations": 5,
     "variants": {
