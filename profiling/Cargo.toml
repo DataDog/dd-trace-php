@@ -31,7 +31,7 @@ rand_distr = { version = "0.4.3" }
 uuid = { version = "1.0", features = ["v4"] }
 
 [features]
-# default = ["allocation_profiling"]
+default = ["allocation_profiling"]
 allocation_profiling = []
 
 [build-dependencies]
