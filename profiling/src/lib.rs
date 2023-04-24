@@ -848,6 +848,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             },
         );
 
+        #[cfg(feature = "allocation_profiling")]
         zend::php_info_print_table_row(
             2,
             b"Experimental Allocation Profiling Enabled\0".as_ptr(),
