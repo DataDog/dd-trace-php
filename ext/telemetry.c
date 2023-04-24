@@ -30,6 +30,7 @@ void ddtrace_telemetry_setup(void) {
     ddog_Option_VecU8 sidecar_error = ddog_sidecar_connect_php(&dd_sidecar);
     if (sidecar_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
         ddtrace_log_errf("%.*s", (int)sidecar_error.some.len, sidecar_error.some.ptr);
+        ddog_MaybeError_drop(sidecar_error);
         return;
     }
 

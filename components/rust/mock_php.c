@@ -50,6 +50,8 @@ void *zend_extensions;
 void *zend_ce_closure;
 void *zend_ce_throwable;
 void *zend_ce_parse_error;
+void *zend_ce_compile_error;
 void *zend_ce_fiber;
 void *module_registry;
 void *module_registsry;
+const char zend_pass_function[256];
