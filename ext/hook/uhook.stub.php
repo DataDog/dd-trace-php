@@ -22,7 +22,7 @@ class HookData {
     public array $args;
 
     /**
-     * The returned value.
+     * The returned value. This may be a reference, if the value was returned by reference.
      * Uninitialized in a begin hook.
      */
     public mixed $returned;
@@ -64,6 +64,16 @@ class HookData {
      * @return bool 'true' on success, otherwise 'false'
      */
     public function overrideArguments(array $arguments): bool;
+
+    /**
+     * Replaces the return value of a function call. Must be called within a post-hook.
+     * Note that the return value is not checked.
+     *
+     * @prefer-ref $value
+     * @param mixed $value A value which will replace the original return value.
+     * @return bool 'true' on success, otherwise 'false'
+     */
+    public function overrideReturnValue(mixed $value): bool;
 }
 
 /**
