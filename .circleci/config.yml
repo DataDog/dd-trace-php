@@ -50,6 +50,10 @@ aliases:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
 
+  - &IMAGE_DOCKER_RABBITMQ
+    image: rabbitmq:3.8.9-alpine
+    name: rabbitmq_integration
+
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: datadog/dd-trace-ci:php-request-replayer-2.0
     name: request-replayer
@@ -392,10 +396,35 @@ executors:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_RABBITMQ
       - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
 jobs:
+  "Lint PHP 5":
+    parameters:
+      resource_class:
+        type: string
+        default: small
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          command: |
+            docker run --rm -v "$HOME/datadog:/src" -i php:5.4-cli bash \<<'CMD'
+              set -eu
+              cd /src/bridge
+              for file in *.php; do
+                if [ "$file" != "_generated_integrations.php" ]; then
+                  php -l "$file"
+                fi
+              done
+            CMD
+
   "Lint files":
     working_directory: ~/datadog
     docker:
@@ -754,7 +783,9 @@ jobs:
       - when:
           condition:
             and:
-              - equal: [ "8.0", << parameters.php_major_minor >> ]
+              - or:
+                - equal: [ "8.0", << parameters.php_major_minor >> ]
+                - equal: [ "8.1", << parameters.php_major_minor >> ]
               - not:
                 equal: [ "test_composer", << parameters.make_target >> ]
           steps:
@@ -897,8 +928,9 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - when:
           condition:
-            and:
+            or:
               - equal: [ "8.0", << parameters.php_major_minor >> ]
+              - equal: [ "8.1", << parameters.php_major_minor >> ]
           steps:
             - run:
                 name: Updating composer to v2
@@ -3513,6 +3545,8 @@ workflows:
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
       - "Lint files":
+          requires: [ 'Prepare Code' ]
+      - "Lint PHP 5":
           requires: [ 'Prepare Code' ]
       - static_analysis:
           requires: [ 'Prepare Code' ]
