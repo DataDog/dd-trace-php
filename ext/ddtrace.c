@@ -818,6 +818,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     dd_finalize_telemtry();
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
+        DDTRACE_G(last_flushed_root_service_name) = NULL;
     }
 
     return SUCCESS;

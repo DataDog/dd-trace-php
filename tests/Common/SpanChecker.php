@@ -433,6 +433,10 @@ final class SpanChecker
             if (!isset($expectedTags['_dd.p.dm'])) {
                 unset($filtered['_dd.p.dm']);
             }
+            // Ignore runtime-id unless explicitly tested
+            if (!isset($expectedTags['runtime-id'])) {
+                unset($filtered['runtime-id']);
+            }
             // http.client_ip is present depending on target SAPI and not helpful here to test
             if (!isset($expectedTags['http.client_ip'])) {
                 unset($filtered['http.client_ip']);

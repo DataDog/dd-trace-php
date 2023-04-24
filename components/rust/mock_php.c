@@ -37,6 +37,7 @@ void *sapi_globals;
 
 void zval_internal_ptr_dtor(void *a) { (void)a; }
 void zend_observer_fcall_op_array_extension(void *a) { (void)a; }
+int zend_op_array_extension_handles;
 void *(*zend_compile_file)(void *, int);
 void *(*zend_compile_string)(void *, void *);
 void (*zend_throw_exception_hook)(void *);
@@ -49,5 +50,6 @@ void *zend_extensions;
 void *zend_ce_closure;
 void *zend_ce_throwable;
 void *zend_ce_parse_error;
+void *zend_ce_fiber;
 void *module_registry;
 void *module_registsry;

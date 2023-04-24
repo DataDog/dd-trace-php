@@ -240,7 +240,7 @@ if test "$PHP_DDTRACE" != "no"; then
   dnl consider it debug if -g is specified (but not -g0)
   ddtrace_cargodir=$(test "${CFLAGS#*-g}" != "${CFLAGS}" && test "${CFLAGS#*-g0}" == "${CFLAGS}" && echo debug || echo release)
   cat <<EOT >> Makefile.fragments
-\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a: $((find "$ext_srcdir/components/rust" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs"; find "$ext_srcdir/libdatadog" -name "*.rs") | xargs)
+\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a: $( (find "$ext_srcdir/components/rust" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs"; find "$ext_srcdir/libdatadog" -name "*.rs") | xargs)
 	(cd "$ext_srcdir/components/rust"; CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargodir" == debug || echo --release))
 EOT
 
