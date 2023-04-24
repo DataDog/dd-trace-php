@@ -47,6 +47,7 @@ tea_extension_shutdown_list_t   tea_extension_mshutdown_list        = TEA_EXTENS
 tea_extension_functions_list_t  tea_extension_functions_list        = TEA_EXTENSION_LIST_EMPTY;
 tea_extension_op_array_list_t   tea_extension_op_array_handler_list = TEA_EXTENSION_LIST_EMPTY;
 tea_extension_op_array_list_t   tea_extension_op_array_ctor_list    = TEA_EXTENSION_LIST_EMPTY;
+tea_extension_op_array_list_t   tea_extension_op_array_dtor_list    = TEA_EXTENSION_LIST_EMPTY;
 tea_extension_startup_list_t    tea_extension_startup_list          = TEA_EXTENSION_LIST_EMPTY;
 
 static void tea_extension_function(const zend_function_entry *entry);
@@ -103,6 +104,7 @@ static PHP_RINIT_FUNCTION(tea_extension);
 static PHP_RSHUTDOWN_FUNCTION(tea_extension);
 static void tea_extension_op_array_handler_run(zend_op_array *op_array);
 static void tea_extension_op_array_ctor_run(zend_op_array *op_array);
+static void tea_extension_op_array_dtor_run(zend_op_array *op_array);
 
 static zend_module_entry __tea_extension_module = {
     STANDARD_MODULE_HEADER,
@@ -133,7 +135,7 @@ static zend_extension __tea_zend_extension = {
     NULL,
     NULL,
     tea_extension_op_array_ctor_run,
-    NULL,
+    tea_extension_op_array_dtor_run,
     STANDARD_ZEND_EXTENSION_PROPERTIES
 };
 
@@ -183,6 +185,10 @@ static void tea_extension_op_array_handler_run(zend_op_array *op_array) {
 
 static void tea_extension_op_array_ctor_run(zend_op_array *op_array) {
     tea_extension_op_array_run(&tea_extension_op_array_ctor_list, op_array);
+}
+
+static void tea_extension_op_array_dtor_run(zend_op_array *op_array) {
+    tea_extension_op_array_run(&tea_extension_op_array_dtor_list, op_array);
 }
 
 zend_module_entry* tea_extension_dummy() {
@@ -301,6 +307,16 @@ void tea_extension_op_array_ctor(tea_extension_op_array_function handler) {
             tea_extension_op_array_ctor_list.size - 1] = handler;
 }
 
+void tea_extension_op_array_dtor(tea_extension_op_array_function handler) {
+    tea_extension_op_array_dtor_list.size++;
+    tea_extension_op_array_dtor_list.handlers =
+            realloc(
+                    tea_extension_op_array_dtor_list.handlers,
+                    tea_extension_op_array_dtor_list.size * sizeof(tea_extension_op_array_function));
+    tea_extension_op_array_dtor_list.handlers[
+            tea_extension_op_array_dtor_list.size - 1] = handler;
+}
+
 void tea_extension_startup(tea_extension_startup_function handler) {
     tea_extension_startup_list.size++;
     tea_extension_startup_list.handlers =
@@ -361,6 +377,10 @@ void tea_extension_sinit(void) {
     tea_extension_free(
         (void**) &tea_extension_op_array_ctor_list.handlers,
         &tea_extension_op_array_ctor_list.size);
+
+    tea_extension_free(
+        (void**) &tea_extension_op_array_dtor_list.handlers,
+        &tea_extension_op_array_dtor_list.size);
 
     tea_extension_free(
         (void**) &tea_extension_startup_list.handlers,

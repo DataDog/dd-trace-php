@@ -4,7 +4,7 @@ mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
-pub use stalk_walking::*;
+use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
@@ -23,6 +23,11 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
+
+#[cfg(feature = "allocation_profiling")]
+use crate::ALLOCATION_PROFILING_INTERVAL;
+#[cfg(feature = "allocation_profiling")]
+use datadog_profiling::profile::api::UpscalingInfo;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -220,7 +225,7 @@ impl TimeCollector {
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
     fn create_profile(message: &SampleMessage, started_at: SystemTime) -> profile::Profile {
-        let sample_types = message
+        let sample_types: Vec<profile::api::ValueType> = message
             .key
             .sample_types
             .iter()
@@ -230,8 +235,14 @@ impl TimeCollector {
             })
             .collect();
 
+        // check if we have the `alloc-size` and `alloc-samples` sample types
+        #[cfg(feature = "allocation_profiling")]
+        let alloc_samples_offset = sample_types.iter().position(|&x| x.r#type == "alloc-samples");
+        #[cfg(feature = "allocation_profiling")]
+        let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
+
         let period = WALL_TIME_PERIOD.as_nanos();
-        profile::ProfileBuilder::new()
+        let mut profile = profile::ProfileBuilder::new()
             .period(Some(Period {
                 r#type: profile::api::ValueType {
                     r#type: WALL_TIME_PERIOD_TYPE.r#type.borrow(),
@@ -241,7 +252,25 @@ impl TimeCollector {
             }))
             .start_time(Some(started_at))
             .sample_types(sample_types)
-            .build()
+            .build();
+
+        #[cfg(feature = "allocation_profiling")]
+        if alloc_samples_offset.is_some() && alloc_size_offset.is_some() {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: alloc_size_offset.unwrap(),
+                count_value_offset: alloc_samples_offset.unwrap(),
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64
+            };
+            let values_offset: Vec<usize> = vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
+            match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        profile
     }
 
     fn handle_resource_message(
@@ -277,7 +306,7 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = Vec::with_capacity(message.value.frames.len());
+        let mut locations = vec![];
 
         let values = message.value.sample_values;
         let labels = message
@@ -291,7 +320,7 @@ impl TimeCollector {
             let location = Location {
                 lines: vec![Line {
                     function: Function {
-                        name: frame.function.as_ref(),
+                        name: frame.function.as_str(),
                         system_name: "",
                         filename: frame.file.as_deref().unwrap_or(""),
                         start_line: 0,
@@ -717,8 +746,8 @@ mod tests {
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
+            function: "foobar()".to_string(),
+            file: Some("foobar.php".to_string()),
             line: 42,
         }]
     }

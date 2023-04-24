@@ -270,6 +270,9 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
             } else {
                 ZVAL_STR_COPY(prop_name, EX(func)->common.function_name);
             }
+        } else if (EX(func) && ZEND_USER_CODE(EX(func)->type) && EX(func)->op_array.filename) {
+            zval_ptr_dtor(prop_name);
+            ZVAL_STR_COPY(prop_name, EX(func)->op_array.filename);
         }
 
         zval zv;
@@ -636,7 +639,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     // As a special case dropping a root span rejects it to avoid traces without root span
     // It's safe to just drop RC=2 root spans, they're referenced nowhere else
     if (stack->root_span == span && GC_REFCOUNT(&span->std) > 2) {
-        ddtrace_set_prioritySampling_on_root(PRIORITY_SAMPLING_USER_REJECT);
+        ddtrace_set_prioritySampling_on_root(PRIORITY_SAMPLING_USER_REJECT, DD_MECHANISM_MANUAL);
         dd_trace_stop_span_time(span);
         ddtrace_close_span(span);
         return;

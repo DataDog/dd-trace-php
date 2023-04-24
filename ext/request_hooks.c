@@ -126,9 +126,9 @@ int dd_execute_php_file(const char *filename) {
 
 int dd_execute_auto_prepend_file(char *auto_prepend_file) {
     zend_file_handle prepend_file;
-    // We could technically do this to synthetically adjust the stack
-    // zend_execute_data *ex = EG(current_execute_data);
-    // EG(current_execute_data) = ex->prev_execute_data;q
+    // We must emulate being at the root of the stack so that exception handling sees a root frame and reports the error rather than swallowing it.
+    zend_execute_data *ex = EG(current_execute_data);
+    EG(current_execute_data) = NULL;
 #if PHP_VERSION_ID < 80100
     memset(&prepend_file, 0, sizeof(zend_file_handle));
     prepend_file.type = ZEND_HANDLE_FILENAME;
@@ -139,13 +139,13 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file) {
     int ret = zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &prepend_file) == SUCCESS;
     zend_destroy_file_handle(&prepend_file);
 #endif
+    EG(current_execute_data) = ex;
 #if PHP_VERSION_ID >= 80000
     // Exit no longer calls zend_bailout in PHP 8, so we need to "rethrow" the exit
     if (ret == 0) {
         zend_throw_unwind_exit();
     }
 #endif
-    // EG(current_execute_data) = ex;
     return ret;
 }
 

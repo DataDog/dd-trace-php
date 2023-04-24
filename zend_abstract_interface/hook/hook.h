@@ -11,7 +11,6 @@ bool zai_hook_rinit(void);
 void zai_hook_post_startup(void);
 void zai_hook_activate(void);
 void zai_hook_clean(void);
-void zai_hook_op_array_dtor(zend_op_array *op_array);
 void zai_hook_rshutdown(void);
 void zai_hook_mshutdown(void); /* }}} */
 
@@ -89,6 +88,9 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
 void zai_hook_resolve_function(zend_function *function, zend_string *lcname);
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname);
 void zai_hook_resolve_file(zend_op_array *op_array);
+
+/* cleanup function to avoid memory leaking */
+void zai_hook_unresolve_op_array(zend_op_array *op_array);
 
 /* {{{ private but externed for performance reasons */
 extern TSRM_TLS HashTable zai_hook_resolved;

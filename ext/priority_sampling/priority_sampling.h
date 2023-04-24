@@ -11,7 +11,15 @@ static const int PRIORITY_SAMPLING_AUTO_REJECT = 0;
 static const int PRIORITY_SAMPLING_USER_KEEP = 2;
 static const int PRIORITY_SAMPLING_USER_REJECT = -1;
 
-void ddtrace_set_prioritySampling_on_root(zend_long priority);
+enum dd_sampling_mechanism {
+    DD_MECHANISM_DEFAULT = 0,
+    DD_MECHANISM_AGENT_RATE = 1,
+    DD_MECHANISM_REMOTE_RATE = 2,
+    DD_MECHANISM_RULE = 3,
+    DD_MECHANISM_MANUAL = 4,
+};
+
+void ddtrace_set_prioritySampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism);
 zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_span_data *root_span);
 zend_long ddtrace_fetch_prioritySampling_from_root(void);
 

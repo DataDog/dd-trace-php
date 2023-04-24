@@ -127,7 +127,20 @@ void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
         }
 
         // For generators we need our own temporary to store a constant array which is converted to an iterator
-        if (op_array->fn_flags & ZEND_ACC_GENERATOR) {
+        bool need_temporary = op_array->fn_flags & ZEND_ACC_GENERATOR;
+        if (!need_temporary) {
+            for (uint32_t op = i; op < op_array->last; ++op) {
+                // For RETURN opcodes, we may need a temporary to replace the return values
+                if ((opcodes[op].opcode == ZEND_RETURN || opcodes[op].opcode == ZEND_RETURN_BY_REF)) {
+                    if (opcodes[op].op1_type == IS_CV || opcodes[op].op1_type == IS_CONST) {
+                        need_temporary = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (need_temporary) {
             // For Optimizer to allocate a temporary for us, the temporary must exist
             // To not interfere with live range calculation, the temporary must be defined as a result
             opcodes[i].result_type = IS_TMP_VAR;
@@ -137,6 +150,15 @@ void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
             opcodes[i].opcode = ZEND_NOP;
         }
     }
+}
+
+uint32_t zai_interceptor_find_temporary(zend_op_array *op_array) {
+    for (zend_op *op = op_array->opcodes, *end = op + op_array->last; op < end; ++op) {
+        if (op->opcode == ZEND_EXT_NOP && op->extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
+            return op->result.var;
+        }
+    }
+    return -1;
 }
 
 static user_opcode_handler_t prev_ext_nop_handler;
@@ -181,18 +203,59 @@ static inline zval *zai_interceptor_get_zval_ptr(const zend_op *opline, int op_t
 #define zai_interceptor_get_zval_ptr_op1(ex) zai_interceptor_get_zval_ptr((ex)->opline, (ex)->opline->op1_type, &(ex)->opline->op1, ex)
 #define zai_interceptor_get_zval_ptr_op2(ex) zai_interceptor_get_zval_ptr((ex)->opline, (ex)->opline->op2_type, &(ex)->opline->op2, ex)
 
+ZEND_TLS zend_op zai_interceptor_custom_return_op;
 static inline void zai_interceptor_return_impl(zend_execute_data *execute_data) {
     zai_interceptor_frame_memory *frame_memory;
     if (zai_hook_memory_table_find(execute_data, &frame_memory)) {
         if (!frame_memory->implicit) {
             zval rv;
             zval *retval = zai_interceptor_get_zval_ptr_op1(execute_data);
-            if (!retval || Z_TYPE_INFO_P(retval) == IS_UNDEF) {
+            bool needs_copy = EX(opline)->op1_type == IS_CONST || EX(opline)->op1_type == IS_CV;
+            if (Z_TYPE_INFO_P(retval) == IS_UNDEF) {
                 ZVAL_NULL(&rv);
-                retval = &rv;
+            } else {
+                if (Z_TYPE_P(retval) == IS_INDIRECT) {
+                    retval = Z_INDIRECT_P(retval);
+                }
+                rv = *retval;
+
+                if (needs_copy) {
+                    Z_TRY_ADDREF_P(retval);
+                }
             }
 
-            zai_hook_finish(execute_data, retval, &frame_memory->hook_data);
+            zai_hook_finish(execute_data, &rv, &frame_memory->hook_data);
+
+            // Z_PTR_P() is fine to check with as we build for 64 bit pointer systems... Write it that way instead of memcmp to avoid uninit values
+            // We need to check for null/undef separately thanks to the normalization handling above (can only be the case with IS_CV)
+            if (Z_TYPE_INFO(rv) != Z_TYPE_INFO_P(retval)
+             || (Z_TYPE_INFO(rv) <= IS_TRUE && (Z_TYPE_INFO_P(retval) != IS_UNDEF || Z_TYPE(rv) != IS_NULL))
+             || Z_PTR(rv) != Z_PTR_P(retval)) {
+                if (needs_copy) {
+                    // If this branch is entered, the original retval will have been freed, don't free it again.
+
+                    // We need a zval * within the 4GB of virtual memory after the execute_data...
+                    // Thus make use of our temporary here
+                    uint32_t temporary = zai_interceptor_find_temporary(&EX(func)->op_array);
+                    if (temporary != -1u) {
+                        zai_interceptor_custom_return_op = *EX(opline);
+                        zai_interceptor_custom_return_op.op1_type = IS_VAR;
+                        zai_interceptor_custom_return_op.op1.var = temporary;
+                        // Replacing EX(opline) would generally not be fine, but given that ZEND_RETURN(_BY_REF) always leave the function, we can
+                        // they never will do a HANDLE_EXCEPTION or access another opline relative to the current
+                        EX(opline) = &zai_interceptor_custom_return_op;
+                        ZVAL_COPY_VALUE(EX_VAR(temporary), &rv); // copy the const, as it's now a TMP it'll be freed
+                    } else {
+                        // it's sad, but we cannot support it properly right now if we don't find a temporary? shouldn't happen though
+                        zval_ptr_dtor(&rv);
+                    }
+                } else {
+                    // Override any IS_INDIRECT, hence directly to EX_VAR() instead of retval
+                    ZVAL_COPY_VALUE(EX_VAR(EX(opline)->op1.var), &rv);
+                }
+            } else if (needs_copy) {
+                zval_ptr_dtor_nogc(retval);
+            }
         }
         zai_hook_memory_table_del(execute_data);
     }
@@ -547,15 +610,6 @@ static void zai_interceptor_replace_generator_dtor(void) {
     zai_interceptor_generator_handlers->dtor_obj = zai_interceptor_generator_dtor_wrapper;
 }
 
-uint32_t zai_interceptor_generator_find_temporary(zend_op_array *op_array) {
-    for (zend_op *op = op_array->opcodes, *end = op + op_array->last; op < end; ++op) {
-        if (op->opcode == ZEND_EXT_NOP && op->extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
-            return op->result.var;
-        }
-    }
-    return -1;
-}
-
 static zend_object *(*generator_create_prev)(zend_class_entry *class_type);
 static zend_object *zai_interceptor_generator_create(zend_class_entry *class_type) {
     zend_generator *generator = (zend_generator *)generator_create_prev(class_type);
@@ -566,7 +620,7 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
         if (zai_hook_continue(execute_data, &gen_memory.frame.hook_data) == ZAI_HOOK_CONTINUED) {
             gen_memory.frame.execute_data = execute_data;
             gen_memory.resumed = false;
-            gen_memory.temporary = zai_interceptor_generator_find_temporary(&EX(func)->op_array);
+            gen_memory.temporary = zai_interceptor_find_temporary(&EX(func)->op_array);
             gen_memory.frame.implicit = false;
 
             zai_interceptor_generator_frame_memory *memory_ptr = zai_hook_memory_table_insert_generator(execute_data,
@@ -638,7 +692,7 @@ static int zai_interceptor_post_generator_create_handler(zend_execute_data *exec
                 zai_interceptor_generator_frame_memory generator_frame;
                 generator_frame.frame = *frame_memory;
                 generator_frame.resumed = false;
-                generator_frame.temporary = zai_interceptor_generator_find_temporary(&new_generator_ex->func->op_array);
+                generator_frame.temporary = zai_interceptor_find_temporary(&new_generator_ex->func->op_array);
                 zai_interceptor_generator_frame_memory *gen_memory = zai_hook_memory_table_insert_generator(new_generator_ex, &generator_frame);
                 zai_hook_memory_table_del(initial_generator_ex);
 

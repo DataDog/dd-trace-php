@@ -214,6 +214,10 @@ static void zai_hook_entries_remove_resolved(zend_ulong install_address) {
 }
 
 static void zai_hook_hash_destroy(zval *zv) {
+    if (Z_TYPE_P(zv) == ZAI_IS_SHARED_HOOK_PTR) {
+        return;
+    }
+
     HashTable *hooks = Z_PTR_P(zv);
 
     zend_hash_iterators_remove(hooks);
@@ -358,8 +362,8 @@ static void zai_hook_resolve_hooks_entry(zai_hooks_entry *hooks, zend_function *
 #endif
     }
     hooks->is_generator = (resolved->common.fn_flags & ZEND_ACC_GENERATOR) != 0;
-    if ((resolved->common.fn_flags & ZEND_ACC_CLOSURE) == 0)
 #endif
+    if ((resolved->common.fn_flags & ZEND_ACC_CLOSURE) == 0)
     {
          hooks->resolved = resolved;
     }
@@ -760,6 +764,21 @@ void zai_hook_resolve_file(zend_op_array *op_array) {
     zend_hash_index_add_ptr(&zai_hook_resolved, addr, &zai_hook_request_files);
 }
 
+void zai_hook_unresolve_op_array(zend_op_array *op_array) {
+    // May be called in shutdown_executor, which is after extension rshutdown
+    if ((zend_long)zai_hook_id == -1) {
+        return;
+    }
+
+    zai_install_address addr = zai_hook_install_address_user(op_array);
+    if (op_array->function_name) {
+        zai_hook_entries_remove_resolved(addr);
+    } else {
+        // skip freeing for file op_arrays, these are handled via zai_hook_request_files
+        zend_hash_index_del(&zai_hook_resolved, addr);
+    }
+}
+
 static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong hook_id, zai_hooks_entry *base_hooks) {
     zai_install_address addr = zai_hook_install_address(func);
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, addr);
@@ -855,7 +874,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     uint32_t ht_iter = zend_hash_iterator_add(&hooks->hooks, pos);
     uint32_t hook_num = 0;
     size_t dynamic_offset = hook_info_size;
-    bool check_scope = ex->func->common.scope != NULL;
+    bool check_scope = ex->func->common.scope != NULL && ex->func->common.function_name != NULL;
 
     for (zai_hook_t *hook; (hook = zend_hash_get_current_data_ptr_ex(&hooks->hooks, &pos));) {
         zend_hash_move_forward_ex(&hooks->hooks, &pos);
@@ -1066,17 +1085,14 @@ void zai_hook_activate(void) {
     zai_hook_id = current_hook_id;
 }
 
-void zai_hook_op_array_dtor(zend_op_array *op_array) {
-    zai_install_address addr = zai_hook_install_address_user(op_array);
-    zend_hash_index_del(&zai_hook_resolved, addr);
-}
-
 static int zai_hook_clean_graceful_del(zval *zv) {
     zai_hook_entries_destroy(Z_PTR_P(zv), ((Bucket *)zv)->h);
     return ZEND_HASH_APPLY_REMOVE;
 }
 
 void zai_hook_rshutdown(void) {
+    zai_hook_id = -1;
+
     // freeing this after a bailout is a bad idea: at least resolved hooks will contain objects, which are invalid when destroyed here.
     if (!CG(unclean_shutdown)) {
         zend_hash_apply(&zai_hook_resolved, zai_hook_clean_graceful_del);
