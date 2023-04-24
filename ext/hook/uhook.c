@@ -7,6 +7,8 @@
 #include "../configuration.h"
 #include "../logging.h"
 
+#define HOOK_INSTANCE 0x1
+
 #include "uhook_arginfo.h"
 
 #include <hook/hook.h>
@@ -20,6 +22,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
 zend_class_entry *ddtrace_hook_data_ce;
+#if PHP_VERSION_ID >= 80000
+zend_property_info *ddtrace_hook_data_returned_prop_info;
+#endif
 
 ZEND_TLS HashTable dd_closure_hooks;
 ZEND_TLS HashTable dd_active_hooks;
@@ -35,9 +40,10 @@ typedef struct {
     bool running;
     zend_long id;
 
-    zend_function *resolved;
+    zend_ulong install_address;
     zend_string *scope;
     zend_string *function;
+    zend_string *file;
     zend_object *closure;
 } dd_uhook_def;
 
@@ -109,7 +115,7 @@ HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
     return ht;
 }
 
-void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure, zai_sandbox *sandbox) {
+void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure) {
     if (get_DD_TRACE_DEBUG()) {
         char *scope = "";
         char *colon = "";
@@ -139,7 +145,7 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
             zend_string *msg = zai_exception_message(ex);
             ddtrace_log_errf("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
                              type, deffile, defline, scope, colon, name, ZSTR_VAL(msg));
-        } else if (PG(last_error_message) && sandbox->error_state.message != PG(last_error_message)) {
+        } else if (PG(last_error_message)) {
 #if PHP_VERSION_ID < 80000
             char *error = PG(last_error_message);
 #else
@@ -167,18 +173,48 @@ static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     bool success = zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
                                    ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
                                    &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &hook_data_zv);
-    if (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message))) {
-        dd_uhook_report_sandbox_error(execute_data, closure, &sandbox);
+    if (!success || PG(last_error_message)) {
+        dd_uhook_report_sandbox_error(execute_data, closure);
     }
     zai_sandbox_close(&sandbox);
     zval_ptr_dtor(&rv);
+}
+
+static bool dd_uhook_match_filepath(zend_string *file, zend_string *source) {
+    if (ZSTR_LEN(source) == 0) {
+        return true; // empty path is wildcard
+    }
+
+    if (ZSTR_LEN(source) > ZSTR_LEN(file)) {
+        return false;
+    }
+
+    if (memcmp(ZSTR_VAL(source), ZSTR_VAL(file) + ZSTR_LEN(file) - ZSTR_LEN(source), ZSTR_LEN(source)) != 0) {
+        return false; // suffix doesn't match
+    }
+
+    if (ZSTR_LEN(source) == ZSTR_LEN(file)) {
+        return true; // it's exact match
+    }
+
+    char before_match = ZSTR_VAL(file)[ZSTR_LEN(file) - ZSTR_LEN(source) - 1];
+    if (before_match == '\\' || before_match == '/') {
+        return true;
+    }
+
+    return false;
 }
 
 static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
-    if (def->closure && def->closure != ZEND_CLOSURE_OBJECT(EX(func))) {
+    if (def->file && (!execute_data->func->op_array.filename || !dd_uhook_match_filepath(execute_data->func->op_array.filename, def->file))) {
+        dyn->hook_data = NULL;
+        return true;
+    }
+
+    if ((def->closure && def->closure != ZEND_CLOSURE_OBJECT(EX(func))) || !get_DD_TRACE_ENABLED()) {
         dyn->hook_data = NULL;
         return true;
     }
@@ -187,7 +223,15 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
 
     dyn->hook_data->invocation = invocation;
     ZVAL_LONG(&dyn->hook_data->property_id, def->id);
-    ZVAL_ARR(&dyn->hook_data->property_args, dd_uhook_collect_args(execute_data));
+    if (def->file) {
+        zend_array *filearg = zend_new_array(1);
+        zval filezv;
+        ZVAL_STR_COPY(&filezv, execute_data->func->op_array.filename);
+        zend_hash_index_add_new(filearg, 0, &filezv);
+        ZVAL_ARR(&dyn->hook_data->property_args, filearg);
+    } else {
+        ZVAL_ARR(&dyn->hook_data->property_args, dd_uhook_collect_args(execute_data));
+    }
 
     if (def->begin && !def->running) {
         dyn->hook_data->execute_data = execute_data;
@@ -219,7 +263,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         dd_trace_stop_span_time(span);
     }
 
-    if (def->end && !def->running) {
+    if (def->end && !def->running && get_DD_TRACE_ENABLED()) {
         zval tmp;
 
         /* If the profiler doesn't handle a potential pending interrupt before
@@ -236,6 +280,15 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         zval *returned = &dyn->hook_data->property_returned;
         ZVAL_COPY_VALUE(&tmp, returned);
         ZVAL_COPY(returned, retval);
+#if PHP_VERSION_ID >= 80000
+        zend_property_info *prop_info = ddtrace_hook_data_returned_prop_info;
+        if (Z_ISREF(tmp)) {
+            ZEND_REF_DEL_TYPE_SOURCE(Z_REF(tmp), prop_info);
+        }
+        if (Z_ISREF_P(returned)) {
+            ZEND_REF_ADD_TYPE_SOURCE(Z_REF_P(returned), prop_info);
+        }
+#endif
         zval_ptr_dtor(&tmp);
 
         zval *exception = &dyn->hook_data->property_exception;
@@ -282,6 +335,8 @@ static void dd_uhook_dtor(void *data) {
         if (def->scope) {
             zend_string_release(def->scope);
         }
+    } else if (def->file) {
+        zend_string_release(def->file);
     }
     zend_hash_index_del(&dd_active_hooks, (zend_ulong)def->id);
     efree(def);
@@ -298,17 +353,20 @@ PHP_FUNCTION(DDTrace_install_hook) {
     zval *begin = NULL;
     zval *end = NULL;
     zend_object *closure = NULL;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
+    zend_long flags = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 3)
+    ZEND_PARSE_PARAMETERS_START(1, 4)
         DD_PARAM_PROLOGUE(0, 0);
         if (Z_TYPE_P(_arg) == IS_STRING) {
             name = Z_STR_P(_arg);
         } else if (Z_TYPE_P(_arg) == IS_OBJECT && (Z_OBJCE_P(_arg) == zend_ce_closure || Z_OBJCE_P(_arg) == zend_ce_generator)) {
             if (Z_OBJCE_P(_arg) == zend_ce_closure) {
                 closure = Z_OBJ_P(_arg);
-                resolved = (zend_function *)zend_get_closure_method_def(Z_OBJ_P(_arg));
+                resolved = (zend_function *) zend_get_closure_method_def(Z_OBJ_P(_arg));
             } else {
-                zend_generator *generator = (zend_generator *)Z_OBJ_P(_arg);
+                zend_generator *generator = (zend_generator *) Z_OBJ_P(_arg);
                 if (generator->execute_data) {
                     resolved = generator->execute_data->func;
                     if (ZEND_CALL_INFO(generator->execute_data) & ZEND_CALL_CLOSURE) {
@@ -320,14 +378,35 @@ PHP_FUNCTION(DDTrace_install_hook) {
                     break;
                 }
             }
+        } else if (Z_TYPE_P(_arg) == IS_ARRAY || Z_TYPE_P(_arg) == IS_OBJECT) {
+#define INSTALL_HOOK_TYPES "string|callable|Generator|Closure"
+            char *func_error = NULL;
+            if (zend_parse_arg_func(_arg, &fci, &fcc, false, &func_error)) {
+                if (!fcc.function_handler) {
+                    // This is a trampoline function, we cannot hook this, not without hooking other things too
+                    // Technically for e.g. __call one *could* hook the __call handler, then distinguish on the passed method name.
+                    // Currently we do not have support for this, but we probably eventually want to.
+                    RETURN_LONG(0);
+                }
+                resolved = fcc.function_handler;
+            } else if (func_error) {
+                zend_argument_type_error(1, "must be of type " INSTALL_HOOK_TYPES ", got %s, but %s", zend_zval_value_name(_arg), func_error);
+                efree(func_error);
+                _error_code = ZPP_ERROR_FAILURE;
+                break;
+            } else {
+                goto type_error;
+            }
         } else {
-            zend_argument_type_error(1, "must be of type string|Generator|Closure, %s given", zend_zval_value_name(_arg));
+type_error:
+            zend_argument_type_error(1, "must be of type " INSTALL_HOOK_TYPES ", %s given", zend_zval_value_name(_arg));
             _error_code = ZPP_ERROR_FAILURE;
             break;
         }
         Z_PARAM_OPTIONAL
         Z_PARAM_OBJECT_OF_CLASS_EX(begin, zend_ce_closure, 1, 0)
         Z_PARAM_OBJECT_OF_CLASS_EX(end, zend_ce_closure, 1, 0)
+        Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END();
 
     if (!begin && !end) {
@@ -339,6 +418,7 @@ PHP_FUNCTION(DDTrace_install_hook) {
     }
 
     dd_uhook_def *def = emalloc(sizeof(*def));
+    def->closure = NULL;
     def->running = false;
     def->begin = begin ? Z_OBJ_P(begin) : NULL;
     if (def->begin) {
@@ -353,25 +433,43 @@ PHP_FUNCTION(DDTrace_install_hook) {
     uint32_t hook_limit = get_DD_TRACE_HOOK_LIMIT();
 
     zend_long id;
+    def->file = NULL;
     if (resolved) {
-        def->resolved = resolved;
         def->function = NULL;
-        def->closure = closure;
+
+        // Fetch the base function for fake closures: we need to do fake closure operations on the proper original function:
+        // - inheritance handling requires having an op_array which stays alive for the whole remainder of the rquest
+        // - internal functions are referenced by their zend_internal_function, not the closure copy
+        if ((resolved->common.fn_flags & ZEND_ACC_FAKE_CLOSURE) && !(flags & HOOK_INSTANCE)) {
+            HashTable *baseTable = resolved->common.scope ? &resolved->common.scope->function_table : EG(function_table);
+            zend_function *original = zend_hash_find_ptr(baseTable, resolved->common.function_name);
+            if (!original) {
+                ddtrace_log_onceerrf(
+                        "Could not find original function for fake closure ",
+                        resolved->common.scope ? ZSTR_VAL(resolved->common.scope->name) : "",
+                        resolved->common.scope ? "::" : "",
+                        ZSTR_VAL(resolved->common.function_name));
+                goto error;
+            }
+            resolved = original;
+        }
+        def->install_address = zai_hook_install_address(resolved);
 
         if (hook_limit > 0 && zai_hook_count_resolved(resolved) >= hook_limit) {
             ddtrace_log_onceerrf(
-                    "Could not add hook to Closure with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
+                    "Could not add hook to callable with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
                     hook_limit,
                     zend_get_executed_filename(),
                     zend_get_executed_lineno());
             goto error;
         }
-
         id = zai_hook_install_resolved(resolved,
             dd_uhook_begin, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
 
-        if (id >= 0 && closure) {
+        if (id >= 0 && closure && (flags & HOOK_INSTANCE)) {
+            def->closure = closure;
+
             zval *hooks_zv;
             dd_closure_list *hooks;
             if ((hooks_zv = zend_hash_index_find(&dd_closure_hooks, (zend_ulong)(uintptr_t)closure))) {
@@ -395,16 +493,32 @@ PHP_FUNCTION(DDTrace_install_hook) {
             function = (zai_string_view) {.ptr = ZSTR_VAL(def->function), .len = ZSTR_LEN(def->function)};
         } else {
             def->scope = NULL;
-            def->function = zend_string_init(function.ptr, function.len, 0);
+            if (ZSTR_LEN(name) == 0 || strchr(ZSTR_VAL(name), '.')) {
+                def->function = NULL;
+                if (ZSTR_LEN(name) > 2 && ZSTR_VAL(name)[0] == '.' && (ZSTR_VAL(name)[1] == '/' || ZSTR_VAL(name)[1] == '\\'
+                     || (ZSTR_VAL(name)[1] == '.' && (ZSTR_VAL(name)[2] == '/' || ZSTR_VAL(name)[2] == '\\')))) { // relative path handling
+                    char resolved_path_buf[MAXPATHLEN];
+                    if (VCWD_REALPATH(ZSTR_VAL(name), resolved_path_buf)) {
+                        def->file = zend_string_init(resolved_path_buf, strlen(resolved_path_buf), 0);
+                    } else {
+                        ddtrace_log_onceerrf("Could not add hook to file path %s, could not resolve path", ZSTR_VAL(name));
+                        goto error;
+                    }
+                } else {
+                    def->file = zend_string_copy(name);
+                }
+                function = ZAI_STRING_EMPTY;
+            } else {
+                def->function = zend_string_init(function.ptr, function.len, 0);
+            }
         }
-        def->closure = NULL;
 
         if (hook_limit > 0 && zai_hook_count_installed(scope, function) >= hook_limit) {
             ddtrace_log_onceerrf(
                     "Could not add hook to %s%s%s with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
                     def->scope ? ZSTR_VAL(def->scope) : "",
                     def->scope ? "::" : "",
-                    ZSTR_VAL(def->function),
+                    def->scope ? ZSTR_VAL(def->function) : ZSTR_VAL(name),
                     hook_limit,
                     zend_get_executed_filename(),
                     zend_get_executed_lineno());
@@ -450,7 +564,7 @@ PHP_FUNCTION(DDTrace_remove_hook) {
             }
             zai_hook_remove(scope, function, id);
         } else {
-            zai_hook_remove_resolved(zai_hook_install_address(def->resolved), id);
+            zai_hook_remove_resolved(def->install_address, id);
         }
     }
 }
@@ -480,7 +594,7 @@ void dd_uhook_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
     }
 
     // pre-hook check
-    if (!hookData->execute_data || (!unlimited && ddtrace_tracer_is_limited())) {
+    if (!hookData->execute_data || (!unlimited && ddtrace_tracer_is_limited()) || !get_DD_TRACE_ENABLED()) {
         // dummy span, which never gets pushed
         hookData->span = ddtrace_init_dummy_span();
         RETURN_OBJ_COPY(&hookData->span->std);
@@ -617,11 +731,15 @@ static void dd_uhook_closure_free_wrapper(zend_object *object) {
 #if PHP_VERSION_ID >= 80000
 void zai_uhook_attributes_minit(void);
 #endif
-void zai_uhook_minit() {
+void zai_uhook_minit(int module_number) {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
+#if PHP_VERSION_ID >= 80000
+    ddtrace_hook_data_returned_prop_info = zend_hash_str_find_ptr(&ddtrace_hook_data_ce->properties_info, ZEND_STRL("returned"));
+#endif
 
     zend_register_functions(NULL, ext_functions, NULL, MODULE_PERSISTENT);
+    register_uhook_symbols(module_number);
 
 #if PHP_VERSION_ID >= 80000
     zai_uhook_attributes_minit();

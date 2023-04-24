@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Lumen\LumenIntegration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -230,6 +231,16 @@ class LaravelIntegration extends Integration
             'Symfony\Component\Console\Application',
             'renderThrowable',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $integration->setError($rootSpan, $args[0]);
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Contracts\Debug\ExceptionHandler',
+            'report',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                Logger::get()->debug('report() called');
+                Logger::get()->debug('Error code: ' . $args[0]->getCode());
                 $integration->setError($rootSpan, $args[0]);
             }
         );

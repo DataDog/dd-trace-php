@@ -12,6 +12,8 @@ use DDTrace\Type;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Jobs\JobName;
 use function DDTrace\active_span;
+use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
 use function DDTrace\hook_method;
@@ -46,19 +48,42 @@ class LaravelQueueIntegration extends Integration
         trace_method(
             'Illuminate\Queue\Worker',
             'process',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                Logger::get()->debug('Processing Job');
-                /** @var Job $job */
-                $job = $args[1];
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration) {
+                    Logger::get()->debug('Processing Job');
+                    /** @var Job $job */
+                    $job = $args[1];
 
-                $integration->setSpanAttributes($span, 'laravel.queue.process', $job, $exception);
-                $span->meta['messaging.operation'] = 'process';
+                    $integration->setSpanAttributes($span, 'laravel.queue.process', $job);
+                    $span->meta['messaging.operation'] = 'process'; // TODO: Change to receive ?
+                    /*
+                    $payload = $job->payload();
+                    // Create a new trace
+                    if (isset($payload['dd_headers'])) {
+                        $newSpan = start_trace_span();
+                        $integration->setSpanAttributes($newSpan, 'laravel.queue.process', $job);
+                        $integration->extractContext($payload);
+                        $span->links[] = $newSpan->getLink();
+                    }
+                    */
 
-                //Logger::get()->debug('Span: ' . print_r($span, true));
+                },
+                'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                    /** @var Job $job */
+                    $job = $args[1];
 
-                //$payload = $job->payload();
-                //$integration->extractContext($payload);
-            }
+                    /*
+                    $activeSpan = active_span();
+                    if ($activeSpan != $span) {
+                        $integration->setSpanAttributes($activeSpan, 'laravel.queue.process', $job, $exception);
+                        close_span();
+                    }
+                    */
+
+                    $integration->setSpanAttributes($span, 'laravel.queue.process', $job, $exception);
+
+                }
+            ]
         );
 
         trace_method(
@@ -68,7 +93,7 @@ class LaravelQueueIntegration extends Integration
                 Logger::get()->debug('Firing Job');
                 // Distributed context was extracted in the Worker::process method
                 $integration->setSpanAttributes($span, 'laravel.queue.fire', $this, $exception);
-                $span->meta['messaging.operation'] = 'consume';
+                $span->meta[Tag::MQ_OPERATION] = 'process';
             }
         );
 
@@ -79,7 +104,7 @@ class LaravelQueueIntegration extends Integration
                 Logger::get()->debug('Firing Job');
                 // Distributed context was extracted in the Worker::process method
                 $integration->setSpanAttributes($span, 'laravel.queue.fire', $this, $exception);
-                $span->meta['messaging.operation'] = 'consume';
+                $span->meta[Tag::MQ_OPERATION] = 'process';
             }
         );
 
@@ -97,14 +122,37 @@ class LaravelQueueIntegration extends Integration
                 }
 
                 trace_method($class, $method, function (SpanData $span) use ($integration, $class, $method) {
-                    $span->name = 'laravel.action';
-                    $span->type = Type::WEB_SERVLET;
+                    $span->name = 'laravel.queue.action';
+                    $span->type = 'queue';
                     $span->service = $integration->getName();
                     $span->resource = $class . '@' . $method;
                     $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
                 });
+
+                /*
+                trace_method($class, 'batch', function (SpanData $span) use ($integration, $class, $method) {
+                    $span->name = 'laravel.batch.action';
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $integration->getName();
+                    $span->resource = $class . '@' . 'batch';
+                    $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
+                });
+                */
             }
         );
+
+        /*
+        trace_method(
+            'Illuminate\Bus\DatabaseBatchRepository',
+            'markAsFinished',
+            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                Logger::get()->debug('Marking Batch as Finished');
+                // Distributed context was extracted in the Worker::process method
+                $integration->setSpanAttributes($span, 'laravel.batch.markAsFinished', $this, $exception);
+                $span->meta[Tag::MQ_OPERATION] = 'process';
+            }
+        );
+        */
 
         trace_method(
             'Illuminate\Queue\Jobs\Job',
@@ -113,6 +161,7 @@ class LaravelQueueIntegration extends Integration
                 Logger::get()->debug('Resolving Job');
                 // Distributed context was extracted in the Worker::process method
                 $integration->setSpanAttributes($span, 'laravel.queue.resolve', $this, $exception);
+                $span->meta[Tag::MQ_OPERATION] = 'process';
             }
         );
 
@@ -153,18 +202,32 @@ class LaravelQueueIntegration extends Integration
             'push',
             function (SpanData $span, $args, $retval, $exception) use ($integration) {
                 Logger::get()->debug('Pushing Job');
-                $integration->setSpanAttributes($span, 'laravel.queue.push', $args[0], $exception, $args[2] ?? null);
-                $span->meta['messaging.operation'] = 'produce';
+                $integration->setSpanAttributes(
+                    $span,
+                    'laravel.queue.push',
+                    $args[0], $exception,
+                        $args[2] ?? null,
+                    get_class($this)
+                );
+                $span->meta[Tag::MQ_OPERATION] = 'send';
             }
         );
 
         // TODO: Handle chains and batches ?
 
+        // TODO: in Illuminate\Bus\PendingBatch::dispatch, retrieve the batch id and ?
+
         return Integration::LOADED;
     }
 
-    public function setSpanAttributes(SpanData $span, string $name, $job = null, $exception = null, $queue = null)
-    {
+    public function setSpanAttributes(
+        SpanData $span,
+        string $name,
+        $job = null,
+        $exception = null,
+        $queue = null,
+        $resourceSubstitute = null
+    ) {
         $span->name = $name;
         $span->service = $this->getAppName();
         $span->type = 'queue';
@@ -180,15 +243,23 @@ class LaravelQueueIntegration extends Integration
                 $span->meta,
                 $this->getMetadataFromJob($job)
             );
-        } elseif (is_object($job)) {
+            $queue = $queue ?? $job->getQueue();
+        } elseif (is_object($job)) { // Most certainly a CallQueuedClosure
             Logger::get()->debug('Job is an object');
             $jobName = method_exists($job, 'displayName')
                 ? $job->displayName() : get_class($job);
+            if (isset($job->queue)) {
+                $queue = $queue ?? $job->queue;
+            }
         } else { // string
             Logger::get()->debug('Job is a string');
             $jobName = $job;
         }
-        $span->resource = $queue ? "$jobName -> $queue" : "$jobName";
+        if ($resourceSubstitute) {
+            $span->resource = $resourceSubstitute;
+        } else {
+            $span->resource = $queue ? "$jobName -> $queue" : "$jobName";
+        }
 
         if ($exception) {
             $this->setError($span, $exception);
@@ -200,19 +271,20 @@ class LaravelQueueIntegration extends Integration
         $metadata = [
             'messaging.laravel.attempts' => $job->attempts(),
             'messaging.laravel.connection' => $job->getConnectionName(),
-            'messaging.laravel.failed' => $job->hasFailed(),
-            'messaging.laravel.deleted' => $job->isDeleted(),
             'messaging.laravel.id' => $job->getJobId(),
             'messaging.laravel.max_tries' => $job->maxTries(),
             'messaging.laravel.queue' => $job->getQueue(),
             'messaging.laravel.retry_until' => $job->retryUntil(),
             'messaging.laravel.timeout' => $job->timeout(),
-            'messaging.laravel.resolve_name' => $job->resolveName(),
+            'messaging.laravel.name' => $job->resolveName(),
             'messaging.system' => 'laravel',
         ];
 
+        // TODO: batch id, if applicable?
+
+
         $metadata = array_filter($metadata, function ($value) {
-            return $value !== null;
+            return !empty($value);
         });
 
         return $metadata;
@@ -226,11 +298,6 @@ class LaravelQueueIntegration extends Integration
 
         $payload['dd_headers'] = \DDTrace\generate_distributed_tracing_headers();
 
-        $activeSpan = active_span();
-        if ($activeSpan) {
-            $payload['dd_span_link'] = $activeSpan->getLink();
-        }
-
         return $payload;
     }
 
@@ -238,11 +305,6 @@ class LaravelQueueIntegration extends Integration
     {
         if (isset($payload['dd_headers'])) {
             \DDTrace\consume_distributed_tracing_headers($payload['dd_headers']);
-        }
-
-        $activeSpan = active_span();
-        if (isset($payload['dd_span_link']) && $activeSpan) {
-            $activeSpan->links[] = $payload['dd_span_link'];
         }
     }
 

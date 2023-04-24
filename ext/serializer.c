@@ -17,6 +17,7 @@
 #include <json/json.h>
 #include <stdatomic.h>
 #include <zai_string/string.h>
+#include <sandbox/sandbox.h>
 
 #include "arrays.h"
 #include "compat_string.h"
@@ -1269,17 +1270,63 @@ void ddtrace_save_active_error_to_metadata(void) {
     }
 }
 
-void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
-    UNUSED(error_filename, error_lineno);
+static void clear_last_error(void) {
+    if (PG(last_error_message)) {
+#if PHP_VERSION_ID < 80000
+        free(PG(last_error_message));
+#else
+        zend_string_release(PG(last_error_message));
+#endif
+        PG(last_error_message) = NULL;
+    }
+    if (PG(last_error_file)) {
+#if PHP_VERSION_ID < 80100
+        free(PG(last_error_file));
+#else
+        zend_string_release(PG(last_error_file));
+#endif
+        PG(last_error_file) = NULL;
+    }
+}
 
-    /* We need the error handling to place nicely with the sandbox. The best
-     * idea so far is to execute fatal error handling code iff the error handling
-     * mode is set to EH_NORMAL. If it's something else, such as EH_SUPPRESS or
-     * EH_THROW, then they are likely to be handled and accordingly they
-     * shouldn't be treated as fatal.
-     */
+void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
+    // We need the error handling to place nicely with the sandbox. Our choice here is to skip any error handling if the sandbox is active.
+    // We just save the error for later handling by sandbox error reporting functionality.
+    // On fatal error we explicitly bail out.
     bool is_fatal_error = orig_type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
-    if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
+    if (zai_sandbox_active) {
+        clear_last_error();
+        PG(last_error_type) = orig_type & E_ALL;
+#if PHP_VERSION_ID < 80000
+        char *buf;
+        // vsssprintf uses Zend allocator, but PG(last_error_message) must be malloc() memory
+        vspprintf(&buf, PG(log_errors_max_len), format, args);
+        PG(last_error_message) = strdup(buf);
+        efree(buf);
+#else
+        PG(last_error_message) = zend_string_copy(message);
+#endif
+#if PHP_VERSION_ID < 80100
+        if (!error_filename) {
+            error_filename = "Unknown";
+        }
+        PG(last_error_file) = strdup(error_filename);
+#else
+        if (!error_filename) {
+            error_filename = ZSTR_KNOWN(ZEND_STR_UNKNOWN_CAPITALIZED);
+        }
+        PG(last_error_file) = zend_string_copy(error_filename);
+#endif
+        PG(last_error_lineno) = (int)error_lineno;
+
+        if (is_fatal_error) {
+            zend_bailout();
+        }
+        return;
+    }
+
+    // If this is a fatal error we have to handle it early. These are always bailing out, independently of the configured EG(error_handling) mode.
+    if (EXPECTED(EG(active)) && UNEXPECTED(is_fatal_error)) {
         /* If there is a fatal error in shutdown then this might not be an array
          * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
          * robust way of detecting this, but I'm not sure how yet.

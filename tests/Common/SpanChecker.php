@@ -26,12 +26,13 @@ final class SpanChecker
      *
      * @param array $traces
      * @param SpanAssertion[] $expectedFlameGraph
+     * @param bool $assertExactCount
      */
-    public function assertFlameGraph(array $traces, array $expectedFlameGraph)
+    public function assertFlameGraph(array $traces, array $expectedFlameGraph, bool $assertExactCount = true)
     {
         $flattenTraces = $this->flattenTraces($traces);
         $actualGraph = $this->buildSpansGraph($flattenTraces);
-        if (\count($actualGraph) != \count($expectedFlameGraph)) {
+        if ($assertExactCount && \count($actualGraph) != \count($expectedFlameGraph)) {
             TestCase::fail(\sprintf(
                 'Wrong number of root spans. Expected %d, actual: %s',
                 \count($expectedFlameGraph),
@@ -44,7 +45,7 @@ final class SpanChecker
                 if ($oneTrace->isToBeSkipped()) {
                     continue;
                 }
-                $this->assertNode($actualGraph, $oneTrace, 'root', 'root');
+                $this->assertNode($actualGraph, $oneTrace, 'root', 'root', $assertExactCount);
             }
         } catch (\Exception $e) {
             (function () use ($actualGraph) {
@@ -98,16 +99,25 @@ final class SpanChecker
     /**
      * @param array $graph
      * @param SpanAssertion $expectedNodeRoot
+     * @param $parentName
+     * @param $parentResource
+     * @param bool $assertExactCount
      */
-    private function assertNode(array $graph, SpanAssertion $expectedNodeRoot, $parentName, $parentResource)
-    {
+    private function assertNode(
+        array $graph,
+        SpanAssertion
+        $expectedNodeRoot,
+        $parentName,
+        $parentResource,
+        bool $assertExactCount = true
+    ) {
         $node = $this->findOne($graph, $expectedNodeRoot, $parentName, $parentResource);
         $this->assertSpan($node['span'], $expectedNodeRoot);
 
         $actualChildrenCount = count($node['children']);
         $expectedChildrenCount = count($expectedNodeRoot->getChildren());
 
-        if ($actualChildrenCount !== $expectedChildrenCount) {
+        if ($assertExactCount && $actualChildrenCount !== $expectedChildrenCount) {
             $expectedNames = array_map(function (SpanAssertion $spanAssertion) {
                 return $spanAssertion->getOperationName();
             }, $expectedNodeRoot->getChildren());
@@ -135,7 +145,8 @@ final class SpanChecker
                     $node['children'],
                     $child,
                     $expectedNodeRoot->getOperationName(),
-                    $expectedNodeRoot->getResource()
+                    $expectedNodeRoot->getResource(),
+                    $assertExactCount
                 );
             } catch (\Exception $e) {
                 (function () use ($expectedNodeRoot, $node) {

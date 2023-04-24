@@ -20,8 +20,10 @@ class Tag
     const ERROR_TYPE = 'error.type'; // string representing the type of the error
     const ERROR_STACK = 'error.stack'; // human readable version of the stack
     const HTTP_METHOD = 'http.method';
+    const HTTP_ROUTE = 'http.route';
     const HTTP_STATUS_CODE = 'http.status_code';
     const HTTP_URL = 'http.url';
+    const HTTP_VERSION = 'http.version';
     const LOG_EVENT = 'event';
     const LOG_ERROR = 'error';
     const LOG_ERROR_OBJECT = 'error.object';
@@ -58,4 +60,23 @@ class Tag
 
     // REDIS
     const REDIS_RAW_COMMAND = 'redis.raw_command';
+
+    // Message Queue
+    const MQ_SYSTEM = 'messaging.system';
+    const MQ_DESTINATION = 'messaging.destination';
+    const MQ_DESTINATION_KIND = 'messaging.destination_kind';
+    const MQ_TEMP_DESTINATION = 'messaging.temp_destination';
+    const MQ_PROTOCOL = 'messaging.protocol';
+    const MQ_PROTOCOL_VERSION = 'messaging.protocol_version';
+    const MQ_URL = 'messaging.url';
+    const MQ_MESSAGE_ID = 'messaging.message_id';
+    const MQ_CONVERSATION_ID = 'messaging.conversation_id';
+    const MQ_MESSAGE_PAYLOAD_SIZE = 'messaging.message_payload_size_bytes';
+    const MQ_OPERATION = 'messaging.operation';
+    const MQ_CONSUMER_ID = 'messaging.consumer_id';
+
+    // RabbitMQ
+    const RABBITMQ_DELIVERY_MODE = 'messaging.rabbitmq.delivery_mode';
+    const RABBITMQ_EXCHANGE = 'messaging.rabbitmq.exchange';
+    const RABBITMQ_ROUTING_KEY = 'messaging.rabbitmq.routing_key';
 }

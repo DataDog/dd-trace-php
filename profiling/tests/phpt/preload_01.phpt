@@ -35,8 +35,7 @@ echo "Done.", PHP_EOL;
 --EXPECTREGEX--
 .* zend_post_startup_cb hasn't happened yet; not enabling profiler.
 preloading
-.* Started with an upload period of 67 seconds and approximate wall-time period of 10 milliseconds.
+.* Started with an upload period of [0-9]+ seconds and approximate wall-time period of [0-9]+ milliseconds.
 Done.
 .* Stopping profiler.
-.* Notified other threads of cancellation.
-.* No profiles to upload.
+.*

@@ -19,7 +19,7 @@ class QueueTestController extends Controller
         //Bus::dispatch(new SendVerificationEmail());
 
         $temp = dispatch(new SendVerificationEmail())
-            //->onConnection('database')
+            ->onConnection('database')
             ->onQueue('emails');
 
 
@@ -58,7 +58,7 @@ class QueueTestController extends Controller
         return __METHOD__;
     }
 
-    public function chainFailure()
+    public function chainFailureCatched()
     {
         Bus::chain([
             new SendVerificationEmail,
@@ -69,6 +69,51 @@ class QueueTestController extends Controller
         )->onQueue(
             'emails'
         )->catch(function ($exception) {
+        })->dispatch();
+
+        return __METHOD__;
+    }
+
+    /**
+     * @throws \Throwable
+     */
+    public function batch()
+    {
+        Bus::batch([
+            new SendVerificationEmail,
+            new SendVerificationEmail,
+        ])->onConnection(
+            'database'
+        )->onQueue(
+            'emails'
+        )->then(function ($batch) {
+        })->catch(function ($batch, $exception) {
+        })->dispatch();
+
+        return __METHOD__;
+    }
+
+    public function batchDefault()
+    {
+        $tmp = Bus::batch([
+            new SendVerificationEmail,
+            new SendVerificationEmail,
+        ])->dispatch();
+
+        return __METHOD__;
+    }
+
+    public function chainFailure()
+    {
+        Bus::chain([
+            new SendVerificationEmail,
+            new SendVerificationEmail(42, true),
+            new SendVerificationEmail, // this job will never be executed
+        ])->onConnection(
+            'database'
+        )->onQueue(
+            'emails'
+        )->catch(function ($batch, $exception) {
         })->dispatch();
 
         return __METHOD__;
@@ -109,7 +154,19 @@ class QueueTestController extends Controller
 
     public function workOn()
     {
-        Artisan::call('queue:work' , ['--once', '--queue' => 'emails', '--max-time' => 5]);
+        Artisan::call('queue:work database --stop-when-empty --queue=emails');
+        return __METHOD__;
+    }
+
+    public function workOnce()
+    {
+        Artisan::call('queue:work --once');
+        return __METHOD__;
+    }
+
+    public function workDefault()
+    {
+        Artisan::call('queue:work --stop-when-empty');
         return __METHOD__;
     }
 }
