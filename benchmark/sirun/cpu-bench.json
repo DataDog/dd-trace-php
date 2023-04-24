@@ -3,6 +3,7 @@
     "run": "php -d extension=${CANDIDATE_DIR}/profiling/target/release/libdatadog_php_profiling.so cpu.php 10000",
     "timeout": 10,
     "iterations": 5,
+    "instructions": true,
     "variants": {
         "control": {
             "env": {
