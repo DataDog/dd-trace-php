@@ -1,5 +1,9 @@
 --TEST--
 Simple telemetry test
+--SKIPIF--
+<?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
+?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --INI--

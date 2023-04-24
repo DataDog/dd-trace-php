@@ -3551,12 +3551,12 @@ workflows:
       - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 71"
-          docker_image: cimg/php:7.1
+          docker_image: datadog/dd-trace-ci:php-7.1_buster
           scenario: opentracing_beta6
       - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 80"
-          docker_image: cimg/php:8.0
+          docker_image: datadog/dd-trace-ci:php-8.0_buster
           scenario: opentracing10
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
