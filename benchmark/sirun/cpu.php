@@ -1,64 +1,24 @@
 <?php
-
-class PrimeCalculator
-{
-    public function isPrime($number)
-    {
-        if ($number <= 1) {
-            return false;
-        }
-
-        for ($i = 2; $i <= sqrt($number); $i++) {
-            if ($number % $i == 0) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public function calculatePrimes($limit)
-    {
-        $primes = [];
-        for ($i = 2; $i <= $limit; $i++) {
-            if ($this->isPrime($i)) {
-                $primes[] = $i;
-            }
-        }
-
-        return $primes;
-    }
-}
-
-class CpuIntensiveApp
-{
-    private $work;
-
-    public function __construct($work)
-    {
-        $this->work = $work;
-    }
-
-    public function run()
-    {
-        $primeCalculator = new PrimeCalculator();
-        $primes = $primeCalculator->calculatePrimes($this->work);
-
-        return $primes;
-    }
-}
-
+// Check if the number of iterations is provided as a CLI argument
 if ($argc < 2) {
-    echo "Usage: php cpuIntensiveApp.php <work>\n";
+    echo "Usage: php benchmark.php [number_of_iterations]\n";
     exit(1);
 }
 
-$work = intval($argv[1]);
+// Get the number of iterations from the CLI argument
+$iterations = (int) $argv[1];
 
-if ($work < 1) {
-    echo "Work must be a positive integer.\n";
-    exit(1);
+// A simple function that performs a basic mathematical operation
+function doNothing() {
+    usleep(10000);
+    allocateMemory();
 }
 
-$app = new CpuIntensiveApp($work);
-$primes = $app->run();
+function allocateMemory() {
+    str_repeat('a', 512 * 1024);
+}
+
+// Run the loop for the specified number of iterations
+for ($i = 0; $i < $iterations; $i++) {
+    doNothing($i);
+}

@@ -1,8 +1,8 @@
 {
     "name": "cpu heavy",
-    "run": "php -d extension=${CANDIDATE_DIR}/profiling/target/release/libdatadog_php_profiling.so cpu.php 5000000",
-    "timeout": 120,
-    "iterations": 1,
+    "run": "php -d extension=${CANDIDATE_DIR}/profiling/target/release/libdatadog_php_profiling.so cpu.php 500",
+    "timeout": 10,
+    "iterations": 10,
     "instructions": true,
     "variants": {
         "control": {
