@@ -667,8 +667,6 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
-    dd_reset_span_counters();
-
     array_init(serialized);
 
     // We need to loop here, as closing the last span root stack could add other spans here
@@ -709,6 +707,10 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
         // Also flush possible cycles here
         zend_gc_collect_cycles();
     }
+
+    // Reset closed span counter for limit-refresh, don't touch open spans
+    DDTRACE_G(closed_spans_count) = 0;
+    DDTRACE_G(dropped_spans_count) = 0;
 }
 
 zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }
