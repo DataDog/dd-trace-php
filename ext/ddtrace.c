@@ -1322,9 +1322,9 @@ PHP_FUNCTION(DDTrace_Config_integration_analytics_sample_rate) {
  */
 PHP_FUNCTION(DDTrace_System_container_id) {
     UNUSED(execute_data);
-    const char *id = ddshared_container_id();
-    if (id != NULL && id[0] != '\0') {
-        RETVAL_STRING(id);
+    ddog_CharSlice id = ddtrace_get_container_id();
+    if (id.len) {
+        RETVAL_STRINGL(id.ptr, id.len);
     } else {
         RETURN_NULL();
     }

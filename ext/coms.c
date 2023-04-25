@@ -12,6 +12,7 @@
 
 // For reasons it doesn't find asprintf() if this isn't included later...
 #include "coms.h"
+#include <components/rust/ddtrace.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -684,9 +685,11 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
     dd_append_header(&list, "Datadog-Meta-Lang-Version", PHP_VERSION);
     dd_append_header(&list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
 
-    const char *id = ddshared_container_id();
-    if (id != NULL && id[0] != '\0') {
-        dd_append_header(&list, "Datadog-Container-Id", id);
+    ddog_CharSlice id = ddtrace_get_container_id();
+    if (id.len) {
+        char header[256];
+        snprintf(header, sizeof(header), "Datadog-Container-Id: %.*s", (int)id.len, id.ptr);
+        list = curl_slist_append(list, header);
     }
 
     /* Curl will add Expect: 100-continue if it is a POST over a certain size. The trouble is that CURL will
