@@ -68,6 +68,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 
 #if CFG_RUN_TIME_CACHE // defined by build.rs
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
+    _ignore_run_time_cache = false;
 #endif
 
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
