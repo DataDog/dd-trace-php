@@ -4,10 +4,10 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
-#include "../common.hpp"
+#include "../../common.hpp"
 #include "base64.h"
-#include "remote_config/asm_features_listener.hpp"
 #include "remote_config/exception.hpp"
+#include "remote_config/listeners/asm_features_listener.hpp"
 #include "remote_config/product.hpp"
 
 namespace dds {

@@ -3,9 +3,9 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include "asm_listener.hpp"
-#include "../json_helper.hpp"
+#include "asm_aggregator.hpp"
 #include "exception.hpp"
+#include "remote_config/exception.hpp"
 #include "spdlog/spdlog.h"
 #include <optional>
 #include <rapidjson/document.h>
@@ -13,20 +13,20 @@
 
 namespace dds::remote_config {
 
-namespace {
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void merge_arrays(rapidjson::Value &destination, rapidjson::Value &source,
-    rapidjson::Value::AllocatorType &allocator)
+void asm_aggregator::init(rapidjson::Document::AllocatorType *allocator)
 {
-    for (auto *it = source.Begin(); it != source.End(); ++it) {
-        destination.PushBack(*it, allocator);
+    ruleset_ = rapidjson::Document(rapidjson::kObjectType, allocator);
+    static constexpr std::array<std::string_view, 4> expected_keys{
+        "exclusions", "actions", "rules_override", "custom_rules"};
+
+    for (const auto &key : expected_keys) {
+        rapidjson::Value empty_array(rapidjson::kArrayType);
+        ruleset_.AddMember(
+            StringRef(key), empty_array, ruleset_.GetAllocator());
     }
 }
 
-} // namespace
-
-void asm_listener::on_update(const config &config)
+void asm_aggregator::add(const config &config)
 {
     rapidjson::Document doc(rapidjson::kObjectType, &ruleset_.GetAllocator());
     if (!json_helper::get_json_base64_encoded_content(config.contents, doc)) {
@@ -44,34 +44,10 @@ void asm_listener::on_update(const config &config)
                     "Invalid type for " + key);
             }
 
-            merge_arrays(destination_it->value, source_it->value,
+            json_helper::merge_arrays(destination_it->value, source_it->value,
                 ruleset_.GetAllocator());
         }
     }
-}
-
-void asm_listener::init()
-{
-    ruleset_ = rapidjson::Document(rapidjson::kObjectType);
-    static constexpr std::array<std::string_view, 4> expected_keys{
-        "exclusions", "actions", "rules_override", "custom_rules"};
-
-    for (const auto &key : expected_keys) {
-        rapidjson::Value empty_array(rapidjson::kArrayType);
-        ruleset_.AddMember(
-            StringRef(key), empty_array, ruleset_.GetAllocator());
-    }
-}
-
-void asm_listener::commit()
-{
-    // TODO find a way to provide this information to the service
-    std::map<std::string_view, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    engine_ruleset ruleset(std::move(ruleset_));
-
-    engine_->update(ruleset, meta, metrics);
 }
 
 } // namespace dds::remote_config

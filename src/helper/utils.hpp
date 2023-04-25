@@ -50,4 +50,6 @@ inline std::string dd_tolower(std::string string)
     return string;
 }
 
+std::string read_file(std::string_view filename);
+
 } // namespace dds

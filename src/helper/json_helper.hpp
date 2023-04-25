@@ -65,5 +65,13 @@ std::optional<rapidjson::Value::ConstMemberIterator> get_field_of_type(
     rapidjson::Type type);
 bool get_json_base64_encoded_content(
     const std::string &content, rapidjson::Document &output);
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void merge_arrays(rapidjson::Value &destination, rapidjson::Value &source,
+    rapidjson::Value::AllocatorType &allocator);
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void merge_objects(rapidjson::Value &destination, rapidjson::Value &source,
+    rapidjson::Value::AllocatorType &allocator);
+
 } // namespace json_helper
 } // namespace dds

@@ -5,9 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../engine.hpp"
 #include "config.hpp"
-#include "listener.hpp"
+#include "config_aggregator.hpp"
+#include "engine.hpp"
 #include "parameter.hpp"
 #include <optional>
 #include <rapidjson/document.h>
@@ -15,7 +15,7 @@
 
 namespace dds::remote_config {
 
-class asm_data_listener : public product_listener_base {
+class asm_data_aggregator : public config_aggregator_base {
 public:
     struct rule_data {
         struct data_with_expiration {
@@ -28,22 +28,23 @@ public:
         std::map<std::string, data_with_expiration> data;
     };
 
-    explicit asm_data_listener(std::shared_ptr<dds::engine> engine)
-        : engine_(std::move(engine)){};
-    void on_update(const config &config) override;
-    void on_unapply(const config & /*config*/) override{};
-    const protocol::capabilities_e get_capabilities() override
-    {
-        return protocol::capabilities_e::ASM_IP_BLOCKING |
-               protocol::capabilities_e::ASM_USER_BLOCKING;
-    }
-    const std::string_view get_name() override { return "ASM_DATA"; }
+    asm_data_aggregator() = default;
+    asm_data_aggregator(const asm_data_aggregator &) = delete;
+    asm_data_aggregator(asm_data_aggregator &&) = default;
+    asm_data_aggregator &operator=(const asm_data_aggregator &) = delete;
+    asm_data_aggregator &operator=(asm_data_aggregator &&) = default;
+    ~asm_data_aggregator() override = default;
 
-    void init() override { rules_data_.clear(); }
-    void commit() override;
+    void init(rapidjson::Document::AllocatorType * /*allocator*/) override
+    {
+        rules_data_.clear();
+    }
+
+    void add(const config &config) override;
+    void remove(const config &config) override {}
+    void aggregate(rapidjson::Document &doc) override;
 
 protected:
-    std::shared_ptr<dds::engine> engine_;
     std::unordered_map<std::string, rule_data> rules_data_;
 };
 

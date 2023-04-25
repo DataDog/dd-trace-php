@@ -3,9 +3,10 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include "asm_data_listener.hpp"
-#include "../json_helper.hpp"
+#include "asm_data_aggregator.hpp"
 #include "exception.hpp"
+#include "json_helper.hpp"
+#include "remote_config/exception.hpp"
 #include "spdlog/spdlog.h"
 #include <optional>
 #include <rapidjson/document.h>
@@ -13,7 +14,7 @@
 
 namespace dds::remote_config {
 
-using rule_data = asm_data_listener::rule_data;
+using rule_data = asm_data_aggregator::rule_data;
 
 namespace {
 void extract_data(
@@ -71,45 +72,9 @@ void extract_data(
     }
 }
 
-dds::engine_ruleset rules_to_engine_ruleset(
-    const std::unordered_map<std::string, rule_data> &rules)
-{
-    rapidjson::Document document;
-    rapidjson::Document::AllocatorType &alloc = document.GetAllocator();
-
-    document.SetObject();
-
-    rapidjson::Value rules_data(rapidjson::kArrayType);
-    for (const auto &[key, rule] : rules) {
-        rapidjson::Value parameter_rule(rapidjson::kObjectType);
-        parameter_rule.AddMember("id", StringRef(rule.id), alloc);
-        parameter_rule.AddMember("type", StringRef(rule.type), alloc);
-
-        // Data
-        rapidjson::Value data(rapidjson::kArrayType);
-        for (const auto &[value, data_entry] : rule.data) {
-            const auto &expiration = data_entry.expiration;
-            rapidjson::Value data_parameter(rapidjson::kObjectType);
-            if (expiration.has_value()) {
-                data_parameter.AddMember(
-                    "expiration", expiration.value(), alloc);
-            }
-            data_parameter.AddMember("value", StringRef(value), alloc);
-            data.PushBack(data_parameter, alloc);
-        }
-        parameter_rule.AddMember("data", data, alloc);
-
-        rules_data.PushBack(parameter_rule, alloc);
-    }
-
-    document.AddMember("rules_data", rules_data, alloc);
-
-    return dds::engine_ruleset(std::move(document));
-}
-
 } // namespace
 
-void asm_data_listener::on_update(const config &config)
+void asm_data_aggregator::add(const config &config)
 {
     rapidjson::Document serialized_doc;
     if (!json_helper::get_json_base64_encoded_content(
@@ -167,15 +132,34 @@ void asm_data_listener::on_update(const config &config)
     }
 }
 
-void asm_data_listener::commit()
+void asm_data_aggregator::aggregate(rapidjson::Document &doc)
 {
-    // TODO find a way to provide this information to the service
-    std::map<std::string_view, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
 
-    engine_ruleset ruleset = rules_to_engine_ruleset(rules_data_);
+    rapidjson::Value rules_data(rapidjson::kArrayType);
+    for (const auto &[key, rule] : rules_data_) {
+        rapidjson::Value parameter_rule(rapidjson::kObjectType);
+        parameter_rule.AddMember("id", StringRef(rule.id), alloc);
+        parameter_rule.AddMember("type", StringRef(rule.type), alloc);
 
-    engine_->update(ruleset, meta, metrics);
+        // Data
+        rapidjson::Value data(rapidjson::kArrayType);
+        for (const auto &[value, data_entry] : rule.data) {
+            const auto &expiration = data_entry.expiration;
+            rapidjson::Value data_parameter(rapidjson::kObjectType);
+            if (expiration.has_value()) {
+                data_parameter.AddMember(
+                    "expiration", expiration.value(), alloc);
+            }
+            data_parameter.AddMember("value", StringRef(value), alloc);
+            data.PushBack(data_parameter, alloc);
+        }
+        parameter_rule.AddMember("data", data, alloc);
+
+        rules_data.PushBack(parameter_rule, alloc);
+    }
+
+    doc.AddMember("rules_data", rules_data, alloc);
 }
 
 } // namespace dds::remote_config

@@ -217,4 +217,35 @@ bool json_helper::get_json_base64_encoded_content(
 
     return true;
 }
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void json_helper::merge_arrays(rapidjson::Value &destination,
+    rapidjson::Value &source, rapidjson::Value::AllocatorType &allocator)
+{
+    if (!destination.IsArray()) {
+        throw invalid_type("destination value not an array");
+    }
+    if (!source.IsArray()) {
+        throw invalid_type("source value not an array");
+    }
+    for (auto *it = source.Begin(); it != source.End(); ++it) {
+        destination.PushBack(*it, allocator);
+    }
+}
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void json_helper::merge_objects(rapidjson::Value &destination,
+    rapidjson::Value &source, rapidjson::Value::AllocatorType &allocator)
+{
+    if (!destination.IsObject()) {
+        throw invalid_type("destination value not an object");
+    }
+    if (!source.IsObject()) {
+        throw invalid_type("source value not an object");
+    }
+    for (auto it = source.MemberBegin(); it != source.MemberEnd(); ++it) {
+        destination.AddMember(it->name, it->value, allocator);
+    }
+}
+
 } // namespace dds

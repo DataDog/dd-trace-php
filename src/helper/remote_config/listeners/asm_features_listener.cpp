@@ -4,9 +4,10 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "asm_features_listener.hpp"
-#include "../json_helper.hpp"
-#include "../utils.hpp"
 #include "exception.hpp"
+#include "json_helper.hpp"
+#include "remote_config/exception.hpp"
+#include "utils.hpp"
 #include <algorithm>
 #include <rapidjson/document.h>
 

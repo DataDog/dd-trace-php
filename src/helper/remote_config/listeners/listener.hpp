@@ -5,25 +5,29 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "protocol/client.hpp"
+#include "remote_config/config.hpp"
+#include "remote_config/protocol/client.hpp"
 #include <memory>
 #include <vector>
 
 namespace dds::remote_config {
 
-class product_listener_base {
+class listener_base {
 public:
-    product_listener_base() = default;
-    product_listener_base(const product_listener_base &) = default;
-    product_listener_base(product_listener_base &&) = default;
-    product_listener_base &operator=(const product_listener_base &) = default;
-    product_listener_base &operator=(product_listener_base &&) = default;
-    virtual ~product_listener_base() = default;
+    using shared_ptr = std::shared_ptr<listener_base>;
+
+    listener_base() = default;
+    listener_base(const listener_base &) = default;
+    listener_base(listener_base &&) = default;
+    listener_base &operator=(const listener_base &) = default;
+    listener_base &operator=(listener_base &&) = default;
+    virtual ~listener_base() = default;
 
     virtual void on_update(const config &config) = 0;
     virtual void on_unapply(const config &config) = 0;
-    [[nodiscard]] virtual const protocol::capabilities_e get_capabilities() = 0;
-    [[nodiscard]] virtual const std::string_view get_name() = 0;
+    [[nodiscard]] virtual std::unordered_map<std::string_view,
+        protocol::capabilities_e>
+    get_supported_products() = 0;
 
     // Stateful listeners need to override these methods
     virtual void init() = 0;

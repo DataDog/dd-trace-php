@@ -29,24 +29,29 @@ config_path config_path::from_path(const std::string &path)
 }
 
 client::client(std::unique_ptr<http_api> &&arg_api, service_identifier &&sid,
-    remote_config::settings settings, const std::vector<product> &products)
+    remote_config::settings settings,
+    std::vector<listener_base::shared_ptr> listeners)
     : api_(std::move(arg_api)), id_(dds::generate_random_uuid()),
-      sid_(std::move(sid)), settings_(std::move(settings))
+      sid_(std::move(sid)), settings_(std::move(settings)),
+      listeners_(std::move(listeners))
 {
-    for (auto const &product : products) {
-        products_.insert(std::pair<std::string, remote_config::product>(
-            product.get_name(), product));
-        capabilities_ |= product.get_capabilities();
+    for (auto const &listener : listeners_) {
+        const auto &supported_products = listener->get_supported_products();
+        for (const auto &[name, capabilities] : supported_products) {
+            products_.insert(std::pair<std::string, remote_config::product>(
+                name, product(name, listener)));
+            capabilities_ |= capabilities;
+        }
     }
 }
 
 client::ptr client::from_settings(service_identifier &&sid,
     const remote_config::settings &settings,
-    const std::vector<remote_config::product> &products)
+    std::vector<listener_base::shared_ptr> listeners)
 {
     return std::make_unique<client>(std::make_unique<http_api>(settings.host,
                                         std::to_string(settings.port)),
-        std::move(sid), settings, products);
+        std::move(sid), settings, std::move(listeners));
 }
 
 [[nodiscard]] protocol::get_configs_request client::generate_request() const
@@ -170,6 +175,10 @@ bool client::process_response(const protocol::get_configs_response &response)
     }
 
     // Since there have not been errors, we can now update product configs
+    // First initialise the listener
+
+    for (auto &listener : listeners_) { listener->init(); }
+
     for (auto &[name, product] : products_) {
         const auto product_configs = configs.find(name);
         if (product_configs != configs.end()) {
@@ -178,6 +187,8 @@ bool client::process_response(const protocol::get_configs_response &response)
             product.assign_configs({});
         }
     }
+
+    for (auto &listener : listeners_) { listener->commit(); }
 
     targets_version_ = response.targets->version;
     opaque_backend_state_ = response.targets->opaque_backend_state;

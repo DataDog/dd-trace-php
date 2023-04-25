@@ -69,12 +69,8 @@ void dds::remote_config::product::assign_configs(
         }
     }
 
-    listener_->init();
-
     update_configs(to_update);
     unapply_configs(configs_);
-
-    listener_->commit();
 
     // Save new state of configs
     configs_ = std::move(to_update);

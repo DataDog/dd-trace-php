@@ -29,16 +29,22 @@ public:
 };
 
 inline remote_config::config generate_config(
-    const std::string &content, bool encode = true)
+    const std::string &product, const std::string &content, bool encode = true)
 {
     std::string encoded_content = content;
     if (encode) {
         encoded_content = base64_encode(content);
     }
 
-    return {"product", "id", encoded_content, "path", {}, 123, 321,
+    return {product, "id", encoded_content, "path", {}, 123, 321,
         remote_config::protocol::config_state::applied_state::UNACKNOWLEDGED,
         ""};
+}
+
+inline remote_config::config generate_config(
+    const std::string &content, bool encode = true)
+{
+    return generate_config("product", content, encode);
 }
 
 } // namespace dds::remote_config::mock

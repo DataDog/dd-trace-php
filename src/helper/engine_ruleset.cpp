@@ -10,34 +10,9 @@
 
 #include "engine_ruleset.hpp"
 #include "exception.hpp"
+#include "utils.hpp"
 
 namespace dds {
-namespace {
-std::string read_rule_file(std::string_view filename)
-{
-    std::ifstream rule_file(filename.data(), std::ios::in);
-    if (!rule_file) {
-        throw std::system_error(errno, std::generic_category());
-    }
-
-    // Create a buffer equal to the file size
-    rule_file.seekg(0, std::ios::end);
-    std::string buffer(rule_file.tellg(), '\0');
-    buffer.resize(rule_file.tellg());
-    rule_file.seekg(0, std::ios::beg);
-
-    auto buffer_size = buffer.size();
-    if (buffer_size > static_cast<typeof(buffer_size)>(
-                          std::numeric_limits<std::streamsize>::max())) {
-        throw std::runtime_error{"rule file is too large"};
-    }
-
-    rule_file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-    buffer.resize(rule_file.gcount());
-    rule_file.close();
-    return buffer;
-}
-} // namespace
 
 engine_ruleset::engine_ruleset(std::string_view ruleset)
 {
@@ -49,7 +24,7 @@ engine_ruleset::engine_ruleset(std::string_view ruleset)
 
 engine_ruleset engine_ruleset::from_path(std::string_view path)
 {
-    auto ruleset = read_rule_file(path);
+    auto ruleset = read_file(path);
     return engine_ruleset{ruleset};
 }
 

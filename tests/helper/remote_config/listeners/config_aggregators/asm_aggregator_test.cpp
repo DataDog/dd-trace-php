@@ -4,14 +4,11 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
-#include "../common.hpp"
-#include "base64.h"
-#include "engine.hpp"
+#include "../../../common.hpp"
+#include "../../mocks.hpp"
 #include "json_helper.hpp"
-#include "mocks.hpp"
-#include "remote_config/asm_listener.hpp"
 #include "remote_config/exception.hpp"
-#include "subscriber/waf.hpp"
+#include "remote_config/listeners/config_aggregators/asm_aggregator.hpp"
 #include <rapidjson/document.h>
 
 namespace dds::remote_config {
@@ -30,20 +27,13 @@ ACTION_P(SaveDocument, param)
     arg0.copy(document);
 }
 
-TEST(RemoteConfigAsmListener, EmptyCommit)
+TEST(RemoteConfigAsmAggregator, EmptyCommit)
 {
-    auto engine = mock::engine::create();
+    remote_config::asm_aggregator aggregator;
 
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
-    listener.init();
-    listener.commit();
+    rapidjson::Document doc(rapidjson::kObjectType);
+    aggregator.init(&doc.GetAllocator());
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
     EXPECT_TRUE(overrides.IsArray());
@@ -62,23 +52,17 @@ TEST(RemoteConfigAsmListener, EmptyCommit)
     EXPECT_EQ(custom_rules.Size(), 0);
 }
 
-TEST(RemoteConfigAsmListener, EmptyConfigThrows)
+TEST(RemoteConfigAsmAggregator, EmptyConfigThrows)
 {
-    auto engine = mock::engine::create();
+    remote_config::asm_aggregator aggregator;
 
-    rapidjson::Document doc;
+    rapidjson::Document doc(rapidjson::kObjectType);
 
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillRepeatedly(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
-    listener.init();
-    EXPECT_THROW(listener.on_update(generate_config({})),
+    aggregator.init(&doc.GetAllocator());
+    EXPECT_THROW(aggregator.add(generate_config({})),
         remote_config::error_applying_config);
 
-    listener.commit();
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
     EXPECT_TRUE(overrides.IsArray());
@@ -97,26 +81,20 @@ TEST(RemoteConfigAsmListener, EmptyConfigThrows)
     EXPECT_EQ(custom_rules.Size(), 0);
 }
 
-TEST(RemoteConfigAsmListener, IncorrectTypeThrows)
+TEST(RemoteConfigAsmAggregator, IncorrectTypeThrows)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillRepeatedly(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string rule_override =
         R"({"rules_override": {"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}})";
 
-    listener.init();
-    EXPECT_THROW(listener.on_update(generate_config(rule_override)),
+    remote_config::asm_aggregator aggregator;
+
+    rapidjson::Document doc(rapidjson::kObjectType);
+    aggregator.init(&doc.GetAllocator());
+
+    EXPECT_THROW(aggregator.add(generate_config(rule_override)),
         remote_config::error_applying_config);
 
-    listener.commit();
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
     EXPECT_TRUE(overrides.IsArray());
@@ -135,24 +113,17 @@ TEST(RemoteConfigAsmListener, IncorrectTypeThrows)
     EXPECT_EQ(custom_rules.Size(), 0);
 }
 
-TEST(RemoteConfigAsmListener, RulesOverrideSingleConfig)
+TEST(RemoteConfigAsmAggregator, RulesOverrideSingleConfig)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string rule_override =
         R"({"rules_override": [{"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}]})";
 
-    listener.init();
-    listener.on_update(generate_config(rule_override));
-    listener.commit();
+    remote_config::asm_aggregator aggregator;
+
+    rapidjson::Document doc(rapidjson::kObjectType);
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(rule_override));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
     EXPECT_TRUE(overrides.IsArray());
@@ -186,27 +157,19 @@ TEST(RemoteConfigAsmListener, RulesOverrideSingleConfig)
     EXPECT_EQ(custom_rules.Size(), 0);
 }
 
-TEST(RemoteConfigAsmListener, RulesOverrideMultipleConfigs)
+TEST(RemoteConfigAsmAggregator, RulesOverrideMultipleConfigs)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string rule_override =
         R"({"rules_override": [{"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}]})";
 
-    listener.init();
-    listener.on_update(generate_config(rule_override));
-    listener.on_update(generate_config(rule_override));
-    listener.on_update(generate_config(rule_override));
-    listener.on_update(generate_config(rule_override));
-    listener.commit();
+    rapidjson::Document doc(rapidjson::kObjectType);
+    remote_config::asm_aggregator aggregator;
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(rule_override));
+    aggregator.add(generate_config(rule_override));
+    aggregator.add(generate_config(rule_override));
+    aggregator.add(generate_config(rule_override));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
     EXPECT_TRUE(overrides.IsArray());
@@ -242,25 +205,17 @@ TEST(RemoteConfigAsmListener, RulesOverrideMultipleConfigs)
     }
 }
 
-TEST(RemoteConfigAsmListener, RulesOverridesConfigCycling)
+TEST(RemoteConfigAsmAggregator, RulesOverridesConfigCycling)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
+    remote_config::asm_aggregator aggregator;
 
     const std::string rule_override =
         R"({"rules_override": [{"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}]})";
     {
-
-        listener.init();
-        listener.on_update(generate_config(rule_override));
-        listener.commit();
+        rapidjson::Document doc(rapidjson::kObjectType);
+        aggregator.init(&doc.GetAllocator());
+        aggregator.add(generate_config(rule_override));
+        aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
         EXPECT_TRUE(overrides.IsArray());
@@ -297,11 +252,12 @@ TEST(RemoteConfigAsmListener, RulesOverridesConfigCycling)
     }
 
     {
-        listener.init();
-        listener.on_update(generate_config(rule_override));
-        listener.on_update(generate_config(rule_override));
-        listener.on_update(generate_config(rule_override));
-        listener.commit();
+        rapidjson::Document doc(rapidjson::kObjectType);
+        aggregator.init(&doc.GetAllocator());
+        aggregator.add(generate_config(rule_override));
+        aggregator.add(generate_config(rule_override));
+        aggregator.add(generate_config(rule_override));
+        aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
         EXPECT_TRUE(overrides.IsArray());
@@ -338,24 +294,17 @@ TEST(RemoteConfigAsmListener, RulesOverridesConfigCycling)
     }
 }
 
-TEST(RemoteConfigAsmListener, ActionsSingleConfig)
+TEST(RemoteConfigAsmAggregator, ActionsSingleConfig)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string action_definitions =
         R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}]})";
 
-    listener.init();
-    listener.on_update(generate_config(action_definitions));
-    listener.commit();
+    rapidjson::Document doc(rapidjson::kObjectType);
+    remote_config::asm_aggregator aggregator;
+
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(action_definitions));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
     EXPECT_TRUE(overrides.IsArray());
@@ -374,26 +323,19 @@ TEST(RemoteConfigAsmListener, ActionsSingleConfig)
     EXPECT_EQ(custom_rules.Size(), 0);
 }
 
-TEST(RemoteConfigAsmListener, ActionsMultipleConfigs)
+TEST(RemoteConfigAsmAggregator, ActionsMultipleConfigs)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string action_definitions =
         R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}]})";
 
-    listener.init();
-    listener.on_update(generate_config(action_definitions));
-    listener.on_update(generate_config(action_definitions));
-    listener.on_update(generate_config(action_definitions));
-    listener.commit();
+    rapidjson::Document doc(rapidjson::kObjectType);
+    remote_config::asm_aggregator aggregator;
+
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(action_definitions));
+    aggregator.add(generate_config(action_definitions));
+    aggregator.add(generate_config(action_definitions));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
     EXPECT_TRUE(overrides.IsArray());
@@ -412,27 +354,20 @@ TEST(RemoteConfigAsmListener, ActionsMultipleConfigs)
     EXPECT_EQ(custom_rules.Size(), 0);
 }
 
-TEST(RemoteConfigAsmListener, ActionsConfigCycling)
+TEST(RemoteConfigAsmAggregator, ActionsConfigCycling)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string action_definitions =
         R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}]})";
 
+    remote_config::asm_aggregator aggregator;
+
     {
-        listener.init();
-        listener.on_update(generate_config(action_definitions));
-        listener.on_update(generate_config(action_definitions));
-        listener.on_update(generate_config(action_definitions));
-        listener.commit();
+        rapidjson::Document doc(rapidjson::kObjectType);
+        aggregator.init(&doc.GetAllocator());
+        aggregator.add(generate_config(action_definitions));
+        aggregator.add(generate_config(action_definitions));
+        aggregator.add(generate_config(action_definitions));
+        aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
         EXPECT_TRUE(overrides.IsArray());
@@ -452,9 +387,10 @@ TEST(RemoteConfigAsmListener, ActionsConfigCycling)
     }
 
     {
-        listener.init();
-        listener.on_update(generate_config(action_definitions));
-        listener.commit();
+        rapidjson::Document doc(rapidjson::kObjectType);
+        aggregator.init(&doc.GetAllocator());
+        aggregator.add(generate_config(action_definitions));
+        aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
         EXPECT_TRUE(overrides.IsArray());
@@ -474,24 +410,17 @@ TEST(RemoteConfigAsmListener, ActionsConfigCycling)
     }
 }
 
-TEST(RemoteConfigAsmListener, ExclusionsSingleConfig)
+TEST(RemoteConfigAsmAggregator, ExclusionsSingleConfig)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string update =
         R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
 
-    listener.init();
-    listener.on_update(generate_config(update));
-    listener.commit();
+    rapidjson::Document doc(rapidjson::kObjectType);
+    remote_config::asm_aggregator aggregator;
+
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(update));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["exclusions"];
     EXPECT_TRUE(overrides.IsArray());
@@ -510,27 +439,20 @@ TEST(RemoteConfigAsmListener, ExclusionsSingleConfig)
     EXPECT_EQ(custom_rules.Size(), 0);
 }
 
-TEST(RemoteConfigAsmListener, ExclusionsMultipleConfigs)
+TEST(RemoteConfigAsmAggregator, ExclusionsMultipleConfigs)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string update =
         R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
 
-    listener.init();
-    listener.on_update(generate_config(update));
-    listener.on_update(generate_config(update));
-    listener.on_update(generate_config(update));
-    listener.on_update(generate_config(update));
-    listener.commit();
+    rapidjson::Document doc(rapidjson::kObjectType);
+    remote_config::asm_aggregator aggregator;
+
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(update));
+    aggregator.add(generate_config(update));
+    aggregator.add(generate_config(update));
+    aggregator.add(generate_config(update));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["exclusions"];
     EXPECT_TRUE(overrides.IsArray());
@@ -549,28 +471,21 @@ TEST(RemoteConfigAsmListener, ExclusionsMultipleConfigs)
     EXPECT_EQ(custom_rules.Size(), 0);
 }
 
-TEST(RemoteConfigAsmListener, ExclusionsConfigCycling)
+TEST(RemoteConfigAsmAggregator, ExclusionsConfigCycling)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string update =
         R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
 
+    remote_config::asm_aggregator aggregator;
+
     {
-        listener.init();
-        listener.on_update(generate_config(update));
-        listener.on_update(generate_config(update));
-        listener.on_update(generate_config(update));
-        listener.on_update(generate_config(update));
-        listener.commit();
+        rapidjson::Document doc(rapidjson::kObjectType);
+        aggregator.init(&doc.GetAllocator());
+        aggregator.add(generate_config(update));
+        aggregator.add(generate_config(update));
+        aggregator.add(generate_config(update));
+        aggregator.add(generate_config(update));
+        aggregator.aggregate(doc);
 
         const auto &overrides = doc["exclusions"];
         EXPECT_TRUE(overrides.IsArray());
@@ -590,9 +505,10 @@ TEST(RemoteConfigAsmListener, ExclusionsConfigCycling)
     }
 
     {
-        listener.init();
-        listener.on_update(generate_config(update));
-        listener.commit();
+        rapidjson::Document doc(rapidjson::kObjectType);
+        aggregator.init(&doc.GetAllocator());
+        aggregator.add(generate_config(update));
+        aggregator.aggregate(doc);
 
         const auto &overrides = doc["exclusions"];
         EXPECT_TRUE(overrides.IsArray());
@@ -612,24 +528,17 @@ TEST(RemoteConfigAsmListener, ExclusionsConfigCycling)
     }
 }
 
-TEST(RemoteConfigAsmListener, CustomRulesSingleConfig)
+TEST(RemoteConfigAsmAggregator, CustomRulesSingleConfig)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string update =
         R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})";
 
-    listener.init();
-    listener.on_update(generate_config(update));
-    listener.commit();
+    rapidjson::Document doc(rapidjson::kObjectType);
+    remote_config::asm_aggregator aggregator;
+
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(update));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["exclusions"];
     EXPECT_TRUE(overrides.IsArray());
@@ -648,27 +557,20 @@ TEST(RemoteConfigAsmListener, CustomRulesSingleConfig)
     EXPECT_EQ(custom_rules.Size(), 1);
 }
 
-TEST(RemoteConfigAsmListener, CustomRulesMultipleConfigs)
+TEST(RemoteConfigAsmAggregator, CustomRulesMultipleConfigs)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string update =
         R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})";
 
-    listener.init();
-    listener.on_update(generate_config(update));
-    listener.on_update(generate_config(update));
-    listener.on_update(generate_config(update));
-    listener.on_update(generate_config(update));
-    listener.commit();
+    rapidjson::Document doc(rapidjson::kObjectType);
+    remote_config::asm_aggregator aggregator;
+
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(update));
+    aggregator.add(generate_config(update));
+    aggregator.add(generate_config(update));
+    aggregator.add(generate_config(update));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["exclusions"];
     EXPECT_TRUE(overrides.IsArray());
@@ -687,28 +589,21 @@ TEST(RemoteConfigAsmListener, CustomRulesMultipleConfigs)
     EXPECT_EQ(custom_rules.Size(), 4);
 }
 
-TEST(RemoteConfigAsmListener, CustomRulesConfigCycling)
+TEST(RemoteConfigAsmAggregator, CustomRulesConfigCycling)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string update =
         R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})";
 
+    remote_config::asm_aggregator aggregator;
+
     {
-        listener.init();
-        listener.on_update(generate_config(update));
-        listener.on_update(generate_config(update));
-        listener.on_update(generate_config(update));
-        listener.on_update(generate_config(update));
-        listener.commit();
+        rapidjson::Document doc(rapidjson::kObjectType);
+        aggregator.init(&doc.GetAllocator());
+        aggregator.add(generate_config(update));
+        aggregator.add(generate_config(update));
+        aggregator.add(generate_config(update));
+        aggregator.add(generate_config(update));
+        aggregator.aggregate(doc);
 
         const auto &overrides = doc["exclusions"];
         EXPECT_TRUE(overrides.IsArray());
@@ -728,9 +623,10 @@ TEST(RemoteConfigAsmListener, CustomRulesConfigCycling)
     }
 
     {
-        listener.init();
-        listener.on_update(generate_config(update));
-        listener.commit();
+        rapidjson::Document doc(rapidjson::kObjectType);
+        aggregator.init(&doc.GetAllocator());
+        aggregator.add(generate_config(update));
+        aggregator.aggregate(doc);
 
         const auto &overrides = doc["exclusions"];
         EXPECT_TRUE(overrides.IsArray());
@@ -750,23 +646,17 @@ TEST(RemoteConfigAsmListener, CustomRulesConfigCycling)
     }
 }
 
-TEST(RemoteConfigAsmListener, AllSingleConfigs)
+TEST(RemoteConfigAsmAggregator, AllSingleConfigs)
 {
-    auto engine = mock::engine::create();
-
-    rapidjson::Document doc;
-
-    EXPECT_CALL(*engine, update(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SaveDocument(&doc)));
-
-    remote_config::asm_listener listener(engine);
-
     const std::string update =
         R"({"rules_override": [{"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}],"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}],"actions": [{"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}],"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})";
-    listener.init();
-    listener.on_update(generate_config(update));
-    listener.commit();
+
+    rapidjson::Document doc(rapidjson::kObjectType);
+    remote_config::asm_aggregator aggregator;
+
+    aggregator.init(&doc.GetAllocator());
+    aggregator.add(generate_config(update));
+    aggregator.aggregate(doc);
 
     const auto &overrides = doc["exclusions"];
     EXPECT_TRUE(overrides.IsArray());
@@ -783,305 +673,6 @@ TEST(RemoteConfigAsmListener, AllSingleConfigs)
     const auto &custom_rules = doc["custom_rules"];
     EXPECT_TRUE(custom_rules.IsArray());
     EXPECT_EQ(custom_rules.Size(), 1);
-}
-
-TEST(RemoteConfigAsmListener, EngineRulesOverrideDisableRule)
-{
-    std::map<std::string_view, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    auto engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
-
-    remote_config::asm_listener listener(engine);
-
-    listener.init();
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    const std::string rule_override =
-        R"({"rules_override": [{"rules_target": [{"rule_id": "1"}], "enabled":"false"}]})";
-    listener.on_update(generate_config(rule_override));
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    listener.commit();
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_FALSE(res);
-    }
-}
-
-TEST(RemoteConfigAsmListener, EngineRulesOverrideSetOnMatch)
-{
-    std::map<std::string_view, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    auto engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
-
-    remote_config::asm_listener listener(engine);
-
-    listener.init();
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
-    }
-
-    const std::string rule_override =
-        R"({"rules_override": [{"rules_target": [{"tags": {"type": "flow1"}}], "on_match": ["block"]}]})";
-    listener.on_update(generate_config(rule_override));
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
-    }
-
-    listener.commit();
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
-    }
-}
-
-TEST(RemoteConfigAsmListener, EngineRulesOverrideAndActionDefinition)
-{
-    std::map<std::string_view, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    auto engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
-
-    remote_config::asm_listener listener(engine);
-
-    listener.init();
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
-    }
-    const std::string update =
-        R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}],"rules_override": [{"rules_target": [{"rule_id": "1"}], "on_match": ["redirect"]}]})";
-    listener.on_update(generate_config(update));
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
-    }
-
-    listener.commit();
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::redirect);
-    }
-}
-
-TEST(RemoteConfigAsmListener, EngineExclusionPasslistRule)
-{
-    std::map<std::string_view, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    auto engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
-
-    remote_config::asm_listener listener(engine);
-
-    listener.init();
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    const std::string update =
-        R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
-    listener.on_update(generate_config(update));
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    listener.commit();
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_FALSE(res);
-    }
-}
-
-TEST(RemoteConfigAsmListener, EngineCustomRules)
-{
-    std::map<std::string_view, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    auto engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
-
-    remote_config::asm_listener listener(engine);
-
-    listener.init();
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg3", parameter::string("custom rule"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_FALSE(res);
-    }
-
-    const std::string update =
-        R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})";
-    listener.on_update(generate_config(update));
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg3", parameter::string("custom rule"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_FALSE(res);
-    }
-
-    listener.commit();
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg3", parameter::string("custom rule"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    listener.init();
-    listener.on_update(generate_config(R"({"custom_rules":[]})"));
-    listener.commit();
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("value"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-    }
-
-    {
-        auto ctx = engine->get_context();
-
-        auto p = parameter::map();
-        p.add("arg3", parameter::string("custom rule"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_FALSE(res);
-    }
 }
 
 } // namespace
