@@ -22,7 +22,7 @@ __attribute__((weak)) int php_json_encode(smart_str *buf, zval *val, int options
 __attribute__((weak)) int php_json_decode_ex(zval *return_value, const char *str, size_t str_len, zend_long options,
                                              zend_long depth);
 #endif
-__attribute__((weak)) zend_class_entry *php_json_serializable_ce = NULL;
+__attribute__((weak)) zend_class_entry *php_json_serializable_ce;
 
 void zai_fetch_json_serializable_ce(zend_module_entry *json_me) {
     if (php_json_serializable_ce) return;
@@ -41,10 +41,9 @@ void zai_fetch_json_serializable_ce(zend_module_entry *json_me) {
 }
 
 bool zai_json_setup_bindings(void) {
-    if (php_json_encode && php_json_decode_ex) {
+    if (php_json_encode && php_json_decode_ex && php_json_serializable_ce) {
         zai_json_encode = php_json_encode;
         zai_json_decode_ex = php_json_decode_ex;
-        zai_fetch_json_serializable_ce(NULL);
         return true;
     }
 
@@ -62,7 +61,13 @@ bool zai_json_setup_bindings(void) {
         zai_json_decode_ex = DL_FETCH_SYMBOL(json_me->handle, "_php_json_decode_ex");
     }
 
-    zai_fetch_json_serializable_ce(json_me);
+    zend_class_entry **tmp_json_serializable_ce = (zend_class_entry **)DL_FETCH_SYMBOL(json_me->handle, "php_json_serializable_ce");
+    if (tmp_json_serializable_ce == NULL) {
+        tmp_json_serializable_ce = (zend_class_entry **)DL_FETCH_SYMBOL(json_me->handle, "_php_json_serializable_ce");
+    }
+    if (tmp_json_serializable_ce != NULL) {
+        php_json_serializable_ce = *tmp_json_serializable_ce;
+    }
 
     return zai_json_encode && zai_json_decode_ex;
 }
