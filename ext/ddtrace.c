@@ -73,7 +73,6 @@
 #define ZVAL_EMPTY_STRING(z) ZVAL_NEW_STR(z, zend_string_init("", 0, 1))
 #endif
 #include "ddtrace_arginfo.h"
-#include "compat_string.h"
 
 #if PHP_VERSION_ID < 70200
 #undef ZVAL_EMPTY_STRING

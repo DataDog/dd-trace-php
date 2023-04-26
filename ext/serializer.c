@@ -822,13 +822,8 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     zend_array *span_links_zv = ddtrace_spandata_property_links(span);
     if (zend_hash_num_elements(span_links_zv) > 0) {
         smart_str buf = {0};
-
         _dd_serialize_json(span_links_zv, &buf, 0);
-        //zval *links = ddtrace_spandata_property_links_zval(span);
-        //zai_json_encode(&buf, links, (1<<4));
-
         add_assoc_str(meta, "_dd.span_links", buf.s);
-        //smart_str_0(&buf);
     }
 
     if (is_top_level_span) {
