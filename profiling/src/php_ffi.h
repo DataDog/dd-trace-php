@@ -119,3 +119,6 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                void* (*_realloc)(void*, size_t));
 
 zend_execute_data* ddog_php_prof_get_current_execute_data();
+
+zend_execute_data* create_fake_zend_execute_data(int depth);
+void free_fake_zend_execute_data(zend_execute_data *execute_data);

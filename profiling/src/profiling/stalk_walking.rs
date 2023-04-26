@@ -175,8 +175,33 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     }
 }
 
+#[cfg(all(test, php_run_time_cache))]
+pub unsafe fn ddog_php_prof_function_run_time_cache(
+    func: &zend_function,
+) -> Option<&mut [usize; 2]> {
+    use crate::bindings::uint;
+    use std::os::raw::c_void;
+    let non_const_func = func as *const zend_function as *mut zend_function;
+
+    if (*non_const_func).common.run_time_cache__ptr.is_null() {
+        let run_time_cache_ptr = vec![std::ptr::null_mut::<c_void>(); 2].into_boxed_slice();
+        let cache_0 = Box::new(0 as uint);
+        let cache_1 = Box::new(0 as uint);
+        (*non_const_func).common.run_time_cache__ptr =
+            Box::into_raw(run_time_cache_ptr) as *mut *mut c_void;
+        *(*non_const_func).common.run_time_cache__ptr.add(0) =
+            Box::into_raw(cache_0) as *mut c_void;
+        *(*non_const_func).common.run_time_cache__ptr.add(1) =
+            Box::into_raw(cache_1) as *mut c_void;
+    }
+
+    let run_time_cache_ptr = *(*non_const_func).common.run_time_cache__ptr as *mut [usize; 2];
+    run_time_cache_ptr.as_mut()
+}
+
 #[cfg(php_run_time_cache)]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    #[cfg(not(test))]
     use crate::bindings::ddog_php_prof_function_run_time_cache;
     let func = execute_data.func.as_ref()?;
     CACHED_STRINGS.with(|cell| {
@@ -270,4 +295,43 @@ pub(super) unsafe fn collect_stack_sample(
         execute_data_ptr = execute_data.prev_execute_data;
     }
     Ok(samples)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bindings as zend;
+
+    #[test]
+    fn test_collect_stack_sample() {
+        unsafe {
+            let fake_execute_data = zend::create_fake_zend_execute_data(3);
+
+            // first run should produce three cache misses
+            collect_stack_sample(fake_execute_data).unwrap();
+            // second run should produce three cache hits
+            let stack = collect_stack_sample(fake_execute_data).unwrap();
+
+            assert_eq!(stack.len(), 3);
+
+            assert_eq!(stack[0].function, "function: 03");
+            assert_eq!(stack[0].line, 0);
+
+            assert_eq!(stack[1].function, "function: 02");
+            assert_eq!(stack[1].line, 0);
+
+            assert_eq!(stack[2].function, "function: 01");
+            assert_eq!(stack[2].line, 0);
+
+            // Free the allocated memory
+            zend::free_fake_zend_execute_data(fake_execute_data);
+
+            #[cfg(php_run_time_cache)]
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let stats = cell.borrow();
+                assert_eq!(stats.hit, 3);
+                assert_eq!(stats.missed, 3);
+            });
+        }
+    }
 }
