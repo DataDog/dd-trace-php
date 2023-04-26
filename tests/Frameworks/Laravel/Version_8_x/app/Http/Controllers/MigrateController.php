@@ -10,18 +10,8 @@ class MigrateController extends Controller
 {
     public function migrate()
     {
-        // If there are migrations to run, they will be run.
-        // Since we are using a production environment, we need to force the migrations.
-        // Check if the table 'jobs' exists
-        // If it doesn't, we need to migrate
-        // Otherwise, do nothing
         $result = $this->connection()->query("SHOW TABLES LIKE 'jobs'");
         if ($result->rowCount() === 0) {
-            //Artisan::call('migrate --force');
-            //file_put_contents('migrateDebug.txt', 'Migrated.' . PHP_EOL, FILE_APPEND);
-            //file_put_contents('migrateDebug.txt', Artisan::output(), FILE_APPEND);
-
-            // Create the 'jobs' table manually
             Schema::create('jobs', function (Blueprint $table) {
                 $table->bigIncrements('id');
                 $table->string('queue')->index();
@@ -31,8 +21,22 @@ class MigrateController extends Controller
                 $table->unsignedInteger('available_at');
                 $table->unsignedInteger('created_at');
             });
-        } else {
-            //file_put_contents('migrateDebug.txt', 'No migrations to run.' . PHP_EOL, FILE_APPEND);
+        }
+
+        $result = $this->connection()->query("SHOW TABLES LIKE 'job_batches'");
+        if ($result->rowCount() === 0) {
+            Schema::create('job_batches', function (Blueprint $table) {
+                $table->string('id')->primary();
+                $table->string('name');
+                $table->integer('total_jobs');
+                $table->integer('pending_jobs');
+                $table->integer('failed_jobs');
+                $table->text('failed_job_ids');
+                $table->mediumText('options')->nullable();
+                $table->integer('cancelled_at')->nullable();
+                $table->integer('created_at');
+                $table->integer('finished_at')->nullable();
+            });
         }
 
         return __METHOD__;
