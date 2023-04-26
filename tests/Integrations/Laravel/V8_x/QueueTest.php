@@ -215,10 +215,12 @@ class QueueTest extends WebFrameworkTestCase
     protected function migrate()
     {
         if ($this->migrate) {
+            fwrite(STDERR, "Migrating database\n");
             $this->call(GetSpec::create('Migrate', '/migrate'));
         } else {
-            $this->migrate = true;
+            fwrite(STDERR, "Nothing to migrate\n");
         }
+        $this->migrate = true;
     }
 
     protected function connection()
