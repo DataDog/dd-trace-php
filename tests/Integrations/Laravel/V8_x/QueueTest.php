@@ -17,8 +17,6 @@ class QueueTest extends WebFrameworkTestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
-    private bool $migrate = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
@@ -30,8 +28,7 @@ class QueueTest extends WebFrameworkTestCase
             'DD_TRACE_AUTO_FLUSH_ENABLED' => '1',
             'DD_TRACE_CLI_ENABLED' => '1',
             'DD_TRACE_DEBUG' => '1',
-            'APP_NAME' => 'laravel_queue_test',
-            'DD_AUTOLOAD_NO_COMPILE' => '1'
+            'APP_NAME' => 'laravel_queue_test'
         ]);
     }
 
