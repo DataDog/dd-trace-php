@@ -38,44 +38,22 @@ foo();
 bar();
 baz();
 
-var_dump($firstLink);
+var_dump(json_encode($firstLink));
 var_dump($firstLink->jsonSerialize());
-var_dump($secondLink);
+var_dump(json_encode($secondLink));
 var_dump($secondLink->jsonSerialize());
 var_dump(dd_trace_serialize_closed_spans()[0]);
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanLink)#9 (2) {
-  ["traceId"]=>
-  string(32) "0000000000000000c151df7d6ee5e2d6"
-  ["spanId"]=>
-  string(16) "a3978fb9b92502a8"
-  ["traceState"]=>
-  uninitialized(string)
-  ["attributes"]=>
-  uninitialized(array)
-  ["droppedAttributesCount"]=>
-  uninitialized(int)
-}
+string(76) "{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"}"
 array(5) {
   ["trace_id"]=>
   string(32) "0000000000000000c151df7d6ee5e2d6"
   ["span_id"]=>
   string(16) "a3978fb9b92502a8"
 }
-object(DDTrace\SpanLink)#11 (2) {
-  ["traceId"]=>
-  string(32) "0000000000000000c151df7d6ee5e2d6"
-  ["spanId"]=>
-  string(16) "c08c967f0e5e7b0a"
-  ["traceState"]=>
-  uninitialized(string)
-  ["attributes"]=>
-  uninitialized(array)
-  ["droppedAttributesCount"]=>
-  uninitialized(int)
-}
+string(76) "{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"c08c967f0e5e7b0a"}"
 array(5) {
   ["trace_id"]=>
   string(32) "0000000000000000c151df7d6ee5e2d6"
