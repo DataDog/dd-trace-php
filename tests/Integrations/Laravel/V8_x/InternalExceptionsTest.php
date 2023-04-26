@@ -119,6 +119,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         '_sampling_priority_v1' => 1,
                         'process_id' => getmypid(),
                     ])
+                    ->setError('Illuminate\Auth\Access\AuthorizationException', 'This action is unauthorized.', true)
                     ->withChildren([
                         SpanAssertion::build(
                             'laravel.view.render',
