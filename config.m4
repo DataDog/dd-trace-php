@@ -170,6 +170,12 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_CHECK_LIBRARY(m, pow,
     [PHP_ADD_LIBRARY(m, , EXTRA_LDFLAGS)])
 
+  dnl rust imports these, so we need them to link
+  case $host_os in
+   darwin*)
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -framework CoreFoundation -framework Security"
+  esac
+
   PHP_CHECK_LIBRARY(rt, shm_open,
     [PHP_ADD_LIBRARY(rt, , EXTRA_LDFLAGS)])
 
@@ -242,7 +248,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
 
-  dnl consider it debug if -g is specified (but not -g0)q
+  dnl consider it debug if -g is specified (but not -g0)
   ddtrace_cargodir=$(test "${CFLAGS#*-g}" != "${CFLAGS}" && test "${CFLAGS#*-g0}" == "${CFLAGS}" && echo debug || echo release)
 
   if test "$ext_shared" = "yes"; then
