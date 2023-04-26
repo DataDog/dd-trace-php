@@ -34,6 +34,8 @@ if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_HEADERS([linux/securebits.h])
   AC_CHECK_HEADERS([linux/capability.h])
 
+  AC_LIBTOOL_OBJDIR
+
   if test -n "$PHP_DDTRACE_CARGO" && test "$PHP_DDTRACE_CARGO" != "cargo"; then
     if test -x "$PHP_DDTRACE_CARGO"; then
       DDTRACE_CARGO="$PHP_DDTRACE_CARGO"
@@ -144,7 +146,6 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/tracer_tag_propagation/tracer_tag_propagation.c \
     ext/hook/uhook.c \
     ext/hook/uhook_legacy.c \
-    \
   "
 
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
@@ -237,11 +238,14 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
 
-  dnl consider it debug if -g is specified (but not -g0)
+  dnl consider it debug if -g is specified (but not -g0)q
   ddtrace_cargodir=$(test "${CFLAGS#*-g}" != "${CFLAGS}" && test "${CFLAGS#*-g0}" == "${CFLAGS}" && echo debug || echo release)
+  all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
+  all_object_files_newlines=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf '\\n$(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
+  php_binary=$(php-config --php-binary)
   cat <<EOT >> Makefile.fragments
-\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a: $( (find "$ext_srcdir/components/rust" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs"; find "$ext_srcdir/libdatadog" -name "*.rs") | xargs)
-	(cd "$ext_srcdir/components/rust"; CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargodir" == debug || echo --release))
+\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a: $( (find "$ext_srcdir/components/rust" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
+	(cd "$ext_srcdir/components/rust"; DD_SIDECAR_MOCK_SOURCES="\$\$(printf "$php_binary$all_object_files_newlines")" CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargodir" == debug || echo --release))
 EOT
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then

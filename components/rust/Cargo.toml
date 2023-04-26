@@ -22,3 +22,4 @@ tempfile = {version = "3.3"}
 [build-dependencies]
 cbindgen = "0.24"
 cc_utils = { path = "../../libdatadog/tools/cc_utils" }
+sidecar_mockgen = { path = "../../libdatadog/tools/sidecar_mockgen" }
