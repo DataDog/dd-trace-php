@@ -47,11 +47,13 @@ class QueueTest extends WebFrameworkTestCase
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create', '/queue/create');
             $this->call($spec);
+            sleep(3);
         });
 
         $workTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
+            sleep(3);
         });
 
         $this->assertFlameGraph(
@@ -127,11 +129,13 @@ class QueueTest extends WebFrameworkTestCase
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create batch', '/queue/batch');
             $this->call($spec);
+            sleep(3);
         });
 
         $workTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue work batch', '/queue/workOn');
             $this->call($spec);
+            sleep(3);
         });
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
@@ -167,6 +171,7 @@ class QueueTest extends WebFrameworkTestCase
         $dispatchTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create batch', '/queue/batchDefault');
             $this->call($spec);
+            sleep(3);
         });
 
         $this->assertFlameGraph($dispatchTraces, [
