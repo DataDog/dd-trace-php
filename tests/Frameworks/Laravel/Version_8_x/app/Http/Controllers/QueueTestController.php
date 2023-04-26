@@ -81,14 +81,12 @@ class QueueTestController extends Controller
     {
         Bus::batch([
             new SendVerificationEmail,
-            new SendVerificationEmail,
+            new SendVerificationEmail
         ])->onConnection(
             'database'
         )->onQueue(
             'emails'
-        )->then(function ($batch) {
-        })->catch(function ($batch, $exception) {
-        })->dispatch();
+        )->dispatch();
 
         return __METHOD__;
     }
@@ -154,19 +152,19 @@ class QueueTestController extends Controller
 
     public function workOn()
     {
-        Artisan::call('queue:work database --stop-when-empty --queue=emails');
+        Artisan::call('queue:work database --stop-when-empty --queue=emails --sleep=2');
         return __METHOD__;
     }
 
     public function workOnce()
     {
-        Artisan::call('queue:work --once');
+        Artisan::call('queue:work --once --sleep=1');
         return __METHOD__;
     }
 
     public function workDefault()
     {
-        Artisan::call('queue:work --stop-when-empty');
+        Artisan::call('queue:work --stop-when-empty --sleep=1');
         return __METHOD__;
     }
 }

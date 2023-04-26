@@ -10,10 +10,15 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use Illuminate\Contracts\Queue\Job;
+use Illuminate\Queue\Jobs\DatabaseJob;
 use Illuminate\Queue\Jobs\JobName;
+use Illuminate\Queue\Jobs\RedisJob;
 use function DDTrace\active_span;
 use function DDTrace\close_span;
+use function DDTrace\close_spans_until;
+use function DDTrace\start_span;
 use function DDTrace\start_trace_span;
+use function DDTrace\switch_stack;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
 use function DDTrace\hook_method;
@@ -49,40 +54,58 @@ class LaravelQueueIntegration extends Integration
             'Illuminate\Queue\Worker',
             'process',
             [
-                'prehook' => function (SpanData $span, $args) use ($integration) {
-                    Logger::get()->debug('Processing Job');
+                'prehook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
                     /** @var Job $job */
                     $job = $args[1];
+                    Logger::get()->debug('Processing Job ' . $job->getJobId());
 
                     $integration->setSpanAttributes($span, 'laravel.queue.process', $job);
-                    $span->meta['messaging.operation'] = 'process'; // TODO: Change to receive ?
-                    /*
+                    $span->meta['messaging.operation'] = 'receive'; // TODO: Change to receive ?
+
                     $payload = $job->payload();
+                    Logger::get()->debug('Current span id: ' . dd_trace_peek_span_id());
                     // Create a new trace
                     if (isset($payload['dd_headers'])) {
-                        $newSpan = start_trace_span();
-                        $integration->setSpanAttributes($newSpan, 'laravel.queue.process', $job);
+                        $newTrace = start_trace_span();
+                        //switch_stack(\DDTrace\root_span());
+                        Logger::get()->debug('New span id: ' . dd_trace_peek_span_id());
+                        $integration->setSpanAttributes($newTrace, 'laravel.queue.process', $job);
+                        $newTrace->meta['messaging.operation'] = 'receive'; // TODO: Change to receive ?
                         $integration->extractContext($payload);
-                        $span->links[] = $newSpan->getLink();
+                        Logger::get()->debug('Before Links: ' . json_encode($span->links));
+                        $span->links[] = $newTrace->getLink();
+                        Logger::get()->debug('After Links: ' . json_encode($span->links));
                     }
-                    */
-
                 },
-                'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
                     /** @var Job $job */
                     $job = $args[1];
 
-                    /*
-                    $activeSpan = active_span();
-                    if ($activeSpan != $span) {
+                    $activeSpan = active_span(); // This is the span created in the prehook, if any
+                    Logger::get()->debug('Active span id: ' . dd_trace_peek_span_id());
+                    if ($activeSpan !== $span && $activeSpan == $newTrace) {
                         $integration->setSpanAttributes($activeSpan, 'laravel.queue.process', $job, $exception);
+                        Logger::get()->debug('Closing span id: ' . dd_trace_peek_span_id());
+
+                        //close_spans_until($activeSpan); // With this one, it flushes the right things
+                        //close_spans_until($span); // With this one, it flushes the right things
+                        // Doing nothing also works, prolly because the above commands are doing nothing as well
+
+                        // Calling close_span doesn't make it work, as it looks like the trace 'stops' after the first process
+                        //switch_stack($span);
+                        //switch_stack($activeSpan);
                         close_span();
+                        //close_span(); // Closes the trace
+                        //close_spans_until(\DDTrace\root_span());
+                        //close_span();
+                        //close_spans_until(null);
+
+                        Logger::get()->debug('Newly active span id: ' . dd_trace_peek_span_id());
                     }
-                    */
 
                     $integration->setSpanAttributes($span, 'laravel.queue.process', $job, $exception);
-
-                }
+                },
+                'recurse' => true
             ]
         );
 
@@ -127,6 +150,25 @@ class LaravelQueueIntegration extends Integration
                     $span->service = $integration->getName();
                     $span->resource = $class . '@' . $method;
                     $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
+                    if (isset($this->batchId)) {
+                        Logger::get()->debug('Batch id: ' . $this->batchId);
+                        $span->meta['messaging.laravel.batch_id'] = $this->batchId ?? null;
+                    }
+
+                    if (isset($this->job)) {
+                        Logger::get()->debug('Job id: ' . $this->job->getJobId());
+                        Logger::get()->debug('Job uuid: ' . $this->job->uuid());
+                        //$span->meta['messaging.laravel.id'] = $this->job->getJobId();
+                        //$span->meta['messaging.laravel.uuid'] = $this->job->uuid();
+                        $integration->setSpanAttributes(
+                            $span,
+                            'laravel.queue.action',
+                            $this->job,
+                            null,
+                            null,
+                            $class . '@' . $method
+                        );
+                    }
                 });
 
                 /*
@@ -140,19 +182,6 @@ class LaravelQueueIntegration extends Integration
                 */
             }
         );
-
-        /*
-        trace_method(
-            'Illuminate\Bus\DatabaseBatchRepository',
-            'markAsFinished',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                Logger::get()->debug('Marking Batch as Finished');
-                // Distributed context was extracted in the Worker::process method
-                $integration->setSpanAttributes($span, 'laravel.batch.markAsFinished', $this, $exception);
-                $span->meta[Tag::MQ_OPERATION] = 'process';
-            }
-        );
-        */
 
         trace_method(
             'Illuminate\Queue\Jobs\Job',
@@ -176,8 +205,6 @@ class LaravelQueueIntegration extends Integration
             }
         );
 
-
-        /*
         install_hook(
             'Illuminate\Queue\Queue::createPayload',
             null,
@@ -186,16 +213,10 @@ class LaravelQueueIntegration extends Integration
                 // Decode it, add the distributed tracing headers, re-encode it, return this one instead
                 $payload = $integration->injectContext(json_decode($hook->returned, true));
                 $hook->overrideReturnValue(json_encode($payload));
-                //$hook->returned = json_encode($payload);
-
-                // TODO: If the above doesn't work out, use a function using '&' to modify the actual value directly instead of re-assigning
 
                 // TODO: Exception Handling ?
             }
         );
-        */
-
-
 
         trace_method(
             'Illuminate\Contracts\Queue\Queue',
@@ -216,6 +237,58 @@ class LaravelQueueIntegration extends Integration
         // TODO: Handle chains and batches ?
 
         // TODO: in Illuminate\Bus\PendingBatch::dispatch, retrieve the batch id and ?
+
+        /*
+        trace_method(
+            'Illuminate\Contracts\Queue\Queue',
+            'bulk',
+            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                Logger::get()->debug('Bulk Pushing Jobs');
+                $integration->setSpanAttributes(
+                    $span,
+                    'laravel.queue.bulk',
+                    $args[0], $exception,
+                    $args[2] ?? null,
+                    get_class($this)
+                );
+                $span->meta[Tag::MQ_OPERATION] = 'send';
+            }
+        );
+        */
+
+        trace_method(
+            'Illuminate\Bus\Batch',
+            'add',
+            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                Logger::get()->debug('Adding Job to Batch');
+                $integration->setSpanAttributes(
+                    $span,
+                    'laravel.queue.batch.add',
+                    null,
+                    $exception,
+                    null,
+                    get_class($this)
+                );
+                $span->meta[Tag::MQ_OPERATION] = 'send';
+                $span->meta['messaging.laravel.batch_id'] = $retval ? $retval->id : null;
+            }
+        );
+
+        trace_method(
+            'Illuminate\Contracts\Queue\Queue',
+            'later',
+            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                Logger::get()->debug('Pushing Job');
+                $integration->setSpanAttributes(
+                    $span,
+                    'laravel.queue.later',
+                    $args[0], $exception,
+                    $args[2] ?? null,
+                    get_class($this)
+                );
+                $span->meta[Tag::MQ_OPERATION] = 'send';
+            }
+        );
 
         return Integration::LOADED;
     }
@@ -246,12 +319,19 @@ class LaravelQueueIntegration extends Integration
             $queue = $queue ?? $job->getQueue();
         } elseif (is_object($job)) { // Most certainly a CallQueuedClosure
             Logger::get()->debug('Job is an object');
-            $jobName = method_exists($job, 'displayName')
-                ? $job->displayName() : get_class($job);
-            if (isset($job->queue)) {
-                $queue = $queue ?? $job->queue;
-            }
+            $jobName = method_exists($job, 'displayName')  ? $job->displayName() : get_class($job);
+            $connectionName = $job->connection ?? config('queue.default');
+            $queue = $queue ?? ($job->queue ?? (config("queue.connections.$connectionName.queue") ?? 'default'));
+
+            $span->meta['messaging.laravel.name'] = $jobName;
+            $span->meta['messaging.laravel.queue'] = $queue;
+            $span->meta['messaging.laravel.connection'] = $connectionName;
+            $span->meta = array_merge(
+                $span->meta,
+                $this->getMetadataFromObject($job)
+            );
         } else { // string
+            // TODO: Do a test using 'redis' connection
             Logger::get()->debug('Job is a string');
             $jobName = $job;
         }
@@ -270,7 +350,8 @@ class LaravelQueueIntegration extends Integration
     {
         $metadata = [
             'messaging.laravel.attempts' => $job->attempts(),
-            'messaging.laravel.connection' => $job->getConnectionName(),
+            'messaging.laravel.connection' => $job->getConnectionName() ?? config('queue.default'),
+            'messaging.laravel.uuid' => $job->uuid(),
             'messaging.laravel.id' => $job->getJobId(),
             'messaging.laravel.max_tries' => $job->maxTries(),
             'messaging.laravel.queue' => $job->getQueue(),
@@ -280,8 +361,24 @@ class LaravelQueueIntegration extends Integration
             'messaging.system' => 'laravel',
         ];
 
-        // TODO: batch id, if applicable?
+        $metadata = array_filter($metadata, function ($value) {
+            return !empty($value);
+        });
 
+        return $metadata;
+    }
+
+    public function getMetadataFromObject(object $job)
+    {
+        $metadata = [
+            'messaging.laravel.max_tries' => $job->tries ?? null,
+            'messaging.laravel.retry_until' => $job->retryUntil ?? null,
+            'messaging.laravel.attempts' => $job->attempts() ?? null,
+            'messaging.laravel.timeout' => $job->timeout ?? null,
+            'messaging.laravel.queue' => $job->queue ?? null,
+            'messaging.laravel.batch_id' => $job->batchId ?? null,
+            'messaging.system' => 'laravel',
+        ];
 
         $metadata = array_filter($metadata, function ($value) {
             return !empty($value);
@@ -293,10 +390,12 @@ class LaravelQueueIntegration extends Integration
     public function injectContext(array $payload)
     {
         if (\ddtrace_config_distributed_tracing_enabled() === false) {
+            Logger::get()->debug('Distributed Tracing is disabled');
             return $payload;
         }
 
         $payload['dd_headers'] = \DDTrace\generate_distributed_tracing_headers();
+        Logger::get()->debug('headers : ' . json_encode($payload['dd_headers']));
 
         return $payload;
     }

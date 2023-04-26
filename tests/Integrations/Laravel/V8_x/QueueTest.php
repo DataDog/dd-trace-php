@@ -27,7 +27,8 @@ class QueueTest extends WebFrameworkTestCase
             'DD_TRACE_AUTO_FLUSH_ENABLED' => '1',
             'DD_TRACE_CLI_ENABLED' => '1',
             'DD_TRACE_DEBUG' => '1',
-            'APP_NAME' => 'laravel_queue_test'
+            'APP_NAME' => 'laravel_queue_test',
+            'DD_AUTOLOAD_NO_COMPILE' => '1'
         ]);
     }
 
@@ -52,40 +53,37 @@ class QueueTest extends WebFrameworkTestCase
         // TODO: Check span links + Distributed tracing
 
         $this->assertFlameGraph($createTraces, [
-            SpanAssertion::build(
-                'laravel.request',
-                'laravel_queue_test',
-                'web',
-                'App\Http\Controllers\QueueTestController@create unnamed_route'
-            )->withExactTags([
-                Tag::HTTP_URL               => 'http://localhost:9999/queue/create',
-                Tag::HTTP_METHOD            => 'GET',
-                'laravel.route.name'        => 'unnamed_route',
-                'laravel.route.action'      => 'App\Http\Controllers\QueueTestController@create',
-                Tag::SPAN_KIND              => 'server',
-                Tag::COMPONENT              => 'laravel',
-                Tag::HTTP_STATUS_CODE       => '200'
-            ])->withChildren([
-                SpanAssertion::build(
-                    'laravel.action',
-                    'laravel_queue_test',
-                    'web',
-                    'queue/create'
-                )->withExactTags([
-                    Tag::COMPONENT          => 'laravel'
-                ])->withChildren([
-                    $this->pushOneJob('App\Jobs\SendVerificationEmail -> emails', 'Illuminate\Queue\DatabaseQueue')
-                ])
+            SpanAssertion::exists('laravel.request')
+                ->withChildren([
+                    SpanAssertion::exists('laravel.action')
+                        ->withExactTags([
+                            Tag::COMPONENT => 'laravel'
+                        ])->withChildren([
+                            $this->spanQueuePush('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
+                                ->withChildren([
+                                    $this->spanQueueEnqueue('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                ])
+                        ])
             ])],
             false
         );
 
-        $this->assertFlameGraph($workTraces, [
+        // $workTraces should have 2 traces: 1 'laravel.queue.process' and 1 'laravel.artisan'
+        $processTrace1 = $workTraces[0];
+        $artisanTrace = $workTraces[1];
+
+
+        $this->assertFlameGraph($processTrace1, [
+            $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+        ], false);
+
+        $this->assertFlameGraph($artisanTrace, [
             SpanAssertion::exists('laravel.artisan')
                 ->withChildren([
                     SpanAssertion::exists('laravel.action')
                         ->withChildren([
-                            $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                            $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                ->withExistingTagsNames(['_dd.span_links'])
                         ])
                 ])
         ], false
@@ -94,7 +92,7 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testDispatchBatchAndProcess()
     {
-        $this->tracesFromWebRequest(function () {
+        $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create batch', '/queue/batch');
             $this->call($spec);
         });
@@ -104,14 +102,34 @@ class QueueTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertFlameGraph($workTraces, [
+        // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
+        $processTrace1 = [$workTraces[0][0]];
+        $processTrace2 = [$workTraces[0][1]];
+        $artisanTrace = $workTraces[1];
+
+        $this->assertFlameGraph($processTrace1, [
+            $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+        ], false);
+
+        $this->assertFlameGraph($processTrace2, [
+            $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+        ], false);
+
+
+        $this->assertFlameGraph($artisanTrace, [
             SpanAssertion::exists('laravel.artisan')->withChildren([
                 SpanAssertion::exists('laravel.action')->withChildren([
-                    $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
-                    $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
+                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                        ->withExistingTagsNames(['_dd.span_links']),
+                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                        ->withExistingTagsNames(['_dd.span_links']),
+                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                        ->withExistingTagsNames(['_dd.span_links']),
                 ])
             ])
         ], false);
+
+        // TODO: Check the ids of the spans
     }
 
     public function testDispatchBatchNowDefault()
@@ -126,25 +144,32 @@ class QueueTest extends WebFrameworkTestCase
                 ->withChildren([
                     SpanAssertion::exists('laravel.action')
                         ->withChildren([
-                            $this->spanQueuePush('Illuminate\Queue\SyncQueue')
+                            $this->spanQueueBatchAdd()
                                 ->withChildren([
-                                    $this->spanEventJobProcessing(),
-                                    $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
+                                    $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue')
+                                        ->withExistingTagsNames(['messaging.laravel.batch_id'])
                                         ->withChildren([
-                                            $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
-                                            $this->spanQueueAction()
+                                            $this->spanEventJobProcessing(),
+                                            $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
+                                                ->withChildren([
+                                                    $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
+                                                    $this->spanQueueAction('sync', 'sync')
+                                                        ->withExistingTagsNames(['messaging.laravel.batch_id'])
+                                                ]),
+                                            $this->spanEventJobProcessed()
                                         ]),
-                                    $this->spanEventJobProcessed()
-                                ]),
-                            $this->spanQueuePush('Illuminate\Queue\SyncQueue')
-                                ->withChildren([
-                                    $this->spanEventJobProcessing(),
-                                    $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
+                                    $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue') // TODO: Change default to sync
+                                        ->withExistingTagsNames(['messaging.laravel.batch_id'])
                                         ->withChildren([
-                                            $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
-                                            $this->spanQueueAction()
-                                        ]),
-                                    $this->spanEventJobProcessed()
+                                            $this->spanEventJobProcessing(),
+                                            $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
+                                                ->withChildren([
+                                                    $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
+                                                    $this->spanQueueAction('sync', 'sync')
+                                                        ->withExistingTagsNames(['messaging.laravel.batch_id'])
+                                                ]),
+                                            $this->spanEventJobProcessed()
+                                        ])
                                 ])
                         ])
                 ])
@@ -188,7 +213,7 @@ class QueueTest extends WebFrameworkTestCase
     }
 
     protected function getCommonTags(
-        string $operation = 'process',
+        $operation = 'process',
         $queue = 'emails',
         $connection = 'database'
     ) {
@@ -219,15 +244,20 @@ class QueueTest extends WebFrameworkTestCase
         return $commonTags;
     }
 
-    protected function spanQueueAction()
-    {
+    protected function spanQueueAction(
+        $connection = 'database',
+        $queue = 'emails'
+    ) {
         return SpanAssertion::build(
             'laravel.queue.action',
-            'laravelqueue',
+            'laravel_queue_test',
             'queue',
             'App\Jobs\SendVerificationEmail@handle'
-        )->withExactTags([
-            Tag::COMPONENT  => 'laravelqueue'
+        )->withExactTags(
+            $this->getCommonTags(null, $queue, $connection)
+        )->withExistingTagsNames([
+            'messaging.laravel.id',
+            'messaging.laravel.uuid'
         ]);
     }
 
@@ -246,10 +276,13 @@ class QueueTest extends WebFrameworkTestCase
         );
 
         if ($queue === 'sync') {
-            return $span;
+            return $span->withExistingTagsNames([
+                'messaging.laravel.uuid'
+            ]);
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id'
+                'messaging.laravel.id',
+                'messaging.laravel.uuid'
             ]);
         }
     }
@@ -269,10 +302,13 @@ class QueueTest extends WebFrameworkTestCase
         );
 
         if ($queue === 'sync') {
-            return $span;
+            return $span->withExistingTagsNames([
+                'messaging.laravel.uuid'
+            ]);
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id'
+                'messaging.laravel.id',
+                'messaging.laravel.uuid'
             ]);
         }
     }
@@ -288,14 +324,15 @@ class QueueTest extends WebFrameworkTestCase
             'queue',
             $resourceDetails
         )->withExactTags(
-            $this->getCommonTags('process', $queue, $connection)
+            $this->getCommonTags('receive', $queue, $connection)
         );
 
         if ($queue === 'sync') {
             return $span;
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id'
+                'messaging.laravel.id',
+                'messaging.laravel.uuid'
             ]);
         }
     }
@@ -305,52 +342,77 @@ class QueueTest extends WebFrameworkTestCase
         $queue = 'emails',
         $resourceDetails = 'App\Jobs\SendVerificationEmail'
     ) {
-        return $this->spanQueueProcess($connection, $queue, $resourceDetails)
-            ->withChildren([
-                $this->spanEventJobProcessing(),
-                $this->spanQueueFire($connection, $queue, $resourceDetails)
-                    ->withChildren([
-                        $this->spanQueueResolve($connection, $queue, $resourceDetails),
-                        $this->spanQueueAction()
-                    ]),
-                $this->spanEventJobProcessed()
-            ]);
+        return SpanAssertion::build(
+            'laravel.queue.process',
+            'laravel_queue_test',
+            'queue',
+            $resourceDetails
+        )->withExactTags([
+            Tag::HTTP_URL => 'http://localhost:9999/queue/workOn',
+            Tag::HTTP_METHOD => 'GET',
+            Tag::HTTP_STATUS_CODE => 200
+        ])->withExactTags(
+            $this->getCommonTags('receive', $queue, $connection)
+        )->withExistingTagsNames([
+            'messaging.laravel.uuid',
+            'messaging.laravel.id'
+        ])->withChildren([
+            $this->spanEventJobProcessing(),
+            $this->spanQueueFire($connection, $queue, $resourceDetails)
+                ->withChildren([
+                    $this->spanQueueResolve($connection, $queue, $resourceDetails),
+                    $this->spanQueueAction()
+                        ->withExistingTagsNames([
+                            'messaging.laravel.batch_id'
+                        ])
+                ]),
+            $this->spanEventJobProcessed()
+        ]);
     }
 
-    protected function spanQueuePush(string $resourceDetails = 'Illuminate\Queue\SyncQueue')
-    {
+    protected function spanQueuePush(
+        $connection = 'database',
+        $queue = 'emails',
+        $resourceDetails = 'App\Jobs\SendVerificationEmail'
+    ) {
         return SpanAssertion::build(
             'laravel.queue.push',
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags([
-            Tag::SPAN_KIND      => 'client',
-            Tag::COMPONENT      => 'laravelqueue',
-            Tag::MQ_OPERATION   => 'send',
-        ]);
+        )->withExactTags(
+            $this->getCommonTags('send', $queue, $connection)
+        );
     }
 
-    protected function spanQueueEnqueue(string $resourceDetails = 'App\Jobs\SendVerificationEmail')
-    {
+    protected function spanQueueEnqueue(
+        $connection = 'database',
+        $queue = 'emails',
+        $resourceDetails = 'App\Jobs\SendVerificationEmail'
+    ) {
         return SpanAssertion::build(
             'laravel.queue.enqueueUsing',
             'laravel_queue_test',
             'queue',
             $resourceDetails
+        )->withExactTags(
+            $this->getCommonTags(null, $queue, $connection)
+        );
+    }
+
+    protected function spanQueueBatchAdd()
+    {
+        return SpanAssertion::build(
+            'laravel.queue.batch.add',
+            'laravel_queue_test',
+            'queue',
+            'Illuminate\Bus\Batch'
         )->withExactTags([
             Tag::SPAN_KIND      => 'client',
             Tag::COMPONENT      => 'laravelqueue',
+            Tag::MQ_OPERATION   => 'send'
+        ])->withExistingTagsNames([
+            'messaging.laravel.batch_id'
         ]);
-    }
-
-    protected function pushOneJob(
-        string $resourceDetails = 'App\Jobs\SendVerificationEmail',
-        string $queueClass = 'Illuminate\Queue\SyncQueue'
-    ) {
-        return $this->spanQueuePush($queueClass)
-            ->withChildren([
-                $this->spanQueueEnqueue($resourceDetails)
-            ]);
     }
 }
