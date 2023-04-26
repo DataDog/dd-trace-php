@@ -15,10 +15,10 @@ class SendVerificationEmail implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout;
-    public int $tries;
-    public bool $triggerException;
-    public array $backoff = [1, 2, 3, 4, 5];
+    public $timeout;
+    public $tries;
+    public $triggerException;
+    public $backoff;
 
     /**
      * Create a new job instance.
@@ -30,6 +30,7 @@ class SendVerificationEmail implements ShouldQueue
         $this->timeout = $timeout;
         $this->triggerException = $triggerException;
         $this->tries = $tries;
+        $this->backoff = [1, 2, 3, 4, 5];
     }
 
     /**
