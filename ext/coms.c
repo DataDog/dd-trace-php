@@ -688,7 +688,7 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
     ddog_CharSlice id = ddtrace_get_container_id();
     if (id.len) {
         char header[256];
-        snprintf(header, sizeof(header), "Datadog-Container-Id: %.*s", (int)id.len, id.ptr);
+        sprintf(header, "Datadog-Container-Id: %.*s", (int)id.len, id.ptr);
         list = curl_slist_append(list, header);
     }
 
