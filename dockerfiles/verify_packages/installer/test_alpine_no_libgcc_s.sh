@@ -4,7 +4,7 @@ set -e
 
 . "$(dirname ${0})/utils.sh"
 
-apk add php7 libgcc
+apk add php7 curl
 
 # Initially no ddtrace
 assert_no_ddtrace
