@@ -215,7 +215,7 @@ class QueueTest extends WebFrameworkTestCase
 
     protected function migrate()
     {
-        $this->call(GetSpec::create('Migrate', '/migrate'));
+        //$this->call(GetSpec::create('Migrate', '/migrate'));
     }
 
     protected function connection()
