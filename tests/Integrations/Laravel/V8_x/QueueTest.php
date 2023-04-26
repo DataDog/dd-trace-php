@@ -35,6 +35,7 @@ class QueueTest extends WebFrameworkTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
+        $this->call(GetSpec::create('Migrate', '/migrate'));
         $this->resetQueue();
     }
 

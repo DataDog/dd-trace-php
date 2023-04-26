@@ -18,7 +18,6 @@ class QueueTestController extends Controller
             ->onConnection('database')
             ->onQueue('emails');
 
-
         return __METHOD__;
     }
 
@@ -52,6 +51,7 @@ class QueueTestController extends Controller
     public function workOn()
     {
         Artisan::call('queue:work database --stop-when-empty --queue=emails --sleep=2');
+
         return __METHOD__;
     }
 }

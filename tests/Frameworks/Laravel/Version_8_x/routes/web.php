@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\MigrateController;
 use App\Http\Controllers\QueueTestController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CommonSpecsController;
@@ -33,6 +34,7 @@ Route::get('queue/batch', [QueueTestController::class, 'batch']);
 Route::get('queue/batchDefault', [QueueTestController::class, 'batchDefault']);
 Route::get('queue/create', [QueueTestController::class, 'create']);
 Route::get('queue/workOn', [QueueTestController::class, 'workOn']);
+Route::get('migrate', [MigrateController::class, 'migrate']);
 
 // This route has to remain unnamed so we test both route cached and not cached.
 Route::get('/unnamed-route', [RouteCachingController::class, 'unnamed']);
