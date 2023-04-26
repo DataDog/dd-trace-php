@@ -170,11 +170,11 @@ class QueueTest extends WebFrameworkTestCase
                         ->withChildren([
                             $this->spanQueueBatchAdd()
                                 ->withChildren([
-                                    $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue')
+                                    $this->spanQueuePush('sync', 'sync', 'Illuminate\Queue\SyncQueue')
                                         ->withExistingTagsNames(['messaging.laravel.batch_id'])
                                         ->withChildren([
                                             $this->spanEventJobProcessing(),
-                                            $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
+                                            $this->spanQueueFire('sync', 'default', 'App\Jobs\SendVerificationEmail -> sync')
                                                 ->withChildren([
                                                     $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
                                                     $this->spanQueueAction('sync', 'sync')
@@ -182,7 +182,7 @@ class QueueTest extends WebFrameworkTestCase
                                                 ]),
                                             $this->spanEventJobProcessed()
                                         ]),
-                                    $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue') // TODO: Change default to sync
+                                    $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue')
                                         ->withExistingTagsNames(['messaging.laravel.batch_id'])
                                         ->withChildren([
                                             $this->spanEventJobProcessing(),
