@@ -9,6 +9,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Jobs\JobName;
+
 use function DDTrace\active_span;
 use function DDTrace\close_span;
 use function DDTrace\start_trace_span;
@@ -67,7 +68,13 @@ class LaravelQueueIntegration extends Integration
 
                     $activeSpan = active_span(); // This is the span created in the prehook, if any
                     if ($activeSpan !== $span && $activeSpan == $newTrace) {
-                        $integration->setSpanAttributes($activeSpan, 'laravel.queue.process', 'receive', $job, $exception);
+                        $integration->setSpanAttributes(
+                            $activeSpan,
+                            'laravel.queue.process',
+                            'receive',
+                            $job,
+                            $exception
+                        );
                         close_span();
                     }
 
@@ -136,7 +143,14 @@ class LaravelQueueIntegration extends Integration
             'Illuminate\Queue\Queue',
             'enqueueUsing',
             function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes($span, 'laravel.queue.enqueueUsing', null, $args[0], $exception, $args[2]);
+                $integration->setSpanAttributes(
+                    $span,
+                    'laravel.queue.enqueueUsing',
+                    null,
+                    $args[0],
+                    $exception,
+                    $args[2]
+                );
             }
         );
 
@@ -161,7 +175,7 @@ class LaravelQueueIntegration extends Integration
                     'send',
                     $args[0],
                     $exception,
-                        $args[2] ?? null,
+                    $args[2] ?? null,
                     get_class($this)
                 );
             }
@@ -216,7 +230,7 @@ class LaravelQueueIntegration extends Integration
             );
             $queue = $queue ?? $job->getQueue();
         } elseif (is_object($job)) { // Most certainly a CallQueuedClosure
-            $jobName = method_exists($job, 'displayName')  ? $job->displayName() : get_class($job);
+            $jobName = method_exists($job, 'displayName') ? $job->displayName() : get_class($job);
             $connectionName = $job->connection ?? config('queue.default');
             $queue = $queue ?? ($job->queue ?? (config("queue.connections.$connectionName.queue") ?? 'default'));
 

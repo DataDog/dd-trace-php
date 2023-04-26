@@ -173,7 +173,6 @@ final class WebServer
         }
 
         $this->sapi->start();
-        file_put_contents('laravelQueueDebug.txt', 'WebServer started' . PHP_EOL, FILE_APPEND);
         usleep(500000);
     }
 

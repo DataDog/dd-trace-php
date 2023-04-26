@@ -137,14 +137,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected function call(RequestSpec $spec)
     {
-        file_put_contents('laravelQueueDebug.txt', 'calling ' . self::HOST . ':' . self::PORT . $spec->getPath() . PHP_EOL, FILE_APPEND);
         $response = $this->sendRequest(
             $spec->getMethod(),
             self::HOST . ':' . self::PORT . $spec->getPath(),
             $spec->getHeaders(),
             $spec->getBody()
         );
-        file_put_contents('laravelQueueDebug.txt', $response, FILE_APPEND);
         return $response;
     }
 
@@ -160,7 +158,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected function sendRequest($method, $url, $headers = [], $body = [])
     {
         for ($i = 0; $i < 10; ++$i) {
-            file_put_contents('laravelQueueDebug.txt', 'sending request ' . $i . PHP_EOL, FILE_APPEND);
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
@@ -172,9 +169,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             if ($headers) {
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             }
-            file_put_contents('laravelQueueDebug.txt', 'executing request ' . $i . PHP_EOL, FILE_APPEND);
             $response = curl_exec($ch);
-            file_put_contents('laravelQueueDebug.txt', 'executed request ' . $i . PHP_EOL, FILE_APPEND);
             if ($response === false && $i < 9) {
                 \curl_close($ch);
                 // sleep for 100 milliseconds before trying again

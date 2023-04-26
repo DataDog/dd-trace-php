@@ -105,8 +105,7 @@ final class SpanChecker
      */
     private function assertNode(
         array $graph,
-        SpanAssertion
-        $expectedNodeRoot,
+        SpanAssertion $expectedNodeRoot,
         $parentName,
         $parentResource,
         bool $assertExactCount = true

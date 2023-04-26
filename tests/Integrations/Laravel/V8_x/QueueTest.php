@@ -50,19 +50,22 @@ class QueueTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertFlameGraph($createTraces, [
-            SpanAssertion::exists('laravel.request')
-                ->withChildren([
-                    SpanAssertion::exists('laravel.action')
-                        ->withExactTags([
-                            Tag::COMPONENT => 'laravel'
-                        ])->withChildren([
-                            $this->spanQueuePush('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
-                                ->withChildren([
-                                    $this->spanQueueEnqueue('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                                ])
-                        ])
-            ])],
+        $this->assertFlameGraph(
+            $createTraces,
+            [
+                SpanAssertion::exists('laravel.request')
+                    ->withChildren([
+                        SpanAssertion::exists('laravel.action')
+                            ->withExactTags([
+                                Tag::COMPONENT => 'laravel'
+                            ])->withChildren([
+                                $this->spanQueuePush('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
+                                    ->withChildren([
+                                        $this->spanQueueEnqueue('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                    ])
+                            ])
+                    ])
+            ],
             false
         );
 
@@ -84,8 +87,7 @@ class QueueTest extends WebFrameworkTestCase
                                 ->withExistingTagsNames(['_dd.span_links'])
                         ])
                 ])
-        ], false
-        );
+        ], false);
 
         $processSpanFromArtisanTrace = array_filter($artisanTrace[0], function ($span) {
             return $span['name'] === 'laravel.queue.process';

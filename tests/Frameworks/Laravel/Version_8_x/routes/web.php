@@ -30,12 +30,8 @@ Route::get('eloquent/refresh', [EloquentTestController::class, 'refresh']);
 Route::get('not-implemented', [InternalErrorController::class, 'notImplemented'])->name('not-implemented');
 Route::get('queue/batch', [QueueTestController::class, 'batch']);
 Route::get('queue/batchDefault', [QueueTestController::class, 'batchDefault']);
-Route::get('queue/chainFailure', [QueueTestController::class, 'chainFailure']);
 Route::get('queue/create', [QueueTestController::class, 'create']);
-Route::get('queue/work', [QueueTestController::class, 'work']);
 Route::get('queue/workOn', [QueueTestController::class, 'workOn']);
-Route::get('queue/workDefault', [QueueTestController::class, 'workDefault']);
-Route::get('queue/clear', [QueueTestController::class, 'clear']);
 Route::get('unauthorized', [InternalErrorController::class, 'unauthorized'])->name('unauthorized');
 
 // This route has to remain unnamed so we test both route cached and not cached.
