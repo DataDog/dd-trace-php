@@ -10,6 +10,7 @@ use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use Illuminate\Support\Facades\Artisan;
 
 class QueueTest extends WebFrameworkTestCase
 {
@@ -214,15 +215,7 @@ class QueueTest extends WebFrameworkTestCase
 
     protected function migrate()
     {
-        if ($this->migrate) {
-            fwrite(STDERR, "Migrating database\n");
-            $this->call(GetSpec::create('Migrate', '/migrate'));
-            // Show all the tables
-            fwrite(STDERR, print_r($this->connection()->query("SHOW TABLES")->fetchAll(), true) . "\n");
-        } else {
-            fwrite(STDERR, "Nothing to migrate\n");
-        }
-        $this->migrate = false;
+        $this->call(GetSpec::create('Migrate', '/migrate'));
     }
 
     protected function connection()
