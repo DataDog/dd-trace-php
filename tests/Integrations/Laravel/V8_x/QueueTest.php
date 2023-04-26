@@ -50,8 +50,6 @@ class QueueTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        // TODO: Check span links + Distributed tracing
-
         $this->assertFlameGraph($createTraces, [
             SpanAssertion::exists('laravel.request')
                 ->withChildren([
@@ -88,6 +86,34 @@ class QueueTest extends WebFrameworkTestCase
                 ])
         ], false
         );
+
+        $processSpanFromArtisanTrace = array_filter($artisanTrace[0], function ($span) {
+            return $span['name'] === 'laravel.queue.process';
+        });
+        $processSpanFromArtisanTrace = array_values($processSpanFromArtisanTrace)[0];
+
+        $spanLinks = $processSpanFromArtisanTrace['meta']['_dd.span_links'];
+        $spanLinksTraceId = hexdec(json_decode($spanLinks, true)[0]['trace_id']);
+        $spanLinksSpanId = hexdec(json_decode($spanLinks, true)[0]['span_id']);
+
+        $processSpanFromProcessTrace = array_filter($processTrace1[0], function ($span) {
+            return $span['name'] === 'laravel.queue.process';
+        });
+        $processSpanFromProcessTrace = array_values($processSpanFromProcessTrace)[0];
+        $processTraceId = $processSpanFromProcessTrace['trace_id'];
+        $processSpanId = $processSpanFromProcessTrace['span_id'];
+        $processParentId = $processSpanFromProcessTrace['parent_id'];
+
+        $this->assertTrue($spanLinksTraceId == $processTraceId);
+        $this->assertTrue($spanLinksSpanId == $processSpanId);
+
+        $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
+            return $span['name'] === 'laravel.queue.push';
+        });
+        $pushSpanFromCreateTrace = array_values($pushSpanFromCreateTrace)[0];
+
+        $this->assertSame($pushSpanFromCreateTrace['trace_id'], $processTraceId);
+        $this->assertSame($pushSpanFromCreateTrace['span_id'], $processParentId);
     }
 
     public function testDispatchBatchAndProcess()
@@ -108,11 +134,11 @@ class QueueTest extends WebFrameworkTestCase
         $artisanTrace = $workTraces[1];
 
         $this->assertFlameGraph($processTrace1, [
-            $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+            $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)
         ], false);
 
         $this->assertFlameGraph($processTrace2, [
-            $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+            $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)
         ], false);
 
 
@@ -128,8 +154,6 @@ class QueueTest extends WebFrameworkTestCase
                 ])
             ])
         ], false);
-
-        // TODO: Check the ids of the spans
     }
 
     public function testDispatchBatchNowDefault()
@@ -340,7 +364,8 @@ class QueueTest extends WebFrameworkTestCase
     protected function spanProcessOneJob(
         $connection = 'database',
         $queue = 'emails',
-        $resourceDetails = 'App\Jobs\SendVerificationEmail'
+        $resourceDetails = 'App\Jobs\SendVerificationEmail',
+        bool $isFromBatch = false
     ) {
         return SpanAssertion::build(
             'laravel.queue.process',
@@ -361,10 +386,13 @@ class QueueTest extends WebFrameworkTestCase
             $this->spanQueueFire($connection, $queue, $resourceDetails)
                 ->withChildren([
                     $this->spanQueueResolve($connection, $queue, $resourceDetails),
-                    $this->spanQueueAction()
-                        ->withExistingTagsNames([
-                            'messaging.laravel.batch_id'
-                        ])
+                    ($isFromBatch
+                        ? $this->spanQueueAction($connection, $queue, $resourceDetails)
+                            ->withExistingTagsNames([
+                                'messaging.laravel.batch_id'
+                            ])
+                        : $this->spanQueueAction($connection, $queue, $resourceDetails)
+                    )
                 ]),
             $this->spanEventJobProcessed()
         ]);
