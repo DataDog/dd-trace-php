@@ -44,10 +44,13 @@ void dds::remote_config::product::assign_configs(
     const std::unordered_map<std::string, config> &configs)
 {
     std::unordered_map<std::string, config> to_update;
+    bool changes = false;
+
     // determine what each config given is
     for (const auto &[name, config] : configs) {
         auto previous_config = configs_.find(name);
         if (previous_config == configs_.end()) { // New config
+            changes = true;
             auto config_to_update = config;
             config_to_update.apply_state = dds::remote_config::protocol::
                 config_state::applied_state::UNACKNOWLEDGED;
@@ -57,6 +60,7 @@ void dds::remote_config::product::assign_configs(
                 previous_config->second.hashes) { // No changes in config
                 to_update.emplace(name, previous_config->second);
             } else { // Config updated
+                changes = true;
                 auto config_to_update = config;
                 config_to_update.apply_state = dds::remote_config::protocol::
                     config_state::applied_state::UNACKNOWLEDGED;
@@ -69,8 +73,10 @@ void dds::remote_config::product::assign_configs(
         }
     }
 
-    update_configs(to_update);
-    unapply_configs(configs_);
+    if (changes || !configs_.empty()) {
+        update_configs(to_update);
+        unapply_configs(configs_);
+    }
 
     // Save new state of configs
     configs_ = std::move(to_update);
