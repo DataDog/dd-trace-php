@@ -16,6 +16,8 @@ class QueueTest extends WebFrameworkTestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
+    private bool $migrate = true;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
@@ -35,7 +37,7 @@ class QueueTest extends WebFrameworkTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->call(GetSpec::create('Migrate', '/migrate'));
+        $this->migrate();
         $this->resetQueue();
     }
 
@@ -177,7 +179,7 @@ class QueueTest extends WebFrameworkTestCase
                                         ->withExistingTagsNames(['messaging.laravel.batch_id'])
                                         ->withChildren([
                                             $this->spanEventJobProcessing(),
-                                            $this->spanQueueFire('sync', 'default', 'App\Jobs\SendVerificationEmail -> sync')
+                                            $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
                                                 ->withChildren([
                                                     $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
                                                     $this->spanQueueAction('sync', 'sync')
@@ -208,6 +210,15 @@ class QueueTest extends WebFrameworkTestCase
         $this->connection()->exec("DELETE from jobs");
         $this->connection()->exec("DELETE from job_batches");
         $this->connection()->exec("DELETE from failed_jobs");
+    }
+
+    protected function migrate()
+    {
+        if ($this->migrate) {
+            $this->call(GetSpec::create('Migrate', '/migrate'));
+        } else {
+            $this->migrate = true;
+        }
     }
 
     protected function connection()
@@ -283,7 +294,6 @@ class QueueTest extends WebFrameworkTestCase
         )->withExactTags(
             $this->getCommonTags(null, $queue, $connection)
         )->withExistingTagsNames([
-            'messaging.laravel.id',
             'messaging.laravel.uuid'
         ]);
     }
@@ -392,9 +402,13 @@ class QueueTest extends WebFrameworkTestCase
                     ($isFromBatch
                         ? $this->spanQueueAction($connection, $queue, $resourceDetails)
                             ->withExistingTagsNames([
-                                'messaging.laravel.batch_id'
+                                'messaging.laravel.batch_id',
+                                'messaging.laravel.id'
                             ])
                         : $this->spanQueueAction($connection, $queue, $resourceDetails)
+                            ->withExistingTagsNames([
+                                'messaging.laravel.id'
+                            ])
                     )
                 ]),
             $this->spanEventJobProcessed()
