@@ -166,6 +166,10 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
+  dnl sidecar requires us to be linked against libm for pow and powf
+  PHP_CHECK_LIBRARY(m, pow,
+    [PHP_ADD_LIBRARY(m, , EXTRA_LDFLAGS)])
+
   PHP_CHECK_LIBRARY(rt, shm_open,
     [PHP_ADD_LIBRARY(rt, , EXTRA_LDFLAGS)])
 
@@ -240,12 +244,20 @@ if test "$PHP_DDTRACE" != "no"; then
 
   dnl consider it debug if -g is specified (but not -g0)q
   ddtrace_cargodir=$(test "${CFLAGS#*-g}" != "${CFLAGS}" && test "${CFLAGS#*-g0}" == "${CFLAGS}" && echo debug || echo release)
-  all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
-  all_object_files_newlines=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf '\\n$(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
-  php_binary=$(php-config --php-binary)
+
+  if test "$ext_shared" = "yes"; then
+    all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
+    all_object_files_newlines=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf '\\n$(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
+    php_binary=$(php-config --php-binary)
+    ddtrace_mock_sources='DD_SIDECAR_MOCK_SOURCES="$$(printf "'"$php_binary$all_object_files_newlines"'")"'
+  else
+    all_object_files=
+    ddtrace_mock_sources=
+  fi
+
   cat <<EOT >> Makefile.fragments
 \$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a: $( (find "$ext_srcdir/components/rust" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
-	(cd "$ext_srcdir/components/rust"; DD_SIDECAR_MOCK_SOURCES="\$\$(printf "$php_binary$all_object_files_newlines")" CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargodir" == debug || echo --release))
+	(cd "$ext_srcdir/components/rust"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargodir" == debug || echo --release))
 EOT
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then

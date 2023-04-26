@@ -28,16 +28,18 @@ fn main() {
                     process::exit(1);
                 }
             }
+            cc_utils::ImprovedBuild::new()
+                .file("mock_php.c")
+                .link_dynamically("dl")
+                .warnings(true)
+                .warnings_into_errors(true)
+                .emit_rerun_if_env_changed(true)
+                .try_compile_shared_lib("mock_php.shared_lib")
+                .unwrap();
+
+            println!("cargo:rustc-cfg=php_shared_build");
         }
         Err(_) => {}
     }
 
-    cc_utils::ImprovedBuild::new()
-        .file("mock_php.c")
-        .link_dynamically("dl")
-        .warnings(true)
-        .warnings_into_errors(true)
-        .emit_rerun_if_env_changed(true)
-        .try_compile_shared_lib("mock_php.shared_lib")
-        .unwrap();
 }

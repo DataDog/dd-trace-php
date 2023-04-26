@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::fs;
+use std::{fs, io};
 use std::io::Write;
 use std::path::Path;
 use ddcommon_ffi::CharSlice;
@@ -9,7 +9,7 @@ use ddtelemetry::ipc::interface::blocking::TelemetryTransport;
 use ddtelemetry::ipc::interface::{blocking, InstanceId, QueueId};
 use ddtelemetry::ipc::sidecar::config;
 use ddtelemetry::worker::TelemetryActions;
-use ddtelemetry_ffi::try_c;
+use ddtelemetry_ffi::{MaybeError, try_c};
 
 #[must_use]
 #[no_mangle]
@@ -45,23 +45,32 @@ fn parse_composer_installed_json(transport: &mut Box<TelemetryTransport>, instan
     Ok(())
 }
 
+#[cfg(php_shared_build)]
 const MOCK_PHP: &[u8] = include_bytes!(concat!(
     env!("OUT_DIR"),
     "/mock_php.shared_lib"
 ));
 
+#[cfg(php_shared_build)]
+fn run_sidecar(mut cfg: config::Config) -> io::Result<TelemetryTransport> {
+    let mut file = tempfile::NamedTempFile::new()?;
+    file.write_all(MOCK_PHP)?;
+    cfg.library_dependencies.push(file.path().to_path_buf());
+    ddtelemetry::ipc::sidecar::start_or_connect_to_sidecar(cfg)
+}
+
+#[cfg(not(php_shared_build))]
+fn run_sidecar(cfg: config::Config) -> io::Result<TelemetryTransport> {
+    ddtelemetry::ipc::sidecar::start_or_connect_to_sidecar(cfg)
+}
+
 /// # Safety
 /// Caller must ensure the process is safe to fork, at the time when this method is called
 #[no_mangle]
-pub extern "C" fn ddog_sidecar_connect_php(connection: &mut *mut TelemetryTransport) -> ddtelemetry_ffi::MaybeError {
-    let mut cfg = config::FromEnv::config();
-
-    let mut file = try_c!(tempfile::NamedTempFile::new());
-    try_c!(file.write_all(MOCK_PHP));
-    cfg.library_dependencies.push(file.path().to_path_buf());
-
-    let stream = Box::new(try_c!(ddtelemetry::ipc::sidecar::start_or_connect_to_sidecar(cfg)));
+pub extern "C" fn ddog_sidecar_connect_php(connection: &mut *mut TelemetryTransport) -> MaybeError {
+    let cfg = config::FromEnv::config();
+    let stream = Box::new(try_c!(run_sidecar(cfg)));
     *connection = Box::into_raw(stream);
 
-    ddtelemetry_ffi::MaybeError::None
+    MaybeError::None
 }
