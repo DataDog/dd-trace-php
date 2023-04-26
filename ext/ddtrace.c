@@ -25,6 +25,7 @@
 
 #include <ext/standard/info.h>
 #include <ext/standard/php_string.h>
+#include <json/json.h>
 
 #include "auto_flush.h"
 #include "circuit_breaker.h"
@@ -55,7 +56,6 @@
 #include "startup_logging.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "ext/standard/file.h"
-#include <json/json.h>
 
 #include "../hook/uhook.h"
 #include "handlers_fiber.h"
