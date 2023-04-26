@@ -239,8 +239,6 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                Logger::get()->debug('report() called');
-                Logger::get()->debug('Error code: ' . $args[0]->getCode());
                 $integration->setError($rootSpan, $args[0]);
             }
         );

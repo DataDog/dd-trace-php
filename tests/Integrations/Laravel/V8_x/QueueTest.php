@@ -173,7 +173,7 @@ class QueueTest extends WebFrameworkTestCase
                         ->withChildren([
                             $this->spanQueueBatchAdd()
                                 ->withChildren([
-                                    $this->spanQueuePush('sync', 'sync', 'Illuminate\Queue\SyncQueue')
+                                    $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue')
                                         ->withExistingTagsNames(['messaging.laravel.batch_id'])
                                         ->withChildren([
                                             $this->spanEventJobProcessing(),
