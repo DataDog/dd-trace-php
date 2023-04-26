@@ -188,12 +188,12 @@ class LaravelQueueIntegration extends Integration
                 $integration->setSpanAttributes(
                     $span,
                     'laravel.queue.batch.add',
+                    'send',
                     null,
                     $exception,
                     null,
                     get_class($this)
                 );
-                $span->meta[Tag::MQ_OPERATION] = 'send';
                 if ($retval) {
                     $span->meta['messaging.laravel.batch_id'] = $retval->id;
                 }
