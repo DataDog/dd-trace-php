@@ -28,11 +28,11 @@ Route::get('eloquent/delete', [EloquentTestController::class, 'delete']);
 Route::get('eloquent/destroy', [EloquentTestController::class, 'destroy']);
 Route::get('eloquent/refresh', [EloquentTestController::class, 'refresh']);
 Route::get('not-implemented', [InternalErrorController::class, 'notImplemented'])->name('not-implemented');
+Route::get('unauthorized', [InternalErrorController::class, 'unauthorized'])->name('unauthorized');
 Route::get('queue/batch', [QueueTestController::class, 'batch']);
 Route::get('queue/batchDefault', [QueueTestController::class, 'batchDefault']);
 Route::get('queue/create', [QueueTestController::class, 'create']);
 Route::get('queue/workOn', [QueueTestController::class, 'workOn']);
-Route::get('unauthorized', [InternalErrorController::class, 'unauthorized'])->name('unauthorized');
 
 // This route has to remain unnamed so we test both route cached and not cached.
 Route::get('/unnamed-route', [RouteCachingController::class, 'unnamed']);
