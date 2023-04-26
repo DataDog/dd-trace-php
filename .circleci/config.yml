@@ -54,7 +54,7 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_DD_TEST_AGENT
-    image: williamconti549/dd-apm-test-agent:php-dev
+    image: williamconti549/dd-apm-test-agent:latest
     name: test-agent
     environment:
       LOG_LEVEL: DEBUG
@@ -310,7 +310,7 @@ commands:
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
-                -e LOG_LEVEL=INFO \
+                -e LOG_LEVEL=DEBUG \
                 -e TRACE_LANGUAGE=php \
                 -e DD_TRACE_AGENT_URL=http://request-replayer:80 \
                 -e DISABLED_CHECKS=trace_content_length \
@@ -358,14 +358,6 @@ commands:
             echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/datadog -i '"${container_name}"' "${args[@]}"; fi' | tee -a $BASH_ENV
             cp $BASH_ENV /tmp/bashenv/bash.sh
             chmod 777 /tmp/bashenv/bash.sh
-      # - run:
-      #     name: Get Test-Agent logs
-      #     command: |
-      #       extra=<< parameters.extra >>
-      #       if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
-      #         docker logs -f test-agent
-
-      #       fi
 
 executors:
   with_agent:
