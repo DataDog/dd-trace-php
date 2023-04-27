@@ -307,8 +307,8 @@ mod tests {
             #[cfg(php_run_time_cache)]
             FUNCTION_CACHE_STATS.with(|cell| {
                 let stats = cell.borrow();
-                // assert_eq!(stats.hit, 3);
-                // assert_eq!(stats.missed, 3);
+                assert_eq!(stats.hit, 3);
+                assert_eq!(stats.missed, 3);
                 println!("{:?}", stats);
             });
         }
