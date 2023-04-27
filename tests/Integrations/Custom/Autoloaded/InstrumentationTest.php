@@ -65,6 +65,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
             $this->fail("Go no response from request-dumper");
         }
 
+        var_dump($response);
         $this->assertCount(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
         $this->assertEquals("app-started", $payloads[0]["request_type"]);

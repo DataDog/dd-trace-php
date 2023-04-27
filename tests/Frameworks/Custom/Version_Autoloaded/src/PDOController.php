@@ -6,7 +6,11 @@ class PDOController
 {
     public function render()
     {
-        new \PDO("mysql:");
-        echo 'This is a string';
+        try {
+            new \PDO("mysql:");
+            echo 'This is a string';
+        } finally {
+            \dd_trace_internal_fn("finalize_telemetry");
+        }
     }
 }
