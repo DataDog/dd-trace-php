@@ -95,7 +95,11 @@ impl Uploader {
                             Some(filename) => {
                                 let r = upload_message.profile.serialize(None, None).unwrap();
                                 i += 1;
-                                std::fs::write(format!("{filename}.{i}"), r.buffer).expect("write to succeed")
+                                let filename = format!("{filename}.{i}");
+                                match std::fs::write(&filename, r.buffer) {
+                                    Ok(()) => info!("successfully wrote {filename}"),
+                                    Err(err) => warn!("failed to write profile {filename}: {err:#}")
+                                }
                             },
                             None => match Self::upload(upload_message) {
                                 Ok(status) => {
@@ -106,7 +110,7 @@ impl Uploader {
                                     }
                                 }
                                 Err(err) => {
-                                    warn!("Failed to upload profile: {err}")
+                                    warn!("Failed to upload profile: {err:#}")
                                 }
                             },
                         }

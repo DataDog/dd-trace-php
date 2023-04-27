@@ -1,28 +1,25 @@
-mod interrupts;
 mod stalk_walking;
-mod thread_utils;
 mod uploader;
 
-pub use interrupts::*;
 use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
-use crate::{AgentEndpoint, RequestLocals};
+use crate::{thread_utils, AgentEndpoint, RequestLocals};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
-use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
+use datadog_profiling::profile::api::{Function, Line, Location, Sample};
 use log::{debug, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::str;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "allocation_profiling")]
 use crate::ALLOCATION_PROFILING_INTERVAL;
@@ -35,24 +32,21 @@ const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 
-/// Order this array this way:
+/// Order the members this way:
 ///  1. Always enabled types.
 ///  2. On by default types.
 ///  3. Off by default types.
 #[derive(Default)]
 struct SampleValues {
-    interrupt_count: i64,
+    wall_samples: i64,
     wall_time: i64,
+    cpu_samples: i64,
     cpu_time: i64,
     alloc_samples: i64,
     alloc_size: i64,
 }
 
-const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
-const WALL_TIME_PERIOD_TYPE: ValueType = ValueType {
-    r#type: "wall-time",
-    unit: "nanoseconds",
-};
+pub const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
 
 #[derive(Debug, Clone)]
 struct WallTime {
@@ -153,42 +147,24 @@ pub enum ProfilerMessage {
     LocalRootSpanResource(LocalRootSpanResourceMessage),
 }
 
-pub struct Globals {
-    pub interrupt_count: AtomicU32,
-    pub last_interrupt: SystemTime,
-    // todo: current_profile
-}
-
-impl Default for Globals {
-    fn default() -> Self {
-        Self {
-            interrupt_count: AtomicU32::new(0),
-            last_interrupt: SystemTime::now(),
-        }
-    }
-}
-
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
     fork_senders: [Sender<()>; 2],
-    interrupt_manager: Arc<InterruptManager>,
     message_sender: Sender<ProfilerMessage>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
 }
 
-struct TimeCollector {
+struct ProfileCollector {
     fork_barrier: Arc<Barrier>,
     fork_receiver: Receiver<()>,
-    interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
-    wall_time_period: Duration,
     upload_period: Duration,
 }
 
-impl TimeCollector {
+impl ProfileCollector {
     fn handle_timeout(
         &self,
         profiles: &mut HashMap<ProfileIndex, profile::Profile>,
@@ -237,19 +213,14 @@ impl TimeCollector {
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
         #[cfg(feature = "allocation_profiling")]
-        let alloc_samples_offset = sample_types.iter().position(|&x| x.r#type == "alloc-samples");
+        let alloc_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "alloc-samples");
         #[cfg(feature = "allocation_profiling")]
         let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
 
-        let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = profile::ProfileBuilder::new()
-            .period(Some(Period {
-                r#type: profile::api::ValueType {
-                    r#type: WALL_TIME_PERIOD_TYPE.r#type.borrow(),
-                    unit: WALL_TIME_PERIOD_TYPE.unit.borrow(),
-                },
-                value: period.min(i64::MAX as u128) as i64,
-            }))
+            .period(None)
             .start_time(Some(started_at))
             .sample_types(sample_types)
             .build();
@@ -259,9 +230,10 @@ impl TimeCollector {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset: alloc_size_offset.unwrap(),
                 count_value_offset: alloc_samples_offset.unwrap(),
-                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
             };
-            let values_offset: Vec<usize> = vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
+            let values_offset: Vec<usize> =
+                vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
             match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
@@ -356,7 +328,6 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs(),
             WALL_TIME_PERIOD.as_millis());
 
-        let wall_time_tick = crossbeam_channel::tick(self.wall_time_period);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let mut running = true;
 
@@ -387,12 +358,6 @@ impl TimeCollector {
                     }
                 },
 
-                recv(wall_time_tick) -> message => {
-                    if message.is_ok() {
-                        self.interrupt_manager.trigger_interrupts()
-                    }
-                },
-
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
                         last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
@@ -420,21 +385,29 @@ pub struct UploadMessage {
     duration: Option<Duration>,
 }
 
+// The allow(unused) is because this is only used for debug output, and:
+// > `ProfileTypesInfo` has a derived impl for the trait `Debug`, but this is
+// > intentionally ignored during dead code analysis
+#[allow(unused)]
+#[derive(Debug)]
+struct ProfileTypesInfo {
+    cpu: &'static str,
+    wall: &'static str,
+    allocation: &'static str,
+}
+
 impl Profiler {
     pub fn new(output_pprof: Option<Cow<'static, str>>) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
-        let interrupt_manager = Arc::new(InterruptManager::new(Mutex::new(Vec::with_capacity(1))));
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
-        let time_collector = TimeCollector {
+        let time_collector = ProfileCollector {
             fork_barrier: fork_barrier.clone(),
             fork_receiver: fork_receiver0,
-            interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender,
-            wall_time_period: WALL_TIME_PERIOD,
             upload_period: UPLOAD_PERIOD,
         };
 
@@ -448,20 +421,13 @@ impl Profiler {
         Profiler {
             fork_barrier,
             fork_senders: [fork_sender0, fork_sender1],
-            interrupt_manager,
             message_sender,
-            time_collector_handle: thread_utils::spawn("ddprof_time", move || time_collector.run()),
+            time_collector_handle: thread_utils::spawn("ddprof_collect", move || {
+                time_collector.run()
+            }),
             uploader_handle: thread_utils::spawn("ddprof_upload", move || uploader.run()),
             should_join: AtomicBool::new(true),
         }
-    }
-
-    pub fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
-        self.interrupt_manager.add_interrupt(interrupt)
-    }
-
-    pub fn remove_interrupt(&self, interrupt: VmInterrupt) -> Result<(), VmInterrupt> {
-        self.interrupt_manager.remove_interrupt(interrupt)
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
@@ -513,26 +479,24 @@ impl Profiler {
         self.should_join.store(sent, Ordering::SeqCst);
     }
 
-    /// Completes the shutdown process; to start it, call [Profiler::stop]
-    /// before calling [Profiler::shutdown].
+    /// Waits for the profiler threads to finish, up to a limit. Expects the
+    /// profiler to have previously been stopped via [Profiler::stop].
     /// Note the timeout is per thread, and there may be multiple threads.
     pub fn shutdown(self, timeout: Duration) {
-        if self.should_join.load(Ordering::SeqCst) {
-            thread_utils::join_timeout(
-                self.time_collector_handle,
-                timeout,
-                "Recent samples may be lost.",
-            );
+        thread_utils::join_timeout(
+            self.time_collector_handle,
+            timeout,
+            "Recent samples may be lost.",
+        );
 
-            // Wait for the time_collector to join, since that will drop
-            // the sender half of the channel that the uploader is
-            // holding, allowing it to finish.
-            thread_utils::join_timeout(
-                self.uploader_handle,
-                timeout,
-                "Recent samples are most likely lost.",
-            );
-        }
+        // Wait for the time_collector to join, since that will drop
+        // the sender half of the channel that the uploader is
+        // holding, allowing it to finish.
+        thread_utils::join_timeout(
+            self.uploader_handle,
+            timeout,
+            "Recent samples are most likely lost.",
+        );
     }
 
     fn cpu_sub(now: cpu_time::ThreadTime, prev: cpu_time::ThreadTime) -> i64 {
@@ -559,30 +523,53 @@ impl Profiler {
     pub unsafe fn collect_time(
         &self,
         execute_data: *mut zend_execute_data,
-        interrupt_count: u32,
+        cpu_samples: u32,
+        wall_samples: u32,
         mut locals: &mut RequestLocals,
     ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
-        let interrupt_count = interrupt_count as i64;
+        let cpu_samples = cpu_samples as i64;
+        let wall_samples = wall_samples as i64;
+        let started_at = SystemTime::now();
+        let before = Instant::now();
         let result = collect_stack_sample(execute_data);
+        let unix_time = started_at.duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let duration = before.elapsed().as_nanos();
+
+        let profile_types = ProfileTypesInfo {
+            cpu: if cpu_samples > 0 { "yes" } else { "no" },
+            wall: if wall_samples > 0 { "yes" } else { "no" },
+            allocation: "no",
+        };
+        trace!("stack walk for {profile_types:?} began at unix time {unix_time} and took {duration} ns");
+
         match result {
             Ok(frames) => {
                 let depth = frames.len();
+                let wall_time: i64 = if wall_samples > 0 {
+                    let now = Instant::now();
+                    let wall_time = now.duration_since(locals.last_wall_time);
+                    locals.last_wall_time = now;
+                    wall_time.as_nanos().try_into().unwrap_or(i64::MAX)
+                } else {
+                    0
+                };
 
-                let now = Instant::now();
-                let wall_time = now.duration_since(locals.last_wall_time);
-                locals.last_wall_time = now;
-                let wall_time: i64 = wall_time.as_nanos().try_into().unwrap_or(i64::MAX);
-
-                /* If CPU time is disabled, or if it's enabled but not available on the platform,
-                 * then `locals.last_cpu_time` will be None.
-                 */
-                let cpu_time = if let Some(last_cpu_time) = locals.last_cpu_time {
-                    let now = cpu_time::ThreadTime::try_now()
-                        .expect("CPU time to work since it's worked before during this process");
-                    let cpu_time = Self::cpu_sub(now, last_cpu_time);
-                    locals.last_cpu_time = Some(now);
-                    cpu_time
+                let cpu_time = if cpu_samples > 0 {
+                    /* If CPU time is disabled, or if it's enabled but not
+                     * available on the platform, then `locals.last_cpu_time`
+                     * will be None.
+                     */
+                    if let Some(last_cpu_time) = locals.last_cpu_time {
+                        let now = cpu_time::ThreadTime::try_now().expect(
+                            "CPU time to work since it's worked before during this process",
+                        );
+                        let cpu_time = Self::cpu_sub(now, last_cpu_time);
+                        locals.last_cpu_time = Some(now);
+                        cpu_time
+                    } else {
+                        0
+                    }
                 } else {
                     0
                 };
@@ -593,7 +580,8 @@ impl Profiler {
                 match self.send_sample(Profiler::prepare_sample_message(
                     frames,
                     SampleValues {
-                        interrupt_count,
+                        cpu_samples,
+                        wall_samples,
                         wall_time,
                         cpu_time,
                         ..Default::default()
@@ -624,7 +612,19 @@ impl Profiler {
         alloc_size: i64,
         locals: &RequestLocals,
     ) {
+        let started_at = SystemTime::now();
+        let before = Instant::now();
         let result = collect_stack_sample(execute_data);
+        let unix_time = started_at.duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let duration = before.elapsed().as_nanos();
+
+        let profile_types = ProfileTypesInfo {
+            cpu: "no",
+            wall: "no",
+            allocation: "yes",
+        };
+        trace!("stack walk for {profile_types:?} began at unix time {unix_time} and took {duration} ns");
+
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -689,18 +689,20 @@ impl Profiler {
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
-        static SAMPLE_TYPES: &[ValueType; 5] = &[
-            ValueType::new("sample", "count"),
+        static SAMPLE_TYPES: &[ValueType; 6] = &[
+            ValueType::new("wall-samples", "count"),
             ValueType::new("wall-time", "nanoseconds"),
+            ValueType::new("cpu-samples", "count"),
             ValueType::new("cpu-time", "nanoseconds"),
             ValueType::new("alloc-samples", "count"),
             ValueType::new("alloc-size", "bytes"),
         ];
 
         // Allows us to slice the SampleValues as if they were an array.
-        let values: [i64; 5] = [
-            samples.interrupt_count,
+        let values: [i64; 6] = [
+            samples.wall_samples,
             samples.wall_time,
+            samples.cpu_samples,
             samples.cpu_time,
             samples.alloc_samples,
             samples.alloc_size,
@@ -710,14 +712,14 @@ impl Profiler {
         let mut sample_values = Vec::with_capacity(SAMPLE_TYPES.len());
         if locals.profiling_enabled {
             // sample, wall-time, cpu-time
-            let len = 2 + locals.profiling_experimental_cpu_time_enabled as usize;
+            let len = 2 + 2 * locals.profiling_experimental_cpu_time_enabled as usize;
             sample_types.extend_from_slice(&SAMPLE_TYPES[0..len]);
             sample_values.extend_from_slice(&values[0..len]);
 
             // alloc-samples, alloc-size
             if locals.profiling_experimental_allocation_enabled {
-                sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
-                sample_values.extend_from_slice(&values[3..5]);
+                sample_types.extend_from_slice(&SAMPLE_TYPES[4..6]);
+                sample_values.extend_from_slice(&values[4..6]);
             }
         }
 
@@ -743,6 +745,8 @@ mod tests {
     use super::*;
     use crate::static_tags;
     use log::LevelFilter;
+    use once_cell::sync::OnceCell;
+    use std::sync::atomic::AtomicU32;
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
@@ -755,7 +759,7 @@ mod tests {
     fn get_request_locals() -> RequestLocals {
         RequestLocals {
             env: None,
-            interrupt_count: AtomicU32::new(0),
+            wall_samples: AtomicU32::new(0),
             last_cpu_time: None,
             last_wall_time: Instant::now(),
             profiling_enabled: true,
@@ -767,13 +771,16 @@ mod tests {
             tags: Arc::new(static_tags()),
             uri: Box::new(AgentEndpoint::default()),
             version: None,
-            vm_interrupt_addr: std::ptr::null_mut(),
+            vm_interrupt: OnceCell::new(),
+            cpu_samples: Default::default(),
+            time_interrupter: Default::default(),
         }
     }
 
     fn get_samples() -> SampleValues {
         SampleValues {
-            interrupt_count: 10,
+            cpu_samples: 5,
+            wall_samples: 10,
             wall_time: 20,
             cpu_time: 30,
             alloc_samples: 40,
@@ -817,7 +824,7 @@ mod tests {
         assert_eq!(
             message.key.sample_types,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
             ]
         );
@@ -840,12 +847,13 @@ mod tests {
         assert_eq!(
             message.key.sample_types,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30]);
+        assert_eq!(message.value.sample_values, vec![10, 20, 5, 30]);
     }
 
     #[test]
@@ -864,7 +872,7 @@ mod tests {
         assert_eq!(
             message.key.sample_types,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
@@ -889,13 +897,14 @@ mod tests {
         assert_eq!(
             message.key.sample_types,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50]);
+        assert_eq!(message.value.sample_values, vec![10, 20, 5, 30, 40, 50]);
     }
 }

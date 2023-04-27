@@ -142,6 +142,47 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
 #endif
 }
 
+#if __linux__
+#include <errno.h>
+#include <signal.h>
+#include <time.h>
+
+int __attribute__((nonnull(1, 4))) ddog_php_prof_timer_create(
+    timer_t *timerid,
+    clockid_t clockid,
+    union sigval value,
+    void (*notify_function)(union sigval)) {
+    struct sigevent sev = {
+        // SIGEV_THREAD will not interrupt active syscalls, or at least as far
+        // as I can tell.
+        .sigev_notify = SIGEV_THREAD,
+        .sigev_value = value,
+        .sigev_notify_function = notify_function,
+    };
+
+    return timer_create(clockid, &sev, timerid) == 0 ? 0 : errno;
+}
+
+int ddog_php_prof_timer_settime(timer_t timerid, uint64_t ns) {
+    struct itimerspec its = {
+        .it_interval = {
+            .tv_sec = 0,
+            .tv_nsec = ns,
+        },
+        .it_value = {
+            .tv_sec = 0,
+            .tv_nsec = ns,
+        }
+    };
+    int flags = 0;
+    return timer_settime(timerid, flags, &its, NULL) == 0 ? 0 : errno;
+}
+
+int ddog_php_prof_timer_delete(timer_t timerid) {
+    return timer_delete(timerid) == 0 ? 0 : errno;
+}
+#endif
+
 zend_execute_data* ddog_php_prof_get_current_execute_data()
 {
     return EG(current_execute_data);

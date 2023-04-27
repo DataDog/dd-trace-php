@@ -100,7 +100,8 @@ fn stop_and_forget_profiling(maybe_profiler: &mut Option<Profiler>) {
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
         locals.profiling_enabled = false;
-        locals.interrupt_count.store(0, Ordering::SeqCst);
+        locals.cpu_samples.store(0, Ordering::SeqCst);
+        locals.wall_samples.store(0, Ordering::SeqCst);
     });
 }
 

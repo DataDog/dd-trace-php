@@ -1,20 +1,23 @@
 mod bindings;
 pub mod capi;
 mod config;
+mod interrupter;
 mod logging;
 mod pcntl;
 mod profiling;
 mod sapi;
+mod thread_utils;
 
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
+use interrupter::{Interrupter, SignalPointers};
 use lazy_static::lazy_static;
 use libc::c_char;
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
-use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use profiling::{LocalRootSpanResourceMessage, Profiler, WALL_TIME_PERIOD};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -23,6 +26,7 @@ use std::mem::MaybeUninit;
 use std::ops::DerefMut;
 use std::os::raw::c_int;
 use std::path::PathBuf;
+use std::ptr::NonNull;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
@@ -300,7 +304,6 @@ extern "C" fn prshutdown() -> ZendResult {
 
 pub struct RequestLocals {
     pub env: Option<Cow<'static, str>>,
-    pub interrupt_count: AtomicU32,
     pub last_cpu_time: Option<cpu_time::ThreadTime>,
     pub last_wall_time: Instant,
     pub profiling_enabled: bool,
@@ -312,7 +315,10 @@ pub struct RequestLocals {
     pub tags: Arc<Vec<Tag>>,
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
-    pub vm_interrupt_addr: *const AtomicBool,
+    pub vm_interrupt: OnceCell<&'static AtomicBool>,
+    pub cpu_samples: AtomicU32,
+    pub wall_samples: AtomicU32,
+    pub time_interrupter: OnceCell<Interrupter>,
 }
 
 /// take a sample every X bytes
@@ -386,7 +392,6 @@ fn static_tags() -> Vec<Tag> {
 thread_local! {
     static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals {
         env: None,
-        interrupt_count: AtomicU32::new(0),
         last_cpu_time: None,
         last_wall_time: Instant::now(),
         profiling_enabled: false,
@@ -398,7 +403,10 @@ thread_local! {
         tags: Arc::new(static_tags()),
         uri: Box::new(AgentEndpoint::default()),
         version: None,
-        vm_interrupt_addr: std::ptr::null_mut(),
+        vm_interrupt: OnceCell::new(),
+        cpu_samples: AtomicU32::new(0),
+        wall_samples: AtomicU32::new(0),
+        time_interrupter: OnceCell::new(),
     });
 
     #[cfg(feature = "allocation_profiling")]
@@ -450,8 +458,11 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
         // Safety: we are in rinit on a PHP thread.
-        locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
-        locals.interrupt_count.store(0, Ordering::SeqCst);
+        locals
+            .vm_interrupt
+            .get_or_init(|| unsafe { zend::datadog_php_profiling_vm_interrupt_addr() });
+        locals.cpu_samples.store(0, Ordering::SeqCst);
+        locals.wall_samples.store(0, Ordering::SeqCst);
 
         locals.profiling_enabled = profiling_enabled;
         locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
@@ -596,14 +607,23 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 locals.tags = Arc::new(tags);
             }
 
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                let interrupt = VmInterrupt {
-                    interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
-                    engine_ptr: locals.vm_interrupt_addr,
-                };
-                if let Err((index, interrupt)) = profiler.add_interrupt(interrupt) {
-                    warn!("VM interrupt {interrupt} already exists at offset {index}");
-                }
+            let pointers = SignalPointers {
+                // Safety: this was initialized earlier in this safe fn.
+                vm_interrupt: NonNull::from(*unsafe { locals.vm_interrupt.get_unchecked() }),
+                cpu_samples: NonNull::from(&locals.cpu_samples),
+                wall_samples: NonNull::from(&locals.wall_samples),
+            };
+
+            let cpu_enabled = locals.profiling_experimental_cpu_time_enabled;
+            if let Err(err) = locals
+                .time_interrupter
+                .get_or_init(move || {
+                    let wall_nanos: u64 = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
+                    Interrupter::new(pointers, wall_nanos, cpu_enabled)
+                })
+                .start()
+            {
+                warn!("{err:#}")
             }
         });
     }
@@ -729,13 +749,9 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
         let mut locals = cell.borrow_mut();
 
         if locals.profiling_enabled {
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                let interrupt = VmInterrupt {
-                    interrupt_count_ptr: &locals.interrupt_count,
-                    engine_ptr: locals.vm_interrupt_addr,
-                };
-                if let Err(err) = profiler.remove_interrupt(interrupt) {
-                    warn!("Unable to find interrupt {err}.");
+            if let Some(interrupter) = locals.time_interrupter.get() {
+                if let Err(err) = interrupter.stop() {
+                    warn!("{err:#}")
                 }
             }
             locals.tags = Arc::new(static_tags());
@@ -895,9 +911,19 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_mshutdown() };
 
-    let profiler = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler.as_ref() {
+    REQUEST_LOCALS.with(|cell| {
+        let mut locals = cell.borrow_mut();
+        if let Some(interrupter) = locals.time_interrupter.get_mut() {
+            if let Err(err) = interrupter.shutdown() {
+                warn!("{err:#}");
+            }
+        }
+    });
+
+    let mut profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.take() {
         profiler.stop(Duration::from_secs(1));
+        profiler.shutdown(Duration::from_secs(1));
     }
 
     ZendResult::Success
@@ -1016,18 +1042,23 @@ fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
         /* Other extensions/modules or the engine itself may trigger an
          * interrupt, but given how expensive it is to gather a stack trace,
          * it should only be done if we triggered it ourselves. So
-         * interrupt_count serves dual purposes:
+         * these serve dual purposes:
          *  1. Track how many interrupts there were.
          *  2. Ensure we don't collect on someone else's interrupt.
          */
-        let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
-        if interrupt_count == 0 {
+        let cpu_samples = locals.cpu_samples.swap(0, Ordering::SeqCst);
+        let wall_samples = locals.wall_samples.swap(0, Ordering::SeqCst);
+
+        // The bitwise-or allows for a single conditional.
+        if (cpu_samples | wall_samples) == 0 {
             return;
         }
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe { profiler.collect_time(execute_data, interrupt_count, locals.deref_mut()) };
+            unsafe {
+                profiler.collect_time(execute_data, cpu_samples, wall_samples, locals.deref_mut())
+            };
         }
     });
 }
