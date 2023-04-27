@@ -92,7 +92,6 @@ class LaravelQueueIntegration extends Integration
             }
         );
 
-
         hook_method(
             'Illuminate\Queue\Jobs\Job',
             'fire',
@@ -112,7 +111,7 @@ class LaravelQueueIntegration extends Integration
                     $span->resource = $class . '@' . $method;
                     $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
-                    if (isset($this->batchId)) { // Uses the Batchable trait
+                    if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
                         $span->meta['messaging.laravel.batch_id'] = $this->batchId ?? null;
                     }
 
@@ -139,6 +138,7 @@ class LaravelQueueIntegration extends Integration
             }
         );
 
+        // Laravel 8
         trace_method(
             'Illuminate\Queue\Queue',
             'enqueueUsing',
@@ -181,6 +181,7 @@ class LaravelQueueIntegration extends Integration
             }
         );
 
+        // Laravel 8
         trace_method(
             'Illuminate\Bus\Batch',
             'add',
@@ -261,11 +262,9 @@ class LaravelQueueIntegration extends Integration
         $metadata = [
             'messaging.laravel.attempts' => $job->attempts(),
             'messaging.laravel.connection' => $job->getConnectionName() ?? config('queue.default'),
-            'messaging.laravel.uuid' => $job->uuid(),
             'messaging.laravel.id' => $job->getJobId(),
             'messaging.laravel.max_tries' => $job->maxTries(),
             'messaging.laravel.queue' => $job->getQueue(),
-            'messaging.laravel.retry_until' => $job->retryUntil(),
             'messaging.laravel.timeout' => $job->timeout(),
             'messaging.laravel.name' => $job->resolveName(),
             'messaging.system' => 'laravel',
@@ -282,11 +281,10 @@ class LaravelQueueIntegration extends Integration
     {
         $metadata = [
             'messaging.laravel.max_tries' => $job->tries ?? null,
-            'messaging.laravel.retry_until' => $job->retryUntil ?? null,
             'messaging.laravel.attempts' => $job->attempts() ?? null,
             'messaging.laravel.timeout' => $job->timeout ?? null,
             'messaging.laravel.queue' => $job->queue ?? null,
-            'messaging.laravel.batch_id' => $job->batchId ?? null,
+            'messaging.laravel.batch_id' => $job->batchId ?? null, // Laravel 8
             'messaging.system' => 'laravel',
         ];
 

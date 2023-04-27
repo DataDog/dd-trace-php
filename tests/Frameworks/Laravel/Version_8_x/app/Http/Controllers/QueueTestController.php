@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\NewUserWelcomeMail;
 use App\Jobs\SendVerificationEmail;
-use App\Models\User;
 use Illuminate\Queue\Queue;
 use Illuminate\Queue\RedisQueue;
 use Illuminate\Support\Facades\Artisan;
