@@ -22,6 +22,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
 zend_class_entry *ddtrace_hook_data_ce;
+#if PHP_VERSION_ID >= 80000
+zend_property_info *ddtrace_hook_data_returned_prop_info;
+#endif
 
 ZEND_TLS HashTable dd_closure_hooks;
 ZEND_TLS HashTable dd_active_hooks;
@@ -53,6 +56,7 @@ typedef struct {
     zval property_exception;
     zend_ulong invocation;
     zend_execute_data *execute_data;
+    zval *retval_ptr;
     ddtrace_span_data *span;
     ddtrace_span_stack *prior_stack;
 } dd_hook_data;
@@ -277,6 +281,15 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         zval *returned = &dyn->hook_data->property_returned;
         ZVAL_COPY_VALUE(&tmp, returned);
         ZVAL_COPY(returned, retval);
+#if PHP_VERSION_ID >= 80000
+        zend_property_info *prop_info = ddtrace_hook_data_returned_prop_info;
+        if (Z_ISREF(tmp)) {
+            ZEND_REF_DEL_TYPE_SOURCE(Z_REF(tmp), prop_info);
+        }
+        if (Z_ISREF_P(returned)) {
+            ZEND_REF_ADD_TYPE_SOURCE(Z_REF_P(returned), prop_info);
+        }
+#endif
         zval_ptr_dtor(&tmp);
 
         zval *exception = &dyn->hook_data->property_exception;
@@ -289,7 +302,9 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         zval_ptr_dtor(&tmp);
 
         def->running = true;
+        dyn->hook_data->retval_ptr = retval;
         dd_uhook_call_hook(execute_data, def->end, dyn->hook_data);
+        dyn->hook_data->retval_ptr = NULL;
         def->running = false;
     }
 
@@ -692,6 +707,27 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
     RETURN_TRUE;
 }
 
+ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
+    (void)return_value;
+
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+
+    zval *retval;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(retval)
+    ZEND_PARSE_PARAMETERS_END();
+
+    // post-hook check
+    if (!hookData->retval_ptr) {
+        RETURN_FALSE;
+    }
+
+    zval_ptr_dtor(hookData->retval_ptr);
+    ZVAL_COPY(hookData->retval_ptr, retval);
+
+    RETURN_TRUE;
+}
+
 void zai_uhook_rinit() {
     zend_hash_init(&dd_active_hooks, 8, NULL, NULL, 0);
     zend_hash_init(&dd_closure_hooks, 8, NULL, NULL, 0);
@@ -722,6 +758,9 @@ void zai_uhook_attributes_minit(void);
 void zai_uhook_minit(int module_number) {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
+#if PHP_VERSION_ID >= 80000
+    ddtrace_hook_data_returned_prop_info = zend_hash_str_find_ptr(&ddtrace_hook_data_ce->properties_info, ZEND_STRL("returned"));
+#endif
 
     zend_register_functions(NULL, ext_functions, NULL, MODULE_PERSISTENT);
     register_uhook_symbols(module_number);
