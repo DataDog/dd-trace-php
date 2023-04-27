@@ -297,7 +297,7 @@ class LaravelQueueIntegration extends Integration
 
     public function injectContext(array $payload)
     {
-        if (\ddtrace_config_distributed_tracing_enabled() === false) {
+        if (!\ddtrace_config_distributed_tracing_enabled()) {
             return $payload;
         }
 
