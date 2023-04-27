@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\LaravelQueue;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use Illuminate\Contracts\Queue\Job;
