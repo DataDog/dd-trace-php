@@ -35,7 +35,6 @@ class QueueTest extends WebFrameworkTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->migrate();
         $this->resetQueue();
     }
 
@@ -213,11 +212,6 @@ class QueueTest extends WebFrameworkTestCase
         $this->connection()->exec("DELETE from jobs");
         $this->connection()->exec("DELETE from job_batches");
         $this->connection()->exec("DELETE from failed_jobs");
-    }
-
-    protected function migrate()
-    {
-        //$this->call(GetSpec::create('Migrate', '/migrate'));
     }
 
     protected function connection()

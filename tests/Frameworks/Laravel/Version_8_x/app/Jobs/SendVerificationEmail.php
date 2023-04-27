@@ -44,7 +44,6 @@ class SendVerificationEmail implements ShouldQueue
             throw new \Exception('Triggered Exception');
         }
 
-        //sleep(2);
         logger('email sent');
     }
 

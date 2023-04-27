@@ -3593,8 +3593,7 @@ _mejs2.default.Features.supportsPointerEvents = SUPPORT_POINTER_EVENTS;
 _mejs2.default.Features.supportsPassiveEvent = SUPPORT_PASSIVE_EVENT;
 _mejs2.default.Features.hasiOSFullScreen = HAS_IOS_FULLSCREEN;
 _mejs2.default.Features.hasNativeFullscreen = HAS_NATIVE_FULLSCREEN;
-_mejs2.default.Features.
-    hasWebkitNativeFullScreen = HAS_WEBKIT_NATIVE_FULLSCREEN;
+_mejs2.default.Features.hasWebkitNativeFullScreen = HAS_WEBKIT_NATIVE_FULLSCREEN;
 _mejs2.default.Features.hasMozNativeFullScreen = HAS_MOZ_NATIVE_FULLSCREEN;
 _mejs2.default.Features.hasMsNativeFullScreen = HAS_MS_NATIVE_FULLSCREEN;
 _mejs2.default.Features.hasTrueNativeFullScreen = HAS_TRUE_NATIVE_FULLSCREEN;
