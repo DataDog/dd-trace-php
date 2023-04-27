@@ -22,3 +22,7 @@ Route::get('/eloquent/update', 'EloquentTestController@update');
 Route::get('/eloquent/delete', 'EloquentTestController@delete');
 Route::get('/eloquent/destroy', 'EloquentTestController@destroy');
 Route::get('/eloquent/refresh', 'EloquentTestController@refresh');
+Route::get('queue/batch', 'QueueTestController@batch');
+Route::get('queue/batchDefault', 'QueueTestController@batchDefault');
+Route::get('queue/create', 'QueueTestController@create');
+Route::get('queue/workOn', 'QueueTestController@workOn');
