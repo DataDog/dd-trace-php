@@ -819,12 +819,21 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array, exception_type);
     }
 
+    /*
     zend_array *span_links_zv = ddtrace_spandata_property_links(span);
     if (zend_hash_num_elements(span_links_zv) > 0) {
         smart_str buf = {0};
         _dd_serialize_json(span_links_zv, &buf, 0);
         add_assoc_str(meta, "_dd.span_links", buf.s);
     }
+     */
+    zval *links_zv = ddtrace_spandata_property_links_zval(span);
+    if (Z_TYPE_P(links_zv) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(links_zv)) > 0) {
+        smart_str buf = {0};
+        _dd_serialize_json(Z_ARRVAL_P(links_zv), &buf, 0);
+        add_assoc_str(meta, "_dd.span_links", buf.s);
+    }
+
 
     if (is_top_level_span) {
         if (SG(sapi_headers).http_response_code) {
