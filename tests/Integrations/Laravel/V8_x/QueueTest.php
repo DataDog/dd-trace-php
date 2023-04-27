@@ -286,9 +286,7 @@ class QueueTest extends WebFrameworkTestCase
             'App\Jobs\SendVerificationEmail@handle'
         )->withExactTags(
             $this->getCommonTags(null, $queue, $connection)
-        )->withExistingTagsNames([
-            'messaging.laravel.uuid'
-        ]);
+        );
     }
 
     protected function spanQueueResolve(
@@ -306,13 +304,10 @@ class QueueTest extends WebFrameworkTestCase
         );
 
         if ($queue === 'sync') {
-            return $span->withExistingTagsNames([
-                'messaging.laravel.uuid'
-            ]);
+            return $span;
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id',
-                'messaging.laravel.uuid'
+                'messaging.laravel.id'
             ]);
         }
     }
@@ -332,13 +327,10 @@ class QueueTest extends WebFrameworkTestCase
         );
 
         if ($queue === 'sync') {
-            return $span->withExistingTagsNames([
-                'messaging.laravel.uuid'
-            ]);
+            return $span;
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id',
-                'messaging.laravel.uuid'
+                'messaging.laravel.id'
             ]);
         }
     }
@@ -361,8 +353,7 @@ class QueueTest extends WebFrameworkTestCase
             return $span;
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id',
-                'messaging.laravel.uuid'
+                'messaging.laravel.id'
             ]);
         }
     }
@@ -385,7 +376,6 @@ class QueueTest extends WebFrameworkTestCase
         ])->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
-            'messaging.laravel.uuid',
             'messaging.laravel.id'
         ])->withChildren([
             $this->spanEventJobProcessing(),
