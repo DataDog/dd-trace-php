@@ -238,6 +238,7 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 }
 
 uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
+#if CFG_RUN_TIME_CACHE
     zend_function *non_const_func = (zend_function *)func;
 #if PHP_VERSION_ID < 80200
     if (non_const_func->op_array.run_time_cache__ptr == NULL) {
@@ -253,6 +254,9 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
         non_const_func->common.run_time_cache__ptr[1] = calloc(1, sizeof(uint));
     }
     return *non_const_func->common.run_time_cache__ptr;
+#endif
+#else
+    return NULL;
 #endif
 }
 
